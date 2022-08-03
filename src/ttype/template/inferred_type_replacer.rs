@@ -1,0 +1,327 @@
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+
+use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
+use indexmap::IndexMap;
+
+use crate::{get_nothing, type_combiner};
+
+use super::{
+    standin_type_replacer::{self, get_most_specific_type_from_bounds},
+    TemplateBound, TemplateResult,
+};
+
+pub fn replace(
+    union: &TUnion,
+    template_result: &TemplateResult,
+    codebase: Option<&CodebaseInfo>,
+) -> TUnion {
+    let mut keys_to_unset = HashSet::new();
+
+    let mut new_types = Vec::new();
+
+    for (key, atomic_type) in &union.types {
+        let mut atomic_type = atomic_type.clone();
+        atomic_type = replace_atomic(atomic_type, template_result, codebase);
+
+        if let TAtomic::TTemplateParam {
+            param_name,
+            defining_entity,
+            as_type,
+            extra_types,
+            ..
+        } = &atomic_type
+        {
+            let template_type = replace_template_param(
+                &template_result.lower_bounds,
+                param_name,
+                defining_entity,
+                codebase,
+                as_type,
+                extra_types,
+                key,
+            );
+
+            if let Some(template_type) = template_type {
+                keys_to_unset.insert(key);
+
+                for (_, template_type_part) in template_type.types {
+                    new_types.push(template_type_part);
+                }
+            } else {
+                new_types.push(atomic_type);
+            }
+        } else if let TAtomic::TTemplateParamClass {
+            param_name,
+            defining_entity,
+            ..
+        } = &atomic_type
+        {
+            if let Some(bounds) = template_result
+                .lower_bounds
+                .get(param_name)
+                .unwrap_or(&HashMap::new())
+                .get(defining_entity)
+            {
+                let template_type = get_most_specific_type_from_bounds(bounds, codebase);
+
+                let mut class_template_type = None;
+
+                for (_, template_type_part) in &template_type.types {
+                    if template_type_part.is_mixed()
+                        || matches!(template_type_part, TAtomic::TObject)
+                    {
+                        class_template_type = Some(TAtomic::TClassname {
+                            as_type: Box::new(TAtomic::TObject),
+                        });
+                    } else if let TAtomic::TNamedObject { .. } = template_type_part {
+                        class_template_type = Some(TAtomic::TClassname {
+                            as_type: Box::new(template_type_part.clone()),
+                        });
+                    } else if let TAtomic::TTemplateParam {
+                        as_type,
+                        param_name,
+                        defining_entity,
+                        ..
+                    } = template_type_part
+                    {
+                        let first_atomic_type = as_type.get_single();
+
+                        class_template_type = Some(TAtomic::TTemplateParamClass {
+                            param_name: param_name.clone(),
+                            as_type: Box::new(first_atomic_type.clone()),
+                            defining_entity: defining_entity.clone(),
+                        })
+                    }
+                }
+
+                if let Some(class_template_type) = class_template_type {
+                    keys_to_unset.insert(key);
+                    new_types.push(class_template_type);
+                }
+            }
+        } else if let TAtomic::TTemplateParamType {
+            param_name,
+            defining_entity,
+            ..
+        } = &atomic_type
+        {
+            if let Some(bounds) = template_result
+                .lower_bounds
+                .get(param_name)
+                .unwrap_or(&HashMap::new())
+                .get(defining_entity)
+            {
+                let template_type = get_most_specific_type_from_bounds(bounds, codebase);
+                let mut class_template_type = None;
+
+                for (_, template_type_part) in &template_type.types {
+                    if template_type_part.is_mixed() {
+                        class_template_type = Some(TAtomic::TString);
+                    } else if let TAtomic::TNamedObject { .. } = template_type_part {
+                        class_template_type = Some(TAtomic::TClassname {
+                            as_type: Box::new(template_type_part.clone()),
+                        });
+                    } else if let TAtomic::TTemplateParam {
+                        param_name,
+                        defining_entity,
+                        ..
+                    } = template_type_part
+                    {
+                        class_template_type = Some(TAtomic::TTemplateParamType {
+                            param_name: param_name.clone(),
+                            defining_entity: defining_entity.clone(),
+                        })
+                    } else if let TAtomic::TTypeAlias { .. } = template_type_part {
+                        class_template_type = Some(template_type_part.clone());
+                    } else if let TAtomic::TDict {
+                        shape_name: Some(shape_name),
+                        ..
+                    } = template_type_part
+                    {
+                        class_template_type = Some(TAtomic::TLiteralClassname {
+                            name: shape_name.clone(),
+                        });
+                    }
+                }
+
+                if let Some(class_template_type) = class_template_type {
+                    keys_to_unset.insert(key);
+                    new_types.push(class_template_type);
+                }
+            }
+        } else if let TAtomic::TConditional { .. } = atomic_type {
+            // todo
+
+            new_types.push(atomic_type);
+        } else {
+            new_types.push(atomic_type);
+        }
+    }
+
+    let mut union = union.clone();
+
+    if new_types.is_empty() {
+        return get_nothing();
+    }
+
+    union.types = type_combiner::combine(new_types, codebase, false)
+        .into_iter()
+        .map(|v| (v.get_key(), v))
+        .collect();
+
+    union
+}
+
+fn replace_template_param(
+    lower_bounds: &IndexMap<String, HashMap<String, Vec<TemplateBound>>>,
+    param_name: &String,
+    defining_entity: &String,
+    codebase: Option<&CodebaseInfo>,
+    as_type: &TUnion,
+    extra_types: &Option<std::collections::HashMap<String, TAtomic>>,
+    key: &String,
+) -> Option<TUnion> {
+    let mut template_type = None;
+    let traversed_type = standin_type_replacer::get_root_template_type(
+        &lower_bounds,
+        &param_name,
+        &defining_entity,
+        HashSet::new(),
+        codebase,
+    );
+
+    let inferred_lower_bounds = &lower_bounds;
+    if let Some(traversed_type) = traversed_type {
+        let template_type_inner = if !as_type.is_mixed() && traversed_type.is_mixed() {
+            as_type.clone()
+        } else {
+            traversed_type.clone()
+        };
+
+        if let Some(_extra_types) = extra_types {
+            for (_template_type_key, _atomic_template_type) in &template_type_inner.types {
+                // todo handle extra types
+            }
+        }
+
+        template_type = Some(template_type_inner);
+    } else if let Some(codebase) = codebase {
+        for (_, template_type_map) in lower_bounds {
+            for (map_defining_entity, _) in template_type_map {
+                if map_defining_entity.starts_with("fn-")
+                    || map_defining_entity.starts_with("typedef-")
+                {
+                    continue;
+                }
+
+                let classlike_info = codebase.classlike_infos.get(map_defining_entity).unwrap();
+
+                if let Some(param_map) =
+                    classlike_info.template_extended_params.get(defining_entity)
+                {
+                    if let Some(param_inner) = param_map.get(key) {
+                        let template_name = if let TAtomic::TTemplateParam { param_name, .. } =
+                            param_inner.get_single()
+                        {
+                            param_name
+                        } else {
+                            panic!()
+                        };
+                        if let Some(bounds_map) = inferred_lower_bounds.get(template_name) {
+                            if let Some(bounds) = bounds_map.get(template_name) {
+                                template_type =
+                                    Some(standin_type_replacer::get_most_specific_type_from_bounds(
+                                        bounds,
+                                        Some(codebase),
+                                    ))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    template_type
+}
+
+fn replace_atomic(
+    mut atomic: TAtomic,
+    template_result: &TemplateResult,
+    codebase: Option<&CodebaseInfo>,
+) -> TAtomic {
+    match atomic {
+        TAtomic::TVec {
+            ref mut type_param,
+            ref mut known_items,
+            ..
+        } => {
+            *type_param = replace(&type_param, template_result, codebase);
+
+            if let Some(known_items) = known_items {
+                for (_, (_, t)) in known_items {
+                    *t = replace(&t, template_result, codebase);
+                }
+            }
+        }
+        TAtomic::TDict {
+            ref mut key_param,
+            ref mut value_param,
+            ref mut known_items,
+            ..
+        } => {
+            *key_param = replace(&key_param, template_result, codebase);
+            *value_param = replace(&value_param, template_result, codebase);
+
+            if let Some(known_items) = known_items {
+                for (_, (_, t)) in known_items {
+                    *t = Arc::new(replace(&t, template_result, codebase));
+                }
+            }
+        }
+        TAtomic::TKeyset {
+            ref mut type_param, ..
+        } => {
+            *type_param = replace(&type_param, template_result, codebase);
+        }
+        TAtomic::TNamedObject {
+            type_params: Some(ref mut type_params),
+            ..
+        } => {
+            for type_param in type_params {
+                *type_param = replace(&type_param, template_result, codebase);
+            }
+        }
+        TAtomic::TClosure {
+            ref mut params,
+            ref mut return_type,
+            ..
+        } => {
+            for param in params {
+                if let Some(ref mut t) = param.signature_type {
+                    *t = replace(&t, template_result, codebase);
+                }
+            }
+
+            if let Some(ref mut return_type) = return_type {
+                *return_type = replace(&return_type, template_result, codebase);
+            }
+        }
+        TAtomic::TTypeAlias {
+            ref mut type_params,
+            ..
+        } => {
+            if let Some(type_params) = type_params {
+                for type_param in type_params {
+                    *type_param = replace(&type_param, template_result, codebase);
+                }
+            }
+        }
+        _ => (),
+    }
+
+    atomic
+}

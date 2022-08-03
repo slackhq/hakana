@@ -1,0 +1,1 @@
+$date = new DateTime(null);

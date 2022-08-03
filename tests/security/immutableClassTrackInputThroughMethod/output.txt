@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:15:6 - Detected tainted HTML tags

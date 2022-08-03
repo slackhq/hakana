@@ -1,0 +1,26 @@
+[package]
+name = "hakana-analyzer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+regex = "1"
+lazy_static = "1"
+rand = "0.8.5"
+indexmap = "1.8.0"
+hakana-type = { path = "../ttype" }
+hakana-algebra = { path = "../algebra" }
+function_context = { path = "../function_context" }
+hakana-reflection-info = { path = "../code_info" }
+hakana-reflector = { path = "../code_info_builder" }
+hakana-file-info = { path = "../file_info" }
+parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
+oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
+ocamlrep = { path = "../../third-party/hhvm/hphp/hack/src/ocamlrep" }
+naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/naming" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+glob = "0.3.0"
+
+[lib]
+path = "lib.rs"

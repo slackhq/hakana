@@ -1,0 +1,660 @@
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+
+use function_context::{
+    functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
+};
+use hakana_reflection_info::{
+    codebase_info::CodebaseInfo,
+    data_flow::{
+        graph::DataFlowGraph,
+        node::{DataFlowNode, NodeKind},
+        path::{PathExpressionKind, PathKind},
+    },
+    functionlike_info::FunctionLikeInfo,
+    t_atomic::TAtomic,
+    t_union::TUnion,
+};
+use indexmap::IndexMap;
+
+use crate::{template, type_combiner};
+
+#[derive(Debug)]
+pub enum StaticClassType<'a, 'b> {
+    None,
+    Name(&'a String),
+    Object(&'b TAtomic),
+}
+
+pub fn expand_union(
+    codebase: &CodebaseInfo,
+    return_type: &mut TUnion,
+    self_class: Option<&String>,
+    static_class_type: &StaticClassType,
+    parent_class: Option<&String>,
+    data_flow_graph: &mut DataFlowGraph,
+    evaluate_class_constants: bool,   // default true
+    evaluate_conditional_types: bool, // default false
+    function_is_final: bool,          // default false
+    expand_generic: bool,             // default false
+    expand_templates: bool,           // default true
+) {
+    let mut new_return_type_parts = vec![];
+
+    let mut had_split_values = false;
+
+    let mut skipped_keys = vec![];
+
+    let mut extra_data_flow_nodes = vec![];
+
+    for (key, return_type_part) in return_type.types.iter_mut() {
+        expand_atomic(
+            return_type_part,
+            codebase,
+            self_class,
+            static_class_type,
+            parent_class,
+            evaluate_class_constants,
+            evaluate_conditional_types,
+            function_is_final,
+            expand_generic,
+            expand_templates,
+            &mut skipped_keys,
+            key,
+            &mut new_return_type_parts,
+            &mut had_split_values,
+            data_flow_graph,
+            &mut extra_data_flow_nodes,
+        );
+    }
+
+    if !skipped_keys.is_empty() {
+        return_type.types.retain(|k, _| !skipped_keys.contains(k));
+
+        let keys = return_type
+            .types
+            .iter()
+            .map(|(k, _)| k.clone())
+            .collect::<Vec<_>>();
+
+        for key in keys {
+            new_return_type_parts.push(return_type.types.remove(&key).unwrap());
+        }
+
+        let expanded_types = if had_split_values {
+            type_combiner::combine(new_return_type_parts, Some(codebase), false)
+        } else {
+            new_return_type_parts
+        };
+
+        return_type.types = expanded_types
+            .into_iter()
+            .map(|v| (v.get_key(), v))
+            .collect();
+    }
+
+    return_type
+        .parent_nodes
+        .extend(extra_data_flow_nodes.into_iter().map(|n| (n.id.clone(), n)));
+}
+
+fn expand_atomic(
+    return_type_part: &mut TAtomic,
+    codebase: &CodebaseInfo,
+    self_class: Option<&String>,
+    static_class_type: &StaticClassType,
+    parent_class: Option<&String>,
+    evaluate_class_constants: bool,
+    evaluate_conditional_types: bool,
+    function_is_final: bool,
+    expand_generic: bool,
+    expand_templates: bool,
+    skipped_keys: &mut Vec<String>,
+    key: &String,
+    new_return_type_parts: &mut Vec<TAtomic>,
+    had_split_values: &mut bool,
+    data_flow_graph: &mut DataFlowGraph,
+    extra_data_flow_nodes: &mut Vec<DataFlowNode>,
+) {
+    if let TAtomic::TDict {
+        ref mut known_items,
+        ref mut key_param,
+        ref mut value_param,
+        ..
+    } = return_type_part
+    {
+        expand_union(
+            codebase,
+            key_param,
+            self_class,
+            static_class_type,
+            parent_class,
+            data_flow_graph,
+            evaluate_class_constants,
+            evaluate_conditional_types,
+            function_is_final,
+            expand_generic,
+            expand_templates,
+        );
+
+        expand_union(
+            codebase,
+            value_param,
+            self_class,
+            static_class_type,
+            parent_class,
+            data_flow_graph,
+            evaluate_class_constants,
+            evaluate_conditional_types,
+            function_is_final,
+            expand_generic,
+            expand_templates,
+        );
+
+        if let Some(known_items) = known_items {
+            for (_, (_, item_type)) in known_items {
+                expand_union(
+                    codebase,
+                    Arc::make_mut(item_type),
+                    self_class,
+                    static_class_type,
+                    parent_class,
+                    data_flow_graph,
+                    evaluate_class_constants,
+                    evaluate_conditional_types,
+                    function_is_final,
+                    expand_generic,
+                    expand_templates,
+                );
+            }
+        }
+
+        return;
+    }
+
+    if let TAtomic::TVec {
+        ref mut known_items,
+        ref mut type_param,
+        ..
+    } = return_type_part
+    {
+        expand_union(
+            codebase,
+            type_param,
+            self_class,
+            static_class_type,
+            parent_class,
+            data_flow_graph,
+            evaluate_class_constants,
+            evaluate_conditional_types,
+            function_is_final,
+            expand_generic,
+            expand_templates,
+        );
+
+        if let Some(known_items) = known_items {
+            for (_, (_, item_type)) in known_items {
+                expand_union(
+                    codebase,
+                    item_type,
+                    self_class,
+                    static_class_type,
+                    parent_class,
+                    data_flow_graph,
+                    evaluate_class_constants,
+                    evaluate_conditional_types,
+                    function_is_final,
+                    expand_generic,
+                    expand_templates,
+                );
+            }
+        }
+
+        return;
+    }
+
+    if let TAtomic::TKeyset {
+        ref mut type_param, ..
+    } = return_type_part
+    {
+        expand_union(
+            codebase,
+            type_param,
+            self_class,
+            static_class_type,
+            parent_class,
+            data_flow_graph,
+            evaluate_class_constants,
+            evaluate_conditional_types,
+            function_is_final,
+            expand_generic,
+            expand_templates,
+        );
+
+        return;
+    }
+
+    if let TAtomic::TNamedObject {
+        ref mut name,
+        ref mut type_params,
+        ref mut is_this,
+        ..
+    } = return_type_part
+    {
+        if name == "this" {
+            *name = match static_class_type {
+                StaticClassType::None => "this".to_string(),
+                StaticClassType::Name(this_name) => this_name.clone().clone(),
+                StaticClassType::Object(obj) => {
+                    skipped_keys.push(key.clone());
+                    new_return_type_parts.push(obj.clone().clone());
+                    return;
+                }
+            };
+
+            if function_is_final {
+                *is_this = false;
+            }
+        }
+
+        if let Some(type_params) = type_params {
+            for param_type in type_params {
+                expand_union(
+                    codebase,
+                    param_type,
+                    self_class,
+                    static_class_type,
+                    parent_class,
+                    data_flow_graph,
+                    evaluate_class_constants,
+                    evaluate_conditional_types,
+                    function_is_final,
+                    expand_generic,
+                    expand_templates,
+                );
+            }
+        }
+
+        return;
+    }
+
+    if let TAtomic::TClosure {
+        params,
+        return_type,
+        ..
+    } = return_type_part
+    {
+        if let Some(return_type) = return_type {
+            expand_union(
+                codebase,
+                return_type,
+                self_class,
+                static_class_type,
+                parent_class,
+                data_flow_graph,
+                evaluate_class_constants,
+                evaluate_conditional_types,
+                function_is_final,
+                expand_generic,
+                expand_templates,
+            );
+        }
+
+        for param in params {
+            if let Some(ref mut param_type) = param.signature_type {
+                expand_union(
+                    codebase,
+                    param_type,
+                    self_class,
+                    static_class_type,
+                    parent_class,
+                    data_flow_graph,
+                    evaluate_class_constants,
+                    evaluate_conditional_types,
+                    function_is_final,
+                    expand_generic,
+                    expand_templates,
+                );
+            }
+        }
+    }
+
+    if let TAtomic::TTemplateParam {
+        ref mut as_type, ..
+    } = return_type_part
+    {
+        expand_union(
+            codebase,
+            as_type,
+            self_class,
+            static_class_type,
+            parent_class,
+            data_flow_graph,
+            evaluate_class_constants,
+            evaluate_conditional_types,
+            function_is_final,
+            expand_generic,
+            expand_templates,
+        );
+
+        return;
+    }
+
+    if let TAtomic::TTypeAlias {
+        name: type_name,
+        type_params,
+    } = return_type_part
+    {
+        let type_definition = if let Some(t) = codebase.type_definitions.get(type_name) {
+            t
+        } else {
+            skipped_keys.push(key.clone());
+
+            new_return_type_parts.push(TAtomic::TMixedAny);
+            return;
+        };
+
+        if !type_definition.is_newtype {
+            skipped_keys.push(key.clone());
+            *had_split_values = true;
+
+            let mut untemplated_type = if let Some(type_params) = type_params {
+                let mut new_template_types = IndexMap::new();
+
+                let mut i: usize = 0;
+                for (k, v) in &type_definition.template_types {
+                    let mut h = HashMap::new();
+                    for (kk, _) in v {
+                        h.insert(kk.clone(), type_params.get(i).unwrap().clone());
+                    }
+
+                    new_template_types.insert(k.clone(), h);
+
+                    i += 1;
+                }
+
+                template::inferred_type_replacer::replace(
+                    &type_definition.actual_type,
+                    &template::TemplateResult::new(IndexMap::new(), new_template_types),
+                    Some(codebase),
+                )
+            } else {
+                type_definition.actual_type.clone()
+            };
+
+            expand_union(
+                codebase,
+                &mut untemplated_type,
+                self_class,
+                static_class_type,
+                parent_class,
+                data_flow_graph,
+                evaluate_class_constants,
+                evaluate_conditional_types,
+                function_is_final,
+                expand_generic,
+                expand_templates,
+            );
+
+            new_return_type_parts.extend(untemplated_type.types.into_iter().map(|(_, mut v)| {
+                if let None = type_params {
+                    if let TAtomic::TDict {
+                        known_items: Some(_),
+                        ref mut shape_name,
+                        ..
+                    } = v
+                    {
+                        if let Some(shape_field_taints) = &type_definition.shape_field_taints {
+                            let shape_node = DataFlowNode::new(
+                                NodeKind::TaintSource,
+                                type_name.clone(),
+                                type_name.clone(),
+                                None,
+                                None,
+                                None,
+                            );
+
+                            for (field_name, taints) in shape_field_taints {
+                                let label = format!("{}['{}']", type_name, field_name);
+                                let field_node = DataFlowNode::new(
+                                    NodeKind::TaintSource,
+                                    label.clone(),
+                                    label,
+                                    None,
+                                    None,
+                                    Some(HashSet::from_iter(taints.clone())),
+                                );
+
+                                data_flow_graph.add_path(
+                                    &field_node,
+                                    &shape_node,
+                                    PathKind::ExpressionAssignment(
+                                        PathExpressionKind::ArrayValue,
+                                        field_name.clone(),
+                                    ),
+                                    HashSet::new(),
+                                    HashSet::new(),
+                                );
+
+                                data_flow_graph.add_source(field_node);
+                            }
+
+                            extra_data_flow_nodes.push(shape_node.clone());
+
+                            data_flow_graph.add_node(shape_node);
+                        }
+                        *shape_name = Some(type_name.clone());
+                    };
+                }
+                v
+            }));
+        }
+
+        if let Some(type_params) = type_params {
+            for param_type in type_params {
+                expand_union(
+                    codebase,
+                    param_type,
+                    self_class,
+                    static_class_type,
+                    parent_class,
+                    data_flow_graph,
+                    evaluate_class_constants,
+                    evaluate_conditional_types,
+                    function_is_final,
+                    expand_generic,
+                    expand_templates,
+                );
+            }
+        }
+
+        return;
+    }
+
+    if let TAtomic::TClassTypeConstant {
+        class_type,
+        member_name,
+    } = return_type_part
+    {
+        let mut atomic_return_type_parts = vec![];
+        expand_atomic(
+            class_type,
+            codebase,
+            self_class,
+            static_class_type,
+            parent_class,
+            evaluate_class_constants,
+            evaluate_conditional_types,
+            function_is_final,
+            expand_generic,
+            expand_templates,
+            &mut Vec::new(),
+            key,
+            &mut atomic_return_type_parts,
+            &mut false,
+            data_flow_graph,
+            extra_data_flow_nodes,
+        );
+
+        if !atomic_return_type_parts.is_empty() {
+            *class_type = Box::new(atomic_return_type_parts.remove(0));
+        }
+
+        match class_type.as_ref() {
+            TAtomic::TNamedObject {
+                name: class_name, ..
+            } => {
+                let classlike_storage = if let Some(c) = codebase.classlike_infos.get(class_name) {
+                    c
+                } else {
+                    skipped_keys.push(key.clone());
+
+                    new_return_type_parts.push(TAtomic::TMixedAny);
+                    return;
+                };
+
+                let mut type_ = if let Some(t) = classlike_storage.type_constants.get(member_name) {
+                    t.clone()
+                } else {
+                    skipped_keys.push(key.clone());
+
+                    new_return_type_parts.push(TAtomic::TMixedAny);
+                    return;
+                };
+
+                expand_union(
+                    codebase,
+                    &mut type_,
+                    self_class,
+                    static_class_type,
+                    parent_class,
+                    data_flow_graph,
+                    evaluate_class_constants,
+                    evaluate_conditional_types,
+                    function_is_final,
+                    expand_generic,
+                    expand_templates,
+                );
+
+                skipped_keys.push(key.clone());
+                *had_split_values = true;
+
+                new_return_type_parts.extend(type_.types.into_iter().map(|(_, mut v)| {
+                    if let TAtomic::TDict {
+                        known_items: Some(_),
+                        ref mut shape_name,
+                        ..
+                    } = v
+                    {
+                        *shape_name = Some(format!("{}::{}", class_name, member_name));
+                    };
+                    v
+                }));
+            }
+            _ => {
+                skipped_keys.push(key.clone());
+
+                new_return_type_parts.push(TAtomic::TMixedAny);
+                return;
+            }
+        };
+    }
+
+    if let TAtomic::TClosureAlias { id, .. } = &return_type_part {
+        if let Some(value) = get_closure_from_id(id, codebase, data_flow_graph) {
+            new_return_type_parts.push(value);
+            return;
+        }
+    }
+}
+
+pub fn get_closure_from_id(
+    id: &FunctionLikeIdentifier,
+    codebase: &CodebaseInfo,
+    data_flow_graph: &mut DataFlowGraph,
+) -> Option<TAtomic> {
+    match id {
+        FunctionLikeIdentifier::Function(name) => {
+            if let Some(functionlike_info) = codebase.functionlike_infos.get(name) {
+                return Some(get_expanded_closure(
+                    functionlike_info,
+                    codebase,
+                    data_flow_graph,
+                ));
+            }
+        }
+        FunctionLikeIdentifier::Method(classlike_name, method_name) => {
+            let declaring_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
+                classlike_name.clone(),
+                method_name.clone(),
+            ));
+
+            if let Some(classlike_info) = codebase.classlike_infos.get(&declaring_method_id.0) {
+                if let Some(functionlike_info) = classlike_info.methods.get(&declaring_method_id.1)
+                {
+                    return Some(get_expanded_closure(
+                        functionlike_info,
+                        codebase,
+                        data_flow_graph,
+                    ));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn get_expanded_closure(
+    functionlike_info: &FunctionLikeInfo,
+    codebase: &CodebaseInfo,
+    data_flow_graph: &mut DataFlowGraph,
+) -> TAtomic {
+    TAtomic::TClosure {
+        params: functionlike_info
+            .params
+            .iter()
+            .map(|param| {
+                let mut param = param.clone();
+                if let Some(ref mut t) = param.signature_type {
+                    expand_union(
+                        codebase,
+                        t,
+                        None,
+                        &StaticClassType::None,
+                        None,
+                        data_flow_graph,
+                        true,
+                        false,
+                        false,
+                        false,
+                        true,
+                    );
+                }
+
+                param
+            })
+            .collect(),
+        return_type: if let Some(return_type) = &functionlike_info.return_type {
+            let mut return_type = return_type.clone();
+            expand_union(
+                codebase,
+                &mut return_type,
+                None,
+                &StaticClassType::None,
+                None,
+                data_flow_graph,
+                true,
+                false,
+                false,
+                false,
+                true,
+            );
+            Some(return_type)
+        } else {
+            None
+        },
+        is_pure: Some(functionlike_info.pure),
+    }
+}

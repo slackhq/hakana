@@ -1,0 +1,1 @@
+echo filter_var($_GET["bad"], FILTER_VALIDATE_BOOLEAN);

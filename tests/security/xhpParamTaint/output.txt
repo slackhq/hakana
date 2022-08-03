@@ -1,0 +1,1 @@
+TaintedData - input.hack:4:15 - Detected tainted HTML attribute

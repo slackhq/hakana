@@ -1,0 +1,12 @@
+{
+    "jsRules": {},
+    "rules": {
+        "quotemark": [true, "single"],
+        "semicolon": [true, "never"],
+        "max-line-length": false,
+        "prefer-for-of": false,
+        "no-bitwise": false,
+        "forin": false,
+        "callable-types": true,
+    }
+}

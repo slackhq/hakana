@@ -1,0 +1,583 @@
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
+
+use hakana_reflection_info::{
+    codebase_info::CodebaseInfo,
+    data_flow::{
+        graph::GraphKind,
+        node::{DataFlowNode, NodeKind},
+        path::{PathExpressionKind, PathKind},
+    },
+    issue::{Issue, IssueKind},
+    t_atomic::TAtomic,
+    t_union::TUnion,
+};
+use hakana_type::{
+    add_optional_union_type, get_mixed_any,
+    type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
+    type_expander::{self, StaticClassType},
+};
+use oxidized::{
+    aast::{self, Expr},
+    ast_defs::Pos,
+};
+
+use crate::{
+    expr::{expression_identifier, fetch::atomic_property_fetch_analyzer::localize_property_type},
+    typed_ast::TastInfo,
+};
+use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
+use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+
+pub(crate) fn analyze(
+    statements_analyzer: &StatementsAnalyzer,
+    expr: (&Expr<(), ()>, &Expr<(), ()>),
+    var_id: Option<String>,
+    assign_value_type: &TUnion,
+    tast_info: &mut TastInfo,
+    context: &mut ScopeContext,
+) -> bool {
+    let codebase = statements_analyzer.get_codebase();
+    let stmt_var = expr.0;
+    let stmt_name = expr.1;
+
+    let prop_name = if let aast::Expr_::Id(id) = &stmt_name.2 {
+        Some(id.1.clone())
+    } else if let aast::Expr_::Lvar(id) = &stmt_name.2 {
+        Some(id.1 .1[1..].to_string())
+    } else {
+        None
+    };
+
+    if let None = prop_name {
+        return false;
+    }
+
+    // TODO if ($stmt instanceof PropertyProperty) {
+
+    let assigned_properties = analyze_regular_assignment(
+        statements_analyzer,
+        expr,
+        var_id.clone(),
+        assign_value_type,
+        tast_info,
+        context,
+        &prop_name.unwrap(),
+    );
+
+    if assigned_properties.len() == 0 || assign_value_type.is_mixed() {
+        return false;
+    }
+
+    for assigned_property in &assigned_properties {
+        let class_property_type = &assigned_property.0;
+        let assignment_type = &assigned_property.2;
+
+        if class_property_type.is_mixed() {
+            continue;
+        }
+
+        let mut union_comparison_result = TypeComparisonResult::new();
+        let mut invalid_assignment_value_types = HashMap::new();
+
+        let type_match_found = union_type_comparator::is_contained_by(
+            codebase,
+            assignment_type,
+            class_property_type,
+            true,
+            true,
+            true,
+            &mut union_comparison_result,
+        );
+
+        if type_match_found && union_comparison_result.replacement_union_type.is_some() {
+            if let Some(union_type) = union_comparison_result.replacement_union_type {
+                if let Some(var_id) = var_id.clone() {
+                    context.vars_in_scope.insert(var_id, Rc::new(union_type));
+                }
+            }
+        }
+
+        if union_comparison_result.type_coerced.unwrap_or(false) {
+            if union_comparison_result
+                .type_coerced_from_as_mixed
+                .unwrap_or(false)
+            {
+                tast_info.maybe_add_issue(Issue::new(
+                    IssueKind::MixedPropertyTypeCoercion,
+                    format!(
+                        "{} expects {}, parent type {} provided",
+                        var_id.clone().unwrap_or("var".to_string()),
+                        class_property_type.get_id(),
+                        assignment_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&stmt_var.1),
+                ));
+            } else {
+                tast_info.maybe_add_issue(Issue::new(
+                    IssueKind::PropertyTypeCoercion,
+                    format!(
+                        "{} expects {}, parent type {} provided",
+                        var_id.clone().unwrap_or("var".to_string()),
+                        class_property_type.get_id(),
+                        assignment_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&stmt_var.1),
+                ));
+            }
+        }
+
+        if !type_match_found && union_comparison_result.type_coerced.is_none() {
+            // if union_type_comparator::is_contained_by(
+            //     codebase,
+            //     assignment_type,
+            //     class_property_type,
+            //     true,
+            //     true,
+            //     false,
+            //     &mut union_comparison_result,
+            // ) {
+            //     has_valid_assignment_value_type = true;
+            // }
+            invalid_assignment_value_types
+                .insert(&assigned_property.1 .1, class_property_type.get_id());
+        } else {
+            // has_valid_assignment_value_type = true;
+        }
+
+        for (property_id, invalid_class_property_type) in invalid_assignment_value_types {
+            tast_info.maybe_add_issue(Issue::new(
+                IssueKind::InvalidPropertyAssignmentValue,
+                format!(
+                    "{} with declared type {}, cannot be assigned type {}",
+                    property_id,
+                    invalid_class_property_type,
+                    assignment_type.get_id(),
+                ),
+                statements_analyzer.get_hpos(&stmt_var.1),
+            ));
+
+            return false;
+        }
+    }
+    true
+}
+
+pub(crate) fn analyze_regular_assignment(
+    statements_analyzer: &StatementsAnalyzer,
+    expr: (&Expr<(), ()>, &Expr<(), ()>),
+    var_id: Option<String>,
+    assign_value_type: &TUnion,
+    tast_info: &mut TastInfo,
+    context: &mut ScopeContext,
+    prop_name: &String,
+) -> Vec<(TUnion, (String, String), TUnion)> {
+    let stmt_var = expr.0;
+
+    let mut assigned_properties = Vec::new();
+    let mut context_type = None;
+    let codebase = statements_analyzer.get_codebase();
+
+    let was_inside_general_use = context.inside_general_use;
+    context.inside_general_use = true;
+
+    expression_analyzer::analyze(statements_analyzer, stmt_var, tast_info, context, &mut None);
+
+    context.inside_general_use = was_inside_general_use;
+
+    let lhs_type = tast_info.get_expr_type(&stmt_var.pos()).cloned();
+
+    if let None = lhs_type {
+        return assigned_properties;
+    }
+
+    let lhs_var_id = expression_identifier::get_var_id(
+        &stmt_var,
+        context.function_context.calling_class.as_ref(),
+        statements_analyzer.get_file_analyzer().get_file_source(),
+        statements_analyzer.get_file_analyzer().resolved_names,
+    );
+
+    // if let Some(var_id) = var_id.clone() {
+    //     // TODO: Emit warning
+    // }
+
+    if let Some(lhs_type) = lhs_type {
+        let mut mixed_with_any = false;
+        if lhs_type.is_mixed_with_any(&mut mixed_with_any) {
+            if mixed_with_any {
+                for (_, origin) in &lhs_type.parent_nodes {
+                    tast_info
+                        .data_flow_graph
+                        .add_mixed_data(origin, expr.1.pos());
+                }
+
+                tast_info.maybe_add_issue(Issue::new(
+                    IssueKind::MixedAnyPropertyAssignment,
+                    lhs_var_id.unwrap_or("data".to_string())
+                        + &" of type mixed cannot be assigned.".to_string(),
+                    statements_analyzer.get_hpos(&expr.1 .1),
+                ));
+            } else {
+                tast_info.maybe_add_issue(Issue::new(
+                    IssueKind::MixedPropertyAssignment,
+                    lhs_var_id.unwrap_or("data".to_string())
+                        + &" of type mixed cannot be assigned.".to_string(),
+                    statements_analyzer.get_hpos(&expr.1 .1),
+                ));
+            }
+
+            return assigned_properties;
+        } else if lhs_type.is_null() {
+            tast_info.maybe_add_issue(Issue::new(
+                IssueKind::NullablePropertyAssignment,
+                lhs_var_id.unwrap_or("data".to_string())
+                    + &" of type null cannot be assigned.".to_string(),
+                statements_analyzer.get_hpos(&expr.1 .1),
+            ));
+            return assigned_properties;
+        } else if lhs_type.is_nullable() {
+            tast_info.maybe_add_issue(Issue::new(
+                IssueKind::NullablePropertyAssignment,
+                lhs_var_id.clone().unwrap_or("data".to_string())
+                    + &" with possibly null type cannot be assigned.".to_string(),
+                statements_analyzer.get_hpos(&expr.1 .1),
+            ));
+        }
+
+        for (_, lhs_type_part) in &lhs_type.types {
+            if let TAtomic::TNull { .. } = lhs_type_part {
+                continue;
+            }
+            // TODO if ($lhs_type_part instanceof TTemplateParam) {
+
+            let assigned_prop = analyze_atomic_assignment(
+                statements_analyzer,
+                expr,
+                assign_value_type,
+                lhs_type_part,
+                tast_info,
+                context,
+                prop_name,
+            );
+
+            if let Some(assigned_prop) = assigned_prop {
+                assigned_properties.push(assigned_prop.clone());
+
+                context_type = Some(add_optional_union_type(
+                    assigned_prop.0,
+                    context_type.as_ref(),
+                    Some(codebase),
+                ));
+            }
+        }
+    }
+
+    // TODO if ($invalid_assignment_types) {
+
+    if let Some(var_id) = var_id {
+        context.vars_in_scope.insert(
+            var_id.to_owned(),
+            Rc::new(context_type.unwrap_or(get_mixed_any()).clone()),
+        );
+    }
+
+    assigned_properties
+}
+
+pub(crate) fn analyze_atomic_assignment(
+    statements_analyzer: &StatementsAnalyzer,
+    expr: (&Expr<(), ()>, &Expr<(), ()>),
+    assign_value_type: &TUnion,
+    lhs_type_part: &TAtomic,
+    tast_info: &mut TastInfo,
+    context: &mut ScopeContext,
+    prop_name: &String,
+) -> Option<(TUnion, (String, String), TUnion)> {
+    let codebase = statements_analyzer.get_codebase();
+    let mut fq_class_name = if let TAtomic::TNamedObject { name, .. } = lhs_type_part {
+        name.clone()
+    } else {
+        return None;
+    };
+
+    if !codebase.class_exists(&lhs_type_part.get_id()) {
+        if codebase.interface_exists(&lhs_type_part.get_id()) {
+            let intersection_types = lhs_type_part.get_intersection_types();
+            for (_, intersection_type) in intersection_types.0 {
+                if codebase.class_exists(&intersection_type.get_id()) {
+                    fq_class_name = intersection_type.get_id();
+                }
+            }
+            for (_, intersection_type) in intersection_types.1 {
+                if codebase.class_exists(&intersection_type.get_id()) {
+                    fq_class_name = intersection_type.get_id();
+                }
+            }
+        }
+    }
+
+    let property_id = (fq_class_name.clone(), prop_name.clone());
+
+    // TODO self assignments
+
+    if tast_info.data_flow_graph.kind == GraphKind::Taint {
+        let var_id = expression_identifier::get_var_id(
+            &expr.0,
+            None,
+            statements_analyzer.get_file_analyzer().get_file_source(),
+            statements_analyzer.get_file_analyzer().resolved_names,
+        );
+
+        add_instance_property_dataflow(
+            statements_analyzer,
+            &var_id,
+            expr.0.pos(),
+            expr.1.pos(),
+            tast_info,
+            context,
+            assign_value_type,
+            prop_name,
+            &fq_class_name,
+            &property_id,
+        );
+    }
+
+    // TODO property does not exist, emit errors
+
+    let declaring_property_class =
+        codebase.get_declaring_class_for_property(&fq_class_name, prop_name);
+
+    if let Some(declaring_property_class) = declaring_property_class {
+        let declaring_classlike_storage = codebase
+            .classlike_infos
+            .get(declaring_property_class)
+            .unwrap();
+
+        // TODO trackPropertyImpurity and mutatable/immtable states
+        let mut class_property_type =
+            if let Some(prop_type) = codebase.get_property_type(&fq_class_name, &prop_name) {
+                prop_type
+            } else {
+                get_mixed_any()
+            };
+
+        if let TAtomic::TNamedObject {
+            type_params: Some(_),
+            ..
+        } = lhs_type_part
+        {
+            class_property_type = localize_property_type(
+                codebase,
+                class_property_type,
+                lhs_type_part,
+                codebase.classlike_infos.get(&fq_class_name).unwrap(),
+                declaring_classlike_storage,
+                tast_info,
+            );
+        }
+
+        if !class_property_type.is_mixed() {
+            type_expander::expand_union(
+                codebase,
+                &mut class_property_type,
+                Some(&declaring_classlike_storage.name),
+                &StaticClassType::Name(&declaring_classlike_storage.name),
+                declaring_classlike_storage.direct_parent_class.as_ref(),
+                &mut tast_info.data_flow_graph,
+                true,
+                false,
+                false,
+                false,
+                true,
+            );
+
+            // TODO localizeType
+
+            // TODO if (!$class_property_type->hasMixed() && $assignment_value_type->hasMixed()) {
+
+            return Some((
+                class_property_type.clone(),
+                property_id.clone(),
+                assign_value_type.clone(),
+            ));
+        }
+    } else {
+        tast_info.maybe_add_issue(Issue::new(
+            IssueKind::NonExistentProperty,
+            format!("Undefined property {}::${}", property_id.0, property_id.1,),
+            statements_analyzer.get_hpos(&expr.1.pos()),
+        ));
+    }
+
+    return None;
+}
+
+fn add_instance_property_dataflow(
+    statements_analyzer: &StatementsAnalyzer,
+    lhs_var_id: &Option<String>,
+    var_pos: &Pos,
+    name_pos: &Pos,
+    tast_info: &mut TastInfo,
+    context: &mut ScopeContext,
+    assignment_value_type: &TUnion,
+    prop_name: &String,
+    fq_class_name: &String,
+    property_id: &(String, String),
+) -> () {
+    let codebase = statements_analyzer.get_codebase();
+
+    if let Some(classlike_storage) = codebase.classlike_infos.get(fq_class_name) {
+        if classlike_storage.specialize_instance {
+            if let Some(lhs_var_id) = lhs_var_id.to_owned() {
+                let var_node = DataFlowNode::get_for_assignment(
+                    lhs_var_id.to_owned(),
+                    statements_analyzer.get_hpos(var_pos),
+                    None,
+                );
+                tast_info.data_flow_graph.add_node(var_node.clone());
+
+                let property_node = DataFlowNode::get_for_assignment(
+                    lhs_var_id.clone() + &"->$property".to_string(),
+                    statements_analyzer.get_hpos(name_pos),
+                    None,
+                );
+                tast_info.data_flow_graph.add_node(property_node.clone());
+
+                tast_info.data_flow_graph.add_path(
+                    &property_node,
+                    &var_node,
+                    PathKind::ExpressionAssignment(
+                        PathExpressionKind::Property,
+                        property_id.1.to_string(),
+                    ),
+                    HashSet::new(),
+                    HashSet::new(),
+                );
+
+                for (_, parent_node) in assignment_value_type.parent_nodes.iter() {
+                    tast_info.data_flow_graph.add_path(
+                        parent_node,
+                        &var_node,
+                        PathKind::Default,
+                        HashSet::new(),
+                        HashSet::new(),
+                    );
+                }
+
+                let stmt_var_type = context.vars_in_scope.get(&lhs_var_id);
+
+                if let Some(stmt_var_type) = stmt_var_type {
+                    let mut stmt_type_inner = (**stmt_var_type).clone();
+
+                    stmt_type_inner.parent_nodes =
+                        HashMap::from([(property_node.id.clone(), property_node.clone())]);
+
+                    context
+                        .vars_in_scope
+                        .insert(lhs_var_id, Rc::new(stmt_type_inner));
+                }
+            }
+        } else {
+            add_unspecialized_property_assignment_dataflow(
+                statements_analyzer,
+                property_id,
+                name_pos,
+                tast_info,
+                assignment_value_type,
+                codebase,
+                fq_class_name,
+                prop_name,
+            );
+        }
+    }
+}
+
+pub(crate) fn add_unspecialized_property_assignment_dataflow(
+    statements_analyzer: &StatementsAnalyzer,
+    property_id: &(String, String),
+    stmt_name_pos: &Pos,
+    tast_info: &mut TastInfo,
+    assignment_value_type: &TUnion,
+    codebase: &CodebaseInfo,
+    fq_class_name: &String,
+    prop_name: &String,
+) {
+    let localized_property_node = DataFlowNode::get_for_assignment(
+        format!("{}::${}", property_id.0, property_id.1),
+        statements_analyzer.get_hpos(stmt_name_pos),
+        None,
+    );
+
+    tast_info
+        .data_flow_graph
+        .add_node(localized_property_node.clone());
+
+    let property_id_str = format!(
+        "{}::${}",
+        property_id.0.to_owned(),
+        &property_id.1.to_owned()
+    );
+
+    let property_node = DataFlowNode::new(
+        NodeKind::Default,
+        property_id_str.clone(),
+        property_id_str,
+        None,
+        None,
+        None,
+    );
+
+    tast_info.data_flow_graph.add_node(property_node.clone());
+    tast_info.data_flow_graph.add_path(
+        &localized_property_node,
+        &property_node,
+        PathKind::ExpressionAssignment(PathExpressionKind::Property, property_id.1.to_string()),
+        HashSet::new(),
+        HashSet::new(),
+    );
+
+    for (_, parent_node) in assignment_value_type.parent_nodes.iter() {
+        tast_info.data_flow_graph.add_path(
+            parent_node,
+            &localized_property_node,
+            PathKind::Default,
+            HashSet::new(),
+            HashSet::new(),
+        );
+    }
+
+    let declaring_property_class =
+        codebase.get_declaring_class_for_property(fq_class_name, prop_name);
+
+    if let Some(declaring_property_class) = declaring_property_class {
+        if declaring_property_class != fq_class_name {
+            let declaring_property_id_str =
+                format!("{}::${}", declaring_property_class, property_id.1);
+
+            let declaring_property_node = DataFlowNode::new(
+                NodeKind::Default,
+                declaring_property_id_str.clone(),
+                declaring_property_id_str,
+                None,
+                None,
+                None,
+            );
+
+            tast_info.data_flow_graph.add_path(
+                &property_node,
+                &declaring_property_node,
+                PathKind::ExpressionAssignment(
+                    PathExpressionKind::Property,
+                    property_id.1.to_string(),
+                ),
+                HashSet::new(),
+                HashSet::new(),
+            );
+
+            tast_info.data_flow_graph.add_node(declaring_property_node);
+        }
+    }
+}

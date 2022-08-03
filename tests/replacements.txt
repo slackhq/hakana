@@ -1,0 +1,28 @@
+
+
+
+^(\s+)\/\*\*\n\1 \* @(psalm-)?var (classname<.*>)\n\1 \*\/\n\1(private|public|protected) (\$.*);
+$1$4 $3 $5;
+
+^(\s+)\/\*\* @(psalm-)?var (classname<.*>) \*\/\n\1(private|public|protected) (\$.*);
+$1$4 $3 $5;
+
+^(\s+)\/\*\*\n\1 \* @(psalm-)?param (classname<.*>) (\$.*)\n\1 \*\/\n\1(private|public|protected) function __construct\((.*)((string )?\4)(,|\))
+$1$5 function __construct($6$3 $4$9
+
+^(\s)\/\*\* @(psalm-)?param (classname<.*>) (\$.*) \*\/\n\1(private|public|protected) function __construct\((.*)((string )?\3)(,|\))
+$1$5 function __construct($6$3 $4$9
+
+
+
+^\/\*\*\n \* @template ([a-zA-Z0-9_]+)((of|as) object)?\n \*\/\n(class|interface|trait) ([a-zA-Z0-9_]+)
+$4 $5<$1>
+
+^\/\*\*\n \* @template ([a-zA-Z0-9_]+)((of|as) object)?\n \* @template ([a-zA-Z0-9_]+)((of|as) object)?\n \*\/\n(class|interface|trait) ([a-zA-Z0-9_]+)
+$7 $8<$1, $4>
+
+
+^(\s)\/\*\* @param (classname<.*>) (\$.*) \*\/\n\1(private|public|protected) function __construct\((.*)((string )?\3)(,|\))
+/**$5
+ */
+$1$6 $7<$2>

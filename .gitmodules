@@ -1,0 +1,6 @@
+[submodule "hhvm"]
+	path = third-party/hhvm
+	url = https://github.com/facebook/hhvm
+[submodule "xhp-lib"]
+	path = third-party/xhp-lib
+	url = https://github.com/hhvm/xhp-lib

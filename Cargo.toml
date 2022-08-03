@@ -1,0 +1,16 @@
+[package]
+name = "hakana-default"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+hakana-cli = { path = "src/cli" }
+hakana-analyzer = { path = "src/analyzer" }
+
+[profile.release]
+debug = true
+
+[build-dependencies]
+anyhow = { version = "1.0", default-features = false }
+vergen = "6"

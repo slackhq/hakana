@@ -1,0 +1,23 @@
+{
+    "ignore_files": [
+        "a/**"
+    ],
+    "ignore_issue_files": {
+        "UnusedFunction": [
+            "b/**"
+        ],
+        "UnusedClass": [
+            "c/**"
+        ]
+    },
+    "security_analysis": {
+        "ignore_files": [
+            "d/**"
+        ],
+        "ignore_sink_files": {
+            "Html": [
+                "e/**"
+            ]
+        }
+    }
+}

@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:4:22 - Detected tainted SQL

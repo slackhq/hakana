@@ -1,0 +1,15 @@
+[package]
+name = "hakana-algebra"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+md5 = "0.7.0"
+rand = "0.8.4"
+serde_json = "1.0"
+xxhash-rust = { version = "0.8.3", features = ["xxh3", "xxh32"] }
+hakana-reflection-info = { path = "../code_info" }
+hakana-type = { path = "../ttype" }
+
+[lib]
+path = "lib.rs"

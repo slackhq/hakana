@@ -1,0 +1,1 @@
+array_intersect(vec[], vec[], vec[], vec[], vec[]);

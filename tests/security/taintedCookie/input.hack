@@ -1,0 +1,1 @@
+                setcookie($_GET['taint'], 'value');

@@ -1,0 +1,18 @@
+[package]
+name = "hakana-reflection-info"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+function_context = { path = "../function_context" }
+oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
+hakana-file-info = { path = "../file_info" }
+itertools = "0.10.1"
+indexmap = "1.8.0"
+strum = "0.23"
+strum_macros = "0.23"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

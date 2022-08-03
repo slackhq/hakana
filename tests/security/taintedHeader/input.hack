@@ -1,0 +1,1 @@
+                header($_GET['taint']);

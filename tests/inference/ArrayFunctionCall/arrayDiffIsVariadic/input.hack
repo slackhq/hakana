@@ -1,0 +1,1 @@
+array_diff(vec[], vec[], vec[], vec[], vec[]);

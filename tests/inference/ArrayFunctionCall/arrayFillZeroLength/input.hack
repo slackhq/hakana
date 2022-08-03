@@ -1,0 +1,1 @@
+count(array_fill(0, 0, 0)) === 0;

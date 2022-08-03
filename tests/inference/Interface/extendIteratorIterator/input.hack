@@ -1,0 +1,1 @@
+class SomeIterator extends IteratorIterator {}

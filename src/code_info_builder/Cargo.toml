@@ -1,0 +1,17 @@
+[package]
+name = "hakana-reflector"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hakana-type = { path = "../ttype" }
+hakana-reflection-info = { path = "../code_info" }
+function_context = { path = "../function_context" }
+hakana-file-info = { path = "../file_info" }
+indexmap = "1.8.0"
+parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
+oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
+naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/naming" }
+
+[lib]
+path = "lib.rs"

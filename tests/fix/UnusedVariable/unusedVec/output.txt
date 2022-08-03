@@ -1,0 +1,3 @@
+function foo(): void {
+    rand(0, 1);
+}
