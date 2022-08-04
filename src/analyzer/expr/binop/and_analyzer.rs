@@ -126,7 +126,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             &left_referenced_var_ids,
             statements_analyzer,
             tast_info,
-            Some(left.pos()),
+            left.pos(),
+            true,
             !context.inside_negation,
             &HashMap::new(),
         );

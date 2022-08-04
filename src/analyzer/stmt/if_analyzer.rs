@@ -75,7 +75,8 @@ pub(crate) fn analyze(
             &cond_referenced_var_ids,
             statements_analyzer,
             tast_info,
-            Some(stmt.0.pos()),
+            stmt.0.pos(),
+            true,
             false,
             &HashMap::new(),
         );

@@ -6,11 +6,13 @@ use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::{if_scope::IfScope, ScopeContext};
 use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 use oxidized::aast;
+use oxidized::aast::Pos;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::rc::Rc;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
+    if_cond_pos: &Pos,
     stmts: &aast::Block<(), ()>,
     tast_info: &mut TastInfo,
     if_scope: &mut IfScope,
@@ -57,7 +59,8 @@ pub(crate) fn analyze(
             &HashSet::new(),
             statements_analyzer,
             tast_info,
-            None,
+            if_cond_pos,
+            false,
             false,
             &HashMap::new(),
         );

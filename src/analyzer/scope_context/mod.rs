@@ -376,6 +376,7 @@ impl ScopeContext {
                                 tast_info,
                                 false,
                                 None,
+                                false,
                                 &mut reconciler::ReconciliationStatus::Ok,
                                 false,
                                 &HashMap::new(),

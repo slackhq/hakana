@@ -573,7 +573,8 @@ fn analyze_case(
             },
             statements_analyzer,
             tast_info,
-            Some(case_pos),
+            case_pos,
+            true,
             false,
             &HashMap::new(),
         );

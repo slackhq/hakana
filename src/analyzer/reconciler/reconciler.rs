@@ -41,7 +41,8 @@ pub(crate) fn reconcile_keyed_types(
     referenced_var_ids: &HashSet<String>,
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
-    pos: Option<&Pos>,
+    pos: &Pos,
+    can_report_issues: bool,
     negated: bool,
     suppressed_issues: &HashMap<String, usize>,
 ) {
@@ -113,7 +114,6 @@ pub(crate) fn reconcile_keyed_types(
                 key.clone(),
                 context,
                 &new_types,
-                pos,
                 has_isset,
                 has_inverted_isset,
                 inside_loop,
@@ -146,17 +146,18 @@ pub(crate) fn reconcile_keyed_types(
                     statements_analyzer,
                     tast_info,
                     inside_loop,
-                    if referenced_var_ids.contains(key) && active_new_types.contains_key(key) {
-                        let offset = active_new_types.get(key).unwrap().get(&(i as usize));
-
-                        if let Some(_) = offset {
-                            pos
+                    Some(pos),
+                    can_report_issues
+                        && if referenced_var_ids.contains(key) && active_new_types.contains_key(key)
+                        {
+                            active_new_types
+                                .get(key)
+                                .unwrap()
+                                .get(&(i as usize))
+                                .is_some()
                         } else {
-                            None
-                        }
-                    } else {
-                        None
-                    },
+                            false
+                        },
                     &mut failed_reconciliation,
                     negated,
                     suppressed_issues,
@@ -520,7 +521,6 @@ fn get_value_for_key(
     key: String,
     context: &mut ScopeContext,
     new_assertions: &BTreeMap<String, Vec<Vec<Assertion>>>,
-    _pos: Option<&Pos>,
     has_isset: bool,
     has_inverted_isset: bool,
     inside_loop: bool,

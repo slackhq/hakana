@@ -126,7 +126,8 @@ pub(crate) fn analyze(
             &HashSet::new(),
             statements_analyzer,
             tast_info,
-            Some(stmt.1.pos()),
+            stmt.1.pos(),
+            true,
             false,
             &HashMap::new(),
         );

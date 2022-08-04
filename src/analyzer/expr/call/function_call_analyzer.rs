@@ -1,6 +1,5 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::expr::call::arguments_analyzer;
 use crate::expr::call_analyzer::check_template_result;
@@ -13,11 +12,14 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use function_context::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::assertion::Assertion;
+use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_reflection_info::taint::TaintType;
+use hakana_type::get_int;
 use hakana_type::template::TemplateResult;
-use hakana_type::{get_bool, get_false, get_int, get_nothing, get_string, wrap_atomic};
 use indexmap::IndexMap;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
@@ -189,7 +191,7 @@ pub(crate) fn analyze(
             &expr.2[0].1,
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().get_file_source(),
-            statements_analyzer.get_file_analyzer().resolved_names,
+            resolved_names,
         );
 
         let dim_var_id = expression_identifier::get_dim_id(&expr.2[1].1);
@@ -268,7 +270,8 @@ fn process_function_effects(
                     .collect(),
                 statements_analyzer,
                 tast_info,
-                Some(first_arg.pos()),
+                first_arg.pos(),
+                true,
                 false,
                 &HashMap::new(),
             );

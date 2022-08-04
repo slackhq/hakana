@@ -219,7 +219,8 @@ pub(crate) fn analyze(
             &HashSet::new(),
             statements_analyzer,
             tast_info,
-            Some(stmt.0.pos()),
+            stmt.0.pos(),
+            true,
             false,
             &HashMap::new(),
         );
@@ -255,6 +256,7 @@ pub(crate) fn analyze(
 
     if !else_analyzer::analyze(
         statements_analyzer,
+        stmt.0.pos(),
         stmt.2,
         tast_info,
         &mut if_scope,

@@ -210,7 +210,8 @@ pub(crate) fn analyze(
             &cond_referenced_var_ids,
             statements_analyzer,
             tast_info,
-            Some(expr.0.pos()),
+            expr.0.pos(),
+            true,
             false,
             &HashMap::new(),
         );
@@ -261,6 +262,7 @@ pub(crate) fn analyze(
             tast_info,
             context.inside_loop,
             None,
+            false,
             &mut reconciler::ReconciliationStatus::Ok,
             false,
             &HashMap::new(),
@@ -277,7 +279,8 @@ pub(crate) fn analyze(
             &HashSet::new(),
             statements_analyzer,
             tast_info,
-            Some(expr.2.pos()),
+            expr.2.pos(),
+            true,
             false,
             &HashMap::new(),
         );

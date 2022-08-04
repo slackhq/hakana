@@ -518,7 +518,8 @@ pub(crate) fn analyze<'a>(
                 &HashSet::new(),
                 statements_analyzer,
                 tast_info,
-                Some(pre_conditions.get(0).unwrap().pos()),
+                pre_conditions.get(0).unwrap().pos(),
+                true,
                 false,
                 &HashMap::new(),
             );
@@ -673,7 +674,8 @@ fn apply_pre_condition_to_loop_context(
             &new_referenced_var_ids,
             statements_analyzer,
             tast_info,
-            Some(pre_condition.pos()),
+            pre_condition.pos(),
+            true,
             false,
             &HashMap::new(),
         );

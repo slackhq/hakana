@@ -40,7 +40,8 @@ pub(crate) fn analyze<'a>(
                 &HashSet::new(),
                 statements_analyzer,
                 tast_info,
-                Some(cond.pos()),
+                cond.pos(),
+                true,
                 false,
                 &HashMap::new(),
             );
