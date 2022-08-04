@@ -1,8 +1,8 @@
-use std::hash::Hasher;
+use std::{collections::HashSet, hash::Hasher};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{t_atomic::TAtomic, t_union::TUnion};
+use crate::{t_atomic::TAtomic, t_union::TUnion, taint::TaintType};
 use core::hash::Hash;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -31,6 +31,8 @@ pub enum Assertion {
     DoesNotHaveExactCount(usize),
     IgnoreTaints,
     DontIgnoreTaints,
+    RemoveTaints(String, HashSet<TaintType>),
+    DontRemoveTaints(String, HashSet<TaintType>),
 }
 
 impl Hash for Assertion {
@@ -74,6 +76,8 @@ impl Assertion {
             }
             Assertion::IgnoreTaints => "ignore-taints".to_string(),
             Assertion::DontIgnoreTaints => "dont-ignore-taints".to_string(),
+            Assertion::RemoveTaints(key, _) => "remove-some-taints-".to_string() + key,
+            Assertion::DontRemoveTaints(key, _) => "!remove-some-taints-".to_string() + key,
         }
     }
 
@@ -122,7 +126,9 @@ impl Assertion {
             | Assertion::HasStringArrayAccess
             | Assertion::IsEqualIsset
             | Assertion::IsEqual(_)
-            | Assertion::IsNotEqual(_) => true,
+            | Assertion::IsNotEqual(_)
+            | Assertion::RemoveTaints(_, _)
+            | Assertion::DontRemoveTaints(_, _) => true,
 
             _ => false,
         }
@@ -217,6 +223,18 @@ impl Assertion {
             },
             Assertion::IgnoreTaints => matches!(other, Assertion::DontIgnoreTaints),
             Assertion::DontIgnoreTaints => matches!(other, Assertion::IgnoreTaints),
+            Assertion::RemoveTaints(key, taints) => match other {
+                Assertion::DontRemoveTaints(other_key, other_taints) => {
+                    other_key == key && other_taints == taints
+                }
+                _ => false,
+            },
+            Assertion::DontRemoveTaints(key, taints) => match other {
+                Assertion::RemoveTaints(other_key, other_taints) => {
+                    other_key == key && other_taints == taints
+                }
+                _ => false,
+            },
         }
     }
 
@@ -255,6 +273,12 @@ impl Assertion {
             Assertion::IsEqualIsset => Assertion::Any,
             Assertion::IgnoreTaints => Assertion::DontIgnoreTaints,
             Assertion::DontIgnoreTaints => Assertion::IgnoreTaints,
+            Assertion::RemoveTaints(key, taints) => {
+                Assertion::DontRemoveTaints(key.clone(), taints.clone())
+            }
+            Assertion::DontRemoveTaints(key, taints) => {
+                Assertion::RemoveTaints(key.clone(), taints.clone())
+            }
         }
     }
 }

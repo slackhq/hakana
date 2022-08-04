@@ -7,6 +7,7 @@ use crate::{
 use hakana_reflection_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
+    data_flow::{node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
@@ -61,12 +62,6 @@ pub(crate) fn reconcile_keyed_types(
     let codebase = statements_analyzer.get_codebase();
 
     for (key, new_type_parts) in &new_types {
-        if key == "hakana taints" {
-            context.allow_taints = !matches!(new_type_parts[0][0], Assertion::IgnoreTaints);
-
-            continue;
-        }
-
         if key.contains("::") && !key.contains("$") && !key.contains("[") {
             continue;
         }
@@ -84,6 +79,50 @@ pub(crate) fn reconcile_keyed_types(
 
         for new_type_part_parts in new_type_parts {
             for assertion in new_type_part_parts {
+                if key == "hakana taints" {
+                    match assertion {
+                        Assertion::RemoveTaints(key, taints) => {
+                            if let Some(existing_var_type) = context.vars_in_scope.get_mut(key) {
+                                let new_parent_node = DataFlowNode::get_for_assignment(
+                                    key.clone(),
+                                    statements_analyzer.get_hpos(pos),
+                                    None,
+                                );
+
+                                for (_, old_parent_node) in &existing_var_type.parent_nodes {
+                                    tast_info.data_flow_graph.add_path(
+                                        old_parent_node,
+                                        &new_parent_node,
+                                        PathKind::Default,
+                                        HashSet::new(),
+                                        taints.clone(),
+                                    );
+                                }
+
+                                let mut existing_var_type_inner = (**existing_var_type).clone();
+
+                                existing_var_type_inner.parent_nodes = HashMap::from([(
+                                    new_parent_node.id.clone(),
+                                    new_parent_node.clone(),
+                                )]);
+
+                                *existing_var_type = Rc::new(existing_var_type_inner);
+
+                                tast_info.data_flow_graph.add_node(new_parent_node);
+                            }
+                        }
+                        Assertion::IgnoreTaints => {
+                            context.allow_taints = false;
+                        }
+                        Assertion::DontIgnoreTaints => {
+                            context.allow_taints = true;
+                        }
+                        _ => (),
+                    }
+
+                    continue;
+                }
+
                 if assertion.has_negation() {
                     has_negation = true;
                 }

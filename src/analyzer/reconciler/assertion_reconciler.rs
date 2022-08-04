@@ -7,7 +7,12 @@ use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
+    assertion::Assertion,
+    codebase_info::CodebaseInfo,
+    data_flow::{node::DataFlowNode, path::PathKind},
+    t_atomic::TAtomic,
+    t_union::TUnion,
+    taint::TaintType,
 };
 use hakana_type::{
     get_mixed_any, get_mixed_maybe_from_loop, get_nothing,
@@ -18,7 +23,7 @@ use hakana_type::{
     wrap_atomic,
 };
 use oxidized::ast_defs::Pos;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub(crate) fn reconcile(
     assertion: &Assertion,

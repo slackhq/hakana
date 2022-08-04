@@ -13,8 +13,6 @@ use crate::typed_ast::TastInfo;
 use function_context::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::taint::TaintType;
@@ -215,6 +213,39 @@ pub(crate) fn analyze(
                             vec![Assertion::ArrayKeyExists],
                         )]),
                     );
+                }
+            }
+        }
+    } else if name == "HH\\Lib\\Str\\starts_with" && expr.2.len() == 2 {
+        if tast_info.data_flow_graph.kind == GraphKind::Taint {
+            let expr_var_id = expression_identifier::get_extended_var_id(
+                &expr.2[0].1,
+                context.function_context.calling_class.as_ref(),
+                statements_analyzer.get_file_analyzer().get_file_source(),
+                resolved_names,
+            );
+
+            let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
+
+            // if we have a HH\Lib\Str\starts_with($foo, "/something") check
+            // we can remove url-specific taints
+            if let (Some(expr_var_id), Some(second_arg_type)) = (expr_var_id, second_arg_type) {
+                if let Some(str) = second_arg_type.get_single_literal_string_value() {
+                    if str.starts_with("/") && str.len() > 1 {
+                        tast_info.if_true_assertions.insert(
+                            (pos.start_offset(), pos.end_offset()),
+                            HashMap::from([(
+                                "hakana taints".to_string(),
+                                vec![Assertion::RemoveTaints(
+                                    expr_var_id.clone(),
+                                    HashSet::from([
+                                        TaintType::HtmlAttributeUri,
+                                        TaintType::CurlUri,
+                                    ]),
+                                )],
+                            )]),
+                        );
+                    }
                 }
             }
         }
