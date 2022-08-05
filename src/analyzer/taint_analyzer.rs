@@ -11,7 +11,7 @@ use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::taint::TaintType;
 
-pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config) -> Vec<Issue> {
+pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) -> Vec<Issue> {
     let mut new_issues = vec![];
 
     let mut sources = graph
@@ -34,12 +34,12 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config) -> Vec<Issue> {
     if !graph.sinks.is_empty() {
         for i in 0..config.security_config.max_depth {
             if !sources.is_empty() {
-                let now = Instant::now();
+                let now = if debug { Some(Instant::now()) } else { None };
                 let mut actual_source_count = 0;
                 let mut new_sources = Vec::new();
 
                 for source in sources {
-                    let inow = Instant::now();
+                    let inow = if debug { Some(Instant::now()) } else { None };
                     let source_taints = source.taints.clone();
                     let source_id = source.id.clone();
 
@@ -58,18 +58,23 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config) -> Vec<Issue> {
                         ))
                     }
 
-                    let ielapsed = inow.elapsed();
-
-                    if ielapsed.as_millis() > 100 {
-                        println!("    - took {:.2?} to generate from {}", ielapsed, source_id);
+                    if let Some(inow) = inow {
+                        let ielapsed = inow.elapsed();
+                        if ielapsed.as_millis() > 100 {
+                            println!("    - took {:.2?} to generate from {}", ielapsed, source_id);
+                        }
                     }
                 }
 
-                let elapsed = now.elapsed();
-
                 println!(
-                    " - generated {} sources in {:.2?}",
-                    actual_source_count, elapsed
+                    " - generated {}{}",
+                    actual_source_count,
+                    if let Some(now) = now {
+                        let elapsed = now.elapsed();
+                        format!(" sources in {:.2?}", elapsed)
+                    } else {
+                        "".to_string()
+                    }
                 );
 
                 sources = new_sources;

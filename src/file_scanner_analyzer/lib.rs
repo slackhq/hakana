@@ -148,7 +148,7 @@ pub fn scan_and_analyze(
     std::thread::spawn(move || drop(arc_codebase));
 
     if config.graph_kind == GraphKind::Taint {
-        let issues = find_tainted_data(&analysis_result.taint_flow_graph, &config);
+        let issues = find_tainted_data(&analysis_result.taint_flow_graph, &config, debug);
 
         for issue in issues {
             analysis_result
@@ -381,7 +381,7 @@ pub fn scan_and_analyze_single_file(
     )?;
 
     if analysis_config.graph_kind == GraphKind::Taint {
-        let issues = find_tainted_data(&analysis_result.taint_flow_graph, &analysis_config);
+        let issues = find_tainted_data(&analysis_result.taint_flow_graph, &analysis_config, false);
 
         for issue in issues {
             analysis_result

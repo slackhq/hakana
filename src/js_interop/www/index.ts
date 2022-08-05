@@ -19,7 +19,7 @@ import {
   linkInjections,
 } from 'codemirror-textmate';
 
-import { ScannerAndAnalyzer } from "../pkg/js_interop";
+import { ScannerAndAnalyzer } from "../pkg/js_interop.js";
 
 (async () => {
   await loadWASM(
@@ -75,7 +75,7 @@ import { ScannerAndAnalyzer } from "../pkg/js_interop";
     }
   }))
 
-  const wasm = await require('js_interop');
+  const wasm = await require('../pkg/js_interop');
 
   const scanner_analyzer = new ScannerAndAnalyzer();
 
