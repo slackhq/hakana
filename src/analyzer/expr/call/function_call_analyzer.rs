@@ -13,6 +13,8 @@ use crate::typed_ast::TastInfo;
 use function_context::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::taint::TaintType;
@@ -214,6 +216,28 @@ pub(crate) fn analyze(
                         )]),
                     );
                 }
+            }
+        }
+
+        if tast_info.data_flow_graph.kind == GraphKind::Taint {
+            let second_arg_var_id = expression_identifier::get_extended_var_id(
+                &expr.2[1].1,
+                context.function_context.calling_class.as_ref(),
+                statements_analyzer.get_file_analyzer().get_file_source(),
+                resolved_names,
+            );
+
+            if let Some(expr_var_id) = second_arg_var_id {
+                tast_info.if_true_assertions.insert(
+                    (pos.start_offset(), pos.end_offset()),
+                    HashMap::from([(
+                        "hakana taints".to_string(),
+                        vec![Assertion::RemoveTaints(
+                            expr_var_id.clone(),
+                            TaintType::user_controllable_taints(),
+                        )],
+                    )]),
+                );
             }
         }
     } else if name == "HH\\Lib\\Str\\starts_with" && expr.2.len() == 2 {
