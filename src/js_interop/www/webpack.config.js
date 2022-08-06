@@ -1,11 +1,12 @@
-const path = require('path')
+const path = require('path');
+const webpack = require('webpack');
 const HTMLWebpackPlugin = require('html-webpack-plugin')
 
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 
 module.exports = {
   mode: 'development',
-  devtool: 'sourcemap',
+  devtool: 'source-map',
   entry: './bootstrap.js',
   output: {
     path: path.resolve(__dirname, "dist"),
@@ -40,13 +41,26 @@ module.exports = {
     ],
   },
   resolve: {
-    extensions: ['.js', '.ts', '.tsx']
+    extensions: ['.js', '.ts', '.tsx'],
+    fallback: {
+      util: require.resolve("util/"),
+      path: require.resolve("path-browserify")
+    }
+  },
+  experiments: {
+    syncWebAssembly: true
   },
   plugins: [
     new CopyWebpackPlugin(['index.html']),
     new HTMLWebpackPlugin({
       template: path.resolve('./index.html')
-    })
+    }),
+    new webpack.ProvidePlugin({
+      // Make a global `process` variable that points to the `process` package,
+      // because the `util` package expects there to be a global variable named `process`.
+           // Thanks to https://stackoverflow.com/a/65018686/14239942
+      process: 'process/browser'
+   })
   ],
 };
 

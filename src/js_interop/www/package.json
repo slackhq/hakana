@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "webpack --config webpack.config.js",
-    "start": "webpack-dev-server"
+    "start": "webpack serve"
   },
   "license": "(MIT OR Apache-2.0)",
   "devDependencies": {
@@ -20,8 +20,8 @@
     "sass-loader": "^10.2.1",
     "style-loader": "^2.0.0",
     "ts-loader": "^8.3.0",
-    "webpack": "^4.46.0",
-    "webpack-cli": "^3.1.0",
+    "webpack": "^5",
+    "webpack-cli": "^4",
     "webpack-dev-server": "^3.1.5"
   },
   "dependencies": {
@@ -29,6 +29,9 @@
     "codemirror": "^5.65.2",
     "codemirror-textmate": "^1.1.0",
     "js_interop": "file:../pkg",
-    "onigasm": "^2.2.5"
+    "onigasm": "^2.2.5",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "util": "^0.12.4"
   }
 }
