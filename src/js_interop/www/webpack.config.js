@@ -12,6 +12,9 @@ module.exports = {
     path: path.resolve(__dirname, "dist"),
     filename: 'bootstrap.js',
   },
+  optimization: {
+    chunkIds: "size"
+  },
   target: 'web',
   module: {
     rules: [{
