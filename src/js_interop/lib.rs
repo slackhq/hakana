@@ -6,7 +6,7 @@ extern crate console_error_panic_hook;
 
 #[wasm_bindgen]
 pub struct ScannerAndAnalyzer {
-    init_codebase: CodebaseInfo,
+    codebase: CodebaseInfo,
 }
 
 #[wasm_bindgen]
@@ -16,14 +16,13 @@ impl ScannerAndAnalyzer {
         console_error_panic_hook::set_once();
 
         Self {
-            init_codebase: get_single_file_codebase(vec![]),
+            codebase: get_single_file_codebase(vec![]),
         }
     }
 
-    pub fn get_results(&self, file_contents: String) -> String {
-        let mut codebase = self.init_codebase.clone();
+    pub fn get_results(&mut self, file_contents: String) -> String {
         let result = scan_and_analyze_single_file(
-            &mut codebase,
+            &mut self.codebase,
             "hello.hack".to_string(),
             file_contents.clone(),
             true,

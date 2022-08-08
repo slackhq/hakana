@@ -121,6 +121,14 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         gc.recurse(c, self)
     }
 
+    fn visit_func_body(&mut self, c: &mut Context, p: &aast::FuncBody<(), ()>) -> Result<(), ()> {
+        if self.file_source.file_path.starts_with("hsl_embedded_") {
+            Result::Ok(())
+        } else {
+            p.recurse(c, self)
+        }
+    }
+
     fn visit_typedef(
         &mut self,
         c: &mut Context,
