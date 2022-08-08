@@ -80,12 +80,3 @@
     z-index: 2;
     font-size: 14px;
 }
-
-div.CodeMirror,
-div.CodeMirror-lint-tooltip,
-#hakana_output {
-    font-family: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, monospace;
-    font-style: normal;
-    font-weight: 400;
-    line-height: 1.6em;
-}
