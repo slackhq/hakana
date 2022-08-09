@@ -483,7 +483,11 @@ pub(crate) fn analyze(
                             PathKind::Default,
                             HashSet::new(),
                             if offset > 0 {
-                                HashSet::from([TaintType::HtmlAttributeUri, TaintType::CurlUri])
+                                HashSet::from([
+                                    TaintType::HtmlAttributeUri,
+                                    TaintType::CurlUri,
+                                    TaintType::RedirectUri,
+                                ])
                             } else {
                                 HashSet::new()
                             },

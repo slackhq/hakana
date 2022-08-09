@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::{collections::HashSet, hash::Hash};
 use strum_macros::Display;
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
@@ -8,7 +8,7 @@ pub enum TaintType {
     Sql,
     Shell,
     FileSystem,
-    Header,
+    RedirectUri,
     Unserialize,
     //Ldap,
     Cookie,
@@ -28,7 +28,7 @@ impl TaintType {
             TaintType::Sql => "Detected tainted SQL".to_string(),
             TaintType::Shell => "Detected tainted shell code".to_string(),
             TaintType::FileSystem => "Detected tainted file handling".to_string(),
-            TaintType::Header => "Detected a tainted header".to_string(),
+            TaintType::RedirectUri => "Detected a redirect URI".to_string(),
             TaintType::Unserialize => {
                 "Detected tainted data passed to unserialize or similar".to_string()
             }
@@ -50,7 +50,7 @@ impl TaintType {
             TaintType::Sql,
             TaintType::Shell,
             TaintType::FileSystem,
-            TaintType::Header,
+            TaintType::RedirectUri,
             TaintType::Unserialize,
             //TaintType::Ldap,
             TaintType::Cookie,
@@ -69,6 +69,8 @@ pub fn string_to_taints(str: String) -> HashSet<TaintType> {
         "sql" | "Sql" => HashSet::from([TaintType::Sql]),
         "html" | "HtmlTag" => HashSet::from([TaintType::HtmlTag]),
         "curl_uri" | "CurlUri" => HashSet::from([TaintType::CurlUri]),
+        "HtmlAttributeUri" => HashSet::from([TaintType::HtmlAttributeUri]),
+        "RedirectUri" => HashSet::from([TaintType::RedirectUri]),
         _ => {
             panic!()
         }

@@ -711,7 +711,7 @@ fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) 
             }
             "header" => {
                 if arg_offset == 0 {
-                    return vec![TaintType::Header];
+                    // return vec![TaintType::ResponseHeader];
                 }
             }
             "igbinary_unserialize" | "unserialize" => {

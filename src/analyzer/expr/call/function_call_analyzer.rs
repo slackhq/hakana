@@ -265,6 +265,7 @@ pub(crate) fn analyze(
                                     HashSet::from([
                                         TaintType::HtmlAttributeUri,
                                         TaintType::CurlUri,
+                                        TaintType::RedirectUri,
                                     ]),
                                 )],
                             )]),

@@ -162,7 +162,7 @@ pub(crate) fn assign_arithmetic_type(
                 PathKind::Default,
                 HashSet::new(),
                 if cond_type.has_string() {
-                    HashSet::from([TaintType::HtmlAttributeUri, TaintType::CurlUri])
+                    HashSet::from([TaintType::HtmlAttributeUri, TaintType::CurlUri, TaintType::RedirectUri])
                 } else {
                     HashSet::new()
                 },
