@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::rc::Rc;
 
 use function_context::method_identifier::MethodIdentifier;
 use hakana_reflection_info::{
@@ -16,6 +13,7 @@ use oxidized::{
     aast,
     ast_defs::{self, Pos},
 };
+use rustc_hash::FxHashMap;
 
 use crate::{
     expr::{
@@ -142,7 +140,7 @@ pub(crate) fn analyze(
     if functionlike_storage.ignore_taints_if_true {
         tast_info.if_true_assertions.insert(
             (pos.start_offset(), pos.end_offset()),
-            HashMap::from([("hakana taints".to_string(), vec![Assertion::IgnoreTaints])]),
+            FxHashMap::from_iter([("hakana taints".to_string(), vec![Assertion::IgnoreTaints])]),
         );
     }
 
@@ -175,7 +173,7 @@ pub(crate) fn analyze(
                     dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
                     tast_info.if_true_assertions.insert(
                         (pos.start_offset(), pos.end_offset()),
-                        HashMap::from([(
+                        FxHashMap::from_iter([(
                             format!("{}", expr_var_id),
                             vec![Assertion::HasArrayKey(dim_var_id)],
                         )]),
@@ -183,7 +181,7 @@ pub(crate) fn analyze(
                 } else {
                     tast_info.if_true_assertions.insert(
                         (pos.start_offset(), pos.end_offset()),
-                        HashMap::from([(
+                        FxHashMap::from_iter([(
                             format!("{}[{}]", expr_var_id, dim_var_id),
                             vec![Assertion::ArrayKeyExists],
                         )]),
@@ -229,13 +227,13 @@ pub(crate) fn analyze(
                         parent_node,
                         &assignment_node,
                         PathKind::RemoveDictKey(dim_var_id.clone()),
-                        HashSet::new(),
-                        HashSet::new(),
+                        None,
+                        None,
                     );
                 }
 
                 new_type.parent_nodes =
-                    HashMap::from([(assignment_node.id.clone(), assignment_node.clone())]);
+                    FxHashMap::from_iter([(assignment_node.id.clone(), assignment_node.clone())]);
 
                 tast_info.data_flow_graph.add_node(assignment_node);
 

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use serde::{Deserialize, Serialize};
 
@@ -35,7 +35,7 @@ pub struct FunctionLikeParameter {
 
     pub is_variadic: bool,
 
-    pub taint_sinks: Option<HashSet<TaintType>>,
+    pub taint_sinks: Option<FxHashSet<TaintType>>,
 
     pub assert_untainted: bool,
 

@@ -1,5 +1,6 @@
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, hash::Hash};
+use std::hash::Hash;
 use strum_macros::Display;
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
@@ -44,8 +45,8 @@ impl TaintType {
         }
     }
 
-    pub fn user_controllable_taints() -> HashSet<TaintType> {
-        HashSet::from([
+    pub fn user_controllable_taints() -> FxHashSet<TaintType> {
+        FxHashSet::from_iter([
             TaintType::HtmlTag,
             TaintType::Sql,
             TaintType::Shell,
@@ -62,15 +63,15 @@ impl TaintType {
     }
 }
 
-pub fn string_to_taints(str: String) -> HashSet<TaintType> {
+pub fn string_to_taints(str: String) -> FxHashSet<TaintType> {
     match str.as_str() {
         "input" => TaintType::user_controllable_taints(),
-        "pii" | "UserSecret" => HashSet::from([TaintType::UserSecret]),
-        "sql" | "Sql" => HashSet::from([TaintType::Sql]),
-        "html" | "HtmlTag" => HashSet::from([TaintType::HtmlTag]),
-        "curl_uri" | "CurlUri" => HashSet::from([TaintType::CurlUri]),
-        "HtmlAttributeUri" => HashSet::from([TaintType::HtmlAttributeUri]),
-        "RedirectUri" => HashSet::from([TaintType::RedirectUri]),
+        "pii" | "UserSecret" => FxHashSet::from_iter([TaintType::UserSecret]),
+        "sql" | "Sql" => FxHashSet::from_iter([TaintType::Sql]),
+        "html" | "HtmlTag" => FxHashSet::from_iter([TaintType::HtmlTag]),
+        "curl_uri" | "CurlUri" => FxHashSet::from_iter([TaintType::CurlUri]),
+        "HtmlAttributeUri" => FxHashSet::from_iter([TaintType::HtmlAttributeUri]),
+        "RedirectUri" => FxHashSet::from_iter([TaintType::RedirectUri]),
         _ => {
             panic!()
         }

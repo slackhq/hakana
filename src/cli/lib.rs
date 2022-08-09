@@ -4,7 +4,8 @@ use hakana_analyzer::custom_hook::CustomHook;
 use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry};
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::issue::IssueKind;
-use std::collections::{BTreeMap, HashSet};
+use rustc_hash::FxHashSet;
+use std::collections::BTreeMap;
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
@@ -260,17 +261,17 @@ pub fn init(
 
             let ignored = sub_matches
                 .values_of("ignore")
-                .map(|values| values.map(|f| f.to_string()).collect::<HashSet<_>>());
+                .map(|values| values.map(|f| f.to_string()).collect::<FxHashSet<_>>());
             let find_unused_expressions = sub_matches.is_present("find-unused-expressions");
             let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
             let show_mixed_function_counts = sub_matches.is_present("show-mixed-function-counts");
             let show_symbol_map = sub_matches.is_present("show-symbol-map");
 
-            let mut issue_kinds_filter = HashSet::new();
+            let mut issue_kinds_filter = FxHashSet::default();
 
             let filter_issue_strings = sub_matches
                 .values_of("show-issue")
-                .map(|values| values.collect::<HashSet<_>>());
+                .map(|values| values.collect::<FxHashSet<_>>());
 
             if let Some(filter_issue_strings) = filter_issue_strings {
                 for filter_issue_string in filter_issue_strings {

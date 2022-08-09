@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use hakana_file_info::FileSource;
 use oxidized::{aast, ast_defs};
@@ -10,7 +10,7 @@ pub(crate) fn get_var_id(
     conditional: &aast::Expr<(), ()>,
     this_class_name: Option<&String>,
     source: &FileSource,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> Option<String> {
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => Some(var_expr.1 .1.clone()),
@@ -86,7 +86,7 @@ pub(crate) fn get_extended_var_id(
     conditional: &aast::Expr<(), ()>,
     this_class_name: Option<&String>,
     source: &FileSource,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> Option<String> {
     return get_var_id(conditional, this_class_name, source, resolved_names);
 }

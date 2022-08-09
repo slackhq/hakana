@@ -12,7 +12,7 @@ use oxidized::{
     aast::{self, ClassId},
     ast_defs::Pos,
 };
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -175,7 +175,7 @@ fn analyse_known_class_constant(
     }
 
     let mut class_constant_type =
-        codebase.get_class_constant_type(&classlike_name, &const_name, HashSet::new());
+        codebase.get_class_constant_type(&classlike_name, &const_name, FxHashSet::default());
 
     if let Some(ref mut class_constant_type) = class_constant_type {
         type_expander::expand_union(

@@ -10,39 +10,39 @@ use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
 use function_context::method_identifier::MethodIdentifier;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CodebaseInfo {
-    pub classlike_infos: HashMap<String, ClassLikeInfo>,
-    pub functionlike_infos: HashMap<String, FunctionLikeInfo>,
-    pub type_definitions: HashMap<String, TypeDefinitionInfo>,
+    pub classlike_infos: FxHashMap<String, ClassLikeInfo>,
+    pub functionlike_infos: FxHashMap<String, FunctionLikeInfo>,
+    pub type_definitions: FxHashMap<String, TypeDefinitionInfo>,
     pub symbols: Symbols,
     pub infer_types_from_usage: bool,
     pub register_stub_files: bool,
-    pub constant_infos: HashMap<String, ConstantInfo>,
-    pub classlikes_in_files: HashMap<String, HashSet<String>>,
-    pub typedefs_in_files: HashMap<String, HashSet<String>>,
-    pub functions_in_files: HashMap<String, HashSet<String>>,
-    pub const_files: HashMap<String, HashSet<String>>,
-    pub classlike_descendents: HashMap<String, HashSet<String>>,
+    pub constant_infos: FxHashMap<String, ConstantInfo>,
+    pub classlikes_in_files: FxHashMap<String, FxHashSet<String>>,
+    pub typedefs_in_files: FxHashMap<String, FxHashSet<String>>,
+    pub functions_in_files: FxHashMap<String, FxHashSet<String>>,
+    pub const_files: FxHashMap<String, FxHashSet<String>>,
+    pub classlike_descendents: FxHashMap<String, FxHashSet<String>>,
 }
 
 impl CodebaseInfo {
     pub fn new() -> Self {
         Self {
-            classlike_infos: HashMap::new(),
-            functionlike_infos: HashMap::new(),
+            classlike_infos: FxHashMap::default(),
+            functionlike_infos: FxHashMap::default(),
             symbols: Symbols::new(),
-            type_definitions: HashMap::new(),
+            type_definitions: FxHashMap::default(),
             infer_types_from_usage: false,
             register_stub_files: false,
-            constant_infos: HashMap::new(),
-            classlikes_in_files: HashMap::new(),
-            typedefs_in_files: HashMap::new(),
-            functions_in_files: HashMap::new(),
-            const_files: HashMap::new(),
-            classlike_descendents: HashMap::new(),
+            constant_infos: FxHashMap::default(),
+            classlikes_in_files: FxHashMap::default(),
+            typedefs_in_files: FxHashMap::default(),
+            functions_in_files: FxHashMap::default(),
+            const_files: FxHashMap::default(),
+            classlike_descendents: FxHashMap::default(),
         }
     }
 
@@ -124,7 +124,7 @@ impl CodebaseInfo {
         &self,
         fq_class_name: &String,
         const_name: &String,
-        _visited_constant_ids: HashSet<String>,
+        _visited_constant_ids: FxHashSet<String>,
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             if let Some(constant_storage) = classlike_storage.constants.get(const_name) {

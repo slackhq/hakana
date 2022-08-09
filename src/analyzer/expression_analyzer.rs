@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -37,6 +37,7 @@ use hakana_type::{
 };
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -399,14 +400,14 @@ pub(crate) fn analyze(
                     &closure_return_node,
                     &application_node,
                     PathKind::Default,
-                    HashSet::new(),
-                    HashSet::new(),
+                    None,
+                    None,
                 );
 
                 tast_info.data_flow_graph.add_node(application_node.clone());
 
                 closure_type.parent_nodes =
-                    HashMap::from([(application_node.id.clone(), application_node)]);
+                    FxHashMap::from_iter([(application_node.id.clone(), application_node)]);
             }
 
             tast_info.expr_types.insert(
@@ -481,15 +482,15 @@ pub(crate) fn analyze(
                             parent_node,
                             &new_parent_node,
                             PathKind::Default,
-                            HashSet::new(),
+                            None,
                             if offset > 0 {
-                                HashSet::from([
+                                Some(FxHashSet::from_iter([
                                     TaintType::HtmlAttributeUri,
                                     TaintType::CurlUri,
                                     TaintType::RedirectUri,
-                                ])
+                                ]))
                             } else {
-                                HashSet::new()
+                                None
                             },
                         );
                     }
@@ -740,7 +741,7 @@ pub(crate) fn get_class_id_classname(
     class_id: &aast::ClassId<(), ()>,
     calling_class: &Option<String>,
     codebase: Option<&CodebaseInfo>,
-    resolved_names: &std::collections::HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> Option<String> {
     match &class_id.2 {
         aast::ClassId_::CIexpr(inner_expr) => {
@@ -815,8 +816,8 @@ pub(crate) fn add_decision_dataflow(
                 old_parent_node,
                 &decision_node,
                 PathKind::Default,
-                HashSet::new(),
-                HashSet::new(),
+                None,
+                None,
             );
         }
     }
@@ -835,8 +836,8 @@ pub(crate) fn add_decision_dataflow(
                     old_parent_node,
                     &decision_node,
                     PathKind::Default,
-                    HashSet::new(),
-                    HashSet::new(),
+                    None,
+                    None,
                 );
             }
         }

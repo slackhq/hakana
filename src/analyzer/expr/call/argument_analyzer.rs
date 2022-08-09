@@ -19,7 +19,7 @@ use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use super::method_call_info::MethodCallInfo;
 
@@ -323,7 +323,7 @@ pub(crate) fn verify_type(
 
     /*if function_param.assert_untainted {
         replace_input_type = true;
-        input_type.parent_nodes = HashMap::new();
+        input_type.parent_nodes = FxHashMap::default();
     }*/
 
     if union_comparison_result.type_coerced.unwrap_or(false) && !input_type.is_mixed() {
@@ -560,8 +560,8 @@ fn add_dataflow(
                             &method_node,
                             &new_sink,
                             PathKind::Default,
-                            HashSet::new(),
-                            HashSet::new(),
+                            None,
+                            None,
                         );
                     }
                 }
@@ -589,8 +589,8 @@ fn add_dataflow(
                         &method_node,
                         &new_sink,
                         PathKind::Default,
-                        HashSet::new(),
-                        HashSet::new(),
+                        None,
+                        None,
                     );
                 }
             }
@@ -606,9 +606,8 @@ fn add_dataflow(
     // maybe todo prevent numeric types from being tainted
     // ALTHOUGH numbers may still contain PII
 
-    let added_taints = HashSet::new();
     let removed_taints = if data_flow_graph.kind == GraphKind::Variable {
-        HashSet::new()
+        FxHashSet::default()
     } else {
         let tags = statements_analyzer
             .get_comments()
@@ -619,7 +618,7 @@ fn add_dataflow(
             })
             .collect::<Vec<_>>();
 
-        let mut removed_taints = HashSet::new();
+        let mut removed_taints = FxHashSet::default();
 
         for tag in tags {
             match &tag.1 {
@@ -648,8 +647,12 @@ fn add_dataflow(
             parent_node,
             &argument_value_node,
             PathKind::Default,
-            added_taints.clone(),
-            removed_taints.clone(),
+            None,
+            if removed_taints.is_empty() {
+                None
+            } else {
+                Some(removed_taints.clone())
+            },
         );
     }
 
@@ -668,8 +671,8 @@ fn add_dataflow(
             &argument_value_node,
             &method_node,
             PathKind::Default,
-            HashSet::new(),
-            HashSet::new(),
+            None,
+            None,
         );
 
         if !taints.is_empty() {

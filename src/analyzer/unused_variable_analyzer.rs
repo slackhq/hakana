@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -39,9 +39,9 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> Vec<DataFlowNode> {
 }
 
 fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> bool {
-    let mut visited_source_ids = HashSet::new();
+    let mut visited_source_ids = FxHashSet::default();
 
-    let mut sources = HashMap::new();
+    let mut sources = FxHashMap::default();
 
     let source_node = TaintedNode::from(source_node);
     sources.insert(source_node.id.clone(), source_node.clone());
@@ -53,7 +53,7 @@ fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> bool {
             break;
         }
 
-        let mut new_child_nodes = HashMap::new();
+        let mut new_child_nodes = FxHashMap::default();
 
         for (_, source) in &sources {
             visited_source_ids.insert(source.id.clone());
@@ -78,9 +78,9 @@ fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> bool {
 fn get_variable_child_nodes(
     graph: &DataFlowGraph,
     generated_source: &TaintedNode,
-    visited_source_ids: &HashSet<String>,
-) -> Option<HashMap<String, TaintedNode>> {
-    let mut new_child_nodes = HashMap::new();
+    visited_source_ids: &FxHashSet<String>,
+) -> Option<FxHashMap<String, TaintedNode>> {
+    let mut new_child_nodes = FxHashMap::default();
 
     if let Some(forward_edges) = graph.forward_edges.get(&generated_source.id) {
         for (to_id, path) in forward_edges {
@@ -123,10 +123,10 @@ fn get_variable_child_nodes(
                 label: to_id.clone(),
                 pos: None,
                 specialization_key: None,
-                taints: HashSet::new(),
+                taints: FxHashSet::default(),
                 previous: None,
                 path_types: generated_source.clone().path_types,
-                specialized_calls: HashMap::new(),
+                specialized_calls: FxHashMap::default(),
             };
 
             new_destination.path_types.push(path.kind.clone());

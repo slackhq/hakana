@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::rc::Rc;
 
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
@@ -23,6 +20,7 @@ use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
 };
+use rustc_hash::FxHashMap;
 
 use crate::{
     expr::{expression_identifier, fetch::atomic_property_fetch_analyzer::localize_property_type},
@@ -80,7 +78,7 @@ pub(crate) fn analyze(
         }
 
         let mut union_comparison_result = TypeComparisonResult::new();
-        let mut invalid_assignment_value_types = HashMap::new();
+        let mut invalid_assignment_value_types = FxHashMap::default();
 
         let type_match_found = union_type_comparator::is_contained_by(
             codebase,
@@ -453,8 +451,8 @@ fn add_instance_property_dataflow(
                         PathExpressionKind::Property,
                         property_id.1.to_string(),
                     ),
-                    HashSet::new(),
-                    HashSet::new(),
+                    None,
+                    None,
                 );
 
                 for (_, parent_node) in assignment_value_type.parent_nodes.iter() {
@@ -462,8 +460,8 @@ fn add_instance_property_dataflow(
                         parent_node,
                         &var_node,
                         PathKind::Default,
-                        HashSet::new(),
-                        HashSet::new(),
+                        None,
+                        None,
                     );
                 }
 
@@ -473,7 +471,7 @@ fn add_instance_property_dataflow(
                     let mut stmt_type_inner = (**stmt_var_type).clone();
 
                     stmt_type_inner.parent_nodes =
-                        HashMap::from([(property_node.id.clone(), property_node.clone())]);
+                        FxHashMap::from_iter([(property_node.id.clone(), property_node.clone())]);
 
                     context
                         .vars_in_scope
@@ -535,8 +533,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         &localized_property_node,
         &property_node,
         PathKind::ExpressionAssignment(PathExpressionKind::Property, property_id.1.to_string()),
-        HashSet::new(),
-        HashSet::new(),
+        None,
+        None,
     );
 
     for (_, parent_node) in assignment_value_type.parent_nodes.iter() {
@@ -544,8 +542,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
             parent_node,
             &localized_property_node,
             PathKind::Default,
-            HashSet::new(),
-            HashSet::new(),
+            None,
+            None,
         );
     }
 
@@ -573,8 +571,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
                     PathExpressionKind::Property,
                     property_id.1.to_string(),
                 ),
-                HashSet::new(),
-                HashSet::new(),
+                None,
+                None,
             );
 
             tast_info.data_flow_graph.add_node(declaring_property_node);

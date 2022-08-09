@@ -11,10 +11,8 @@ use oxidized::{
     ast_defs::{self, ParamKind},
     file_pos::FilePos,
 };
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    rc::Rc,
-};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::{collections::BTreeMap, rc::Rc};
 
 use crate::{
     algebra_analyzer,
@@ -86,11 +84,11 @@ pub(crate) fn analyze(
 
     let mut last_case_exit_type = ControlAction::Break;
 
-    let mut case_exit_types = HashMap::new();
+    let mut case_exit_types = FxHashMap::default();
 
     let has_default = stmt.2.is_some();
 
-    let mut case_action_map = HashMap::new();
+    let mut case_action_map = FxHashMap::default();
 
     let mut cases = stmt
         .1
@@ -281,7 +279,7 @@ fn analyze_case(
     context: &mut ScopeContext,
     original_context: &ScopeContext,
     case_exit_type: &ControlAction,
-    case_actions: &HashSet<ControlAction>,
+    case_actions: &FxHashSet<ControlAction>,
     is_last: bool,
     switch_scope: &mut SwitchScope,
     loop_scope: &mut Option<LoopScope>,
@@ -555,11 +553,11 @@ fn analyze_case(
     let (reconcilable_if_types, _) = hakana_algebra::get_truths_from_formula(
         case_context.clauses.iter().map(|v| &**v).collect(),
         None,
-        &mut HashSet::new(),
+        &mut FxHashSet::default(),
     );
 
     if !reconcilable_if_types.is_empty() {
-        let mut changed_var_ids = HashSet::new();
+        let mut changed_var_ids = FxHashSet::default();
 
         reconciler::reconcile_keyed_types(
             &reconcilable_if_types,
@@ -567,16 +565,16 @@ fn analyze_case(
             &mut case_context,
             &mut changed_var_ids,
             &if case_cond.is_some() {
-                HashSet::from([switch_var_id.clone()])
+                FxHashSet::from_iter([switch_var_id.clone()])
             } else {
-                HashSet::new()
+                FxHashSet::default()
             },
             statements_analyzer,
             tast_info,
             case_pos,
             true,
             false,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
 
         if !changed_var_ids.is_empty() {
@@ -835,11 +833,11 @@ fn update_case_exit_map(
     codebase: &CodebaseInfo,
     case_stmts: &Vec<aast::Stmt<(), ()>>,
     tast_info: &mut TastInfo,
-    resolved_names: &HashMap<usize, String>,
-    case_action_map: &mut HashMap<usize, std::collections::HashSet<ControlAction>>,
+    resolved_names: &FxHashMap<usize, String>,
+    case_action_map: &mut FxHashMap<usize, FxHashSet<ControlAction>>,
     i: usize,
     last_case_exit_type: &mut ControlAction,
-    case_exit_types: &mut HashMap<usize, ControlAction>,
+    case_exit_types: &mut FxHashMap<usize, ControlAction>,
 ) {
     let case_actions = control_analyzer::get_control_actions(
         codebase,
@@ -855,7 +853,7 @@ fn update_case_exit_map(
     case_exit_types.insert(i, last_case_exit_type.clone());
 }
 
-fn get_last_action(case_actions: HashSet<ControlAction>) -> Option<ControlAction> {
+fn get_last_action(case_actions: FxHashSet<ControlAction>) -> Option<ControlAction> {
     if !case_actions.contains(&ControlAction::None) {
         if case_actions.len() == 1 && case_actions.contains(&ControlAction::End) {
             return Some(ControlAction::Return);

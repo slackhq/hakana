@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SymbolKind {
@@ -14,15 +14,15 @@ pub enum SymbolKind {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Symbols {
-    pub all: HashMap<String, SymbolKind>,
-    pub classlike_files: HashMap<String, String>,
+    pub all: FxHashMap<String, SymbolKind>,
+    pub classlike_files: FxHashMap<String, String>,
 }
 
 impl Symbols {
     pub fn new() -> Symbols {
         Symbols {
-            all: HashMap::new(),
-            classlike_files: HashMap::new(),
+            all: FxHashMap::default(),
+            classlike_files: FxHashMap::default(),
         }
     }
 

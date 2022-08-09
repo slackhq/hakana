@@ -3,9 +3,9 @@ pub mod clause;
 pub use clause::Clause;
 use hakana_reflection_info::assertion::Assertion;
 use rand::Rng;
+use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use rustc_hash::FxHashMap;
 mod tests;
 
 pub fn negate_types(
@@ -78,10 +78,10 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
         }
     }
 
-    let mut unique_clauses = clauses.into_iter().collect::<HashSet<_>>();
+    let mut unique_clauses = clauses.into_iter().collect::<FxHashSet<_>>();
 
-    let mut removed_clauses = HashSet::new();
-    let mut added_clauses = HashSet::new();
+    let mut removed_clauses = FxHashSet::default();
+    let mut added_clauses = FxHashSet::default();
 
     // remove impossible types
     'outer: for clause_a in &unique_clauses {
@@ -191,10 +191,10 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
     let mut unique_clauses = unique_clauses
         .into_iter()
         .map(|c| c.clone())
-        .collect::<HashSet<_>>();
+        .collect::<FxHashSet<_>>();
     unique_clauses.extend(added_clauses);
 
-    let mut simplified_clauses = HashSet::new();
+    let mut simplified_clauses = FxHashSet::default();
 
     for clause_a in &unique_clauses {
         let mut is_redundant = false;
@@ -220,9 +220,9 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
     // simplify (A || X) && (!A || Y)
     // where X and Y are sets of orred terms
     if simplified_clauses.len() > 2 && simplified_clauses.len() < 256 {
-        let mut compared_clauses = HashSet::new();
+        let mut compared_clauses = FxHashSet::default();
 
-        let mut removed_clauses = HashSet::new();
+        let mut removed_clauses = FxHashSet::default();
 
         for clause_a in &simplified_clauses {
             for clause_b in &simplified_clauses {
@@ -239,10 +239,10 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
                     .iter()
                     .filter(|(var_id, _)| clause_b.possibilities.contains_key(*var_id))
                     .map(|(var_id, _)| var_id)
-                    .collect::<HashSet<_>>();
+                    .collect::<FxHashSet<_>>();
 
                 if !common_keys.is_empty() {
-                    let mut common_negated_keys = HashSet::new();
+                    let mut common_negated_keys = FxHashSet::default();
 
                     for common_key in common_keys {
                         let clause_a_possibilities =
@@ -311,10 +311,10 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 pub fn get_truths_from_formula(
     clauses: Vec<&Clause>,
     creating_conditional_id: Option<(usize, usize)>,
-    cond_referenced_var_ids: &mut HashSet<String>,
+    cond_referenced_var_ids: &mut FxHashSet<String>,
 ) -> (
     BTreeMap<String, Vec<Vec<Assertion>>>,
-    BTreeMap<String, HashMap<usize, Vec<Assertion>>>,
+    BTreeMap<String, FxHashMap<usize, Vec<Assertion>>>,
 ) {
     let mut truths = BTreeMap::new();
 
@@ -352,7 +352,7 @@ pub fn get_truths_from_formula(
                     if creating_conditional_id == clause.creating_conditional_id {
                         active_truths
                             .entry(var_id.clone())
-                            .or_insert_with(HashMap::new)
+                            .or_insert_with(FxHashMap::default)
                             .insert(
                                 truths.get(var_id).unwrap().len() - 1,
                                 vec![possible_type.clone()],
@@ -360,7 +360,7 @@ pub fn get_truths_from_formula(
                     }
                 }
             } else {
-                let mut things_that_can_be_said = HashMap::new();
+                let mut things_that_can_be_said = FxHashMap::default();
 
                 for (_, assertion) in possible_types {
                     if matches!(assertion, Assertion::Falsy) || !assertion.has_negation() {
@@ -386,7 +386,7 @@ pub fn get_truths_from_formula(
                         if creating_conditional_id == clause.creating_conditional_id {
                             active_truths
                                 .entry(var_id.clone())
-                                .or_insert_with(HashMap::new)
+                                .or_insert_with(FxHashMap::default)
                                 .insert(truths.get(var_id).unwrap().len() - 1, things_vec.clone());
                         }
                     }

@@ -4,12 +4,12 @@ use oxidized::{
     ast_defs::{self, ParamKind},
 };
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::expr::expression_identifier;
 
 struct Scanner {
-    pub assignment_map: HashMap<String, HashSet<String>>,
+    pub assignment_map: FxHashMap<String, FxHashSet<String>>,
     pub first_var_id: Option<String>,
 }
 
@@ -20,7 +20,7 @@ struct Context {
 impl Scanner {
     fn new() -> Self {
         Self {
-            assignment_map: HashMap::new(),
+            assignment_map: FxHashMap::default(),
             first_var_id: None,
         }
     }
@@ -57,7 +57,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                                 }
                                 self.assignment_map
                                     .entry(left_var_id.clone())
-                                    .or_insert_with(HashSet::new)
+                                    .or_insert_with(FxHashSet::default)
                                     .insert(right_var_id.clone().unwrap_or("isset".to_string()));
                             }
                         }
@@ -74,7 +74,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                             }
                             self.assignment_map
                                 .entry(left_var_id.clone())
-                                .or_insert_with(HashSet::new)
+                                .or_insert_with(FxHashSet::default)
                                 .insert(right_var_id.clone().unwrap_or("isset".to_string()));
                         }
                     }
@@ -98,7 +98,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                         }
                         self.assignment_map
                             .entry(var_id.clone())
-                            .or_insert_with(HashSet::new)
+                            .or_insert_with(FxHashSet::default)
                             .insert(var_id.clone());
                     }
                 }
@@ -119,7 +119,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                             }
                             self.assignment_map
                                 .entry(arg_var_id.clone())
-                                .or_insert_with(HashSet::new)
+                                .or_insert_with(FxHashSet::default)
                                 .insert(arg_var_id.clone());
                         }
                     }
@@ -140,7 +140,7 @@ pub fn get_assignment_map(
     post_expressions: Vec<&aast::Expr<(), ()>>,
     stmts: &Vec<aast::Stmt<(), ()>>,
     this_class_name: Option<String>,
-) -> (HashMap<String, HashSet<String>>, Option<String>) {
+) -> (FxHashMap<String, FxHashSet<String>>, Option<String>) {
     let mut scanner = Scanner::new();
     let mut context = Context { this_class_name };
 

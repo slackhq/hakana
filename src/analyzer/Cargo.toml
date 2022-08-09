@@ -21,6 +21,7 @@ naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/namin
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 glob = "0.3.0"
+rustc-hash = "1.1.0"
 
 [lib]
 path = "lib.rs"

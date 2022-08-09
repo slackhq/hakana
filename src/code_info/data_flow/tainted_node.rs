@@ -3,11 +3,9 @@ use super::{
     path::PathKind,
 };
 
-use std::{
-    collections::{BTreeSet, HashMap, HashSet},
-    rc::Rc,
-};
+use std::{collections::BTreeSet, rc::Rc};
 
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{code_location::HPos, taint::TaintType};
@@ -20,10 +18,10 @@ pub struct TaintedNode {
     pub label: String,
     pub pos: Option<Rc<HPos>>,
     pub specialization_key: Option<String>,
-    pub taints: HashSet<TaintType>,
+    pub taints: FxHashSet<TaintType>,
     pub previous: Option<Rc<TaintedNode>>,
     pub path_types: Vec<PathKind>,
-    pub specialized_calls: HashMap<String, HashSet<String>>,
+    pub specialized_calls: FxHashMap<String, FxHashSet<String>>,
 }
 
 impl TaintedNode {
@@ -70,10 +68,10 @@ impl TaintedNode {
                 None
             },
             specialization_key: node.specialization_key.clone(),
-            taints: node.taints.clone().unwrap_or(HashSet::new()),
+            taints: node.taints.clone().unwrap_or(FxHashSet::default()),
             previous: None,
             path_types: Vec::new(),
-            specialized_calls: HashMap::new(),
+            specialized_calls: FxHashMap::default(),
         }
     }
 

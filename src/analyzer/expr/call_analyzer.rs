@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
@@ -137,8 +137,8 @@ pub(crate) fn check_template_result(
 pub(crate) fn get_generic_param_for_offset(
     classlike_name: &String,
     template_name: &String,
-    template_extended_params: &HashMap<String, IndexMap<String, TUnion>>,
-    found_generic_params: &HashMap<String, HashMap<String, TUnion>>,
+    template_extended_params: &FxHashMap<String, IndexMap<String, TUnion>>,
+    found_generic_params: &FxHashMap<String, FxHashMap<String, TUnion>>,
 ) -> TUnion {
     if let Some(found_generic_param) =
         if let Some(result_map) = found_generic_params.get(template_name) {

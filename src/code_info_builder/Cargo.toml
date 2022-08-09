@@ -12,6 +12,7 @@ indexmap = "1.8.0"
 parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
 oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
 naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/naming" }
+rustc-hash = "1.1.0"
 
 [lib]
 path = "lib.rs"

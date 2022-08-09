@@ -17,7 +17,8 @@ use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
 use populator::populate_codebase;
 use rust_embed::RustEmbed;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use rustc_hash::{FxHashSet, FxHashMap};
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
@@ -46,7 +47,7 @@ pub fn scan_and_analyze(
     include_core_libs: bool,
     stubs_dirs: Vec<String>,
     filter: Option<String>,
-    ignored_paths: Option<HashSet<String>>,
+    ignored_paths: Option<FxHashSet<String>>,
     config: Arc<Config>,
     cache_dir: Option<&String>,
     threads: u8,
@@ -97,7 +98,7 @@ pub fn scan_and_analyze(
                     },
                 )
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<FxHashMap<_, _>>();
         let serialized_hashes = bincode::serialize(&mapped).unwrap();
         manifest_file
             .write_all(&serialized_hashes)
@@ -166,7 +167,7 @@ fn find_unused_definitions(
     analysis_result: &mut AnalysisResult,
     config: &Arc<Config>,
     arc_codebase: Arc<CodebaseInfo>,
-    ignored_paths: &Option<HashSet<String>>,
+    ignored_paths: &Option<FxHashSet<String>>,
 ) {
     let referenced_symbols = analysis_result.symbol_references.get_referenced_symbols();
     let referenced_class_members = analysis_result
@@ -467,12 +468,12 @@ pub fn scan_files(
 
     let file_update_hashes = if let Some(cache_dir) = cache_dir {
         if use_codebase_cache {
-            file_cache_provider::get_file_manifest(cache_dir).unwrap_or(HashMap::new())
+            file_cache_provider::get_file_manifest(cache_dir).unwrap_or(FxHashMap::default())
         } else {
-            HashMap::new()
+            FxHashMap::default()
         }
     } else {
-        HashMap::new()
+        FxHashMap::default()
     };
 
     let file_statuses = file_cache_provider::get_file_diff(&files_to_scan, file_update_hashes);
@@ -511,7 +512,7 @@ pub fn scan_files(
 
         let mut group_size = threads as usize;
 
-        let mut path_groups = HashMap::new();
+        let mut path_groups = FxHashMap::default();
 
         if (files_to_scan.len() / group_size) < 4 {
             group_size = 1;
@@ -528,7 +529,7 @@ pub fn scan_files(
         if path_groups.len() == 1 {
             let mut new_codebase = CodebaseInfo::new();
 
-            let analyze_map = files_to_analyze.clone().into_iter().collect::<HashSet<_>>();
+            let analyze_map = files_to_analyze.clone().into_iter().collect::<FxHashSet<_>>();
 
             for (i, str_path) in path_groups[&0].iter().enumerate() {
                 scan_file(
@@ -561,7 +562,7 @@ pub fn scan_files(
                 let bar = bar.clone();
                 let files_processed = files_processed.clone();
 
-                let analyze_map = files_to_analyze.clone().into_iter().collect::<HashSet<_>>();
+                let analyze_map = files_to_analyze.clone().into_iter().collect::<FxHashSet<_>>();
 
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
@@ -630,7 +631,7 @@ fn load_cached_codebase(
                 .iter()
                 .filter(|(_, v)| !matches!(v, FileStatus::Unchanged(..)))
                 .map(|(k, _)| k)
-                .collect::<HashSet<_>>();
+                .collect::<FxHashSet<_>>();
 
             let functions_to_remove = codebase
                 .functions_in_files
@@ -638,7 +639,7 @@ fn load_cached_codebase(
                 .filter(|(k, _)| changed_files.contains(k))
                 .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
                 .flatten()
-                .collect::<HashSet<_>>();
+                .collect::<FxHashSet<_>>();
 
             let typedefs_to_remove = codebase
                 .typedefs_in_files
@@ -646,7 +647,7 @@ fn load_cached_codebase(
                 .filter(|(k, _)| changed_files.contains(k))
                 .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
                 .flatten()
-                .collect::<HashSet<_>>();
+                .collect::<FxHashSet<_>>();
 
             let constants_to_remove = codebase
                 .const_files
@@ -654,7 +655,7 @@ fn load_cached_codebase(
                 .filter(|(k, _)| changed_files.contains(k))
                 .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
                 .flatten()
-                .collect::<HashSet<_>>();
+                .collect::<FxHashSet<_>>();
 
             let classlikes_to_remove = codebase
                 .classlikes_in_files
@@ -662,7 +663,7 @@ fn load_cached_codebase(
                 .filter(|(k, _)| changed_files.contains(k))
                 .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
                 .flatten()
-                .collect::<HashSet<_>>();
+                .collect::<FxHashSet<_>>();
 
             codebase
                 .functionlike_infos
@@ -901,7 +902,7 @@ pub fn analyze_files(
     config: Arc<Config>,
     analysis_result: &Arc<Mutex<AnalysisResult>>,
     filter: Option<String>,
-    ignored_paths: &Option<HashSet<String>>,
+    ignored_paths: &Option<FxHashSet<String>>,
     cache_dir: Option<&String>,
     _file_statuses: &IndexMap<String, FileStatus>,
     threads: u8,
@@ -909,7 +910,7 @@ pub fn analyze_files(
 ) -> io::Result<()> {
     let mut group_size = threads as usize;
 
-    let mut path_groups = HashMap::new();
+    let mut path_groups = FxHashMap::default();
 
     if let Some(filter) = filter {
         paths.retain(|str_path| str_path.matches(filter.as_str()).count() > 0);

@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::rc::Rc;
 
 use hakana_reflection_info::{
     data_flow::{
@@ -19,6 +16,7 @@ use hakana_type::{
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
 };
 use oxidized::{aast, ast_defs::Pos};
+use rustc_hash::FxHashMap;
 
 use crate::{expr::expression_identifier, typed_ast::TastInfo};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -256,8 +254,8 @@ pub(crate) fn add_array_fetch_dataflow(
                     } else {
                         PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayValue)
                     },
-                    HashSet::new(),
-                    HashSet::new(),
+                    None,
+                    None,
                 );
 
                 if let Some(array_key_node) = array_key_node.clone() {
@@ -265,8 +263,8 @@ pub(crate) fn add_array_fetch_dataflow(
                         parent_node,
                         &array_key_node,
                         PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayKey),
-                        HashSet::new(),
-                        HashSet::new(),
+                        None,
+                        None,
                     );
                 }
             }
@@ -866,14 +864,14 @@ pub(crate) fn handle_array_access_on_mixed(
                     parent_node,
                     &new_parent_node,
                     PathKind::Default,
-                    HashSet::new(),
-                    HashSet::new(),
+                    None,
+                    None,
                 );
             }
             if let Some(stmt_type) = stmt_type {
                 let mut stmt_type_new = stmt_type.clone();
                 stmt_type_new.parent_nodes =
-                    HashMap::from([(new_parent_node.id.clone(), new_parent_node.clone())]);
+                    FxHashMap::from_iter([(new_parent_node.id.clone(), new_parent_node.clone())]);
             }
         }
     }

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     code_location::HPos, codebase_info::symbols::SymbolKind, functionlike_info::FunctionLikeInfo,
@@ -14,7 +14,7 @@ use crate::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClassLikeInfo {
-    pub constants: HashMap<String, ConstantInfo>,
+    pub constants: FxHashMap<String, ConstantInfo>,
 
     /**
      * Aliases to help Hakana understand constant refs
@@ -29,7 +29,7 @@ pub struct ClassLikeInfo {
 
     pub internal_to: Option<String>,
 
-    pub suppressed_issues: Option<HashMap<u32, String>>,
+    pub suppressed_issues: Option<FxHashMap<u32, String>>,
 
     pub name: String,
 
@@ -38,22 +38,22 @@ pub struct ClassLikeInfo {
     /**
      * Interfaces this class implements directly
      */
-    pub direct_class_interfaces: HashSet<String>,
+    pub direct_class_interfaces: FxHashSet<String>,
 
     /**
      * Interfaces this class implements explicitly and implicitly
      */
-    pub all_class_interfaces: HashSet<String>,
+    pub all_class_interfaces: FxHashSet<String>,
 
     /**
      * Parent interfaces listed explicitly
      */
-    pub direct_parent_interfaces: HashSet<String>,
+    pub direct_parent_interfaces: FxHashSet<String>,
 
     /**
      * All parent interfaces
      */
-    pub all_parent_interfaces: HashSet<String>,
+    pub all_parent_interfaces: FxHashSet<String>,
 
     /**
      * There can only be one parent class
@@ -63,7 +63,7 @@ pub struct ClassLikeInfo {
     /**
      * Parent classes
      */
-    pub all_parent_classes: HashSet<String>,
+    pub all_parent_classes: FxHashSet<String>,
 
     pub def_location: Option<HPos>,
 
@@ -75,44 +75,44 @@ pub struct ClassLikeInfo {
 
     pub kind: SymbolKind,
 
-    pub used_traits: HashSet<String>,
+    pub used_traits: FxHashSet<String>,
 
-    pub trait_alias_map: HashMap<String, String>,
+    pub trait_alias_map: FxHashMap<String, String>,
 
-    pub trait_final_map: HashMap<String, String>,
+    pub trait_final_map: FxHashMap<String, String>,
 
-    pub trait_visibility_map: HashMap<String, String>,
+    pub trait_visibility_map: FxHashMap<String, String>,
 
     pub immutable: bool,
 
     pub specialize_instance: bool,
 
-    pub methods: HashMap<String, FunctionLikeInfo>,
+    pub methods: FxHashMap<String, FunctionLikeInfo>,
 
-    pub declaring_method_ids: HashMap<String, String>,
+    pub declaring_method_ids: FxHashMap<String, String>,
 
-    pub appearing_method_ids: HashMap<String, String>,
+    pub appearing_method_ids: FxHashMap<String, String>,
 
     /**
      * Map from lowercase method name to list of declarations in order from parent, to grandparent, to
      * great-grandparent, etc **including traits and interfaces**. Ancestors that don't have their own declaration are
      * skipped.
      */
-    pub overridden_method_ids: HashMap<String, HashSet<String>>,
+    pub overridden_method_ids: FxHashMap<String, FxHashSet<String>>,
 
-    pub inheritable_method_ids: HashMap<String, String>,
+    pub inheritable_method_ids: FxHashMap<String, String>,
 
-    pub potential_declaring_method_ids: HashMap<String, HashSet<String>>,
+    pub potential_declaring_method_ids: FxHashMap<String, FxHashSet<String>>,
 
-    pub properties: HashMap<String, PropertyInfo>,
+    pub properties: FxHashMap<String, PropertyInfo>,
 
-    pub appearing_property_ids: HashMap<String, String>,
+    pub appearing_property_ids: FxHashMap<String, String>,
 
-    pub declaring_property_ids: HashMap<String, String>,
+    pub declaring_property_ids: FxHashMap<String, String>,
 
-    pub inheritable_property_ids: HashMap<String, String>,
+    pub inheritable_property_ids: FxHashMap<String, String>,
 
-    pub overridden_property_ids: HashMap<String, Vec<String>>,
+    pub overridden_property_ids: FxHashMap<String, Vec<String>>,
 
     /**
      * An array holding the class template "as" types.
@@ -123,9 +123,9 @@ pub struct ClassLikeInfo {
      * (i.e. the same as the class name). This allows operations with the same-named template defined
      * across multiple classes to not run into trouble.
      */
-    pub template_types: IndexMap<String, HashMap<String, TUnion>>,
+    pub template_types: IndexMap<String, FxHashMap<String, TUnion>>,
 
-    pub template_covariants: HashSet<usize>,
+    pub template_covariants: FxHashSet<usize>,
 
     /**
      * A map of which generic classlikes are extended or implemented by this class or interface.
@@ -134,7 +134,7 @@ pub struct ClassLikeInfo {
      *
      * @internal
      */
-    pub template_extended_offsets: HashMap<String, Vec<TUnion>>,
+    pub template_extended_offsets: FxHashMap<String, Vec<TUnion>>,
 
     /**
      * A map of which generic classlikes are extended or implemented by this class or interface.
@@ -148,15 +148,15 @@ pub struct ClassLikeInfo {
      *     ]
      * ]
      */
-    pub template_extended_params: HashMap<String, IndexMap<String, TUnion>>,
+    pub template_extended_params: FxHashMap<String, IndexMap<String, TUnion>>,
 
     pub template_extended_count: u32,
 
-    pub template_type_implements_count: HashMap<String, u32>,
+    pub template_type_implements_count: FxHashMap<String, u32>,
 
-    pub template_type_uses_count: HashMap<String, u32>,
+    pub template_type_uses_count: FxHashMap<String, u32>,
 
-    pub initialized_properties: HashSet<String>,
+    pub initialized_properties: FxHashSet<String>,
 
     pub invalid_dependencies: Vec<String>,
 
@@ -167,7 +167,7 @@ pub struct ClassLikeInfo {
 
     pub has_visitor_issues: bool,
 
-    pub type_aliases: HashMap<String, ClassTypeAlias>,
+    pub type_aliases: FxHashMap<String, ClassTypeAlias>,
 
     pub preserve_constructor_signature: bool,
 
@@ -179,25 +179,25 @@ pub struct ClassLikeInfo {
 
     pub attributes: Vec<AttributeInfo>,
 
-    pub enum_cases: Option<HashMap<String, EnumCaseInfo>>,
+    pub enum_cases: Option<FxHashMap<String, EnumCaseInfo>>,
 
     pub enum_type: Option<TAtomic>,
 
     pub description: Option<String>,
 
-    pub type_constants: HashMap<String, TUnion>,
+    pub type_constants: FxHashMap<String, TUnion>,
 
     pub user_defined: bool,
 
     pub generated: bool,
 
-    pub child_classlikes: Option<HashSet<String>>,
+    pub child_classlikes: Option<FxHashSet<String>>,
 }
 
 impl Default for ClassLikeInfo {
     fn default() -> ClassLikeInfo {
         ClassLikeInfo {
-            constants: HashMap::new(),
+            constants: FxHashMap::default(),
             is_populated: false,
             is_stubbed: false,
             is_deprecated: false,
@@ -211,52 +211,52 @@ impl Default for ClassLikeInfo {
             preserve_constructor_signature: false,
             enforce_template_inheritance: false,
 
-            direct_class_interfaces: HashSet::new(),
+            direct_class_interfaces: FxHashSet::default(),
             aliases: None,
-            all_parent_classes: HashSet::new(),
-            appearing_method_ids: HashMap::new(),
+            all_parent_classes: FxHashSet::default(),
+            appearing_method_ids: FxHashMap::default(),
             attributes: Vec::new(),
-            all_class_interfaces: HashSet::new(),
-            all_parent_interfaces: HashSet::new(),
-            declaring_method_ids: HashMap::new(),
-            appearing_property_ids: HashMap::new(),
-            declaring_property_ids: HashMap::new(),
+            all_class_interfaces: FxHashSet::default(),
+            all_parent_interfaces: FxHashSet::default(),
+            declaring_method_ids: FxHashMap::default(),
+            appearing_property_ids: FxHashMap::default(),
+            declaring_property_ids: FxHashMap::default(),
             direct_parent_class: None,
             description: None,
-            direct_parent_interfaces: HashSet::new(),
-            inheritable_method_ids: HashMap::new(),
+            direct_parent_interfaces: FxHashSet::default(),
+            inheritable_method_ids: FxHashMap::default(),
             enum_cases: None,
             enum_type: None,
             extension_requirement: None,
             hash: None,
             implementation_requirements: Vec::new(),
-            inheritable_property_ids: HashMap::new(),
-            initialized_properties: HashSet::new(),
+            inheritable_property_ids: FxHashMap::default(),
+            initialized_properties: FxHashSet::default(),
             internal_to: None,
             invalid_dependencies: Vec::new(),
             def_location: None,
             name_location: None,
-            methods: HashMap::new(),
-            overridden_method_ids: HashMap::new(),
-            overridden_property_ids: HashMap::new(),
-            potential_declaring_method_ids: HashMap::new(),
-            properties: HashMap::new(),
+            methods: FxHashMap::default(),
+            overridden_method_ids: FxHashMap::default(),
+            overridden_property_ids: FxHashMap::default(),
+            potential_declaring_method_ids: FxHashMap::default(),
+            properties: FxHashMap::default(),
             suppressed_issues: None,
-            template_covariants: HashSet::new(),
+            template_covariants: FxHashSet::default(),
             template_extended_count: 0,
-            template_extended_params: HashMap::new(),
-            template_extended_offsets: HashMap::new(),
-            template_type_implements_count: HashMap::new(),
-            template_type_uses_count: HashMap::new(),
+            template_extended_params: FxHashMap::default(),
+            template_extended_offsets: FxHashMap::default(),
+            template_type_implements_count: FxHashMap::default(),
+            template_type_uses_count: FxHashMap::default(),
             template_types: IndexMap::new(),
-            trait_alias_map: HashMap::new(),
-            trait_final_map: HashMap::new(),
-            trait_visibility_map: HashMap::new(),
-            type_aliases: HashMap::new(),
-            used_traits: HashSet::new(),
+            trait_alias_map: FxHashMap::default(),
+            trait_final_map: FxHashMap::default(),
+            trait_visibility_map: FxHashMap::default(),
+            type_aliases: FxHashMap::default(),
+            used_traits: FxHashSet::default(),
             name: "".to_string(),
 
-            type_constants: HashMap::new(),
+            type_constants: FxHashMap::default(),
             user_defined: false,
             generated: false,
             child_classlikes: None,

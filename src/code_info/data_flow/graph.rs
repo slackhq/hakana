@@ -4,7 +4,7 @@ use super::{
 };
 use crate::taint::TaintType;
 use oxidized::ast_defs::Pos;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphKind {
@@ -15,28 +15,28 @@ pub enum GraphKind {
 #[derive(Debug, Clone)]
 pub struct DataFlowGraph {
     pub kind: GraphKind,
-    pub nodes: HashMap<String, DataFlowNode>,
-    pub forward_edges: HashMap<String, HashMap<String, DataFlowPath>>,
-    pub backward_edges: HashMap<String, HashSet<String>>,
-    pub sources: HashMap<String, DataFlowNode>,
-    pub sinks: HashMap<String, DataFlowNode>,
-    pub mixed_source_counts: HashMap<String, HashSet<String>>,
-    pub specializations: HashMap<String, HashSet<String>>,
-    specialized_calls: HashMap<String, HashSet<String>>,
+    pub nodes: FxHashMap<String, DataFlowNode>,
+    pub forward_edges: FxHashMap<String, FxHashMap<String, DataFlowPath>>,
+    pub backward_edges: FxHashMap<String, FxHashSet<String>>,
+    pub sources: FxHashMap<String, DataFlowNode>,
+    pub sinks: FxHashMap<String, DataFlowNode>,
+    pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
+    pub specializations: FxHashMap<String, FxHashSet<String>>,
+    specialized_calls: FxHashMap<String, FxHashSet<String>>,
 }
 
 impl DataFlowGraph {
     pub fn new(kind: GraphKind) -> Self {
         Self {
             kind,
-            nodes: HashMap::new(),
-            forward_edges: HashMap::new(),
-            backward_edges: HashMap::new(),
-            sources: HashMap::new(),
-            sinks: HashMap::new(),
-            mixed_source_counts: HashMap::new(),
-            specializations: HashMap::new(),
-            specialized_calls: HashMap::new(),
+            nodes: FxHashMap::default(),
+            forward_edges: FxHashMap::default(),
+            backward_edges: FxHashMap::default(),
+            sources: FxHashMap::default(),
+            sinks: FxHashMap::default(),
+            mixed_source_counts: FxHashMap::default(),
+            specializations: FxHashMap::default(),
+            specialized_calls: FxHashMap::default(),
         }
     }
 
@@ -57,12 +57,12 @@ impl DataFlowGraph {
             {
                 self.specializations
                     .entry(unspecialized_id.clone())
-                    .or_insert_with(HashSet::new)
+                    .or_insert_with(FxHashSet::default)
                     .insert(specialization_key.clone());
 
                 self.specialized_calls
                     .entry(specialization_key.clone())
-                    .or_insert_with(HashSet::new)
+                    .or_insert_with(FxHashSet::default)
                     .insert(unspecialized_id.clone());
             }
         }
@@ -75,8 +75,8 @@ impl DataFlowGraph {
         from: &DataFlowNode,
         to: &DataFlowNode,
         path_kind: PathKind,
-        added_taints: HashSet<TaintType>,
-        removed_taints: HashSet<TaintType>,
+        added_taints: Option<FxHashSet<TaintType>>,
+        removed_taints: Option<FxHashSet<TaintType>>,
     ) {
         if matches!(
             path_kind,
@@ -94,27 +94,19 @@ impl DataFlowGraph {
         if let GraphKind::Variable = self.kind {
             self.backward_edges
                 .entry(to_id.clone())
-                .or_insert_with(HashSet::new)
+                .or_insert_with(FxHashSet::default)
                 .insert(from_id.clone());
         }
 
         self.forward_edges
             .entry(from_id.clone())
-            .or_insert_with(HashMap::new)
+            .or_insert_with(FxHashMap::default)
             .insert(
                 to_id.clone(),
                 DataFlowPath {
                     kind: path_kind,
-                    added_taints: if !added_taints.is_empty() {
-                        Some(added_taints)
-                    } else {
-                        None
-                    },
-                    removed_taints: if !removed_taints.is_empty() {
-                        Some(removed_taints)
-                    } else {
-                        None
-                    },
+                    added_taints,
+                    removed_taints,
                 },
             );
     }
@@ -127,7 +119,7 @@ impl DataFlowGraph {
         for (key, edges) in graph.forward_edges {
             self.forward_edges
                 .entry(key)
-                .or_insert_with(HashMap::new)
+                .or_insert_with(FxHashMap::default)
                 .extend(edges);
         }
 
@@ -135,7 +127,7 @@ impl DataFlowGraph {
             for (key, edges) in graph.backward_edges {
                 self.backward_edges
                     .entry(key)
-                    .or_insert_with(HashSet::new)
+                    .or_insert_with(FxHashSet::default)
                     .extend(edges);
             }
             for (key, count) in graph.mixed_source_counts {
@@ -149,7 +141,7 @@ impl DataFlowGraph {
             for (key, specializations) in graph.specializations {
                 self.specializations
                     .entry(key)
-                    .or_insert_with(HashSet::new)
+                    .or_insert_with(FxHashSet::default)
                     .extend(specializations);
             }
         }
@@ -160,7 +152,7 @@ impl DataFlowGraph {
     }
 
     pub fn get_origin_nodes(&self, assignment_node: &DataFlowNode) -> Vec<DataFlowNode> {
-        let mut visited_child_ids = HashSet::new();
+        let mut visited_child_ids = FxHashSet::default();
 
         let mut origin_nodes = vec![];
 
@@ -216,7 +208,7 @@ impl DataFlowGraph {
                     entry.insert(pos.to_string());
                 } else {
                     self.mixed_source_counts
-                        .insert(origin_node.id, HashSet::from([pos.to_string()]));
+                        .insert(origin_node.id, FxHashSet::from_iter([pos.to_string()]));
                 }
             }
         }

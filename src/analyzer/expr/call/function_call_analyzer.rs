@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use crate::expr::call::arguments_analyzer;
@@ -13,8 +13,6 @@ use crate::typed_ast::TastInfo;
 use function_context::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::taint::TaintType;
@@ -132,7 +130,7 @@ pub(crate) fn analyze(
     if function_storage.ignore_taints_if_true {
         tast_info.if_true_assertions.insert(
             (pos.start_offset(), pos.end_offset()),
-            HashMap::from([("hakana taints".to_string(), vec![Assertion::IgnoreTaints])]),
+            FxHashMap::from_iter([("hakana taints".to_string(), vec![Assertion::IgnoreTaints])]),
         );
     }
 
@@ -202,7 +200,7 @@ pub(crate) fn analyze(
                     dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
                     tast_info.if_true_assertions.insert(
                         (pos.start_offset(), pos.end_offset()),
-                        HashMap::from([(
+                        FxHashMap::from_iter([(
                             format!("{}", expr_var_id),
                             vec![Assertion::HasArrayKey(dim_var_id)],
                         )]),
@@ -210,7 +208,7 @@ pub(crate) fn analyze(
                 } else {
                     tast_info.if_true_assertions.insert(
                         (pos.start_offset(), pos.end_offset()),
-                        HashMap::from([(
+                        FxHashMap::from_iter([(
                             format!("{}[{}]", expr_var_id, dim_var_id),
                             vec![Assertion::ArrayKeyExists],
                         )]),
@@ -230,7 +228,7 @@ pub(crate) fn analyze(
             if let Some(expr_var_id) = second_arg_var_id {
                 tast_info.if_true_assertions.insert(
                     (pos.start_offset(), pos.end_offset()),
-                    HashMap::from([(
+                    FxHashMap::from_iter([(
                         "hakana taints".to_string(),
                         vec![Assertion::RemoveTaints(
                             expr_var_id.clone(),
@@ -258,11 +256,11 @@ pub(crate) fn analyze(
                     if str.starts_with("/") && str.len() > 1 {
                         tast_info.if_true_assertions.insert(
                             (pos.start_offset(), pos.end_offset()),
-                            HashMap::from([(
+                            FxHashMap::from_iter([(
                                 "hakana taints".to_string(),
                                 vec![Assertion::RemoveTaints(
                                     expr_var_id.clone(),
-                                    HashSet::from([
+                                    FxHashSet::from_iter([
                                         TaintType::HtmlAttributeUri,
                                         TaintType::CurlUri,
                                         TaintType::RedirectUri,
@@ -309,10 +307,10 @@ fn process_function_effects(
             hakana_algebra::get_truths_from_formula(
                 simplified_clauses.iter().collect(),
                 None,
-                &mut HashSet::new(),
+                &mut FxHashSet::default(),
             );
 
-        let mut changed_var_ids = HashSet::new();
+        let mut changed_var_ids = FxHashSet::default();
 
         if !assert_type_assertions.is_empty() {
             reconciler::reconcile_keyed_types(
@@ -329,7 +327,7 @@ fn process_function_effects(
                 first_arg.pos(),
                 true,
                 false,
-                &HashMap::new(),
+                &FxHashMap::default(),
             );
         }
 

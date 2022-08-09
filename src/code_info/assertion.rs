@@ -1,5 +1,6 @@
-use std::{collections::HashSet, hash::Hasher};
+use std::hash::Hasher;
 
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{t_atomic::TAtomic, t_union::TUnion, taint::TaintType};
@@ -31,8 +32,8 @@ pub enum Assertion {
     DoesNotHaveExactCount(usize),
     IgnoreTaints,
     DontIgnoreTaints,
-    RemoveTaints(String, HashSet<TaintType>),
-    DontRemoveTaints(String, HashSet<TaintType>),
+    RemoveTaints(String, FxHashSet<TaintType>),
+    DontRemoveTaints(String, FxHashSet<TaintType>),
 }
 
 impl Hash for Assertion {

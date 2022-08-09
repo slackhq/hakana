@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 use std::rc::Rc;
 
 use crate::expr::assignment::array_assignment_analyzer;
@@ -343,8 +343,8 @@ fn check_variable_or_property_assignment(
             data_flow_graph,
             var_id,
             assign_var_pos,
-            HashSet::new(),
-            HashSet::new(),
+            FxHashSet::default(),
+            FxHashSet::default(),
         );
     }
 
@@ -468,8 +468,8 @@ pub(crate) fn add_dataflow_to_assignment(
     data_flow_graph: &mut DataFlowGraph,
     var_id: &String,
     var_pos: &Pos,
-    removed_taints: HashSet<TaintType>,
-    added_taints: HashSet<TaintType>,
+    removed_taints: FxHashSet<TaintType>,
+    added_taints: FxHashSet<TaintType>,
 ) -> TUnion {
     if data_flow_graph.kind == GraphKind::Taint {
         if !assignment_type.has_taintable_value() {
@@ -478,7 +478,7 @@ pub(crate) fn add_dataflow_to_assignment(
     }
 
     let parent_nodes = &assignment_type.parent_nodes;
-    let mut new_parent_nodes = HashMap::new();
+    let mut new_parent_nodes = FxHashMap::default();
 
     let new_parent_node = DataFlowNode::get_for_assignment(
         var_id.clone(),
@@ -493,8 +493,16 @@ pub(crate) fn add_dataflow_to_assignment(
             parent_node,
             &new_parent_node,
             PathKind::Default,
-            added_taints.clone(),
-            removed_taints.clone(),
+            if added_taints.is_empty() {
+                None
+            } else {
+                Some(added_taints.clone())
+            },
+            if removed_taints.is_empty() {
+                None
+            } else {
+                Some(removed_taints.clone())
+            },
         );
     }
 

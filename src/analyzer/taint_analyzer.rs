@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -25,7 +25,7 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
     println!(" - initial sources count: {}", sources.len());
     println!(" - initial sinks count:   {}", graph.sinks.len());
 
-    let mut seen_sources = HashSet::new();
+    let mut seen_sources = FxHashSet::default();
 
     for source in &sources {
         seen_sources.insert(source.get_unique_source_id());
@@ -105,7 +105,7 @@ fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Ve
             new_source
                 .specialized_calls
                 .entry(specialization_key.clone())
-                .or_insert_with(HashSet::new)
+                .or_insert_with(FxHashSet::default)
                 .insert(new_source.id.clone());
 
             generated_sources.push(Rc::new(new_source));
@@ -148,8 +148,8 @@ fn get_taint_child_nodes(
     graph: &DataFlowGraph,
     config: &Config,
     generated_source: &Rc<TaintedNode>,
-    source_taints: &HashSet<TaintType>,
-    seen_sources: &mut HashSet<String>,
+    source_taints: &FxHashSet<TaintType>,
+    seen_sources: &mut FxHashSet<String>,
     new_issues: &mut Vec<Issue>,
     is_last: bool,
 ) -> Vec<Rc<TaintedNode>> {

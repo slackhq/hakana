@@ -6,11 +6,11 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::t_atomic::{populate_atomic_type, TAtomic};
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
 use indexmap::IndexMap;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 // as currently constructed this is not efficient memory-wise
 pub fn populate_codebase(codebase: &mut CodebaseInfo) {
-    let mut all_classlike_descendants = HashMap::new();
+    let mut all_classlike_descendants = FxHashMap::default();
 
     let classlike_names = codebase
         .classlike_infos
@@ -80,21 +80,21 @@ pub fn populate_codebase(codebase: &mut CodebaseInfo) {
         for parent_interface in &classlike_storage.all_parent_interfaces {
             all_classlike_descendants
                 .entry(parent_interface.clone())
-                .or_insert_with(HashSet::new)
+                .or_insert_with(FxHashSet::default)
                 .insert(classlike_name.clone());
         }
 
         for class_interface in &classlike_storage.all_class_interfaces {
             all_classlike_descendants
                 .entry(class_interface.clone())
-                .or_insert_with(HashSet::new)
+                .or_insert_with(FxHashSet::default)
                 .insert(classlike_name.clone());
         }
 
         for parent_class in &classlike_storage.all_parent_classes {
             all_classlike_descendants
                 .entry(parent_class.clone())
-                .or_insert_with(HashSet::new)
+                .or_insert_with(FxHashSet::default)
                 .insert(classlike_name.clone());
         }
     }
@@ -124,7 +124,7 @@ fn populate_functionlike_storage(storage: &mut FunctionLikeInfo, codebase_symbol
 
 fn populate_classlike_storage(
     classlike_name: &String,
-    all_classlike_descendants: &mut HashMap<String, HashSet<String>>,
+    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
     codebase: &mut CodebaseInfo,
 ) {
     let mut storage = if let Some(storage) = codebase.classlike_infos.remove(classlike_name) {
@@ -230,7 +230,7 @@ fn populate_interface_data_from_parent_or_implemented_interface(
 
 fn populate_interface_data_from_parent_interface(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut HashMap<String, HashSet<String>>,
+    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
     codebase: &mut CodebaseInfo,
     parent_storage_interface: &String,
 ) {
@@ -262,7 +262,7 @@ fn populate_interface_data_from_parent_interface(
 
 fn populate_data_from_implemented_interface(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut HashMap<String, HashSet<String>>,
+    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
     codebase: &mut CodebaseInfo,
     parent_storage_interface: &String,
 ) {
@@ -297,7 +297,7 @@ fn populate_data_from_implemented_interface(
 
 fn populate_data_from_parent_classlike(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut HashMap<String, HashSet<String>>,
+    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
     codebase: &mut CodebaseInfo,
     parent_storage_class: &String,
 ) {
@@ -348,7 +348,7 @@ fn populate_data_from_parent_classlike(
 
 fn populate_data_from_trait(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut HashMap<String, HashSet<String>>,
+    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
     codebase: &mut CodebaseInfo,
     trait_name: &String,
 ) {
@@ -364,7 +364,7 @@ fn populate_data_from_trait(
 
     all_classlike_descendants
         .entry(trait_name.clone())
-        .or_insert_with(HashSet::new)
+        .or_insert_with(FxHashSet::default)
         .insert(storage.name.clone());
 
     inherit_methods_from_parent(storage, trait_storage, codebase);
@@ -398,7 +398,7 @@ fn inherit_methods_from_parent(
             storage
                 .potential_declaring_method_ids
                 .insert(method_name.clone(), {
-                    let mut h = HashSet::new();
+                    let mut h = FxHashSet::default();
                     h.insert(classlike_name.clone());
                     h
                 });
@@ -415,7 +415,7 @@ fn inherit_methods_from_parent(
             let entry = storage
                 .potential_declaring_method_ids
                 .entry(method_name.clone())
-                .or_insert_with(HashSet::new);
+                .or_insert_with(FxHashSet::default);
 
             entry.insert(classlike_name.clone());
             entry.insert(parent_storage.name.clone());
@@ -435,7 +435,7 @@ fn inherit_methods_from_parent(
                             storage
                                 .overridden_method_ids
                                 .entry(method_name.clone())
-                                .or_insert_with(HashSet::new)
+                                .or_insert_with(FxHashSet::default)
                                 .insert(declaring_class.clone());
                         }
                     }
@@ -444,7 +444,7 @@ fn inherit_methods_from_parent(
                 storage
                     .overridden_method_ids
                     .entry(method_name.clone())
-                    .or_insert_with(HashSet::new)
+                    .or_insert_with(FxHashSet::default)
                     .insert(declaring_class.clone());
             }
 
@@ -454,7 +454,7 @@ fn inherit_methods_from_parent(
                         .overridden_method_ids
                         .get(method_name)
                         .cloned()
-                        .unwrap_or(HashSet::new()),
+                        .unwrap_or(FxHashSet::default()),
                 );
             }
         }

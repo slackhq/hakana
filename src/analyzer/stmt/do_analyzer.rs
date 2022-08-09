@@ -1,11 +1,9 @@
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    rc::Rc,
-};
+use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
 use hakana_type::combine_union_types;
 use oxidized::aast;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     formula_generator,
@@ -114,7 +112,7 @@ pub(crate) fn analyze(
             .iter()
             .collect(),
         None,
-        &mut HashSet::new(),
+        &mut FxHashSet::default(),
     );
 
     if !negated_while_types.is_empty() {
@@ -122,14 +120,14 @@ pub(crate) fn analyze(
             &negated_while_types,
             BTreeMap::new(),
             &mut inner_loop_context,
-            &mut HashSet::new(),
-            &HashSet::new(),
+            &mut FxHashSet::default(),
+            &FxHashSet::default(),
             statements_analyzer,
             tast_info,
             stmt.1.pos(),
             true,
             false,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
     }
 

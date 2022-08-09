@@ -1,8 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
@@ -22,6 +18,7 @@ use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
 };
+use rustc_hash::FxHashMap;
 
 use crate::{
     expr::{expression_identifier, fetch::array_fetch_analyzer},
@@ -353,15 +350,16 @@ fn add_array_assignment_dataflow(
 
     let old_parent_nodes = parent_expr_type.parent_nodes.clone();
 
-    parent_expr_type.parent_nodes = HashMap::from([(parent_node.id.clone(), parent_node.clone())]);
+    parent_expr_type.parent_nodes =
+        FxHashMap::from_iter([(parent_node.id.clone(), parent_node.clone())]);
 
     for (_, old_parent_node) in old_parent_nodes {
         tast_info.data_flow_graph.add_path(
             &old_parent_node,
             &parent_node,
             PathKind::Default,
-            HashSet::new(),
-            HashSet::new(),
+            None,
+            None,
         );
     }
 
@@ -381,8 +379,8 @@ fn add_array_assignment_dataflow(
                     &child_parent_node,
                     &parent_node,
                     PathKind::ExpressionAssignment(PathExpressionKind::ArrayValue, key_value),
-                    HashSet::new(),
-                    HashSet::new(),
+                    None,
+                    None,
                 );
             }
         } else {
@@ -390,8 +388,8 @@ fn add_array_assignment_dataflow(
                 &child_parent_node,
                 &parent_node,
                 PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),
-                HashSet::new(),
-                HashSet::new(),
+                None,
+                None,
             );
         }
     }

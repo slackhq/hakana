@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::BTreeMap,
     rc::Rc,
 };
 
@@ -8,6 +8,7 @@ use hakana_algebra::Clause;
 use hakana_reflection_info::t_union::TUnion;
 use oxidized::ast_defs::Pos;
 use regex::Regex;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     reconciler::{assertion_reconciler, reconciler},
@@ -30,7 +31,7 @@ pub struct FinallyScope {
 
 #[derive(Clone, Debug)]
 pub struct CaseScope {
-    pub break_vars: Option<HashMap<String, TUnion>>,
+    pub break_vars: Option<FxHashMap<String, TUnion>>,
 }
 
 impl CaseScope {
@@ -46,17 +47,17 @@ pub struct ScopeContext {
     /**
      * A list of variables that have been referenced
      */
-    pub cond_referenced_var_ids: HashSet<String>,
+    pub cond_referenced_var_ids: FxHashSet<String>,
 
     /**
      * A list of vars that have been assigned to
      */
-    pub assigned_var_ids: HashMap<String, usize>,
+    pub assigned_var_ids: FxHashMap<String, usize>,
 
     /**
      * A list of vars that have been may have been assigned to
      */
-    pub possibly_assigned_var_ids: HashSet<String>,
+    pub possibly_assigned_var_ids: FxHashSet<String>,
 
     /**
      * Whether or not we're inside the conditional of an if/where etc.
@@ -122,9 +123,9 @@ pub struct ScopeContext {
     pub check_functions: bool,
 
     /**
-     * A list of files checked with file_exists
+     * Variables assigned in loops that should not be overwritten
      */
-    pub phantom_files: HashMap<String, bool>,
+    pub protected_var_ids: FxHashSet<String>,
 
     /**
      * A list of clauses in Conjunctive Normal Form
@@ -135,11 +136,6 @@ pub struct ScopeContext {
      * A list of hashed clauses that have already been factored in
      */
     pub reconciled_expression_clauses: Vec<Rc<Clause>>,
-
-    /**
-     * Variables assigned in loops that should not be overwritten
-     */
-    pub protected_var_ids: HashSet<String>,
 
     /**
      * If we've branched from the main scope, a byte offset for where that branch happened
@@ -168,7 +164,7 @@ pub struct ScopeContext {
 
     pub has_returned: bool,
 
-    pub parent_remove_vars: HashSet<String>,
+    pub parent_remove_vars: FxHashSet<String>,
 
     pub allow_taints: bool,
 }
@@ -177,9 +173,9 @@ impl ScopeContext {
     pub fn new(function_context: FunctionContext) -> Self {
         Self {
             vars_in_scope: BTreeMap::new(),
-            cond_referenced_var_ids: HashSet::new(),
-            assigned_var_ids: HashMap::new(),
-            possibly_assigned_var_ids: HashSet::new(),
+            cond_referenced_var_ids: FxHashSet::default(),
+            assigned_var_ids: FxHashMap::default(),
+            possibly_assigned_var_ids: FxHashSet::default(),
 
             inside_conditional: false,
             inside_isset: false,
@@ -202,18 +198,17 @@ impl ScopeContext {
             error_suppressing: false,
             has_returned: false,
             include_location: None,
-            phantom_files: HashMap::new(),
             clauses: Vec::new(),
             reconciled_expression_clauses: Vec::new(),
 
-            protected_var_ids: HashSet::new(),
+            protected_var_ids: FxHashSet::default(),
             branch_point: None,
             break_types: Vec::new(),
             inside_loop: false,
             case_scope: None,
             finally_scope: None,
             function_context,
-            parent_remove_vars: HashSet::new(),
+            parent_remove_vars: FxHashSet::default(),
             allow_taints: true,
         }
     }
@@ -222,8 +217,8 @@ impl ScopeContext {
         &self,
         new_vars_in_scope: &BTreeMap<String, Rc<TUnion>>,
         include_new_vars: bool, // default false
-    ) -> HashMap<String, TUnion> {
-        let mut redefined_vars = HashMap::new();
+    ) -> FxHashMap<String, TUnion> {
+        let mut redefined_vars = FxHashMap::default();
 
         for (var_id, this_type) in &self.vars_in_scope {
             if let Some(new_type) = new_vars_in_scope.get(var_id) {
@@ -243,8 +238,8 @@ impl ScopeContext {
     pub fn get_new_or_updated_var_ids(
         original_context: &Self,
         new_context: &Self,
-    ) -> HashSet<String> {
-        let mut redefined_var_ids = HashSet::new();
+    ) -> FxHashSet<String> {
+        let mut redefined_var_ids = FxHashSet::default();
 
         for (var_id, new_type) in &new_context.vars_in_scope {
             if let Some(original_type) = original_context.vars_in_scope.get(var_id) {
@@ -264,7 +259,7 @@ impl ScopeContext {
 
     pub fn remove_reconciled_clause_refs(
         clauses: &Vec<Rc<Clause>>,
-        changed_var_ids: &HashSet<String>,
+        changed_var_ids: &FxHashSet<String>,
     ) -> (Vec<Rc<Clause>>, Vec<Rc<Clause>>) {
         let mut included_clauses = Vec::new();
         let mut rejected_clauses = Vec::new();
@@ -290,7 +285,7 @@ impl ScopeContext {
 
     pub fn remove_reconciled_clauses(
         clauses: &Vec<Clause>,
-        changed_var_ids: &HashSet<String>,
+        changed_var_ids: &FxHashSet<String>,
     ) -> (Vec<Clause>, Vec<Clause>) {
         let mut included_clauses = Vec::new();
         let mut rejected_clauses = Vec::new();
@@ -379,7 +374,7 @@ impl ScopeContext {
                                 false,
                                 &mut reconciler::ReconciliationStatus::Ok,
                                 false,
-                                &HashMap::new(),
+                                &FxHashMap::default(),
                             );
 
                             if result_type.get_id() != new_type_string {

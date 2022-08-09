@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap;
 
 use function_context::method_identifier::MethodIdentifier;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
@@ -50,7 +50,7 @@ pub(crate) fn fetch(
             template_result
                 .lower_bounds
                 .entry(template_name.clone())
-                .or_insert(HashMap::from([(
+                .or_insert(FxHashMap::from_iter([(
                     format!("fn-{}", method_id.to_string()),
                     vec![TemplateBound::new(get_nothing(), 1, None, None)],
                 )]));
@@ -123,8 +123,8 @@ fn add_dataflow(
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
 
-    let added_taints = HashSet::new();
-    let removed_taints = HashSet::new();
+    let added_taints = None;
+    let removed_taints = None;
 
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
@@ -179,7 +179,7 @@ fn add_dataflow(
     }
 
     return_type_candidate.parent_nodes =
-        HashMap::from([(method_call_node.id.clone(), method_call_node.clone())]);
+        FxHashMap::from_iter([(method_call_node.id.clone(), method_call_node.clone())]);
 
     if let GraphKind::Taint = data_flow_graph.kind {
         // todo taint using flows and taint sources

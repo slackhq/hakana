@@ -11,10 +11,10 @@ use oxidized::{
     ast_defs,
 };
 use parser_core_types::{indexed_source_text::IndexedSourceText, source_text::SourceText};
+use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::io::Write;
 use std::{
-    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -116,13 +116,13 @@ pub fn get_aast_for_path_and_contents(
 }
 
 struct Scanner {
-    pub resolved_names: HashMap<usize, String>,
+    pub resolved_names: FxHashMap<usize, String>,
 }
 
 impl Scanner {
     fn new() -> Self {
         Self {
-            resolved_names: HashMap::new(),
+            resolved_names: FxHashMap::default(),
         }
     }
 }
@@ -281,7 +281,7 @@ impl<'ast> Visitor<'ast> for Scanner {
     }
 }
 
-pub fn scope_names(program: &aast::Program<(), ()>) -> HashMap<usize, String> {
+pub fn scope_names(program: &aast::Program<(), ()>) -> FxHashMap<usize, String> {
     let mut scanner = Scanner::new();
     let mut context = NameContext::new();
     visit(&mut scanner, &mut context, program).unwrap();

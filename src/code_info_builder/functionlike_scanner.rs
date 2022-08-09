@@ -25,12 +25,12 @@ use oxidized::ast_defs;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
 use oxidized::tast;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 pub(crate) fn scan_method(
     codebase: &mut CodebaseInfo,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     m: &aast::Method_<(), ()>,
     c: &mut Context,
     comments: &Vec<(Pos, Comment)>,
@@ -48,7 +48,7 @@ pub(crate) fn scan_method(
             .unwrap()
             .template_types
             .clone(),
-        template_supers: HashMap::new(),
+        template_supers: FxHashMap::default(),
     };
 
     let mut functionlike_info = get_functionlike(
@@ -122,7 +122,7 @@ pub(crate) fn scan_method(
 fn add_promoted_param_property(
     param_node: &aast::FunParam<(), ()>,
     param_visibility: ast_defs::Visibility,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     classlike_name: &String,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
@@ -149,7 +149,7 @@ fn add_promoted_param_property(
             None,
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
-                template_supers: HashMap::new(),
+                template_supers: FxHashMap::default(),
             },
             resolved_names,
         )
@@ -193,20 +193,20 @@ pub(crate) fn get_functionlike(
     contexts: &Option<tast::Contexts>,
     type_context: &mut TypeResolutionContext,
     this_name: Option<&String>,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     functionlike_id: String,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
 ) -> FunctionLikeInfo {
     let mut functionlike_info = FunctionLikeInfo::new(name.clone());
 
-    let mut template_supers = HashMap::new();
+    let mut template_supers = FxHashMap::default();
 
     if !tparams.is_empty() {
         for type_param_node in tparams.iter() {
             type_context.template_type_map.insert(
                 type_param_node.name.1.clone(),
-                HashMap::from([(
+                FxHashMap::from_iter([(
                     "fn-".to_string() + functionlike_id.as_str(),
                     get_mixed_any(),
                 )]),
@@ -257,7 +257,7 @@ pub(crate) fn get_functionlike(
             functionlike_info
                 .template_types
                 .insert(type_param_node.name.1.clone(), {
-                    HashMap::from([(
+                    FxHashMap::from_iter([(
                         "fn-".to_string() + functionlike_id.as_str(),
                         template_as_type.unwrap_or(get_mixed_any()),
                     )])
@@ -265,7 +265,7 @@ pub(crate) fn get_functionlike(
         }
         if name == "HH\\idx" {
             functionlike_info.template_types.insert("Td".to_string(), {
-                HashMap::from([(
+                FxHashMap::from_iter([(
                     "fn-".to_string() + functionlike_id.as_str(),
                     get_mixed_any(),
                 )])
@@ -327,12 +327,12 @@ pub(crate) fn get_functionlike(
         };
 
         if name == "Hakana\\SecurityAnalysis\\Source" {
-            let mut source_types = HashSet::new();
+            let mut source_types = FxHashSet::default();
 
             for attribute_param_expr in &user_attribute.params {
                 let attribute_param_type = simple_type_inferer::infer(
                     codebase,
-                    &mut HashMap::new(),
+                    &mut FxHashMap::default(),
                     attribute_param_expr,
                     resolved_names,
                 );
@@ -352,12 +352,12 @@ pub(crate) fn get_functionlike(
         } else if name == "Hakana\\SecurityAnalysis\\IgnorePathIfTrue" {
             functionlike_info.ignore_taints_if_true = true;
         } else if name == "Hakana\\SecurityAnalysis\\Sanitize" {
-            let mut removed_types = HashSet::new();
+            let mut removed_types = FxHashSet::default();
 
             for attribute_param_expr in &user_attribute.params {
                 let attribute_param_type = simple_type_inferer::infer(
                     codebase,
-                    &mut HashMap::new(),
+                    &mut FxHashMap::default(),
                     attribute_param_expr,
                     resolved_names,
                 );
@@ -369,7 +369,7 @@ pub(crate) fn get_functionlike(
                 }
             }
 
-            functionlike_info.removed_taints = removed_types;
+            functionlike_info.removed_taints = Some(removed_types);
         }
 
         if name == "__EntryPoint" || name == "__DynamicallyCallable" {
@@ -388,7 +388,7 @@ pub(crate) fn get_functionlike(
     functionlike_info.name_location = Some(HPos::new(name_pos, &file_source.file_path));
     let mut definition_location = HPos::new(def_pos, &file_source.file_path);
 
-    let mut suppressed_issues = HashMap::new();
+    let mut suppressed_issues = FxHashMap::default();
 
     for (comment_pos, comment) in comments.iter().rev() {
         let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
@@ -451,7 +451,7 @@ pub(crate) fn get_functionlike(
 fn convert_param_nodes(
     codebase: &CodebaseInfo,
     param_nodes: &Vec<aast::FunParam<(), ()>>,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     type_context: &TypeResolutionContext,
     file_source: &FileSource,
 ) -> Vec<FunctionLikeParameter> {
@@ -486,12 +486,12 @@ fn convert_param_nodes(
                     };
 
                 if name == "Hakana\\SecurityAnalysis\\Sink" {
-                    let mut sink_types = HashSet::new();
+                    let mut sink_types = FxHashSet::default();
 
                     for attribute_param_expr in &user_attribute.params {
                         let attribute_param_type = simple_type_inferer::infer(
                             codebase,
-                            &mut HashMap::new(),
+                            &mut FxHashMap::default(),
                             attribute_param_expr,
                             resolved_names,
                         );

@@ -1,15 +1,13 @@
 use hakana_algebra::Clause;
 use hakana_reflection_info::t_union::TUnion;
 use oxidized::aast;
-use std::{
-    collections::{BTreeMap, HashMap},
-    rc::Rc,
-};
+use rustc_hash::FxHashMap;
+use std::{collections::BTreeMap, rc::Rc};
 
 pub(crate) struct SwitchScope {
     pub new_vars_in_scope: Option<BTreeMap<String, Rc<TUnion>>>,
 
-    pub redefined_vars: Option<HashMap<String, Rc<TUnion>>>,
+    pub redefined_vars: Option<FxHashMap<String, Rc<TUnion>>>,
 
     pub possibly_redefined_vars: Option<BTreeMap<String, TUnion>>,
 
@@ -19,7 +17,7 @@ pub(crate) struct SwitchScope {
 
     pub negated_clauses: Vec<Clause>,
 
-    pub new_assigned_var_ids: HashMap<String, usize>,
+    pub new_assigned_var_ids: FxHashMap<String, usize>,
 }
 
 impl<'a> SwitchScope {
@@ -31,7 +29,7 @@ impl<'a> SwitchScope {
             leftover_statements: vec![],
             leftover_case_equality_expr: None,
             negated_clauses: vec![],
-            new_assigned_var_ids: HashMap::new(),
+            new_assigned_var_ids: FxHashMap::default(),
         }
     }
 }

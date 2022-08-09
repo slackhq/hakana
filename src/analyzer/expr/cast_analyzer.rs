@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -39,7 +39,7 @@ pub(crate) fn analyze(
         &hint.1,
         None,
         &statements_analyzer.get_type_resolution_context(),
-        &HashMap::new(),
+        &FxHashMap::default(),
     );
 
     // todo emit issues about redundant casts

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo, functionlike_parameter::FunctionLikeParameter, t_atomic::TAtomic,
@@ -530,9 +530,9 @@ pub fn get_union_syntax_type(
     codebase: &CodebaseInfo,
     is_valid: &mut bool,
 ) -> String {
-    let mut t_atomic_strings = HashSet::new();
+    let mut t_atomic_strings = FxHashSet::default();
 
-    let mut t_object_parents = HashMap::new();
+    let mut t_object_parents = FxHashMap::default();
 
     let is_nullable = union.is_nullable() && !union.is_mixed();
 
@@ -561,9 +561,9 @@ pub fn get_union_syntax_type(
 
     if t_atomic_strings.len() == 2 && t_atomic_strings.contains("int") {
         if t_atomic_strings.contains("string") {
-            t_atomic_strings = HashSet::from(["arraykey".to_string()]);
+            t_atomic_strings = FxHashSet::from_iter(["arraykey".to_string()]);
         } else if t_atomic_strings.contains("float") {
-            t_atomic_strings = HashSet::from(["num".to_string()]);
+            t_atomic_strings = FxHashSet::from_iter(["num".to_string()]);
         }
     }
 
@@ -571,7 +571,7 @@ pub fn get_union_syntax_type(
         let flattened_parents = t_object_parents
             .into_iter()
             .map(|(_, v)| v.clone())
-            .collect::<HashSet<String>>();
+            .collect::<FxHashSet<String>>();
 
         if flattened_parents.len() == 1 {
             t_atomic_strings = flattened_parents;

@@ -24,7 +24,7 @@ use hakana_type::type_expander::{self, StaticClassType};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 pub(crate) struct FunctionLikeAnalyzer<'a> {
@@ -82,7 +82,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         self.analyze_functionlike(
             &mut statements_analyzer,
-            function_storage,
+            &function_storage,
             context,
             &stmt.fun.params,
             &stmt.fun.body.fb_ast,
@@ -174,7 +174,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         }
         let method_name = stmt.name.1.clone();
 
-        let functionlike_storage = classlike_storage.methods.get(&method_name).unwrap();
+        let functionlike_storage = &classlike_storage.methods.get(&method_name).unwrap();
 
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
@@ -559,8 +559,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         &new_parent_node,
                         &new_parent_node,
                         PathKind::Inout,
-                        HashSet::new(),
-                        HashSet::new(),
+                        None,
+                        None,
                     );
                 } else {
                     tast_info.data_flow_graph.add_node(new_parent_node.clone());
@@ -590,8 +590,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         &argument_node,
                         &new_parent_node,
                         PathKind::Default,
-                        HashSet::new(),
-                        HashSet::new(),
+                        None,
+                        None,
                     );
 
                     tast_info.data_flow_graph.add_node(argument_node);

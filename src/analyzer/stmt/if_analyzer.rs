@@ -9,7 +9,7 @@ use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_type::add_union_type;
 use oxidized::aast;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -20,7 +20,7 @@ pub(crate) fn analyze(
     ),
     tast_info: &mut TastInfo,
     if_scope: &mut IfScope,
-    mut cond_referenced_var_ids: HashSet<String>,
+    mut cond_referenced_var_ids: FxHashSet<String>,
     if_context: &mut ScopeContext,
     outer_context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
@@ -42,21 +42,22 @@ pub(crate) fn analyze(
         .next()
         .is_some()
     {
-        let mut omit_keys = outer_context
-            .clauses
-            .iter()
-            .fold(HashSet::new(), |mut acc, clause| {
-                acc.extend(clause.possibilities.keys().collect::<HashSet<_>>());
-                acc
-            });
+        let mut omit_keys =
+            outer_context
+                .clauses
+                .iter()
+                .fold(FxHashSet::default(), |mut acc, clause| {
+                    acc.extend(clause.possibilities.keys().collect::<FxHashSet<_>>());
+                    acc
+                });
 
         let (dont_omit_keys, _) = hakana_algebra::get_truths_from_formula(
             outer_context.clauses.iter().map(|v| &**v).collect(),
             None,
-            &mut HashSet::new(),
+            &mut FxHashSet::default(),
         );
 
-        let dont_omit_keys = dont_omit_keys.keys().collect::<HashSet<_>>();
+        let dont_omit_keys = dont_omit_keys.keys().collect::<FxHashSet<_>>();
 
         omit_keys.retain(|k| !dont_omit_keys.contains(k));
 
@@ -65,7 +66,7 @@ pub(crate) fn analyze(
 
     // if the if has an || in the conditional, we cannot easily reason about it
     if !reconcilable_if_types.is_empty() {
-        let mut changed_var_ids = HashSet::new();
+        let mut changed_var_ids = FxHashSet::default();
 
         reconciler::reconcile_keyed_types(
             &reconcilable_if_types,
@@ -78,7 +79,7 @@ pub(crate) fn analyze(
             stmt.0.pos(),
             true,
             false,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
 
         if !changed_var_ids.is_empty() {
@@ -105,8 +106,8 @@ pub(crate) fn analyze(
     let assigned_var_ids = if_context.assigned_var_ids.clone();
     let possibly_assigned_var_ids = if_context.possibly_assigned_var_ids.clone();
 
-    if_context.assigned_var_ids = HashMap::new();
-    if_context.possibly_assigned_var_ids = HashSet::new();
+    if_context.assigned_var_ids.clear();
+    if_context.possibly_assigned_var_ids.clear();
 
     if !statements_analyzer.analyze(stmt.1, tast_info, if_context, loop_scope) {
         return false;
@@ -184,9 +185,9 @@ pub(crate) fn update_if_scope(
     if_scope: &mut IfScope,
     if_context: &ScopeContext,
     outer_context: &ScopeContext,
-    assigned_var_ids: &HashMap<String, usize>,
-    possibly_assigned_var_ids: &HashSet<String>,
-    newly_reconciled_var_ids: HashSet<String>,
+    assigned_var_ids: &FxHashMap<String, usize>,
+    possibly_assigned_var_ids: &FxHashSet<String>,
+    newly_reconciled_var_ids: FxHashSet<String>,
     update_new_vars: bool,
 ) {
     let redefined_vars = if_context.get_redefined_vars(&outer_context.vars_in_scope, false);
@@ -230,7 +231,7 @@ pub(crate) fn update_if_scope(
             .clone()
             .into_iter()
             .filter(|(k, _)| scope_assigned_var_ids.contains_key(k))
-            .collect::<HashMap<_, _>>();
+            .collect::<FxHashMap<_, _>>();
     } else {
         if_scope.assigned_var_ids = Some(assigned_var_ids.clone());
     }
@@ -263,7 +264,7 @@ pub(crate) fn update_if_scope(
             }
         }
 
-        let mut new_scoped_possibly_redefined_vars = HashMap::new();
+        let mut new_scoped_possibly_redefined_vars = FxHashMap::default();
 
         for (var_id, possibly_redefined_type) in possibly_redefined_vars {
             if let Some(existing_type) = if_scope.possibly_redefined_vars.get(&var_id) {

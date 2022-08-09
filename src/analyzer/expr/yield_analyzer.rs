@@ -7,7 +7,6 @@ use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
 use oxidized::aast;
 use oxidized::pos::Pos;
-use std::collections::HashSet;
 
 pub(crate) fn analyze(
     pos: &Pos,
@@ -57,8 +56,8 @@ pub(crate) fn analyze(
                     &parent_node,
                     &return_node,
                     PathKind::Default,
-                    HashSet::new(),
-                    HashSet::new(),
+                    None,
+                    None,
                 );
             }
             tast_info.data_flow_graph.add_sink(return_node);

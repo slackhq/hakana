@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::scope_context::control_action::ControlAction;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -14,13 +14,13 @@ pub enum BreakContext {
 
 pub(crate) fn get_control_actions(
     codebase: &CodebaseInfo,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     stmts: &Vec<aast::Stmt<(), ()>>,
     tast_info: Option<&TastInfo>,
     break_context: Vec<BreakContext>,
     return_is_exit: bool, // default true
-) -> HashSet<ControlAction> {
-    let mut control_actions = HashSet::new();
+) -> FxHashSet<ControlAction> {
+    let mut control_actions = FxHashSet::default();
 
     if stmts.len() == 0 {
         control_actions.insert(ControlAction::None);
@@ -357,7 +357,7 @@ pub(crate) fn get_control_actions(
                         }
                     }
 
-                    let mut none_hashset = HashSet::new();
+                    let mut none_hashset = FxHashSet::default();
                     none_hashset.insert(ControlAction::None);
 
                     if all_catches_leave && try_stmt_actions != none_hashset {
@@ -437,10 +437,10 @@ fn handle_call(
         Vec<(oxidized::ast_defs::ParamKind, aast::Expr<(), ()>)>,
         Option<aast::Expr<(), ()>>,
     )>,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     codebase: &CodebaseInfo,
-    control_actions: &HashSet<ControlAction>,
-) -> Option<HashSet<ControlAction>> {
+    control_actions: &FxHashSet<ControlAction>,
+) -> Option<FxHashSet<ControlAction>> {
     match &call_expr.0 .2 {
         aast::Expr_::Id(id) => {
             if id.1.eq("exit") || id.1.eq("die") {
@@ -499,14 +499,14 @@ fn handle_call(
 }
 
 #[inline]
-fn control_end(mut control_actions: HashSet<ControlAction>) -> HashSet<ControlAction> {
+fn control_end(mut control_actions: FxHashSet<ControlAction>) -> FxHashSet<ControlAction> {
     control_actions.insert(ControlAction::End);
 
     control_actions
 }
 
 #[inline]
-fn control_return(mut control_actions: HashSet<ControlAction>) -> HashSet<ControlAction> {
+fn control_return(mut control_actions: FxHashSet<ControlAction>) -> FxHashSet<ControlAction> {
     control_actions.insert(ControlAction::Return);
 
     control_actions

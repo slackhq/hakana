@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
@@ -23,7 +23,7 @@ use crate::typehint_resolver::get_type_from_hint;
 
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     class_name: &String,
     classlike_node: &aast::Class_<(), ()>,
     file_source: &FileSource,
@@ -43,13 +43,13 @@ pub(crate) fn scan(
     if !classlike_node.tparams.is_empty() {
         let mut type_context = TypeResolutionContext {
             template_type_map: IndexMap::new(),
-            template_supers: HashMap::new(),
+            template_supers: FxHashMap::default(),
         };
 
         for type_param_node in classlike_node.tparams.iter() {
             type_context.template_type_map.insert(
                 type_param_node.name.1.clone(),
-                HashMap::from([(class_name.clone(), get_mixed_any())]),
+                FxHashMap::from_iter([(class_name.clone(), get_mixed_any())]),
             );
         }
 
@@ -70,7 +70,7 @@ pub(crate) fn scan(
             storage
                 .template_types
                 .insert(type_param_node.name.1.clone(), {
-                    let mut h = HashMap::new();
+                    let mut h = FxHashMap::default();
                     h.insert(class_name.clone(), template_as_type);
                     h
                 });
@@ -129,7 +129,7 @@ pub(crate) fn scan(
                                     Some(&class_name),
                                     &TypeResolutionContext {
                                         template_type_map: storage.template_types.clone(),
-                                        template_supers: HashMap::new(),
+                                        template_supers: FxHashMap::default(),
                                     },
                                     resolved_names,
                                 )
@@ -163,7 +163,7 @@ pub(crate) fn scan(
                                     Some(&class_name),
                                     &TypeResolutionContext {
                                         template_type_map: storage.template_types.clone(),
-                                        template_supers: HashMap::new(),
+                                        template_supers: FxHashMap::default(),
                                     },
                                     resolved_names,
                                 )
@@ -201,7 +201,7 @@ pub(crate) fn scan(
                                     Some(&class_name),
                                     &TypeResolutionContext {
                                         template_type_map: storage.template_types.clone(),
-                                        template_supers: HashMap::new(),
+                                        template_supers: FxHashMap::default(),
                                     },
                                     resolved_names,
                                 )
@@ -250,7 +250,7 @@ pub(crate) fn scan(
                                     Some(&class_name),
                                     &TypeResolutionContext {
                                         template_type_map: storage.template_types.clone(),
-                                        template_supers: HashMap::new(),
+                                        template_supers: FxHashMap::default(),
                                     },
                                     resolved_names,
                                 )
@@ -307,7 +307,7 @@ pub(crate) fn scan(
             None,
             &TypeResolutionContext {
                 template_type_map: IndexMap::new(),
-                template_supers: HashMap::new(),
+                template_supers: FxHashMap::default(),
             },
             resolved_names,
         )
@@ -354,12 +354,12 @@ pub(crate) fn scan(
         }
 
         if name == "__Sealed" {
-            let mut child_classlikes = HashSet::new();
+            let mut child_classlikes = FxHashSet::default();
 
             for attribute_param_expr in &user_attribute.params {
                 let attribute_param_type = simple_type_inferer::infer(
                     codebase,
-                    &mut HashMap::new(),
+                    &mut FxHashMap::default(),
                     attribute_param_expr,
                     resolved_names,
                 );
@@ -401,7 +401,7 @@ pub(crate) fn scan(
 
 fn visit_xhp_attribute(
     xhp_attribute: &aast::XhpAttr<(), ()>,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
 ) {
@@ -413,7 +413,7 @@ fn visit_xhp_attribute(
             None,
             &TypeResolutionContext {
                 template_type_map: IndexMap::new(),
-                template_supers: HashMap::new(),
+                template_supers: FxHashMap::default(),
             },
             resolved_names,
         )
@@ -460,7 +460,7 @@ fn visit_xhp_attribute(
 
 fn visit_class_const_declaration(
     const_node: &aast::ClassConst<(), ()>,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     codebase: &CodebaseInfo,
@@ -475,7 +475,7 @@ fn visit_class_const_declaration(
             Some(&classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
-                template_supers: HashMap::new(),
+                template_supers: FxHashMap::default(),
             },
             resolved_names,
         ));
@@ -490,7 +490,7 @@ fn visit_class_const_declaration(
         inferred_type: if let ClassConstKind::CCAbstract(Some(const_expr))
         | ClassConstKind::CCConcrete(const_expr) = &const_node.kind
         {
-            simple_type_inferer::infer(codebase, &mut HashMap::new(), const_expr, resolved_names)
+            simple_type_inferer::infer(codebase, &mut FxHashMap::default(), const_expr, resolved_names)
         } else {
             None
         },
@@ -505,7 +505,7 @@ fn visit_class_const_declaration(
 
 fn visit_class_typeconst_declaration(
     const_node: &aast::ClassTypeconstDef<(), ()>,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     classlike_storage: &mut ClassLikeInfo,
 ) {
     let const_type = match &const_node.kind {
@@ -517,7 +517,7 @@ fn visit_class_typeconst_declaration(
             Some(&classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
-                template_supers: HashMap::new(),
+                template_supers: FxHashMap::default(),
             },
             resolved_names,
         ),
@@ -530,7 +530,7 @@ fn visit_class_typeconst_declaration(
 
 fn visit_property_declaration(
     property_node: &aast::ClassVar<(), ()>,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
 ) {
@@ -544,7 +544,7 @@ fn visit_property_declaration(
             Some(&classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
-                template_supers: HashMap::new(),
+                template_supers: FxHashMap::default(),
             },
             resolved_names,
         ));
@@ -606,8 +606,8 @@ fn get_classlike_storage(
 
             storage = duplicate_storage.clone();
             storage.is_populated = false;
-            storage.all_class_interfaces = HashSet::new();
-            storage.direct_class_interfaces = HashSet::new();
+            storage.all_class_interfaces = FxHashSet::default();
+            storage.direct_class_interfaces = FxHashSet::default();
             storage.is_stubbed = true;
 
             // todo maybe handle dependent classlikes

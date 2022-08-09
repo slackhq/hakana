@@ -7,8 +7,9 @@ use crate::{
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_type::{combine_optional_union_types, combine_union_types, get_named_object};
 use oxidized::aast;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::BTreeMap,
     rc::Rc,
 };
 
@@ -53,7 +54,7 @@ pub(crate) fn analyze(
     }
 
     let assigned_var_ids = context.assigned_var_ids.clone();
-    context.assigned_var_ids = HashMap::new();
+    context.assigned_var_ids = FxHashMap::default();
 
     let was_inside_try = context.inside_try;
     context.inside_try = true;
@@ -206,7 +207,7 @@ pub(crate) fn analyze(
 
         let old_catch_assigned_var_ids = catch_context.assigned_var_ids.clone();
 
-        catch_context.assigned_var_ids = HashMap::new();
+        catch_context.assigned_var_ids = FxHashMap::default();
         statements_analyzer.analyze(&catch.2, tast_info, &mut catch_context, loop_scope);
 
         // recalculate in case there's a nothing function call
@@ -293,8 +294,8 @@ pub(crate) fn analyze(
         if let Some(finally_scope) = try_context.finally_scope {
             let mut finally_context = context.clone();
 
-            finally_context.assigned_var_ids = HashMap::new();
-            finally_context.possibly_assigned_var_ids = HashSet::new();
+            finally_context.assigned_var_ids = FxHashMap::default();
+            finally_context.possibly_assigned_var_ids = FxHashSet::default();
 
             finally_context.vars_in_scope = finally_scope.vars_in_scope;
 

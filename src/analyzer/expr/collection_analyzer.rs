@@ -1,8 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    str::FromStr,
-    sync::Arc,
-};
+use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 
 use hakana_reflection_info::{
     data_flow::{
@@ -21,6 +17,7 @@ use oxidized::{
     aast::{self, Afield, CollectionTarg},
     ast_defs::{Id, Pos},
 };
+use rustc_hash::FxHashMap;
 
 use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -31,7 +28,7 @@ pub(crate) struct ArrayCreationInfo {
     item_key_atomic_types: Vec<TAtomic>,
     item_value_atomic_types: Vec<TAtomic>,
     known_items: Vec<(TAtomic, TUnion)>,
-    parent_nodes: HashMap<String, DataFlowNode>,
+    parent_nodes: FxHashMap<String, DataFlowNode>,
     all_pure: bool,
 }
 
@@ -40,7 +37,7 @@ impl ArrayCreationInfo {
         Self {
             item_key_atomic_types: Vec::new(),
             item_value_atomic_types: Vec::new(),
-            parent_nodes: HashMap::new(),
+            parent_nodes: FxHashMap::default(),
             known_items: Vec::new(),
             all_pure: true,
         }
@@ -449,8 +446,8 @@ fn add_array_value_dataflow(
                 } else {
                     PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue)
                 },
-                HashSet::new(),
-                HashSet::new(),
+                None,
+                None,
             );
         }
 
@@ -515,8 +512,8 @@ fn add_array_key_dataflow(
                 } else {
                     PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayKey)
                 },
-                HashSet::new(),
-                HashSet::new(),
+                None,
+                None,
             );
         }
 

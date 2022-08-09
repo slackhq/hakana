@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
@@ -141,8 +141,8 @@ pub(crate) fn assign_arithmetic_type(
                 old_parent_node,
                 &decision_node,
                 PathKind::Default,
-                HashSet::new(),
-                HashSet::new(),
+                None,
+                None,
             );
         }
     }
@@ -160,11 +160,15 @@ pub(crate) fn assign_arithmetic_type(
                 old_parent_node,
                 &decision_node,
                 PathKind::Default,
-                HashSet::new(),
+                None,
                 if cond_type.has_string() {
-                    HashSet::from([TaintType::HtmlAttributeUri, TaintType::CurlUri, TaintType::RedirectUri])
+                    Some(FxHashSet::from_iter([
+                        TaintType::HtmlAttributeUri,
+                        TaintType::CurlUri,
+                        TaintType::RedirectUri,
+                    ]))
                 } else {
-                    HashSet::new()
+                    None
                 },
             );
         }

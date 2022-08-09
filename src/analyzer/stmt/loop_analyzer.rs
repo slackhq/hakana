@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::BTreeMap,
     rc::Rc,
 };
 
@@ -8,6 +8,7 @@ use hakana_algebra::Clause;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::combine_union_types;
 use oxidized::aast;
+use rustc_hash::{FxHashSet, FxHashMap};
 
 use crate::{
     expression_analyzer, formula_generator,
@@ -50,7 +51,7 @@ pub(crate) fn analyze<'a>(
     };
 
     let original_protected_var_ids = loop_parent_context.protected_var_ids.clone();
-    let mut always_assigned_before_loop_body_vars = HashSet::new();
+    let mut always_assigned_before_loop_body_vars = FxHashSet::default();
 
     let mut pre_condition_clauses = Vec::new();
 
@@ -504,24 +505,24 @@ pub(crate) fn analyze<'a>(
         let (negated_pre_condition_types, _) = hakana_algebra::get_truths_from_formula(
             negated_pre_condition_clauses.iter().collect(),
             None,
-            &mut HashSet::new(),
+            &mut FxHashSet::default(),
         );
 
         if !negated_pre_condition_types.is_empty() {
-            let mut changed_var_ids = HashSet::new();
+            let mut changed_var_ids = FxHashSet::default();
 
             reconciler::reconcile_keyed_types(
                 &negated_pre_condition_types,
                 BTreeMap::new(),
                 &mut continue_context,
                 &mut changed_var_ids,
-                &HashSet::new(),
+                &FxHashSet::default(),
                 statements_analyzer,
                 tast_info,
                 pre_conditions.get(0).unwrap().pos(),
                 true,
                 false,
-                &HashMap::new(),
+                &FxHashMap::default(),
             );
 
             for var_id in changed_var_ids {
@@ -582,7 +583,7 @@ pub(crate) fn analyze<'a>(
 
 fn get_assignment_map_depth(
     first_var_id: &String,
-    assignment_map: &mut HashMap<String, HashSet<String>>,
+    assignment_map: &mut FxHashMap<String, FxHashSet<String>>,
 ) -> usize {
     let mut max_depth = 0;
 
@@ -617,9 +618,9 @@ fn apply_pre_condition_to_loop_context(
     loop_parent_context: &mut ScopeContext,
     tast_info: &mut TastInfo,
     is_do: bool,
-) -> HashSet<String> {
+) -> FxHashSet<String> {
     let pre_referenced_var_ids = loop_context.cond_referenced_var_ids.clone();
-    loop_context.cond_referenced_var_ids = HashSet::new();
+    loop_context.cond_referenced_var_ids = FxHashSet::default();
 
     loop_context.inside_conditional = true;
 
@@ -670,19 +671,19 @@ fn apply_pre_condition_to_loop_context(
             &reconcilable_while_types,
             active_while_types,
             loop_context,
-            &mut HashSet::new(),
+            &mut FxHashSet::default(),
             &new_referenced_var_ids,
             statements_analyzer,
             tast_info,
             pre_condition.pos(),
             true,
             false,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
     }
 
     if is_do {
-        return HashSet::new();
+        return FxHashSet::default();
     }
 
     if !loop_context.clauses.is_empty() {
@@ -722,7 +723,7 @@ fn update_loop_scope_contexts(
         //     $updated_loop_vars[$var] = true;
         // }
 
-        let mut updated_loop_vars = HashSet::new();
+        let mut updated_loop_vars = FxHashSet::default();
 
         for (var, var_type) in &loop_scope.redefined_loop_vars {
             continue_context

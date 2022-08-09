@@ -1,5 +1,4 @@
 use std::{
-    collections::{HashMap, HashSet},
     path::Path,
     process::exit,
 };
@@ -9,20 +8,21 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     taint::TaintType,
 };
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::custom_hook::CustomHook;
 
 pub mod json_config;
 
 pub struct Config {
-    pub migration_symbols: HashSet<(String, String)>,
+    pub migration_symbols: FxHashSet<(String, String)>,
     pub find_unused_expressions: bool,
     pub find_unused_definitions: bool,
-    pub issue_filter: Option<HashSet<IssueKind>>,
-    pub issues_to_fix: HashSet<IssueKind>,
+    pub issue_filter: Option<FxHashSet<IssueKind>>,
+    pub issues_to_fix: FxHashSet<IssueKind>,
     pub graph_kind: GraphKind,
     pub ignore_files: Vec<String>,
-    pub ignore_issue_files: HashMap<String, Vec<String>>,
+    pub ignore_issue_files: FxHashMap<String, Vec<String>>,
     pub security_config: SecurityConfig,
     pub root_dir: String,
     pub hooks: Vec<Box<dyn CustomHook>>,
@@ -31,7 +31,7 @@ pub struct Config {
 #[derive(Clone, Debug)]
 pub struct SecurityConfig {
     ignore_files: Vec<String>,
-    ignore_sink_files: HashMap<String, Vec<String>>,
+    ignore_sink_files: FxHashMap<String, Vec<String>>,
     pub max_depth: u8,
 }
 
@@ -39,7 +39,7 @@ impl SecurityConfig {
     pub fn new() -> Self {
         Self {
             ignore_files: Vec::new(),
-            ignore_sink_files: HashMap::new(),
+            ignore_sink_files: FxHashMap::default(),
             max_depth: 20,
         }
     }
@@ -52,12 +52,12 @@ impl Config {
             find_unused_expressions: false,
             find_unused_definitions: false,
             issue_filter: None,
-            migration_symbols: HashSet::new(),
+            migration_symbols: FxHashSet::default(),
             graph_kind: GraphKind::Variable,
             ignore_files: Vec::new(),
-            ignore_issue_files: HashMap::new(),
+            ignore_issue_files: FxHashMap::default(),
             security_config: SecurityConfig::new(),
-            issues_to_fix: HashSet::new(),
+            issues_to_fix: FxHashSet::default(),
             hooks: vec![],
         }
     }

@@ -12,7 +12,8 @@ use hakana_reflection_info::{
 };
 use hakana_type::{get_mixed_any, get_nothing, wrap_atomic};
 use oxidized::{aast, ast_defs::Pos};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use rustc_hash::FxHashMap;
+use std::collections::BTreeMap;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -21,7 +22,7 @@ pub(crate) fn analyze(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> bool {
-    let mut parent_nodes = HashMap::new();
+    let mut parent_nodes = FxHashMap::default();
 
     let mut known_items = BTreeMap::new();
     for (i, value_expr) in tuple_fields.iter().enumerate() {
@@ -101,8 +102,8 @@ fn add_tuple_value_dataflow(
             parent_node,
             &new_parent_node,
             PathKind::ExpressionAssignment(PathExpressionKind::ArrayValue, key_value.to_string()),
-            HashSet::new(),
-            HashSet::new(),
+            None,
+            None,
         );
     }
 

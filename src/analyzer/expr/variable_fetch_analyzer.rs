@@ -13,7 +13,7 @@ use hakana_reflection_info::{
 };
 use hakana_type::{get_int, get_mixed_any, get_mixed_dict};
 use oxidized::{ast_defs::Pos, tast::Lid};
-use std::{collections::HashSet, rc::Rc};
+use std::rc::Rc;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -142,8 +142,8 @@ fn add_dataflow_to_variable(
                         &parent_node,
                         &assignment_node,
                         PathKind::Default,
-                        HashSet::new(),
-                        HashSet::new(),
+                        None,
+                        None,
                     );
                 }
             }

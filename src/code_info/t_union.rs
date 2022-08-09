@@ -5,14 +5,15 @@ use crate::{
 };
 use core::panic;
 use itertools::Itertools;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct TUnion {
     pub types: BTreeMap<String, TAtomic>,
     pub failed_reconciliation: bool,
-    pub parent_nodes: HashMap<String, DataFlowNode>,
+    pub parent_nodes: FxHashMap<String, DataFlowNode>,
     pub had_template: bool,
 
     // Whether or not the data in this type could have references to it.
@@ -66,7 +67,7 @@ impl TUnion {
 
         TUnion {
             types: keyed_types,
-            parent_nodes: HashMap::new(),
+            parent_nodes: FxHashMap::default(),
             failed_reconciliation: false,
             had_template: false,
             reference_free: false,
@@ -636,14 +637,14 @@ impl TUnion {
         }
     }
 
-    pub fn get_literal_ints(&self) -> HashMap<&String, &TAtomic> {
+    pub fn get_literal_ints(&self) -> FxHashMap<&String, &TAtomic> {
         self.types
             .iter()
             .filter(|(_, a)| matches!(a, TAtomic::TLiteralInt { .. }))
             .collect()
     }
 
-    pub fn get_literal_strings(&self) -> HashMap<&String, &TAtomic> {
+    pub fn get_literal_strings(&self) -> FxHashMap<&String, &TAtomic> {
         self.types
             .iter()
             .filter(|(_, a)| matches!(a, TAtomic::TLiteralString { .. }))

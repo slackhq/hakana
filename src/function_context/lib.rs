@@ -1,7 +1,7 @@
 pub mod functionlike_identifier;
 pub mod method_identifier;
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 pub use functionlike_identifier::FunctionLikeIdentifier;
 
@@ -11,13 +11,13 @@ pub struct FunctionContext {
 
     pub calling_class: Option<String>,
 
-    pub aliased_namespaces: HashMap<String, String>,
+    pub aliased_namespaces: FxHashMap<String, String>,
 
-    pub aliased_types: HashMap<String, String>,
+    pub aliased_types: FxHashMap<String, String>,
 
-    pub aliased_functions: HashMap<String, String>,
+    pub aliased_functions: FxHashMap<String, String>,
 
-    pub aliased_constants: HashMap<String, String>,
+    pub aliased_constants: FxHashMap<String, String>,
 
     /**
      * Whether or not to do a deep analysis and collect initializations from private or final methods
@@ -34,7 +34,7 @@ pub struct FunctionContext {
      *
      * @var array<string, bool>|null
      */
-    pub initialized_methods: Option<HashMap<String, bool>>,
+    pub initialized_methods: Option<FxHashMap<String, bool>>,
 
     pub is_static: bool,
 
@@ -51,10 +51,10 @@ impl FunctionContext {
         Self {
             namespace: None,
             calling_class: None,
-            aliased_namespaces: HashMap::new(),
-            aliased_types: HashMap::new(),
-            aliased_functions: HashMap::new(),
-            aliased_constants: HashMap::new(),
+            aliased_namespaces: FxHashMap::default(),
+            aliased_types: FxHashMap::default(),
+            aliased_functions: FxHashMap::default(),
+            aliased_constants: FxHashMap::default(),
 
             pure: false,
             mutation_free: false,

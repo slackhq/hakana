@@ -12,13 +12,13 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use oxidized::aast;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 #[derive(Clone)]
 pub struct FileAnalyzer<'a> {
     file_source: FileSource,
     namespace_name: Option<String>,
-    pub resolved_names: &'a HashMap<usize, String>,
+    pub resolved_names: &'a FxHashMap<usize, String>,
     pub codebase: &'a CodebaseInfo,
     pub analysis_config: &'a Config,
 }
@@ -26,7 +26,7 @@ pub struct FileAnalyzer<'a> {
 impl<'a> FileAnalyzer<'a> {
     pub fn new(
         file_source: FileSource,
-        resolved_names: &'a HashMap<usize, String>,
+        resolved_names: &'a FxHashMap<usize, String>,
         codebase: &'a CodebaseInfo,
         analysis_config: &'a Config,
     ) -> Self {

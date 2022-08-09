@@ -20,11 +20,8 @@ use hakana_type::{
 use lazy_static::lazy_static;
 use oxidized::ast_defs::Pos;
 use regex::Regex;
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    rc::Rc,
-    sync::Arc,
-};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
 #[derive(PartialEq)]
 pub(crate) enum ReconciliationStatus {
@@ -36,16 +33,16 @@ pub(crate) enum ReconciliationStatus {
 pub(crate) fn reconcile_keyed_types(
     new_types: &BTreeMap<String, Vec<Vec<Assertion>>>,
     // types we can complain about
-    active_new_types: BTreeMap<String, HashMap<usize, Vec<Assertion>>>,
+    active_new_types: BTreeMap<String, FxHashMap<usize, Vec<Assertion>>>,
     context: &mut ScopeContext,
-    changed_var_ids: &mut HashSet<String>,
-    referenced_var_ids: &HashSet<String>,
+    changed_var_ids: &mut FxHashSet<String>,
+    referenced_var_ids: &FxHashSet<String>,
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
     pos: &Pos,
     can_report_issues: bool,
     negated: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) {
     if new_types.is_empty() {
         return;
@@ -94,14 +91,14 @@ pub(crate) fn reconcile_keyed_types(
                                         old_parent_node,
                                         &new_parent_node,
                                         PathKind::Default,
-                                        HashSet::new(),
-                                        taints.clone(),
+                                        None,
+                                        Some(taints.clone()),
                                     );
                                 }
 
                                 let mut existing_var_type_inner = (**existing_var_type).clone();
 
-                                existing_var_type_inner.parent_nodes = HashMap::from([(
+                                existing_var_type_inner.parent_nodes = FxHashMap::from_iter([(
                                     new_parent_node.id.clone(),
                                     new_parent_node.clone(),
                                 )]);
@@ -286,7 +283,7 @@ pub(crate) fn reconcile_keyed_types(
 fn adjust_array_type(
     mut key_parts: Vec<String>,
     context: &mut ScopeContext,
-    changed_var_ids: &mut HashSet<String>,
+    changed_var_ids: &mut FxHashSet<String>,
     result_type: &TUnion,
 ) {
     key_parts.pop();
@@ -603,7 +600,7 @@ fn get_value_for_key(
             }
 
             let class_constant =
-                codebase.get_class_constant_type(&fq_class_name, &const_name, HashSet::new());
+                codebase.get_class_constant_type(&fq_class_name, &const_name, FxHashSet::default());
 
             if let Some(class_constant) = class_constant {
                 context
@@ -922,7 +919,7 @@ pub(crate) fn trigger_issue_for_impossible(
     redundant: bool,
     negated: bool,
     pos: &Pos,
-    _suppressed_issues: &HashMap<String, usize>,
+    _suppressed_issues: &FxHashMap<String, usize>,
 ) {
     let mut assertion_string = assertion.to_string();
     let mut not_operator = assertion_string.starts_with("!");

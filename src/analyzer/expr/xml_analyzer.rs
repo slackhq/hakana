@@ -9,7 +9,7 @@ use hakana_reflection_info::taint::TaintType;
 use hakana_type::get_named_object;
 use oxidized::aast;
 use oxidized::ast_defs;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 use std::rc::Rc;
 
 use super::assignment::instance_property_assignment_analyzer::add_unspecialized_property_assignment_dataflow;
@@ -127,7 +127,7 @@ fn analyze_xhp_attribute_assignment(
                     let label = format!("{}::${}", property_id.0, property_id.1);
 
                     let mut taints =
-                        HashSet::from([TaintType::InternalSecret, TaintType::UserSecret]);
+                        FxHashSet::from_iter([TaintType::InternalSecret, TaintType::UserSecret]);
 
                     if classlike_storage
                         .appearing_property_ids

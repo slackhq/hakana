@@ -1,10 +1,8 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
 use indexmap::IndexMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{get_nothing, type_combiner};
 
@@ -18,7 +16,7 @@ pub fn replace(
     template_result: &TemplateResult,
     codebase: Option<&CodebaseInfo>,
 ) -> TUnion {
-    let mut keys_to_unset = HashSet::new();
+    let mut keys_to_unset = FxHashSet::default();
 
     let mut new_types = Vec::new();
 
@@ -62,7 +60,7 @@ pub fn replace(
             if let Some(bounds) = template_result
                 .lower_bounds
                 .get(param_name)
-                .unwrap_or(&HashMap::new())
+                .unwrap_or(&FxHashMap::default())
                 .get(defining_entity)
             {
                 let template_type = get_most_specific_type_from_bounds(bounds, codebase);
@@ -111,7 +109,7 @@ pub fn replace(
             if let Some(bounds) = template_result
                 .lower_bounds
                 .get(param_name)
-                .unwrap_or(&HashMap::new())
+                .unwrap_or(&FxHashMap::default())
                 .get(defining_entity)
             {
                 let template_type = get_most_specific_type_from_bounds(bounds, codebase);
@@ -172,24 +170,23 @@ pub fn replace(
 }
 
 fn replace_template_param(
-    lower_bounds: &IndexMap<String, HashMap<String, Vec<TemplateBound>>>,
+    inferred_lower_bounds: &IndexMap<String, FxHashMap<String, Vec<TemplateBound>>>,
     param_name: &String,
     defining_entity: &String,
     codebase: Option<&CodebaseInfo>,
     as_type: &TUnion,
-    extra_types: &Option<std::collections::HashMap<String, TAtomic>>,
+    extra_types: &Option<FxHashMap<String, TAtomic>>,
     key: &String,
 ) -> Option<TUnion> {
     let mut template_type = None;
     let traversed_type = standin_type_replacer::get_root_template_type(
-        &lower_bounds,
+        &inferred_lower_bounds,
         &param_name,
         &defining_entity,
-        HashSet::new(),
+        FxHashSet::default(),
         codebase,
     );
 
-    let inferred_lower_bounds = &lower_bounds;
     if let Some(traversed_type) = traversed_type {
         let template_type_inner = if !as_type.is_mixed() && traversed_type.is_mixed() {
             as_type.clone()
@@ -205,7 +202,7 @@ fn replace_template_param(
 
         template_type = Some(template_type_inner);
     } else if let Some(codebase) = codebase {
-        for (_, template_type_map) in lower_bounds {
+        for (_, template_type_map) in inferred_lower_bounds {
             for (map_defining_entity, _) in template_type_map {
                 if map_defining_entity.starts_with("fn-")
                     || map_defining_entity.starts_with("typedef-")

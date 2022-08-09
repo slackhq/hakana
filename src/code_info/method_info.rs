@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ pub struct MethodInfo {
 
     pub mutation_free_inferred: bool,
 
-    pub this_property_mutations: Option<HashSet<String>>,
+    pub this_property_mutations: Option<FxHashSet<String>>,
 
     pub stubbed: bool,
 

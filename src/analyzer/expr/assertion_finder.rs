@@ -13,7 +13,7 @@ use oxidized::{
     aast_defs::Hint,
     ast_defs::{self, Pos},
 };
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 pub(crate) enum OtherValuePosition {
     Left,
@@ -34,8 +34,8 @@ pub(crate) fn scrape_assertions(
     inside_negation: bool,
     cache: bool,
     inside_conditional: bool,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
-    let mut if_types = HashMap::new();
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
+    let mut if_types = FxHashMap::default();
 
     match &conditional.2 {
         // matches if ($foo is Bar)
@@ -132,21 +132,21 @@ pub(crate) fn scrape_assertions(
 fn process_custom_assertions(
     conditional_pos: &Pos,
     tast_info: &mut TastInfo,
-) -> HashMap<String, Vec<Vec<Assertion>>> {
+) -> FxHashMap<String, Vec<Vec<Assertion>>> {
     let mut if_true_assertions = tast_info
         .if_true_assertions
         .get(&(conditional_pos.start_offset(), conditional_pos.end_offset()))
         .cloned()
-        .unwrap_or(HashMap::new());
+        .unwrap_or(FxHashMap::default());
 
     let if_false_assertions = tast_info
         .if_false_assertions
         .get(&(conditional_pos.start_offset(), conditional_pos.end_offset()))
         .cloned()
-        .unwrap_or(HashMap::new());
+        .unwrap_or(FxHashMap::default());
 
     if if_true_assertions.is_empty() && if_false_assertions.is_empty() {
-        return HashMap::new();
+        return FxHashMap::default();
     }
 
     for if_false_assertion in if_false_assertions {
@@ -173,8 +173,8 @@ fn get_is_assertions(
     hint: &Hint,
     assertion_context: &AssertionContext,
     _inside_negation: bool,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
-    let mut if_types: HashMap<String, Vec<Vec<Assertion>>> = HashMap::new();
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
+    let mut if_types: FxHashMap<String, Vec<Vec<Assertion>>> = FxHashMap::default();
 
     let mut is_type = get_type_from_hint(
         &hint.1,
@@ -235,7 +235,7 @@ fn scrape_equality_assertions(
     assertion_context: &AssertionContext,
     _cache: bool,
     _inside_conditional: bool,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let null_position = has_null_variable(bop, left, right);
 
     if let Some(null_position) = null_position {
@@ -277,7 +277,7 @@ fn scrape_inequality_assertions(
     assertion_context: &AssertionContext,
     _cache: bool,
     _inside_conditional: bool,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let null_position = has_null_variable(bop, left, right);
 
     if let Some(null_position) = null_position {
@@ -334,7 +334,7 @@ fn scrape_function_assertions(
     assertion_context: &AssertionContext,
     tast_info: &mut TastInfo,
     _negate: bool,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let firsts = if let Some(first_arg) = args.first() {
         let first_var_name = get_extended_var_id(
             &first_arg.1,
@@ -348,7 +348,7 @@ fn scrape_function_assertions(
         None
     };
 
-    let mut if_types = HashMap::new();
+    let mut if_types = FxHashMap::default();
 
     if function_name == "isset" {
         let (first_arg, first_var_name, first_var_type) = firsts.unwrap();
@@ -403,8 +403,8 @@ fn get_null_equality_assertions(
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
     null_position: OtherValuePosition,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
-    let mut if_types = HashMap::new();
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
+    let mut if_types = FxHashMap::default();
     let base_conditional = match null_position {
         OtherValuePosition::Left => right,
         OtherValuePosition::Right => left,
@@ -431,8 +431,8 @@ fn get_null_inequality_assertions(
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
     null_position: OtherValuePosition,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
-    let mut if_types = HashMap::new();
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
+    let mut if_types = FxHashMap::default();
     let base_conditional = match null_position {
         OtherValuePosition::Left => right,
         OtherValuePosition::Right => left,
@@ -475,8 +475,8 @@ fn get_true_equality_assertions(
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
     true_position: OtherValuePosition,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
-    let mut if_types = HashMap::new();
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
+    let mut if_types = FxHashMap::default();
     let base_conditional = match true_position {
         OtherValuePosition::Left => right,
         OtherValuePosition::Right => left,
@@ -554,8 +554,8 @@ fn get_false_equality_assertions(
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
     false_position: OtherValuePosition,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
-    let mut if_types = HashMap::new();
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
+    let mut if_types = FxHashMap::default();
     let base_conditional = match false_position {
         OtherValuePosition::Left => right,
         OtherValuePosition::Right => left,
@@ -582,8 +582,8 @@ fn get_typed_value_equality_assertions(
     tast_info: &TastInfo,
     assertion_context: &AssertionContext,
     typed_value_position: OtherValuePosition,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
-    let mut if_types = HashMap::new();
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
+    let mut if_types = FxHashMap::default();
 
     let var_name;
     let other_value_var_name;
@@ -662,8 +662,8 @@ fn get_typed_value_inequality_assertions(
     tast_info: &TastInfo,
     assertion_context: &AssertionContext,
     typed_value_position: OtherValuePosition,
-) -> Vec<HashMap<String, Vec<Vec<Assertion>>>> {
-    let mut if_types = HashMap::new();
+) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
+    let mut if_types = FxHashMap::default();
 
     let var_name;
     let other_value_var_name;

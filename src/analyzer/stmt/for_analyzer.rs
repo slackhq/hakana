@@ -1,5 +1,5 @@
 use oxidized::aast;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashSet;
 
 use crate::{
     expression_analyzer,
@@ -22,7 +22,7 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
 ) -> bool {
     let pre_assigned_var_ids = context.assigned_var_ids.clone();
-    context.assigned_var_ids = HashMap::new();
+    context.assigned_var_ids.clear();
 
     for init_expr in stmt.0 {
         if !expression_analyzer::analyze(
@@ -58,7 +58,7 @@ pub(crate) fn analyze(
         assigned_var_ids
             .into_iter()
             .map(|(k, _)| k)
-            .collect::<HashSet<_>>(),
+            .collect::<FxHashSet<_>>(),
     );
 
     let (analysis_result, _) = loop_analyzer::analyze(

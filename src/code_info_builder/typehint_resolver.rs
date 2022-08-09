@@ -12,14 +12,14 @@ use oxidized::ast_defs;
 use oxidized::ast_defs::ParamKind;
 use oxidized::tast::HintFun;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 fn get_vec_type_from_hint(
     hint: &Hint,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     TAtomic::TVec {
         type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names),
@@ -33,7 +33,7 @@ fn get_tuple_type_from_hints(
     hints: &Vec<Hint>,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     TAtomic::TVec {
         type_param: get_nothing(),
@@ -63,7 +63,7 @@ fn get_keyset_type_from_hint(
     hint: &Hint,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     TAtomic::TKeyset {
         type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names),
@@ -74,7 +74,7 @@ fn get_classname_type_from_hint(
     hint: &Hint,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     if let Hint_::Happly(id, _) = &*hint.1 {
         let as_type = get_reference_type(id, &vec![], classlike_name, type_context, resolved_names);
@@ -103,7 +103,7 @@ fn get_typename_type_from_hint(
     hint: &Hint,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     if let Hint_::Happly(id, _) = &*hint.1 {
         let as_type = get_reference_type(id, &vec![], classlike_name, type_context, resolved_names);
@@ -131,7 +131,7 @@ fn get_dict_type_from_hints(
     value_hint: Option<&Hint>,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     TAtomic::TDict {
         key_param: if let Some(k) = &key_hint {
@@ -155,7 +155,7 @@ fn get_shape_type_from_hints(
     shape_info: &NastShapeInfo,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     let mut known_items = BTreeMap::new();
     let mut enum_items = BTreeMap::new();
@@ -212,7 +212,7 @@ fn get_function_type_from_hints(
     function_info: &HintFun,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     let mut params = function_info
         .param_tys
@@ -278,7 +278,7 @@ fn get_reference_type(
     extra_info: &Vec<Hint>,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     let type_name = &applied_type.1;
 
@@ -353,7 +353,7 @@ fn get_reference_type(
     }
 }
 
-fn get_template_type(defining_entities: &HashMap<String, TUnion>, type_name: &String) -> TAtomic {
+fn get_template_type(defining_entities: &FxHashMap<String, TUnion>, type_name: &String) -> TAtomic {
     let as_type = defining_entities.values().next().unwrap().clone();
     let defining_entity = defining_entities.keys().next().unwrap().clone();
     let from_class =
@@ -372,7 +372,7 @@ pub fn get_type_from_hint(
     hint: &Hint_,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> TUnion {
     let mut types = Vec::new();
 
@@ -516,7 +516,7 @@ pub fn get_type_from_optional_hint(
     hint: &Option<Hint>,
     classlike_name: Option<&String>,
     type_context: &TypeResolutionContext,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> Option<TUnion> {
     match hint {
         Some(x) => Some(get_type_from_hint(

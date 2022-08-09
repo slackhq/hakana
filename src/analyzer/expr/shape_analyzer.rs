@@ -16,10 +16,8 @@ use oxidized::{
     aast,
     ast_defs::{Pos, ShapeFieldName},
 };
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    sync::Arc,
-};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::{collections::BTreeMap, sync::Arc};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -30,7 +28,7 @@ pub(crate) fn analyze(
 ) -> bool {
     let codebase = statements_analyzer.get_codebase();
 
-    let mut parent_nodes = HashMap::new();
+    let mut parent_nodes = FxHashMap::default();
 
     let mut all_pure = true;
 
@@ -48,7 +46,7 @@ pub(crate) fn analyze(
                 lhs_name = resolved_name;
             }
             let constant_type =
-                codebase.get_class_constant_type(&lhs_name, &name.1, HashSet::new());
+                codebase.get_class_constant_type(&lhs_name, &name.1, FxHashSet::default());
 
             if let Some(constant_type) = constant_type {
                 if let Some(name) = constant_type.get_single_literal_string_value() {
@@ -156,8 +154,8 @@ fn add_shape_value_dataflow(
             parent_node,
             &new_parent_node,
             PathKind::ExpressionAssignment(PathExpressionKind::ArrayValue, key_value.clone()),
-            HashSet::new(),
-            HashSet::new(),
+            None,
+            None,
         );
     }
 

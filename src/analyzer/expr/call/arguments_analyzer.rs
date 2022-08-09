@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::expr::binop::assignment_analyzer;
 use crate::expr::call_analyzer::get_generic_param_for_offset;
@@ -71,7 +71,7 @@ pub(crate) fn check_arguments_match(
                                 vec![TemplateBound::new(param_type.clone(), 0, None, None)],
                             )
                         })
-                        .collect::<HashMap<_, _>>(),
+                        .collect::<FxHashMap<_, _>>(),
                 );
             }
         }
@@ -79,7 +79,7 @@ pub(crate) fn check_arguments_match(
 
     let last_param = functionlike_params.last();
 
-    let mut param_types = HashMap::new();
+    let mut param_types = FxHashMap::default();
 
     let codebase = statements_analyzer.get_codebase();
 
@@ -122,7 +122,7 @@ pub(crate) fn check_arguments_match(
             if lower_bounds.len() == 1 {
                 class_generic_params
                     .entry(template_name.clone())
-                    .or_insert_with(HashMap::new)
+                    .or_insert_with(FxHashMap::default)
                     .insert(
                         class.clone(),
                         lower_bounds.get(0).unwrap().bound_type.clone(),
@@ -335,7 +335,7 @@ pub(crate) fn check_arguments_match(
                         template_result
                             .lower_bounds
                             .entry(param_name.clone())
-                            .or_insert_with(HashMap::new)
+                            .or_insert_with(FxHashMap::default)
                             .insert(
                                 defining_entity.clone(),
                                 vec![TemplateBound::new(bound_type, 0, None, None)],
@@ -526,7 +526,7 @@ fn handle_closure_arg(
                                 ),
                             )
                         })
-                        .collect::<HashMap<_, _>>(),
+                        .collect::<FxHashMap<_, _>>(),
                 )
             })
             .collect::<IndexMap<_, _>>(),
@@ -625,7 +625,7 @@ fn handle_closure_arg(
 }
 
 fn map_class_generic_params(
-    class_generic_params: &IndexMap<String, HashMap<String, TUnion>>,
+    class_generic_params: &IndexMap<String, FxHashMap<String, TUnion>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
     arg_value_type: &mut TUnion,
@@ -843,7 +843,7 @@ fn refine_template_result_for_functionlike(
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     functionlike_storage: &FunctionLikeInfo,
-    class_template_params: &IndexMap<String, HashMap<String, TUnion>>,
+    class_template_params: &IndexMap<String, FxHashMap<String, TUnion>>,
 ) {
     let template_types = get_template_types_for_call(
         codebase,
@@ -874,9 +874,9 @@ pub(crate) fn get_template_types_for_call(
     declaring_classlike_storage: Option<&ClassLikeInfo>,
     appearing_class_name: Option<&String>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
-    existing_template_types: &IndexMap<String, HashMap<String, TUnion>>,
-    class_template_params: &IndexMap<String, HashMap<String, TUnion>>,
-) -> IndexMap<String, HashMap<String, TUnion>> {
+    existing_template_types: &IndexMap<String, FxHashMap<String, TUnion>>,
+    class_template_params: &IndexMap<String, FxHashMap<String, TUnion>>,
+) -> IndexMap<String, FxHashMap<String, TUnion>> {
     let mut template_types = existing_template_types.clone();
 
     if let Some(declaring_classlike_storage) = declaring_classlike_storage {
@@ -903,7 +903,7 @@ pub(crate) fn get_template_types_for_call(
                                 defining_entity,
                                 param_name,
                                 ..
-                            } = atomic_type
+                            } = &atomic_type
                             {
                                 get_generic_param_for_offset(
                                     defining_entity,
@@ -912,7 +912,7 @@ pub(crate) fn get_template_types_for_call(
                                     &{
                                         let mut p = class_template_params.clone();
                                         p.extend(template_types.clone());
-                                        p.into_iter().collect::<HashMap<_, _>>()
+                                        p.into_iter().collect::<FxHashMap<_, _>>()
                                     },
                                 )
                             } else {
@@ -928,7 +928,7 @@ pub(crate) fn get_template_types_for_call(
 
                         template_types
                             .entry(template_name.clone())
-                            .or_insert_with(HashMap::new)
+                            .or_insert_with(FxHashMap::default)
                             .insert(
                                 declaring_classlike_storage.name.clone(),
                                 output_type.unwrap(),
@@ -941,12 +941,12 @@ pub(crate) fn get_template_types_for_call(
                 for (key, type_) in type_map {
                     template_types
                         .entry(template_name.clone())
-                        .or_insert_with(HashMap::new)
+                        .or_insert_with(FxHashMap::default)
                         .insert(
                             key.clone(),
                             class_template_params
                                 .get(template_name)
-                                .unwrap_or(&HashMap::new())
+                                .unwrap_or(&FxHashMap::default())
                                 .get(key)
                                 .cloned()
                                 .unwrap_or(type_.clone()),

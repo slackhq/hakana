@@ -9,26 +9,27 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use oxidized::ast_defs::Pos;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::BTreeMap,
     rc::Rc,
 };
 
 pub struct TastInfo {
-    pub expr_types: HashMap<(usize, usize), Rc<TUnion>>,
-    pub if_true_assertions: HashMap<(usize, usize), HashMap<String, Vec<Assertion>>>,
-    pub if_false_assertions: HashMap<(usize, usize), HashMap<String, Vec<Assertion>>>,
+    pub expr_types: FxHashMap<(usize, usize), Rc<TUnion>>,
+    pub if_true_assertions: FxHashMap<(usize, usize), FxHashMap<String, Vec<Assertion>>>,
+    pub if_false_assertions: FxHashMap<(usize, usize), FxHashMap<String, Vec<Assertion>>>,
     pub data_flow_graph: DataFlowGraph,
     pub case_scopes: Vec<CaseScope>,
     pub issues_to_emit: Vec<Issue>,
     pub pipe_expr_type: Option<TUnion>,
     pub inferred_return_types: Vec<TUnion>,
-    pub fully_matched_switch_offsets: HashSet<usize>,
-    pub closures: HashMap<Pos, FunctionLikeInfo>,
+    pub fully_matched_switch_offsets: FxHashSet<usize>,
+    pub closures: FxHashMap<Pos, FunctionLikeInfo>,
     pub replacements: BTreeMap<(usize, usize), String>,
     pub symbol_references: SymbolReferences,
-    pub issue_filter: Option<HashSet<IssueKind>>,
-    pub pure_exprs: HashSet<(usize, usize)>,
+    pub issue_filter: Option<FxHashSet<IssueKind>>,
+    pub pure_exprs: FxHashSet<(usize, usize)>,
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
@@ -37,23 +38,23 @@ pub struct TastInfo {
 impl TastInfo {
     pub(crate) fn new(data_flow_graph: DataFlowGraph, file_source: &FileSource) -> Self {
         Self {
-            expr_types: HashMap::new(),
+            expr_types: FxHashMap::default(),
             data_flow_graph,
             case_scopes: Vec::new(),
             issues_to_emit: Vec::new(),
             pipe_expr_type: None,
             inferred_return_types: Vec::new(),
-            fully_matched_switch_offsets: HashSet::new(),
+            fully_matched_switch_offsets: FxHashSet::default(),
             recording_level: 0,
             recorded_issues: vec![],
-            closures: HashMap::new(),
-            if_true_assertions: HashMap::new(),
-            if_false_assertions: HashMap::new(),
+            closures: FxHashMap::default(),
+            if_true_assertions: FxHashMap::default(),
+            if_false_assertions: FxHashMap::default(),
             replacements: BTreeMap::new(),
             fixmes: file_source.fixmes.clone(),
             symbol_references: SymbolReferences::new(),
             issue_filter: None,
-            pure_exprs: HashSet::new(),
+            pure_exprs: FxHashSet::default(),
         }
     }
 

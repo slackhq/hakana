@@ -7,16 +7,14 @@ use oxidized::{
     aast,
     ast_defs::{self, Pos},
 };
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::Arc,
-};
+use rustc_hash::FxHashMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 pub fn infer(
     codebase: &CodebaseInfo,
-    expr_types: &mut HashMap<Pos, TUnion>,
+    expr_types: &mut FxHashMap<Pos, TUnion>,
     expr: &aast::Expr<(), ()>,
-    resolved_names: &HashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, String>,
 ) -> Option<TUnion> {
     return match &expr.2 {
         aast::Expr_::ArrayGet(_) => None,

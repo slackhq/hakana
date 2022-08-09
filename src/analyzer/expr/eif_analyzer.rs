@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::reconciler::{assertion_reconciler, reconciler};
@@ -15,6 +15,7 @@ use hakana_type::{add_union_type, combine_union_types, get_mixed_any};
 use oxidized::aast;
 use oxidized::ast_defs::Uop;
 use oxidized::pos::Pos;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -141,7 +142,7 @@ pub(crate) fn analyze(
             .reconciled_expression_clauses
             .iter()
             .map(|v| &**v)
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
 
         ternary_clauses.retain(|c| !reconciled_expression_clauses.contains(c));
 
@@ -193,14 +194,14 @@ pub(crate) fn analyze(
     let (new_negated_types, _) = hakana_algebra::get_truths_from_formula(
         negated_clauses.iter().collect(),
         None,
-        &mut HashSet::new(),
+        &mut FxHashSet::default(),
     );
 
     if_scope.negated_types = new_negated_types;
 
     // if the if has an || in the conditional, we cannot easily reason about it
     if !reconcilable_if_types.is_empty() {
-        let mut changed_var_ids = HashSet::new();
+        let mut changed_var_ids = FxHashSet::default();
 
         reconciler::reconcile_keyed_types(
             &reconcilable_if_types,
@@ -213,13 +214,13 @@ pub(crate) fn analyze(
             expr.0.pos(),
             true,
             false,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
     }
 
     // we calculate the vars redefined in a hypothetical else statement to determine
     // which vars of the if we can safely change
-    //let mut pre_assignment_else_redefined_vars = &HashMap::new();
+    //let mut pre_assignment_else_redefined_vars = &FxHashMap::default();
 
     if_context.reconciled_expression_clauses = Vec::new();
 
@@ -227,7 +228,7 @@ pub(crate) fn analyze(
 
     let mut lhs_type = None;
 
-    let mut changed_var_ids = HashSet::new();
+    let mut changed_var_ids = FxHashSet::default();
 
     let mut temp_else_context = post_if_context.clone();
     // Check if there is an expression for the true case
@@ -265,7 +266,7 @@ pub(crate) fn analyze(
             false,
             &mut reconciler::ReconciliationStatus::Ok,
             false,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
         lhs_type = Some(if_return_type_reconciled);
     }
@@ -276,13 +277,13 @@ pub(crate) fn analyze(
             BTreeMap::new(),
             &mut temp_else_context,
             &mut changed_var_ids,
-            &HashSet::new(),
+            &FxHashSet::default(),
             statements_analyzer,
             tast_info,
             expr.2.pos(),
             true,
             false,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
 
         temp_else_context.clauses = ScopeContext::remove_reconciled_clause_refs(
@@ -312,7 +313,7 @@ pub(crate) fn analyze(
         .clone()
         .into_iter()
         .filter(|(k, _)| assign_var_else.contains_key(k))
-        .collect::<HashMap<_, _>>();
+        .collect::<FxHashMap<_, _>>();
 
     //if the same var was assigned in both branches
     for var_id in assign_all.iter() {
@@ -335,17 +336,17 @@ pub(crate) fn analyze(
         .get_redefined_vars(&context.vars_in_scope, false)
         .into_iter()
         .map(|(k, _)| k)
-        .collect::<HashSet<_>>();
+        .collect::<FxHashSet<_>>();
     let redef_var_else = temp_else_context
         .get_redefined_vars(&context.vars_in_scope, false)
         .into_iter()
         .map(|(k, _)| k)
-        .collect::<HashSet<_>>();
+        .collect::<FxHashSet<_>>();
 
     let redef_all = redef_var_ifs
         .iter()
         .filter(|k| redef_var_else.contains(*k))
-        .collect::<HashSet<_>>();
+        .collect::<FxHashSet<_>>();
 
     //these vars were changed in both branches
     for redef_var_id in redef_all {

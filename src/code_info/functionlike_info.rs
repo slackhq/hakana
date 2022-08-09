@@ -1,6 +1,5 @@
-use std::collections::{HashMap, HashSet};
-
 use indexmap::IndexMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -23,7 +22,7 @@ pub struct FunctionLikeInfo {
 
     pub name: String,
 
-    pub suppressed_issues: Option<HashMap<IssueKind, HPos>>,
+    pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
 
     pub deprecated: bool,
 
@@ -38,15 +37,15 @@ pub struct FunctionLikeInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: IndexMap<String, HashMap<String, TUnion>>,
+    pub template_types: IndexMap<String, FxHashMap<String, TUnion>>,
 
-    pub template_covariants: HashMap<u32, bool>,
+    pub template_covariants: FxHashMap<u32, bool>,
 
-    pub assertions: Option<HashMap<usize, Assertion>>,
+    pub assertions: Option<FxHashMap<usize, Assertion>>,
 
-    pub if_true_assertions: Option<HashMap<usize, Assertion>>,
+    pub if_true_assertions: Option<FxHashMap<usize, Assertion>>,
 
-    pub if_false_assertions: Option<HashMap<usize, Assertion>>,
+    pub if_false_assertions: Option<FxHashMap<usize, Assertion>>,
 
     pub has_visitor_issues: bool,
 
@@ -75,13 +74,13 @@ pub struct FunctionLikeInfo {
      */
     pub ignore_taints_if_true: bool,
 
-    pub taint_source_types: HashSet<TaintType>,
+    pub taint_source_types: FxHashSet<TaintType>,
 
-    pub added_taints: HashSet<TaintType>,
+    pub added_taints: Option<FxHashSet<TaintType>>,
 
-    pub removed_taints: HashSet<TaintType>,
+    pub removed_taints: Option<FxHashSet<TaintType>>,
 
-    pub return_source_params: HashMap<usize, String>,
+    pub return_source_params: FxHashMap<usize, String>,
 
     pub attributes: Vec<AttributeInfo>,
 
@@ -112,7 +111,7 @@ impl FunctionLikeInfo {
             deprecated: false,
             internal_to: None,
             template_types: IndexMap::new(),
-            template_covariants: HashMap::new(),
+            template_covariants: FxHashMap::default(),
             assertions: None,
             if_true_assertions: None,
             if_false_assertions: None,
@@ -121,10 +120,10 @@ impl FunctionLikeInfo {
             mutation_free: false,
             pure: false,
             specialize_call: false,
-            taint_source_types: HashSet::new(),
-            added_taints: HashSet::new(),
-            removed_taints: HashSet::new(),
-            return_source_params: HashMap::new(),
+            taint_source_types: FxHashSet::default(),
+            added_taints: None,
+            removed_taints: None,
+            return_source_params: FxHashMap::default(),
             attributes: Vec::new(),
             method_info: None,
             is_async: false,
@@ -136,62 +135,4 @@ impl FunctionLikeInfo {
             type_resolution_context: None,
         }
     }
-    // pub fn to_string(&mut self) -> String
-    // {
-    //     self.get_signature(false)
-    // }
-
-    // pub fn getSignature(allow_newlines: bool) -> String {
-    //     let allow_newlines = allow_newlines && self.params.count() > 0;
-
-    //     $symbol_text = 'function ' . $this->cased_name . '(' . ($newlines ? "\n" : '') . implode(
-    //         ',' . ($newlines ? "\n" : ' '),
-    //         array_map(
-    //             function (FunctionLikeParameter $param) use ($newlines) : string {
-    //                 return ($newlines ? '    ' : '') . ($param->type ?: 'mixed') . ' $' . $param->name;
-    //             },
-    //             $this->params
-    //         )
-    //     ) . ($newlines ? "\n" : '') . ') : ' . ($this->return_type ?: 'mixed');
-
-    //     if (!$this instanceof MethodStorage) {
-    //         return $symbol_text;
-    //     }
-
-    //     switch ($this->visibility) {
-    //         case ClassLikeAnalyzer::VISIBILITY_PRIVATE:
-    //             $visibility_text = 'private';
-    //             break;
-
-    //         case ClassLikeAnalyzer::VISIBILITY_PROTECTED:
-    //             $visibility_text = 'protected';
-    //             break;
-
-    //         default:
-    //             $visibility_text = 'public';
-    //     }
-
-    //     return $visibility_text . ' ' . $symbol_text;
-    // }
-
-    // /**
-    //  * @internal
-    //  *
-    //  * @param list<FunctionLikeParameter> $params
-    //  */
-    // pub fn setParams(array $params): void
-    // {
-    //     $this->params = $params;
-    //     $param_names = array_column($params, 'name');
-    //     $this->param_lookup = array_fill_keys($param_names, true);
-    // }
-
-    // /**
-    //  * @internal
-    //  */
-    // pub fn addParam(FunctionLikeParameter $param, bool $lookup_value = null): void
-    // {
-    //     $this->params[] = $param;
-    //     $this->param_lookup[$param->name] = $lookup_value ?? true;
-    // }
 }

@@ -19,7 +19,7 @@ use hakana_type::{
 };
 use indexmap::IndexMap;
 use oxidized::{aast::Expr, ast_defs::Pos};
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -270,7 +270,7 @@ pub(crate) fn localize_property_type(
                         if i == (param_offset as i32) {
                             template_types
                                 .entry(calling_param_name.clone())
-                                .or_insert_with(HashMap::new)
+                                .or_insert_with(FxHashMap::default)
                                 .insert(
                                     property_class_storage.name.clone(),
                                     lhs_param_type.clone(),
@@ -294,7 +294,7 @@ pub(crate) fn localize_property_type(
                 .get(&type_name)
             {
                 for (_, mapped_type_atomic) in &mapped_type.types {
-                    if let TAtomic::TTemplateParam { param_name, .. } = mapped_type_atomic {
+                    if let TAtomic::TTemplateParam { param_name, .. } = &mapped_type_atomic {
                         let position = property_class_storage
                             .template_types
                             .get_index_of(param_name);
@@ -303,7 +303,7 @@ pub(crate) fn localize_property_type(
                             if let Some(mapped_param) = lhs_type_params.get(position) {
                                 template_types
                                     .entry(type_name.clone())
-                                    .or_insert_with(HashMap::new)
+                                    .or_insert_with(FxHashMap::default)
                                     .insert(
                                         property_declaring_class_storage.name.clone(),
                                         mapped_param.clone(),
@@ -365,8 +365,8 @@ fn add_property_dataflow(
                 &var_node,
                 &property_node,
                 PathKind::ExpressionFetch(PathExpressionKind::Property, property_id.1.clone()),
-                HashSet::new(),
-                HashSet::new(),
+                None,
+                None,
             );
 
             if let Some(var_type) = var_type {
@@ -375,14 +375,14 @@ fn add_property_dataflow(
                         parent_node,
                         &var_node,
                         PathKind::Default,
-                        HashSet::new(),
-                        HashSet::new(),
+                        None,
+                        None,
                     );
                 }
 
                 let mut stmt_type = stmt_type.clone();
                 stmt_type.parent_nodes =
-                    HashMap::from([(property_node.id.clone(), property_node.clone())]);
+                    FxHashMap::from_iter([(property_node.id.clone(), property_node.clone())]);
 
                 return stmt_type;
             }
@@ -439,22 +439,22 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
             &property_node,
             &localized_property_node,
             PathKind::ExpressionAssignment(PathExpressionKind::Property, property_id.1.clone()),
-            HashSet::new(),
-            HashSet::new(),
+            None,
+            None,
         );
     } else {
         tast_info.data_flow_graph.add_path(
             &property_node,
             &localized_property_node,
             PathKind::ExpressionFetch(PathExpressionKind::Property, property_id.1.clone()),
-            HashSet::new(),
-            HashSet::new(),
+            None,
+            None,
         );
     }
 
     let mut stmt_type = stmt_type.clone();
 
-    stmt_type.parent_nodes = HashMap::from([(
+    stmt_type.parent_nodes = FxHashMap::from_iter([(
         localized_property_node.id.clone(),
         localized_property_node.clone(),
     )]);

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::expr::call_analyzer::{check_method_args, get_generic_param_for_offset};
 use crate::expression_analyzer;
@@ -317,7 +317,7 @@ fn analyze_named_constructor(
                                     vec![TemplateBound::new(param_type.clone(), 0, None, None)],
                                 )
                             })
-                            .collect::<HashMap<_, _>>(),
+                            .collect::<FxHashMap<_, _>>(),
                     );
                 }
             }
@@ -347,9 +347,9 @@ fn analyze_named_constructor(
                                 type_map.iter().map(
                                     |(map_key, bounds)|
                                     (map_key.clone(), template::standin_type_replacer::get_most_specific_type_from_bounds(bounds, Some(codebase)))
-                                ).collect::<HashMap<_, _>>()
+                                ).collect::<FxHashMap<_, _>>()
                             ))
-                        .collect::<HashMap<_, _>>();
+                        .collect::<FxHashMap<_, _>>();
 
                     get_generic_param_for_offset(
                         &classlike_name,

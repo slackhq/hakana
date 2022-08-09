@@ -12,7 +12,8 @@ use hakana_type::type_comparator::{
 };
 use hakana_type::{get_nothing, wrap_atomic};
 use oxidized::ast_defs::Pos;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 pub(crate) fn reconcile(
     assertion: &Assertion,
@@ -25,7 +26,7 @@ pub(crate) fn reconcile(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let is_equality = assertion.has_equality();
 
@@ -219,7 +220,7 @@ fn handle_literal_negated_equality(
     old_var_type_string: String,
     pos: Option<&Pos>,
     negated: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let assertion_type = assertion.get_type().unwrap();
 
@@ -296,7 +297,7 @@ fn handle_literal_negated_equality(
                                 if let Some(constant_type) = codebase.get_class_constant_type(
                                     existing_name,
                                     cname,
-                                    HashSet::new(),
+                                    FxHashSet::default(),
                                 ) {
                                     existing_var_type.add_type(constant_type.get_single_owned());
                                 }
@@ -314,7 +315,7 @@ fn handle_literal_negated_equality(
                                     if let Some(constant_type) = codebase.get_class_constant_type(
                                         existing_name,
                                         cname,
-                                        HashSet::new(),
+                                        FxHashSet::default(),
                                     ) {
                                         existing_var_type
                                             .add_type(constant_type.get_single_owned());
@@ -359,7 +360,7 @@ fn handle_literal_negated_equality(
                                     if let Some(constant_type) = codebase.get_class_constant_type(
                                         existing_name,
                                         cname,
-                                        HashSet::new(),
+                                        FxHashSet::default(),
                                     ) {
                                         existing_var_type
                                             .add_type(constant_type.get_single_owned());

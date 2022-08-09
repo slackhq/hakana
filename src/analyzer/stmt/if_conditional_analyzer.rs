@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
 
 use crate::{
     expression_analyzer,
@@ -10,6 +10,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use oxidized::{aast, ast, ast_defs::Pos};
+use rustc_hash::{FxHashSet, FxHashMap};
 
 use crate::{reconciler::reconciler, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 
@@ -27,7 +28,7 @@ pub(crate) fn analyze<'a>(
     let mut has_outer_context_changes = false;
 
     if !if_scope.negated_clauses.is_empty() {
-        let mut changed_var_ids = HashSet::new();
+        let mut changed_var_ids = FxHashSet::default();
 
         if !if_scope.negated_types.is_empty() {
             let mut tmp_context = outer_context.clone();
@@ -37,13 +38,13 @@ pub(crate) fn analyze<'a>(
                 BTreeMap::new(),
                 &mut tmp_context,
                 &mut changed_var_ids,
-                &HashSet::new(),
+                &FxHashSet::default(),
                 statements_analyzer,
                 tast_info,
                 cond.pos(),
                 true,
                 false,
-                &HashMap::new(),
+                &FxHashMap::default(),
             );
 
             if !changed_var_ids.is_empty() {
@@ -96,7 +97,7 @@ pub(crate) fn analyze<'a>(
     } else {
         &mut old_outer_context
     }
-    .cond_referenced_var_ids = HashSet::new();
+    .cond_referenced_var_ids = FxHashSet::default();
 
     let pre_assigned_var_ids = if has_outer_context_changes {
         &outer_context
@@ -111,7 +112,7 @@ pub(crate) fn analyze<'a>(
     } else {
         &mut old_outer_context
     }
-    .assigned_var_ids = HashMap::new();
+    .assigned_var_ids = FxHashMap::default();
 
     let was_inside_conditional = outer_context.inside_conditional;
 
@@ -198,8 +199,8 @@ pub(crate) fn analyze<'a>(
     let assigned_in_conditional_var_ids;
 
     if internally_applied_if_cond_expr != cond || externally_applied_if_cond_expr != cond {
-        if_conditional_context.assigned_var_ids = HashMap::new();
-        if_conditional_context.cond_referenced_var_ids = HashSet::new();
+        if_conditional_context.assigned_var_ids = FxHashMap::default();
+        if_conditional_context.cond_referenced_var_ids = FxHashSet::default();
 
         let was_inside_conditional = if_conditional_context.inside_conditional;
 
@@ -242,7 +243,7 @@ pub(crate) fn analyze<'a>(
                 && !cond_referenced_var_ids.contains(k)
                 && !assigned_in_conditional_var_ids.contains_key(k)
         })
-        .collect::<HashSet<_>>();
+        .collect::<FxHashSet<_>>();
 
     if let Some(cond_type) = tast_info.get_expr_type(cond.pos()).cloned() {
         handle_paradoxical_condition(statements_analyzer, tast_info, cond.pos(), &cond_type);
@@ -252,7 +253,7 @@ pub(crate) fn analyze<'a>(
 
     cond_referenced_var_ids.extend(newish_var_ids);
 
-    let assigned_in_conditional_var_ids = HashMap::new();
+    let assigned_in_conditional_var_ids = FxHashMap::default();
 
     IfConditionalScope {
         if_body_context: if_context.unwrap(),
@@ -341,8 +342,8 @@ pub(crate) fn add_branch_dataflow(
                     &parent_node,
                     &branch_node,
                     PathKind::Default,
-                    HashSet::new(),
-                    HashSet::new(),
+                    None,
+                    None,
                 );
             }
 

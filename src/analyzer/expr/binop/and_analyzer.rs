@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use crate::reconciler::reconciler;
@@ -24,8 +24,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     let pre_referenced_var_ids = left_context.cond_referenced_var_ids.clone();
     let pre_assigned_var_ids = left_context.assigned_var_ids.clone();
 
-    left_context.cond_referenced_var_ids = HashSet::new();
-    left_context.assigned_var_ids = HashMap::new();
+    left_context.cond_referenced_var_ids.clear();
+    left_context.assigned_var_ids.clear();
 
     left_context.reconciled_expression_clauses = Vec::new();
 
@@ -88,7 +88,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             .reconciled_expression_clauses
             .iter()
             .map(|v| &**v)
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
 
         context_clauses.retain(|c| !left_reconciled_clauses_hashed.contains(c));
 
@@ -108,7 +108,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         &mut left_referenced_var_ids,
     );
 
-    let mut changed_var_ids = HashSet::new();
+    let mut changed_var_ids = FxHashSet::default();
 
     let mut right_context;
 
@@ -129,7 +129,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             left.pos(),
             true,
             !context.inside_negation,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
     } else {
         right_context = left_context.clone()

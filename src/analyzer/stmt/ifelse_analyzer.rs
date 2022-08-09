@@ -6,8 +6,9 @@ use hakana_algebra::Clause;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_type::combine_union_types;
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
+use rustc_hash::{FxHashSet, FxHashMap};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::BTreeMap,
     rc::Rc,
 };
 
@@ -60,7 +61,7 @@ pub(crate) fn analyze(
 
     if stmt.0 .2.is_binop() || (stmt.0 .2.is_unop() && stmt.0 .2.as_unop().unwrap().1 .2.is_binop())
     {
-        let mut none_hashset = HashSet::new();
+        let mut none_hashset = FxHashSet::default();
         none_hashset.insert(ControlAction::None);
     }
 
@@ -147,7 +148,7 @@ pub(crate) fn analyze(
         let reconciled_expression_clauses = if_body_context
             .reconciled_expression_clauses
             .iter()
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
 
         if_body_context
             .clauses
@@ -201,14 +202,14 @@ pub(crate) fn analyze(
         .iter()
         .collect(),
         None,
-        &mut HashSet::new(),
+        &mut FxHashSet::default(),
     );
 
     if_scope.negated_types = new_negated_types;
 
     let mut temp_else_context = post_if_context.clone();
 
-    let mut changed_var_ids = HashSet::new();
+    let mut changed_var_ids = FxHashSet::default();
 
     if !if_scope.negated_types.is_empty() {
         reconciler::reconcile_keyed_types(
@@ -216,19 +217,19 @@ pub(crate) fn analyze(
             BTreeMap::new(),
             &mut temp_else_context,
             &mut changed_var_ids,
-            &HashSet::new(),
+            &FxHashSet::default(),
             statements_analyzer,
             tast_info,
             stmt.0.pos(),
             true,
             false,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
     }
 
     // we calculate the vars redefined in a hypothetical else statement to determine
     // which vars of the if we can safely change
-    let mut pre_assignment_else_redefined_vars = HashMap::new();
+    let mut pre_assignment_else_redefined_vars = FxHashMap::default();
 
     for (var_id, redefined_type) in
         temp_else_context.get_redefined_vars(&context.vars_in_scope, true)
@@ -292,7 +293,7 @@ pub(crate) fn analyze(
     // vars can only be defined/redefined if there was an else (defined in every block)
     context
         .assigned_var_ids
-        .extend(if_scope.assigned_var_ids.unwrap_or(HashMap::new()));
+        .extend(if_scope.assigned_var_ids.unwrap_or(FxHashMap::default()));
 
     if let Some(new_vars) = if_scope.new_vars {
         for (var_id, var_type) in new_vars {

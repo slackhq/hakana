@@ -11,7 +11,7 @@ use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
 };
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 mod classlike_scanner;
 mod functionlike_scanner;
@@ -28,7 +28,7 @@ struct Context {
 struct Scanner<'a> {
     codebase: &'a mut CodebaseInfo,
     file_source: FileSource,
-    resolved_names: HashMap<usize, String>,
+    resolved_names: FxHashMap<usize, String>,
     user_defined: bool,
 }
 
@@ -53,7 +53,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         self.codebase
             .classlikes_in_files
             .entry((*self.file_source.file_path).clone())
-            .or_insert_with(HashSet::new)
+            .or_insert_with(FxHashSet::default)
             .insert(class_name.clone());
 
         classlike_scanner::scan(
@@ -85,7 +85,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         self.codebase
             .const_files
             .entry((*self.file_source.file_path).clone())
-            .or_insert_with(HashSet::new)
+            .or_insert_with(FxHashSet::default)
             .insert(name.clone());
 
         self.codebase.constant_infos.insert(
@@ -109,7 +109,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 },
                 inferred_type: simple_type_inferer::infer(
                     self.codebase,
-                    &mut HashMap::new(),
+                    &mut FxHashMap::default(),
                     &gc.value,
                     &self.resolved_names,
                 ),
@@ -143,7 +143,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         self.codebase
             .typedefs_in_files
             .entry((*self.file_source.file_path).clone())
-            .or_insert_with(HashSet::new)
+            .or_insert_with(FxHashSet::default)
             .insert(type_name.clone());
 
         let mut template_type_map = IndexMap::new();
@@ -162,7 +162,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 get_mixed_any()
             };
 
-            let mut h = HashMap::new();
+            let mut h = FxHashMap::default();
             h.insert("typedef-".to_string() + &type_name, constraint_type.clone());
 
             template_type_map.insert(param.name.1.clone(), h);
@@ -176,7 +176,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     None,
                     &TypeResolutionContext {
                         template_type_map: template_type_map.clone(),
-                        template_supers: HashMap::new(),
+                        template_supers: FxHashMap::default(),
                     },
                     &self.resolved_names,
                 ))
@@ -188,7 +188,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 None,
                 &TypeResolutionContext {
                     template_type_map: template_type_map.clone(),
-                    template_supers: HashMap::new(),
+                    template_supers: FxHashMap::default(),
                 },
                 &self.resolved_names,
             ),
@@ -214,13 +214,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .next();
 
         if let Some(shape_source_attribute) = shape_source_attribute {
-            let mut shape_sinks = HashMap::new();
+            let mut shape_sinks = FxHashMap::default();
 
             let attribute_param_expr = &shape_source_attribute.params[0];
 
             let attribute_param_type = simple_type_inferer::infer(
                 &self.codebase,
-                &mut HashMap::new(),
+                &mut FxHashMap::default(),
                 attribute_param_expr,
                 &self.resolved_names,
             );
@@ -234,7 +234,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 } = atomic_param_attribute
                 {
                     for (name, (_, item_type)) in attribute_known_items {
-                        let mut sink_types = HashSet::new();
+                        let mut sink_types = FxHashSet::default();
 
                         if let Some(str) = item_type.get_single_literal_string_value() {
                             sink_types.extend(string_to_taints(str));
@@ -314,7 +314,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             } else {
                 IndexMap::new()
             },
-            template_supers: HashMap::new(),
+            template_supers: FxHashMap::default(),
         };
 
         let mut functionlike_storage = functionlike_scanner::get_functionlike(
@@ -347,7 +347,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         self.codebase
             .functions_in_files
             .entry((*self.file_source.file_path).clone())
-            .or_insert_with(HashSet::new)
+            .or_insert_with(FxHashSet::default)
             .insert(name.clone());
 
         if !is_anonymous {
@@ -381,7 +381,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
 pub fn collect_info_for_aast(
     program: &aast::Program<(), ()>,
-    resolved_names: HashMap<usize, String>,
+    resolved_names: FxHashMap<usize, String>,
     codebase: &mut CodebaseInfo,
     file_source: FileSource,
     user_defined: bool,

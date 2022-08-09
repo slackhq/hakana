@@ -1,8 +1,9 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use std::num::Wrapping;
 
 use hakana_reflection_info::assertion::Assertion;
+use rustc_hash::FxHashSet;
 use xxhash_rust;
 
 #[derive(Clone, Debug, Eq)]
@@ -27,7 +28,7 @@ pub struct Clause {
     pub wedge: bool,
     pub reconcilable: bool,
     pub generated: bool,
-    pub redefined_vars: Option<HashSet<String>>,
+    pub redefined_vars: Option<FxHashSet<String>>,
 }
 
 impl PartialEq for Clause {
@@ -50,7 +51,7 @@ impl Clause {
         wedge: Option<bool>,
         reconcilable: Option<bool>,
         generated: Option<bool>,
-        redefined_vars: Option<HashSet<String>>,
+        redefined_vars: Option<FxHashSet<String>>,
     ) -> Clause {
         let reconcilable = match reconcilable {
             None => true,

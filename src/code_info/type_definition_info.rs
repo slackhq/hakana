@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ pub struct TypeDefinitionInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: IndexMap<String, HashMap<String, TUnion>>,
+    pub template_types: IndexMap<String, FxHashMap<String, TUnion>>,
 
-    pub shape_field_taints: Option<HashMap<String, HashSet<TaintType>>>,
+    pub shape_field_taints: Option<FxHashMap<String, FxHashSet<TaintType>>>,
 }

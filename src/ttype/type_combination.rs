@@ -1,24 +1,22 @@
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::BTreeMap, sync::Arc};
 
 use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) struct TypeCombination {
-    pub value_types: HashMap<String, TAtomic>,
+    pub value_types: FxHashMap<String, TAtomic>,
 
-    pub named_object_types: HashMap<String, TAtomic>,
+    pub named_object_types: FxHashMap<String, TAtomic>,
     pub has_object_top_type: bool,
 
-    pub enum_types: HashSet<String>,
-    pub enum_value_types: HashMap<String, HashSet<String>>,
+    pub enum_types: FxHashSet<String>,
+    pub enum_value_types: FxHashMap<String, FxHashSet<String>>,
 
-    pub object_type_params: HashMap<String, (String, Vec<TUnion>)>,
+    pub object_type_params: FxHashMap<String, (String, Vec<TUnion>)>,
 
-    pub object_static: HashMap<String, bool>,
+    pub object_static: FxHashMap<String, bool>,
 
-    pub vec_counts: Option<HashSet<usize>>,
+    pub vec_counts: Option<FxHashSet<usize>>,
 
     pub vec_sometimes_filled: bool,
     pub vec_always_filled: bool,
@@ -45,23 +43,23 @@ pub(crate) struct TypeCombination {
 
     pub mixed_from_loop_isset: Option<bool>,
 
-    pub literal_strings: HashMap<String, TAtomic>,
-    pub literal_ints: HashMap<String, TAtomic>,
+    pub literal_strings: FxHashMap<String, TAtomic>,
+    pub literal_ints: FxHashMap<String, TAtomic>,
 
-    pub class_string_types: HashMap<String, TAtomic>,
+    pub class_string_types: FxHashMap<String, TAtomic>,
 
-    pub extra_types: Option<HashMap<String, TAtomic>>,
+    pub extra_types: Option<FxHashMap<String, TAtomic>>,
 }
 
 impl TypeCombination {
     pub(crate) fn new() -> Self {
         Self {
-            value_types: HashMap::new(),
-            named_object_types: HashMap::new(),
+            value_types: FxHashMap::default(),
+            named_object_types: FxHashMap::default(),
             has_object_top_type: false,
-            object_type_params: HashMap::new(),
-            object_static: HashMap::new(),
-            vec_counts: Some(HashSet::new()),
+            object_type_params: FxHashMap::default(),
+            object_static: FxHashMap::default(),
+            vec_counts: Some(FxHashSet::default()),
             vec_sometimes_filled: false,
             vec_always_filled: true,
             dict_sometimes_filled: false,
@@ -78,12 +76,12 @@ impl TypeCombination {
             vanilla_mixed: false,
             any_mixed: false,
             mixed_from_loop_isset: None,
-            literal_strings: HashMap::new(),
-            literal_ints: HashMap::new(),
-            class_string_types: HashMap::new(),
+            literal_strings: FxHashMap::default(),
+            literal_ints: FxHashMap::default(),
+            class_string_types: FxHashMap::default(),
             extra_types: None,
-            enum_types: HashSet::new(),
-            enum_value_types: HashMap::new(),
+            enum_types: FxHashSet::default(),
+            enum_value_types: FxHashMap::default(),
         }
     }
 }

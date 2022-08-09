@@ -21,7 +21,6 @@ use hakana_type::{
     get_literal_int, get_literal_string, get_mixed_any, get_nothing,
 };
 use oxidized::{aast, ast_defs};
-use std::collections::HashSet;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -465,8 +464,8 @@ fn check_iterator_type(
                 &parent_node,
                 &foreach_node,
                 PathKind::Default,
-                HashSet::new(),
-                HashSet::new(),
+                None,
+                None,
             );
         }
         tast_info.data_flow_graph.add_sink(foreach_node);

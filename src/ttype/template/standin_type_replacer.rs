@@ -14,10 +14,8 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use indexmap::IndexMap;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::sync::Arc;
 
 use super::{inferred_type_replacer, TemplateBound, TemplateResult};
 
@@ -705,7 +703,7 @@ fn handle_template_param_standin(
         param_name.clone()
     };
 
-    let mut new_extra_types = HashMap::new();
+    let mut new_extra_types = FxHashMap::default();
 
     if let Some(extra_types) = extra_types {
         for (_, extra_type) in extra_types {
@@ -898,7 +896,7 @@ fn handle_template_param_standin(
                         template_result
                             .lower_bounds
                             .entry(param_name_key)
-                            .or_insert_with(HashMap::new)
+                            .or_insert_with(FxHashMap::default)
                             .entry(defining_entity.clone())
                             .or_insert_with(Vec::new)
                             .push(TemplateBound {
@@ -912,7 +910,7 @@ fn handle_template_param_standin(
                     template_result
                         .lower_bounds
                         .entry(param_name_key)
-                        .or_insert_with(HashMap::new)
+                        .or_insert_with(FxHashMap::default)
                         .entry(defining_entity.clone())
                         .or_insert(vec![TemplateBound {
                             bound_type: generic_param,
@@ -1031,7 +1029,7 @@ fn handle_template_param_standin(
                 template_result
                     .upper_bounds
                     .entry(param_name_key)
-                    .or_insert_with(HashMap::new)
+                    .or_insert_with(FxHashMap::default)
                     .insert(defining_entity.clone(), new_upper_bound);
             }
         }
@@ -1142,7 +1140,7 @@ fn handle_template_param_class_standin(
                 if let Some(template_bounds) = template_result
                     .lower_bounds
                     .get_mut(param_name)
-                    .unwrap_or(&mut HashMap::new())
+                    .unwrap_or(&mut FxHashMap::default())
                     .get_mut(defining_entity)
                 {
                     *template_bounds = vec![TemplateBound::new(
@@ -1160,7 +1158,7 @@ fn handle_template_param_class_standin(
                     template_result
                         .lower_bounds
                         .entry(param_name.clone())
-                        .or_insert_with(HashMap::new)
+                        .or_insert_with(FxHashMap::default)
                         .insert(
                             defining_entity.clone(),
                             vec![TemplateBound::new(
@@ -1281,7 +1279,7 @@ fn handle_template_param_type_standin(
                 if let Some(template_bounds) = template_result
                     .lower_bounds
                     .get_mut(param_name)
-                    .unwrap_or(&mut HashMap::new())
+                    .unwrap_or(&mut FxHashMap::default())
                     .get_mut(defining_entity)
                 {
                     *template_bounds = vec![TemplateBound::new(
@@ -1299,7 +1297,7 @@ fn handle_template_param_type_standin(
                     template_result
                         .lower_bounds
                         .entry(param_name.clone())
-                        .or_insert_with(HashMap::new)
+                        .or_insert_with(FxHashMap::default)
                         .insert(
                             defining_entity.clone(),
                             vec![TemplateBound::new(
@@ -1339,7 +1337,7 @@ fn handle_template_param_type_standin(
 }
 
 fn template_types_contains<'a>(
-    template_types: &'a IndexMap<String, HashMap<String, TUnion>>,
+    template_types: &'a IndexMap<String, FxHashMap<String, TUnion>>,
     param_name: &String,
     defining_entity: &String,
 ) -> Option<&'a TUnion> {
@@ -1523,7 +1521,7 @@ pub(crate) fn get_mapped_generic_type_params(
 
     let mut i = 0;
 
-    let mut replacement_templates: IndexMap<String, HashMap<String, TUnion>> = IndexMap::new();
+    let mut replacement_templates: IndexMap<String, FxHashMap<String, TUnion>> = IndexMap::new();
 
     if matches!(
         input_type_part,
@@ -1537,7 +1535,7 @@ pub(crate) fn get_mapped_generic_type_params(
             if let Some(input_type) = input_type_params.get(i) {
                 replacement_templates
                     .entry(template_name.clone())
-                    .or_insert_with(HashMap::new)
+                    .or_insert_with(FxHashMap::default)
                     .insert(input_name.clone(), input_type.clone());
 
                 i += 1;
@@ -1618,7 +1616,7 @@ pub(crate) fn get_mapped_generic_type_params(
 
 pub fn get_extended_templated_types<'a>(
     atomic_type: &'a TAtomic,
-    extends: &'a HashMap<String, IndexMap<String, TUnion>>,
+    extends: &'a FxHashMap<String, IndexMap<String, TUnion>>,
 ) -> Vec<&'a TAtomic> {
     let mut extra_added_types = Vec::new();
 
@@ -1633,9 +1631,9 @@ pub fn get_extended_templated_types<'a>(
                 for (_, extended_atomic_type) in &extended_param.types {
                     if let TAtomic::TTemplateParam { .. } = extended_atomic_type {
                         extra_added_types
-                            .extend(get_extended_templated_types(extended_atomic_type, extends));
+                            .extend(get_extended_templated_types(&extended_atomic_type, extends));
                     } else {
-                        extra_added_types.push(extended_atomic_type);
+                        extra_added_types.push(&extended_atomic_type);
                     }
                 }
             } else {
@@ -1650,10 +1648,10 @@ pub fn get_extended_templated_types<'a>(
 }
 
 pub(crate) fn get_root_template_type(
-    lower_bounds: &IndexMap<String, HashMap<String, Vec<TemplateBound>>>,
+    lower_bounds: &IndexMap<String, FxHashMap<String, Vec<TemplateBound>>>,
     param_name: &String,
     defining_entity: &String,
-    mut visited_entities: HashSet<String>,
+    mut visited_entities: FxHashSet<String>,
     codebase: Option<&CodebaseInfo>,
 ) -> Option<TUnion> {
     if visited_entities.contains(defining_entity) {

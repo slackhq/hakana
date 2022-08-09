@@ -9,10 +9,8 @@ use crate::{
 use hakana_reflection_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
-    data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    taint::TaintType,
 };
 use hakana_type::{
     get_mixed_any, get_mixed_maybe_from_loop, get_nothing,
@@ -23,7 +21,7 @@ use hakana_type::{
     wrap_atomic,
 };
 use oxidized::ast_defs::Pos;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::FxHashMap;
 
 pub(crate) fn reconcile(
     assertion: &Assertion,
@@ -37,7 +35,7 @@ pub(crate) fn reconcile(
     can_report_issues: bool,
     failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
 
@@ -131,7 +129,7 @@ pub(crate) fn refine_atomic_with_union(
     key: &Option<String>,
     negated: bool,
     pos: Option<&Pos>,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
     failed_reconciliation: &mut ReconciliationStatus,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();

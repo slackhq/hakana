@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
@@ -26,6 +25,6 @@ pub enum PathKind {
 #[derive(Debug, Clone)]
 pub struct DataFlowPath {
     pub kind: PathKind,
-    pub added_taints: Option<HashSet<TaintType>>,
-    pub removed_taints: Option<HashSet<TaintType>>,
+    pub added_taints: Option<FxHashSet<TaintType>>,
+    pub removed_taints: Option<FxHashSet<TaintType>>,
 }

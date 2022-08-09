@@ -1,6 +1,6 @@
 use crate::{code_location::HPos, taint::TaintType};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeKind {
@@ -19,7 +19,7 @@ pub struct DataFlowNode {
     pub label: String,
     pub pos: Option<HPos>,
     pub specialization_key: Option<String>,
-    pub taints: Option<HashSet<TaintType>>,
+    pub taints: Option<FxHashSet<TaintType>>,
 }
 
 impl DataFlowNode {
@@ -29,7 +29,7 @@ impl DataFlowNode {
         label: String,
         pos: Option<HPos>,
         specialization_key: Option<String>,
-        taints: Option<HashSet<TaintType>>,
+        taints: Option<FxHashSet<TaintType>>,
     ) -> Self {
         let mut id = id;
         let mut unspecialized_id = None;

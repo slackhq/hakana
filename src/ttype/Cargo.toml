@@ -12,3 +12,4 @@ function_context = { path = "../function_context" }
 oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
 itertools = "0.10.1"
 indexmap = "1.8.0"
+rustc-hash = "1.1.0"

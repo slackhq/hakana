@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use crate::reconciler::reconciler;
@@ -45,12 +45,12 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         left_referenced_var_ids = if_conditional_scope.cond_referenced_var_ids;
     } else {
         let pre_referenced_var_ids = context.cond_referenced_var_ids.clone();
-        context.cond_referenced_var_ids = HashSet::new();
+        context.cond_referenced_var_ids = FxHashSet::default();
 
         let pre_assigned_var_ids = context.assigned_var_ids.clone();
 
         left_context = context.clone();
-        left_context.assigned_var_ids = HashMap::new();
+        left_context.assigned_var_ids = FxHashMap::default();
 
         if !expression_analyzer::analyze(
             statements_analyzer,
@@ -147,7 +147,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             .reconciled_expression_clauses
             .iter()
             .map(|v| &**v)
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
 
         negated_left_clauses = negated_left_clauses
             .into_iter()
@@ -175,7 +175,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             &mut left_referenced_var_ids,
         );
 
-    let mut changed_var_ids = HashSet::new();
+    let mut changed_var_ids = FxHashSet::default();
 
     let mut right_context = context.clone();
 
@@ -195,7 +195,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             left.pos(),
             true,
             !context.inside_negation,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
     }
 
@@ -221,10 +221,10 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     }
 
     let pre_referenced_var_ids = right_context.cond_referenced_var_ids.clone();
-    right_context.cond_referenced_var_ids = HashSet::new();
+    right_context.cond_referenced_var_ids = FxHashSet::default();
 
     let pre_assigned_var_ids = right_context.assigned_var_ids.clone();
-    right_context.assigned_var_ids = HashMap::new();
+    right_context.assigned_var_ids = FxHashMap::default();
 
     if !expression_analyzer::analyze(
         statements_analyzer,
@@ -269,7 +269,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         &right_assigned_var_ids
             .into_iter()
             .map(|(k, _)| k)
-            .collect::<HashSet<_>>(),
+            .collect::<FxHashSet<_>>(),
     )
     .0;
 
@@ -278,7 +278,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     let combined_right_clauses =
         hakana_algebra::simplify_cnf(clauses_for_right_analysis.iter().collect());
 
-    let mut right_referenced_var_ids = HashSet::new();
+    let mut right_referenced_var_ids = FxHashSet::default();
 
     let (right_type_assertions, active_right_type_assertions) =
         hakana_algebra::get_truths_from_formula(
@@ -293,14 +293,14 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             &right_type_assertions,
             active_right_type_assertions,
             &mut tmp_context,
-            &mut HashSet::new(),
+            &mut FxHashSet::default(),
             &right_referenced_var_ids,
             statements_analyzer,
             tast_info,
             right.pos(),
             true,
             context.inside_negation,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
     }
 

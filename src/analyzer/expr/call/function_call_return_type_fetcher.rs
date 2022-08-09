@@ -14,7 +14,8 @@ use hakana_type::{
     get_bool, get_float, get_int, get_mixed, get_mixed_any, get_mixed_vec, get_nothing, get_object,
     get_string, template, type_expander, wrap_atomic,
 };
-use std::collections::{BTreeMap, HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::expr::variable_fetch_analyzer;
@@ -80,7 +81,7 @@ pub(crate) fn fetch(
                             {
                                 template_result.lower_bounds.insert(
                                     template_name.clone(),
-                                    HashMap::from([(
+                                    FxHashMap::from_iter([(
                                         format!("fn-{}", functionlike_id.to_string()),
                                         vec![TemplateBound::new(get_mixed_any(), 1, None, None)],
                                     )]),
@@ -94,7 +95,7 @@ pub(crate) fn fetch(
                     template_result
                         .lower_bounds
                         .entry(template_name.clone())
-                        .or_insert(HashMap::from([(
+                        .or_insert(FxHashMap::from_iter([(
                             format!("fn-{}", functionlike_id.to_string()),
                             vec![TemplateBound::new(get_nothing(), 1, None, None)],
                         )]));
@@ -458,15 +459,23 @@ fn add_dataflow(
                 if let Some(added_removed_taints) = added_removed_taints.get(&param_offset) {
                     added_removed_taints.clone()
                 } else {
-                    (HashSet::new(), HashSet::new())
+                    (FxHashSet::default(), FxHashSet::default())
                 };
 
             data_flow_graph.add_path(
                 &argument_node,
                 &function_call_node,
                 path_kind,
-                added_taints,
-                removed_taints,
+                if added_taints.is_empty() {
+                    None
+                } else {
+                    Some(added_taints)
+                },
+                if removed_taints.is_empty() {
+                    None
+                } else {
+                    Some(removed_taints)
+                },
             );
             data_flow_graph.add_node(argument_node);
         }
@@ -605,16 +614,24 @@ fn get_special_argument_nodes(
 
 fn get_special_added_removed_taints(
     functionlike_id: &FunctionLikeIdentifier,
-) -> HashMap<usize, (HashSet<TaintType>, HashSet<TaintType>)> {
+) -> FxHashMap<usize, (FxHashSet<TaintType>, FxHashSet<TaintType>)> {
     match functionlike_id {
         FunctionLikeIdentifier::Function(function_name) => match function_name.as_str() {
-            "html_entity_decode" | "htmlspecialchars_decode" => {
-                HashMap::from([(0, (HashSet::from([TaintType::HtmlTag]), HashSet::new()))])
-            }
-            "htmlentities" | "htmlspecialchars" | "strip_tags" => {
-                HashMap::from([(0, (HashSet::new(), HashSet::from([TaintType::HtmlTag])))])
-            }
-            _ => HashMap::new(),
+            "html_entity_decode" | "htmlspecialchars_decode" => FxHashMap::from_iter([(
+                0,
+                (
+                    FxHashSet::from_iter([TaintType::HtmlTag]),
+                    FxHashSet::default(),
+                ),
+            )]),
+            "htmlentities" | "htmlspecialchars" | "strip_tags" => FxHashMap::from_iter([(
+                0,
+                (
+                    FxHashSet::default(),
+                    FxHashSet::from_iter([TaintType::HtmlTag]),
+                ),
+            )]),
+            _ => FxHashMap::default(),
         },
         FunctionLikeIdentifier::Method(_, _) => panic!(),
     }

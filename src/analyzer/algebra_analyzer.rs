@@ -7,6 +7,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
 };
 use oxidized::ast::Pos;
+use rustc_hash::FxHashSet;
 
 use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 
@@ -25,9 +26,9 @@ pub(crate) fn check_for_paradox(
 
     let negated_formula_2 = negated_formula_2.unwrap();
 
-    let formula_1_hashes: HashSet<&Clause> = HashSet::from_iter(formula_1.iter().map(|v| &**v));
+    let formula_1_hashes: FxHashSet<&Clause> = HashSet::from_iter(formula_1.iter().map(|v| &**v));
 
-    let mut formula_2_hashes = HashSet::new();
+    let mut formula_2_hashes = FxHashSet::default();
 
     for formula_2_clause in formula_2 {
         if !formula_2_clause.generated

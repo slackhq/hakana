@@ -17,7 +17,6 @@ use hakana_type::{
 };
 use hakana_type::{type_comparator::union_type_comparator, type_expander::StaticClassType};
 use oxidized::{aast, aast::Pos};
-use std::collections::HashSet;
 
 use crate::{
     expression_analyzer, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
@@ -410,8 +409,8 @@ pub(crate) fn handle_inout_at_return(
                         parent_node,
                         &new_parent_node,
                         PathKind::Default,
-                        HashSet::new(),
-                        HashSet::new(),
+                        None,
+                        None,
                     );
                 }
             }
@@ -439,8 +438,8 @@ fn handle_dataflow(
                 &parent_node,
                 &return_node,
                 PathKind::Default,
-                HashSet::new(),
-                HashSet::new(),
+                None,
+                None,
             );
         }
         data_flow_graph.add_sink(return_node);

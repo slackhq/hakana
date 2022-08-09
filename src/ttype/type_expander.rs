@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use function_context::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
@@ -18,6 +15,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use indexmap::IndexMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{template, type_combiner};
 
@@ -365,7 +363,7 @@ fn expand_atomic(
 
                 let mut i: usize = 0;
                 for (k, v) in &type_definition.template_types {
-                    let mut h = HashMap::new();
+                    let mut h = FxHashMap::default();
                     for (kk, _) in v {
                         h.insert(kk.clone(), type_params.get(i).unwrap().clone());
                     }
@@ -424,7 +422,7 @@ fn expand_atomic(
                                     label,
                                     None,
                                     None,
-                                    Some(HashSet::from_iter(taints.clone())),
+                                    Some(FxHashSet::from_iter(taints.clone())),
                                 );
 
                                 data_flow_graph.add_path(
@@ -434,8 +432,8 @@ fn expand_atomic(
                                         PathExpressionKind::ArrayValue,
                                         field_name.clone(),
                                     ),
-                                    HashSet::new(),
-                                    HashSet::new(),
+                                    None,
+                                    None,
                                 );
 
                                 data_flow_graph.add_source(field_node);

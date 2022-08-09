@@ -10,6 +10,7 @@ serde_json = "1.0"
 xxhash-rust = { version = "0.8.3", features = ["xxh3", "xxh32"] }
 hakana-reflection-info = { path = "../code_info" }
 hakana-type = { path = "../ttype" }
+rustc-hash = "1.1.0"
 
 [lib]
 path = "lib.rs"

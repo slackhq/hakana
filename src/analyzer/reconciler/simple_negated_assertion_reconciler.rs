@@ -8,7 +8,7 @@ use hakana_reflection_info::{
 };
 use hakana_type::{get_mixed_any, get_nothing, get_null, intersect_union_types};
 use oxidized::ast_defs::Pos;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 // This performs type subtractions and more general reconciliations
 pub(crate) fn reconcile(
@@ -21,7 +21,7 @@ pub(crate) fn reconcile(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> Option<TUnion> {
     let assertion_type = assertion.get_type();
 
@@ -276,7 +276,7 @@ fn subtract_object(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -363,7 +363,7 @@ fn subtract_vec(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -449,7 +449,7 @@ fn subtract_keyset(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -535,7 +535,7 @@ fn subtract_dict(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -621,7 +621,7 @@ fn subtract_string(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -728,7 +728,7 @@ fn subtract_int(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -847,7 +847,7 @@ fn subtract_float(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -957,7 +957,7 @@ fn subtract_num(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -1065,7 +1065,7 @@ fn subtract_arraykey(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -1175,7 +1175,7 @@ fn subtract_bool(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -1276,7 +1276,7 @@ fn subtract_null(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let old_var_type_string = existing_var_type.get_id();
 
@@ -1363,7 +1363,7 @@ fn subtract_false(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -1453,7 +1453,7 @@ fn subtract_true(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
         return existing_var_type.clone();
@@ -1542,7 +1542,7 @@ fn reconcile_falsy(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
 ) -> TUnion {
     let old_var_type_string = existing_var_type.get_id();
@@ -1679,7 +1679,7 @@ fn reconcile_not_isset(
     possibly_undefined: bool,
     key: Option<String>,
     pos: Option<&Pos>,
-    _suppressed_issues: &HashMap<String, usize>,
+    _suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if possibly_undefined {
         return get_nothing();
@@ -1711,7 +1711,7 @@ fn reconcile_empty_countable(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
 ) -> TUnion {
     let old_var_type_string = existing_var_type.get_id();
@@ -1801,7 +1801,7 @@ fn reconcile_not_exactly_countable(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
     count: &usize,
 ) -> TUnion {
@@ -1872,7 +1872,7 @@ fn reconcile_not_in_array(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
-    suppressed_issues: &HashMap<String, usize>,
+    suppressed_issues: &FxHashMap<String, usize>,
     typed_value: &TUnion,
 ) -> TUnion {
     let intersection = intersect_union_types(typed_value, existing_var_type, Some(codebase));

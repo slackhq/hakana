@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use hakana_reflection_info::{
     issue::{Issue, IssueKind},
@@ -23,7 +23,7 @@ pub(crate) struct AtomicMethodCallAnalysisResult {
     pub return_type: Option<TUnion>,
     pub has_valid_method_call_type: bool,
     pub has_mixed_method_call: bool,
-    pub existent_method_ids: HashSet<String>,
+    pub existent_method_ids: FxHashSet<String>,
     pub is_pure: bool,
 }
 
@@ -33,7 +33,7 @@ impl AtomicMethodCallAnalysisResult {
             return_type: None,
             has_valid_method_call_type: false,
             has_mixed_method_call: false,
-            existent_method_ids: HashSet::new(),
+            existent_method_ids: FxHashSet::default(),
             is_pure: true,
         }
     }

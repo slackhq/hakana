@@ -3,7 +3,7 @@ use hakana_analyzer::custom_hook::CustomHook;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::issue::IssueKind;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -136,7 +136,7 @@ pub trait TestRunner {
             starter_codebase.is_none(),
             stub_dirs,
             None,
-            Some(HashSet::from([
+            Some(FxHashSet::from_iter([
                 "tests/stubs/stubs.hack".to_string(),
                 format!("{}/third-party/xhp-lib/src", cwd),
             ])),

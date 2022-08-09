@@ -7,7 +7,8 @@ use crate::scope_context::{if_scope::IfScope, ScopeContext};
 use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 use oxidized::aast;
 use oxidized::aast::Pos;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 pub(crate) fn analyze(
@@ -22,9 +23,9 @@ pub(crate) fn analyze(
 ) -> bool {
     if stmts.is_empty() && if_scope.negated_clauses.is_empty() && else_context.clauses.is_empty() {
         if_scope.final_actions.insert(ControlAction::None);
-        if_scope.assigned_var_ids = Some(HashMap::new());
+        if_scope.assigned_var_ids = Some(FxHashMap::default());
         if_scope.new_vars = Some(BTreeMap::new());
-        if_scope.redefined_vars = Some(HashMap::new());
+        if_scope.redefined_vars = Some(FxHashMap::default());
         if_scope.reasonable_clauses = Vec::new();
 
         return true;
@@ -40,7 +41,7 @@ pub(crate) fn analyze(
     let else_types = hakana_algebra::get_truths_from_formula(
         else_clauses.iter().collect(),
         None,
-        &mut HashSet::new(),
+        &mut FxHashSet::default(),
     )
     .0;
 
@@ -49,20 +50,20 @@ pub(crate) fn analyze(
     let original_context = else_context.clone();
 
     if !else_types.is_empty() {
-        let mut changed_var_ids = HashSet::new();
+        let mut changed_var_ids = FxHashSet::default();
 
         reconciler::reconcile_keyed_types(
             &else_types,
             BTreeMap::new(),
             else_context,
             &mut changed_var_ids,
-            &HashSet::new(),
+            &FxHashSet::default(),
             statements_analyzer,
             tast_info,
             if_cond_pos,
             false,
             false,
-            &HashMap::new(),
+            &FxHashMap::default(),
         );
 
         else_context.clauses =
@@ -70,10 +71,10 @@ pub(crate) fn analyze(
     }
 
     let pre_stmts_assigned_var_ids = else_context.assigned_var_ids.clone();
-    else_context.assigned_var_ids = HashMap::new();
+    else_context.assigned_var_ids.clear();
 
     let pre_possibly_assigned_var_ids = else_context.possibly_assigned_var_ids.clone();
-    else_context.possibly_assigned_var_ids = HashSet::new();
+    else_context.possibly_assigned_var_ids.clear();
 
     if !statements_analyzer.analyze(stmts, tast_info, else_context, loop_scope) {
         return false;
@@ -103,7 +104,7 @@ pub(crate) fn analyze(
             true,
         )
     } else {
-        let mut none_set = HashSet::new();
+        let mut none_set = FxHashSet::default();
         none_set.insert(ControlAction::None);
         none_set
     };
@@ -124,7 +125,7 @@ pub(crate) fn analyze(
             &original_context,
             &new_assigned_var_ids,
             &new_possibly_assigned_var_ids,
-            HashSet::new(),
+            FxHashSet::default(),
             true,
         );
 

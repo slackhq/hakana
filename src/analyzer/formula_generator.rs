@@ -1,4 +1,6 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
+
+use rustc_hash::FxHashMap;
 
 use hakana_algebra::Clause;
 use hakana_file_info::FileSource;
@@ -14,7 +16,7 @@ use crate::{expr::assertion_finder, typed_ast::TastInfo};
 
 pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource,
-    pub resolved_names: &'a HashMap<usize, String>,
+    pub resolved_names: &'a FxHashMap<usize, String>,
     pub codebase: Option<&'a CodebaseInfo>,
     pub this_class_name: Option<&'a String>,
     pub type_resolution_context: &'a TypeResolutionContext,

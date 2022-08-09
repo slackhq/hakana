@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
@@ -12,7 +12,7 @@ pub(crate) fn collect(
     static_class_storage: &ClassLikeInfo,
     lhs_type_part: Option<&TAtomic>, // default None
     self_call: bool,                 // default false
-) -> Option<IndexMap<String, HashMap<String, TUnion>>> {
+) -> Option<IndexMap<String, FxHashMap<String, TUnion>>> {
     let template_types = &class_storage.template_types;
 
     if template_types.is_empty() {
@@ -35,7 +35,7 @@ pub(crate) fn collect(
                 if let Some(type_param) = lhs_type_params.get(i) {
                     class_template_params
                         .entry(type_name.clone())
-                        .or_insert_with(HashMap::new)
+                        .or_insert_with(FxHashMap::default)
                         .insert(class_storage.name.clone(), type_param.clone());
                 }
             }
@@ -61,7 +61,7 @@ pub(crate) fn collect(
 
                     class_template_params
                         .entry(template_name.clone())
-                        .or_insert_with(HashMap::new)
+                        .or_insert_with(FxHashMap::default)
                         .insert(
                             class_storage.name.clone(),
                             output_type_extends.unwrap_or(get_mixed_any()),
@@ -71,7 +71,7 @@ pub(crate) fn collect(
 
             class_template_params
                 .entry(template_name.clone())
-                .or_insert_with(HashMap::new)
+                .or_insert_with(FxHashMap::default)
                 .entry(class_storage.name.clone())
                 .or_insert(get_mixed_any());
         }
@@ -87,7 +87,7 @@ pub(crate) fn collect(
                 {
                     class_template_params
                         .entry(template_name.clone())
-                        .or_insert_with(HashMap::new)
+                        .or_insert_with(FxHashMap::default)
                         .entry(class_storage.name.clone())
                         .or_insert(TUnion::new(expand_type(
                             codebase,
@@ -102,7 +102,7 @@ pub(crate) fn collect(
             if !self_call {
                 class_template_params
                     .entry(template_name.clone())
-                    .or_insert_with(HashMap::new)
+                    .or_insert_with(FxHashMap::default)
                     .entry(class_storage.name.clone())
                     .or_insert(type_.clone());
             }
@@ -130,7 +130,7 @@ pub(crate) fn resolve_template_param(
             if static_class_storage
                 .template_types
                 .get(param_name)
-                .unwrap_or(&HashMap::new())
+                .unwrap_or(&FxHashMap::default())
                 .contains_key(defining_entity)
             {
                 let mapped_offset = static_class_storage.template_types.get_index_of(param_name);
@@ -180,9 +180,9 @@ pub(crate) fn resolve_template_param(
 fn expand_type(
     codebase: &CodebaseInfo,
     input_type_extends: &TUnion,
-    e: &HashMap<String, IndexMap<String, TUnion>>,
+    e: &FxHashMap<String, IndexMap<String, TUnion>>,
     static_classlike_name: &String,
-    static_template_types: &IndexMap<String, HashMap<String, TUnion>>,
+    static_template_types: &IndexMap<String, FxHashMap<String, TUnion>>,
 ) -> Vec<TAtomic> {
     let mut output_type_extends = Vec::new();
 

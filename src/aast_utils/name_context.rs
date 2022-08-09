@@ -1,14 +1,14 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use oxidized::aast::NsKind;
 
 #[derive(Clone)]
 pub(crate) struct NameResolutionContext {
     namespace_name: String,
-    type_aliases: HashMap<String, String>,
-    namespace_aliases: HashMap<String, String>,
-    const_aliases: HashMap<String, String>,
-    fun_aliases: HashMap<String, String>,
+    type_aliases: FxHashMap<String, String>,
+    namespace_aliases: FxHashMap<String, String>,
+    const_aliases: FxHashMap<String, String>,
+    fun_aliases: FxHashMap<String, String>,
 }
 
 impl NameResolutionContext {
@@ -17,7 +17,7 @@ impl NameResolutionContext {
             namespace_name: "".to_string(),
             type_aliases: get_aliased_classes(),
             namespace_aliases: get_aliased_namespaces(),
-            const_aliases: HashMap::new(),
+            const_aliases: FxHashMap::default(),
             fun_aliases: get_aliased_functions(),
         }
     }
@@ -260,7 +260,7 @@ impl NameContext {
     }
 }
 
-fn get_aliased_classes() -> HashMap<String, String> {
+fn get_aliased_classes() -> FxHashMap<String, String> {
     let reserved_classes = vec![
         "Collection",
         "ConstCollection",
@@ -347,7 +347,7 @@ fn get_aliased_classes() -> HashMap<String, String> {
         .collect()
 }
 
-fn get_aliased_functions() -> HashMap<String, String> {
+fn get_aliased_functions() -> FxHashMap<String, String> {
     let reserved_functions = vec![
         "HH\\asio_get_current_context_idx",
         "HH\\asio_get_running_in_context",
@@ -404,8 +404,8 @@ fn get_aliased_functions() -> HashMap<String, String> {
 }
 
 // todo load this from .hhconfig
-fn get_aliased_namespaces() -> HashMap<String, String> {
-    HashMap::from([
+fn get_aliased_namespaces() -> FxHashMap<String, String> {
+    FxHashMap::from_iter([
         ("Vec".to_string(), "HH\\Lib\\Vec".to_string()),
         ("Dict".to_string(), "HH\\Lib\\Dict".to_string()),
         ("Str".to_string(), "HH\\Lib\\Str".to_string()),

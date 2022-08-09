@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::expr::binop::assignment_analyzer;
 use crate::expression_analyzer::{self};
@@ -23,7 +23,7 @@ pub(crate) fn analyze(
     loop_scope: &mut Option<LoopScope>,
 ) -> bool {
     if !tast_info.expr_types.len() > 10 {
-        tast_info.expr_types = HashMap::new();
+        tast_info.expr_types = FxHashMap::default();
     }
 
     match &stmt.1 {

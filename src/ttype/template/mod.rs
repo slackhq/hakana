@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use hakana_reflection_info::t_union::TUnion;
 use indexmap::IndexMap;
@@ -25,9 +25,9 @@ pub mod standin_type_replacer;
  */
 #[derive(Clone, Debug)]
 pub struct TemplateResult {
-    pub template_types: IndexMap<String, HashMap<String, TUnion>>,
-    pub lower_bounds: IndexMap<String, HashMap<String, Vec<TemplateBound>>>,
-    pub upper_bounds: IndexMap<String, HashMap<String, TemplateBound>>,
+    pub template_types: IndexMap<String, FxHashMap<String, TUnion>>,
+    pub lower_bounds: IndexMap<String, FxHashMap<String, Vec<TemplateBound>>>,
+    pub upper_bounds: IndexMap<String, FxHashMap<String, TemplateBound>>,
     /**
      * If set to true then we shouldn't update the template bounds
      */
@@ -37,13 +37,13 @@ pub struct TemplateResult {
 
 impl TemplateResult {
     pub fn new(
-        template_types: IndexMap<String, HashMap<String, TUnion>>,
-        lower_bounds: IndexMap<String, HashMap<String, TUnion>>,
+        template_types: IndexMap<String, FxHashMap<String, TUnion>>,
+        lower_bounds: IndexMap<String, FxHashMap<String, TUnion>>,
     ) -> TemplateResult {
         let mut new_lower_bounds = IndexMap::new();
 
         for (k, v) in lower_bounds {
-            let mut th = HashMap::new();
+            let mut th = FxHashMap::default();
 
             for (vk, vv) in v {
                 th.insert(vk, vec![TemplateBound::new(vv, 0, None, None)]);

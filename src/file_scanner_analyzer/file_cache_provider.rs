@@ -1,6 +1,7 @@
-use std::{collections::HashMap, fs, path::Path};
+use std::{fs, path::Path};
 
 use indexmap::IndexMap;
+use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
 pub enum FileStatus {
@@ -10,13 +11,13 @@ pub enum FileStatus {
     Modified(u64, u64),
 }
 
-pub(crate) fn get_file_manifest(cache_dir: &String) -> Option<HashMap<String, (u64, u64)>> {
+pub(crate) fn get_file_manifest(cache_dir: &String) -> Option<FxHashMap<String, (u64, u64)>> {
     let aast_manifest_path = format!("{}/manifest", cache_dir);
 
     if Path::new(&aast_manifest_path).exists() {
         let serialized = fs::read(&aast_manifest_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &aast_manifest_path));
-        if let Ok(d) = bincode::deserialize::<HashMap<String, (u64, u64)>>(&serialized) {
+        if let Ok(d) = bincode::deserialize::<FxHashMap<String, (u64, u64)>>(&serialized) {
             return Some(d);
         }
     }
@@ -32,7 +33,7 @@ fn get_contents_hash(file_path: &String) -> u64 {
 
 pub(crate) fn get_file_diff(
     target_files: &IndexMap<String, u64>,
-    file_update_hashes: HashMap<String, (u64, u64)>,
+    file_update_hashes: FxHashMap<String, (u64, u64)>,
 ) -> IndexMap<String, FileStatus> {
     let mut file_statuses = IndexMap::new();
 
