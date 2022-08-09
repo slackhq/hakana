@@ -152,10 +152,6 @@ pub fn replace(
                     new_types.push(class_template_type);
                 }
             }
-        } else if let TAtomic::TConditional { .. } = atomic_type {
-            // todo
-
-            new_types.push(atomic_type);
         } else {
             new_types.push(atomic_type);
         }

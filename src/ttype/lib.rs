@@ -611,10 +611,6 @@ pub fn get_atomic_syntax_type(
             str += ">";
             str
         }
-        TAtomic::TConditional { .. } => {
-            *is_valid = false;
-            "_".to_string()
-        }
         TAtomic::TDict {
             key_param,
             value_param,

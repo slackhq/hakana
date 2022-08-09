@@ -18,14 +18,6 @@ pub enum TAtomic {
     TClassname {
         as_type: Box<self::TAtomic>,
     },
-    TConditional {
-        param_name: String,
-        defining_entity: String,
-        as_type: TUnion,
-        conditional_type: TUnion,
-        if_type: TUnion,
-        else_type: TUnion,
-    },
     TDict {
         known_items: Option<BTreeMap<String, (bool, Arc<TUnion>)>>,
         enum_items: Option<BTreeMap<(String, String), (bool, TUnion)>>,
@@ -136,7 +128,6 @@ impl TAtomic {
                 str += ">";
                 return str;
             }
-            TAtomic::TConditional { .. } => "conditional".to_string(),
             TAtomic::TDict {
                 key_param,
                 value_param,
@@ -440,8 +431,7 @@ impl TAtomic {
                 str += ">";
                 return str;
             }
-            TAtomic::TConditional { .. }
-            | TAtomic::TFalsyMixed { .. }
+            TAtomic::TFalsyMixed { .. }
             | TAtomic::TFalse { .. }
             | TAtomic::TFloat { .. }
             | TAtomic::TClosure { .. }
@@ -1149,18 +1139,6 @@ impl TAtomic {
 impl HasTypeNodes for TAtomic {
     fn get_child_nodes(&self) -> Vec<TypeNode> {
         match self {
-            TAtomic::TConditional {
-                conditional_type,
-                if_type,
-                else_type,
-                ..
-            } => {
-                vec![
-                    TypeNode::Union(conditional_type),
-                    TypeNode::Union(if_type),
-                    TypeNode::Union(else_type),
-                ]
-            }
             TAtomic::TDict {
                 key_param,
                 value_param,
@@ -1251,18 +1229,6 @@ impl HasTypeNodes for TAtomic {
 
 pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Symbols) {
     match t_atomic {
-        TAtomic::TConditional {
-            ref mut as_type,
-            ref mut conditional_type,
-            ref mut if_type,
-            ref mut else_type,
-            ..
-        } => {
-            populate_union_type(as_type, codebase_symbols);
-            populate_union_type(conditional_type, codebase_symbols);
-            populate_union_type(if_type, codebase_symbols);
-            populate_union_type(else_type, codebase_symbols);
-        }
         TAtomic::TDict {
             ref mut key_param,
             ref mut value_param,
