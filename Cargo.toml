@@ -14,3 +14,6 @@ debug = true
 [build-dependencies]
 anyhow = { version = "1.0", default-features = false }
 vergen = "6"
+
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator = "0.5"
