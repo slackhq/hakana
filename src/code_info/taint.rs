@@ -61,11 +61,25 @@ impl TaintType {
             TaintType::HtmlAttributeUri,
         ])
     }
+
+    // taints we don't want in internal sinks
+    pub fn internal_sinks() -> FxHashSet<TaintType> {
+        FxHashSet::from_iter([
+            TaintType::Sql,
+            TaintType::Shell,
+            TaintType::FileSystem,
+            TaintType::Unserialize,
+            //TaintType::Ldap,
+            TaintType::CurlHeader,
+            TaintType::CurlUri,
+        ])
+    }
 }
 
 pub fn string_to_taints(str: String) -> FxHashSet<TaintType> {
     match str.as_str() {
         "input" => TaintType::user_controllable_taints(),
+        "internal_sinks" => TaintType::internal_sinks(),
         "pii" | "UserSecret" => FxHashSet::from_iter([TaintType::UserSecret]),
         "sql" | "Sql" => FxHashSet::from_iter([TaintType::Sql]),
         "html" | "HtmlTag" => FxHashSet::from_iter([TaintType::HtmlTag]),
