@@ -545,24 +545,26 @@ fn add_dataflow(
                     .classlike_descendents
                     .get(&method_call_info.classlike_storage.name)
                 {
-                    for dependent_classlike in dependent_classlikes {
-                        let new_sink = DataFlowNode::get_for_method_argument(
-                            NodeKind::Default,
-                            dependent_classlike.clone() + "::" + method_name,
-                            argument_offset,
-                            Some(statements_analyzer.get_hpos(input_expr.pos())),
-                            None,
-                        );
+                    if method_name != "__construct" {
+                        for dependent_classlike in dependent_classlikes {
+                            let new_sink = DataFlowNode::get_for_method_argument(
+                                NodeKind::Default,
+                                dependent_classlike.clone() + "::" + method_name,
+                                argument_offset,
+                                Some(statements_analyzer.get_hpos(input_expr.pos())),
+                                None,
+                            );
 
-                        data_flow_graph.add_node(new_sink.clone());
+                            data_flow_graph.add_node(new_sink.clone());
 
-                        data_flow_graph.add_path(
-                            &method_node,
-                            &new_sink,
-                            PathKind::Default,
-                            None,
-                            None,
-                        );
+                            data_flow_graph.add_path(
+                                &method_node,
+                                &new_sink,
+                                PathKind::Default,
+                                None,
+                                None,
+                            );
+                        }
                     }
                 }
             }

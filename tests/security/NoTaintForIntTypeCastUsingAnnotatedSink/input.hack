@@ -3,7 +3,7 @@ function fetch($id): string
     return query("SELECT * FROM table WHERE id=" . (int)$id);
 }
 
-<<\Hakana\SecurityAnalysis\Specialize>>
+<<\Hakana\SecurityAnalysis\SpecializeCall()>>
 function query(
     <<\Hakana\SecurityAnalysis\Sink("sql")>> string $sql
 ): string {}
