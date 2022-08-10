@@ -204,6 +204,16 @@ fn populate_classlike_storage(
         }
     }
 
+    if storage.specialize_instance {
+        for (_, functionlike_storage) in storage.methods.iter_mut() {
+            if let Some(method_storage) = functionlike_storage.method_info.as_mut() {
+                if !method_storage.is_static {
+                    functionlike_storage.specialize_call = true;
+                }
+            }
+        }
+    }
+
     storage.is_populated = true;
 
     codebase

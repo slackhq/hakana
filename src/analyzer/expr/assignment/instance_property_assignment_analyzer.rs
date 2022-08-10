@@ -438,7 +438,7 @@ fn add_instance_property_dataflow(
                 tast_info.data_flow_graph.add_node(var_node.clone());
 
                 let property_node = DataFlowNode::get_for_assignment(
-                    lhs_var_id.clone() + &"->$property".to_string(),
+                    format!("{}->{}", lhs_var_id, property_id.1),
                     statements_analyzer.get_hpos(name_pos),
                     None,
                 );
@@ -465,17 +465,15 @@ fn add_instance_property_dataflow(
                     );
                 }
 
-                let stmt_var_type = context.vars_in_scope.get(&lhs_var_id);
+                let stmt_var_type = context.vars_in_scope.get_mut(&lhs_var_id);
 
                 if let Some(stmt_var_type) = stmt_var_type {
                     let mut stmt_type_inner = (**stmt_var_type).clone();
 
                     stmt_type_inner.parent_nodes =
-                        FxHashMap::from_iter([(property_node.id.clone(), property_node.clone())]);
+                        FxHashMap::from_iter([(var_node.id.clone(), var_node.clone())]);
 
-                    context
-                        .vars_in_scope
-                        .insert(lhs_var_id, Rc::new(stmt_type_inner));
+                    *stmt_var_type = Rc::new(stmt_type_inner);
                 }
             }
         } else {

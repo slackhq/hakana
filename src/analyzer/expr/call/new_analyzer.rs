@@ -1,3 +1,5 @@
+use hakana_reflection_info::data_flow::node::{DataFlowNode, NodeKind};
+use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use rustc_hash::FxHashMap;
 
 use crate::expr::call_analyzer::{check_method_args, get_generic_param_for_offset};
@@ -10,7 +12,7 @@ use function_context::method_identifier::MethodIdentifier;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::t_union::populate_union_type;
+use hakana_reflection_info::t_union::{populate_union_type, TUnion};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::template::{self, TemplateBound, TemplateResult};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_named_object, wrap_atomic};
@@ -257,17 +259,17 @@ fn analyze_named_constructor(
     let mut generic_type_params = None;
 
     let method_name = "__construct".to_string();
+    let method_id = MethodIdentifier(classlike_name.clone(), method_name);
+    let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
-    if codebase.method_exists(&classlike_name, &method_name) {
+    if codebase.method_exists(&classlike_name, &method_id.1) {
         tast_info.symbol_references.add_reference_to_class_member(
             &context.function_context,
-            (classlike_name.clone(), format!("{}()", method_name.clone())),
+            (classlike_name.clone(), format!("{}()", method_id.1)),
         );
 
-        let method_id = MethodIdentifier(classlike_name.clone(), method_name);
         let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
 
-        let declaring_method_id = codebase.get_declaring_method_id(&method_id);
         let method_storage = codebase.get_method(&declaring_method_id).unwrap();
 
         if !check_method_args(
@@ -390,7 +392,7 @@ fn analyze_named_constructor(
         };
     }
 
-    let result_type = wrap_atomic(TAtomic::TNamedObject {
+    let mut result_type = wrap_atomic(TAtomic::TNamedObject {
         name: classlike_name,
         type_params: generic_type_params,
         is_this: from_static,
@@ -399,7 +401,15 @@ fn analyze_named_constructor(
     });
 
     if tast_info.data_flow_graph.kind == GraphKind::Taint {
-        // track taints in new calls
+        result_type = add_dataflow(
+            statements_analyzer,
+            result_type,
+            context,
+            &method_id,
+            codebase.get_method(&declaring_method_id),
+            tast_info,
+            pos,
+        );
     }
 
     result.return_type = Some(add_optional_union_type(
@@ -407,4 +417,50 @@ fn analyze_named_constructor(
         result.return_type.as_ref(),
         Some(codebase),
     ));
+}
+
+fn add_dataflow<'a>(
+    statements_analyzer: &'a StatementsAnalyzer,
+    mut return_type_candidate: TUnion,
+    context: &ScopeContext,
+    method_id: &MethodIdentifier,
+    functionlike_storage: Option<&'a FunctionLikeInfo>,
+    tast_info: &mut TastInfo,
+    call_pos: &Pos,
+) -> TUnion {
+    // todo dispatch AddRemoveTaintsEvent
+
+    let ref mut data_flow_graph = tast_info.data_flow_graph;
+
+    if data_flow_graph.kind == GraphKind::Taint {
+        if !context.allow_taints {
+            return return_type_candidate;
+        }
+    }
+
+    let new_call_node = DataFlowNode::get_for_method_return(
+        NodeKind::Default,
+        method_id.to_string(),
+        if let Some(functionlike_storage) = functionlike_storage {
+            functionlike_storage.return_type_location.clone()
+        } else {
+            None
+        },
+        if let Some(functionlike_storage) = functionlike_storage {
+            if functionlike_storage.specialize_call && data_flow_graph.kind == GraphKind::Taint {
+                Some(statements_analyzer.get_hpos(call_pos))
+            } else {
+                None
+            }
+        } else {
+            None
+        },
+    );
+
+    data_flow_graph.add_node(new_call_node.clone());
+
+    return_type_candidate.parent_nodes =
+        FxHashMap::from_iter([(new_call_node.id.clone(), new_call_node.clone())]);
+
+    return_type_candidate
 }

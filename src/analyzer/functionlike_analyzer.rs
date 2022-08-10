@@ -337,6 +337,34 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             handle_inout_at_return(functionlike_storage, context, &mut tast_info, None);
         }
 
+        if tast_info.data_flow_graph.kind == GraphKind::Taint {
+            if let Some(method_storage) = &functionlike_storage.method_info {
+                if !method_storage.is_static {
+                    if let Some(this_type) = context.vars_in_scope.get("$this") {
+                        let new_call_node = DataFlowNode::get_for_method_return(
+                            NodeKind::Default,
+                            context.function_context.calling_class.clone().unwrap()
+                                + "::__construct",
+                            functionlike_storage.return_type_location.clone(),
+                            None,
+                        );
+
+                        for (_, parent_node) in &this_type.parent_nodes {
+                            tast_info.data_flow_graph.add_path(
+                                parent_node,
+                                &new_call_node,
+                                PathKind::Default,
+                                None,
+                                None,
+                            );
+                        }
+
+                        tast_info.data_flow_graph.add_node(new_call_node);
+                    }
+                }
+            }
+        }
+
         let config = statements_analyzer.get_config();
 
         if config.find_unused_expressions && parent_tast_info.is_none() {

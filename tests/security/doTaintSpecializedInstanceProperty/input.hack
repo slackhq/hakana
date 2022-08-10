@@ -1,4 +1,4 @@
-<<\Hakana\SecurityAnalysis\Specialize>>
+<<\Hakana\SecurityAnalysis\SpecializeInstance()>>
 class StringHolder {
     public $x;
 
