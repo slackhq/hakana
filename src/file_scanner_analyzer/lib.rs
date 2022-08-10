@@ -17,7 +17,7 @@ use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
 use populator::populate_codebase;
 use rust_embed::RustEmbed;
-use rustc_hash::{FxHashSet, FxHashMap};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write};
@@ -42,6 +42,13 @@ struct HhiAsset;
 #[include = "*.php"]
 #[include = "*.hack"]
 struct HslAsset;
+
+#[cfg(target_arch = "wasm32")]
+#[derive(RustEmbed)]
+#[folder = "$CARGO_MANIFEST_DIR/../../tests/security/taintedCurlInit/.hakana_cache"]
+#[prefix = "cached_codebase_"]
+#[include = "*codebase"]
+struct CachedCodebase;
 
 pub fn scan_and_analyze(
     include_core_libs: bool,
@@ -143,7 +150,12 @@ pub fn scan_and_analyze(
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
 
     if config.find_unused_definitions {
-        find_unused_definitions(&mut analysis_result, &config, arc_codebase.clone(), &ignored_paths);
+        find_unused_definitions(
+            &mut analysis_result,
+            &config,
+            arc_codebase.clone(),
+            &ignored_paths,
+        );
     }
 
     std::thread::spawn(move || drop(arc_codebase));
@@ -529,7 +541,10 @@ pub fn scan_files(
         if path_groups.len() == 1 {
             let mut new_codebase = CodebaseInfo::new();
 
-            let analyze_map = files_to_analyze.clone().into_iter().collect::<FxHashSet<_>>();
+            let analyze_map = files_to_analyze
+                .clone()
+                .into_iter()
+                .collect::<FxHashSet<_>>();
 
             for (i, str_path) in path_groups[&0].iter().enumerate() {
                 scan_file(
@@ -562,7 +577,10 @@ pub fn scan_files(
                 let bar = bar.clone();
                 let files_processed = files_processed.clone();
 
-                let analyze_map = files_to_analyze.clone().into_iter().collect::<FxHashSet<_>>();
+                let analyze_map = files_to_analyze
+                    .clone()
+                    .into_iter()
+                    .collect::<FxHashSet<_>>();
 
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
@@ -829,6 +847,7 @@ fn scan_file(
     );
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn get_single_file_codebase(additional_files: Vec<&str>) -> CodebaseInfo {
     let mut codebase = CodebaseInfo::new();
 
@@ -862,6 +881,25 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> CodebaseInfo {
             false,
             false,
         );
+    }
+
+    populate_codebase(&mut codebase);
+
+    codebase
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn get_single_file_codebase(additional_files: Vec<&str>) -> CodebaseInfo {
+    let mut codebase = CodebaseInfo::new();
+
+    // add HHVM libs
+    for file_path in CachedCodebase::iter() {
+        let serialized = CachedCodebase::get(&file_path)
+            .unwrap_or_else(|| panic!("Could not read HSL file {}", file_path))
+            .data;
+        if let Ok(d) = bincode::deserialize::<CodebaseInfo>(&serialized) {
+            codebase = d;
+        }
     }
 
     populate_codebase(&mut codebase);

@@ -14,11 +14,12 @@ hakana-reflection-info = {path = "../code_info"}
 getrandom = { version = "0.2", features = ["js"] }
 serde_json = "1.0"
 console_error_panic_hook = "0.1.7"
+rustc-hash = "1.1.0"
 
 # `wasm-opt` is on by default in for the release profile, but it can be
 # disabled by setting it to `false`
-#[package.metadata.wasm-pack.profile.release]
-#wasm-opt = false
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
 
 [profile.release]
 opt-level = "s"
