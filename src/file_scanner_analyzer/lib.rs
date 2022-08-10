@@ -59,7 +59,7 @@ pub fn scan_and_analyze(
     cache_dir: Option<&String>,
     threads: u8,
     debug: bool,
-    build_checksum: &str,
+    header: &str,
     starter_codebase: Option<CodebaseInfo>,
 ) -> io::Result<AnalysisResult> {
     let mut all_scanned_dirs = stubs_dirs.clone();
@@ -77,14 +77,14 @@ pub fn scan_and_analyze(
         &config,
         threads,
         debug,
-        build_checksum,
+        header,
         starter_codebase,
     )?;
 
     if let Some(cache_dir) = cache_dir {
         let timestamp_path = format!("{}/buildinfo", cache_dir);
         let mut timestamp_file = fs::File::create(&timestamp_path).unwrap();
-        write!(timestamp_file, "{}", build_checksum).unwrap();
+        write!(timestamp_file, "{}", header).unwrap();
 
         let aast_manifest_path = format!("{}/manifest", cache_dir);
         let mut manifest_file = fs::File::create(&aast_manifest_path).unwrap();

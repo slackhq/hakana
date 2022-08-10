@@ -18,9 +18,11 @@ pub mod test_runners;
 pub fn init(
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     migration_hooks: Vec<Box<dyn CustomHook>>,
-    build_checksum: &str,
+    header: &str,
     test_runner: Box<dyn TestRunner>,
 ) {
+    println!("{}\n", header);
+
     let matches = Command::new("hakana")
         .about("Another static analysis tool for Hack")
         .subcommand_required(true)
@@ -314,7 +316,7 @@ pub fn init(
                 },
                 threads,
                 debug,
-                &build_checksum,
+                &header,
                 None,
             );
 
@@ -375,7 +377,7 @@ pub fn init(
                 None,
                 threads,
                 debug,
-                &build_checksum,
+                &header,
                 None,
             );
             if let Ok(analysis_result) = result {
@@ -430,7 +432,7 @@ pub fn init(
                 None,
                 threads,
                 debug,
-                &build_checksum,
+                &header,
                 None,
             );
 
@@ -464,7 +466,7 @@ pub fn init(
                 None,
                 threads,
                 debug,
-                &build_checksum,
+                &header,
                 None,
             );
 
@@ -476,7 +478,7 @@ pub fn init(
             test_runner.run_test(
                 sub_matches.value_of("TEST").expect("required").to_string(),
                 &mut had_error,
-                build_checksum,
+                header,
             );
         }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachabe!()
