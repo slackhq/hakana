@@ -1,15 +1,21 @@
 <<\Hakana\SecurityAnalysis\SpecializeInstance()>>
 class A {
     private string $taint = "";
+    private static string $stub = "";
 
     public function __construct(string $taint) {
         $this->taint = $taint;
     }
 
+    public static function setStub(string $s): void {
+        self::$stub = $s;
+    }
+
     public function getTaint() : string {
-        return $this->taint;
+        return self::$stub . $this->taint;
     }
 }
 
-$a = new A($_GET["bar"]);
+$a = new A("a");
+A::setStub($_GET["foo"]);
 echo $a->getTaint();

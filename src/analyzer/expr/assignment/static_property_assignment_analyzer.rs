@@ -178,10 +178,6 @@ pub(crate) fn analyze(
                 get_mixed_any()
             };
 
-            if assign_value_type.is_mixed() || class_property_type.is_mixed() {
-                return false;
-            }
-
             if let Some(prop_name) = &prop_name {
                 add_unspecialized_property_assignment_dataflow(
                     statements_analyzer,

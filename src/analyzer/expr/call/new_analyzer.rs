@@ -262,7 +262,7 @@ fn analyze_named_constructor(
     let method_id = MethodIdentifier(classlike_name.clone(), method_name);
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
-    if codebase.method_exists(&classlike_name, &method_id.1) {
+    if codebase.method_exists(&method_id.0, &method_id.1) {
         tast_info.symbol_references.add_reference_to_class_member(
             &context.function_context,
             (classlike_name.clone(), format!("{}()", method_id.1)),
@@ -407,6 +407,7 @@ fn analyze_named_constructor(
             context,
             &method_id,
             codebase.get_method(&declaring_method_id),
+            storage.specialize_instance,
             tast_info,
             pos,
         );
@@ -425,6 +426,7 @@ fn add_dataflow<'a>(
     context: &ScopeContext,
     method_id: &MethodIdentifier,
     functionlike_storage: Option<&'a FunctionLikeInfo>,
+    specialize_instance: bool,
     tast_info: &mut TastInfo,
     call_pos: &Pos,
 ) -> TUnion {
@@ -438,20 +440,15 @@ fn add_dataflow<'a>(
         }
     }
 
-    let new_call_node = DataFlowNode::get_for_method_return(
-        NodeKind::Default,
-        method_id.to_string(),
+    let new_call_node = DataFlowNode::get_for_this_after_method(
+        method_id,
         if let Some(functionlike_storage) = functionlike_storage {
             functionlike_storage.return_type_location.clone()
         } else {
             None
         },
-        if let Some(functionlike_storage) = functionlike_storage {
-            if functionlike_storage.specialize_call && data_flow_graph.kind == GraphKind::Taint {
-                Some(statements_analyzer.get_hpos(call_pos))
-            } else {
-                None
-            }
+        if specialize_instance {
+            Some(statements_analyzer.get_hpos(call_pos))
         } else {
             None
         },

@@ -1,6 +1,7 @@
 use crate::{code_location::HPos, taint::TaintType};
-use serde::{Deserialize, Serialize};
+use function_context::method_identifier::MethodIdentifier;
 use rustc_hash::FxHashSet;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeKind {
@@ -71,6 +72,52 @@ impl DataFlowNode {
             arg_id.clone(),
             arg_id,
             arg_location,
+            specialization_key,
+            None,
+        )
+    }
+
+    pub fn get_for_this_before_method(
+        method_id: &MethodIdentifier,
+        method_location: Option<HPos>,
+        pos: Option<HPos>,
+    ) -> Self {
+        let label = format!("$this in {} before {}", method_id.0, method_id.1);
+
+        let mut specialization_key = None;
+
+        if let Some(pos) = pos {
+            specialization_key = Some(format!("{}:{}", pos.file_path, pos.start_offset));
+        }
+
+        DataFlowNode::new(
+            NodeKind::Default,
+            label.clone(),
+            label,
+            method_location,
+            specialization_key,
+            None,
+        )
+    }
+
+    pub fn get_for_this_after_method(
+        method_id: &MethodIdentifier,
+        method_location: Option<HPos>,
+        pos: Option<HPos>,
+    ) -> Self {
+        let label = format!("$this in {} after {}", method_id.0, method_id.1);
+
+        let mut specialization_key = None;
+
+        if let Some(pos) = pos {
+            specialization_key = Some(format!("{}:{}", pos.file_path, pos.start_offset));
+        }
+
+        DataFlowNode::new(
+            NodeKind::Default,
+            label.clone(),
+            label,
+            method_location,
             specialization_key,
             None,
         )

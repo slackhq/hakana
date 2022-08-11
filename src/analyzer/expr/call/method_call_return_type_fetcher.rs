@@ -194,7 +194,21 @@ fn add_dataflow(
                         None,
                     );
 
+                    let this_before_method_node = DataFlowNode::get_for_this_before_method(
+                        &declaring_method_id,
+                        functionlike_storage.name_location.clone(),
+                        Some(statements_analyzer.get_hpos(call_pos)),
+                    );
+
                     for (_, parent_node) in &context_type.parent_nodes {
+                        data_flow_graph.add_path(
+                            &parent_node,
+                            &this_before_method_node,
+                            PathKind::Default,
+                            None,
+                            None,
+                        );
+
                         data_flow_graph.add_path(
                             &parent_node,
                             &var_node,
@@ -204,8 +218,14 @@ fn add_dataflow(
                         );
                     }
 
+                    let this_after_method_node = DataFlowNode::get_for_this_after_method(
+                        &declaring_method_id,
+                        functionlike_storage.name_location.clone(),
+                        Some(statements_analyzer.get_hpos(call_pos)),
+                    );
+
                     data_flow_graph.add_path(
-                        &method_call_node,
+                        &this_after_method_node,
                         &var_node,
                         PathKind::Default,
                         None,
@@ -220,6 +240,8 @@ fn add_dataflow(
                     *context_type = Rc::new(context_type_inner);
 
                     data_flow_graph.add_node(var_node);
+                    data_flow_graph.add_node(this_before_method_node);
+                    data_flow_graph.add_node(this_after_method_node);
                 }
             }
         }

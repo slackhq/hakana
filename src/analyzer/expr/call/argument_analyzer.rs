@@ -547,7 +547,7 @@ fn add_dataflow(
                 {
                     if method_name != "__construct" {
                         for dependent_classlike in dependent_classlikes {
-                            if codebase.method_exists(&dependent_classlike, &method_name) {
+                            if codebase.declaring_method_exists(&dependent_classlike, &method_name) {
                                 let new_sink = DataFlowNode::get_for_method_argument(
                                     NodeKind::Default,
                                     dependent_classlike.clone() + "::" + method_name,

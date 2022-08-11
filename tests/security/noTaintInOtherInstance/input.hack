@@ -1,4 +1,4 @@
-<<\Hakana\SecurityAnalysis\SpecializeInstance()>>
+<<Hakana\SecurityAnalysis\SpecializeInstance()>>
 class A {
     private string $taint = "";
 
@@ -11,5 +11,6 @@ class A {
     }
 }
 
-$a = new A($_GET["bar"]);
+$b = new A($_GET["bar"]);
+$a = new A("bar");
 echo $a->getTaint();

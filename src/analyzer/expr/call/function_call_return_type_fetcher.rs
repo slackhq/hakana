@@ -446,13 +446,20 @@ fn add_dataflow(
         let added_removed_taints = get_special_added_removed_taints(functionlike_id);
 
         for (param_offset, path_kind) in param_offsets {
-            let argument_node = get_node_for_argument(
-                statements_analyzer,
-                expr,
-                pos,
-                &functionlike_storage.name,
-                functionlike_storage,
+            let argument_node = DataFlowNode::get_for_method_argument(
+                NodeKind::Default,
+                functionlike_storage.name.clone(),
                 param_offset,
+                if let Some(arg) = expr.2.get(param_offset) {
+                    Some(statements_analyzer.get_hpos(arg.1.pos()))
+                } else {
+                    None
+                },
+                if functionlike_storage.specialize_call {
+                    Some(statements_analyzer.get_hpos(pos))
+                } else {
+                    None
+                },
             );
 
             let (added_taints, removed_taints) =
@@ -635,34 +642,4 @@ fn get_special_added_removed_taints(
         },
         FunctionLikeIdentifier::Method(_, _) => panic!(),
     }
-}
-
-fn get_node_for_argument(
-    statements_analyzer: &StatementsAnalyzer,
-    expr: (
-        (&Pos, &ast_defs::Id_),
-        &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
-        &Option<aast::Expr<(), ()>>,
-    ),
-    pos: &Pos,
-    function_name: &String,
-    function_storage: &FunctionLikeInfo,
-    argument_offset: usize,
-) -> DataFlowNode {
-    DataFlowNode::get_for_method_argument(
-        NodeKind::Default,
-        function_name.clone(),
-        argument_offset,
-        if let Some(arg) = expr.2.get(argument_offset) {
-            Some(statements_analyzer.get_hpos(arg.1.pos()))
-        } else {
-            None
-        },
-        if function_storage.specialize_call {
-            Some(statements_analyzer.get_hpos(pos))
-        } else {
-            None
-        },
-    )
 }

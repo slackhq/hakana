@@ -7,6 +7,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::unused_variable_analyzer::{add_unused_expression_replacements, check_variables_used};
 use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
+use function_context::method_identifier::MethodIdentifier;
 use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
@@ -24,6 +25,7 @@ use hakana_type::type_expander::{self, StaticClassType};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
+use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
@@ -193,16 +195,30 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .collect(),
         );
 
-        context.vars_in_scope.insert(
-            "$this".to_string(),
-            Rc::new(wrap_atomic(TAtomic::TNamedObject {
+        if !stmt.static_ {
+            let mut this_type = wrap_atomic(TAtomic::TNamedObject {
                 name: classlike_storage.name.clone(),
                 type_params: None,
                 is_this: true,
                 extra_types: None,
                 remapped_params: false,
-            })),
-        );
+            });
+
+            if classlike_storage.specialize_instance {
+                let new_call_node = DataFlowNode::get_for_this_before_method(
+                    &MethodIdentifier(classlike_storage.name.clone(), method_name.clone()),
+                    functionlike_storage.return_type_location.clone(),
+                    None,
+                );
+
+                this_type.parent_nodes =
+                    FxHashMap::from_iter([(new_call_node.id.clone(), new_call_node)]);
+            }
+
+            context
+                .vars_in_scope
+                .insert("$this".to_string(), Rc::new(this_type));
+        }
 
         statements_analyzer.set_function_info(&functionlike_storage);
 
@@ -341,12 +357,17 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let Some(method_storage) = &functionlike_storage.method_info {
                 if !method_storage.is_static {
                     if let Some(this_type) = context.vars_in_scope.get("$this") {
-                        let new_call_node = DataFlowNode::get_for_method_return(
-                            NodeKind::Default,
-                            context.function_context.calling_class.clone().unwrap()
-                                + "::"
-                                + functionlike_storage.name.as_str(),
-                            functionlike_storage.return_type_location.clone(),
+                        let new_call_node = DataFlowNode::get_for_this_after_method(
+                            &MethodIdentifier(
+                                context
+                                    .function_context
+                                    .calling_class
+                                    .clone()
+                                    .unwrap()
+                                    .clone(),
+                                functionlike_storage.name.clone(),
+                            ),
+                            functionlike_storage.name_location.clone(),
                             None,
                         );
 

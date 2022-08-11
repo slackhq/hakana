@@ -9,8 +9,8 @@ use crate::t_atomic::TAtomic;
 use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
 use function_context::method_identifier::MethodIdentifier;
-use serde::{Deserialize, Serialize};
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CodebaseInfo {
@@ -176,6 +176,18 @@ impl CodebaseInfo {
             classlike_info
                 .declaring_method_ids
                 .contains_key(method_name)
+        } else {
+            false
+        }
+    }
+
+    pub fn declaring_method_exists(&self, classlike_name: &String, method_name: &String) -> bool {
+        if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
+            if let Some(declaring_class) = classlike_info.declaring_method_ids.get(method_name) {
+                declaring_class == classlike_name
+            } else {
+                false
+            }
         } else {
             false
         }
