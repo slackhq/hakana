@@ -108,6 +108,7 @@ pub(crate) fn analyze(
         context,
         if_body_context,
         None,
+        None,
         result,
     ));
 }

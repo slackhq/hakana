@@ -135,6 +135,7 @@ pub(crate) fn analyze(
                 context,
                 if_body_context,
                 lhs_var_id.as_ref(),
+                Some(expr.0.pos()),
                 result,
             );
 

@@ -25,6 +25,12 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
     println!(" - initial sources count: {}", sources.len());
     println!(" - initial sinks count:   {}", graph.sinks.len());
 
+    // for (from_id, to) in &graph.forward_edges {
+    //     for (to_id, _) in to {
+    //         println!("{} -> {}", from_id, to_id);
+    //     }
+    // }
+
     let mut seen_sources = FxHashSet::default();
 
     for source in &sources {

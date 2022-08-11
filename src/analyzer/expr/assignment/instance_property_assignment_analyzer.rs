@@ -458,7 +458,7 @@ fn add_instance_property_dataflow(
                 for (_, parent_node) in assignment_value_type.parent_nodes.iter() {
                     tast_info.data_flow_graph.add_path(
                         parent_node,
-                        &var_node,
+                        &property_node,
                         PathKind::Default,
                         None,
                         None,

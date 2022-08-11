@@ -46,6 +46,7 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     lhs_var_id: Option<&String>,
+    lhs_var_pos: Option<&Pos>,
     result: &mut AtomicMethodCallAnalysisResult,
 ) -> TUnion {
     tast_info
@@ -306,6 +307,8 @@ pub(crate) fn analyze(
         &method_id,
         &declaring_method_id,
         lhs_type_part,
+        lhs_var_id,
+        lhs_var_pos,
         functionlike_storage,
         classlike_storage,
         &template_result,

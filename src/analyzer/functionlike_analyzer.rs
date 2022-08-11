@@ -344,7 +344,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         let new_call_node = DataFlowNode::get_for_method_return(
                             NodeKind::Default,
                             context.function_context.calling_class.clone().unwrap()
-                                + "::__construct",
+                                + "::"
+                                + functionlike_storage.name.as_str(),
                             functionlike_storage.return_type_location.clone(),
                             None,
                         );
