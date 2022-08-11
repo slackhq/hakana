@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::custom_hook::FunctionLikeParamData;
 use crate::expr::fetch::atomic_property_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -655,11 +656,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                 for hook in &config.hooks {
                     hook.handle_functionlike_param(
-                        context,
-                        config,
-                        &param_type,
-                        param_node,
                         tast_info,
+                        FunctionLikeParamData {
+                            context,
+                            config,
+                            param_type: &param_type,
+                            param_node,
+                        },
                     );
                 }
             }

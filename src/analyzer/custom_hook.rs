@@ -24,6 +24,13 @@ pub struct AfterStmtAnalysisData<'a> {
     pub stmt: &'a aast::Stmt<(), ()>,
 }
 
+pub struct FunctionLikeParamData<'a> {
+    pub context: &'a ScopeContext,
+    pub config: &'a config::Config,
+    pub param_type: &'a TUnion,
+    pub param_node: &'a aast::FunParam<(), ()>,
+}
+
 pub struct AfterArgAnalysisData<'a> {
     pub arg: (&'a ast_defs::ParamKind, &'a aast::Expr<(), ()>),
     pub arg_value_type: &'a TUnion,
@@ -59,11 +66,8 @@ pub trait InternalHook {
     #[allow(unused_variables)]
     fn handle_functionlike_param(
         &self,
-        context: &ScopeContext,
-        config: &config::Config,
-        param_type: &TUnion,
-        param_node: &aast::FunParam<(), ()>,
         tast_info: &mut TastInfo,
+        functionlike_param_data: FunctionLikeParamData,
     ) {
     }
 
