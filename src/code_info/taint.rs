@@ -84,6 +84,7 @@ pub fn string_to_taints(str: String) -> FxHashSet<TaintType> {
         "sql" | "Sql" => FxHashSet::from_iter([TaintType::Sql]),
         "html" | "HtmlTag" => FxHashSet::from_iter([TaintType::HtmlTag]),
         "curl_uri" | "CurlUri" => FxHashSet::from_iter([TaintType::CurlUri]),
+        "CurlHeader" => FxHashSet::from_iter([TaintType::CurlHeader]),
         "HtmlAttributeUri" => FxHashSet::from_iter([TaintType::HtmlAttributeUri]),
         "RedirectUri" => FxHashSet::from_iter([TaintType::RedirectUri]),
         _ => {

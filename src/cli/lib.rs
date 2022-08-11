@@ -328,6 +328,10 @@ pub fn init(
                     }
                 }
 
+                if !had_error {
+                    println!("\nNo issues reported!\n");
+                }
+
                 if let Some(output_file) = output_file {
                     write_output_files(output_file, &cwd, &analysis_result);
                 }
@@ -386,6 +390,10 @@ pub fn init(
                         had_error = true;
                         println!("{}", issue.format());
                     }
+                }
+
+                if !had_error {
+                    println!("\nNo security issues found!\n");
                 }
 
                 if let Some(output_file) = output_file {
