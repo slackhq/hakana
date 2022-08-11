@@ -1,7 +1,6 @@
-use function_context::{method_identifier::MethodIdentifier, FunctionLikeIdentifier};
+use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
-    codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo, t_atomic::TAtomic,
-    t_union::TUnion,
+    codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo, t_union::TUnion,
 };
 use oxidized::{
     aast,
@@ -13,41 +12,52 @@ use crate::{
     typed_ast::TastInfo,
 };
 
-pub struct ReturnData<'a> {
-    pub context: &'a ScopeContext,
-    pub expected_return_type_id: &'a Option<String>,
-    pub inferred_return_type: &'a TUnion,
-    pub return_expr: &'a aast::Expr<(), ()>,
-    pub statements_analyzer: &'a StatementsAnalyzer<'a>,
-}
-
 pub struct AfterExprAnalysisData<'a> {
     pub context: &'a ScopeContext,
     pub expr: &'a aast::Expr<(), ()>,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
 }
 
-pub trait InternalHook {
-    #[allow(unused_variables)]
-    fn handle_return_expr(&self, tast_info: &mut TastInfo, return_data: ReturnData) {}
+pub struct AfterStmtAnalysisData<'a> {
+    pub context: &'a ScopeContext,
+    pub statements_analyzer: &'a StatementsAnalyzer<'a>,
+    pub stmt: &'a aast::Stmt<(), ()>,
+}
 
+pub struct AfterArgAnalysisData<'a> {
+    pub arg: (&'a ast_defs::ParamKind, &'a aast::Expr<(), ()>),
+    pub arg_value_type: &'a TUnion,
+    pub argument_offset: usize,
+    pub context: &'a ScopeContext,
+    pub function_call_pos: &'a Pos,
+    pub functionlike_id: &'a FunctionLikeIdentifier,
+    pub param_type: &'a TUnion,
+    pub statements_analyzer: &'a StatementsAnalyzer<'a>,
+}
+
+pub trait InternalHook {
+    // This hook is run after analysing every AST statement
+    #[allow(unused_variables)]
+    fn after_stmt_analysis(
+        &self,
+        tast_info: &mut TastInfo,
+        after_stmt_analysis_data: AfterStmtAnalysisData,
+    ) {
+    }
+
+    // This hook is run after analysing every AST expression
     #[allow(unused_variables)]
     fn after_expr_analysis(
         &self,
         tast_info: &mut TastInfo,
         after_expr_analysis_data: AfterExprAnalysisData,
     ) {
-        if let aast::Expr_::ArrayGet(boxed) = &after_expr_analysis_data.expr.2 {
-            let stmt_var_type = if let Some(expr_type) = tast_info.get_expr_type(&boxed.0 .1) {
-                expr_type
-            } else {
-                return;
-            };
-        }
     }
 
+    // This hook is run when analysing a function or method's parameters
+    // This is run before analysing a given function's body statements.
     #[allow(unused_variables)]
-    fn handle_expanded_param(
+    fn handle_functionlike_param(
         &self,
         context: &ScopeContext,
         config: &config::Config,
@@ -57,23 +67,17 @@ pub trait InternalHook {
     ) {
     }
 
+    // This hook is run after analysing every argument in a given function of method call
     #[allow(unused_variables)]
-    fn handle_argument(
+    fn after_argument_analysis(
         &self,
-        functionlike_id: &FunctionLikeIdentifier,
-        config: &config::Config,
-        context: &ScopeContext,
-        arg_value_type: &TUnion,
         tast_info: &mut TastInfo,
-        arg: (&ast_defs::ParamKind, &aast::Expr<(), ()>),
-        param_type: &TUnion,
-        argument_offset: usize,
-        function_call_pos: &Pos,
+        after_arg_analysis_data: AfterArgAnalysisData,
     ) {
     }
 
     #[allow(unused_variables)]
-    fn post_functionlike_analysis(
+    fn after_functionlike_analysis(
         &self,
         context: &mut ScopeContext,
         functionlike_storage: &FunctionLikeInfo,
@@ -85,19 +89,6 @@ pub trait InternalHook {
         expected_type_id: String,
     ) -> bool {
         false
-    }
-
-    #[allow(unused_variables)]
-    fn handle_method_call_analysis(
-        &self,
-        method_id: &MethodIdentifier,
-        lhs_type_part: &TAtomic,
-        codebase: &CodebaseInfo,
-        lhs_var_id: Option<&String>,
-        tast_info: &mut TastInfo,
-        pos: &Pos,
-    ) -> Option<TUnion> {
-        None
     }
 }
 

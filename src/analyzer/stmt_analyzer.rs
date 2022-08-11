@@ -1,8 +1,10 @@
 use rustc_hash::FxHashMap;
 
+use crate::custom_hook::AfterStmtAnalysisData;
 use crate::expr::binop::assignment_analyzer;
 use crate::expression_analyzer::{self};
 
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -202,6 +204,17 @@ pub(crate) fn analyze(
             ));
             return false;
         }
+    }
+
+    for hook in &statements_analyzer.get_config().hooks {
+        hook.after_stmt_analysis(
+            tast_info,
+            AfterStmtAnalysisData {
+                statements_analyzer,
+                stmt: &stmt,
+                context,
+            },
+        );
     }
 
     true

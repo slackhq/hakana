@@ -1,3 +1,4 @@
+use crate::custom_hook::AfterArgAnalysisData;
 use crate::expr::fetch::array_fetch_analyzer::{
     handle_array_access_on_dict, handle_array_access_on_vec,
 };
@@ -54,16 +55,18 @@ pub(crate) fn check_argument_matches(
     let config = statements_analyzer.get_config();
 
     for hook in &config.hooks {
-        hook.handle_argument(
-            functionlike_id,
-            config,
-            context,
-            &arg_value_type,
+        hook.after_argument_analysis(
             tast_info,
-            arg,
-            &param_type,
-            argument_offset,
-            function_call_pos,
+            AfterArgAnalysisData {
+                functionlike_id,
+                statements_analyzer,
+                context,
+                arg_value_type: &arg_value_type,
+                arg,
+                param_type: &param_type,
+                argument_offset,
+                function_call_pos,
+            },
         );
     }
 
@@ -547,7 +550,8 @@ fn add_dataflow(
                 {
                     if method_name != "__construct" {
                         for dependent_classlike in dependent_classlikes {
-                            if codebase.declaring_method_exists(&dependent_classlike, &method_name) {
+                            if codebase.declaring_method_exists(&dependent_classlike, &method_name)
+                            {
                                 let new_sink = DataFlowNode::get_for_method_argument(
                                     NodeKind::Default,
                                     dependent_classlike.clone() + "::" + method_name,

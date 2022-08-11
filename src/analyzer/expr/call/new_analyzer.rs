@@ -1,4 +1,4 @@
-use hakana_reflection_info::data_flow::node::{DataFlowNode, NodeKind};
+use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use rustc_hash::FxHashMap;
 

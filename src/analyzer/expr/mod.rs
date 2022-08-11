@@ -11,7 +11,7 @@ pub(crate) mod const_fetch_analyzer;
 pub(crate) mod echo_analyzer;
 pub(crate) mod eif_analyzer;
 pub(crate) mod exit_analyzer;
-pub(crate) mod expression_identifier;
+pub mod expression_identifier;
 pub(crate) mod fetch;
 pub(crate) mod isset_analyzer;
 pub(crate) mod pipe_analyzer;

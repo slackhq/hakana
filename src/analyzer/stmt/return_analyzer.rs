@@ -1,4 +1,4 @@
-use crate::{custom_hook::ReturnData, scope_context::ScopeContext};
+use crate::scope_context::ScopeContext;
 use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
     data_flow::{
@@ -110,12 +110,8 @@ pub(crate) fn analyze(
             .push(inferred_return_type.clone());
     }
 
-    let mut expected_return_type_id = None;
-
     let expected_return_type = if let Some(expected_return_type) = &functionlike_storage.return_type
     {
-        expected_return_type_id = Some(expected_return_type.get_id());
-
         let mut expected_type = expected_return_type.clone();
         type_expander::expand_union(
             statements_analyzer.get_codebase(),
@@ -353,19 +349,6 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&return_expr.1),
                 ));
             }
-
-            for hook in &statements_analyzer.get_config().hooks {
-                hook.handle_return_expr(
-                    tast_info,
-                    ReturnData {
-                        statements_analyzer,
-                        inferred_return_type: &inferred_return_type,
-                        return_expr,
-                        expected_return_type_id: &expected_return_type_id,
-                        context,
-                    },
-                );
-            }
         }
     } else if !expected_return_type.is_void()
         && !functionlike_storage.has_yield
@@ -434,13 +417,7 @@ fn handle_dataflow(
         );
 
         for (_, parent_node) in &inferred_type.parent_nodes {
-            data_flow_graph.add_path(
-                &parent_node,
-                &return_node,
-                PathKind::Default,
-                None,
-                None,
-            );
+            data_flow_graph.add_path(&parent_node, &return_node, PathKind::Default, None, None);
         }
         data_flow_graph.add_sink(return_node);
     } else {

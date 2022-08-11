@@ -425,7 +425,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             let config = statements_analyzer.get_config();
 
             let return_result_handled = config.hooks.iter().any(|hook| {
-                hook.post_functionlike_analysis(
+                hook.after_functionlike_analysis(
                     context,
                     functionlike_storage,
                     completed_analysis,
@@ -654,7 +654,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 let config = statements_analyzer.get_config();
 
                 for hook in &config.hooks {
-                    hook.handle_expanded_param(context, config, &param_type, param_node, tast_info);
+                    hook.handle_functionlike_param(
+                        context,
+                        config,
+                        &param_type,
+                        param_node,
+                        tast_info,
+                    );
                 }
             }
 

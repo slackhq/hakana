@@ -3,7 +3,7 @@ mod classlike_analyzer;
 pub mod config;
 pub mod custom_hook;
 mod def_analyzer;
-mod expr;
+pub mod expr;
 mod expression_analyzer;
 pub mod file_analyzer;
 mod formula_generator;

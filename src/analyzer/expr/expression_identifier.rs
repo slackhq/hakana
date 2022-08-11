@@ -6,7 +6,7 @@ use oxidized::{aast, ast_defs};
 use crate::expression_analyzer::get_class_id_classname;
 
 // gets a var id from a simple variable
-pub(crate) fn get_var_id(
+pub fn get_var_id(
     conditional: &aast::Expr<(), ()>,
     this_class_name: Option<&String>,
     source: &FileSource,

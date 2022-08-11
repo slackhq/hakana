@@ -145,19 +145,6 @@ pub(crate) fn analyze(
         );
     }
 
-    for hook in &statements_analyzer.get_config().hooks {
-        if let Some(value) = hook.handle_method_call_analysis(
-            &method_id,
-            lhs_type_part,
-            codebase,
-            lhs_var_id,
-            tast_info,
-            pos,
-        ) {
-            return value;
-        }
-    }
-
     if method_id.0 == "HH\\Shapes" && method_id.1 == "keyExists" && call_expr.1.len() == 2 {
         let expr_var_id = expression_identifier::get_extended_var_id(
             &call_expr.1[0].1,
