@@ -372,6 +372,8 @@ pub fn init(
                     20
                 };
 
+            analysis_config.hooks = analysis_hooks;
+
             let result = hakana_workhorse::scan_and_analyze(
                 true,
                 Vec::new(),
