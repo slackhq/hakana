@@ -608,37 +608,7 @@ fn add_dataflow(
     let removed_taints = if data_flow_graph.kind == GraphKind::Variable {
         FxHashSet::default()
     } else {
-        let tags = statements_analyzer
-            .get_comments()
-            .iter()
-            .filter(|c| {
-                let diff = (input_expr.pos().line() as i64) - (c.0.line() as i64);
-                diff == 0 || diff == 1
-            })
-            .collect::<Vec<_>>();
-
-        let mut removed_taints = FxHashSet::default();
-
-        for tag in tags {
-            match &tag.1 {
-                oxidized::prim_defs::Comment::CmtLine(_) => {}
-                oxidized::prim_defs::Comment::CmtBlock(text) => {
-                    let trimmed_text = text.trim();
-
-                    if trimmed_text.starts_with("HAKANA_SECURITY_IGNORE[") {
-                        let trimmed_text = trimmed_text[23..].to_string();
-
-                        if let Some(bracket_pos) = trimmed_text.find("]") {
-                            removed_taints.extend(string_to_sink_types(
-                                trimmed_text[..bracket_pos].to_string(),
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-
-        removed_taints
+        get_removed_taints_in_comments(statements_analyzer, input_expr.pos())
     };
     // TODO add plugin hooks for adding/removing taints
 
@@ -699,6 +669,42 @@ fn add_dataflow(
 
         data_flow_graph.add_node(method_node);
     }
+}
+
+pub(crate) fn get_removed_taints_in_comments(
+    statements_analyzer: &StatementsAnalyzer,
+    input_expr_pos: &Pos,
+) -> FxHashSet<SinkType> {
+    let mut removed_taints = FxHashSet::default();
+    let tags = statements_analyzer
+        .get_comments()
+        .iter()
+        .filter(|c| {
+            let diff = (input_expr_pos.line() as i64) - (c.0.line() as i64);
+            diff == 0 || diff == 1
+        })
+        .collect::<Vec<_>>();
+
+    for tag in tags {
+        match &tag.1 {
+            oxidized::prim_defs::Comment::CmtLine(_) => {}
+            oxidized::prim_defs::Comment::CmtBlock(text) => {
+                let trimmed_text = text.trim();
+
+                if trimmed_text.starts_with("HAKANA_SECURITY_IGNORE[") {
+                    let trimmed_text = trimmed_text[23..].to_string();
+
+                    if let Some(bracket_pos) = trimmed_text.find("]") {
+                        removed_taints.extend(string_to_sink_types(
+                            trimmed_text[..bracket_pos].to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    removed_taints
 }
 
 fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) -> Vec<SinkType> {

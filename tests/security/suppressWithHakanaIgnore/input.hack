@@ -10,3 +10,10 @@ function bar(): void {
         $a
     );
 }
+
+function baz(): void {
+    /* HAKANA_SECURITY_IGNORE[HtmlTag] */
+    $a = $_GET['a'];
+
+    foo($a);
+}

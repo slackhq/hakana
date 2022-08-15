@@ -23,7 +23,10 @@ use oxidized::{
 use rustc_hash::FxHashMap;
 
 use crate::{
-    expr::{expression_identifier, fetch::atomic_property_fetch_analyzer::localize_property_type},
+    expr::{
+        call::argument_analyzer::get_removed_taints_in_comments, expression_identifier,
+        fetch::atomic_property_fetch_analyzer::localize_property_type,
+    },
     typed_ast::TastInfo,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -446,6 +449,7 @@ fn add_instance_property_dataflow(
                 statements_analyzer,
                 property_id,
                 name_pos,
+                var_pos,
                 tast_info,
                 assignment_value_type,
                 codebase,
@@ -507,6 +511,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     property_id: &(String, String),
     stmt_name_pos: &Pos,
+    var_pos: &Pos,
     tast_info: &mut TastInfo,
     assignment_value_type: &TUnion,
     codebase: &CodebaseInfo,
@@ -528,6 +533,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         &property_id.1.to_owned()
     );
 
+    let removed_taints = get_removed_taints_in_comments(statements_analyzer, var_pos);
+
     let property_node = DataFlowNode::new(property_id_str.clone(), property_id_str, None, None);
 
     tast_info.data_flow_graph.add_node(property_node.clone());
@@ -536,7 +543,11 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         &property_node,
         PathKind::ExpressionAssignment(PathExpressionKind::Property, property_id.1.to_string()),
         None,
-        None,
+        if removed_taints.is_empty() {
+            None
+        } else {
+            Some(removed_taints)
+        },
     );
 
     for (_, parent_node) in assignment_value_type.parent_nodes.iter() {

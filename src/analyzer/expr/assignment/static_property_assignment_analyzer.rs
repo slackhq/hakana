@@ -10,7 +10,7 @@ use hakana_type::{
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
     type_expander::{self, StaticClassType},
 };
-use oxidized::aast::{self, ClassGetExpr, ClassId};
+use oxidized::{aast::{self, ClassGetExpr, ClassId}, tast::Pos};
 
 use crate::{expr::expression_identifier, typed_ast::TastInfo};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -21,6 +21,7 @@ use super::instance_property_assignment_analyzer::add_unspecialized_property_ass
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
+    assign_value_pos: &Pos,
     assign_value_type: &TUnion,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
@@ -183,6 +184,7 @@ pub(crate) fn analyze(
                     statements_analyzer,
                     &property_id,
                     stmt_name_pos,
+                    assign_value_pos,
                     tast_info,
                     assign_value_type,
                     codebase,

@@ -1,6 +1,6 @@
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use rustc_hash::FxHashSet;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::config::Config;
@@ -18,7 +18,7 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
     let mut sources = graph
         .sources
         .iter()
-        .map(|(_, v)| Rc::new(TaintedNode::from(v)))
+        .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
     println!("Security analysis: detecting paths");
@@ -89,10 +89,12 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
         }
     }
 
+    std::thread::spawn(move || drop(sources));
+
     new_issues
 }
 
-fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Vec<Rc<TaintedNode>> {
+fn get_specialized_sources(graph: &DataFlowGraph, source: Arc<TaintedNode>) -> Vec<Arc<TaintedNode>> {
     if graph.forward_edges.contains_key(&source.id) {
         return vec![source.clone()];
     }
@@ -115,7 +117,7 @@ fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Ve
                 .or_insert_with(FxHashSet::default)
                 .insert(new_source.id.clone());
 
-            generated_sources.push(Rc::new(new_source));
+            generated_sources.push(Arc::new(new_source));
         }
     } else if let Some(specializations) = graph.specializations.get(&source.id) {
         for specialization in specializations {
@@ -129,7 +131,7 @@ fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Ve
                     new_source.unspecialized_id = Some(source.id.clone());
                     new_source.specialized_calls.remove(specialization);
 
-                    generated_sources.push(Rc::new(new_source));
+                    generated_sources.push(Arc::new(new_source));
                 }
             }
         }
@@ -142,7 +144,7 @@ fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Ve
                     let mut new_source = (*source).clone();
                     new_source.id = new_forward_edge_id;
                     new_source.unspecialized_id = Some(source.id.clone());
-                    generated_sources.push(Rc::new(new_source));
+                    generated_sources.push(Arc::new(new_source));
                 }
             }
         }
@@ -154,12 +156,12 @@ fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Ve
 fn get_taint_child_nodes(
     graph: &DataFlowGraph,
     config: &Config,
-    generated_source: &Rc<TaintedNode>,
+    generated_source: &Arc<TaintedNode>,
     source_taints: &FxHashSet<SinkType>,
     seen_sources: &mut FxHashSet<String>,
     new_issues: &mut Vec<Issue>,
     is_last: bool,
-) -> Vec<Rc<TaintedNode>> {
+) -> Vec<Arc<TaintedNode>> {
     let mut new_child_nodes = Vec::new();
 
     if let Some(forward_edges) = graph.forward_edges.get(&generated_source.id) {
@@ -286,7 +288,7 @@ fn get_taint_child_nodes(
             seen_sources.insert(source_id);
 
             if !is_last {
-                new_child_nodes.push(Rc::new(new_destination));
+                new_child_nodes.push(Arc::new(new_destination));
             }
         }
     }

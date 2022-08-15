@@ -1,7 +1,7 @@
 use super::{node::DataFlowNode, path::PathKind};
 
 use core::panic;
-use std::{collections::BTreeSet, rc::Rc};
+use std::{collections::BTreeSet, sync::Arc};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -16,11 +16,11 @@ pub struct TaintedNode {
     pub id: String,
     pub unspecialized_id: Option<String>,
     pub label: String,
-    pub pos: Option<Rc<HPos>>,
+    pub pos: Option<Arc<HPos>>,
     pub specialization_key: Option<String>,
     pub taint_sources: FxHashSet<SourceType>,
     pub taint_sinks: FxHashSet<SinkType>,
-    pub previous: Option<Rc<TaintedNode>>,
+    pub previous: Option<Arc<TaintedNode>>,
     pub path_types: Vec<PathKind>,
     pub specialized_calls: FxHashMap<String, FxHashSet<String>>,
 }
@@ -78,7 +78,7 @@ impl TaintedNode {
                 unspecialized_id: unspecialized_id.clone(),
                 label: label.clone(),
                 pos: if let Some(p) = &pos {
-                    Some(Rc::new(p.clone()))
+                    Some(Arc::new(p.clone()))
                 } else {
                     None
                 },
@@ -106,7 +106,7 @@ impl TaintedNode {
                     unspecialized_id: None,
                     label: label.clone(),
                     pos: if let Some(p) = &pos {
-                        Some(Rc::new(p.clone()))
+                        Some(Arc::new(p.clone()))
                     } else {
                         None
                     },
@@ -128,7 +128,7 @@ impl TaintedNode {
                 unspecialized_id: None,
                 label: label.clone(),
                 pos: if let Some(p) = &pos {
-                    Some(Rc::new(p.clone()))
+                    Some(Arc::new(p.clone()))
                 } else {
                     None
                 },

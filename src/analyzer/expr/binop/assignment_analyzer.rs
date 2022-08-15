@@ -6,6 +6,7 @@ use std::rc::Rc;
 use crate::expr::assignment::array_assignment_analyzer;
 use crate::expr::assignment::instance_property_assignment_analyzer;
 use crate::expr::assignment::static_property_assignment_analyzer;
+use crate::expr::call::argument_analyzer::get_removed_taints_in_comments;
 use crate::expr::expression_identifier;
 use crate::expr::expression_identifier::get_extended_var_id;
 use crate::expr::expression_identifier::get_root_var_id;
@@ -289,6 +290,7 @@ pub(crate) fn analyze(
             static_property_assignment_analyzer::analyze(
                 statements_analyzer,
                 (lhs, &rhs),
+                assign_value.as_ref().unwrap().pos(),
                 &assign_value_type,
                 tast_info,
                 context,
@@ -336,6 +338,8 @@ fn check_variable_or_property_assignment(
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
     if !var_type.parent_nodes.is_empty() && context.allow_taints {
+        let removed_taints = get_removed_taints_in_comments(statements_analyzer, assign_var_pos);
+
         // todo create AddRemoveTaintsEvent
         return add_dataflow_to_assignment(
             statements_analyzer,
@@ -344,7 +348,7 @@ fn check_variable_or_property_assignment(
             var_id,
             assign_var_pos,
             FxHashSet::default(),
-            FxHashSet::default(),
+            removed_taints,
         );
     }
 
@@ -468,8 +472,8 @@ pub(crate) fn add_dataflow_to_assignment(
     data_flow_graph: &mut DataFlowGraph,
     var_id: &String,
     var_pos: &Pos,
-    removed_taints: FxHashSet<SinkType>,
     added_taints: FxHashSet<SinkType>,
+    removed_taints: FxHashSet<SinkType>,
 ) -> TUnion {
     if data_flow_graph.kind == GraphKind::Taint {
         if !assignment_type.has_taintable_value() {
@@ -480,10 +484,8 @@ pub(crate) fn add_dataflow_to_assignment(
     let parent_nodes = &assignment_type.parent_nodes;
     let mut new_parent_nodes = FxHashMap::default();
 
-    let new_parent_node = DataFlowNode::get_for_assignment(
-        var_id.clone(),
-        statements_analyzer.get_hpos(var_pos),
-    );
+    let new_parent_node =
+        DataFlowNode::get_for_assignment(var_id.clone(), statements_analyzer.get_hpos(var_pos));
     data_flow_graph.add_node(new_parent_node.clone());
     new_parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node.clone());
 
