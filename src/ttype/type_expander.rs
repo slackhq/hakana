@@ -7,7 +7,7 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::{
         graph::DataFlowGraph,
-        node::{DataFlowNode, NodeKind},
+        node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
     functionlike_info::FunctionLikeInfo,
@@ -15,7 +15,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use indexmap::IndexMap;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use crate::{template, type_combiner};
 
@@ -93,9 +93,11 @@ pub fn expand_union(
             .collect();
     }
 
-    return_type
-        .parent_nodes
-        .extend(extra_data_flow_nodes.into_iter().map(|n| (n.id.clone(), n)));
+    return_type.parent_nodes.extend(
+        extra_data_flow_nodes
+            .into_iter()
+            .map(|n| (n.get_id().clone(), n)),
+    );
 }
 
 fn expand_atomic(
@@ -405,25 +407,17 @@ fn expand_atomic(
                     } = v
                     {
                         if let Some(shape_field_taints) = &type_definition.shape_field_taints {
-                            let shape_node = DataFlowNode::new(
-                                NodeKind::TaintSource,
-                                type_name.clone(),
-                                type_name.clone(),
-                                None,
-                                None,
-                                None,
-                            );
+                            let shape_node =
+                                DataFlowNode::new(type_name.clone(), type_name.clone(), None, None);
 
                             for (field_name, taints) in shape_field_taints {
                                 let label = format!("{}['{}']", type_name, field_name);
-                                let field_node = DataFlowNode::new(
-                                    NodeKind::TaintSource,
-                                    label.clone(),
+                                let field_node = DataFlowNode::TaintSource {
+                                    id: label.clone(),
                                     label,
-                                    None,
-                                    None,
-                                    Some(FxHashSet::from_iter(taints.clone())),
-                                );
+                                    pos: None,
+                                    types: taints.clone(),
+                                };
 
                                 data_flow_graph.add_path(
                                     &field_node,
@@ -436,7 +430,7 @@ fn expand_atomic(
                                     None,
                                 );
 
-                                data_flow_graph.add_source(field_node);
+                                data_flow_graph.add_node(field_node);
                             }
 
                             extra_data_flow_nodes.push(shape_node.clone());

@@ -332,7 +332,7 @@ pub(crate) fn add_branch_dataflow(
 
     if let Some(conditional_type) = conditional_type {
         if !conditional_type.parent_nodes.is_empty() {
-            let branch_node = DataFlowNode::get_for_variable_use(
+            let branch_node = DataFlowNode::get_for_variable_sink(
                 "branch".to_string(),
                 statements_analyzer.get_hpos(cond.pos()),
             );
@@ -348,7 +348,7 @@ pub(crate) fn add_branch_dataflow(
             }
 
             if tast_info.data_flow_graph.kind == GraphKind::Variable {
-                tast_info.data_flow_graph.add_sink(branch_node);
+                tast_info.data_flow_graph.add_node(branch_node);
             }
         }
     }

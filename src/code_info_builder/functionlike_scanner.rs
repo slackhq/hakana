@@ -15,7 +15,8 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_info::MethodInfo;
 use hakana_reflection_info::property_info::PropertyInfo;
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::taint::string_to_taints;
+use hakana_reflection_info::taint::string_to_sink_types;
+use hakana_reflection_info::taint::string_to_source_types;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_type::get_mixed_any;
 use hakana_type::wrap_atomic;
@@ -339,7 +340,7 @@ pub(crate) fn get_functionlike(
 
                 if let Some(attribute_param_type) = attribute_param_type {
                     if let Some(str) = attribute_param_type.get_single_literal_string_value() {
-                        source_types.extend(string_to_taints(str));
+                        source_types.extend(string_to_source_types(str));
                     }
                 }
             }
@@ -364,7 +365,7 @@ pub(crate) fn get_functionlike(
 
                 if let Some(attribute_param_type) = attribute_param_type {
                     if let Some(str) = attribute_param_type.get_single_literal_string_value() {
-                        removed_types.extend(string_to_taints(str));
+                        removed_types.extend(string_to_sink_types(str));
                     }
                 }
             }
@@ -500,12 +501,33 @@ fn convert_param_nodes(
                             if let Some(str) =
                                 attribute_param_type.get_single_literal_string_value()
                             {
-                                sink_types.extend(string_to_taints(str));
+                                sink_types.extend(string_to_sink_types(str));
                             }
                         }
                     }
 
                     param.taint_sinks = Some(sink_types);
+                } else if name == "Hakana\\SecurityAnalysis\\RemoveTaintsWhenReturningTrue" {
+                    let mut removed_taints = FxHashSet::default();
+
+                    for attribute_param_expr in &user_attribute.params {
+                        let attribute_param_type = simple_type_inferer::infer(
+                            codebase,
+                            &mut FxHashMap::default(),
+                            attribute_param_expr,
+                            resolved_names,
+                        );
+
+                        if let Some(attribute_param_type) = attribute_param_type {
+                            if let Some(str) =
+                                attribute_param_type.get_single_literal_string_value()
+                            {
+                                removed_taints.extend(string_to_sink_types(str));
+                            }
+                        }
+                    }
+
+                    param.removed_taints_when_returning_true = Some(removed_taints);
                 }
             }
             param.promoted_property = param_node.visibility.is_some();

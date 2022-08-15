@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 use function_context::method_identifier::MethodIdentifier;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::{DataFlowNode, NodeKind};
+use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
@@ -143,11 +143,10 @@ fn add_dataflow(
     }
 
     if data_flow_graph.kind == GraphKind::Taint {
-        let mut method_call_node;
+        let method_call_node;
 
         if method_id != declaring_method_id {
             method_call_node = DataFlowNode::get_for_method_return(
-                NodeKind::Default,
                 method_id.to_string(),
                 None,
                 if functionlike_storage.specialize_call {
@@ -158,7 +157,6 @@ fn add_dataflow(
             );
 
             let declaring_method_call_node = DataFlowNode::get_for_method_return(
-                NodeKind::Default,
                 declaring_method_id.to_string(),
                 functionlike_storage.return_type_location.clone(),
                 None,
@@ -174,7 +172,6 @@ fn add_dataflow(
             );
         } else {
             method_call_node = DataFlowNode::get_for_method_return(
-                NodeKind::Default,
                 method_id.to_string(),
                 functionlike_storage.return_type_location.clone(),
                 if functionlike_storage.specialize_call {
@@ -191,7 +188,6 @@ fn add_dataflow(
                     let var_node = DataFlowNode::get_for_assignment(
                         lhs_var_id.to_owned(),
                         statements_analyzer.get_hpos(lhs_var_pos),
-                        None,
                     );
 
                     let this_before_method_node = DataFlowNode::get_for_this_before_method(
@@ -235,7 +231,7 @@ fn add_dataflow(
                     let mut context_type_inner = (**context_type).clone();
 
                     context_type_inner.parent_nodes =
-                        FxHashMap::from_iter([(var_node.id.clone(), var_node.clone())]);
+                        FxHashMap::from_iter([(var_node.get_id().clone(), var_node.clone())]);
 
                     *context_type = Rc::new(context_type_inner);
 
@@ -247,14 +243,19 @@ fn add_dataflow(
         }
 
         if !functionlike_storage.taint_source_types.is_empty() {
-            method_call_node.taints = Some(functionlike_storage.taint_source_types.clone());
-            data_flow_graph.add_source(method_call_node.clone());
-        } else {
-            data_flow_graph.add_node(method_call_node.clone());
+            let method_call_node_source = DataFlowNode::TaintSource {
+                id: method_call_node.get_id().clone(),
+                label: method_call_node.get_label().clone(),
+                pos: method_call_node.get_pos().clone(),
+                types: functionlike_storage.taint_source_types.clone(),
+            };
+            data_flow_graph.add_node(method_call_node_source);
         }
 
+        data_flow_graph.add_node(method_call_node.clone());
+
         return_type_candidate.parent_nodes =
-            FxHashMap::from_iter([(method_call_node.id.clone(), method_call_node.clone())]);
+            FxHashMap::from_iter([(method_call_node.get_id().clone(), method_call_node.clone())]);
     }
 
     return_type_candidate

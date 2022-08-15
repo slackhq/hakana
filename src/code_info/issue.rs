@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
-use crate::{code_location::HPos, taint::TaintType};
+use crate::{code_location::HPos, taint::SinkType};
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
 pub enum IssueKind {
@@ -69,7 +69,7 @@ pub enum IssueKind {
     PossiblyUnusedProperty,
     PropertyTypeCoercion,
     RedundantTypeComparison,
-    TaintedData(TaintType),
+    TaintedData(SinkType),
     UndefinedIntArrayOffset,
     UndefinedStringArrayOffset,
     UndefinedVariable,

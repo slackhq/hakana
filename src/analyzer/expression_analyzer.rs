@@ -1,6 +1,4 @@
-use std::collections::BTreeMap;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::custom_hook::AfterExprAnalysisData;
 use crate::expr::call::new_analyzer;
@@ -24,16 +22,16 @@ use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::{DataFlowNode, NodeKind};
+use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::taint::TaintType;
+use hakana_reflection_info::taint::SinkType;
 use hakana_type::type_expander::{self, get_closure_from_id, StaticClassType};
 use hakana_type::{
-    get_arraykey, get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string,
-    get_mixed_any, get_null, get_string, get_true, wrap_atomic,
+    get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
+    get_null, get_string, get_true, wrap_atomic,
 };
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
@@ -390,7 +388,6 @@ pub(crate) fn analyze(
                 );
 
                 let closure_return_node = DataFlowNode::get_for_method_return(
-                    NodeKind::Default,
                     closure_id.clone(),
                     Some(statements_analyzer.get_hpos(expr.pos())),
                     None,
@@ -407,7 +404,7 @@ pub(crate) fn analyze(
                 tast_info.data_flow_graph.add_node(application_node.clone());
 
                 closure_type.parent_nodes =
-                    FxHashMap::from_iter([(application_node.id.clone(), application_node)]);
+                    FxHashMap::from_iter([(application_node.get_id().clone(), application_node)]);
             }
 
             tast_info.expr_types.insert(
@@ -471,7 +468,6 @@ pub(crate) fn analyze(
                 let new_parent_node = DataFlowNode::get_for_assignment(
                     "concat".to_string(),
                     statements_analyzer.get_hpos(inner_expr.pos()),
-                    None,
                 );
 
                 tast_info.data_flow_graph.add_node(new_parent_node.clone());
@@ -485,9 +481,9 @@ pub(crate) fn analyze(
                             None,
                             if offset > 0 {
                                 Some(FxHashSet::from_iter([
-                                    TaintType::HtmlAttributeUri,
-                                    TaintType::CurlUri,
-                                    TaintType::RedirectUri,
+                                    SinkType::HtmlAttributeUri,
+                                    SinkType::CurlUri,
+                                    SinkType::RedirectUri,
                                 ]))
                             } else {
                                 None
@@ -498,7 +494,7 @@ pub(crate) fn analyze(
 
                 string_type
                     .parent_nodes
-                    .insert(new_parent_node.id.clone(), new_parent_node);
+                    .insert(new_parent_node.get_id().clone(), new_parent_node);
             }
 
             tast_info.expr_types.insert(
@@ -517,25 +513,25 @@ pub(crate) fn analyze(
                 return false;
             }
 
+            let inner_type = if let Some(t) = tast_info
+                .expr_types
+                .get(&(boxed.1.pos().start_offset(), boxed.1.pos().end_offset()))
+            {
+                (**t).clone()
+            } else {
+                get_string()
+            };
+
             tast_info.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(if boxed.0 == "re" {
-                    wrap_atomic(TAtomic::TTypeAlias {
-                        name: "HH\\Lib\\Regex\\Pattern".to_string(),
-                        type_params: Some(vec![wrap_atomic(TAtomic::TDict {
-                            known_items: Some(BTreeMap::from([(
-                                "0".to_string(),
-                                (false, Arc::new(get_string())),
-                            )])),
-                            enum_items: None,
-                            key_param: get_arraykey(),
-                            value_param: get_string(),
-                            non_empty: true,
-                            shape_name: None,
-                        })]),
+                    let inner_text = inner_type.get_single_literal_string_value().unwrap();
+
+                    wrap_atomic(TAtomic::TRegexPattern {
+                        value: inner_text[1..(inner_text.len() - 1)].to_string(),
                     })
                 } else {
-                    get_string()
+                    inner_type
                 }),
             );
         }
@@ -798,7 +794,7 @@ pub(crate) fn add_decision_dataflow(
         return;
     }
 
-    let decision_node = DataFlowNode::get_for_variable_use(
+    let decision_node = DataFlowNode::get_for_variable_sink(
         "is decision".to_string(),
         statements_analyzer.get_hpos(expr_pos),
     );
@@ -809,7 +805,7 @@ pub(crate) fn add_decision_dataflow(
     {
         cond_type
             .parent_nodes
-            .insert(decision_node.id.clone(), decision_node.clone());
+            .insert(decision_node.get_id().clone(), decision_node.clone());
 
         for (_, old_parent_node) in &lhs_type.parent_nodes {
             tast_info.data_flow_graph.add_path(
@@ -829,7 +825,7 @@ pub(crate) fn add_decision_dataflow(
         {
             cond_type
                 .parent_nodes
-                .insert(decision_node.id.clone(), decision_node.clone());
+                .insert(decision_node.get_id().clone(), decision_node.clone());
 
             for (_, old_parent_node) in &rhs_type.parent_nodes {
                 tast_info.data_flow_graph.add_path(

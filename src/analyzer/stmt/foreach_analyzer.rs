@@ -454,7 +454,7 @@ fn check_iterator_type(
     }
 
     if tast_info.data_flow_graph.kind == GraphKind::Variable {
-        let foreach_node = DataFlowNode::get_for_variable_use(
+        let foreach_node = DataFlowNode::get_for_variable_sink(
             "foreach".to_string(),
             statements_analyzer.get_hpos(pos),
         );
@@ -468,7 +468,7 @@ fn check_iterator_type(
                 None,
             );
         }
-        tast_info.data_flow_graph.add_sink(foreach_node);
+        tast_info.data_flow_graph.add_node(foreach_node);
     }
 
     (true, key_type, value_type, always_non_empty_array)

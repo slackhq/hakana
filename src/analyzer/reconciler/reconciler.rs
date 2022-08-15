@@ -7,7 +7,7 @@ use crate::{
 use hakana_reflection_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
-    data_flow::{node::DataFlowNode, path::PathKind},
+    data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
@@ -83,7 +83,6 @@ pub(crate) fn reconcile_keyed_types(
                                 let new_parent_node = DataFlowNode::get_for_assignment(
                                     key.clone(),
                                     statements_analyzer.get_hpos(pos),
-                                    None,
                                 );
 
                                 for (_, old_parent_node) in &existing_var_type.parent_nodes {
@@ -99,7 +98,7 @@ pub(crate) fn reconcile_keyed_types(
                                 let mut existing_var_type_inner = (**existing_var_type).clone();
 
                                 existing_var_type_inner.parent_nodes = FxHashMap::from_iter([(
-                                    new_parent_node.id.clone(),
+                                    new_parent_node.get_id().clone(),
                                     new_parent_node.clone(),
                                 )]);
 
@@ -229,7 +228,49 @@ pub(crate) fn reconcile_keyed_types(
         }
 
         if let Some(before_adjustment) = &before_adjustment {
-            result_type.parent_nodes = before_adjustment.parent_nodes.clone();
+            if tast_info.data_flow_graph.kind == GraphKind::Taint {
+                let mut has_scalar_restriction = false;
+
+                for new_type_part_parts in new_type_parts {
+                    if new_type_part_parts.len() == 1 {
+                        let assertion = &new_type_part_parts[0];
+
+                        if let Assertion::IsType(t) | Assertion::IsEqual(t) = assertion {
+                            if t.is_some_scalar() {
+                                has_scalar_restriction = true;
+                            }
+                        }
+                    }
+                }
+
+                if has_scalar_restriction {
+                    let scalar_check_node = DataFlowNode::get_for_assignment(
+                        key.clone(),
+                        statements_analyzer.get_hpos(pos),
+                    );
+
+                    for (_, parent_node) in &before_adjustment.parent_nodes {
+                        tast_info.data_flow_graph.add_path(
+                            parent_node,
+                            &scalar_check_node,
+                            PathKind::ScalarTypeGuard,
+                            None,
+                            None,
+                        );
+                    }
+
+                    result_type.parent_nodes = FxHashMap::from_iter([(
+                        scalar_check_node.get_id().clone(),
+                        scalar_check_node.clone(),
+                    )]);
+
+                    tast_info.data_flow_graph.add_node(scalar_check_node);
+                } else {
+                    result_type.parent_nodes = before_adjustment.parent_nodes.clone();
+                }
+            } else {
+                result_type.parent_nodes = before_adjustment.parent_nodes.clone();
+            }
         }
 
         // TODO taint flow graph stuff

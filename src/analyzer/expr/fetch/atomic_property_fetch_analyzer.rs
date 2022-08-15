@@ -6,7 +6,7 @@ use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
     data_flow::{
-        node::{DataFlowNode, NodeKind},
+        node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
     t_atomic::TAtomic,
@@ -346,7 +346,6 @@ fn add_property_dataflow(
             let var_node = DataFlowNode::get_for_assignment(
                 lhs_var_id.clone(),
                 statements_analyzer.get_hpos(lhs_pos),
-                None,
             );
             tast_info.data_flow_graph.add_node(var_node.clone());
 
@@ -357,7 +356,6 @@ fn add_property_dataflow(
                     format!("{}->$property", lhs_var_id)
                 },
                 statements_analyzer.get_hpos(pos),
-                None,
             );
             tast_info.data_flow_graph.add_node(property_node.clone());
 
@@ -382,7 +380,7 @@ fn add_property_dataflow(
 
                 let mut stmt_type = stmt_type.clone();
                 stmt_type.parent_nodes =
-                    FxHashMap::from_iter([(property_node.id.clone(), property_node.clone())]);
+                    FxHashMap::from_iter([(property_node.get_id().clone(), property_node.clone())]);
 
                 return stmt_type;
             }
@@ -418,7 +416,6 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
             format!("{}::${}", property_id.0, property_id.1)
         },
         pos,
-        None,
     );
 
     tast_info
@@ -426,10 +423,8 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         .add_node(localized_property_node.clone());
 
     let property_node = DataFlowNode::new(
-        NodeKind::Default,
         format!("{}::${}", property_id.0, property_id.1),
         format!("{}::${}", property_id.0, property_id.1),
-        None,
         None,
         None,
     );
@@ -455,7 +450,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
     let mut stmt_type = stmt_type.clone();
 
     stmt_type.parent_nodes = FxHashMap::from_iter([(
-        localized_property_node.id.clone(),
+        localized_property_node.get_id().clone(),
         localized_property_node.clone(),
     )]);
 

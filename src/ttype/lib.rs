@@ -169,6 +169,7 @@ pub fn get_mixed_closure() -> TUnion {
             expect_variable: false,
             promoted_property: false,
             attributes: Vec::new(),
+            removed_taints_when_returning_true: None,
         }],
         return_type: None,
         is_pure: None,
@@ -722,6 +723,10 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TString { .. } => "string".to_string(),
+        TAtomic::TRegexPattern { .. } => {
+            *is_valid = false;
+            "_".to_string()
+        }
         TAtomic::TTemplateParam { param_name, .. } => param_name.clone(),
         TAtomic::TTemplateParamClass {
             param_name,

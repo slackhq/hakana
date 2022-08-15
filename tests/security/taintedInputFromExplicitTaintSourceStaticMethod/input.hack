@@ -1,5 +1,5 @@
 class Request {
-    <<\Hakana\SecurityAnalysis\Source("input")>>
+    <<\Hakana\SecurityAnalysis\Source('UriRequestHeader')>>
     public static function getName() : string {
         return "";
     }

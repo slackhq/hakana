@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     assertion::Assertion, attribute_info::AttributeInfo, code_location::HPos,
     functionlike_parameter::FunctionLikeParameter, issue::IssueKind, method_info::MethodInfo,
-    t_union::TUnion, taint::TaintType, type_resolution::TypeResolutionContext,
+    t_union::TUnion, taint::{SinkType, SourceType}, type_resolution::TypeResolutionContext,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,11 +74,11 @@ pub struct FunctionLikeInfo {
      */
     pub ignore_taints_if_true: bool,
 
-    pub taint_source_types: FxHashSet<TaintType>,
+    pub taint_source_types: FxHashSet<SourceType>,
 
-    pub added_taints: Option<FxHashSet<TaintType>>,
+    pub added_taints: Option<FxHashSet<SinkType>>,
 
-    pub removed_taints: Option<FxHashSet<TaintType>>,
+    pub removed_taints: Option<FxHashSet<SinkType>>,
 
     pub return_source_params: FxHashMap<usize, String>,
 

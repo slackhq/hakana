@@ -1,4 +1,4 @@
-<<\Hakana\SecurityAnalysis\Source("input")>>
+<<\Hakana\SecurityAnalysis\Source('UriRequestHeader')>>
 function getName() : string {
     return "";
 }

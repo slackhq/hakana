@@ -7,10 +7,7 @@ use function_context::functionlike_identifier::FunctionLikeIdentifier;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeMap,
-    sync::Arc,
-};
+use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq)]
 pub enum TAtomic {
@@ -114,6 +111,9 @@ pub enum TAtomic {
     TClassTypeConstant {
         class_type: Box<TAtomic>,
         member_name: String,
+    },
+    TRegexPattern {
+        value: String,
     },
 }
 
@@ -416,6 +416,7 @@ impl TAtomic {
             } => {
                 format!("{}::{}", class_type.get_id(), member_name)
             }
+            TAtomic::TRegexPattern { value } => "re\\\"".to_string() + value.as_str() + "\\\"",
         }
     }
 
@@ -458,7 +459,9 @@ impl TAtomic {
             | TAtomic::TTrue { .. }
             | TAtomic::TObject
             | TAtomic::TScalar
-            | TAtomic::TReference { .. } => self.get_id(),
+            | TAtomic::TReference { .. }
+            | TAtomic::TRegexPattern { .. } => self.get_id(),
+
             TAtomic::TKeyset { type_param, .. } => {
                 let mut str = String::new();
                 str += "keyset<";

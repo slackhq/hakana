@@ -1,1 +1,1 @@
-TaintedData - input.hack:20:22 - Detected tainted SQL
+ERROR: TaintedData - input.hack:20:22 - Data from a URL query string found its way to a SQL query

@@ -3,7 +3,7 @@ function fetch(int $id): string {
 }
 
 <<\Hakana\SecurityAnalysis\SpecializeCall()>>
-function query(<<\Hakana\SecurityAnalysis\Sink('sql')>> string $sql): string {}
+function query(<<\Hakana\SecurityAnalysis\Sink('Sql')>> string $sql): string {}
 
 $value = $_GET["value"];
 $result = fetch($value);

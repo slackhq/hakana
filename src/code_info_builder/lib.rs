@@ -2,8 +2,8 @@ use crate::typehint_resolver::get_type_from_hint;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
     class_constant_info::ConstantInfo, code_location::HPos, codebase_info::CodebaseInfo,
-    t_atomic::TAtomic, taint::string_to_taints, type_definition_info::TypeDefinitionInfo,
-    type_resolution::TypeResolutionContext,
+    t_atomic::TAtomic, type_definition_info::TypeDefinitionInfo,
+    type_resolution::TypeResolutionContext, taint::string_to_source_types,
 };
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
@@ -237,7 +237,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         let mut sink_types = FxHashSet::default();
 
                         if let Some(str) = item_type.get_single_literal_string_value() {
-                            sink_types.extend(string_to_taints(str));
+                            sink_types.extend(string_to_source_types(str));
                         }
 
                         shape_sinks.insert(name.clone(), sink_types);

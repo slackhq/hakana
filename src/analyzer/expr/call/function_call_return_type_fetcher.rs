@@ -1,12 +1,12 @@
 use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::{DataFlowNode, NodeKind};
+use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::taint::TaintType;
+use hakana_reflection_info::taint::SinkType;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::StaticClassType;
@@ -417,8 +417,7 @@ fn add_dataflow(
         }
     }
 
-    let mut function_call_node = DataFlowNode::get_for_method_return(
-        NodeKind::Default,
+    let function_call_node = DataFlowNode::get_for_method_return(
         functionlike_id.to_string(),
         if let Some(return_pos) = &functionlike_storage.return_type_location {
             Some(return_pos.clone())
@@ -447,7 +446,6 @@ fn add_dataflow(
 
         for (param_offset, path_kind) in param_offsets {
             let argument_node = DataFlowNode::get_for_method_argument(
-                NodeKind::Default,
                 functionlike_storage.name.clone(),
                 param_offset,
                 if let Some(arg) = expr.2.get(param_offset) {
@@ -488,18 +486,23 @@ fn add_dataflow(
         }
 
         if !functionlike_storage.taint_source_types.is_empty() {
-            function_call_node.taints = Some(functionlike_storage.taint_source_types.clone());
-            data_flow_graph.add_source(function_call_node.clone());
-        } else {
-            data_flow_graph.add_node(function_call_node.clone());
+            let function_call_node_source = DataFlowNode::TaintSource {
+                id: function_call_node.get_id().clone(),
+                label: function_call_node.get_label().clone(),
+                pos: function_call_node.get_pos().clone(),
+                types: functionlike_storage.taint_source_types.clone(),
+            };
+            data_flow_graph.add_node(function_call_node_source);
         }
+
+        data_flow_graph.add_node(function_call_node.clone());
     } else {
         data_flow_graph.add_node(function_call_node.clone());
     }
 
     stmt_type
         .parent_nodes
-        .insert(function_call_node.id.clone(), function_call_node);
+        .insert(function_call_node.get_id().clone(), function_call_node);
 
     stmt_type
 }
@@ -513,7 +516,9 @@ fn get_special_argument_nodes(
             | "print_r"
             | "highlight_string"
             | "strtolower"
+            | "HH\\Lib\\Str\\lowercase"
             | "strtoupper"
+            | "HH\\Lib\\Str\\uppercase"
             | "trim"
             | "ltrim"
             | "rtrim"
@@ -557,13 +562,29 @@ fn get_special_argument_nodes(
             | "json_encode"
             | "json_decode"
             | "base64_encode"
-            | "base64_decode" => (vec![(0, PathKind::Default)], None),
+            | "base64_decode"
+            | "HH\\Lib\\Dict\\filter"
+            | "HH\\Lib\\Dict\\filter_async"
+            | "HH\\Lib\\Dict\\filter_keys"
+            | "HH\\Lib\\Dict\\filter_nulls"
+            | "HH\\Lib\\Dict\\filter_with_key"
+            | "HH\\Lib\\Vec\\filter"
+            | "HH\\Lib\\Vec\\filter_async"
+            | "HH\\Lib\\Vec\\filter_nulls"
+            | "HH\\Lib\\Vec\\filter_with_key"
+            | "HH\\Lib\\Keyset\\filter"
+            | "HH\\Lib\\Keyset\\filter_async"
+            | "HH\\Lib\\Vec\\slice"
+            | "HH\\Lib\\Str\\slice" => (vec![(0, PathKind::Default)], None),
             "var_dump" | "printf" => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
             "sscanf" | "substr_replace" => {
                 (vec![(0, PathKind::Default), (1, PathKind::Default)], None)
             }
             "str_replace" | "str_ireplace" | "preg_filter" | "preg_replace" => {
                 (vec![(1, PathKind::Default), (2, PathKind::Default)], None)
+            }
+            "HH\\Lib\\Str\\replace" | "HH\\Lib\\Str\\replace_ci" => {
+                (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
             }
             "str_pad" | "chunk_split" => {
                 (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
@@ -585,7 +606,7 @@ fn get_special_argument_nodes(
                 )],
                 None,
             ),
-            "str_split" => (
+            "str_split" | "HH\\Lib\\Str\\split" | "HH\\Lib\\Str\\chunk" => (
                 vec![(
                     0,
                     PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),
@@ -603,17 +624,66 @@ fn get_special_argument_nodes(
                 ],
                 None,
             ),
-            "HH\\Lib\\Vec\\map" | "HH\\Lib\\Dict\\map" | "HH\\Lib\\Keyset\\map" => (
+            "HH\\Lib\\Vec\\map"
+            | "HH\\Lib\\Dict\\map"
+            | "HH\\Lib\\Keyset\\map"
+            | "HH\\Lib\\Vec\\map_async"
+            | "HH\\Lib\\Dict\\map_async"
+            | "HH\\Lib\\Keyset\\map_async" => (
                 vec![(
                     1,
                     PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),
                 )],
                 None,
             ),
-            "HH\\Lib\\Vec\\filter" | "HH\\Lib\\Dict\\filter" | "HH\\Lib\\Keyset\\filter" => {
-                (vec![(0, PathKind::Default)], None)
+            "HH\\Lib\\C\\first" | "HH\\Lib\\C\\firstx" | "HH\\Lib\\C\\last"
+            | "HH\\Lib\\C\\lastx" | "HH\\Lib\\C\\onlyx" | "HH\\Lib\\C\\find"
+            | "HH\\Lib\\C\\findx" => (
+                vec![(
+                    0,
+                    PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayValue),
+                )],
+                None,
+            ),
+            "HH\\Lib\\C\\first_key"
+            | "HH\\Lib\\C\\first_keyx"
+            | "HH\\Lib\\C\\last_key"
+            | "HH\\Lib\\C\\last_keyx"
+            | "HH\\Lib\\C\\find_key" => (
+                vec![(
+                    0,
+                    PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayKey),
+                )],
+                None,
+            ),
+            "HH\\Lib\\Dict\\merge" | "HH\\Lib\\Vec\\concat" | "HH\\Lib\\Keyset\\union" => {
+                (vec![(0, PathKind::Default)], Some(PathKind::Default))
             }
-            _ => (vec![], None),
+            "HH\\Lib\\C\\contains"
+            | "HH\\Lib\\C\\contains_key"
+            | "HH\\Lib\\Str\\is_empty"
+            | "HH\\Lib\\Str\\contains"
+            | "HH\\Lib\\Str\\contains_ci"
+            | "HH\\Lib\\Str\\compare"
+            | "HH\\Lib\\Str\\compare_ci"
+            | "HH\\Lib\\Str\\starts_with"
+            | "HH\\Lib\\Str\\starts_with_ci"
+            | "HH\\Lib\\Str\\ends_with"
+            | "HH\\Lib\\Str\\ends_with_ci"
+            | "HH\\Lib\\C\\is_empty"
+            | "HH\\Lib\\Str\\length"
+            | "HH\\Lib\\C\\count"
+            | "HH\\Lib\\C\\any"
+            | "HH\\Lib\\C\\every"
+            | "HH\\Lib\\C\\search" => (vec![], None),
+            _ => {
+                // if function_name.starts_with("HH\\Lib\\")
+                //     && !function_name.starts_with("HH\\Lib\\Math\\")
+                // {
+                //     println!("no taints through {}", function_name);
+                // }
+                (vec![], None)
+            }
         },
         FunctionLikeIdentifier::Method(_, _) => panic!(),
     }
@@ -621,13 +691,13 @@ fn get_special_argument_nodes(
 
 fn get_special_added_removed_taints(
     functionlike_id: &FunctionLikeIdentifier,
-) -> FxHashMap<usize, (FxHashSet<TaintType>, FxHashSet<TaintType>)> {
+) -> FxHashMap<usize, (FxHashSet<SinkType>, FxHashSet<SinkType>)> {
     match functionlike_id {
         FunctionLikeIdentifier::Function(function_name) => match function_name.as_str() {
             "html_entity_decode" | "htmlspecialchars_decode" => FxHashMap::from_iter([(
                 0,
                 (
-                    FxHashSet::from_iter([TaintType::HtmlTag]),
+                    FxHashSet::from_iter([SinkType::HtmlTag]),
                     FxHashSet::default(),
                 ),
             )]),
@@ -635,7 +705,7 @@ fn get_special_added_removed_taints(
                 0,
                 (
                     FxHashSet::default(),
-                    FxHashSet::from_iter([TaintType::HtmlTag]),
+                    FxHashSet::from_iter([SinkType::HtmlTag]),
                 ),
             )]),
             _ => FxHashMap::default(),

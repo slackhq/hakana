@@ -1,1 +1,1 @@
-ERROR: TaintedData - input.hack:5:6 - Detected tainted HTML tags in path $_GET --ExpressionFetch(ArrayValue, "name")--> $_GET['name'] (input.hack:2:12) --Default--> getName() (input.hack:1:22) --Default--> call to echo (input.hack:5:6) --Default--> echo#1
+ERROR: TaintedData - input.hack:5:6 - Data from a URL query string found its way to an HTML tag using path $_GET --ExpressionFetch(ArrayValue, "name")--> $_GET['name'] (input.hack:2:12) --Default--> getName() (input.hack:1:22) --Default--> call to echo (input.hack:5:6) --Default--> echo#1

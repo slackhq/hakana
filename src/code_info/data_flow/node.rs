@@ -1,36 +1,59 @@
-use crate::{code_location::HPos, taint::TaintType};
+use core::panic;
+
+use crate::{
+    code_location::HPos,
+    taint::{SinkType, SourceType},
+};
 use function_context::method_identifier::MethodIdentifier;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum NodeKind {
-    TaintSource,
-    TaintSink,
+pub enum VariableSourceKind {
     Default,
     PrivateParam,
     NonPrivateParam,
+    InoutParam,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DataFlowNode {
-    pub kind: NodeKind,
-    pub id: String,
-    pub unspecialized_id: Option<String>,
-    pub label: String,
-    pub pos: Option<HPos>,
-    pub specialization_key: Option<String>,
-    pub taints: Option<FxHashSet<TaintType>>,
+pub enum DataFlowNode {
+    Vertex {
+        id: String,
+        unspecialized_id: Option<String>,
+        label: String,
+        pos: Option<HPos>,
+        specialization_key: Option<String>,
+    },
+    VariableUseSource {
+        kind: VariableSourceKind,
+        id: String,
+        pos: HPos,
+    },
+    VariableUseSink {
+        id: String,
+        pos: HPos,
+    },
+    TaintSource {
+        id: String,
+        label: String,
+        pos: Option<HPos>,
+        types: FxHashSet<SourceType>,
+    },
+    TaintSink {
+        id: String,
+        label: String,
+        pos: Option<HPos>,
+        types: FxHashSet<SinkType>,
+    },
 }
 
 impl DataFlowNode {
     pub fn new(
-        kind: NodeKind,
         id: String,
         label: String,
         pos: Option<HPos>,
         specialization_key: Option<String>,
-        taints: Option<FxHashSet<TaintType>>,
     ) -> Self {
         let mut id = id;
         let mut unspecialized_id = None;
@@ -41,19 +64,16 @@ impl DataFlowNode {
             id += specialization_key.as_str();
         }
 
-        Self {
-            kind,
+        DataFlowNode::Vertex {
             id,
             unspecialized_id,
             label,
             pos,
             specialization_key,
-            taints,
         }
     }
 
     pub fn get_for_method_argument(
-        kind: NodeKind,
         method_id: String,
         argument_offset: usize,
         arg_location: Option<HPos>,
@@ -67,14 +87,24 @@ impl DataFlowNode {
             specialization_key = Some(format!("{}:{}", pos.file_path, pos.start_offset));
         }
 
-        Self::new(
-            kind,
-            arg_id.clone(),
-            arg_id,
-            arg_location,
-            specialization_key,
-            None,
-        )
+        Self::new(arg_id.clone(), arg_id, arg_location, specialization_key)
+    }
+
+    pub fn get_for_method_argument_out(
+        method_id: String,
+        argument_offset: usize,
+        arg_location: Option<HPos>,
+        pos: Option<HPos>,
+    ) -> Self {
+        let arg_id = "out ".to_string() + method_id.as_str() + "#" + (argument_offset + 1).to_string().as_str();
+
+        let mut specialization_key = None;
+
+        if let Some(pos) = pos {
+            specialization_key = Some(format!("{}:{}", pos.file_path, pos.start_offset));
+        }
+
+        Self::new(arg_id.clone(), arg_id, arg_location, specialization_key)
     }
 
     pub fn get_for_this_before_method(
@@ -90,14 +120,7 @@ impl DataFlowNode {
             specialization_key = Some(format!("{}:{}", pos.file_path, pos.start_offset));
         }
 
-        DataFlowNode::new(
-            NodeKind::Default,
-            label.clone(),
-            label,
-            method_location,
-            specialization_key,
-            None,
-        )
+        DataFlowNode::new(label.clone(), label, method_location, specialization_key)
     }
 
     pub fn get_for_this_after_method(
@@ -113,21 +136,10 @@ impl DataFlowNode {
             specialization_key = Some(format!("{}:{}", pos.file_path, pos.start_offset));
         }
 
-        DataFlowNode::new(
-            NodeKind::Default,
-            label.clone(),
-            label,
-            method_location,
-            specialization_key,
-            None,
-        )
+        DataFlowNode::new(label.clone(), label, method_location, specialization_key)
     }
 
-    pub fn get_for_assignment(
-        var_id: String,
-        assignment_location: HPos,
-        specialization_key: Option<String>,
-    ) -> Self {
+    pub fn get_for_assignment(var_id: String, assignment_location: HPos) -> Self {
         let id = format!(
             "{}-{}:{}-{}",
             var_id,
@@ -136,29 +148,36 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::new(
-            NodeKind::Default,
+        Self::new(id, var_id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_composition(assignment_location: HPos) -> Self {
+        let id = format!(
+            "composition-{}:{}-{}",
+            assignment_location.file_path,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        Self::new(id.clone(), id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_variable_sink(label: String, assignment_location: HPos) -> Self {
+        let id = format!(
+            "{}-{}:{}-{}",
+            label,
+            assignment_location.file_path,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        Self::VariableUseSink {
             id,
-            var_id,
-            Some(assignment_location),
-            specialization_key,
-            None,
-        )
+            pos: assignment_location,
+        }
     }
 
-    pub fn get_for_param(var_id: String, kind: NodeKind, assignment_location: HPos) -> Self {
-        let id = format!(
-            "{}-{}:{}-{}",
-            var_id,
-            assignment_location.file_path,
-            assignment_location.start_offset,
-            assignment_location.end_offset
-        );
-
-        Self::new(kind, id, var_id, Some(assignment_location), None, None)
-    }
-
-    pub fn get_for_variable_use(label: String, assignment_location: HPos) -> Self {
+    pub fn get_for_variable_source(label: String, assignment_location: HPos) -> Self {
         let id = format!(
             "{}-{}:{}-{}",
             label,
@@ -167,18 +186,14 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::new(
-            NodeKind::Default,
+        Self::VariableUseSource {
+            kind: VariableSourceKind::Default,
             id,
-            label,
-            Some(assignment_location),
-            None,
-            None,
-        )
+            pos: assignment_location,
+        }
     }
 
     pub fn get_for_method_return(
-        kind: NodeKind,
         method_id: String,
         pos: Option<HPos>,
         function_location: Option<HPos>,
@@ -194,23 +209,53 @@ impl DataFlowNode {
         }
 
         Self::new(
-            kind,
             method_id.clone(),
             format!("{}()", method_id),
             pos,
             specialization_key,
-            None,
         )
     }
 
     pub fn get_for_method_reference(method_id: String, pos: HPos) -> Self {
         Self::new(
-            NodeKind::Default,
             format!("fnref-{}", method_id),
             format!("{}()", method_id),
             Some(pos),
             None,
-            None,
         )
+    }
+
+    #[inline]
+    pub fn get_id(&self) -> &String {
+        match self {
+            DataFlowNode::Vertex { id, .. }
+            | DataFlowNode::TaintSource { id, .. }
+            | DataFlowNode::TaintSink { id, .. }
+            | DataFlowNode::VariableUseSource { id, .. }
+            | DataFlowNode::VariableUseSink { id, .. } => id,
+        }
+    }
+
+    #[inline]
+    pub fn get_label(&self) -> &String {
+        match self {
+            DataFlowNode::Vertex { label, .. }
+            | DataFlowNode::TaintSource { label, .. }
+            | DataFlowNode::TaintSink { label, .. }
+            | DataFlowNode::VariableUseSource { id: label, .. }
+            | DataFlowNode::VariableUseSink { id: label, .. } => label,
+        }
+    }
+
+    #[inline]
+    pub fn get_pos(&self) -> &Option<HPos> {
+        match self {
+            DataFlowNode::Vertex { pos, .. }
+            | DataFlowNode::TaintSource { pos, .. }
+            | DataFlowNode::TaintSink { pos, .. } => pos,
+            DataFlowNode::VariableUseSource { .. } | DataFlowNode::VariableUseSink { .. } => {
+                panic!()
+            }
+        }
     }
 }

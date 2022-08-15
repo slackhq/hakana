@@ -49,7 +49,7 @@ pub(crate) fn analyze(
             i,
             value_expr,
         ) {
-            parent_nodes.insert(new_parent_node.id.clone(), new_parent_node);
+            parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node);
         }
 
         known_items.insert(i, (false, value_item_type));
@@ -91,7 +91,6 @@ fn add_tuple_value_dataflow(
     let new_parent_node = DataFlowNode::get_for_assignment(
         node_name,
         statements_analyzer.get_hpos(value.pos()),
-        None,
     );
     tast_info.data_flow_graph.add_node(new_parent_node.clone());
 

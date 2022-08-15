@@ -629,7 +629,10 @@ impl TUnion {
     pub fn get_single_literal_string_value(&self) -> Option<String> {
         if self.is_single() {
             match self.get_single() {
-                TAtomic::TLiteralString { value, .. } => Some(value.clone()),
+                TAtomic::TLiteralString { value, .. } | TAtomic::TRegexPattern { value, .. } => {
+                    Some(value.clone())
+                }
+
                 _ => None,
             }
         } else {

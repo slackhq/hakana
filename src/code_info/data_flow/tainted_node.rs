@@ -1,24 +1,25 @@
-use super::{
-    node::{DataFlowNode, NodeKind},
-    path::PathKind,
-};
+use super::{node::DataFlowNode, path::PathKind};
 
+use core::panic;
 use std::{collections::BTreeSet, rc::Rc};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
-use crate::{code_location::HPos, taint::TaintType};
+use crate::{
+    code_location::HPos,
+    taint::{self, SinkType, SourceType},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaintedNode {
-    pub kind: NodeKind,
     pub id: String,
     pub unspecialized_id: Option<String>,
     pub label: String,
     pub pos: Option<Rc<HPos>>,
     pub specialization_key: Option<String>,
-    pub taints: FxHashSet<TaintType>,
+    pub taint_sources: FxHashSet<SourceType>,
+    pub taint_sinks: FxHashSet<SinkType>,
     pub previous: Option<Rc<TaintedNode>>,
     pub path_types: Vec<PathKind>,
     pub specialized_calls: FxHashMap<String, FxHashSet<String>>,
@@ -56,22 +57,91 @@ impl TaintedNode {
         source_descriptor
     }
 
+    pub fn get_taint_sources(&self) -> &FxHashSet<SourceType> {
+        if let Some(previous_source) = &self.previous {
+            return previous_source.get_taint_sources();
+        }
+
+        return &self.taint_sources;
+    }
+
     pub fn from(node: &DataFlowNode) -> Self {
-        TaintedNode {
-            kind: node.kind.clone(),
-            id: node.id.clone(),
-            unspecialized_id: node.unspecialized_id.clone(),
-            label: node.label.clone(),
-            pos: if let Some(p) = &node.pos {
-                Some(Rc::new(p.clone()))
-            } else {
-                None
+        match node {
+            DataFlowNode::Vertex {
+                id,
+                unspecialized_id,
+                label,
+                pos,
+                specialization_key,
+            } => TaintedNode {
+                id: id.clone(),
+                unspecialized_id: unspecialized_id.clone(),
+                label: label.clone(),
+                pos: if let Some(p) = &pos {
+                    Some(Rc::new(p.clone()))
+                } else {
+                    None
+                },
+                specialization_key: specialization_key.clone(),
+                taint_sinks: FxHashSet::default(),
+                previous: None,
+                path_types: Vec::new(),
+                specialized_calls: FxHashMap::default(),
+                taint_sources: FxHashSet::default(),
             },
-            specialization_key: node.specialization_key.clone(),
-            taints: node.taints.clone().unwrap_or(FxHashSet::default()),
-            previous: None,
-            path_types: Vec::new(),
-            specialized_calls: FxHashMap::default(),
+            DataFlowNode::TaintSource {
+                id,
+                label,
+                pos,
+                types,
+            } => {
+                let mut sinks = FxHashSet::default();
+
+                for source_type in types {
+                    sinks.extend(taint::get_sinks_for_sources(source_type));
+                }
+
+                TaintedNode {
+                    id: id.clone(),
+                    unspecialized_id: None,
+                    label: label.clone(),
+                    pos: if let Some(p) = &pos {
+                        Some(Rc::new(p.clone()))
+                    } else {
+                        None
+                    },
+                    specialization_key: None,
+                    taint_sinks: sinks,
+                    previous: None,
+                    path_types: Vec::new(),
+                    specialized_calls: FxHashMap::default(),
+                    taint_sources: types.clone(),
+                }
+            }
+            DataFlowNode::TaintSink {
+                id,
+                label,
+                pos,
+                types,
+            } => TaintedNode {
+                id: id.clone(),
+                unspecialized_id: None,
+                label: label.clone(),
+                pos: if let Some(p) = &pos {
+                    Some(Rc::new(p.clone()))
+                } else {
+                    None
+                },
+                specialization_key: None,
+                taint_sinks: types.clone(),
+                taint_sources: FxHashSet::default(),
+                previous: None,
+                path_types: Vec::new(),
+                specialized_calls: FxHashMap::default(),
+            },
+            _ => {
+                panic!();
+            }
         }
     }
 
@@ -89,7 +159,7 @@ impl TaintedNode {
             + "|";
 
         for taint_type in self
-            .taints
+            .taint_sinks
             .iter()
             .map(|t| t.to_string())
             .collect::<BTreeSet<_>>()

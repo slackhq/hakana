@@ -14,8 +14,8 @@ use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
-use hakana_reflection_info::data_flow::node::{DataFlowNode, NodeKind};
-use hakana_reflection_info::data_flow::path::PathKind;
+use hakana_reflection_info::data_flow::node::{DataFlowNode, VariableSourceKind};
+use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
@@ -213,7 +213,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 );
 
                 this_type.parent_nodes =
-                    FxHashMap::from_iter([(new_call_node.id.clone(), new_call_node)]);
+                    FxHashMap::from_iter([(new_call_node.get_id().clone(), new_call_node)]);
             }
 
             context
@@ -575,47 +575,86 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             if let Some(param_pos) = &param.location {
-                let new_parent_node = DataFlowNode::get_for_param(
-                    param.name.clone(),
-                    if let Some(method_storage) = &functionlike_storage.method_info {
-                        match &method_storage.visibility {
-                            MemberVisibility::Public | MemberVisibility::Protected => {
-                                NodeKind::NonPrivateParam
-                            }
-                            MemberVisibility::Private => NodeKind::PrivateParam,
-                        }
-                    } else {
-                        NodeKind::PrivateParam
-                    },
-                    param_pos.clone(),
-                );
+                let new_parent_node = if tast_info.data_flow_graph.kind == GraphKind::Taint {
+                    DataFlowNode::get_for_assignment(param.name.clone(), param_pos.clone())
+                } else {
+                    let id = format!(
+                        "{}-{}:{}-{}",
+                        param.name,
+                        param_pos.file_path,
+                        param_pos.start_offset,
+                        param_pos.end_offset
+                    );
 
-                // todo for actual taint analysis this should flow into the object property
+                    DataFlowNode::VariableUseSource {
+                        kind: if param.is_inout {
+                            VariableSourceKind::InoutParam
+                        } else {
+                            if let Some(method_storage) = &functionlike_storage.method_info {
+                                match &method_storage.visibility {
+                                    MemberVisibility::Public | MemberVisibility::Protected => {
+                                        VariableSourceKind::NonPrivateParam
+                                    }
+                                    MemberVisibility::Private => VariableSourceKind::PrivateParam,
+                                }
+                            } else {
+                                VariableSourceKind::PrivateParam
+                            }
+                        },
+                        id,
+                        pos: param_pos.clone(),
+                    }
+                };
+
                 if !param.promoted_property {
                     if tast_info.data_flow_graph.kind == GraphKind::Variable {
-                        tast_info
-                            .data_flow_graph
-                            .add_source(new_parent_node.clone());
-                    }
-                }
-
-                if param.is_inout {
-                    if tast_info.data_flow_graph.kind == GraphKind::Variable {
-                        tast_info.data_flow_graph.add_sink(new_parent_node.clone());
-                    } else {
                         tast_info.data_flow_graph.add_node(new_parent_node.clone());
                     }
+                } else if tast_info.data_flow_graph.kind == GraphKind::Taint {
+                    let var_node = DataFlowNode::get_for_assignment(
+                        "$this".to_string(),
+                        param_pos.clone(),
+                    );
 
+                    tast_info.data_flow_graph.add_node(var_node.clone());
+
+                    let property_node = DataFlowNode::get_for_assignment(
+                        format!("$this->{}", param.name[1..].to_string()),
+                        param_pos.clone(),
+                    );
+
+                    tast_info.data_flow_graph.add_node(property_node.clone());
                     tast_info.data_flow_graph.add_path(
-                        &new_parent_node,
-                        &new_parent_node,
-                        PathKind::Inout,
+                        &property_node,
+                        &var_node,
+                        PathKind::ExpressionAssignment(
+                            PathExpressionKind::Property,
+                            param.name.clone(),
+                        ),
                         None,
                         None,
                     );
-                } else {
-                    tast_info.data_flow_graph.add_node(new_parent_node.clone());
+
+                    tast_info.data_flow_graph.add_path(
+                        &new_parent_node,
+                        &property_node,
+                        PathKind::Default,
+                        None,
+                        None,
+                    );
+
+                    let stmt_var_type = context.vars_in_scope.get_mut(&"$this".to_string());
+                    if let Some(stmt_var_type) = stmt_var_type {
+                        let mut stmt_type_inner = (**stmt_var_type).clone();
+
+                        stmt_type_inner.parent_nodes =
+                            FxHashMap::from_iter([(var_node.get_id().clone(), var_node.clone())]);
+
+                        *stmt_var_type = Rc::new(stmt_type_inner);
+                    }
                 }
+
+                tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
                 if tast_info.data_flow_graph.kind == GraphKind::Taint {
                     let calling_id =
@@ -630,7 +669,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         };
 
                     let argument_node = DataFlowNode::get_for_method_argument(
-                        NodeKind::Default,
                         calling_id.to_string(),
                         i,
                         param.location.clone(),
@@ -650,7 +688,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                 param_type
                     .parent_nodes
-                    .insert(new_parent_node.id.clone(), new_parent_node);
+                    .insert(new_parent_node.get_id().clone(), new_parent_node);
 
                 let config = statements_analyzer.get_config();
 
@@ -685,41 +723,51 @@ fn report_unused_expressions(
     let mut unused_variable_nodes = vec![];
 
     for node in &unused_source_nodes {
-        if node.label.starts_with("$_") {
-            continue;
-        }
+        match node {
+            DataFlowNode::VariableUseSource { kind, id, pos } => {
+                if id.starts_with("$_") {
+                    continue;
+                }
 
-        if let Some(pos) = &node.pos {
-            match &node.kind {
-                NodeKind::PrivateParam => {
-                    if config.allow_issue_kind_in_file(&IssueKind::UnusedParameter, &pos.file_path)
-                    {
-                        tast_info.maybe_add_issue(Issue::new(
-                            IssueKind::UnusedParameter,
-                            "Unused param ".to_string() + node.label.as_str(),
-                            pos.clone(),
-                        ));
-                    }
-                }
-                NodeKind::NonPrivateParam => {
-                    // todo register public/private param
-                }
-                NodeKind::Default => {
-                    if config.allow_issue_kind_in_file(&IssueKind::UnusedVariable, &pos.file_path) {
-                        if config.issues_to_fix.contains(&IssueKind::UnusedVariable) {
-                            unused_variable_nodes.push(node.clone());
-                        } else {
+                match &kind {
+                    VariableSourceKind::PrivateParam => {
+                        if config
+                            .allow_issue_kind_in_file(&IssueKind::UnusedParameter, &pos.file_path)
+                        {
                             tast_info.maybe_add_issue(Issue::new(
-                                IssueKind::UnusedVariable,
-                                "Unused variable ".to_string() + node.label.as_str(),
+                                IssueKind::UnusedParameter,
+                                "Unused param ".to_string() + id.as_str(),
                                 pos.clone(),
                             ));
                         }
                     }
+                    VariableSourceKind::NonPrivateParam => {
+                        // todo register public/private param
+                    }
+                    VariableSourceKind::Default => {
+                        if config
+                            .allow_issue_kind_in_file(&IssueKind::UnusedVariable, &pos.file_path)
+                        {
+                            if config.issues_to_fix.contains(&IssueKind::UnusedVariable) {
+                                unused_variable_nodes.push(node.clone());
+                            } else {
+                                tast_info.maybe_add_issue(Issue::new(
+                                    IssueKind::UnusedVariable,
+                                    "Unused variable ".to_string() + id.as_str(),
+                                    pos.clone(),
+                                ));
+                            }
+                        }
+                    }
+                    VariableSourceKind::InoutParam => {
+                        // do nothing
+                    }
                 }
-                _ => {}
             }
-        }
+            _ => {
+                panic!()
+            }
+        };
     }
 
     if !unused_variable_nodes.is_empty() {

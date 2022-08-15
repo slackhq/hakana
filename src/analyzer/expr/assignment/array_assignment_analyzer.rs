@@ -101,10 +101,9 @@ pub(crate) fn analyze(
             if let aast::Expr_::Lvar(_) = &root_array_expr.2 {
                 tast_info
                     .data_flow_graph
-                    .add_source(DataFlowNode::get_for_assignment(
+                    .add_node(DataFlowNode::get_for_variable_source(
                         root_var_id.clone(),
                         statements_analyzer.get_hpos(root_array_expr.pos()),
-                        None,
                     ));
             }
         }
@@ -343,7 +342,6 @@ fn add_array_assignment_dataflow(
     let parent_node = DataFlowNode::get_for_assignment(
         var_var_id.unwrap_or("array-assignment".to_string()),
         statements_analyzer.get_hpos(expr_var_pos),
-        None,
     );
 
     tast_info.data_flow_graph.add_node(parent_node.clone());
@@ -351,7 +349,7 @@ fn add_array_assignment_dataflow(
     let old_parent_nodes = parent_expr_type.parent_nodes.clone();
 
     parent_expr_type.parent_nodes =
-        FxHashMap::from_iter([(parent_node.id.clone(), parent_node.clone())]);
+        FxHashMap::from_iter([(parent_node.get_id().clone(), parent_node.clone())]);
 
     for (_, old_parent_node) in old_parent_nodes {
         tast_info.data_flow_graph.add_path(

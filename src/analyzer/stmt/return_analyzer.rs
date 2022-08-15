@@ -3,7 +3,7 @@ use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
     data_flow::{
         graph::{DataFlowGraph, GraphKind},
-        node::{DataFlowNode, NodeKind},
+        node::DataFlowNode,
         path::PathKind,
     },
     functionlike_info::FunctionLikeInfo,
@@ -377,14 +377,24 @@ pub(crate) fn handle_inout_at_return(
     tast_info: &mut TastInfo,
     _return_pos: Option<&Pos>,
 ) {
-    for param in &functionlike_storage.params {
+    for (i, param) in functionlike_storage.params.iter().enumerate() {
         if param.is_inout {
             if let Some(context_type) = context.vars_in_scope.get(&param.name) {
-                let new_parent_node = DataFlowNode::get_for_assignment(
-                    param.name.clone(),
-                    param.location.clone().unwrap(),
-                    None,
-                );
+                if tast_info.data_flow_graph.kind == GraphKind::Taint {}
+                let new_parent_node = if tast_info.data_flow_graph.kind == GraphKind::Taint {
+                    DataFlowNode::get_for_method_argument_out(
+                        context.function_context.calling_functionlike_id.clone().unwrap().to_string(),
+                        i,
+                        Some(param.location.clone().unwrap()),
+                        None
+                    )
+                } else {
+                    DataFlowNode::get_for_variable_sink(
+                        "out ".to_string() + param.name.as_str(),
+                        param.location.clone().unwrap(),
+                    )
+                };
+
                 tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
                 for (_, parent_node) in &context_type.parent_nodes {
@@ -410,8 +420,8 @@ fn handle_dataflow(
     method_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    if let GraphKind::Variable = data_flow_graph.kind {
-        let return_node = DataFlowNode::get_for_variable_use(
+    if data_flow_graph.kind == GraphKind::Variable {
+        let return_node = DataFlowNode::get_for_variable_sink(
             "return".to_string(),
             statements_analyzer.get_hpos(return_expr.pos()),
         );
@@ -419,7 +429,7 @@ fn handle_dataflow(
         for (_, parent_node) in &inferred_type.parent_nodes {
             data_flow_graph.add_path(&parent_node, &return_node, PathKind::Default, None, None);
         }
-        data_flow_graph.add_sink(return_node);
+        data_flow_graph.add_node(return_node);
     } else {
         if !inferred_type.has_taintable_value() {
             return;
@@ -442,7 +452,6 @@ fn handle_dataflow(
         }
 
         let method_node = DataFlowNode::get_for_method_return(
-            NodeKind::Default,
             method_id.as_ref().unwrap().to_string(),
             functionlike_storage.return_type_location.clone(),
             None,

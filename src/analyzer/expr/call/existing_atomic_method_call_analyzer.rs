@@ -207,7 +207,6 @@ pub(crate) fn analyze(
                 let assignment_node = DataFlowNode::get_for_assignment(
                     expr_var_id.clone(),
                     statements_analyzer.get_hpos(&call_expr.1[0].1.pos()),
-                    None,
                 );
 
                 for (_, parent_node) in &expr_type.parent_nodes {
@@ -221,7 +220,7 @@ pub(crate) fn analyze(
                 }
 
                 new_type.parent_nodes =
-                    FxHashMap::from_iter([(assignment_node.id.clone(), assignment_node.clone())]);
+                    FxHashMap::from_iter([(assignment_node.get_id().clone(), assignment_node.clone())]);
 
                 tast_info.data_flow_graph.add_node(assignment_node);
 

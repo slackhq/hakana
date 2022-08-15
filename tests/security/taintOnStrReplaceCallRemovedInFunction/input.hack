@@ -1,5 +1,5 @@
 class U {
-    <<\Hakana\SecurityAnalysis\Sanitize("html")>>
+    <<\Hakana\SecurityAnalysis\Sanitize('HtmlTag')>>
     public static function shorten(string $s)[]: string {
         return str_replace("foo", "bar", $s);
     }

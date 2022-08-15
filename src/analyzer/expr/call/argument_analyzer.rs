@@ -8,13 +8,13 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::{DataFlowNode, NodeKind};
+use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::taint::{string_to_taints, TaintType};
+use hakana_reflection_info::taint::{string_to_sink_types, SinkType};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing};
@@ -525,8 +525,7 @@ fn add_dataflow(
         }
     }
 
-    let mut method_node = DataFlowNode::get_for_method_argument(
-        NodeKind::Default,
+    let method_node = DataFlowNode::get_for_method_argument(
         functionlike_id.to_string(),
         argument_offset,
         if data_flow_graph.kind == GraphKind::Taint {
@@ -553,7 +552,6 @@ fn add_dataflow(
                             if codebase.declaring_method_exists(&dependent_classlike, &method_name)
                             {
                                 let new_sink = DataFlowNode::get_for_method_argument(
-                                    NodeKind::Default,
                                     dependent_classlike.clone() + "::" + method_name,
                                     argument_offset,
                                     None,
@@ -584,7 +582,6 @@ fn add_dataflow(
             if let Some(method_id) = functionlike_id.as_method_identifier() {
                 if declaring_method_id != &method_id {
                     let new_sink = DataFlowNode::get_for_method_argument(
-                        NodeKind::Default,
                         declaring_method_id.to_string(),
                         argument_offset,
                         Some(statements_analyzer.get_hpos(input_expr.pos())),
@@ -604,12 +601,6 @@ fn add_dataflow(
             }
         }
     }
-
-    let argument_value_node = DataFlowNode::get_for_assignment(
-        "call to ".to_string() + functionlike_id.to_string().as_str(),
-        statements_analyzer.get_hpos(input_expr.pos()),
-        None,
-    );
 
     // maybe todo prevent numeric types from being tainted
     // ALTHOUGH numbers may still contain PII
@@ -638,8 +629,9 @@ fn add_dataflow(
                         let trimmed_text = trimmed_text[23..].to_string();
 
                         if let Some(bracket_pos) = trimmed_text.find("]") {
-                            removed_taints
-                                .extend(string_to_taints(trimmed_text[..bracket_pos].to_string()));
+                            removed_taints.extend(string_to_sink_types(
+                                trimmed_text[..bracket_pos].to_string(),
+                            ));
                         }
                     }
                 }
@@ -649,6 +641,18 @@ fn add_dataflow(
         removed_taints
     };
     // TODO add plugin hooks for adding/removing taints
+
+    let argument_value_node = if data_flow_graph.kind == GraphKind::Variable {
+        DataFlowNode::VariableUseSink {
+            id: "call to ".to_string() + functionlike_id.to_string().as_str(),
+            pos: statements_analyzer.get_hpos(input_expr.pos()),
+        }
+    } else {
+        DataFlowNode::get_for_assignment(
+            "call to ".to_string() + functionlike_id.to_string().as_str(),
+            statements_analyzer.get_hpos(input_expr.pos()),
+        )
+    };
 
     for (_, parent_node) in &input_type.parent_nodes {
         data_flow_graph.add_path(
@@ -665,7 +669,7 @@ fn add_dataflow(
     }
 
     if data_flow_graph.kind == GraphKind::Variable {
-        data_flow_graph.add_sink(argument_value_node);
+        data_flow_graph.add_node(argument_value_node);
     } else {
         let mut taints = get_argument_taints(functionlike_id, argument_offset);
 
@@ -684,40 +688,41 @@ fn add_dataflow(
         );
 
         if !taints.is_empty() {
-            method_node.taints = Some(taints.into_iter().collect());
-            data_flow_graph.add_sink(method_node);
-        } else {
-            data_flow_graph.add_node(method_node);
+            let method_node_sink = DataFlowNode::TaintSink {
+                id: method_node.get_id().clone(),
+                label: method_node.get_label().clone(),
+                pos: method_node.get_pos().clone(),
+                types: taints.into_iter().collect(),
+            };
+            data_flow_graph.add_node(method_node_sink);
         }
+
+        data_flow_graph.add_node(method_node);
     }
 }
 
-fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) -> Vec<TaintType> {
+fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) -> Vec<SinkType> {
     match function_id {
         FunctionLikeIdentifier::Function(id) => match id.as_str() {
             "echo" | "print" | "var_dump" => {
-                return vec![
-                    TaintType::HtmlTag,
-                    TaintType::UserSecret,
-                    TaintType::InternalSecret,
-                ];
+                return vec![SinkType::HtmlTag];
             }
             "exec" | "passthru" | "pcntl_exec" | "shell_exec" | "system" | "popen"
             | "proc_open" => {
                 if arg_offset == 0 {
-                    return vec![TaintType::Shell];
+                    return vec![SinkType::Shell];
                 }
             }
             "file_get_contents" | "file_put_contents" | "fopen" | "unlink" | "file" | "mkdir"
             | "parse_ini_file" | "chown" | "lchown" | "readfile" | "rmdir" | "symlink"
             | "tempnam" => {
                 if arg_offset == 0 {
-                    return vec![TaintType::FileSystem];
+                    return vec![SinkType::FileSystem];
                 }
             }
             "copy" | "link" | "move_uploaded_file" | "rename" => {
                 if arg_offset == 0 || arg_offset == 1 {
-                    return vec![TaintType::FileSystem];
+                    return vec![SinkType::FileSystem];
                 }
             }
             "header" => {
@@ -727,7 +732,7 @@ fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) 
             }
             "igbinary_unserialize" | "unserialize" => {
                 if arg_offset == 0 {
-                    return vec![TaintType::Unserialize];
+                    return vec![SinkType::Unserialize];
                 }
             }
             // "ldap" => {
@@ -737,17 +742,17 @@ fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) 
             // }
             "setcookie" => {
                 if arg_offset == 0 || arg_offset == 1 {
-                    return vec![TaintType::Cookie];
+                    return vec![SinkType::Cookie];
                 }
             }
             "curl_init" | "getimagesize" => {
                 if arg_offset == 0 {
-                    return vec![TaintType::CurlUri];
+                    return vec![SinkType::CurlUri];
                 }
             }
             "curl_setopt" => {
                 if arg_offset == 2 {
-                    return vec![TaintType::CurlHeader];
+                    return vec![SinkType::CurlHeader];
                 }
             }
             _ => {}
@@ -756,7 +761,7 @@ fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) 
             match (fq_class.as_str(), method_name.as_str()) {
                 ("AsyncMysqlConnection", "query") => {
                     if arg_offset == 0 {
-                        return vec![TaintType::Sql];
+                        return vec![SinkType::Sql];
                     }
                 }
                 _ => {}

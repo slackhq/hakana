@@ -345,9 +345,7 @@ pub(crate) fn scan(
             user_attribute.name.1.clone()
         };
 
-        if name == "Hakana\\SecurityAnalysis\\SpecializeInstance" {
-            storage.specialize_instance = true;
-        }
+        storage.specialize_instance = true;
 
         if name == "Codegen" {
             storage.generated = true;

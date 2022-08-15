@@ -92,7 +92,7 @@ pub(crate) fn analyze(
                 &name.to_string(),
                 value_expr,
             ) {
-                parent_nodes.insert(new_parent_node.id.clone(), new_parent_node);
+                parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node);
             }
 
             known_items.insert(name.to_string(), (false, Arc::new(value_item_type)));
@@ -143,7 +143,6 @@ fn add_shape_value_dataflow(
     let new_parent_node = DataFlowNode::get_for_assignment(
         node_name,
         statements_analyzer.get_hpos(value.pos()),
-        None,
     );
     tast_info.data_flow_graph.add_node(new_parent_node.clone());
 

@@ -185,6 +185,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             if_body_context
                 .reconciled_expression_clauses
                 .extend(partiioned_clauses.1);
+
+            if_body_context.allow_taints = right_context.allow_taints;
         } else {
             context.vars_in_scope = left_context.vars_in_scope;
         }

@@ -8,10 +8,7 @@ use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_type::{combine_optional_union_types, combine_union_types, get_named_object};
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::{
-    collections::BTreeMap,
-    rc::Rc,
-};
+use std::{collections::BTreeMap, rc::Rc};
 
 use super::control_analyzer;
 
@@ -194,12 +191,11 @@ pub(crate) fn analyze(
         let new_parent_node = DataFlowNode::get_for_assignment(
             catch_var_id.clone(),
             statements_analyzer.get_hpos(&catch.1 .0),
-            None,
         );
 
         catch_type
             .parent_nodes
-            .insert(new_parent_node.id.clone(), new_parent_node);
+            .insert(new_parent_node.get_id().clone(), new_parent_node);
 
         catch_context
             .vars_in_scope

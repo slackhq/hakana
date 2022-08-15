@@ -4,7 +4,7 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::{
         graph::GraphKind,
-        node::{DataFlowNode, NodeKind},
+        node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
     issue::{Issue, IssueKind},
@@ -430,51 +430,16 @@ fn add_instance_property_dataflow(
     if let Some(classlike_storage) = codebase.classlike_infos.get(fq_class_name) {
         if classlike_storage.specialize_instance {
             if let Some(lhs_var_id) = lhs_var_id.to_owned() {
-                let var_node = DataFlowNode::get_for_assignment(
-                    lhs_var_id.to_owned(),
-                    statements_analyzer.get_hpos(var_pos),
-                    None,
+                add_instance_property_assignment_dataflow(
+                    statements_analyzer,
+                    tast_info,
+                    lhs_var_id,
+                    var_pos,
+                    name_pos,
+                    property_id,
+                    assignment_value_type,
+                    context,
                 );
-                tast_info.data_flow_graph.add_node(var_node.clone());
-
-                let property_node = DataFlowNode::get_for_assignment(
-                    format!("{}->{}", lhs_var_id, property_id.1),
-                    statements_analyzer.get_hpos(name_pos),
-                    None,
-                );
-                tast_info.data_flow_graph.add_node(property_node.clone());
-
-                tast_info.data_flow_graph.add_path(
-                    &property_node,
-                    &var_node,
-                    PathKind::ExpressionAssignment(
-                        PathExpressionKind::Property,
-                        property_id.1.to_string(),
-                    ),
-                    None,
-                    None,
-                );
-
-                for (_, parent_node) in assignment_value_type.parent_nodes.iter() {
-                    tast_info.data_flow_graph.add_path(
-                        parent_node,
-                        &property_node,
-                        PathKind::Default,
-                        None,
-                        None,
-                    );
-                }
-
-                let stmt_var_type = context.vars_in_scope.get_mut(&lhs_var_id);
-
-                if let Some(stmt_var_type) = stmt_var_type {
-                    let mut stmt_type_inner = (**stmt_var_type).clone();
-
-                    stmt_type_inner.parent_nodes =
-                        FxHashMap::from_iter([(var_node.id.clone(), var_node.clone())]);
-
-                    *stmt_var_type = Rc::new(stmt_type_inner);
-                }
             }
         } else {
             add_unspecialized_property_assignment_dataflow(
@@ -491,6 +456,53 @@ fn add_instance_property_dataflow(
     }
 }
 
+fn add_instance_property_assignment_dataflow(
+    statements_analyzer: &StatementsAnalyzer,
+    tast_info: &mut TastInfo,
+    lhs_var_id: String,
+    var_pos: &Pos,
+    name_pos: &Pos,
+    property_id: &(String, String),
+    assignment_value_type: &TUnion,
+    context: &mut ScopeContext,
+) {
+    let var_node = DataFlowNode::get_for_assignment(
+        lhs_var_id.to_owned(),
+        statements_analyzer.get_hpos(var_pos),
+    );
+    tast_info.data_flow_graph.add_node(var_node.clone());
+    let property_node = DataFlowNode::get_for_assignment(
+        format!("{}->{}", lhs_var_id, property_id.1),
+        statements_analyzer.get_hpos(name_pos),
+    );
+    tast_info.data_flow_graph.add_node(property_node.clone());
+    tast_info.data_flow_graph.add_path(
+        &property_node,
+        &var_node,
+        PathKind::ExpressionAssignment(PathExpressionKind::Property, property_id.1.to_string()),
+        None,
+        None,
+    );
+    for (_, parent_node) in assignment_value_type.parent_nodes.iter() {
+        tast_info.data_flow_graph.add_path(
+            parent_node,
+            &property_node,
+            PathKind::Default,
+            None,
+            None,
+        );
+    }
+    let stmt_var_type = context.vars_in_scope.get_mut(&lhs_var_id);
+    if let Some(stmt_var_type) = stmt_var_type {
+        let mut stmt_type_inner = (**stmt_var_type).clone();
+
+        stmt_type_inner.parent_nodes =
+            FxHashMap::from_iter([(var_node.get_id().clone(), var_node.clone())]);
+
+        *stmt_var_type = Rc::new(stmt_type_inner);
+    }
+}
+
 pub(crate) fn add_unspecialized_property_assignment_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     property_id: &(String, String),
@@ -504,7 +516,6 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     let localized_property_node = DataFlowNode::get_for_assignment(
         format!("{}::${}", property_id.0, property_id.1),
         statements_analyzer.get_hpos(stmt_name_pos),
-        None,
     );
 
     tast_info
@@ -517,14 +528,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         &property_id.1.to_owned()
     );
 
-    let property_node = DataFlowNode::new(
-        NodeKind::Default,
-        property_id_str.clone(),
-        property_id_str,
-        None,
-        None,
-        None,
-    );
+    let property_node = DataFlowNode::new(property_id_str.clone(), property_id_str, None, None);
 
     tast_info.data_flow_graph.add_node(property_node.clone());
     tast_info.data_flow_graph.add_path(
@@ -554,10 +558,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
                 format!("{}::${}", declaring_property_class, property_id.1);
 
             let declaring_property_node = DataFlowNode::new(
-                NodeKind::Default,
                 declaring_property_id_str.clone(),
                 declaring_property_id_str,
-                None,
                 None,
                 None,
             );

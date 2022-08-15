@@ -1,1 +1,1 @@
-ERROR: TaintedData - input.hack:2:31 - Detected tainted curl header
+ERROR: TaintedData - input.hack:2:31 - Data from a URL query string found its way to a curl header

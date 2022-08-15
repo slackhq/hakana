@@ -1,1 +1,1 @@
-ERROR: TaintedData - input.hack:1:19 - Detected tainted data passed to unserialize
+ERROR: TaintedData - input.hack:1:19 - Data from a server request found its way to to unserialize

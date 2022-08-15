@@ -457,7 +457,7 @@ fn add_dataflow<'a>(
     data_flow_graph.add_node(new_call_node.clone());
 
     return_type_candidate.parent_nodes =
-        FxHashMap::from_iter([(new_call_node.id.clone(), new_call_node.clone())]);
+        FxHashMap::from_iter([(new_call_node.get_id().clone(), new_call_node.clone())]);
 
     return_type_candidate
 }

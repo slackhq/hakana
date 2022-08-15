@@ -1,1 +1,1 @@
-ERROR: TaintedData - input.hack:3:10 - Detected tainted shell code
+ERROR: TaintedData - input.hack:3:10 - Data from a URL query string found its way to a shell command

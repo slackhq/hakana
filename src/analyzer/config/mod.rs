@@ -6,7 +6,7 @@ use std::{
 use hakana_reflection_info::{
     data_flow::graph::GraphKind,
     issue::{Issue, IssueKind},
-    taint::TaintType,
+    taint::SinkType,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -129,7 +129,7 @@ impl Config {
         true
     }
 
-    pub fn allow_sink_in_file(&self, taint_type: &TaintType, file: &String) -> bool {
+    pub fn allow_sink_in_file(&self, taint_type: &SinkType, file: &String) -> bool {
         let str_type = taint_type.to_string();
         let file = format!("{}/{}", self.root_dir, file);
 

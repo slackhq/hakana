@@ -1,7 +1,7 @@
 abstract class Validator<+T> {
     <<__LateInit>> private T $input;
 
-    <<\Hakana\SecurityAnalysis\Source('input')>>
+    <<\Hakana\SecurityAnalysis\Source('NonUriRequestHeader')>>
     public function getInput(): T {
         return $this->input;
     }
@@ -39,6 +39,6 @@ class MyHandler extends BHandler {
 
 class B {
     public static function handle(my_args_t $args) {
-        echo $args['a'];
+        $ch = curl_init($args['a']);
     }
 }

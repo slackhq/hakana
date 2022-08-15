@@ -5,7 +5,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::taint::TaintType;
+use hakana_reflection_info::taint::SinkType;
 use hakana_type::get_named_object;
 use oxidized::aast;
 use oxidized::ast_defs;
@@ -126,8 +126,7 @@ fn analyze_xhp_attribute_assignment(
                 if element_name.starts_with("Facebook\\XHP\\HTML\\") {
                     let label = format!("{}::${}", property_id.0, property_id.1);
 
-                    let mut taints =
-                        FxHashSet::from_iter([TaintType::InternalSecret, TaintType::UserSecret]);
+                    let mut taints = FxHashSet::from_iter([SinkType::Logging]);
 
                     if classlike_storage
                         .appearing_property_ids
@@ -160,20 +159,20 @@ fn analyze_xhp_attribute_assignment(
                             || element_name == "Facebook\\XHP\\HTML\\link")
                             && attribute_info.name.1 == "href"
                         {
-                            taints.insert(TaintType::HtmlAttributeUri);
+                            taints.insert(SinkType::HtmlAttributeUri);
                         } else if element_name == "Facebook\\XHP\\HTML\\body"
                             && attribute_info.name.1 == "background"
                         {
-                            taints.insert(TaintType::HtmlAttributeUri);
+                            taints.insert(SinkType::HtmlAttributeUri);
                         } else if element_name == "Facebook\\XHP\\HTML\\form"
                             && attribute_info.name.1 == "action"
                         {
-                            taints.insert(TaintType::HtmlAttributeUri);
+                            taints.insert(SinkType::HtmlAttributeUri);
                         } else if (element_name == "Facebook\\XHP\\HTML\\button"
                             || element_name == "Facebook\\XHP\\HTML\\input")
                             && attribute_info.name.1 == "formaction"
                         {
-                            taints.insert(TaintType::HtmlAttributeUri);
+                            taints.insert(SinkType::HtmlAttributeUri);
                         } else if (element_name == "Facebook\\XHP\\HTML\\iframe"
                             || element_name == "Facebook\\XHP\\HTML\\img"
                             || element_name == "Facebook\\XHP\\HTML\\script"
@@ -182,26 +181,24 @@ fn analyze_xhp_attribute_assignment(
                             || element_name == "Facebook\\XHP\\HTML\\source")
                             && attribute_info.name.1 == "src"
                         {
-                            taints.insert(TaintType::HtmlAttributeUri);
+                            taints.insert(SinkType::HtmlAttributeUri);
                         } else if element_name == "Facebook\\XHP\\HTML\\video"
                             && attribute_info.name.1 == "poster"
                         {
-                            taints.insert(TaintType::HtmlAttributeUri);
+                            taints.insert(SinkType::HtmlAttributeUri);
                         } else {
-                            taints.insert(TaintType::HtmlAttribute);
+                            taints.insert(SinkType::HtmlAttribute);
                         }
                     }
 
-                    let xml_attribute_taint = DataFlowNode::new(
-                        hakana_reflection_info::data_flow::node::NodeKind::Default,
-                        label.clone(),
+                    let xml_attribute_taint = DataFlowNode::TaintSink {
+                        id: label.clone(),
                         label,
-                        None,
-                        None,
-                        Some(taints),
-                    );
+                        pos: None,
+                        types: taints,
+                    };
 
-                    tast_info.data_flow_graph.add_sink(xml_attribute_taint);
+                    tast_info.data_flow_graph.add_node(xml_attribute_taint);
                 }
             }
         }

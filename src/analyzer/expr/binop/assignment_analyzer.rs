@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::expr::assignment::array_assignment_analyzer;
@@ -27,7 +27,7 @@ use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::taint::TaintType;
+use hakana_reflection_info::taint::SinkType;
 use hakana_type::add_union_type;
 use hakana_type::get_literal_int;
 use hakana_type::get_mixed;
@@ -189,12 +189,11 @@ pub(crate) fn analyze(
             let assignment_node = DataFlowNode::get_for_assignment(
                 extended_var_id.clone(),
                 statements_analyzer.get_hpos(assign_var.pos()),
-                None,
             );
 
             assign_value_type
                 .parent_nodes
-                .insert(assignment_node.id.clone(), assignment_node);
+                .insert(assignment_node.get_id().clone(), assignment_node);
         };
     }
 
@@ -322,6 +321,7 @@ fn check_variable_or_property_assignment(
     tast_info: &mut TastInfo,
     assign_var_pos: &Pos,
     var_id: &String,
+    context: &ScopeContext,
 ) -> TUnion {
     if var_type.is_void() {
         // todo (maybe) handle void assignment
@@ -335,7 +335,7 @@ fn check_variable_or_property_assignment(
     }
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
-    if !var_type.parent_nodes.is_empty() {
+    if !var_type.parent_nodes.is_empty() && context.allow_taints {
         // todo create AddRemoveTaintsEvent
         return add_dataflow_to_assignment(
             statements_analyzer,
@@ -468,8 +468,8 @@ pub(crate) fn add_dataflow_to_assignment(
     data_flow_graph: &mut DataFlowGraph,
     var_id: &String,
     var_pos: &Pos,
-    removed_taints: FxHashSet<TaintType>,
-    added_taints: FxHashSet<TaintType>,
+    removed_taints: FxHashSet<SinkType>,
+    added_taints: FxHashSet<SinkType>,
 ) -> TUnion {
     if data_flow_graph.kind == GraphKind::Taint {
         if !assignment_type.has_taintable_value() {
@@ -483,10 +483,9 @@ pub(crate) fn add_dataflow_to_assignment(
     let new_parent_node = DataFlowNode::get_for_assignment(
         var_id.clone(),
         statements_analyzer.get_hpos(var_pos),
-        None,
     );
     data_flow_graph.add_node(new_parent_node.clone());
-    new_parent_nodes.insert(new_parent_node.id.clone(), new_parent_node.clone());
+    new_parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node.clone());
 
     for (_, parent_node) in parent_nodes {
         data_flow_graph.add_path(
@@ -521,17 +520,14 @@ fn analyze_assignment_to_variable(
     context: &mut ScopeContext,
     is_inout: bool,
 ) {
-    let assignment_node = DataFlowNode::get_for_assignment(
-        var_id.clone(),
-        statements_analyzer.get_hpos(var_expr.pos()),
-        None,
-    );
-
     if !is_inout {
         if tast_info.data_flow_graph.kind == GraphKind::Variable {
             tast_info
                 .data_flow_graph
-                .add_source(assignment_node.clone());
+                .add_node(DataFlowNode::get_for_variable_source(
+                    var_id.clone(),
+                    statements_analyzer.get_hpos(var_expr.pos()),
+                ));
         }
     }
 
@@ -541,6 +537,7 @@ fn analyze_assignment_to_variable(
         tast_info,
         var_expr.pos(),
         var_id,
+        &context,
     );
 
     if assign_value_type.get_id() == "bool" {
@@ -614,20 +611,16 @@ fn analyze_assignment_to_variable(
 pub(crate) fn analyze_inout_param(
     statements_analyzer: &StatementsAnalyzer,
     expr: &aast::Expr<(), ()>,
-    arg_type: &TUnion,
-    mut inout_type: TUnion,
+    arg_type: TUnion,
+    inout_type: &TUnion,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) {
-    inout_type
-        .parent_nodes
-        .extend(arg_type.parent_nodes.clone());
-
     if let Ok(_) = analyze(
         statements_analyzer,
         (&ast_defs::Bop::Eq(None), expr, None),
         expr.pos(),
-        Some(&inout_type),
+        Some(inout_type),
         tast_info,
         context,
         true,

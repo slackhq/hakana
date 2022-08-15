@@ -8,4 +8,14 @@ function foo(): void {
         $a = $_GET['a'];
         echo $a;
     }
+
+    if (is_dev() && rand(0, 1)) {
+        $a = $_GET['a'];
+        echo $a;
+    }
+
+    if (rand(0, 1) && is_dev()) {
+        $a = $_GET['a'];
+        echo $a;
+    }
 }

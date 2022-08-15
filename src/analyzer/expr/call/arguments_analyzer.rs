@@ -1,8 +1,11 @@
+use hakana_reflection_info::assertion::Assertion;
+use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::taint::SinkType;
 use rustc_hash::FxHashMap;
 
 use crate::expr::binop::assignment_analyzer;
 use crate::expr::call_analyzer::get_generic_param_for_offset;
-use crate::expr::expression_identifier::get_var_id;
+use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
 use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -417,12 +420,14 @@ pub(crate) fn check_arguments_match(
                     statements_analyzer,
                     tast_info,
                     function_param,
+                    functionlike_id,
                     argument_offset,
                     arg_expr,
                     class_storage,
                     calling_classlike_storage,
                     context,
                     template_result,
+                    function_call_pos,
                 );
             }
         }
@@ -454,6 +459,35 @@ pub(crate) fn check_arguments_match(
             function_call_pos,
         ) {
             return false;
+        }
+
+        if tast_info.data_flow_graph.kind == GraphKind::Taint {
+            if let Some(removed_taints) = &function_param.removed_taints_when_returning_true {
+                if let Some(expr_var_id) = expression_identifier::get_extended_var_id(
+                    arg_expr,
+                    None,
+                    statements_analyzer.get_file_analyzer().get_file_source(),
+                    statements_analyzer.get_file_analyzer().resolved_names,
+                ) {
+                    tast_info.if_true_assertions.insert(
+                        (
+                            function_call_pos.start_offset(),
+                            function_call_pos.end_offset(),
+                        ),
+                        FxHashMap::from_iter([(
+                            "hakana taints".to_string(),
+                            vec![Assertion::RemoveTaints(
+                                expr_var_id,
+                                if removed_taints.is_empty() {
+                                    SinkType::user_controllable_taints()
+                                } else {
+                                    removed_taints.clone()
+                                },
+                            )],
+                        )]),
+                    );
+                }
+            }
         }
     }
 
@@ -744,12 +778,14 @@ fn handle_possibly_matching_inout_param(
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
     functionlike_param: &FunctionLikeParameter,
+    functionlike_id: &FunctionLikeIdentifier,
     argument_offset: usize,
     expr: &aast::Expr<(), ()>,
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     context: &mut ScopeContext,
     template_result: &mut TemplateResult,
+    function_call_pos: &Pos,
 ) -> bool {
     let mut inout_type = functionlike_param
         .signature_type
@@ -822,11 +858,31 @@ fn handle_possibly_matching_inout_param(
         true,
     );
 
+    let arg_type = arg_type.unwrap_or(get_mixed_any());
+
+    if tast_info.data_flow_graph.kind == GraphKind::Taint {
+        let out_node = DataFlowNode::get_for_method_argument_out(
+            functionlike_id.to_string(),
+            argument_offset,
+            functionlike_param.location.clone(),
+            Some(statements_analyzer.get_hpos(function_call_pos)),
+        );
+
+        inout_type.parent_nodes =
+            FxHashMap::from_iter([(out_node.get_id().clone(), out_node.clone())]);
+
+        tast_info.data_flow_graph.add_node(out_node);
+    } else {
+        inout_type
+            .parent_nodes
+            .extend(arg_type.parent_nodes.clone());
+    }
+
     assignment_analyzer::analyze_inout_param(
         statements_analyzer,
         expr,
-        &arg_type.unwrap_or(get_mixed_any()),
-        inout_type,
+        arg_type,
+        &inout_type,
         tast_info,
         context,
     );

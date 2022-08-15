@@ -1,6 +1,10 @@
-use std::collections::BTreeMap;
+use hakana_reflection_info::code_location::HPos;
+use hakana_reflection_info::data_flow::node::VariableSourceKind;
+use hakana_reflection_info::data_flow::path::PathKind;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
+use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -8,9 +12,7 @@ use crate::taint_analyzer::should_ignore_fetch;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::data_flow::node::NodeKind;
 use hakana_reflection_info::data_flow::path::PathExpressionKind;
-use hakana_reflection_info::data_flow::tainted_node::TaintedNode;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
 
@@ -18,14 +20,15 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> Vec<DataFlowNode> {
     let vars = graph
         .sources
         .iter()
-        .filter(|(_, source)| {
-            matches!(
-                source.kind,
-                NodeKind::Default | NodeKind::PrivateParam | NodeKind::NonPrivateParam
-            )
+        .map(|(_, value)| match value {
+            DataFlowNode::VariableUseSource { pos, .. } => (pos.start_offset, value),
+            _ => {
+                panic!()
+            }
         })
-        .map(|(_, value)| (value.pos.clone().unwrap().start_offset, value))
         .collect::<BTreeMap<_, _>>();
+
+    //println!("{:#?}", graph);
 
     let mut unused_nodes = Vec::new();
 
@@ -43,7 +46,7 @@ fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> bool {
 
     let mut sources = FxHashMap::default();
 
-    let source_node = TaintedNode::from(source_node);
+    let source_node = VariableUseNode::from(source_node);
     sources.insert(source_node.id.clone(), source_node.clone());
 
     let mut i = 0;
@@ -77,9 +80,9 @@ fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> bool {
 
 fn get_variable_child_nodes(
     graph: &DataFlowGraph,
-    generated_source: &TaintedNode,
+    generated_source: &VariableUseNode,
     visited_source_ids: &FxHashSet<String>,
-) -> Option<FxHashMap<String, TaintedNode>> {
+) -> Option<FxHashMap<String, VariableUseNode>> {
     let mut new_child_nodes = FxHashMap::default();
 
     if let Some(forward_edges) = graph.forward_edges.get(&generated_source.id) {
@@ -116,17 +119,11 @@ fn get_variable_child_nodes(
                 continue;
             }
 
-            let mut new_destination = TaintedNode {
-                kind: NodeKind::Default,
+            let mut new_destination = VariableUseNode {
                 id: to_id.clone(),
-                unspecialized_id: None,
-                label: to_id.clone(),
-                pos: None,
-                specialization_key: None,
-                taints: FxHashSet::default(),
-                previous: None,
                 path_types: generated_source.clone().path_types,
-                specialized_calls: FxHashMap::default(),
+                kind: generated_source.kind.clone(),
+                pos: generated_source.pos.clone(),
             };
 
             new_destination.path_types.push(path.kind.clone());
@@ -163,10 +160,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         if let aast::Expr_::List(exprs) = &expr.2 {
             for list_expr in exprs {
-                let has_matching_node = self
-                    .unused_variable_nodes
-                    .iter()
-                    .any(|n| n.pos.as_ref().unwrap().start_offset == list_expr.1.start_offset());
+                let has_matching_node = self.unused_variable_nodes.iter().any(|n| match n {
+                    DataFlowNode::VariableUseSource { pos, .. } => {
+                        pos.start_offset == list_expr.1.start_offset()
+                    }
+                    _ => false,
+                });
 
                 if has_matching_node {
                     tast_info.replacements.insert(
@@ -198,10 +197,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             }
         }
 
-        let has_matching_node = self
-            .unused_variable_nodes
-            .iter()
-            .any(|n| n.pos.as_ref().unwrap().start_offset == stmt.0.start_offset());
+        let has_matching_node = self.unused_variable_nodes.iter().any(|n| match n {
+            DataFlowNode::VariableUseSource { pos, .. } => {
+                pos.start_offset == stmt.0.start_offset()
+            }
+            _ => false,
+        });
 
         if has_matching_node {
             if let aast::Stmt_::Expr(boxed) = &stmt.1 {
@@ -284,5 +285,41 @@ pub(crate) fn add_unused_expression_replacements(
 
     for stmt in stmts {
         visit(&mut scanner, tast_info, stmt).unwrap();
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VariableUseNode {
+    pub id: String,
+    pub pos: Rc<HPos>,
+    pub path_types: Vec<PathKind>,
+    pub kind: VariableSourceKind,
+}
+
+impl VariableUseNode {
+    pub fn from(node: &DataFlowNode) -> Self {
+        match node {
+            DataFlowNode::Vertex { id, pos, .. } => Self {
+                id: id.clone(),
+                pos: Rc::new(pos.clone().unwrap()),
+                path_types: Vec::new(),
+                kind: VariableSourceKind::Default,
+            },
+            DataFlowNode::VariableUseSource { kind, id, pos } => Self {
+                id: id.clone(),
+                pos: Rc::new(pos.clone()),
+                path_types: Vec::new(),
+                kind: kind.clone(),
+            },
+            DataFlowNode::VariableUseSink { id, pos } => Self {
+                id: id.clone(),
+                pos: Rc::new(pos.clone()),
+                path_types: Vec::new(),
+                kind: VariableSourceKind::Default,
+            },
+            _ => {
+                panic!();
+            }
+        }
     }
 }

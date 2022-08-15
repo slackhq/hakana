@@ -205,7 +205,6 @@ pub(crate) fn add_array_fetch_dataflow(
             let new_parent_node = DataFlowNode::get_for_assignment(
                 node_name,
                 statements_analyzer.get_hpos(array_expr.pos()),
-                None,
             );
             tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
@@ -234,7 +233,6 @@ pub(crate) fn add_array_fetch_dataflow(
                     let fetch_node = DataFlowNode::get_for_assignment(
                         "arraykey-fetch".to_string(),
                         statements_analyzer.get_hpos(array_expr.pos()),
-                        None,
                     );
                     tast_info.data_flow_graph.add_node(fetch_node.clone());
                     array_key_node = Some(fetch_node);
@@ -271,12 +269,12 @@ pub(crate) fn add_array_fetch_dataflow(
 
             value_type
                 .parent_nodes
-                .insert(new_parent_node.id.clone(), new_parent_node.clone());
+                .insert(new_parent_node.get_id().clone(), new_parent_node.clone());
 
             if let Some(array_key_node) = &array_key_node {
                 key_type
                     .parent_nodes
-                    .insert(array_key_node.id.clone(), array_key_node.clone());
+                    .insert(array_key_node.get_id().clone(), array_key_node.clone());
             }
         }
     }
@@ -855,7 +853,6 @@ pub(crate) fn handle_array_access_on_mixed(
             let new_parent_node = DataFlowNode::get_for_assignment(
                 "mixed-var-array-access".to_string(),
                 statements_analyzer.get_hpos(pos),
-                None,
             );
             tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
@@ -871,7 +868,7 @@ pub(crate) fn handle_array_access_on_mixed(
             if let Some(stmt_type) = stmt_type {
                 let mut stmt_type_new = stmt_type.clone();
                 stmt_type_new.parent_nodes =
-                    FxHashMap::from_iter([(new_parent_node.id.clone(), new_parent_node.clone())]);
+                    FxHashMap::from_iter([(new_parent_node.get_id().clone(), new_parent_node.clone())]);
             }
         }
     }

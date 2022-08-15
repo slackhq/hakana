@@ -5,10 +5,10 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::{
-    data_flow::{node::DataFlowNode, path::PathKind},
+    data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    taint::TaintType,
+    taint::SinkType,
 };
 use hakana_type::{get_mixed_any, type_combiner};
 use oxidized::{aast, ast, ast_defs::Pos};
@@ -121,10 +121,14 @@ pub(crate) fn assign_arithmetic_type(
     expr_pos: &Pos,
 ) {
     let mut cond_type = cond_type;
-    let decision_node = DataFlowNode::get_for_variable_use(
-        "composition".to_string(),
-        statements_analyzer.get_hpos(expr_pos),
-    );
+    let decision_node = if tast_info.data_flow_graph.kind == GraphKind::Taint {
+        DataFlowNode::get_for_composition(statements_analyzer.get_hpos(expr_pos))
+    } else {
+        DataFlowNode::get_for_variable_sink(
+            "composition".to_string(),
+            statements_analyzer.get_hpos(expr_pos),
+        )
+    };
 
     tast_info.data_flow_graph.add_node(decision_node.clone());
 
@@ -134,7 +138,7 @@ pub(crate) fn assign_arithmetic_type(
     {
         cond_type
             .parent_nodes
-            .insert(decision_node.id.clone(), decision_node.clone());
+            .insert(decision_node.get_id().clone(), decision_node.clone());
 
         for (_, old_parent_node) in &lhs_type.parent_nodes {
             tast_info.data_flow_graph.add_path(
@@ -153,7 +157,7 @@ pub(crate) fn assign_arithmetic_type(
     {
         cond_type
             .parent_nodes
-            .insert(decision_node.id.clone(), decision_node.clone());
+            .insert(decision_node.get_id().clone(), decision_node.clone());
 
         for (_, old_parent_node) in &rhs_type.parent_nodes {
             tast_info.data_flow_graph.add_path(
@@ -163,9 +167,9 @@ pub(crate) fn assign_arithmetic_type(
                 None,
                 if cond_type.has_string() {
                     Some(FxHashSet::from_iter([
-                        TaintType::HtmlAttributeUri,
-                        TaintType::CurlUri,
-                        TaintType::RedirectUri,
+                        SinkType::HtmlAttributeUri,
+                        SinkType::CurlUri,
+                        SinkType::RedirectUri,
                     ]))
                 } else {
                     None

@@ -1,5 +1,5 @@
 <<\Hakana\SecurityAnalysis\ShapeSource(
-	dict["email" => "pii"],
+	dict['email' => 'UserSecret'],
 )>>
 type user_t = shape(
     'id' => string,
@@ -8,6 +8,6 @@ type user_t = shape(
 
 function takesUser(vec<user_t> $users) {
     foreach ($users as $user) {
-        echo $user["id"];
+        echo $user['id'];
     }
 }

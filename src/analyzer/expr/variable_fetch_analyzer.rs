@@ -2,17 +2,14 @@ use crate::{
     scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
-    data_flow::{
-        graph::GraphKind,
-        node::{DataFlowNode, NodeKind},
-        path::PathKind,
-    },
+    data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_union::TUnion,
-    taint::TaintType,
+    taint::SourceType,
 };
 use hakana_type::{get_int, get_mixed_any, get_mixed_dict};
 use oxidized::{ast_defs::Pos, tast::Lid};
+use rustc_hash::FxHashSet;
 use std::rc::Rc;
 
 pub(crate) fn analyze(
@@ -80,27 +77,29 @@ pub(crate) fn get_type_for_superglobal(
 ) -> TUnion {
     match name.as_str() {
         "_FILES" | "_SERVER" | "_ENV" => get_mixed_dict(),
-        "_POST" | "_GET" | "_REQUEST" | "_COOKIE" => {
+        "_GET" | "_REQUEST" | "_POST" | "_COOKIE" => {
             let mut var_type = get_mixed_dict();
 
             let taint_pos = statements_analyzer.get_hpos(pos);
-            let taint_source = DataFlowNode::new(
-                NodeKind::TaintSource,
-                format!(
+            let taint_source = DataFlowNode::TaintSource {
+                id: format!(
                     "${}:{}:{}",
                     name, taint_pos.file_path, taint_pos.start_offset
                 ),
-                format!("${}", name.clone()),
-                None,
-                None,
-                Some(TaintType::user_controllable_taints()),
-            );
+                label: format!("${}", name.clone()),
+                pos: None,
+                types: if name == "_GET" || name == "_REQUEST" {
+                    FxHashSet::from_iter([SourceType::UriRequestHeader])
+                } else {
+                    FxHashSet::from_iter([SourceType::NonUriRequestHeader])
+                },
+            };
 
-            tast_info.data_flow_graph.add_source(taint_source.clone());
+            tast_info.data_flow_graph.add_node(taint_source.clone());
 
             var_type
                 .parent_nodes
-                .insert(taint_source.id.clone(), taint_source);
+                .insert(taint_source.get_id().clone(), taint_source);
 
             var_type
         }
@@ -124,18 +123,17 @@ fn add_dataflow_to_variable(
 
     if data_flow_graph.kind == GraphKind::Variable {
         if context.inside_general_use || context.inside_throw || context.inside_isset {
-            let assignment_node = DataFlowNode::get_for_assignment(
-                lid.1 .1.to_string(),
-                statements_analyzer.get_hpos(pos),
-                None,
-            );
+            let assignment_node = DataFlowNode::VariableUseSink {
+                id: lid.1 .1.to_string(),
+                pos: statements_analyzer.get_hpos(pos),
+            };
 
-            data_flow_graph.add_sink(assignment_node.clone());
+            data_flow_graph.add_node(assignment_node.clone());
 
             let mut parent_nodes = stmt_type.parent_nodes.clone();
 
             if parent_nodes.is_empty() {
-                parent_nodes.insert(assignment_node.id.clone(), assignment_node);
+                parent_nodes.insert(assignment_node.get_id().clone(), assignment_node);
             } else {
                 for (_, parent_node) in &parent_nodes {
                     data_flow_graph.add_path(

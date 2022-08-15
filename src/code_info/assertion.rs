@@ -3,7 +3,7 @@ use std::hash::Hasher;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{t_atomic::TAtomic, t_union::TUnion, taint::TaintType};
+use crate::{t_atomic::TAtomic, t_union::TUnion, taint::SinkType};
 use core::hash::Hash;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,8 +32,8 @@ pub enum Assertion {
     DoesNotHaveExactCount(usize),
     IgnoreTaints,
     DontIgnoreTaints,
-    RemoveTaints(String, FxHashSet<TaintType>),
-    DontRemoveTaints(String, FxHashSet<TaintType>),
+    RemoveTaints(String, FxHashSet<SinkType>),
+    DontRemoveTaints(String, FxHashSet<SinkType>),
 }
 
 impl Hash for Assertion {

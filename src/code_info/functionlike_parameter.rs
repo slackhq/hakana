@@ -3,7 +3,7 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attribute_info::AttributeInfo, code_location::HPos, t_union::TUnion, taint::TaintType,
+    attribute_info::AttributeInfo, code_location::HPos, t_union::TUnion, taint::SinkType,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,7 +35,9 @@ pub struct FunctionLikeParameter {
 
     pub is_variadic: bool,
 
-    pub taint_sinks: Option<FxHashSet<TaintType>>,
+    pub taint_sinks: Option<FxHashSet<SinkType>>,
+
+    pub removed_taints_when_returning_true: Option<FxHashSet<SinkType>>,
 
     pub assert_untainted: bool,
 
@@ -72,6 +74,7 @@ impl FunctionLikeParameter {
             expect_variable: false,
             promoted_property: false,
             attributes: Vec::new(),
+            removed_taints_when_returning_true: None,
         }
     }
 

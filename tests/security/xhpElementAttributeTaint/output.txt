@@ -1,1 +1,1 @@
-TaintedData - input.hack:5:18 - Detected tainted HTML attribute
+ERROR: TaintedData - input.hack:5:18 - Data from a URL query string found its way to an HTML attribute

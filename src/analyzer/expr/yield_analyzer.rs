@@ -46,7 +46,7 @@ pub(crate) fn analyze(
         value_expr.pos().end_offset(),
     )) {
         if let GraphKind::Variable = tast_info.data_flow_graph.kind {
-            let return_node = DataFlowNode::get_for_variable_use(
+            let return_node = DataFlowNode::get_for_variable_sink(
                 "yield".to_string(),
                 statements_analyzer.get_hpos(pos),
             );
@@ -60,7 +60,7 @@ pub(crate) fn analyze(
                     None,
                 );
             }
-            tast_info.data_flow_graph.add_sink(return_node);
+            tast_info.data_flow_graph.add_node(return_node);
         } else {
             // todo handle taint flows in yield
         }

@@ -4,7 +4,28 @@ use std::hash::Hash;
 use strum_macros::Display;
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
-pub enum TaintType {
+pub enum SourceType {
+    UriRequestHeader,
+    NonUriRequestHeader,
+    StoredUserData,
+    UserSecret,
+    SystemSecret,
+}
+
+impl SourceType {
+    pub fn get_error_message(&self) -> &str {
+        match self {
+            SourceType::UriRequestHeader => "a URL query string",
+            SourceType::NonUriRequestHeader => "a server request",
+            SourceType::StoredUserData => "user-controllable storage",
+            SourceType::UserSecret => "a user secret",
+            SourceType::SystemSecret => "a system secret",
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
+pub enum SinkType {
     HtmlTag,
     Sql,
     Shell,
@@ -17,77 +38,125 @@ pub enum TaintType {
     CurlUri,
     HtmlAttribute,
     HtmlAttributeUri,
-    UserSecret,
-    InternalSecret,
-    //Custom(String),
+    Logging,
 }
 
-impl TaintType {
+const PAIRS: [(SourceType, SinkType); 29] = [
+    (SourceType::UriRequestHeader, SinkType::HtmlTag),
+    (SourceType::UriRequestHeader, SinkType::HtmlAttribute),
+    (SourceType::UriRequestHeader, SinkType::HtmlAttributeUri),
+    (SourceType::UriRequestHeader, SinkType::RedirectUri),
+    (SourceType::UriRequestHeader, SinkType::Cookie),
+    (SourceType::UriRequestHeader, SinkType::Sql),
+    (SourceType::UriRequestHeader, SinkType::Shell),
+    (SourceType::UriRequestHeader, SinkType::FileSystem),
+    (SourceType::UriRequestHeader, SinkType::Unserialize),
+    (SourceType::UriRequestHeader, SinkType::CurlHeader),
+    (SourceType::UriRequestHeader, SinkType::CurlUri),
+    (SourceType::NonUriRequestHeader, SinkType::Sql),
+    (SourceType::NonUriRequestHeader, SinkType::Shell),
+    (SourceType::NonUriRequestHeader, SinkType::FileSystem),
+    (SourceType::NonUriRequestHeader, SinkType::Unserialize),
+    (SourceType::NonUriRequestHeader, SinkType::CurlHeader),
+    (SourceType::NonUriRequestHeader, SinkType::CurlUri),
+    (SourceType::StoredUserData, SinkType::Sql),
+    (SourceType::StoredUserData, SinkType::Shell),
+    (SourceType::StoredUserData, SinkType::FileSystem),
+    (SourceType::StoredUserData, SinkType::Unserialize),
+    (SourceType::StoredUserData, SinkType::CurlHeader),
+    (SourceType::StoredUserData, SinkType::CurlUri),
+    (SourceType::UserSecret, SinkType::Logging),
+    (SourceType::UserSecret, SinkType::HtmlAttribute),
+    (SourceType::UserSecret, SinkType::HtmlTag),
+    (SourceType::SystemSecret, SinkType::Logging),
+    (SourceType::SystemSecret, SinkType::HtmlAttribute),
+    (SourceType::SystemSecret, SinkType::HtmlTag),
+];
+
+pub fn get_sinks_for_sources(source: &SourceType) -> FxHashSet<SinkType> {
+    PAIRS
+        .into_iter()
+        .filter(|p| &p.0 == source)
+        .map(|p| p.1)
+        .collect()
+}
+
+impl SinkType {
     pub fn get_error_message(&self) -> String {
         match self {
-            TaintType::HtmlTag => "Detected tainted HTML tags".to_string(),
-            TaintType::Sql => "Detected tainted SQL".to_string(),
-            TaintType::Shell => "Detected tainted shell code".to_string(),
-            TaintType::FileSystem => "Detected tainted file handling".to_string(),
-            TaintType::RedirectUri => "Detected a redirect URI".to_string(),
-            TaintType::Unserialize => {
-                "Detected tainted data passed to unserialize or similar".to_string()
-            }
+            SinkType::HtmlTag => "an HTML tag".to_string(),
+            SinkType::Sql => "a SQL query".to_string(),
+            SinkType::Shell => "a shell command".to_string(),
+            SinkType::FileSystem => "a filesystem call".to_string(),
+            SinkType::RedirectUri => "a redirect URI".to_string(),
+            SinkType::Unserialize => "to unserialize or similar".to_string(),
             //TaintType::Ldap => "Detected tainted LDAP request".to_string(),
-            TaintType::Cookie => "Detected tainted cookie".to_string(),
-            TaintType::CurlHeader => "Detected tainted curl header".to_string(),
-            TaintType::CurlUri => "Detected tainted curl url".to_string(),
-            TaintType::HtmlAttribute => "Detected tainted HTML attribute".to_string(),
-            TaintType::HtmlAttributeUri => "Detected tainted HTML attribute with url".to_string(),
-            TaintType::UserSecret => "Detected leak of user secret".to_string(),
-            TaintType::InternalSecret => "Detected leak of internal secret".to_string(),
+            SinkType::Cookie => "a cookie".to_string(),
+            SinkType::CurlHeader => "a curl header".to_string(),
+            SinkType::CurlUri => "a curl url".to_string(),
+            SinkType::HtmlAttribute => "an HTML attribute".to_string(),
+            SinkType::HtmlAttributeUri => "an HTML attribute with url".to_string(),
+            SinkType::Logging => "a logging method".to_string(),
             //TaintType::Custom(str) => format!("Detected tainted {}", str),
         }
     }
 
-    pub fn user_controllable_taints() -> FxHashSet<TaintType> {
+    pub fn user_controllable_taints() -> FxHashSet<SinkType> {
         FxHashSet::from_iter([
-            TaintType::HtmlTag,
-            TaintType::Sql,
-            TaintType::Shell,
-            TaintType::FileSystem,
-            TaintType::RedirectUri,
-            TaintType::Unserialize,
+            SinkType::HtmlTag,
+            SinkType::Sql,
+            SinkType::Shell,
+            SinkType::FileSystem,
+            SinkType::RedirectUri,
+            SinkType::Unserialize,
             //TaintType::Ldap,
-            TaintType::Cookie,
-            TaintType::CurlHeader,
-            TaintType::CurlUri,
-            TaintType::HtmlAttribute,
-            TaintType::HtmlAttributeUri,
-        ])
-    }
-
-    // taints we don't want in internal sinks
-    pub fn internal_sinks() -> FxHashSet<TaintType> {
-        FxHashSet::from_iter([
-            TaintType::Sql,
-            TaintType::Shell,
-            TaintType::FileSystem,
-            TaintType::Unserialize,
-            //TaintType::Ldap,
-            TaintType::CurlHeader,
-            TaintType::CurlUri,
+            SinkType::Cookie,
+            SinkType::CurlHeader,
+            SinkType::CurlUri,
+            SinkType::HtmlAttribute,
+            SinkType::HtmlAttributeUri,
         ])
     }
 }
 
-pub fn string_to_taints(str: String) -> FxHashSet<TaintType> {
+pub fn string_to_source_types(str: String) -> FxHashSet<SourceType> {
     match str.as_str() {
-        "input" => TaintType::user_controllable_taints(),
-        "internal_sinks" => TaintType::internal_sinks(),
-        "pii" | "UserSecret" => FxHashSet::from_iter([TaintType::UserSecret]),
-        "sql" | "Sql" => FxHashSet::from_iter([TaintType::Sql]),
-        "html" | "HtmlTag" => FxHashSet::from_iter([TaintType::HtmlTag]),
-        "curl_uri" | "CurlUri" => FxHashSet::from_iter([TaintType::CurlUri]),
-        "CurlHeader" => FxHashSet::from_iter([TaintType::CurlHeader]),
-        "HtmlAttributeUri" => FxHashSet::from_iter([TaintType::HtmlAttributeUri]),
-        "RedirectUri" => FxHashSet::from_iter([TaintType::RedirectUri]),
+        "UriRequestHeader" => FxHashSet::from_iter([SourceType::UriRequestHeader]),
+        "NonUriRequestHeader" => FxHashSet::from_iter([SourceType::NonUriRequestHeader]),
+        "StoredUserData" => FxHashSet::from_iter([SourceType::StoredUserData]),
+        "UserSecret" => FxHashSet::from_iter([SourceType::UserSecret]),
+        "SystemSecret" => FxHashSet::from_iter([SourceType::SystemSecret]),
         _ => {
+            panic!()
+        }
+    }
+}
+
+pub fn string_to_sink_types(str: String) -> FxHashSet<SinkType> {
+    match str.as_str() {
+        "*" => FxHashSet::from_iter([
+            SinkType::Sql,
+            SinkType::HtmlTag,
+            SinkType::HtmlAttribute,
+            SinkType::HtmlAttributeUri,
+            SinkType::CurlHeader,
+            SinkType::CurlUri,
+            SinkType::FileSystem,
+            SinkType::RedirectUri,
+            SinkType::Shell,
+            SinkType::Unserialize,
+            SinkType::Cookie,
+        ]),
+        "Sql" => FxHashSet::from_iter([SinkType::Sql]),
+        "HtmlTag" => FxHashSet::from_iter([SinkType::HtmlTag]),
+        "CurlUri" => FxHashSet::from_iter([SinkType::CurlUri]),
+        "CurlHeader" => FxHashSet::from_iter([SinkType::CurlHeader]),
+        "HtmlAttributeUri" => FxHashSet::from_iter([SinkType::HtmlAttributeUri]),
+        "RedirectUri" => FxHashSet::from_iter([SinkType::RedirectUri]),
+        "FileSystem" => FxHashSet::from_iter([SinkType::FileSystem]),
+        "Logging" => FxHashSet::from_iter([SinkType::Logging]),
+        _ => {
+            println!("Unrecognised annotation {}", str);
             panic!()
         }
     }
