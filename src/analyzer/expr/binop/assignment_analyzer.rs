@@ -290,7 +290,11 @@ pub(crate) fn analyze(
             static_property_assignment_analyzer::analyze(
                 statements_analyzer,
                 (lhs, &rhs),
-                assign_value.as_ref().unwrap().pos(),
+                if let Some(assign_value) = assign_value {
+                    Some(assign_value.pos())
+                } else {
+                    None
+                },
                 &assign_value_type,
                 tast_info,
                 context,

@@ -21,7 +21,7 @@ use super::instance_property_assignment_analyzer::add_unspecialized_property_ass
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
-    assign_value_pos: &Pos,
+    assign_value_pos: Option<&Pos>,
     assign_value_type: &TUnion,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,

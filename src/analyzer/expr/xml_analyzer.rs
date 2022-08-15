@@ -115,7 +115,7 @@ fn analyze_xhp_attribute_assignment(
                 statements_analyzer,
                 &property_id,
                 &attribute_info.name.0,
-                attribute_info.expr.pos(),
+                Some(attribute_info.expr.pos()),
                 tast_info,
                 &attribute_type,
                 codebase,

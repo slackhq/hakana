@@ -20,7 +20,7 @@ use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     expr::{
@@ -449,7 +449,7 @@ fn add_instance_property_dataflow(
                 statements_analyzer,
                 property_id,
                 name_pos,
-                var_pos,
+                Some(var_pos),
                 tast_info,
                 assignment_value_type,
                 codebase,
@@ -511,7 +511,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     property_id: &(String, String),
     stmt_name_pos: &Pos,
-    var_pos: &Pos,
+    var_pos: Option<&Pos>,
     tast_info: &mut TastInfo,
     assignment_value_type: &TUnion,
     codebase: &CodebaseInfo,
@@ -533,7 +533,11 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         &property_id.1.to_owned()
     );
 
-    let removed_taints = get_removed_taints_in_comments(statements_analyzer, var_pos);
+    let removed_taints = if let Some(var_pos) = var_pos {
+        get_removed_taints_in_comments(statements_analyzer, var_pos)
+    } else {
+        FxHashSet::default()
+    };
 
     let property_node = DataFlowNode::new(property_id_str.clone(), property_id_str, None, None);
 
