@@ -695,9 +695,12 @@ pub(crate) fn get_removed_taints_in_comments(
                     let trimmed_text = trimmed_text[23..].to_string();
 
                     if let Some(bracket_pos) = trimmed_text.find("]") {
-                        removed_taints.extend(string_to_sink_types(
-                            trimmed_text[..bracket_pos].to_string(),
-                        ));
+                        let string_types = trimmed_text[..bracket_pos].split(",");
+
+                        for string_type in string_types {
+                            removed_taints
+                                .extend(string_to_sink_types(string_type.trim().to_string()));
+                        }
                     }
                 }
             }
