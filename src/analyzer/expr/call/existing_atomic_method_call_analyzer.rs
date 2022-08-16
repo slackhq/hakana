@@ -219,8 +219,10 @@ pub(crate) fn analyze(
                     );
                 }
 
-                new_type.parent_nodes =
-                    FxHashMap::from_iter([(assignment_node.get_id().clone(), assignment_node.clone())]);
+                new_type.parent_nodes = FxHashMap::from_iter([(
+                    assignment_node.get_id().clone(),
+                    assignment_node.clone(),
+                )]);
 
                 tast_info.data_flow_graph.add_node(assignment_node);
 
@@ -286,7 +288,7 @@ pub(crate) fn analyze(
             .unwrap_or(get_mixed_any());
     }
 
-    let mut return_type_candidate = method_call_return_type_fetcher::fetch(
+    let return_type_candidate = method_call_return_type_fetcher::fetch(
         statements_analyzer,
         tast_info,
         context,
@@ -300,8 +302,6 @@ pub(crate) fn analyze(
         &template_result,
         pos,
     );
-
-    return_type_candidate.source_function_id = Some(method_id.to_string());
 
     // todo check method visibility
 

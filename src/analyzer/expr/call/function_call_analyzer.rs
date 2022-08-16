@@ -161,7 +161,7 @@ pub(crate) fn analyze(
         }
     }
 
-    let mut stmt_type = function_call_return_type_fetcher::fetch(
+    let stmt_type = function_call_return_type_fetcher::fetch(
         statements_analyzer,
         expr,
         pos,
@@ -171,8 +171,6 @@ pub(crate) fn analyze(
         tast_info,
         context,
     );
-
-    stmt_type.source_function_id = Some(functionlike_id.to_string());
 
     tast_info.set_expr_type(&pos, stmt_type.clone());
 

@@ -282,10 +282,6 @@ pub fn combine_union_types(
         combined_type.possibly_undefined_from_try = true;
     }
 
-    if type_1.source_function_id == type_2.source_function_id {
-        combined_type.source_function_id = type_1.source_function_id.clone();
-    }
-
     if !type_1.parent_nodes.is_empty() || !type_2.parent_nodes.is_empty() {
         let mut parent_nodes = type_1.parent_nodes.clone();
         parent_nodes.extend(type_2.parent_nodes.clone());
@@ -360,13 +356,6 @@ pub fn add_union_type(
     if both_failed_reconciliation {
         base_type.failed_reconciliation = true;
     }
-
-    base_type.source_function_id = if base_type.source_function_id == other_type.source_function_id
-    {
-        base_type.source_function_id
-    } else {
-        None
-    };
 
     if !other_type.parent_nodes.is_empty() {
         base_type

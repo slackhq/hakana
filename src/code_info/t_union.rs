@@ -29,9 +29,6 @@ pub struct TUnion {
     // Whether or not this union comes from a template "as" default
     pub from_template_default: bool,
 
-    // hopefully-temporary hack
-    pub source_function_id: Option<String>,
-
     pub has_mutations: bool,
 
     pub populated: bool,
@@ -74,7 +71,6 @@ impl TUnion {
             possibly_undefined_from_try: false,
             ignore_falsable_issues: false,
             from_template_default: false,
-            source_function_id: None,
             has_mutations: true,
             populated: false,
         }
