@@ -26,18 +26,38 @@ pub enum StaticClassType<'a, 'b> {
     Object(&'b TAtomic),
 }
 
+pub struct TypeExpansionOptions<'a, 'b> {
+    pub self_class: Option<&'a String>,
+    pub static_class_type: StaticClassType<'a, 'b>,
+    pub parent_class: Option<&'a String>,
+
+    pub evaluate_class_constants: bool,
+    pub evaluate_conditional_types: bool,
+    pub function_is_final: bool,
+    pub expand_generic: bool,
+    pub expand_templates: bool,
+}
+
+impl Default for TypeExpansionOptions<'_, '_> {
+    fn default() -> Self {
+        Self {
+            self_class: None,
+            static_class_type: StaticClassType::None,
+            parent_class: None,
+            evaluate_class_constants: true,
+            evaluate_conditional_types: false,
+            function_is_final: false,
+            expand_generic: false,
+            expand_templates: true,
+        }
+    }
+}
+
 pub fn expand_union(
     codebase: &CodebaseInfo,
     return_type: &mut TUnion,
-    self_class: Option<&String>,
-    static_class_type: &StaticClassType,
-    parent_class: Option<&String>,
+    options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
-    evaluate_class_constants: bool,   // default true
-    evaluate_conditional_types: bool, // default false
-    function_is_final: bool,          // default false
-    expand_generic: bool,             // default false
-    expand_templates: bool,           // default true
 ) {
     let mut new_return_type_parts = vec![];
 
@@ -51,19 +71,12 @@ pub fn expand_union(
         expand_atomic(
             return_type_part,
             codebase,
-            self_class,
-            static_class_type,
-            parent_class,
-            evaluate_class_constants,
-            evaluate_conditional_types,
-            function_is_final,
-            expand_generic,
-            expand_templates,
+            &options,
+            data_flow_graph,
             &mut skipped_keys,
             key,
             &mut new_return_type_parts,
             &mut had_split_values,
-            data_flow_graph,
             &mut extra_data_flow_nodes,
         );
     }
@@ -103,19 +116,13 @@ pub fn expand_union(
 fn expand_atomic(
     return_type_part: &mut TAtomic,
     codebase: &CodebaseInfo,
-    self_class: Option<&String>,
-    static_class_type: &StaticClassType,
-    parent_class: Option<&String>,
-    evaluate_class_constants: bool,
-    evaluate_conditional_types: bool,
-    function_is_final: bool,
-    expand_generic: bool,
-    expand_templates: bool,
+    options: &TypeExpansionOptions,
+    data_flow_graph: &mut DataFlowGraph,
     skipped_keys: &mut Vec<String>,
     key: &String,
     new_return_type_parts: &mut Vec<TAtomic>,
     had_split_values: &mut bool,
-    data_flow_graph: &mut DataFlowGraph,
+
     extra_data_flow_nodes: &mut Vec<DataFlowNode>,
 ) {
     if let TAtomic::TDict {
@@ -125,49 +132,12 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        expand_union(
-            codebase,
-            key_param,
-            self_class,
-            static_class_type,
-            parent_class,
-            data_flow_graph,
-            evaluate_class_constants,
-            evaluate_conditional_types,
-            function_is_final,
-            expand_generic,
-            expand_templates,
-        );
-
-        expand_union(
-            codebase,
-            value_param,
-            self_class,
-            static_class_type,
-            parent_class,
-            data_flow_graph,
-            evaluate_class_constants,
-            evaluate_conditional_types,
-            function_is_final,
-            expand_generic,
-            expand_templates,
-        );
+        expand_union(codebase, key_param, options, data_flow_graph);
+        expand_union(codebase, value_param, options, data_flow_graph);
 
         if let Some(known_items) = known_items {
             for (_, (_, item_type)) in known_items {
-                expand_union(
-                    codebase,
-                    Arc::make_mut(item_type),
-                    self_class,
-                    static_class_type,
-                    parent_class,
-                    data_flow_graph,
-                    evaluate_class_constants,
-                    evaluate_conditional_types,
-                    function_is_final,
-                    expand_generic,
-                    expand_templates,
-                );
+                expand_union(codebase, Arc::make_mut(item_type), options, data_flow_graph);
             }
         }
 
@@ -180,35 +150,11 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        expand_union(
-            codebase,
-            type_param,
-            self_class,
-            static_class_type,
-            parent_class,
-            data_flow_graph,
-            evaluate_class_constants,
-            evaluate_conditional_types,
-            function_is_final,
-            expand_generic,
-            expand_templates,
-        );
+        expand_union(codebase, type_param, options, data_flow_graph);
 
         if let Some(known_items) = known_items {
             for (_, (_, item_type)) in known_items {
-                expand_union(
-                    codebase,
-                    item_type,
-                    self_class,
-                    static_class_type,
-                    parent_class,
-                    data_flow_graph,
-                    evaluate_class_constants,
-                    evaluate_conditional_types,
-                    function_is_final,
-                    expand_generic,
-                    expand_templates,
-                );
+                expand_union(codebase, item_type, options, data_flow_graph);
             }
         }
 
@@ -219,19 +165,7 @@ fn expand_atomic(
         ref mut type_param, ..
     } = return_type_part
     {
-        expand_union(
-            codebase,
-            type_param,
-            self_class,
-            static_class_type,
-            parent_class,
-            data_flow_graph,
-            evaluate_class_constants,
-            evaluate_conditional_types,
-            function_is_final,
-            expand_generic,
-            expand_templates,
-        );
+        expand_union(codebase, type_param, options, data_flow_graph);
 
         return;
     }
@@ -244,7 +178,7 @@ fn expand_atomic(
     } = return_type_part
     {
         if name == "this" {
-            *name = match static_class_type {
+            *name = match options.static_class_type {
                 StaticClassType::None => "this".to_string(),
                 StaticClassType::Name(this_name) => this_name.clone().clone(),
                 StaticClassType::Object(obj) => {
@@ -254,26 +188,14 @@ fn expand_atomic(
                 }
             };
 
-            if function_is_final {
+            if options.function_is_final {
                 *is_this = false;
             }
         }
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(
-                    codebase,
-                    param_type,
-                    self_class,
-                    static_class_type,
-                    parent_class,
-                    data_flow_graph,
-                    evaluate_class_constants,
-                    evaluate_conditional_types,
-                    function_is_final,
-                    expand_generic,
-                    expand_templates,
-                );
+                expand_union(codebase, param_type, options, data_flow_graph);
             }
         }
 
@@ -287,36 +209,12 @@ fn expand_atomic(
     } = return_type_part
     {
         if let Some(return_type) = return_type {
-            expand_union(
-                codebase,
-                return_type,
-                self_class,
-                static_class_type,
-                parent_class,
-                data_flow_graph,
-                evaluate_class_constants,
-                evaluate_conditional_types,
-                function_is_final,
-                expand_generic,
-                expand_templates,
-            );
+            expand_union(codebase, return_type, options, data_flow_graph);
         }
 
         for param in params {
             if let Some(ref mut param_type) = param.signature_type {
-                expand_union(
-                    codebase,
-                    param_type,
-                    self_class,
-                    static_class_type,
-                    parent_class,
-                    data_flow_graph,
-                    evaluate_class_constants,
-                    evaluate_conditional_types,
-                    function_is_final,
-                    expand_generic,
-                    expand_templates,
-                );
+                expand_union(codebase, param_type, options, data_flow_graph);
             }
         }
     }
@@ -325,19 +223,7 @@ fn expand_atomic(
         ref mut as_type, ..
     } = return_type_part
     {
-        expand_union(
-            codebase,
-            as_type,
-            self_class,
-            static_class_type,
-            parent_class,
-            data_flow_graph,
-            evaluate_class_constants,
-            evaluate_conditional_types,
-            function_is_final,
-            expand_generic,
-            expand_templates,
-        );
+        expand_union(codebase, as_type, options, data_flow_graph);
 
         return;
     }
@@ -384,19 +270,7 @@ fn expand_atomic(
                 type_definition.actual_type.clone()
             };
 
-            expand_union(
-                codebase,
-                &mut untemplated_type,
-                self_class,
-                static_class_type,
-                parent_class,
-                data_flow_graph,
-                evaluate_class_constants,
-                evaluate_conditional_types,
-                function_is_final,
-                expand_generic,
-                expand_templates,
-            );
+            expand_union(codebase, &mut untemplated_type, options, data_flow_graph);
 
             new_return_type_parts.extend(untemplated_type.types.into_iter().map(|(_, mut v)| {
                 if let None = type_params {
@@ -446,19 +320,7 @@ fn expand_atomic(
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(
-                    codebase,
-                    param_type,
-                    self_class,
-                    static_class_type,
-                    parent_class,
-                    data_flow_graph,
-                    evaluate_class_constants,
-                    evaluate_conditional_types,
-                    function_is_final,
-                    expand_generic,
-                    expand_templates,
-                );
+                expand_union(codebase, param_type, options, data_flow_graph);
             }
         }
 
@@ -474,19 +336,12 @@ fn expand_atomic(
         expand_atomic(
             class_type,
             codebase,
-            self_class,
-            static_class_type,
-            parent_class,
-            evaluate_class_constants,
-            evaluate_conditional_types,
-            function_is_final,
-            expand_generic,
-            expand_templates,
+            options,
+            data_flow_graph,
             &mut Vec::new(),
             key,
             &mut atomic_return_type_parts,
             &mut false,
-            data_flow_graph,
             extra_data_flow_nodes,
         );
 
@@ -516,19 +371,7 @@ fn expand_atomic(
                     return;
                 };
 
-                expand_union(
-                    codebase,
-                    &mut type_,
-                    self_class,
-                    static_class_type,
-                    parent_class,
-                    data_flow_graph,
-                    evaluate_class_constants,
-                    evaluate_conditional_types,
-                    function_is_final,
-                    expand_generic,
-                    expand_templates,
-                );
+                expand_union(codebase, &mut type_, options, data_flow_graph);
 
                 skipped_keys.push(key.clone());
                 *had_split_values = true;
@@ -613,15 +456,10 @@ fn get_expanded_closure(
                     expand_union(
                         codebase,
                         t,
-                        None,
-                        &StaticClassType::None,
-                        None,
+                        &TypeExpansionOptions {
+                            ..Default::default()
+                        },
                         data_flow_graph,
-                        true,
-                        false,
-                        false,
-                        false,
-                        true,
                     );
                 }
 
@@ -633,15 +471,10 @@ fn get_expanded_closure(
             expand_union(
                 codebase,
                 &mut return_type,
-                None,
-                &StaticClassType::None,
-                None,
+                &TypeExpansionOptions {
+                    ..Default::default()
+                },
                 data_flow_graph,
-                true,
-                false,
-                false,
-                false,
-                true,
             );
             Some(return_type)
         } else {

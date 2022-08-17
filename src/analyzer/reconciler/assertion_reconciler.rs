@@ -14,7 +14,7 @@ use hakana_type::{
     type_comparator::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
     },
-    type_expander::{self, StaticClassType},
+    type_expander::{self, TypeExpansionOptions},
     wrap_atomic,
 };
 use oxidized::ast_defs::Pos;
@@ -100,15 +100,11 @@ pub(crate) fn reconcile(
         type_expander::expand_union(
             codebase,
             &mut refined_type,
-            None,
-            &StaticClassType::None,
-            None,
+            &TypeExpansionOptions {
+                expand_generic: true,
+                ..Default::default()
+            },
             &mut tast_info.data_flow_graph,
-            true,
-            false,
-            false,
-            true,
-            false,
         );
 
         return refined_type;

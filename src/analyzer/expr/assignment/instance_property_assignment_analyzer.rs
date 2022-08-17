@@ -14,7 +14,7 @@ use hakana_reflection_info::{
 use hakana_type::{
     add_optional_union_type, get_mixed_any,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
-    type_expander::{self, StaticClassType},
+    type_expander::{self, StaticClassType, TypeExpansionOptions},
 };
 use oxidized::{
     aast::{self, Expr},
@@ -405,15 +405,14 @@ pub(crate) fn analyze_atomic_assignment(
             type_expander::expand_union(
                 codebase,
                 &mut class_property_type,
-                Some(&declaring_classlike_storage.name),
-                &StaticClassType::Name(&declaring_classlike_storage.name),
-                declaring_classlike_storage.direct_parent_class.as_ref(),
+                &TypeExpansionOptions {
+                    self_class: Some(&declaring_classlike_storage.name),
+                    static_class_type: StaticClassType::Name(&declaring_classlike_storage.name),
+                    parent_class: declaring_classlike_storage.direct_parent_class.as_ref(),
+
+                    ..Default::default()
+                },
                 &mut tast_info.data_flow_graph,
-                true,
-                false,
-                false,
-                false,
-                true,
             );
 
             // TODO localizeType

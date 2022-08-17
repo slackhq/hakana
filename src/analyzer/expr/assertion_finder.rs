@@ -7,7 +7,7 @@ use hakana_reflection_info::{
     t_union::populate_union_type,
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
-use hakana_type::type_expander::{self, StaticClassType};
+use hakana_type::type_expander::{self, TypeExpansionOptions};
 use oxidized::{
     aast,
     aast_defs::Hint,
@@ -188,15 +188,11 @@ fn get_is_assertions(
         type_expander::expand_union(
             codebase,
             &mut is_type,
-            assertion_context.this_class_name,
-            &StaticClassType::None,
-            None,
+            &TypeExpansionOptions {
+                self_class: assertion_context.this_class_name,
+                ..Default::default()
+            },
             &mut DataFlowGraph::new(GraphKind::Variable),
-            true,
-            false,
-            false,
-            false,
-            true,
         );
     }
 

@@ -6,6 +6,7 @@ use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     combine_optional_union_types, get_named_object,
     type_expander::{self, StaticClassType},
@@ -187,15 +188,13 @@ pub(crate) fn analyze(
             type_expander::expand_union(
                 codebase,
                 &mut inserted_type,
-                Some(&declaring_class_storage.name),
-                &StaticClassType::Name(&declaring_class_storage.name),
-                parent_class.as_ref(),
+                &TypeExpansionOptions {
+                    self_class: Some(&declaring_class_storage.name),
+                    static_class_type: StaticClassType::Name(&declaring_class_storage.name),
+                    parent_class: parent_class.as_ref(),
+                    ..Default::default()
+                },
                 &mut tast_info.data_flow_graph,
-                true,
-                false,
-                false,
-                false,
-                true,
             );
 
             inserted_type = add_unspecialized_property_fetch_dataflow(

@@ -24,7 +24,7 @@ use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::template::{
     self, inferred_type_replacer, standin_type_replacer, TemplateBound, TemplateResult,
 };
-use hakana_type::type_expander::{self, StaticClassType};
+use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{
     add_optional_union_type, combine_optional_union_types, get_arraykey, get_mixed_any, wrap_atomic,
 };
@@ -186,27 +186,30 @@ pub(crate) fn check_arguments_match(
                 type_expander::expand_union(
                     codebase,
                     &mut param_type,
-                    if let Some(classlike_storage) = class_storage {
-                        Some(&classlike_storage.name)
-                    } else {
-                        None
+                    &TypeExpansionOptions {
+                        self_class: if let Some(classlike_storage) = class_storage {
+                            Some(&classlike_storage.name)
+                        } else {
+                            None
+                        },
+                        static_class_type: if let Some(calling_class_storage) =
+                            calling_classlike_storage
+                        {
+                            StaticClassType::Name(&calling_class_storage.name)
+                        } else {
+                            StaticClassType::None
+                        },
+                        parent_class: None,
+                        function_is_final: if let Some(calling_class_storage) =
+                            calling_classlike_storage
+                        {
+                            calling_class_storage.is_final
+                        } else {
+                            false
+                        },
+                        ..Default::default()
                     },
-                    &if let Some(calling_class_storage) = calling_classlike_storage {
-                        StaticClassType::Name(&calling_class_storage.name)
-                    } else {
-                        StaticClassType::None
-                    },
-                    None,
                     &mut tast_info.data_flow_graph,
-                    true,
-                    false,
-                    if let Some(calling_class_storage) = calling_classlike_storage {
-                        calling_class_storage.is_final
-                    } else {
-                        false
-                    },
-                    false,
-                    true,
                 );
 
                 param_type
@@ -835,27 +838,26 @@ fn handle_possibly_matching_inout_param(
     type_expander::expand_union(
         codebase,
         &mut inout_type,
-        if let Some(classlike_storage) = classlike_storage {
-            Some(&classlike_storage.name)
-        } else {
-            None
+        &TypeExpansionOptions {
+            self_class: if let Some(classlike_storage) = classlike_storage {
+                Some(&classlike_storage.name)
+            } else {
+                None
+            },
+            static_class_type: if let Some(calling_class_storage) = calling_classlike_storage {
+                StaticClassType::Name(&calling_class_storage.name)
+            } else {
+                StaticClassType::None
+            },
+            parent_class: None,
+            function_is_final: if let Some(calling_class_storage) = calling_classlike_storage {
+                calling_class_storage.is_final
+            } else {
+                false
+            },
+            ..Default::default()
         },
-        &if let Some(calling_class_storage) = calling_classlike_storage {
-            StaticClassType::Name(&calling_class_storage.name)
-        } else {
-            StaticClassType::None
-        },
-        None,
         &mut tast_info.data_flow_graph,
-        true,
-        false,
-        if let Some(calling_class_storage) = calling_classlike_storage {
-            calling_class_storage.is_final
-        } else {
-            false
-        },
-        false,
-        true,
     );
 
     let arg_type = arg_type.unwrap_or(get_mixed_any());
@@ -1024,23 +1026,26 @@ pub(crate) fn get_template_types_for_call(
                         type_expander::expand_union(
                             codebase,
                             &mut v,
-                            appearing_class_name,
-                            &if let Some(calling_class_storage) = calling_classlike_storage {
-                                StaticClassType::Name(&calling_class_storage.name)
-                            } else {
-                                StaticClassType::None
+                            &TypeExpansionOptions {
+                                self_class: appearing_class_name,
+                                static_class_type: if let Some(calling_class_storage) =
+                                    calling_classlike_storage
+                                {
+                                    StaticClassType::Name(&calling_class_storage.name)
+                                } else {
+                                    StaticClassType::None
+                                },
+                                parent_class: None,
+                                function_is_final: if let Some(calling_class_storage) =
+                                    calling_classlike_storage
+                                {
+                                    calling_class_storage.is_final
+                                } else {
+                                    false
+                                },
+                                ..Default::default()
                             },
-                            None,
                             &mut tast_info.data_flow_graph,
-                            true,
-                            false,
-                            if let Some(calling_class_storage) = calling_classlike_storage {
-                                calling_class_storage.is_final
-                            } else {
-                                false
-                            },
-                            false,
-                            true,
                         );
                         v
                     })

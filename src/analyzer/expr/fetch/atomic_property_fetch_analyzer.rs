@@ -12,6 +12,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     add_optional_union_type, get_mixed_any,
     template::{inferred_type_replacer, TemplateResult},
@@ -170,15 +171,14 @@ fn get_class_property_type(
         type_expander::expand_union(
             codebase,
             &mut class_property_type,
-            Some(&declaring_class_storage.name),
-            &StaticClassType::Name(&declaring_class_storage.name),
-            parent_class.as_ref(),
+            &TypeExpansionOptions {
+                self_class: Some(&declaring_class_storage.name),
+                static_class_type: StaticClassType::Name(&declaring_class_storage.name),
+                parent_class: parent_class.as_ref(),
+
+                ..Default::default()
+            },
             &mut tast_info.data_flow_graph,
-            true,
-            false,
-            false,
-            false,
-            true,
         );
 
         if !declaring_class_storage.template_types.is_empty() {

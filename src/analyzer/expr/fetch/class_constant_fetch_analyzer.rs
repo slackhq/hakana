@@ -3,9 +3,10 @@ use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
+use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     add_optional_union_type, get_mixed_any,
-    type_expander::{self, StaticClassType},
+    type_expander::{self},
     wrap_atomic,
 };
 use oxidized::{
@@ -181,15 +182,12 @@ fn analyse_known_class_constant(
         type_expander::expand_union(
             codebase,
             class_constant_type,
-            None,
-            &StaticClassType::None,
-            None,
+            &TypeExpansionOptions {
+                evaluate_conditional_types: true,
+                expand_generic: true,
+                ..Default::default()
+            },
             &mut tast_info.data_flow_graph,
-            true,
-            true,
-            false,
-            true,
-            true,
         );
     }
 

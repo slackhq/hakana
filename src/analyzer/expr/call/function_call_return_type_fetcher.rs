@@ -9,7 +9,7 @@ use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
-use hakana_type::type_expander::StaticClassType;
+use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     get_bool, get_float, get_int, get_mixed, get_mixed_any, get_mixed_vec, get_nothing, get_object,
     get_string, template, type_expander, wrap_atomic,
@@ -110,15 +110,11 @@ pub(crate) fn fetch(
                 type_expander::expand_union(
                     codebase,
                     &mut function_return_type,
-                    None,
-                    &StaticClassType::None,
-                    None,
+                    &TypeExpansionOptions {
+                        expand_templates: false,
+                        ..Default::default()
+                    },
                     &mut tast_info.data_flow_graph,
-                    true,
-                    false,
-                    false,
-                    false,
-                    false,
                 );
 
                 function_return_type = template::inferred_type_replacer::replace(
@@ -131,15 +127,12 @@ pub(crate) fn fetch(
             type_expander::expand_union(
                 codebase,
                 &mut function_return_type,
-                None,
-                &StaticClassType::None,
-                None,
+                &TypeExpansionOptions {
+                    expand_templates: false,
+                    expand_generic: true,
+                    ..Default::default()
+                },
                 &mut tast_info.data_flow_graph,
-                true,
-                false,
-                false,
-                true,
-                false,
             );
 
             // todo dispatch AfterFunctionCallAnalysisEvent

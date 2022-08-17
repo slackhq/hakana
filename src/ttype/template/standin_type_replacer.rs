@@ -3,7 +3,7 @@ use crate::{
     get_mixed_maybe_from_loop, get_value_param, intersect_union_types, is_array_container,
     type_combiner,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
-    type_expander::{self, StaticClassType},
+    type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
 };
 use function_context::FunctionLikeIdentifier;
@@ -742,19 +742,19 @@ fn handle_template_param_standin(
             type_expander::expand_union(
                 codebase,
                 &mut replacement_type,
-                calling_class,
-                &if let Some(c) = calling_class {
-                    StaticClassType::Name(c)
-                } else {
-                    StaticClassType::None
+                &TypeExpansionOptions {
+                    self_class: calling_class,
+                    static_class_type: if let Some(c) = calling_class {
+                        StaticClassType::Name(c)
+                    } else {
+                        StaticClassType::None
+                    },
+
+                    expand_templates: false,
+
+                    ..Default::default()
                 },
-                None,
                 &mut DataFlowGraph::new(GraphKind::Variable),
-                true,
-                false,
-                false,
-                false,
-                false,
             );
 
             if depth < 10 && replacement_type.has_template_types() {
@@ -809,19 +809,19 @@ fn handle_template_param_standin(
         type_expander::expand_union(
             codebase,
             &mut as_type,
-            calling_class,
-            &if let Some(c) = calling_class {
-                StaticClassType::Name(c)
-            } else {
-                StaticClassType::None
+            &TypeExpansionOptions {
+                self_class: calling_class,
+                static_class_type: if let Some(c) = calling_class {
+                    StaticClassType::Name(c)
+                } else {
+                    StaticClassType::None
+                },
+
+                expand_templates: false,
+
+                ..Default::default()
             },
-            None,
             &mut DataFlowGraph::new(GraphKind::Variable),
-            true,
-            false,
-            false,
-            false,
-            false,
         );
 
         let as_type = self::replace(

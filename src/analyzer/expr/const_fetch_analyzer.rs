@@ -3,7 +3,7 @@ use std::rc::Rc;
 use hakana_type::get_mixed_any;
 use hakana_type::get_string;
 use hakana_type::type_expander;
-use hakana_type::type_expander::StaticClassType;
+use hakana_type::type_expander::TypeExpansionOptions;
 
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::typed_ast::TastInfo;
@@ -50,15 +50,10 @@ pub(crate) fn analyze(
     type_expander::expand_union(
         codebase,
         &mut stmt_type,
-        None,
-        &StaticClassType::None,
-        None,
+        &TypeExpansionOptions {
+            ..Default::default()
+        },
         &mut tast_info.data_flow_graph,
-        true,
-        false,
-        false,
-        false,
-        true,
     );
 
     tast_info.expr_types.insert(

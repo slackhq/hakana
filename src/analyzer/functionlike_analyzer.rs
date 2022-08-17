@@ -22,7 +22,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
-use hakana_type::type_expander::{self, StaticClassType};
+use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
@@ -282,19 +282,20 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 type_expander::expand_union(
                     self.file_analyzer.get_codebase(),
                     &mut property_type,
-                    Some(calling_class),
-                    &StaticClassType::Name(calling_class),
-                    None,
-                    &mut tast_info.data_flow_graph,
-                    true,
-                    true,
-                    if let Some(method_info) = &function_storage.method_info {
-                        method_info.is_final
-                    } else {
-                        false
+                    &TypeExpansionOptions {
+                        self_class: Some(calling_class),
+                        static_class_type: StaticClassType::Name(calling_class),
+                        function_is_final: if let Some(method_info) = &function_storage.method_info
+                        {
+                            method_info.is_final
+                        } else {
+                            false
+                        },
+                        expand_generic: true,
+
+                        ..Default::default()
                     },
-                    true,
-                    true,
+                    &mut tast_info.data_flow_graph,
                 );
 
                 context
@@ -404,23 +405,25 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             type_expander::expand_union(
                 statements_analyzer.get_codebase(),
                 &mut expected_return_type,
-                context.function_context.calling_class.as_ref(),
-                &if let Some(calling_class) = &context.function_context.calling_class {
-                    StaticClassType::Name(calling_class)
-                } else {
-                    StaticClassType::None
+                &TypeExpansionOptions {
+                    self_class: context.function_context.calling_class.as_ref(),
+                    static_class_type: if let Some(calling_class) =
+                        &context.function_context.calling_class
+                    {
+                        StaticClassType::Name(calling_class)
+                    } else {
+                        StaticClassType::None
+                    },
+                    function_is_final: if let Some(method_info) = &functionlike_storage.method_info
+                    {
+                        method_info.is_final
+                    } else {
+                        false
+                    },
+
+                    ..Default::default()
                 },
-                None,
                 &mut tast_info.data_flow_graph,
-                true,
-                false,
-                if let Some(method_info) = &functionlike_storage.method_info {
-                    method_info.is_final
-                } else {
-                    false
-                },
-                false,
-                true,
             );
 
             let config = statements_analyzer.get_config();
@@ -530,23 +533,28 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 type_expander::expand_union(
                     self.file_analyzer.get_codebase(),
                     &mut param_type,
-                    calling_class.clone(),
-                    &if let Some(calling_class) = calling_class {
-                        StaticClassType::Name(calling_class)
-                    } else {
-                        StaticClassType::None
+                    &TypeExpansionOptions {
+                        self_class: calling_class.clone(),
+                        static_class_type: if let Some(calling_class) = calling_class {
+                            StaticClassType::Name(calling_class)
+                        } else {
+                            StaticClassType::None
+                        },
+                        evaluate_class_constants: true,
+                        evaluate_conditional_types: true,
+                        function_is_final: if let Some(method_info) =
+                            &functionlike_storage.method_info
+                        {
+                            method_info.is_final
+                        } else {
+                            false
+                        },
+                        expand_generic: true,
+                        expand_templates: true,
+
+                        ..Default::default()
                     },
-                    None,
                     &mut tast_info.data_flow_graph,
-                    true,
-                    true,
-                    if let Some(method_info) = &functionlike_storage.method_info {
-                        method_info.is_final
-                    } else {
-                        false
-                    },
-                    true,
-                    true,
                 );
                 param_type
             } else {

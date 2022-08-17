@@ -9,7 +9,10 @@ use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_type::{get_mixed_any, get_nothing, get_string, template, type_expander};
+use hakana_type::{
+    get_mixed_any, get_nothing, get_string, template,
+    type_expander::{self, TypeExpansionOptions},
+};
 use oxidized::ast_defs::Pos;
 
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -65,15 +68,14 @@ pub(crate) fn fetch(
         type_expander::expand_union(
             codebase,
             &mut return_type_candidate,
-            Some(&method_id.0),
-            &type_expander::StaticClassType::None,
-            classlike_storage.direct_parent_class.as_ref(),
+            &TypeExpansionOptions {
+                self_class: Some(&method_id.0),
+                parent_class: classlike_storage.direct_parent_class.as_ref(),
+                function_is_final: method_storage.is_final,
+                expand_generic: true,
+                ..Default::default()
+            },
             &mut tast_info.data_flow_graph,
-            true,
-            false,
-            method_storage.is_final,
-            true,
-            true,
         );
 
         return_type_candidate = template::inferred_type_replacer::replace(
@@ -86,21 +88,23 @@ pub(crate) fn fetch(
     type_expander::expand_union(
         codebase,
         &mut return_type_candidate,
-        Some(&method_id.0),
-        &if let TAtomic::TNamedObject { .. } | TAtomic::TTemplateParam { .. } = lhs_type_part {
-            type_expander::StaticClassType::Object(lhs_type_part)
-        } else if let TAtomic::TClassname { as_type } = lhs_type_part {
-            type_expander::StaticClassType::Object(as_type)
-        } else {
-            type_expander::StaticClassType::None
+        &TypeExpansionOptions {
+            self_class: Some(&method_id.0),
+            static_class_type: if let TAtomic::TNamedObject { .. }
+            | TAtomic::TTemplateParam { .. } = lhs_type_part
+            {
+                type_expander::StaticClassType::Object(lhs_type_part)
+            } else if let TAtomic::TClassname { as_type } = lhs_type_part {
+                type_expander::StaticClassType::Object(as_type)
+            } else {
+                type_expander::StaticClassType::None
+            },
+            parent_class: classlike_storage.direct_parent_class.as_ref(),
+            function_is_final: method_storage.is_final,
+            expand_generic: true,
+            ..Default::default()
         },
-        classlike_storage.direct_parent_class.as_ref(),
         &mut tast_info.data_flow_graph,
-        true,
-        false,
-        method_storage.is_final,
-        true,
-        true,
     );
 
     add_dataflow(

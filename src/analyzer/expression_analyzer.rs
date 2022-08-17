@@ -28,7 +28,7 @@ use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_type::type_expander::{self, get_closure_from_id, StaticClassType};
+use hakana_type::type_expander::{self, get_closure_from_id, TypeExpansionOptions};
 use hakana_type::{
     get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
     get_null, get_string, get_true, wrap_atomic,
@@ -346,15 +346,12 @@ pub(crate) fn analyze(
                     type_expander::expand_union(
                         statements_analyzer.get_codebase(),
                         param_type,
-                        None,
-                        &StaticClassType::None,
-                        None,
+                        &TypeExpansionOptions {
+                            evaluate_conditional_types: true,
+                            expand_generic: true,
+                            ..Default::default()
+                        },
                         &mut tast_info.data_flow_graph,
-                        true,
-                        true,
-                        false,
-                        true,
-                        true,
                     )
                 }
             }

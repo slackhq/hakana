@@ -8,7 +8,7 @@ use crate::typed_ast::TastInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::t_union::populate_union_type;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
-use hakana_type::type_expander::StaticClassType;
+use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{get_mixed_any, type_expander};
 use oxidized::aast;
 
@@ -145,15 +145,11 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         type_expander::expand_union(
             codebase,
             &mut hint_type,
-            context.function_context.calling_class.as_ref(),
-            &StaticClassType::None,
-            None,
+            &TypeExpansionOptions {
+                self_class: context.function_context.calling_class.as_ref(),
+                ..Default::default()
+            },
             &mut DataFlowGraph::new(GraphKind::Variable),
-            true,
-            false,
-            false,
-            false,
-            true,
         );
         hint_type.parent_nodes = ternary_type.parent_nodes;
         ternary_type = hint_type;

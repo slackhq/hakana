@@ -14,7 +14,7 @@ use hakana_reflection_info::{
 };
 use hakana_type::{
     add_union_type, get_mixed_any, get_null, get_value_param,
-    type_expander::{self, StaticClassType},
+    type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
 };
 use lazy_static::lazy_static;
@@ -935,15 +935,12 @@ fn get_property_type(
         type_expander::expand_union(
             codebase,
             &mut class_property_type,
-            Some(declaring_property_class),
-            &StaticClassType::Name(declaring_property_class),
-            None,
+            &TypeExpansionOptions {
+                self_class: Some(declaring_property_class),
+                static_class_type: StaticClassType::Name(declaring_property_class),
+                ..Default::default()
+            },
             &mut tast_info.data_flow_graph,
-            true,
-            false,
-            false,
-            false,
-            true,
         );
         return Some(class_property_type);
     }

@@ -13,7 +13,9 @@ use hakana_reflection_info::{
 };
 use hakana_type::{
     get_mixed_any, get_null, get_void,
-    type_comparator::type_comparison_result::TypeComparisonResult, type_expander, wrap_atomic,
+    type_comparator::type_comparison_result::TypeComparisonResult,
+    type_expander::{self, TypeExpansionOptions},
+    wrap_atomic,
 };
 use hakana_type::{type_comparator::union_type_comparator, type_expander::StaticClassType};
 use oxidized::{aast, aast::Pos};
@@ -85,23 +87,22 @@ pub(crate) fn analyze(
     type_expander::expand_union(
         statements_analyzer.get_codebase(),
         &mut inferred_return_type,
-        context.function_context.calling_class.as_ref(),
-        &if let Some(calling_class) = &context.function_context.calling_class {
-            StaticClassType::Name(calling_class)
-        } else {
-            StaticClassType::None
+        &TypeExpansionOptions {
+            self_class: context.function_context.calling_class.as_ref(),
+            static_class_type: if let Some(calling_class) = &context.function_context.calling_class
+            {
+                StaticClassType::Name(calling_class)
+            } else {
+                StaticClassType::None
+            },
+            function_is_final: if let Some(method_info) = &functionlike_storage.method_info {
+                method_info.is_final
+            } else {
+                false
+            },
+            ..Default::default()
         },
-        None,
         &mut tast_info.data_flow_graph,
-        true,
-        false,
-        if let Some(method_info) = &functionlike_storage.method_info {
-            method_info.is_final
-        } else {
-            false
-        },
-        false,
-        true,
     );
 
     if let Some(_) = return_expr {
@@ -116,23 +117,23 @@ pub(crate) fn analyze(
         type_expander::expand_union(
             statements_analyzer.get_codebase(),
             &mut expected_type,
-            context.function_context.calling_class.as_ref(),
-            &if let Some(calling_class) = &context.function_context.calling_class {
-                StaticClassType::Name(calling_class)
-            } else {
-                StaticClassType::None
+            &TypeExpansionOptions {
+                self_class: context.function_context.calling_class.as_ref(),
+                static_class_type: if let Some(calling_class) =
+                    &context.function_context.calling_class
+                {
+                    StaticClassType::Name(calling_class)
+                } else {
+                    StaticClassType::None
+                },
+                function_is_final: if let Some(method_info) = &functionlike_storage.method_info {
+                    method_info.is_final
+                } else {
+                    false
+                },
+                ..Default::default()
             },
-            None,
             &mut tast_info.data_flow_graph,
-            true,
-            false,
-            if let Some(method_info) = &functionlike_storage.method_info {
-                method_info.is_final
-            } else {
-                false
-            },
-            false,
-            true,
         );
 
         expected_type
