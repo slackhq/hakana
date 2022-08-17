@@ -5,6 +5,7 @@ use crate::{code_location::HPos, taint::SinkType};
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
 pub enum IssueKind {
+    CustomIssue(String),
     EmptyBlock,
     FalsableReturnStatement,
     FalseArgument,
@@ -92,15 +93,100 @@ pub enum IssueKind {
 impl IssueKind {
     pub fn from_str(str: &str) -> Result<IssueKind, String> {
         match str {
-            "UnusedFunction" => Ok(IssueKind::UnusedFunction),
-            "UnusedVariable" => Ok(IssueKind::UnusedVariable),
-            "UnusedPrivateMethod" => Ok(IssueKind::UnusedPrivateMethod),
-            "UnusedPublicOrProtectedMethod" => Ok(IssueKind::UnusedPublicOrProtectedMethod),
-            "InvalidArrayOffset" => Ok(IssueKind::InvalidArrayOffset),
             "EmptyBlock" => Ok(IssueKind::EmptyBlock),
+            "FalsableReturnStatement" => Ok(IssueKind::FalsableReturnStatement),
+            "FalseArgument" => Ok(IssueKind::FalseArgument),
+            "ImpossibleAssignment" => Ok(IssueKind::ImpossibleAssignment),
+            "ImpossibleTypeComparison" => Ok(IssueKind::ImpossibleTypeComparison),
+            "InternalError" => Ok(IssueKind::InternalError),
+            "InvalidArgument" => Ok(IssueKind::InvalidArgument),
+            "InvalidArrayOffset" => Ok(IssueKind::InvalidArrayOffset),
             "InvalidMethodCall" => Ok(IssueKind::InvalidMethodCall),
+            "InvalidPropertyAssignmentValue" => Ok(IssueKind::InvalidPropertyAssignmentValue),
+            "InvalidReturnStatement" => Ok(IssueKind::InvalidReturnStatement),
+            "InvalidReturnType" => Ok(IssueKind::InvalidReturnType),
+            "InvalidReturnValue" => Ok(IssueKind::InvalidReturnValue),
+            "LessSpecificArgument" => Ok(IssueKind::LessSpecificArgument),
+            "LessSpecificNestedAnyArgumentType" => Ok(IssueKind::LessSpecificNestedAnyArgumentType),
+            "LessSpecificNestedAnyReturnStatement" => {
+                Ok(IssueKind::LessSpecificNestedAnyReturnStatement)
+            }
+            "LessSpecificNestedArgumentType" => Ok(IssueKind::LessSpecificNestedArgumentType),
+            "LessSpecificNestedReturnStatement" => Ok(IssueKind::LessSpecificNestedReturnStatement),
+            "LessSpecificReturnStatement" => Ok(IssueKind::LessSpecificReturnStatement),
+            "MethodCallOnNull" => Ok(IssueKind::MethodCallOnNull),
+            "MixedAnyArgument" => Ok(IssueKind::MixedAnyArgument),
+            "MixedAnyArrayAccess" => Ok(IssueKind::MixedAnyArrayAccess),
+            "MixedAnyArrayAssignment" => Ok(IssueKind::MixedAnyArrayAssignment),
+            "MixedAnyArrayOffset" => Ok(IssueKind::MixedAnyArrayOffset),
+            "MixedAnyAssignment" => Ok(IssueKind::MixedAnyAssignment),
+            "MixedAnyMethodCall" => Ok(IssueKind::MixedAnyMethodCall),
+            "MixedAnyPropertyAssignment" => Ok(IssueKind::MixedAnyPropertyAssignment),
+            "MixedAnyPropertyTypeCoercion" => Ok(IssueKind::MixedAnyPropertyTypeCoercion),
+            "MixedAnyReturnStatement" => Ok(IssueKind::MixedAnyReturnStatement),
+            "MixedArgument" => Ok(IssueKind::MixedArgument),
+            "MixedArrayAccess" => Ok(IssueKind::MixedArrayAccess),
+            "MixedArrayAssignment" => Ok(IssueKind::MixedArrayAssignment),
+            "MixedArrayOffset" => Ok(IssueKind::MixedArrayOffset),
+            "MixedMethodCall" => Ok(IssueKind::MixedMethodCall),
+            "MixedPropertyAssignment" => Ok(IssueKind::MixedPropertyAssignment),
+            "MixedPropertyTypeCoercion" => Ok(IssueKind::MixedPropertyTypeCoercion),
+            "MixedReturnStatement" => Ok(IssueKind::MixedReturnStatement),
+            "NoValue" => Ok(IssueKind::NoValue),
+            "NonExistentProperty" => Ok(IssueKind::NonExistentProperty),
+            "NonExistentClass" => Ok(IssueKind::NonExistentClass),
+            "NonExistentFunction" => Ok(IssueKind::NonExistentFunction),
+            "NonExistentMethod" => Ok(IssueKind::NonExistentMethod),
+            "NonNullableReturnType" => Ok(IssueKind::NonNullableReturnType),
+            "NothingReturn" => Ok(IssueKind::NothingReturn),
+            "NullArgument" => Ok(IssueKind::NullArgument),
+            "NullArrayOffset" => Ok(IssueKind::NullArrayOffset),
+            "NullIterator" => Ok(IssueKind::NullIterator),
+            "NullablePropertyAssignment" => Ok(IssueKind::NullablePropertyAssignment),
+            "NullableReturnStatement" => Ok(IssueKind::NullableReturnStatement),
+            "NullableReturnValue" => Ok(IssueKind::NullableReturnValue),
+            "ParadoxicalCondition" => Ok(IssueKind::ParadoxicalCondition),
+            "PossibleMethodCallOnNull" => Ok(IssueKind::PossibleMethodCallOnNull),
+            "PossiblyFalseArgument" => Ok(IssueKind::PossiblyFalseArgument),
+            "PossiblyInvalidArgument" => Ok(IssueKind::PossiblyInvalidArgument),
+            "PossiblyInvalidArrayAccess" => Ok(IssueKind::PossiblyInvalidArrayAccess),
             "PossiblyInvalidMethodCall" => Ok(IssueKind::PossiblyInvalidMethodCall),
-            _ => Err("Unrecognized issue".to_string()),
+            "PossiblyNullArgument" => Ok(IssueKind::PossiblyNullArgument),
+            "PossiblyNullArrayOffset" => Ok(IssueKind::PossiblyNullArrayOffset),
+            "PossiblyNullIterator" => Ok(IssueKind::PossiblyNullIterator),
+            "PossiblyUndefinedIntArrayOffset" => Ok(IssueKind::PossiblyUndefinedIntArrayOffset),
+            "PossiblyUndefinedStringArrayOffset" => {
+                Ok(IssueKind::PossiblyUndefinedStringArrayOffset)
+            }
+            "PossiblyUnusedProperty" => Ok(IssueKind::PossiblyUnusedProperty),
+            "PropertyTypeCoercion" => Ok(IssueKind::PropertyTypeCoercion),
+            "RedundantTypeComparison" => Ok(IssueKind::RedundantTypeComparison),
+            "UndefinedIntArrayOffset" => Ok(IssueKind::UndefinedIntArrayOffset),
+            "UndefinedStringArrayOffset" => Ok(IssueKind::UndefinedStringArrayOffset),
+            "UndefinedVariable" => Ok(IssueKind::UndefinedVariable),
+            "UnevaluatedCode" => Ok(IssueKind::UnevaluatedCode),
+            "UnrecognizedBinaryOp" => Ok(IssueKind::UnrecognizedBinaryOp),
+            "UnrecognizedExpression" => Ok(IssueKind::UnrecognizedExpression),
+            "UnrecognizedStatement" => Ok(IssueKind::UnrecognizedStatement),
+            "UnrecognizedUnaryOp" => Ok(IssueKind::UnrecognizedUnaryOp),
+            "UnusedClass" => Ok(IssueKind::UnusedClass),
+            "UnusedFunction" => Ok(IssueKind::UnusedFunction),
+            "UnusedInterface" => Ok(IssueKind::UnusedInterface),
+            "UnusedParameter" => Ok(IssueKind::UnusedParameter),
+            "UnusedPrivateMethod" => Ok(IssueKind::UnusedPrivateMethod),
+            "UnusedProperty" => Ok(IssueKind::UnusedProperty),
+            "UnusedPublicOrProtectedMethod" => Ok(IssueKind::UnusedPublicOrProtectedMethod),
+            "UnusedTrait" => Ok(IssueKind::UnusedTrait),
+            "UnusedVariable" => Ok(IssueKind::UnusedVariable),
+            _ => Ok(IssueKind::CustomIssue(str.to_string())),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::CustomIssue(str) => str.clone(),
+            //Self::TaintedData(sink_type) => format!("TaintedData({})", sink_type),
+            _ => format!("{}", self),
         }
     }
 
@@ -145,7 +231,7 @@ impl Issue {
     pub fn format(&self) -> String {
         format!(
             "ERROR: {} - {}:{}:{} - {}\n",
-            self.kind,
+            self.kind.to_string(),
             self.pos.file_path,
             self.pos.start_line,
             self.pos.start_column,

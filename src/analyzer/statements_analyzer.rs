@@ -18,7 +18,7 @@ use oxidized::prim_defs::Comment;
 pub struct StatementsAnalyzer<'a> {
     file_analyzer: &'a FileAnalyzer<'a>,
     function_info: Option<&'a FunctionLikeInfo>,
-    comments: Vec<&'a (Pos, Comment)>,
+    pub comments: Vec<&'a (Pos, Comment)>,
     type_resolution_context: &'a TypeResolutionContext,
 }
 
@@ -83,11 +83,6 @@ impl<'a> StatementsAnalyzer<'a> {
     #[inline]
     pub fn get_functionlike_info(&self) -> Option<&FunctionLikeInfo> {
         self.function_info
-    }
-
-    #[inline]
-    pub fn get_comments(&self) -> &Vec<&(Pos, Comment)> {
-        &self.comments
     }
 
     #[inline]

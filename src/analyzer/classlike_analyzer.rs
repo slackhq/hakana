@@ -62,6 +62,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
         let mut tast_info = TastInfo::new(
             DataFlowGraph::new(GraphKind::Variable),
             statements_analyzer.get_file_analyzer().get_file_source(),
+            &statements_analyzer.comments,
         );
 
         for constant in &stmt.consts {

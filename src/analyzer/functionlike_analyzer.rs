@@ -318,6 +318,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut tast_info = TastInfo::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             statements_analyzer.get_file_analyzer().get_file_source(),
+            &statements_analyzer.comments
         );
 
         if let Some(issue_filter) = &statements_analyzer.get_config().issue_filter {

@@ -48,6 +48,7 @@ impl<'a> FileAnalyzer<'a> {
         let mut tast_info = TastInfo::new(
             DataFlowGraph::new(self.analysis_config.graph_kind),
             &self.file_source,
+            &Vec::from_iter(self.file_source.comments.iter()),
         );
 
         let unnamespaced_file_analyzer = self.clone();

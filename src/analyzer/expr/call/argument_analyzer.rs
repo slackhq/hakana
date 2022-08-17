@@ -718,8 +718,9 @@ pub(crate) fn get_removed_taints_in_comments(
     input_expr_pos: &Pos,
 ) -> FxHashSet<SinkType> {
     let mut removed_taints = FxHashSet::default();
+
     let tags = statements_analyzer
-        .get_comments()
+        .comments
         .iter()
         .filter(|c| {
             let diff = (input_expr_pos.line() as i64) - (c.0.line() as i64);

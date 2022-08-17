@@ -840,7 +840,7 @@ fn scan_file(
         codebase,
         FileSource {
             file_path: Arc::new(target_name),
-            fixmes: aast.1.fixmes,
+            hh_fixmes: aast.1.fixmes,
             comments: aast.1.comments,
         },
         user_defined,
@@ -925,7 +925,7 @@ pub fn scan_single_file(
         codebase,
         FileSource {
             file_path: Arc::new(path.clone()),
-            fixmes: aast.1.fixmes,
+            hh_fixmes: aast.1.fixmes,
             comments: aast.1.comments,
         },
         true,
@@ -1102,7 +1102,7 @@ fn analyze_file(
 
     let file_source = FileSource {
         file_path: Arc::new(target_name),
-        fixmes: aast.1.fixmes,
+        hh_fixmes: aast.1.fixmes,
         comments: aast.1.comments,
     };
     let mut file_analyzer =
@@ -1131,7 +1131,7 @@ pub fn analyze_single_file(
 
     let file_source = FileSource {
         file_path: Arc::new(path.clone()),
-        fixmes: aast.1.fixmes,
+        hh_fixmes: aast.1.fixmes,
         comments: aast.1.comments,
     };
 

@@ -8,7 +8,7 @@ use hakana_reflection_info::{
     symbol_references::SymbolReferences,
     t_union::TUnion,
 };
-use oxidized::ast_defs::Pos;
+use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
@@ -29,11 +29,44 @@ pub struct TastInfo {
     pub pure_exprs: FxHashSet<(usize, usize)>,
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
-    fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
+    hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
+    hakana_ignores: BTreeMap<usize, Vec<IssueKind>>,
 }
 
 impl TastInfo {
-    pub(crate) fn new(data_flow_graph: DataFlowGraph, file_source: &FileSource) -> Self {
+    pub(crate) fn new(
+        data_flow_graph: DataFlowGraph,
+        file_source: &FileSource,
+        comments: &Vec<&(Pos, Comment)>,
+    ) -> Self {
+        let mut hakana_ignores = BTreeMap::new();
+        for (pos, comment) in comments {
+            match comment {
+                Comment::CmtBlock(text) => {
+                    let trimmed_text = if text.starts_with("*") {
+                        text[1..].trim()
+                    } else {
+                        text.trim()
+                    };
+
+                    if trimmed_text.starts_with("HAKANA_IGNORE[") {
+                        let trimmed_text = trimmed_text[14..].to_string();
+
+                        if let Some(bracket_pos) = trimmed_text.find("]") {
+                            let issue_kind =
+                                IssueKind::from_str(&trimmed_text[..bracket_pos]).unwrap();
+
+                            hakana_ignores
+                                .entry(pos.line())
+                                .or_insert_with(Vec::new)
+                                .push(issue_kind);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
         Self {
             expr_types: FxHashMap::default(),
             data_flow_graph,
@@ -48,10 +81,11 @@ impl TastInfo {
             if_true_assertions: FxHashMap::default(),
             if_false_assertions: FxHashMap::default(),
             replacements: BTreeMap::new(),
-            fixmes: file_source.fixmes.clone(),
+            hh_fixmes: file_source.hh_fixmes.clone(),
             symbol_references: SymbolReferences::new(),
             issue_filter: None,
             pure_exprs: FxHashSet::default(),
+            hakana_ignores,
         }
     }
 
@@ -82,7 +116,7 @@ impl TastInfo {
             }
         }
 
-        if let Some(fixmes) = self.fixmes.get(&(issue.pos.start_line as isize)) {
+        if let Some(fixmes) = self.hh_fixmes.get(&(issue.pos.start_line as isize)) {
             for (hack_error, _) in fixmes {
                 match *hack_error {
                     4110 => match &issue.kind {
@@ -135,6 +169,16 @@ impl TastInfo {
                         _ => {}
                     },
                     _ => {}
+                }
+            }
+        }
+
+        for ignored_issues in &self.hakana_ignores {
+            if ignored_issues.0 == &issue.pos.start_line
+                || ignored_issues.0 == &(issue.pos.start_line - 1)
+            {
+                if ignored_issues.1.contains(&issue.kind) {
+                    return false;
                 }
             }
         }
