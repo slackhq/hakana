@@ -26,10 +26,11 @@ pub enum StaticClassType<'a, 'b> {
     Object(&'b TAtomic),
 }
 
-pub struct TypeExpansionOptions<'a, 'b> {
+pub struct TypeExpansionOptions<'a> {
     pub self_class: Option<&'a String>,
-    pub static_class_type: StaticClassType<'a, 'b>,
+    pub static_class_type: StaticClassType<'a, 'a>,
     pub parent_class: Option<&'a String>,
+    pub file_path: Option<&'a String>,
 
     pub evaluate_class_constants: bool,
     pub evaluate_conditional_types: bool,
@@ -38,9 +39,10 @@ pub struct TypeExpansionOptions<'a, 'b> {
     pub expand_templates: bool,
 }
 
-impl Default for TypeExpansionOptions<'_, '_> {
+impl Default for TypeExpansionOptions<'_> {
     fn default() -> Self {
         Self {
+            file_path: None,
             self_class: None,
             static_class_type: StaticClassType::None,
             parent_class: None,
@@ -242,7 +244,17 @@ fn expand_atomic(
             return;
         };
 
-        if !type_definition.newtype_file.is_some() {
+        let can_expand_type = if let Some(type_file_path) = &type_definition.newtype_file {
+            if let Some(expanding_file_path) = options.file_path {
+                expanding_file_path == &**type_file_path
+            } else {
+                false
+            }
+        } else {
+            true
+        };
+
+        if can_expand_type {
             skipped_keys.push(key.clone());
             *had_split_values = true;
 

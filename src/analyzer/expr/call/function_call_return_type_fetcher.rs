@@ -130,6 +130,7 @@ pub(crate) fn fetch(
                 &TypeExpansionOptions {
                     expand_templates: false,
                     expand_generic: true,
+                    file_path: Some(&statements_analyzer.get_file_analyzer().get_file_source().file_path),
                     ..Default::default()
                 },
                 &mut tast_info.data_flow_graph,

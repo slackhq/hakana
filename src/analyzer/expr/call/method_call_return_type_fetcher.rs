@@ -102,6 +102,12 @@ pub(crate) fn fetch(
             parent_class: classlike_storage.direct_parent_class.as_ref(),
             function_is_final: method_storage.is_final,
             expand_generic: true,
+            file_path: Some(
+                &statements_analyzer
+                    .get_file_analyzer()
+                    .get_file_source()
+                    .file_path,
+            ),
             ..Default::default()
         },
         &mut tast_info.data_flow_graph,
