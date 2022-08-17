@@ -1,7 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    rc::Rc,
-};
+use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
 use hakana_reflection_info::{assertion::Assertion, t_union::TUnion};

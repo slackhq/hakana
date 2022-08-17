@@ -1,5 +1,6 @@
 use crate::{
-    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+    scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
+    statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -47,11 +48,14 @@ pub(crate) fn analyze(
                 superglobal_type
             }
             _ => {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::UndefinedVariable,
-                    format!("Cannot find referenced variable {}", &lid.1 .1),
-                    statements_analyzer.get_hpos(&pos),
-                ));
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UndefinedVariable,
+                        format!("Cannot find referenced variable {}", &lid.1 .1),
+                        statements_analyzer.get_hpos(&pos),
+                    ),
+                    statements_analyzer.get_config(),
+                );
 
                 Rc::new(get_mixed_any())
             }

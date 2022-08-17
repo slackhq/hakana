@@ -178,21 +178,27 @@ fn check_iterator_type(
     let mut always_non_empty_array = true;
 
     if iterator_type.is_null() {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::NullIterator,
-            "Cannot iterate over null".to_string(),
-            statements_analyzer.get_hpos(&expr.pos()),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NullIterator,
+                "Cannot iterate over null".to_string(),
+                statements_analyzer.get_hpos(&expr.pos()),
+            ),
+            statements_analyzer.get_config(),
+        );
 
         return (true, None, None, false);
     }
 
     if iterator_type.is_nullable() {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::NullIterator,
-            "Cannot iterate over null".to_string(),
-            statements_analyzer.get_hpos(&expr.pos()),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NullIterator,
+                "Cannot iterate over null".to_string(),
+                statements_analyzer.get_hpos(&expr.pos()),
+            ),
+            statements_analyzer.get_config(),
+        );
 
         return (true, None, None, false);
     }

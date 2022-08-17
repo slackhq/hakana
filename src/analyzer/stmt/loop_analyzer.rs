@@ -1,14 +1,11 @@
-use std::{
-    collections::BTreeMap,
-    rc::Rc,
-};
+use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
 
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::combine_union_types;
 use oxidized::aast;
-use rustc_hash::{FxHashSet, FxHashMap};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     expression_analyzer, formula_generator,

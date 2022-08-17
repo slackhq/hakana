@@ -157,11 +157,14 @@ fn analyze_atomic(
                 // todo check class name and register usage
                 name
             } else {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::MixedMethodCall,
-                    "Method called on unknown object".to_string(),
-                    statements_analyzer.get_hpos(&pos),
-                ));
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MixedMethodCall,
+                        "Method called on unknown object".to_string(),
+                        statements_analyzer.get_hpos(&pos),
+                    ),
+                    statements_analyzer.get_config(),
+                );
 
                 return;
             }
@@ -187,11 +190,14 @@ fn analyze_atomic(
         }
         _ => {
             if lhs_type_part.is_mixed() {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::MixedMethodCall,
-                    "Method called on unknown object".to_string(),
-                    statements_analyzer.get_hpos(&pos),
-                ));
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MixedMethodCall,
+                        "Method called on unknown object".to_string(),
+                        statements_analyzer.get_hpos(&pos),
+                    ),
+                    statements_analyzer.get_config(),
+                );
             }
 
             // todo handle nonobject call

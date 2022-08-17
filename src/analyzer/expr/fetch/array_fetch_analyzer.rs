@@ -300,25 +300,31 @@ pub(crate) fn get_array_access_type_given_offset(
 
     if offset_type.is_null() {
         // TODO append issue
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::NullArrayOffset,
-            format!(
-                "Cannot access value on variable {} using null offset",
-                extended_var_id.clone().unwrap_or("".to_string())
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NullArrayOffset,
+                format!(
+                    "Cannot access value on variable {} using null offset",
+                    extended_var_id.clone().unwrap_or("".to_string())
+                ),
+                statements_analyzer.get_hpos(&stmt.2),
             ),
-            statements_analyzer.get_hpos(&stmt.2),
-        ));
+            statements_analyzer.get_config(),
+        );
     }
 
     if offset_type.is_nullable() {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::PossiblyNullArrayOffset,
-            format!(
-                "Cannot access value on variable {} using nullable offset",
-                extended_var_id.clone().unwrap_or("".to_string())
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::PossiblyNullArrayOffset,
+                format!(
+                    "Cannot access value on variable {} using nullable offset",
+                    extended_var_id.clone().unwrap_or("".to_string())
+                ),
+                statements_analyzer.get_hpos(&stmt.2),
             ),
-            statements_analyzer.get_hpos(&stmt.2),
-        ));
+            statements_analyzer.get_config(),
+        );
     }
 
     let array_atomic_types = &array_type.types;
@@ -486,29 +492,35 @@ pub(crate) fn get_array_access_type_given_offset(
                 tast_info.data_flow_graph.add_mixed_data(origin, stmt.2);
             }
 
-            tast_info.maybe_add_issue(Issue::new(
-                if mixed_with_any {
-                    IssueKind::MixedAnyArrayOffset
-                } else {
-                    IssueKind::MixedArrayOffset
-                },
-                format!(
-                    "Invalid array fetch on {} using offset {}",
-                    array_type.get_id(),
-                    offset_type.get_id()
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    if mixed_with_any {
+                        IssueKind::MixedAnyArrayOffset
+                    } else {
+                        IssueKind::MixedArrayOffset
+                    },
+                    format!(
+                        "Invalid array fetch on {} using offset {}",
+                        array_type.get_id(),
+                        offset_type.get_id()
+                    ),
+                    statements_analyzer.get_hpos(&stmt.2),
                 ),
-                statements_analyzer.get_hpos(&stmt.2),
-            ));
+                statements_analyzer.get_config(),
+            );
         } else {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::InvalidArrayOffset,
-                format!(
-                    "Invalid array fetch on {} using offset {}",
-                    array_type.get_id(),
-                    offset_type.get_id()
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InvalidArrayOffset,
+                    format!(
+                        "Invalid array fetch on {} using offset {}",
+                        array_type.get_id(),
+                        offset_type.get_id()
+                    ),
+                    statements_analyzer.get_hpos(&stmt.2),
                 ),
-                statements_analyzer.get_hpos(&stmt.2),
-            ));
+                statements_analyzer.get_config(),
+            );
         }
     }
 
@@ -572,15 +584,18 @@ pub(crate) fn handle_array_access_on_vec(
 
                 if *actual_possibly_undefined && !context.inside_isset && !in_assignment {
                     // oh no!
-                    tast_info.maybe_add_issue(Issue::new(
-                        IssueKind::PossiblyUndefinedIntArrayOffset,
-                        format!(
-                            "Fetch on {} using possibly-undefined key {}",
-                            vec.get_id(),
-                            val
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::PossiblyUndefinedIntArrayOffset,
+                            format!(
+                                "Fetch on {} using possibly-undefined key {}",
+                                vec.get_id(),
+                                val
+                            ),
+                            statements_analyzer.get_hpos(&pos),
                         ),
-                        statements_analyzer.get_hpos(&pos),
-                    ));
+                        statements_analyzer.get_config(),
+                    );
                 }
 
                 return actual_value.clone();
@@ -588,15 +603,18 @@ pub(crate) fn handle_array_access_on_vec(
 
             if !in_assignment {
                 if type_param.is_nothing() {
-                    tast_info.maybe_add_issue(Issue::new(
-                        IssueKind::UndefinedIntArrayOffset,
-                        format!(
-                            "Invalid vec fetch on {} using offset {}",
-                            vec.get_id(),
-                            index.to_string()
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::UndefinedIntArrayOffset,
+                            format!(
+                                "Invalid vec fetch on {} using offset {}",
+                                vec.get_id(),
+                                index.to_string()
+                            ),
+                            statements_analyzer.get_hpos(&pos),
                         ),
-                        statements_analyzer.get_hpos(&pos),
-                    ));
+                        statements_analyzer.get_config(),
+                    );
                 }
 
                 return type_param.clone();
@@ -676,15 +694,18 @@ pub(crate) fn handle_array_access_on_dict(
                 if actual_possibly_undefined && !in_assignment {
                     if !allow_possibly_undefined {
                         // oh no!
-                        tast_info.maybe_add_issue(Issue::new(
-                            IssueKind::PossiblyUndefinedStringArrayOffset,
-                            format!(
-                                "Fetch on {} using possibly-undefined key '{}'",
-                                dict.get_id(),
-                                val
+                        tast_info.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::PossiblyUndefinedStringArrayOffset,
+                                format!(
+                                    "Fetch on {} using possibly-undefined key '{}'",
+                                    dict.get_id(),
+                                    val
+                                ),
+                                statements_analyzer.get_hpos(&pos),
                             ),
-                            statements_analyzer.get_hpos(&pos),
-                        ));
+                            statements_analyzer.get_config(),
+                        );
                     } else {
                         *has_possibly_undefined = true;
                     }
@@ -696,15 +717,18 @@ pub(crate) fn handle_array_access_on_dict(
             if !in_assignment {
                 if value_param.is_nothing() {
                     // oh no!
-                    tast_info.maybe_add_issue(Issue::new(
-                        IssueKind::UndefinedStringArrayOffset,
-                        format!(
-                            "Invalid dict fetch on {} using key '{}'",
-                            dict.get_id(),
-                            val
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::UndefinedStringArrayOffset,
+                            format!(
+                                "Invalid dict fetch on {} using key '{}'",
+                                dict.get_id(),
+                                val
+                            ),
+                            statements_analyzer.get_hpos(&pos),
                         ),
-                        statements_analyzer.get_hpos(&pos),
-                    ));
+                        statements_analyzer.get_config(),
+                    );
                 }
 
                 return value_param.clone();
@@ -819,29 +843,35 @@ pub(crate) fn handle_array_access_on_mixed(
 
         if context.inside_assignment {
             // oh no!
-            tast_info.maybe_add_issue(Issue::new(
-                if let TAtomic::TMixedAny = mixed {
-                    IssueKind::MixedAnyArrayAssignment
-                } else {
-                    IssueKind::MixedArrayAssignment
-                },
-                format!(
-                    "Unsafe array assignment on value with type {}",
-                    mixed.get_id()
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    if let TAtomic::TMixedAny = mixed {
+                        IssueKind::MixedAnyArrayAssignment
+                    } else {
+                        IssueKind::MixedArrayAssignment
+                    },
+                    format!(
+                        "Unsafe array assignment on value with type {}",
+                        mixed.get_id()
+                    ),
+                    statements_analyzer.get_hpos(&pos),
                 ),
-                statements_analyzer.get_hpos(&pos),
-            ));
+                statements_analyzer.get_config(),
+            );
         } else {
             // oh no!
-            tast_info.maybe_add_issue(Issue::new(
-                if let TAtomic::TMixedAny = mixed {
-                    IssueKind::MixedAnyArrayAccess
-                } else {
-                    IssueKind::MixedArrayAccess
-                },
-                format!("Unsafe array access on value with type {}", mixed.get_id()),
-                statements_analyzer.get_hpos(&pos),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    if let TAtomic::TMixedAny = mixed {
+                        IssueKind::MixedAnyArrayAccess
+                    } else {
+                        IssueKind::MixedArrayAccess
+                    },
+                    format!("Unsafe array access on value with type {}", mixed.get_id()),
+                    statements_analyzer.get_hpos(&pos),
+                ),
+                statements_analyzer.get_config(),
+            );
         }
     }
 
@@ -867,8 +897,10 @@ pub(crate) fn handle_array_access_on_mixed(
             }
             if let Some(stmt_type) = stmt_type {
                 let mut stmt_type_new = stmt_type.clone();
-                stmt_type_new.parent_nodes =
-                    FxHashMap::from_iter([(new_parent_node.get_id().clone(), new_parent_node.clone())]);
+                stmt_type_new.parent_nodes = FxHashMap::from_iter([(
+                    new_parent_node.get_id().clone(),
+                    new_parent_node.clone(),
+                )]);
             }
         }
     }

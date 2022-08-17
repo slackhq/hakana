@@ -63,11 +63,14 @@ pub(crate) fn analyze(
             // not sure
         }
         aast::Def::Module(boxed) => {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::UnrecognizedStatement,
-                "Unrecognized statement".to_string(),
-                statements_analyzer.get_hpos(&boxed.span),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::UnrecognizedStatement,
+                    "Unrecognized statement".to_string(),
+                    statements_analyzer.get_hpos(&boxed.span),
+                ),
+                statements_analyzer.get_config(),
+            );
         } //aast::Def::SetModule(_) => panic!(),
     }
 }

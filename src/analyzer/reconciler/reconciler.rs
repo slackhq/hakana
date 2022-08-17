@@ -985,11 +985,14 @@ pub(crate) fn trigger_issue_for_impossible(
             &assertion_string
         );
 
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::RedundantTypeComparison,
-            description,
-            statements_analyzer.get_hpos(&pos),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::RedundantTypeComparison,
+                description,
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+        );
     } else {
         let description = format!(
             "Type {} for {} is {} {}",
@@ -999,10 +1002,13 @@ pub(crate) fn trigger_issue_for_impossible(
             &assertion_string
         );
 
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::ImpossibleTypeComparison,
-            description,
-            statements_analyzer.get_hpos(&pos),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::ImpossibleTypeComparison,
+                description,
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+        );
     }
 }

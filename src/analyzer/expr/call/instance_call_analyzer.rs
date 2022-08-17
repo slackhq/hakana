@@ -72,18 +72,24 @@ pub(crate) fn analyze(
     let mut analysis_result = AtomicMethodCallAnalysisResult::new();
 
     if class_type.is_null() || class_type.is_void() {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::MethodCallOnNull,
-            "Cannot call method on null value".to_string(),
-            statements_analyzer.get_hpos(&expr.1.pos()),
-        ));
-    } else {
-        if class_type.is_nullable() && !nullsafe {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::PossibleMethodCallOnNull,
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::MethodCallOnNull,
                 "Cannot call method on null value".to_string(),
                 statements_analyzer.get_hpos(&expr.1.pos()),
-            ))
+            ),
+            statements_analyzer.get_config(),
+        );
+    } else {
+        if class_type.is_nullable() && !nullsafe {
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::PossibleMethodCallOnNull,
+                    "Cannot call method on null value".to_string(),
+                    statements_analyzer.get_hpos(&expr.1.pos()),
+                ),
+                statements_analyzer.get_config(),
+            )
         }
 
         if class_type.is_mixed() {

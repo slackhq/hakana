@@ -88,10 +88,8 @@ fn add_tuple_value_dataflow(
 
     let node_name = format!("array[{}]", key_value);
 
-    let new_parent_node = DataFlowNode::get_for_assignment(
-        node_name,
-        statements_analyzer.get_hpos(value.pos()),
-    );
+    let new_parent_node =
+        DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(value.pos()));
     tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
     // TODO add taint event dispatches

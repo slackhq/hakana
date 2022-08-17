@@ -488,7 +488,12 @@ fn visit_class_const_declaration(
         inferred_type: if let ClassConstKind::CCAbstract(Some(const_expr))
         | ClassConstKind::CCConcrete(const_expr) = &const_node.kind
         {
-            simple_type_inferer::infer(codebase, &mut FxHashMap::default(), const_expr, resolved_names)
+            simple_type_inferer::infer(
+                codebase,
+                &mut FxHashMap::default(),
+                const_expr,
+                resolved_names,
+            )
         } else {
             None
         },

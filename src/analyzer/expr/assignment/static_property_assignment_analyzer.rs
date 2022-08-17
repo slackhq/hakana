@@ -10,7 +10,10 @@ use hakana_type::{
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
     type_expander::{self, StaticClassType},
 };
-use oxidized::{aast::{self, ClassGetExpr, ClassId}, tast::Pos};
+use oxidized::{
+    aast::{self, ClassGetExpr, ClassId},
+    tast::Pos,
+};
 
 use crate::{expr::expression_identifier, typed_ast::TastInfo};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -232,41 +235,50 @@ pub(crate) fn analyze(
             }
 
             if !type_match_found && union_comparison_result.type_coerced.is_none() {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::InvalidPropertyAssignmentValue,
-                    format!(
-                        "{} with declared type {}, cannot be assigned type {}",
-                        declaring_property_id,
-                        class_property_type.get_id(),
-                        assign_value_type.get_id(),
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::InvalidPropertyAssignmentValue,
+                        format!(
+                            "{} with declared type {}, cannot be assigned type {}",
+                            declaring_property_id,
+                            class_property_type.get_id(),
+                            assign_value_type.get_id(),
+                        ),
+                        statements_analyzer.get_hpos(&stmt_class.1),
                     ),
-                    statements_analyzer.get_hpos(&stmt_class.1),
-                ));
+                    statements_analyzer.get_config(),
+                );
             }
 
             if union_comparison_result.type_coerced.is_some() {
                 if union_comparison_result.type_coerced_from_as_mixed.is_some() {
-                    tast_info.maybe_add_issue(Issue::new(
-                        IssueKind::MixedPropertyTypeCoercion,
-                        format!(
-                            "{} expects {}, parent type {} provided",
-                            var_id.clone().unwrap_or("This property".to_string()),
-                            class_property_type.get_id(),
-                            assign_value_type.get_id(),
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::MixedPropertyTypeCoercion,
+                            format!(
+                                "{} expects {}, parent type {} provided",
+                                var_id.clone().unwrap_or("This property".to_string()),
+                                class_property_type.get_id(),
+                                assign_value_type.get_id(),
+                            ),
+                            statements_analyzer.get_hpos(&stmt_class.1),
                         ),
-                        statements_analyzer.get_hpos(&stmt_class.1),
-                    ));
+                        statements_analyzer.get_config(),
+                    );
                 } else {
-                    tast_info.maybe_add_issue(Issue::new(
-                        IssueKind::PropertyTypeCoercion,
-                        format!(
-                            "{} expects {}, parent type {} provided",
-                            var_id.clone().unwrap_or("This property".to_string()),
-                            class_property_type.get_id(),
-                            assign_value_type.get_id(),
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::PropertyTypeCoercion,
+                            format!(
+                                "{} expects {}, parent type {} provided",
+                                var_id.clone().unwrap_or("This property".to_string()),
+                                class_property_type.get_id(),
+                                assign_value_type.get_id(),
+                            ),
+                            statements_analyzer.get_hpos(&stmt_class.1),
                         ),
-                        statements_analyzer.get_hpos(&stmt_class.1),
-                    ));
+                        statements_analyzer.get_config(),
+                    );
                 }
             }
 

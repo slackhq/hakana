@@ -197,11 +197,14 @@ pub(crate) fn analyze(
         aast::Stmt_::Fallthrough => {} // do nothing
         aast::Stmt_::YieldBreak | aast::Stmt_::AssertEnv(_) => {
             //println!("{:#?}", stmt);
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::UnrecognizedStatement,
-                "Unrecognized statement".to_string(),
-                statements_analyzer.get_hpos(&stmt.0),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::UnrecognizedStatement,
+                    "Unrecognized statement".to_string(),
+                    statements_analyzer.get_hpos(&stmt.0),
+                ),
+                statements_analyzer.get_config(),
+            );
             return false;
         }
     }

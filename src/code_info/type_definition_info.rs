@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use indexmap::IndexMap;
@@ -7,7 +9,7 @@ use crate::{t_union::TUnion, taint::SourceType};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TypeDefinitionInfo {
-    pub is_newtype: bool,
+    pub newtype_file: Option<Arc<String>>,
     pub as_type: Option<TUnion>,
     pub actual_type: TUnion,
 

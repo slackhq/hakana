@@ -7,10 +7,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
-    assertion::Assertion,
-    codebase_info::CodebaseInfo,
-    t_atomic::TAtomic,
-    t_union::TUnion,
+    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
 };
 use hakana_type::{
     get_mixed_any, get_mixed_maybe_from_loop, get_nothing,

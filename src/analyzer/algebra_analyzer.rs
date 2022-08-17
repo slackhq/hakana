@@ -9,7 +9,9 @@ use hakana_reflection_info::{
 use oxidized::ast::Pos;
 use rustc_hash::FxHashSet;
 
-use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
+use crate::{
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+};
 
 pub(crate) fn check_for_paradox(
     statements_analyzer: &StatementsAnalyzer,
@@ -37,15 +39,18 @@ pub(crate) fn check_for_paradox(
             && (formula_1_hashes.contains(formula_2_clause)
                 || formula_2_hashes.contains(formula_2_clause))
         {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::RedundantTypeComparison,
-                format!(
-                    "{} {}",
-                    formula_2_clause.to_string(),
-                    "has already been asserted"
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::RedundantTypeComparison,
+                    format!(
+                        "{} {}",
+                        formula_2_clause.to_string(),
+                        "has already been asserted"
+                    ),
+                    statements_analyzer.get_hpos(&pos),
                 ),
-                statements_analyzer.get_hpos(&pos),
-            ));
+                statements_analyzer.get_config(),
+            );
         }
 
         formula_2_hashes.insert(formula_2_clause);
@@ -110,11 +115,14 @@ pub(crate) fn check_for_paradox(
                     paradox_message += clause_1.to_string().as_str();
                     paradox_message += ")";
 
-                    tast_info.maybe_add_issue(Issue::new(
-                        IssueKind::ParadoxicalCondition,
-                        paradox_message,
-                        statements_analyzer.get_hpos(&pos),
-                    ));
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::ParadoxicalCondition,
+                            paradox_message,
+                            statements_analyzer.get_hpos(&pos),
+                        ),
+                        statements_analyzer.get_config(),
+                    );
 
                     return;
                 }

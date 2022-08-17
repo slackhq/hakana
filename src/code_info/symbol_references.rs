@@ -12,7 +12,8 @@ pub struct SymbolReferences {
     symbol_references_to_symbols: FxHashMap<String, FxHashSet<String>>,
 
     // A lookup table of all classlike members that reference another classlike member
-    classlike_member_references_to_members: FxHashMap<(String, String), FxHashSet<(String, String)>>,
+    classlike_member_references_to_members:
+        FxHashMap<(String, String), FxHashSet<(String, String)>>,
 
     // A lookup table of all classlike members that reference another classlike member
     classlike_member_references_to_symbols: FxHashMap<(String, String), FxHashSet<String>>,

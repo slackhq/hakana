@@ -102,11 +102,14 @@ pub(crate) fn analyze(
         };
 
         if !does_class_exist {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::NonExistentClass,
-                format!("Class or interface {} does not exist", classlike_name),
-                statements_analyzer.get_hpos(&pos),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NonExistentClass,
+                    format!("Class or interface {} does not exist", classlike_name),
+                    statements_analyzer.get_hpos(&pos),
+                ),
+                statements_analyzer.get_config(),
+            );
 
             return;
         }
@@ -115,11 +118,14 @@ pub(crate) fn analyze(
             let (_, method_name) = (&boxed.0, &boxed.1);
 
             if !codebase.method_exists(&classlike_name, &method_name) {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::NonExistentMethod,
-                    format!("Method {}::{} does not exist", classlike_name, method_name),
-                    statements_analyzer.get_hpos(&pos),
-                ));
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::NonExistentMethod,
+                        format!("Method {}::{} does not exist", classlike_name, method_name),
+                        statements_analyzer.get_hpos(&pos),
+                    ),
+                    statements_analyzer.get_config(),
+                );
 
                 return;
             }
@@ -163,39 +169,45 @@ pub(crate) fn analyze(
         let mut mixed_with_any = false;
 
         if !lhs_type_part.is_mixed_with_any(&mut mixed_with_any) {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::InvalidMethodCall,
-                if let Some(lhs_var_id) = lhs_var_id {
-                    format!(
-                        "Cannot call method on {} with type {}",
-                        lhs_var_id,
-                        lhs_type_part.get_id()
-                    )
-                } else {
-                    format!("Cannot call method on type {}", lhs_type_part.get_id())
-                },
-                statements_analyzer.get_hpos(&expr.0 .1),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InvalidMethodCall,
+                    if let Some(lhs_var_id) = lhs_var_id {
+                        format!(
+                            "Cannot call method on {} with type {}",
+                            lhs_var_id,
+                            lhs_type_part.get_id()
+                        )
+                    } else {
+                        format!("Cannot call method on type {}", lhs_type_part.get_id())
+                    },
+                    statements_analyzer.get_hpos(&expr.0 .1),
+                ),
+                statements_analyzer.get_config(),
+            );
             // todo handle invalid class invocation
             return;
         } else {
-            tast_info.maybe_add_issue(Issue::new(
-                if mixed_with_any {
-                    IssueKind::MixedAnyMethodCall
-                } else {
-                    IssueKind::MixedMethodCall
-                },
-                if let Some(lhs_var_id) = lhs_var_id {
-                    format!(
-                        "Cannot call method on {} with type {}",
-                        lhs_var_id,
-                        lhs_type_part.get_id()
-                    )
-                } else {
-                    format!("Cannot call method on type {}", lhs_type_part.get_id())
-                },
-                statements_analyzer.get_hpos(&expr.0 .1),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    if mixed_with_any {
+                        IssueKind::MixedAnyMethodCall
+                    } else {
+                        IssueKind::MixedMethodCall
+                    },
+                    if let Some(lhs_var_id) = lhs_var_id {
+                        format!(
+                            "Cannot call method on {} with type {}",
+                            lhs_var_id,
+                            lhs_type_part.get_id()
+                        )
+                    } else {
+                        format!("Cannot call method on type {}", lhs_type_part.get_id())
+                    },
+                    statements_analyzer.get_hpos(&expr.0 .1),
+                ),
+                statements_analyzer.get_config(),
+            );
             // todo handle invalid class invocation
             return;
         }

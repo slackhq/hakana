@@ -85,11 +85,14 @@ pub(crate) fn analyze(
     {
         function_storage
     } else {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::NonExistentFunction,
-            format!("Function {} is not defined", name),
-            statements_analyzer.get_hpos(&expr.0 .0),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentFunction,
+                format!("Function {} is not defined", name),
+                statements_analyzer.get_hpos(&expr.0 .0),
+            ),
+            statements_analyzer.get_config(),
+        );
 
         return false;
     };

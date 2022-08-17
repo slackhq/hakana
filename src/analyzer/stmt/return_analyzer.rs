@@ -49,7 +49,7 @@ pub(crate) fn analyze(
                     "This function call evaluates to nothing — likely calling a noreturn function"
                         .to_string(),
                     statements_analyzer.get_hpos(&return_expr.1),
-                ));
+                ), statements_analyzer.get_config());
             }
 
             if inferred_return_type.is_void() {
@@ -164,19 +164,22 @@ pub(crate) fn analyze(
 
             if inferred_return_type.is_mixed_with_any(&mut mixed_with_any) {
                 if expected_return_type.is_void() {
-                    tast_info.maybe_add_issue(Issue::new(
-                        IssueKind::InvalidReturnStatement,
-                        format!(
-                            "No return values are expected for {}",
-                            context
-                                .function_context
-                                .calling_functionlike_id
-                                .as_ref()
-                                .unwrap()
-                                .to_string()
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::InvalidReturnStatement,
+                            format!(
+                                "No return values are expected for {}",
+                                context
+                                    .function_context
+                                    .calling_functionlike_id
+                                    .as_ref()
+                                    .unwrap()
+                                    .to_string()
+                            ),
+                            statements_analyzer.get_hpos(&return_expr.1),
                         ),
-                        statements_analyzer.get_hpos(&return_expr.1),
-                    ));
+                        statements_analyzer.get_config(),
+                    );
 
                     return;
                 }
@@ -187,18 +190,21 @@ pub(crate) fn analyze(
 
                 // todo increment mixed count
 
-                tast_info.maybe_add_issue(Issue::new(
-                    if mixed_with_any {
-                        IssueKind::MixedAnyReturnStatement
-                    } else {
-                        IssueKind::MixedReturnStatement
-                    },
-                    format!(
-                        "Could not infer a proper return type — saw {}",
-                        inferred_return_type.get_id()
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        if mixed_with_any {
+                            IssueKind::MixedAnyReturnStatement
+                        } else {
+                            IssueKind::MixedReturnStatement
+                        },
+                        format!(
+                            "Could not infer a proper return type — saw {}",
+                            inferred_return_type.get_id()
+                        ),
+                        statements_analyzer.get_hpos(&return_expr.1),
                     ),
-                    statements_analyzer.get_hpos(&return_expr.1),
-                ));
+                    statements_analyzer.get_config(),
+                );
 
                 return;
             }
@@ -216,19 +222,22 @@ pub(crate) fn analyze(
             // todo increment non-mixed count
 
             if expected_return_type.is_void() {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::InvalidReturnStatement,
-                    format!(
-                        "No return values are expected for {}",
-                        context
-                            .function_context
-                            .calling_functionlike_id
-                            .as_ref()
-                            .unwrap()
-                            .to_string()
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::InvalidReturnStatement,
+                        format!(
+                            "No return values are expected for {}",
+                            context
+                                .function_context
+                                .calling_functionlike_id
+                                .as_ref()
+                                .unwrap()
+                                .to_string()
+                        ),
+                        statements_analyzer.get_hpos(&return_expr.1),
                     ),
-                    statements_analyzer.get_hpos(&return_expr.1),
-                ));
+                    statements_analyzer.get_config(),
+                );
 
                 return;
             }
@@ -260,7 +269,7 @@ pub(crate) fn analyze(
                                 context.function_context.calling_functionlike_id.as_ref().unwrap().to_string()
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
-                        ));
+                        ), statements_analyzer.get_config());
                     } else if union_comparison_result
                         .type_coerced_from_nested_mixed
                         .unwrap_or(false)
@@ -278,7 +287,7 @@ pub(crate) fn analyze(
                                     context.function_context.calling_functionlike_id.as_ref().unwrap().to_string()
                                 ),
                                 statements_analyzer.get_hpos(&return_expr.1),
-                            ));
+                            ), statements_analyzer.get_config());
                         }
                     } else {
                         if !union_comparison_result
@@ -294,25 +303,28 @@ pub(crate) fn analyze(
                                     context.function_context.calling_functionlike_id.as_ref().unwrap().to_string()
                                 ),
                                 statements_analyzer.get_hpos(&return_expr.1),
-                            ));
+                            ), statements_analyzer.get_config());
                         }
                     }
                 } else {
-                    tast_info.maybe_add_issue(Issue::new(
-                        IssueKind::InvalidReturnStatement,
-                        format!(
-                            "The type {} does not match the declared return type {} for {}",
-                            inferred_return_type.get_id(),
-                            expected_return_type.get_id(),
-                            context
-                                .function_context
-                                .calling_functionlike_id
-                                .as_ref()
-                                .unwrap()
-                                .to_string()
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::InvalidReturnStatement,
+                            format!(
+                                "The type {} does not match the declared return type {} for {}",
+                                inferred_return_type.get_id(),
+                                expected_return_type.get_id(),
+                                context
+                                    .function_context
+                                    .calling_functionlike_id
+                                    .as_ref()
+                                    .unwrap()
+                                    .to_string()
+                            ),
+                            statements_analyzer.get_hpos(&return_expr.1),
                         ),
-                        statements_analyzer.get_hpos(&return_expr.1),
-                    ));
+                        statements_analyzer.get_config(),
+                    );
                 }
             }
 
@@ -329,7 +341,7 @@ pub(crate) fn analyze(
                         inferred_return_type.get_id(),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
-                ));
+                ), statements_analyzer.get_config());
             }
 
             // todo at some point in the future all notions of falsability can be removed
@@ -347,7 +359,7 @@ pub(crate) fn analyze(
                         inferred_return_type.get_id(),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
-                ));
+                ), statements_analyzer.get_config());
             }
         }
     } else if !expected_return_type.is_void()
@@ -355,19 +367,22 @@ pub(crate) fn analyze(
         && !functionlike_storage.is_async
         && functionlike_storage.name != "__construct"
     {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::InvalidReturnStatement,
-            format!(
-                "Empty return statement not expected in {}",
-                context
-                    .function_context
-                    .calling_functionlike_id
-                    .as_ref()
-                    .unwrap()
-                    .to_string()
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::InvalidReturnStatement,
+                format!(
+                    "Empty return statement not expected in {}",
+                    context
+                        .function_context
+                        .calling_functionlike_id
+                        .as_ref()
+                        .unwrap()
+                        .to_string()
+                ),
+                statements_analyzer.get_hpos(&stmt.0),
             ),
-            statements_analyzer.get_hpos(&stmt.0),
-        ));
+            statements_analyzer.get_config(),
+        );
     }
 }
 
@@ -383,10 +398,15 @@ pub(crate) fn handle_inout_at_return(
                 if tast_info.data_flow_graph.kind == GraphKind::Taint {}
                 let new_parent_node = if tast_info.data_flow_graph.kind == GraphKind::Taint {
                     DataFlowNode::get_for_method_argument_out(
-                        context.function_context.calling_functionlike_id.clone().unwrap().to_string(),
+                        context
+                            .function_context
+                            .calling_functionlike_id
+                            .clone()
+                            .unwrap()
+                            .to_string(),
                         i,
                         Some(param.location.clone().unwrap()),
-                        None
+                        None,
                     )
                 } else {
                     DataFlowNode::get_for_variable_sink(

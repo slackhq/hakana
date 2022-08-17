@@ -310,11 +310,14 @@ pub(crate) fn analyze(
         ),
         _ => {
             //println!("{:#?}", expr);
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::UnrecognizedExpression,
-                "Unrecognized expression in assignment".to_string(),
-                statements_analyzer.get_hpos(&assign_var.1),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::UnrecognizedExpression,
+                    "Unrecognized expression in assignment".to_string(),
+                    statements_analyzer.get_hpos(&assign_var.1),
+                ),
+                statements_analyzer.get_config(),
+            );
         }
     };
 
@@ -333,11 +336,14 @@ fn check_variable_or_property_assignment(
         // todo (maybe) handle void assignment
     }
     if var_type.is_nothing() {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::ImpossibleAssignment,
-            "This assignment is impossible".to_string(),
-            statements_analyzer.get_hpos(&assign_var_pos),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::ImpossibleAssignment,
+                "This assignment is impossible".to_string(),
+                statements_analyzer.get_hpos(&assign_var_pos),
+            ),
+            statements_analyzer.get_config(),
+        );
     }
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
@@ -393,11 +399,14 @@ fn analyze_list_assignment(
                 if let Some(known_items) = known_items {
                     if let Some((possibly_undefined, value_type)) = known_items.get(&offset) {
                         if *possibly_undefined {
-                            tast_info.maybe_add_issue(Issue::new(
-                                IssueKind::PossiblyUndefinedIntArrayOffset,
-                                "Possibly undefined offset in list assignment".to_string(),
-                                statements_analyzer.get_hpos(&assign_var_item.1),
-                            ));
+                            tast_info.maybe_add_issue(
+                                Issue::new(
+                                    IssueKind::PossiblyUndefinedIntArrayOffset,
+                                    "Possibly undefined offset in list assignment".to_string(),
+                                    statements_analyzer.get_hpos(&assign_var_item.1),
+                                ),
+                                statements_analyzer.get_config(),
+                            );
                         }
 
                         value_type.clone()

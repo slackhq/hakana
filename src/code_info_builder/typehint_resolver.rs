@@ -11,8 +11,8 @@ use oxidized::ast::Id;
 use oxidized::ast_defs;
 use oxidized::ast_defs::ParamKind;
 use oxidized::tast::HintFun;
-use std::collections::BTreeMap;
 use rustc_hash::FxHashMap;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 fn get_vec_type_from_hint(

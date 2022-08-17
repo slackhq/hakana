@@ -1,7 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    rc::Rc,
-};
+use std::{collections::BTreeMap, rc::Rc};
 
 use function_context::FunctionContext;
 use hakana_algebra::Clause;

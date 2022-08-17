@@ -57,11 +57,14 @@ impl<'a> StatementsAnalyzer<'a> {
                     .ends_with(".test.hack")
             {
                 if self.get_config().find_unused_expressions {
-                    tast_info.maybe_add_issue(Issue::new(
-                        IssueKind::UnevaluatedCode,
-                        "Unused code after return/throw/continue".to_string(),
-                        self.get_hpos(&stmt.0),
-                    ));
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::UnevaluatedCode,
+                            "Unused code after return/throw/continue".to_string(),
+                            self.get_hpos(&stmt.0),
+                        ),
+                        self.get_config(),
+                    );
                 }
             } else {
                 if !stmt_analyzer::analyze(self, stmt, tast_info, context, loop_scope) {

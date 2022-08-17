@@ -63,7 +63,10 @@ pub(crate) fn analyze(
 
     if let Some(case_scope) = case_scope {
         if leaving_switch {
-            let mut new_break_vars = case_scope.break_vars.clone().unwrap_or(FxHashMap::default());
+            let mut new_break_vars = case_scope
+                .break_vars
+                .clone()
+                .unwrap_or(FxHashMap::default());
 
             for (var_id, var_type) in &context.vars_in_scope {
                 new_break_vars.insert(

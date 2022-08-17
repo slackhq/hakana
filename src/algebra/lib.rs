@@ -3,9 +3,9 @@ pub mod clause;
 pub use clause::Clause;
 use hakana_reflection_info::assertion::Assertion;
 use rand::Rng;
+use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
-use rustc_hash::FxHashMap;
 mod tests;
 
 pub fn negate_types(

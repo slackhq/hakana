@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     expression_analyzer,
+    scope_analyzer::ScopeAnalyzer,
     scope_context::{if_scope::IfScope, ScopeContext},
 };
 use hakana_reflection_info::{
@@ -10,7 +11,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use oxidized::{aast, ast, ast_defs::Pos};
-use rustc_hash::{FxHashSet, FxHashMap};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{reconciler::reconciler, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 
@@ -361,16 +362,22 @@ pub(crate) fn handle_paradoxical_condition(
     expr_type: &TUnion,
 ) {
     if expr_type.is_always_falsy() {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::ImpossibleTypeComparison,
-            format!("Type {} is always falsy", expr_type.get_id()),
-            statements_analyzer.get_hpos(&pos),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::ImpossibleTypeComparison,
+                format!("Type {} is always falsy", expr_type.get_id()),
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+        );
     } else if expr_type.is_always_truthy() {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::RedundantTypeComparison,
-            format!("Type {} is always truthy", expr_type.get_id()),
-            statements_analyzer.get_hpos(&pos),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::RedundantTypeComparison,
+                format!("Type {} is always truthy", expr_type.get_id()),
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+        );
     }
 }

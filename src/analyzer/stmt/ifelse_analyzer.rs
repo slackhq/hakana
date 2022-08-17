@@ -6,11 +6,8 @@ use hakana_algebra::Clause;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_type::combine_union_types;
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
-use rustc_hash::{FxHashSet, FxHashMap};
-use std::{
-    collections::BTreeMap,
-    rc::Rc,
-};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::{collections::BTreeMap, rc::Rc};
 
 use crate::{
     algebra_analyzer, formula_generator, reconciler::reconciler, scope_analyzer::ScopeAnalyzer,

@@ -74,11 +74,14 @@ pub(crate) fn analyze(
         }
         _ => {
             if lhs_type_part.is_mixed() {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::MixedMethodCall,
-                    "Method called on unknown object".to_string(),
-                    statements_analyzer.get_hpos(&pos),
-                ));
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MixedMethodCall,
+                        "Method called on unknown object".to_string(),
+                        statements_analyzer.get_hpos(&pos),
+                    ),
+                    statements_analyzer.get_config(),
+                );
             }
 
             return;
@@ -88,11 +91,14 @@ pub(crate) fn analyze(
     let codebase = statements_analyzer.get_codebase();
 
     if !codebase.method_exists(&classlike_name, &expr.1 .1) {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::NonExistentMethod,
-            format!("Method {}::{} does not exist", classlike_name, &expr.1 .1),
-            statements_analyzer.get_hpos(&pos),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentMethod,
+                format!("Method {}::{} does not exist", classlike_name, &expr.1 .1),
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+        );
 
         return;
     }

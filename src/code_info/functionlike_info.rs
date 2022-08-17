@@ -3,9 +3,15 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    assertion::Assertion, attribute_info::AttributeInfo, code_location::HPos,
-    functionlike_parameter::FunctionLikeParameter, issue::IssueKind, method_info::MethodInfo,
-    t_union::TUnion, taint::{SinkType, SourceType}, type_resolution::TypeResolutionContext,
+    assertion::Assertion,
+    attribute_info::AttributeInfo,
+    code_location::HPos,
+    functionlike_parameter::FunctionLikeParameter,
+    issue::IssueKind,
+    method_info::MethodInfo,
+    t_union::TUnion,
+    taint::{SinkType, SourceType},
+    type_resolution::TypeResolutionContext,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,4 +1,4 @@
-use crate::scope_context::CaseScope;
+use crate::{config::Config, scope_context::CaseScope};
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -10,10 +10,7 @@ use hakana_reflection_info::{
 };
 use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::{
-    collections::BTreeMap,
-    rc::Rc,
-};
+use std::{collections::BTreeMap, rc::Rc};
 
 pub struct TastInfo {
     pub expr_types: FxHashMap<(usize, usize), Rc<TUnion>>,
@@ -62,10 +59,15 @@ impl TastInfo {
         self.issues_to_emit.push(issue);
     }
 
-    pub fn maybe_add_issue(&mut self, issue: Issue) {
+    pub fn maybe_add_issue(&mut self, issue: Issue, config: &Config) {
+        if !config.allow_issue_kind_in_file(&issue.kind, &issue.pos.file_path) {
+            return;
+        }
+
         if !self.can_add_issue(&issue) {
             return;
         }
+
         self.add_issue(issue);
     }
 

@@ -734,12 +734,15 @@ fn handle_non_returning_case(
     if is_default_case {
         if let Some(switch_type) = case_context.vars_in_scope.get(switch_var_id) {
             if switch_type.is_nothing() {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::ParadoxicalCondition,
-                    "All possible case statements have been met, default is impossible here"
-                        .to_string(),
-                    statements_analyzer.get_hpos(&case_pos),
-                ));
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::ParadoxicalCondition,
+                        "All possible case statements have been met, default is impossible here"
+                            .to_string(),
+                        statements_analyzer.get_hpos(&case_pos),
+                    ),
+                    statements_analyzer.get_config(),
+                );
 
                 return false;
             }

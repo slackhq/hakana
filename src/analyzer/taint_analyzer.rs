@@ -94,7 +94,10 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
     new_issues
 }
 
-fn get_specialized_sources(graph: &DataFlowGraph, source: Arc<TaintedNode>) -> Vec<Arc<TaintedNode>> {
+fn get_specialized_sources(
+    graph: &DataFlowGraph,
+    source: Arc<TaintedNode>,
+) -> Vec<Arc<TaintedNode>> {
     if graph.forward_edges.contains_key(&source.id) {
         return vec![source.clone()];
     }

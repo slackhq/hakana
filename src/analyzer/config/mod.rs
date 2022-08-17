@@ -1,7 +1,4 @@
-use std::{
-    path::Path,
-    process::exit,
-};
+use std::{path::Path, process::exit};
 
 use hakana_reflection_info::{
     data_flow::graph::GraphKind,

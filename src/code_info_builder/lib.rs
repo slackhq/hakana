@@ -2,8 +2,8 @@ use crate::typehint_resolver::get_type_from_hint;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
     class_constant_info::ConstantInfo, code_location::HPos, codebase_info::CodebaseInfo,
-    t_atomic::TAtomic, type_definition_info::TypeDefinitionInfo,
-    type_resolution::TypeResolutionContext, taint::string_to_source_types,
+    t_atomic::TAtomic, taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
+    type_resolution::TypeResolutionContext,
 };
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
@@ -169,7 +169,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
 
         let mut type_definition = TypeDefinitionInfo {
-            is_newtype: typedef.vis.is_opaque(),
+            newtype_file: if typedef.vis.is_opaque() {
+                Some(self.file_source.file_path.clone())
+            } else {
+                None
+            },
             as_type: if let Some(as_hint) = &typedef.constraint {
                 Some(get_type_from_hint(
                     &as_hint.1,

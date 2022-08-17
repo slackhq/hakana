@@ -96,7 +96,10 @@ impl DataFlowNode {
         arg_location: Option<HPos>,
         pos: Option<HPos>,
     ) -> Self {
-        let arg_id = "out ".to_string() + method_id.as_str() + "#" + (argument_offset + 1).to_string().as_str();
+        let arg_id = "out ".to_string()
+            + method_id.as_str()
+            + "#"
+            + (argument_offset + 1).to_string().as_str();
 
         let mut specialization_key = None;
 

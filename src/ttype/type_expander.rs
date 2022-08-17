@@ -356,7 +356,7 @@ fn expand_atomic(
             return;
         };
 
-        if !type_definition.is_newtype {
+        if !type_definition.newtype_file.is_some() {
             skipped_keys.push(key.clone());
             *had_split_values = true;
 

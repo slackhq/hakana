@@ -361,7 +361,7 @@ pub(crate) fn analyze(
             let issues = analysis_result.emitted_issues.into_iter().next();
             if let Some(issues) = issues {
                 for issue in issues.1 {
-                    tast_info.maybe_add_issue(issue);
+                    tast_info.maybe_add_issue(issue, statements_analyzer.get_config());
                 }
             }
             let replacements = analysis_result.replacements.into_iter().next();
@@ -631,11 +631,14 @@ pub(crate) fn analyze(
         | aast::Expr_::EnumClassLabel(_)
         | aast::Expr_::Hole(_) => {
             //println!("{:#?}", expr);
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::UnrecognizedExpression,
-                "Unrecognized expression".to_string(),
-                statements_analyzer.get_hpos(&expr.1),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::UnrecognizedExpression,
+                    "Unrecognized expression".to_string(),
+                    statements_analyzer.get_hpos(&expr.1),
+                ),
+                statements_analyzer.get_config(),
+            );
             return false;
         }
     }

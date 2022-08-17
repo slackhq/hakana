@@ -127,14 +127,17 @@ fn get_unpacked_type(
                     tast_info.data_flow_graph.add_mixed_data(origin, pos);
                 }
 
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::MixedAnyArgument,
-                    format!(
-                        "Unpacking requires a collection type, {} provided",
-                        atomic_type.get_id()
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MixedAnyArgument,
+                        format!(
+                            "Unpacking requires a collection type, {} provided",
+                            atomic_type.get_id()
+                        ),
+                        statements_analyzer.get_hpos(&pos),
                     ),
-                    statements_analyzer.get_hpos(&pos),
-                ));
+                    statements_analyzer.get_config(),
+                );
 
                 get_mixed_any()
             }
@@ -143,27 +146,33 @@ fn get_unpacked_type(
                     tast_info.data_flow_graph.add_mixed_data(origin, pos);
                 }
 
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::MixedArgument,
-                    format!(
-                        "Unpacking requires a collection type, {} provided",
-                        atomic_type.get_id()
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MixedArgument,
+                        format!(
+                            "Unpacking requires a collection type, {} provided",
+                            atomic_type.get_id()
+                        ),
+                        statements_analyzer.get_hpos(&pos),
                     ),
-                    statements_analyzer.get_hpos(&pos),
-                ));
+                    statements_analyzer.get_config(),
+                );
 
                 get_mixed()
             }
             TAtomic::TFalsyMixed | TAtomic::TNothing => get_nothing(),
             _ => {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::InvalidArgument,
-                    format!(
-                        "Unpacking requires a collection type, {} provided",
-                        arg_value_type.get_id()
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::InvalidArgument,
+                        format!(
+                            "Unpacking requires a collection type, {} provided",
+                            arg_value_type.get_id()
+                        ),
+                        statements_analyzer.get_hpos(&pos),
                     ),
-                    statements_analyzer.get_hpos(&pos),
-                ));
+                    statements_analyzer.get_config(),
+                );
 
                 get_mixed()
             }
@@ -235,21 +244,24 @@ pub(crate) fn verify_type(
                 .add_mixed_data(origin, input_expr.pos());
         }
 
-        tast_info.maybe_add_issue(Issue::new(
-            if mixed_from_any {
-                IssueKind::MixedAnyArgument
-            } else {
-                IssueKind::MixedArgument
-            },
-            format!(
-                "Argument {} of {} expects {}, {} provided",
-                (argument_offset + 1).to_string(),
-                functionlike_id.to_string(),
-                param_type.get_id(),
-                input_type.get_id(),
+        tast_info.maybe_add_issue(
+            Issue::new(
+                if mixed_from_any {
+                    IssueKind::MixedAnyArgument
+                } else {
+                    IssueKind::MixedArgument
+                },
+                format!(
+                    "Argument {} of {} expects {}, {} provided",
+                    (argument_offset + 1).to_string(),
+                    functionlike_id.to_string(),
+                    param_type.get_id(),
+                    input_type.get_id(),
+                ),
+                statements_analyzer.get_hpos(&input_expr.pos()),
             ),
-            statements_analyzer.get_hpos(&input_expr.pos()),
-        ));
+            statements_analyzer.get_config(),
+        );
 
         // todo handle mixed values, including coercing when passed into functions
         // that have hard type expectations
@@ -274,16 +286,19 @@ pub(crate) fn verify_type(
     }
 
     if input_type.is_nothing() {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::NoValue,
-            format!(
-                "Argument {} of {} expects {}, nothing type provided",
-                (argument_offset + 1).to_string(),
-                functionlike_id.to_string(),
-                param_type.get_id(),
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NoValue,
+                format!(
+                    "Argument {} of {} expects {}, nothing type provided",
+                    (argument_offset + 1).to_string(),
+                    functionlike_id.to_string(),
+                    param_type.get_id(),
+                ),
+                statements_analyzer.get_hpos(&input_expr.pos()),
             ),
-            statements_analyzer.get_hpos(&input_expr.pos()),
-        ));
+            statements_analyzer.get_config(),
+        );
 
         return true;
     }
@@ -334,44 +349,53 @@ pub(crate) fn verify_type(
             .type_coerced_from_nested_any
             .unwrap_or(false)
         {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::LessSpecificNestedAnyArgumentType,
-                format!(
-                    "Argument {} of {} expects {}, parent type {} provided",
-                    (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::LessSpecificNestedAnyArgumentType,
+                    format!(
+                        "Argument {} of {} expects {}, parent type {} provided",
+                        (argument_offset + 1).to_string(),
+                        functionlike_id.to_string(),
+                        param_type.get_id(),
+                        input_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
-            ));
+                statements_analyzer.get_config(),
+            );
         } else if union_comparison_result
             .type_coerced_from_nested_mixed
             .unwrap_or(false)
         {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::LessSpecificNestedArgumentType,
-                format!(
-                    "Argument {} of {} expects {}, parent type {} provided",
-                    (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::LessSpecificNestedArgumentType,
+                    format!(
+                        "Argument {} of {} expects {}, parent type {} provided",
+                        (argument_offset + 1).to_string(),
+                        functionlike_id.to_string(),
+                        param_type.get_id(),
+                        input_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
-            ));
+                statements_analyzer.get_config(),
+            );
         } else {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::LessSpecificArgument,
-                format!(
-                    "Argument {} of {} expects {}, parent type {} provided",
-                    (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::LessSpecificArgument,
+                    format!(
+                        "Argument {} of {} expects {}, parent type {} provided",
+                        (argument_offset + 1).to_string(),
+                        functionlike_id.to_string(),
+                        param_type.get_id(),
+                        input_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
-            ));
+                statements_analyzer.get_config(),
+            );
         }
     }
 
@@ -384,29 +408,35 @@ pub(crate) fn verify_type(
         );
 
         if types_can_be_identical {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::PossiblyInvalidArgument,
-                format!(
-                    "Argument {} of {} expects {}, possibly different type {} provided",
-                    (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::PossiblyInvalidArgument,
+                    format!(
+                        "Argument {} of {} expects {}, possibly different type {} provided",
+                        (argument_offset + 1).to_string(),
+                        functionlike_id.to_string(),
+                        param_type.get_id(),
+                        input_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
-            ));
+                statements_analyzer.get_config(),
+            );
         } else {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::InvalidArgument,
-                format!(
-                    "Argument {} of {} expects {}, different type {} provided",
-                    (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InvalidArgument,
+                    format!(
+                        "Argument {} of {} expects {}, different type {} provided",
+                        (argument_offset + 1).to_string(),
+                        functionlike_id.to_string(),
+                        param_type.get_id(),
+                        input_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
-            ));
+                statements_analyzer.get_config(),
+            );
         }
 
         return true;
@@ -417,33 +447,39 @@ pub(crate) fn verify_type(
         && functionlike_id != &FunctionLikeIdentifier::Function("print".to_string())
     {
         if input_type.is_null() && !param_type.is_null() {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::NullArgument,
-                format!(
-                    "Argument {} of {} expects {}, different type {} provided",
-                    (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NullArgument,
+                    format!(
+                        "Argument {} of {} expects {}, different type {} provided",
+                        (argument_offset + 1).to_string(),
+                        functionlike_id.to_string(),
+                        param_type.get_id(),
+                        input_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
-            ));
+                statements_analyzer.get_config(),
+            );
 
             return true;
         }
 
         if input_type.is_nullable() {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::PossiblyNullArgument,
-                format!(
-                    "Argument {} of {} expects {}, different type {} provided",
-                    (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::PossiblyNullArgument,
+                    format!(
+                        "Argument {} of {} expects {}, different type {} provided",
+                        (argument_offset + 1).to_string(),
+                        functionlike_id.to_string(),
+                        param_type.get_id(),
+                        input_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
-            ));
+                statements_analyzer.get_config(),
+            );
         }
     }
 
@@ -454,32 +490,38 @@ pub(crate) fn verify_type(
         && functionlike_id != &FunctionLikeIdentifier::Function("print".to_string())
     {
         if input_type.is_false() {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::PossiblyFalseArgument,
-                format!(
-                    "Argument {} of {} expects {}, different type {} provided",
-                    (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::PossiblyFalseArgument,
+                    format!(
+                        "Argument {} of {} expects {}, different type {} provided",
+                        (argument_offset + 1).to_string(),
+                        functionlike_id.to_string(),
+                        param_type.get_id(),
+                        input_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
-            ));
+                statements_analyzer.get_config(),
+            );
             return true;
         }
 
         if input_type.is_falsable() && !input_type.ignore_falsable_issues {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::FalseArgument,
-                format!(
-                    "Argument {} of {} expects {}, different type {} provided",
-                    (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::FalseArgument,
+                    format!(
+                        "Argument {} of {} expects {}, different type {} provided",
+                        (argument_offset + 1).to_string(),
+                        functionlike_id.to_string(),
+                        param_type.get_id(),
+                        input_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
-            ));
+                statements_analyzer.get_config(),
+            );
         }
     }
 

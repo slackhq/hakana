@@ -106,27 +106,33 @@ pub(crate) fn analyze(
                 .type_coerced_from_as_mixed
                 .unwrap_or(false)
             {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::MixedPropertyTypeCoercion,
-                    format!(
-                        "{} expects {}, parent type {} provided",
-                        var_id.clone().unwrap_or("var".to_string()),
-                        class_property_type.get_id(),
-                        assignment_type.get_id(),
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MixedPropertyTypeCoercion,
+                        format!(
+                            "{} expects {}, parent type {} provided",
+                            var_id.clone().unwrap_or("var".to_string()),
+                            class_property_type.get_id(),
+                            assignment_type.get_id(),
+                        ),
+                        statements_analyzer.get_hpos(&stmt_var.1),
                     ),
-                    statements_analyzer.get_hpos(&stmt_var.1),
-                ));
+                    statements_analyzer.get_config(),
+                );
             } else {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::PropertyTypeCoercion,
-                    format!(
-                        "{} expects {}, parent type {} provided",
-                        var_id.clone().unwrap_or("var".to_string()),
-                        class_property_type.get_id(),
-                        assignment_type.get_id(),
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::PropertyTypeCoercion,
+                        format!(
+                            "{} expects {}, parent type {} provided",
+                            var_id.clone().unwrap_or("var".to_string()),
+                            class_property_type.get_id(),
+                            assignment_type.get_id(),
+                        ),
+                        statements_analyzer.get_hpos(&stmt_var.1),
                     ),
-                    statements_analyzer.get_hpos(&stmt_var.1),
-                ));
+                    statements_analyzer.get_config(),
+                );
             }
         }
 
@@ -149,16 +155,19 @@ pub(crate) fn analyze(
         }
 
         for (property_id, invalid_class_property_type) in invalid_assignment_value_types {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::InvalidPropertyAssignmentValue,
-                format!(
-                    "{} with declared type {}, cannot be assigned type {}",
-                    property_id,
-                    invalid_class_property_type,
-                    assignment_type.get_id(),
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InvalidPropertyAssignmentValue,
+                    format!(
+                        "{} with declared type {}, cannot be assigned type {}",
+                        property_id,
+                        invalid_class_property_type,
+                        assignment_type.get_id(),
+                    ),
+                    statements_analyzer.get_hpos(&stmt_var.1),
                 ),
-                statements_analyzer.get_hpos(&stmt_var.1),
-            ));
+                statements_analyzer.get_config(),
+            );
 
             return false;
         }
@@ -215,37 +224,49 @@ pub(crate) fn analyze_regular_assignment(
                         .add_mixed_data(origin, expr.1.pos());
                 }
 
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::MixedAnyPropertyAssignment,
-                    lhs_var_id.unwrap_or("data".to_string())
-                        + &" of type mixed cannot be assigned.".to_string(),
-                    statements_analyzer.get_hpos(&expr.1 .1),
-                ));
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MixedAnyPropertyAssignment,
+                        lhs_var_id.unwrap_or("data".to_string())
+                            + &" of type mixed cannot be assigned.".to_string(),
+                        statements_analyzer.get_hpos(&expr.1 .1),
+                    ),
+                    statements_analyzer.get_config(),
+                );
             } else {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::MixedPropertyAssignment,
-                    lhs_var_id.unwrap_or("data".to_string())
-                        + &" of type mixed cannot be assigned.".to_string(),
-                    statements_analyzer.get_hpos(&expr.1 .1),
-                ));
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::MixedPropertyAssignment,
+                        lhs_var_id.unwrap_or("data".to_string())
+                            + &" of type mixed cannot be assigned.".to_string(),
+                        statements_analyzer.get_hpos(&expr.1 .1),
+                    ),
+                    statements_analyzer.get_config(),
+                );
             }
 
             return assigned_properties;
         } else if lhs_type.is_null() {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::NullablePropertyAssignment,
-                lhs_var_id.unwrap_or("data".to_string())
-                    + &" of type null cannot be assigned.".to_string(),
-                statements_analyzer.get_hpos(&expr.1 .1),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NullablePropertyAssignment,
+                    lhs_var_id.unwrap_or("data".to_string())
+                        + &" of type null cannot be assigned.".to_string(),
+                    statements_analyzer.get_hpos(&expr.1 .1),
+                ),
+                statements_analyzer.get_config(),
+            );
             return assigned_properties;
         } else if lhs_type.is_nullable() {
-            tast_info.maybe_add_issue(Issue::new(
-                IssueKind::NullablePropertyAssignment,
-                lhs_var_id.clone().unwrap_or("data".to_string())
-                    + &" with possibly null type cannot be assigned.".to_string(),
-                statements_analyzer.get_hpos(&expr.1 .1),
-            ));
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NullablePropertyAssignment,
+                    lhs_var_id.clone().unwrap_or("data".to_string())
+                        + &" with possibly null type cannot be assigned.".to_string(),
+                    statements_analyzer.get_hpos(&expr.1 .1),
+                ),
+                statements_analyzer.get_config(),
+            );
         }
 
         for (_, lhs_type_part) in &lhs_type.types {
@@ -406,11 +427,14 @@ pub(crate) fn analyze_atomic_assignment(
             ));
         }
     } else {
-        tast_info.maybe_add_issue(Issue::new(
-            IssueKind::NonExistentProperty,
-            format!("Undefined property {}::${}", property_id.0, property_id.1,),
-            statements_analyzer.get_hpos(&expr.1.pos()),
-        ));
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentProperty,
+                format!("Undefined property {}::${}", property_id.0, property_id.1,),
+                statements_analyzer.get_hpos(&expr.1.pos()),
+            ),
+            statements_analyzer.get_config(),
+        );
     }
 
     return None;

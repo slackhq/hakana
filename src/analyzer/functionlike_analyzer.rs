@@ -611,10 +611,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         tast_info.data_flow_graph.add_node(new_parent_node.clone());
                     }
                 } else if tast_info.data_flow_graph.kind == GraphKind::Taint {
-                    let var_node = DataFlowNode::get_for_assignment(
-                        "$this".to_string(),
-                        param_pos.clone(),
-                    );
+                    let var_node =
+                        DataFlowNode::get_for_assignment("$this".to_string(), param_pos.clone());
 
                     tast_info.data_flow_graph.add_node(var_node.clone());
 
@@ -731,15 +729,14 @@ fn report_unused_expressions(
 
                 match &kind {
                     VariableSourceKind::PrivateParam => {
-                        if config
-                            .allow_issue_kind_in_file(&IssueKind::UnusedParameter, &pos.file_path)
-                        {
-                            tast_info.maybe_add_issue(Issue::new(
+                        tast_info.maybe_add_issue(
+                            Issue::new(
                                 IssueKind::UnusedParameter,
                                 "Unused param ".to_string() + id.as_str(),
                                 pos.clone(),
-                            ));
-                        }
+                            ),
+                            statements_analyzer.get_config(),
+                        );
                     }
                     VariableSourceKind::NonPrivateParam => {
                         // todo register public/private param
@@ -751,11 +748,14 @@ fn report_unused_expressions(
                             if config.issues_to_fix.contains(&IssueKind::UnusedVariable) {
                                 unused_variable_nodes.push(node.clone());
                             } else {
-                                tast_info.maybe_add_issue(Issue::new(
-                                    IssueKind::UnusedVariable,
-                                    "Unused variable ".to_string() + id.as_str(),
-                                    pos.clone(),
-                                ));
+                                tast_info.maybe_add_issue(
+                                    Issue::new(
+                                        IssueKind::UnusedVariable,
+                                        "Unused variable ".to_string() + id.as_str(),
+                                        pos.clone(),
+                                    ),
+                                    statements_analyzer.get_config(),
+                                );
                             }
                         }
                     }

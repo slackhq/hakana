@@ -1,7 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    rc::Rc,
-};
+use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_reflection_info::t_union::TUnion;
 use rustc_hash::{FxHashMap, FxHashSet};
