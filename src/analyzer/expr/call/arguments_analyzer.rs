@@ -168,7 +168,17 @@ pub(crate) fn check_arguments_match(
         }
     }
 
-    for (argument_offset, (_param_kind, arg_expr)) in args.iter().enumerate() {
+    let mut reordered_args = args
+        .iter()
+        .enumerate()
+        .map(|(i, p)| (i, p))
+        .collect::<Vec<_>>();
+
+    reordered_args.sort_by(|a, b| {
+        matches!(a.1 .1 .2, aast::Expr_::Lfun(..)).cmp(&matches!(b.1 .1 .2, aast::Expr_::Lfun(..)))
+    });
+
+    for (argument_offset, (_, arg_expr)) in reordered_args.clone() {
         let mut param = functionlike_params.get(argument_offset);
 
         if let None = param {
@@ -395,7 +405,7 @@ pub(crate) fn check_arguments_match(
         }
     }
 
-    for (argument_offset, (param_kind, arg_expr)) in args.iter().enumerate() {
+    for (argument_offset, (param_kind, arg_expr)) in reordered_args {
         let function_param = if let Some(function_param) = function_params.get(argument_offset) {
             function_param
         } else {

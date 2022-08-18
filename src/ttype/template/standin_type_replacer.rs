@@ -641,7 +641,7 @@ fn replace_atomic(
                 replace,
                 add_lower_bound,
                 None,
-                depth,
+                depth - 1,
             );
         }
 
