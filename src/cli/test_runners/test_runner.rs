@@ -205,24 +205,35 @@ pub trait TestRunner {
             };
 
             if if let Some(expected_output) = &expected_output {
-                (expected_output
-                    .as_bytes()
-                    .iter()
-                    .filter(|&&c| c == b'\n')
-                    .count()
-                    + 1)
-                    != test_output.len()
-                    || !test_output.iter().any(|s| s.contains(expected_output))
+                if expected_output.trim() == test_output.join("").trim() {
+                    true
+                } else {
+                    test_output.len() == 1
+                        && expected_output
+                            .as_bytes()
+                            .iter()
+                            .filter(|&&c| c == b'\n')
+                            .count()
+                            == 0
+                        && test_output.iter().any(|s| s.contains(expected_output))
+                }
             } else {
-                !test_output.is_empty()
+                test_output.is_empty()
             } {
-                test_diagnostics.push((
-                    dir,
-                    format!("- {:?}\n+ {}", expected_output, test_output.join("+ ")),
-                ));
-                return "F".to_string();
-            } else {
                 return ".".to_string();
+            } else {
+                if let Some(expected_output) = &expected_output {
+                    test_diagnostics.push((
+                        dir,
+                        format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
+                    ));
+                } else {
+                    test_diagnostics.push((
+                        dir,
+                        format!("-\n+ {}", test_output.join("+ ")),
+                    ));
+                }
+                return "F".to_string();
             }
         }
     }
