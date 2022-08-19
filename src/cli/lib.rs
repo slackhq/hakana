@@ -2,7 +2,7 @@ use clap::{arg, Command};
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry};
-use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::IssueKind;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -355,7 +355,57 @@ pub fn init(
         }
         Some(("security-check", sub_matches)) => {
             let mut analysis_config = config::Config::new(cwd.clone());
-            analysis_config.graph_kind = GraphKind::WholeProgram;
+            analysis_config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Taint);
+
+            let config_path = config_path.unwrap();
+
+            if config_path.exists() {
+                analysis_config.update_from_file(&cwd, config_path);
+            }
+
+            let output_file = sub_matches.value_of("output").map(|f| f.to_string());
+
+            analysis_config.security_config.max_depth =
+                if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
+                    val.parse::<u8>().unwrap()
+                } else {
+                    20
+                };
+
+            analysis_config.hooks = analysis_hooks;
+
+            let result = hakana_workhorse::scan_and_analyze(
+                true,
+                Vec::new(),
+                None,
+                None,
+                Arc::new(analysis_config),
+                None,
+                threads,
+                debug,
+                &header,
+                None,
+            );
+            if let Ok(analysis_result) = result {
+                for issues in analysis_result.emitted_issues.values() {
+                    for issue in issues {
+                        had_error = true;
+                        println!("{}", issue.format());
+                    }
+                }
+
+                if !had_error {
+                    println!("\nNo security issues found!\n");
+                }
+
+                if let Some(output_file) = output_file {
+                    write_output_files(output_file, &cwd, &analysis_result);
+                }
+            }
+        }
+        Some(("find-paths", sub_matches)) => {
+            let mut analysis_config = config::Config::new(cwd.clone());
+            analysis_config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Query);
 
             let config_path = config_path.unwrap();
 

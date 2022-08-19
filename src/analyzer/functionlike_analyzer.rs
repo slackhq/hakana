@@ -6,7 +6,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
-use crate::unused_variable_analyzer::{add_unused_expression_replacements, check_variables_used};
+use crate::dataflow::unused_variable_analyzer::{add_unused_expression_replacements, check_variables_used};
 use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
 use function_context::method_identifier::MethodIdentifier;
 use function_context::FunctionLikeIdentifier;
@@ -356,7 +356,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             handle_inout_at_return(functionlike_storage, context, &mut tast_info, None);
         }
 
-        if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             if let Some(method_storage) = &functionlike_storage.method_info {
                 if !method_storage.is_static {
                     if let Some(this_type) = context.vars_in_scope.get("$this") {
@@ -584,7 +584,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             if let Some(param_pos) = &param.location {
-                let new_parent_node = if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+                let new_parent_node = if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
                     DataFlowNode::get_for_assignment(param.name.clone(), param_pos.clone())
                 } else {
                     let id = format!(
@@ -619,7 +619,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
                         tast_info.data_flow_graph.add_node(new_parent_node.clone());
                     }
-                } else if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+                } else if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
                     let var_node =
                         DataFlowNode::get_for_assignment("$this".to_string(), param_pos.clone());
 
@@ -663,7 +663,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                 tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
-                if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+                if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
                     let calling_id =
                         if let Some(id) = &context.function_context.calling_functionlike_id {
                             id.clone()
@@ -809,10 +809,10 @@ pub(crate) fn update_analysis_result_with_tast(
         .or_insert_with(Vec::new)
         .extend(tast_info.issues_to_emit);
 
-    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         if !ignore_taint_path {
             analysis_result
-                .taint_flow_graph
+                .program_dataflow_graph
                 .add_graph(tast_info.data_flow_graph);
         }
     } else {

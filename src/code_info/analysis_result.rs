@@ -14,17 +14,17 @@ pub struct AnalysisResult {
     pub emitted_issues: BTreeMap<String, Vec<Issue>>,
     pub replacements: FxHashMap<String, BTreeMap<(usize, usize), String>>,
     pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
-    pub taint_flow_graph: DataFlowGraph,
+    pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
 }
 
 impl AnalysisResult {
-    pub fn new() -> Self {
+    pub fn new(program_dataflow_graph_kind: GraphKind) -> Self {
         Self {
             emitted_issues: BTreeMap::new(),
             replacements: FxHashMap::default(),
             mixed_source_counts: FxHashMap::default(),
-            taint_flow_graph: DataFlowGraph::new(GraphKind::WholeProgram),
+            program_dataflow_graph: DataFlowGraph::new(program_dataflow_graph_kind),
             symbol_references: SymbolReferences::new(),
         }
     }
@@ -38,7 +38,8 @@ impl AnalysisResult {
                 .or_insert_with(FxHashSet::default)
                 .extend(c);
         }
-        self.taint_flow_graph.add_graph(other.taint_flow_graph);
+        self.program_dataflow_graph
+            .add_graph(other.program_dataflow_graph);
         self.symbol_references.extend(other.symbol_references);
     }
 }

@@ -10,7 +10,6 @@ pub enum SourceType {
     StoredUserData,
     UserSecret,
     SystemSecret,
-    Custom,
 }
 
 impl SourceType {
@@ -21,7 +20,6 @@ impl SourceType {
             SourceType::StoredUserData => "user-controllable storage",
             SourceType::UserSecret => "a user secret",
             SourceType::SystemSecret => "a system secret",
-            SourceType::Custom => "some custom thing",
         }
     }
 }
@@ -41,10 +39,10 @@ pub enum SinkType {
     HtmlAttribute,
     HtmlAttributeUri,
     Logging,
-    Custom,
+    Custom(String),
 }
 
-const PAIRS: [(SourceType, SinkType); 30] = [
+const PAIRS: [(SourceType, SinkType); 29] = [
     (SourceType::UriRequestHeader, SinkType::HtmlTag),
     (SourceType::UriRequestHeader, SinkType::HtmlAttribute),
     (SourceType::UriRequestHeader, SinkType::HtmlAttributeUri),
@@ -74,7 +72,6 @@ const PAIRS: [(SourceType, SinkType); 30] = [
     (SourceType::SystemSecret, SinkType::Logging),
     (SourceType::SystemSecret, SinkType::HtmlAttribute),
     (SourceType::SystemSecret, SinkType::HtmlTag),
-    (SourceType::Custom, SinkType::Custom),
 ];
 
 pub fn get_sinks_for_sources(source: &SourceType) -> FxHashSet<SinkType> {
@@ -101,7 +98,7 @@ impl SinkType {
             SinkType::HtmlAttribute => "an HTML attribute".to_string(),
             SinkType::HtmlAttributeUri => "an HTML attribute with url".to_string(),
             SinkType::Logging => "a logging method".to_string(),
-            SinkType::Custom => format!("Detected tainted custom"),
+            SinkType::Custom(str) => format!("Detected data passed to {}", str),
         }
     }
 

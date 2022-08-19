@@ -121,7 +121,7 @@ pub(crate) fn assign_arithmetic_type(
     expr_pos: &Pos,
 ) {
     let mut cond_type = cond_type;
-    let decision_node = if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+    let decision_node = if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         DataFlowNode::get_for_composition(statements_analyzer.get_hpos(expr_pos))
     } else {
         DataFlowNode::get_for_variable_sink(

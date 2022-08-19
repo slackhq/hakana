@@ -15,7 +15,7 @@ use hakana_reflection_info::taint::SinkType;
 pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) -> Vec<Issue> {
     let mut new_issues = vec![];
 
-    let mut sources = graph
+    let sources = graph
         .sources
         .iter()
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
@@ -32,13 +32,50 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
     //     }
     // }
 
+    find_paths_to_sinks(sources, graph, config, debug, &mut new_issues, true);
+
+    new_issues
+}
+
+pub fn find_connections(graph: &DataFlowGraph, config: &Config, debug: bool) -> Vec<Issue> {
+    let mut new_issues = vec![];
+    println!("got here");
+
+    let sources = graph
+        .sources
+        .iter()
+        .filter(|(_, v)| matches!(v, DataFlowNode::DataSource { .. }))
+        .map(|(_, v)| Arc::new(TaintedNode::from(v)))
+        .collect::<Vec<_>>();
+
+    println!(" - initial sources count: {}", sources.len());
+
+    // for (from_id, to) in &graph.forward_edges {
+    //     for (to_id, _) in to {
+    //         println!("{} -> {}", from_id, to_id);
+    //     }
+    // }
+
+    find_paths_to_sinks(sources, graph, config, debug, &mut new_issues, false);
+
+    new_issues
+}
+
+fn find_paths_to_sinks(
+    mut sources: Vec<Arc<TaintedNode>>,
+    graph: &DataFlowGraph,
+    config: &Config,
+    debug: bool,
+    new_issues: &mut Vec<Issue>,
+    match_sinks: bool,
+) {
     let mut seen_sources = FxHashSet::default();
 
     for source in &sources {
         seen_sources.insert(source.get_unique_source_id());
     }
 
-    if !graph.sinks.is_empty() {
+    if !match_sinks || !graph.sinks.is_empty() {
         for i in 0..config.security_config.max_depth {
             if !sources.is_empty() {
                 let now = if debug { Some(Instant::now()) } else { None };
@@ -54,14 +91,15 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
                     actual_source_count += generated_sources.len();
 
                     for generated_source in generated_sources {
-                        new_sources.extend(get_taint_child_nodes(
+                        new_sources.extend(get_child_nodes(
                             graph,
                             config,
                             &generated_source,
                             &source_taints,
                             &mut seen_sources,
-                            &mut new_issues,
+                            new_issues,
                             i == config.security_config.max_depth - 1,
+                            match_sinks,
                         ))
                     }
 
@@ -88,10 +126,7 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
             }
         }
     }
-
     std::thread::spawn(move || drop(sources));
-
-    new_issues
 }
 
 fn get_specialized_sources(
@@ -156,7 +191,7 @@ fn get_specialized_sources(
     return generated_sources;
 }
 
-fn get_taint_child_nodes(
+fn get_child_nodes(
     graph: &DataFlowGraph,
     config: &Config,
     generated_source: &Arc<TaintedNode>,
@@ -164,6 +199,7 @@ fn get_taint_child_nodes(
     seen_sources: &mut FxHashSet<String>,
     new_issues: &mut Vec<Issue>,
     is_last: bool,
+    match_sinks: bool,
 ) -> Vec<Arc<TaintedNode>> {
     let mut new_child_nodes = Vec::new();
 
@@ -217,6 +253,25 @@ fn get_taint_child_nodes(
                 continue;
             }
 
+            if !match_sinks {
+                for t in source_taints {
+                    if let SinkType::Custom(target_id) = t {
+                        if to_id == target_id {
+                            let message = format!(
+                                "Data found its way to {} using path {}",
+                                target_id,
+                                generated_source.get_trace()
+                            );
+                            new_issues.push(Issue::new(
+                                IssueKind::TaintedData(t.clone()),
+                                message,
+                                (**generated_source.pos.as_ref().unwrap()).clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+
             let mut new_taints = source_taints.clone();
             if let Some(added_taints) = &path.added_taints {
                 new_taints.extend(added_taints.clone());
@@ -241,44 +296,47 @@ fn get_taint_child_nodes(
 
             new_destination.path_types = new_path_types;
 
-            if let Some(sink) = graph.sinks.get(to_id) {
-                match sink {
-                    DataFlowNode::TaintSink { types, .. } => {
-                        let mut matching_taints = types.clone();
-                        matching_taints.retain(|t| new_taints.contains(t));
+            if match_sinks {
+                if let Some(sink) = graph.sinks.get(to_id) {
+                    match sink {
+                        DataFlowNode::TaintSink { types, .. } => {
+                            let mut matching_taints = types.clone();
+                            matching_taints.retain(|t| new_taints.contains(t));
 
-                        if !matching_taints.is_empty() {
-                            if let Some(issue_pos) = &generated_source.pos {
-                                let taint_sources = generated_source.get_taint_sources();
-                                for taint_source in taint_sources {
-                                    for matching_taint in &matching_taints {
-                                        if let Some(pos) = &new_destination.pos {
-                                            if !config
-                                                .allow_sink_in_file(&matching_taint, &pos.file_path)
-                                            {
-                                                continue;
+                            if !matching_taints.is_empty() {
+                                if let Some(issue_pos) = &generated_source.pos {
+                                    let taint_sources = generated_source.get_taint_sources();
+                                    for taint_source in taint_sources {
+                                        for matching_taint in &matching_taints {
+                                            if let Some(pos) = &new_destination.pos {
+                                                if !config.allow_sink_in_file(
+                                                    &matching_taint,
+                                                    &pos.file_path,
+                                                ) {
+                                                    continue;
+                                                }
                                             }
+
+                                            new_destination.taint_sinks.remove(&matching_taint);
+
+                                            let message = format!(
+                                                "Data from {} found its way to {} using path {}",
+                                                taint_source.get_error_message(),
+                                                matching_taint.get_error_message(),
+                                                new_destination.get_trace()
+                                            );
+                                            new_issues.push(Issue::new(
+                                                IssueKind::TaintedData(matching_taint.clone()),
+                                                message,
+                                                (**issue_pos).clone(),
+                                            ));
                                         }
-
-                                        new_destination.taint_sinks.remove(&matching_taint);
-
-                                        let message = format!(
-                                            "Data from {} found its way to {} using path {}",
-                                            taint_source.get_error_message(),
-                                            matching_taint.get_error_message(),
-                                            new_destination.get_trace()
-                                        );
-                                        new_issues.push(Issue::new(
-                                            IssueKind::TaintedData(matching_taint.clone()),
-                                            message,
-                                            (**issue_pos).clone(),
-                                        ));
                                     }
                                 }
                             }
                         }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
 

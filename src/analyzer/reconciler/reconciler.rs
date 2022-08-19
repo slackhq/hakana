@@ -228,7 +228,7 @@ pub(crate) fn reconcile_keyed_types(
         }
 
         if let Some(before_adjustment) = &before_adjustment {
-            if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+            if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
                 let mut has_scalar_restriction = false;
 
                 for new_type_part_parts in new_type_parts {

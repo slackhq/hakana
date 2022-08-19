@@ -139,6 +139,23 @@ impl TaintedNode {
                 path_types: Vec::new(),
                 specialized_calls: FxHashMap::default(),
             },
+            DataFlowNode::DataSource {
+                id,
+                label,
+                pos,
+                target_id,
+            } => TaintedNode {
+                id: id.clone(),
+                unspecialized_id: None,
+                label: label.clone(),
+                pos: Some(Arc::new(pos.clone())),
+                specialization_key: None,
+                taint_sinks: FxHashSet::from_iter([SinkType::Custom(target_id.clone())]),
+                previous: None,
+                path_types: Vec::new(),
+                specialized_calls: FxHashMap::default(),
+                taint_sources: FxHashSet::default(),
+            },
             _ => {
                 panic!();
             }

@@ -322,7 +322,7 @@ pub(crate) fn add_branch_dataflow(
     cond: &aast::Expr<(), ()>,
     tast_info: &mut TastInfo,
 ) {
-    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         // todo maybe useful in the future
         return;
     }

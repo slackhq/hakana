@@ -7,9 +7,15 @@ use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WholeProgramKind {
+    Taint,
+    Query,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphKind {
     FunctionBody,
-    WholeProgram,
+    WholeProgram(WholeProgramKind),
 }
 
 #[derive(Debug, Clone)]
@@ -48,7 +54,7 @@ impl DataFlowGraph {
                 specialization_key,
                 ..
             } => {
-                if self.kind == GraphKind::WholeProgram {
+                if let GraphKind::WholeProgram(_) = &self.kind {
                     if let (Some(unspecialized_id), Some(specialization_key)) =
                         (&unspecialized_id, &specialization_key)
                     {
@@ -66,7 +72,9 @@ impl DataFlowGraph {
 
                 self.vertices.insert(id.clone(), node);
             }
-            DataFlowNode::TaintSource { id, .. } | DataFlowNode::VariableUseSource { id, .. } => {
+            DataFlowNode::TaintSource { id, .. }
+            | DataFlowNode::VariableUseSource { id, .. }
+            | DataFlowNode::DataSource { id, .. } => {
                 self.sources.insert(id.clone(), node);
             }
             DataFlowNode::TaintSink { id, .. } | DataFlowNode::VariableUseSink { id, .. } => {

@@ -4,11 +4,11 @@ use crate::file_cache_provider::FileStatus;
 use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
-use hakana_analyzer::taint_analyzer::find_tainted_data;
+use hakana_analyzer::dataflow::program_analyzer::{find_tainted_data, find_connections};
 use hakana_file_info::FileSource;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use indexmap::IndexMap;
@@ -124,7 +124,7 @@ pub fn scan_and_analyze(
 
     let now = Instant::now();
 
-    let analysis_result = Arc::new(Mutex::new(AnalysisResult::new()));
+    let analysis_result = Arc::new(Mutex::new(AnalysisResult::new(config.graph_kind)));
 
     let arc_codebase = Arc::new(codebase);
 
@@ -160,8 +160,11 @@ pub fn scan_and_analyze(
 
     std::thread::spawn(move || drop(arc_codebase));
 
-    if config.graph_kind == GraphKind::WholeProgram {
-        let issues = find_tainted_data(&analysis_result.taint_flow_graph, &config, debug);
+    if let GraphKind::WholeProgram(whole_program_kind) = config.graph_kind {
+        let issues = match whole_program_kind {
+            WholeProgramKind::Taint => find_tainted_data(&analysis_result.program_dataflow_graph, &config, debug),
+            WholeProgramKind::Query => find_connections(&analysis_result.program_dataflow_graph, &config, debug),
+        };
 
         for issue in issues {
             analysis_result
@@ -377,7 +380,7 @@ pub fn scan_and_analyze_single_file(
     analysis_config.graph_kind = if file_contents.starts_with("// security-check")
         || file_contents.starts_with("//security-check")
     {
-        GraphKind::WholeProgram
+        GraphKind::WholeProgram(WholeProgramKind::Taint)
     } else {
         GraphKind::FunctionBody
     };
@@ -393,8 +396,8 @@ pub fn scan_and_analyze_single_file(
         &analysis_config,
     )?;
 
-    if analysis_config.graph_kind == GraphKind::WholeProgram {
-        let issues = find_tainted_data(&analysis_result.taint_flow_graph, &analysis_config, false);
+    if matches!(analysis_config.graph_kind, GraphKind::WholeProgram(_)) {
+        let issues = find_tainted_data(&analysis_result.program_dataflow_graph, &analysis_config, false);
 
         for issue in issues {
             analysis_result
@@ -747,7 +750,7 @@ fn find_files_in_dir(
                     );
 
                     if !extension.eq("hhi") {
-                        if config.graph_kind == GraphKind::WholeProgram {
+                        if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
                             if config.allow_taints_in_file(&path) {
                                 files_to_analyze.push(path.clone());
                             }
@@ -986,7 +989,7 @@ pub fn analyze_files(
     };
 
     if path_groups.len() == 1 {
-        let mut new_analysis_result = AnalysisResult::new();
+        let mut new_analysis_result = AnalysisResult::new(config.graph_kind);
 
         for (i, str_path) in path_groups[&0].iter().enumerate() {
             analyze_file(
@@ -1027,7 +1030,7 @@ pub fn analyze_files(
             let bar = bar.clone();
 
             let handle = std::thread::spawn(move || {
-                let mut new_analysis_result = AnalysisResult::new();
+                let mut new_analysis_result = AnalysisResult::new(analysis_config.graph_kind);
 
                 for str_path in &pgc {
                     analyze_file(
@@ -1127,7 +1130,7 @@ pub fn analyze_single_file(
 
     let resolved_names = hakana_aast_helper::scope_names(&aast.0);
 
-    let mut analysis_result = AnalysisResult::new();
+    let mut analysis_result = AnalysisResult::new(analysis_config.graph_kind);
 
     let file_source = FileSource {
         file_path: Arc::new(path.clone()),

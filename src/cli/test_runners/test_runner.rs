@@ -2,6 +2,7 @@ use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::issue::IssueKind;
 use rustc_hash::FxHashSet;
 use std::env;
@@ -73,7 +74,9 @@ pub trait TestRunner {
             dir.contains("/unused/") || dir.contains("/fix/UnusedVariable/");
         analysis_config.find_unused_definitions = dir.contains("/unused/UnusedCode/");
         analysis_config.graph_kind = if dir.contains("/security/") {
-            GraphKind::WholeProgram
+            GraphKind::WholeProgram(WholeProgramKind::Taint)
+        } else if dir.contains("/query/") {
+            GraphKind::WholeProgram(WholeProgramKind::Query)
         } else {
             GraphKind::FunctionBody
         };
@@ -228,10 +231,7 @@ pub trait TestRunner {
                         format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
                     ));
                 } else {
-                    test_diagnostics.push((
-                        dir,
-                        format!("-\n+ {}", test_output.join("+ ")),
-                    ));
+                    test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
                 }
                 return "F".to_string();
             }

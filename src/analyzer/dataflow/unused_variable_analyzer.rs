@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::taint_analyzer::should_ignore_fetch;
+use crate::dataflow::program_analyzer::should_ignore_fetch;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::node::DataFlowNode;

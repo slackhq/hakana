@@ -474,7 +474,7 @@ pub(crate) fn check_arguments_match(
             return false;
         }
 
-        if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             if let Some(removed_taints) = &function_param.removed_taints_when_returning_true {
                 if let Some(expr_var_id) = expression_identifier::get_extended_var_id(
                     arg_expr,
@@ -641,7 +641,7 @@ fn handle_closure_arg(
             }
         }
 
-        if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
                 if (function_name == "HH\\Lib\\Vec\\map"
                     || function_name == "HH\\Lib\\Dict\\map"
@@ -872,7 +872,7 @@ fn handle_possibly_matching_inout_param(
 
     let arg_type = arg_type.unwrap_or(get_mixed_any());
 
-    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         let out_node = DataFlowNode::get_for_method_argument_out(
             functionlike_id.to_string(),
             argument_offset,

@@ -488,7 +488,7 @@ pub(crate) fn add_dataflow_to_assignment(
     added_taints: FxHashSet<SinkType>,
     removed_taints: FxHashSet<SinkType>,
 ) -> TUnion {
-    if data_flow_graph.kind == GraphKind::WholeProgram {
+    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !assignment_type.has_taintable_value() {
             return assignment_type;
         }

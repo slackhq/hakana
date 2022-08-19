@@ -14,6 +14,6 @@ pub mod scope_context;
 pub mod statements_analyzer;
 mod stmt;
 mod stmt_analyzer;
-pub mod taint_analyzer;
+
 pub mod typed_ast;
-mod unused_variable_analyzer;
+pub mod dataflow;

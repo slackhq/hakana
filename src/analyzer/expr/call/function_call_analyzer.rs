@@ -224,7 +224,7 @@ pub(crate) fn analyze(
             }
         }
 
-        if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             let second_arg_var_id = expression_identifier::get_extended_var_id(
                 &expr.2[1].1,
                 context.function_context.calling_class.as_ref(),
@@ -246,7 +246,7 @@ pub(crate) fn analyze(
             }
         }
     } else if name == "HH\\Lib\\Str\\starts_with" && expr.2.len() == 2 {
-        if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             let expr_var_id = expression_identifier::get_extended_var_id(
                 &expr.2[0].1,
                 context.function_context.calling_class.as_ref(),
@@ -280,7 +280,7 @@ pub(crate) fn analyze(
             }
         }
     } else if name == "HH\\Lib\\Regex\\matches" && expr.2.len() == 2 {
-        if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             let expr_var_id = expression_identifier::get_extended_var_id(
                 &expr.2[0].1,
                 context.function_context.calling_class.as_ref(),

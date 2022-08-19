@@ -333,7 +333,7 @@ fn add_array_assignment_dataflow(
     var_var_id: Option<String>,
     key_values: &Vec<TAtomic>,
 ) -> TUnion {
-    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
+    if let GraphKind::WholeProgram(_) = tast_info.data_flow_graph.kind {
         if !child_expr_type.has_taintable_value() {
             return parent_expr_type;
         }

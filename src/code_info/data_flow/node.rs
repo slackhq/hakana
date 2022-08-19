@@ -34,6 +34,12 @@ pub enum DataFlowNode {
         id: String,
         pos: HPos,
     },
+    DataSource {
+        id: String,
+        label: String,
+        pos: HPos,
+        target_id: String,
+    },
     TaintSource {
         id: String,
         label: String,
@@ -235,7 +241,8 @@ impl DataFlowNode {
             | DataFlowNode::TaintSource { id, .. }
             | DataFlowNode::TaintSink { id, .. }
             | DataFlowNode::VariableUseSource { id, .. }
-            | DataFlowNode::VariableUseSink { id, .. } => id,
+            | DataFlowNode::VariableUseSink { id, .. }
+            | DataFlowNode::DataSource { id, .. } => id,
         }
     }
 
@@ -245,6 +252,7 @@ impl DataFlowNode {
             DataFlowNode::Vertex { label, .. }
             | DataFlowNode::TaintSource { label, .. }
             | DataFlowNode::TaintSink { label, .. }
+            | DataFlowNode::DataSource { label, .. }
             | DataFlowNode::VariableUseSource { id: label, .. }
             | DataFlowNode::VariableUseSink { id: label, .. } => label,
         }
@@ -256,7 +264,9 @@ impl DataFlowNode {
             DataFlowNode::Vertex { pos, .. }
             | DataFlowNode::TaintSource { pos, .. }
             | DataFlowNode::TaintSink { pos, .. } => pos,
-            DataFlowNode::VariableUseSource { .. } | DataFlowNode::VariableUseSink { .. } => {
+            DataFlowNode::VariableUseSource { .. }
+            | DataFlowNode::VariableUseSink { .. }
+            | DataFlowNode::DataSource { .. } => {
                 panic!()
             }
         }
