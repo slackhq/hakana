@@ -73,9 +73,9 @@ pub trait TestRunner {
             dir.contains("/unused/") || dir.contains("/fix/UnusedVariable/");
         analysis_config.find_unused_definitions = dir.contains("/unused/UnusedCode/");
         analysis_config.graph_kind = if dir.contains("/security/") {
-            GraphKind::Taint
+            GraphKind::WholeProgram
         } else {
-            GraphKind::Variable
+            GraphKind::FunctionBody
         };
 
         analysis_config.hooks = self.get_hooks_for_test(dir);

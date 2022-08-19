@@ -192,7 +192,7 @@ fn get_is_assertions(
                 self_class: assertion_context.this_class_name,
                 ..Default::default()
             },
-            &mut DataFlowGraph::new(GraphKind::Variable),
+            &mut DataFlowGraph::new(GraphKind::FunctionBody),
         );
     }
 

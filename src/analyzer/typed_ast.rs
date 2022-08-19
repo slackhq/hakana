@@ -106,7 +106,7 @@ impl TastInfo {
     }
 
     pub fn can_add_issue(&mut self, issue: &Issue) -> bool {
-        if self.data_flow_graph.kind == GraphKind::Taint {
+        if self.data_flow_graph.kind == GraphKind::WholeProgram {
             return matches!(issue.kind, IssueKind::TaintedData(_));
         }
 

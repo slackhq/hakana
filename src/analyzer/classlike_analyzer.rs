@@ -60,7 +60,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
         class_context.function_context.calling_class = Some(name.clone());
 
         let mut tast_info = TastInfo::new(
-            DataFlowGraph::new(GraphKind::Variable),
+            DataFlowGraph::new(GraphKind::FunctionBody),
             statements_analyzer.get_file_analyzer().get_file_source(),
             &statements_analyzer.comments,
         );

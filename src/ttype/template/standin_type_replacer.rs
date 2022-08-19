@@ -754,7 +754,7 @@ fn handle_template_param_standin(
 
                     ..Default::default()
                 },
-                &mut DataFlowGraph::new(GraphKind::Variable),
+                &mut DataFlowGraph::new(GraphKind::FunctionBody),
             );
 
             if depth < 10 && replacement_type.has_template_types() {
@@ -821,7 +821,7 @@ fn handle_template_param_standin(
 
                 ..Default::default()
             },
-            &mut DataFlowGraph::new(GraphKind::Variable),
+            &mut DataFlowGraph::new(GraphKind::FunctionBody),
         );
 
         let as_type = self::replace(

@@ -378,7 +378,7 @@ pub(crate) fn analyze(
                 boxed.0.name.pos().start_offset()
             );
 
-            if tast_info.data_flow_graph.kind == GraphKind::Taint {
+            if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
                 let application_node = DataFlowNode::get_for_method_reference(
                     closure_id.clone(),
                     statements_analyzer.get_hpos(expr.pos()),
@@ -790,7 +790,7 @@ pub(crate) fn add_decision_dataflow(
     expr_pos: &Pos,
     mut cond_type: TUnion,
 ) {
-    if tast_info.data_flow_graph.kind == GraphKind::Taint {
+    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
         return;
     }
 

@@ -345,7 +345,7 @@ pub(crate) fn analyze_atomic_assignment(
 
     // TODO self assignments
 
-    if tast_info.data_flow_graph.kind == GraphKind::Taint {
+    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
         let var_id = expression_identifier::get_var_id(
             &expr.0,
             None,

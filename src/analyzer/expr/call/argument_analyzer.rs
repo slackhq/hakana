@@ -547,7 +547,7 @@ fn add_dataflow(
 
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
-    if data_flow_graph.kind == GraphKind::Taint {
+    if data_flow_graph.kind == GraphKind::WholeProgram {
         if !input_type.has_taintable_value() || !param_type.has_taintable_value() {
             return;
         }
@@ -570,7 +570,7 @@ fn add_dataflow(
     let method_node = DataFlowNode::get_for_method_argument(
         functionlike_id.to_string(),
         argument_offset,
-        if data_flow_graph.kind == GraphKind::Taint {
+        if data_flow_graph.kind == GraphKind::WholeProgram {
             function_param.location.clone()
         } else {
             None
@@ -582,7 +582,7 @@ fn add_dataflow(
         },
     );
 
-    if data_flow_graph.kind == GraphKind::Taint {
+    if data_flow_graph.kind == GraphKind::WholeProgram {
         if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id {
             if let Some(method_call_info) = method_call_info {
                 if let Some(dependent_classlikes) = codebase
@@ -647,14 +647,14 @@ fn add_dataflow(
     // maybe todo prevent numeric types from being tainted
     // ALTHOUGH numbers may still contain PII
 
-    let removed_taints = if data_flow_graph.kind == GraphKind::Variable {
+    let removed_taints = if data_flow_graph.kind == GraphKind::FunctionBody {
         FxHashSet::default()
     } else {
         get_removed_taints_in_comments(statements_analyzer, input_expr.pos())
     };
     // TODO add plugin hooks for adding/removing taints
 
-    let argument_value_node = if data_flow_graph.kind == GraphKind::Variable {
+    let argument_value_node = if data_flow_graph.kind == GraphKind::FunctionBody {
         DataFlowNode::VariableUseSink {
             id: "call to ".to_string() + functionlike_id.to_string().as_str(),
             pos: statements_analyzer.get_hpos(input_expr.pos()),
@@ -680,7 +680,7 @@ fn add_dataflow(
         );
     }
 
-    if data_flow_graph.kind == GraphKind::Variable {
+    if data_flow_graph.kind == GraphKind::FunctionBody {
         data_flow_graph.add_node(argument_value_node);
     } else {
         let mut taints = get_argument_taints(functionlike_id, argument_offset);

@@ -149,7 +149,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                 self_class: context.function_context.calling_class.as_ref(),
                 ..Default::default()
             },
-            &mut DataFlowGraph::new(GraphKind::Variable),
+            &mut DataFlowGraph::new(GraphKind::FunctionBody),
         );
         hint_type.parent_nodes = ternary_type.parent_nodes;
         ternary_type = hint_type;

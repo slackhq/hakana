@@ -356,7 +356,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             handle_inout_at_return(functionlike_storage, context, &mut tast_info, None);
         }
 
-        if tast_info.data_flow_graph.kind == GraphKind::Taint {
+        if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
             if let Some(method_storage) = &functionlike_storage.method_info {
                 if !method_storage.is_static {
                     if let Some(this_type) = context.vars_in_scope.get("$this") {
@@ -584,7 +584,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             if let Some(param_pos) = &param.location {
-                let new_parent_node = if tast_info.data_flow_graph.kind == GraphKind::Taint {
+                let new_parent_node = if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
                     DataFlowNode::get_for_assignment(param.name.clone(), param_pos.clone())
                 } else {
                     let id = format!(
@@ -616,10 +616,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 };
 
                 if !param.promoted_property {
-                    if tast_info.data_flow_graph.kind == GraphKind::Variable {
+                    if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
                         tast_info.data_flow_graph.add_node(new_parent_node.clone());
                     }
-                } else if tast_info.data_flow_graph.kind == GraphKind::Taint {
+                } else if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
                     let var_node =
                         DataFlowNode::get_for_assignment("$this".to_string(), param_pos.clone());
 
@@ -663,7 +663,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                 tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
-                if tast_info.data_flow_graph.kind == GraphKind::Taint {
+                if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
                     let calling_id =
                         if let Some(id) = &context.function_context.calling_functionlike_id {
                             id.clone()
@@ -809,7 +809,7 @@ pub(crate) fn update_analysis_result_with_tast(
         .or_insert_with(Vec::new)
         .extend(tast_info.issues_to_emit);
 
-    if tast_info.data_flow_graph.kind == GraphKind::Taint {
+    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
         if !ignore_taint_path {
             analysis_result
                 .taint_flow_graph

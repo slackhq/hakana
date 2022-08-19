@@ -396,8 +396,8 @@ pub(crate) fn handle_inout_at_return(
     for (i, param) in functionlike_storage.params.iter().enumerate() {
         if param.is_inout {
             if let Some(context_type) = context.vars_in_scope.get(&param.name) {
-                if tast_info.data_flow_graph.kind == GraphKind::Taint {}
-                let new_parent_node = if tast_info.data_flow_graph.kind == GraphKind::Taint {
+                if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {}
+                let new_parent_node = if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
                     DataFlowNode::get_for_method_argument_out(
                         context
                             .function_context
@@ -441,7 +441,7 @@ fn handle_dataflow(
     method_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    if data_flow_graph.kind == GraphKind::Variable {
+    if data_flow_graph.kind == GraphKind::FunctionBody {
         let return_node = DataFlowNode::get_for_variable_sink(
             "return".to_string(),
             statements_analyzer.get_hpos(return_expr.pos()),

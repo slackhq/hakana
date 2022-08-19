@@ -405,7 +405,7 @@ fn add_dataflow(
 
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
-    if data_flow_graph.kind == GraphKind::Taint {
+    if data_flow_graph.kind == GraphKind::WholeProgram {
         if !context.allow_taints {
             return stmt_type;
         }
@@ -429,7 +429,7 @@ fn add_dataflow(
 
     // todo conditionally remove taints
 
-    if data_flow_graph.kind == GraphKind::Taint {
+    if data_flow_graph.kind == GraphKind::WholeProgram {
         if !functionlike_storage.return_source_params.is_empty() {
             // todo dispatch AddRemoveTaintEvent
             // and also handle simple preg_replace calls

@@ -355,7 +355,7 @@ pub fn init(
         }
         Some(("security-check", sub_matches)) => {
             let mut analysis_config = config::Config::new(cwd.clone());
-            analysis_config.graph_kind = GraphKind::Taint;
+            analysis_config.graph_kind = GraphKind::WholeProgram;
 
             let config_path = config_path.unwrap();
 

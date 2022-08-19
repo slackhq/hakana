@@ -322,7 +322,7 @@ pub(crate) fn add_branch_dataflow(
     cond: &aast::Expr<(), ()>,
     tast_info: &mut TastInfo,
 ) {
-    if tast_info.data_flow_graph.kind == GraphKind::Taint {
+    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
         // todo maybe useful in the future
         return;
     }
@@ -348,7 +348,7 @@ pub(crate) fn add_branch_dataflow(
                 );
             }
 
-            if tast_info.data_flow_graph.kind == GraphKind::Variable {
+            if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
                 tast_info.data_flow_graph.add_node(branch_node);
             }
         }

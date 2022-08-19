@@ -184,7 +184,7 @@ pub(crate) fn add_array_fetch_dataflow(
     value_type: &mut TUnion,
     key_type: &mut TUnion,
 ) {
-    if tast_info.data_flow_graph.kind == GraphKind::Taint {
+    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
         if !value_type.has_taintable_value() {
             return;
         }

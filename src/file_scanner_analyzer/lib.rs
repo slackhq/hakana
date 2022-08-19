@@ -160,7 +160,7 @@ pub fn scan_and_analyze(
 
     std::thread::spawn(move || drop(arc_codebase));
 
-    if config.graph_kind == GraphKind::Taint {
+    if config.graph_kind == GraphKind::WholeProgram {
         let issues = find_tainted_data(&analysis_result.taint_flow_graph, &config, debug);
 
         for issue in issues {
@@ -377,9 +377,9 @@ pub fn scan_and_analyze_single_file(
     analysis_config.graph_kind = if file_contents.starts_with("// security-check")
         || file_contents.starts_with("//security-check")
     {
-        GraphKind::Taint
+        GraphKind::WholeProgram
     } else {
-        GraphKind::Variable
+        GraphKind::FunctionBody
     };
 
     scan_single_file(codebase, file_name.clone(), file_contents.clone())?;
@@ -393,7 +393,7 @@ pub fn scan_and_analyze_single_file(
         &analysis_config,
     )?;
 
-    if analysis_config.graph_kind == GraphKind::Taint {
+    if analysis_config.graph_kind == GraphKind::WholeProgram {
         let issues = find_tainted_data(&analysis_result.taint_flow_graph, &analysis_config, false);
 
         for issue in issues {
@@ -747,7 +747,7 @@ fn find_files_in_dir(
                     );
 
                     if !extension.eq("hhi") {
-                        if config.graph_kind == GraphKind::Taint {
+                        if config.graph_kind == GraphKind::WholeProgram {
                             if config.allow_taints_in_file(&path) {
                                 files_to_analyze.push(path.clone());
                             }

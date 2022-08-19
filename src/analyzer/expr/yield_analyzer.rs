@@ -45,7 +45,7 @@ pub(crate) fn analyze(
         value_expr.pos().start_offset(),
         value_expr.pos().end_offset(),
     )) {
-        if let GraphKind::Variable = tast_info.data_flow_graph.kind {
+        if let GraphKind::FunctionBody = tast_info.data_flow_graph.kind {
             let return_node = DataFlowNode::get_for_variable_sink(
                 "yield".to_string(),
                 statements_analyzer.get_hpos(pos),

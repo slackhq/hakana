@@ -459,7 +459,7 @@ fn check_iterator_type(
         }
     }
 
-    if tast_info.data_flow_graph.kind == GraphKind::Variable {
+    if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
         let foreach_node = DataFlowNode::get_for_variable_sink(
             "foreach".to_string(),
             statements_analyzer.get_hpos(pos),

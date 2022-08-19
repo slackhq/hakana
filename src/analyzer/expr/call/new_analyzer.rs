@@ -406,7 +406,7 @@ fn analyze_named_constructor(
         remapped_params: false,
     });
 
-    if tast_info.data_flow_graph.kind == GraphKind::Taint {
+    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
         result_type = add_dataflow(
             statements_analyzer,
             result_type,
@@ -440,7 +440,7 @@ fn add_dataflow<'a>(
 
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
-    if data_flow_graph.kind == GraphKind::Taint {
+    if data_flow_graph.kind == GraphKind::WholeProgram {
         if !context.allow_taints {
             return return_type_candidate;
         }

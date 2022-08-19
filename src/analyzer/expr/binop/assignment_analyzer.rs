@@ -183,7 +183,7 @@ pub(crate) fn analyze(
         }
     };
 
-    if tast_info.data_flow_graph.kind == GraphKind::Variable
+    if tast_info.data_flow_graph.kind == GraphKind::FunctionBody
         && assign_value_type.parent_nodes.is_empty()
     {
         if let Some(extended_var_id) = &extended_var_id {
@@ -488,7 +488,7 @@ pub(crate) fn add_dataflow_to_assignment(
     added_taints: FxHashSet<SinkType>,
     removed_taints: FxHashSet<SinkType>,
 ) -> TUnion {
-    if data_flow_graph.kind == GraphKind::Taint {
+    if data_flow_graph.kind == GraphKind::WholeProgram {
         if !assignment_type.has_taintable_value() {
             return assignment_type;
         }
@@ -536,7 +536,7 @@ fn analyze_assignment_to_variable(
     is_inout: bool,
 ) {
     if !is_inout {
-        if tast_info.data_flow_graph.kind == GraphKind::Variable {
+        if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
             tast_info
                 .data_flow_graph
                 .add_node(DataFlowNode::get_for_variable_source(

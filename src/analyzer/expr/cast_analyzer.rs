@@ -44,7 +44,7 @@ pub(crate) fn analyze(
 
     // todo emit issues about redundant casts
 
-    if hint_type.has_taintable_value() || tast_info.data_flow_graph.kind == GraphKind::Variable {
+    if hint_type.has_taintable_value() || tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
         hint_type.parent_nodes = expr_type.parent_nodes;
     }
 

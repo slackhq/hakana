@@ -50,7 +50,7 @@ impl Config {
             find_unused_definitions: false,
             issue_filter: None,
             migration_symbols: FxHashSet::default(),
-            graph_kind: GraphKind::Variable,
+            graph_kind: GraphKind::FunctionBody,
             ignore_files: Vec::new(),
             ignore_issue_files: FxHashMap::default(),
             security_config: SecurityConfig::new(),

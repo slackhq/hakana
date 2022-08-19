@@ -8,8 +8,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphKind {
-    Variable,
-    Taint,
+    FunctionBody,
+    WholeProgram,
 }
 
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ impl DataFlowGraph {
                 specialization_key,
                 ..
             } => {
-                if self.kind == GraphKind::Taint {
+                if self.kind == GraphKind::WholeProgram {
                     if let (Some(unspecialized_id), Some(specialization_key)) =
                         (&unspecialized_id, &specialization_key)
                     {
@@ -97,7 +97,7 @@ impl DataFlowGraph {
             return;
         }
 
-        if let GraphKind::Variable = self.kind {
+        if let GraphKind::FunctionBody = self.kind {
             self.backward_edges
                 .entry(to_id.clone())
                 .or_insert_with(FxHashSet::default)
@@ -129,7 +129,7 @@ impl DataFlowGraph {
                 .extend(edges);
         }
 
-        if self.kind == GraphKind::Variable {
+        if self.kind == GraphKind::FunctionBody {
             for (key, edges) in graph.backward_edges {
                 self.backward_edges
                     .entry(key)

@@ -146,13 +146,13 @@ fn add_dataflow(
 
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
-    if data_flow_graph.kind == GraphKind::Taint {
+    if data_flow_graph.kind == GraphKind::WholeProgram {
         if !context.allow_taints {
             return return_type_candidate;
         }
     }
 
-    if data_flow_graph.kind == GraphKind::Taint {
+    if data_flow_graph.kind == GraphKind::WholeProgram {
         let method_call_node;
 
         if method_id != declaring_method_id {

@@ -110,7 +110,7 @@ fn analyze_xhp_attribute_assignment(
         .cloned();
 
     if let Some(attribute_type) = attribute_type {
-        if tast_info.data_flow_graph.kind == GraphKind::Taint {
+        if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
             add_unspecialized_property_assignment_dataflow(
                 statements_analyzer,
                 &property_id,

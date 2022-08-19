@@ -24,7 +24,7 @@ impl AnalysisResult {
             emitted_issues: BTreeMap::new(),
             replacements: FxHashMap::default(),
             mixed_source_counts: FxHashMap::default(),
-            taint_flow_graph: DataFlowGraph::new(GraphKind::Taint),
+            taint_flow_graph: DataFlowGraph::new(GraphKind::WholeProgram),
             symbol_references: SymbolReferences::new(),
         }
     }

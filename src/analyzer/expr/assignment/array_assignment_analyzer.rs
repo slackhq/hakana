@@ -96,7 +96,7 @@ pub(crate) fn analyze(
         &mut current_type,
     );
 
-    if tast_info.data_flow_graph.kind == GraphKind::Variable {
+    if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
         if let Some(root_var_id) = &root_var_id {
             if let aast::Expr_::Lvar(_) = &root_array_expr.2 {
                 tast_info
@@ -333,7 +333,7 @@ fn add_array_assignment_dataflow(
     var_var_id: Option<String>,
     key_values: &Vec<TAtomic>,
 ) -> TUnion {
-    if tast_info.data_flow_graph.kind == GraphKind::Taint {
+    if tast_info.data_flow_graph.kind == GraphKind::WholeProgram {
         if !child_expr_type.has_taintable_value() {
             return parent_expr_type;
         }

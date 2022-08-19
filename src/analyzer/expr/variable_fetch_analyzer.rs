@@ -125,7 +125,7 @@ fn add_dataflow_to_variable(
 
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
-    if data_flow_graph.kind == GraphKind::Variable {
+    if data_flow_graph.kind == GraphKind::FunctionBody {
         if context.inside_general_use || context.inside_throw || context.inside_isset {
             let assignment_node = DataFlowNode::VariableUseSink {
                 id: lid.1 .1.to_string(),
