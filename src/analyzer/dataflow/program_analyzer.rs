@@ -61,6 +61,7 @@ pub fn find_connections(graph: &DataFlowGraph, config: &Config, debug: bool) -> 
     new_issues
 }
 
+#[inline]
 fn find_paths_to_sinks(
     mut sources: Vec<Arc<TaintedNode>>,
     graph: &DataFlowGraph,

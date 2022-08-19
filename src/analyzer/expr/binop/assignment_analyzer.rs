@@ -1,3 +1,4 @@
+use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -488,7 +489,7 @@ pub(crate) fn add_dataflow_to_assignment(
     added_taints: FxHashSet<SinkType>,
     removed_taints: FxHashSet<SinkType>,
 ) -> TUnion {
-    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
+    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
         if !assignment_type.has_taintable_value() {
             return assignment_type;
         }

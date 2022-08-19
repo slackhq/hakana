@@ -7,7 +7,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
@@ -547,7 +547,7 @@ fn add_dataflow(
 
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
-    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
+    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
         if !input_type.has_taintable_value() || !param_type.has_taintable_value() {
             return;
         }

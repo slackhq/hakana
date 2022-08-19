@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::{
-        graph::GraphKind,
+        graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
@@ -333,7 +333,7 @@ fn add_array_assignment_dataflow(
     var_var_id: Option<String>,
     key_values: &Vec<TAtomic>,
 ) -> TUnion {
-    if let GraphKind::WholeProgram(_) = tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = tast_info.data_flow_graph.kind {
         if !child_expr_type.has_taintable_value() {
             return parent_expr_type;
         }

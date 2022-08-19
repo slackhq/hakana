@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use hakana_reflection_info::{
     data_flow::{
-        graph::GraphKind,
+        graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
@@ -184,7 +184,7 @@ pub(crate) fn add_array_fetch_dataflow(
     value_type: &mut TUnion,
     key_type: &mut TUnion,
 ) {
-    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &tast_info.data_flow_graph.kind {
         if !value_type.has_taintable_value() {
             return;
         }

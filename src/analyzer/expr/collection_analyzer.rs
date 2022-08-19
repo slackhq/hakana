@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 
 use hakana_reflection_info::{
     data_flow::{
-        graph::GraphKind,
+        graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
@@ -391,7 +391,7 @@ fn add_array_value_dataflow(
     array_creation_info: &mut ArrayCreationInfo,
 ) {
     if !value_type.parent_nodes.is_empty()
-        && !(matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(_))
+        && !(matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(WholeProgramKind::Taint))
             && !value_type.has_taintable_value())
     {
         let mut node_name = "array".to_string();
@@ -462,7 +462,7 @@ fn add_array_key_dataflow(
     array_creation_info: &mut ArrayCreationInfo,
 ) {
     if !key_item_type.parent_nodes.is_empty()
-        && !(matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(_))
+        && !(matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(WholeProgramKind::Taint))
             && !key_item_type.has_taintable_value())
     {
         let node_name = "array".to_string();

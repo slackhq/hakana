@@ -4,7 +4,7 @@ use crate::{
 };
 use hakana_reflection_info::{
     data_flow::{
-        graph::GraphKind,
+        graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
@@ -133,7 +133,7 @@ fn add_shape_value_dataflow(
     value: &aast::Expr<(), ()>,
 ) -> Option<DataFlowNode> {
     if value_type.parent_nodes.is_empty()
-        || (matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(_))
+        || (matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(WholeProgramKind::Taint))
             && !value_type.has_taintable_value())
     {
         return None;

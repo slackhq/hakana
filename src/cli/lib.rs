@@ -194,6 +194,33 @@ pub fn init(
                 ),
         )
         .subcommand(
+            Command::new("find-paths")
+                .about("Does whole-program analysis querying")
+                .arg(arg!(--"root" <PATH>).required(false).help(
+                    "The root directory that Hakana runs in. Defaults to the current directory",
+                ))
+                .arg(
+                    arg!(--"config" <PATH>)
+                        .required(false)
+                        .help("Hakana config path — defaults to ./hakana.json"),
+                )
+                .arg(
+                    arg!(--"threads" <PATH>)
+                        .required(false)
+                        .help("How many threads to use"),
+                )
+                .arg(
+                    arg!(--"max-depth" <PATH>)
+                        .required(false)
+                        .help("Length of the longest allowable path"),
+                )
+                .arg(
+                    arg!(--"debug")
+                        .required(false)
+                        .help("Add output for debugging"),
+                ),
+        )
+        .subcommand(
             Command::new("test")
                 .about("Runs one or more Hakana tests")
                 .arg(arg!(<TEST> "The test to run"))
@@ -413,8 +440,6 @@ pub fn init(
                 analysis_config.update_from_file(&cwd, config_path);
             }
 
-            let output_file = sub_matches.value_of("output").map(|f| f.to_string());
-
             analysis_config.security_config.max_depth =
                 if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
                     val.parse::<u8>().unwrap()
@@ -446,10 +471,6 @@ pub fn init(
 
                 if !had_error {
                     println!("\nNo security issues found!\n");
-                }
-
-                if let Some(output_file) = output_file {
-                    write_output_files(output_file, &cwd, &analysis_result);
                 }
             }
         }
