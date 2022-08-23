@@ -381,7 +381,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     stmt_type = Some(new_type);
                 }
             }
-            TAtomic::TString { .. } | TAtomic::TLiteralString { .. } => {
+            TAtomic::TString | TAtomic::TStringWithFlags(..) | TAtomic::TLiteralString { .. } => {
                 let new_type = handle_array_access_on_string(
                     statements_analyzer,
                     atomic_var_type.clone(),

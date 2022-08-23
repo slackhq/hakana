@@ -252,15 +252,27 @@ fn handle_literal_negated_equality(
                     }
                 }
             }
-            TAtomic::TString { .. }
-            | TAtomic::TNonEmptyString { .. }
-            | TAtomic::TTruthyString { .. } => {
+            TAtomic::TString => {
                 did_remove_type = true;
 
                 if let TAtomic::TLiteralString { value, .. } = assertion_type {
                     if value == "" {
                         existing_var_type.types.remove(k);
-                        existing_var_type.add_type(TAtomic::TNonEmptyString);
+                        existing_var_type.add_type(TAtomic::TStringWithFlags(false, true, false));
+                    }
+                }
+            }
+            TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) => {
+                did_remove_type = true;
+
+                if let TAtomic::TLiteralString { value, .. } = assertion_type {
+                    if value == "" {
+                        existing_var_type.types.remove(k);
+                        existing_var_type.add_type(TAtomic::TStringWithFlags(
+                            false,
+                            true,
+                            *is_nonspecific_literal,
+                        ));
                     }
                 }
             }

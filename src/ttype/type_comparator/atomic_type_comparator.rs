@@ -579,9 +579,8 @@ pub fn is_contained_by(
 
         if container_name == "HH\\FormatString" {
             if let TAtomic::TString { .. }
-            | TAtomic::TTruthyString { .. }
             | TAtomic::TLiteralString { .. }
-            | TAtomic::TNonEmptyString { .. } = input_type_part
+            | TAtomic::TStringWithFlags { .. } = input_type_part
             {
                 // todo maybe more specific checks for the type of format string
                 return true;

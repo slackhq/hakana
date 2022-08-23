@@ -68,8 +68,7 @@ pub(crate) fn reconcile(
                     | TAtomic::TFalse
                     | TAtomic::TFloat
                     | TAtomic::TInt { .. }
-                    | TAtomic::TTruthyString { .. }
-                    | TAtomic::TNonEmptyString { .. }
+                    | TAtomic::TStringWithFlags(..)
                     | TAtomic::TNum
                     | TAtomic::TString
                     | TAtomic::TTrue,
@@ -855,8 +854,7 @@ fn intersect_string(
             TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TClassname { .. }
-            | TAtomic::TTruthyString { .. }
-            | TAtomic::TNonEmptyString { .. }
+            | TAtomic::TStringWithFlags(..)
             | TAtomic::TString { .. } => {
                 acceptable_types.push(atomic.clone());
             }
@@ -1061,9 +1059,15 @@ fn reconcile_truthy(
                     .types
                     .insert("mixed".to_string(), TAtomic::TTruthyMixed);
             } else if let TAtomic::TString = atomic {
-                existing_var_type
-                    .types
-                    .insert("string".to_string(), TAtomic::TTruthyString);
+                existing_var_type.types.insert(
+                    "string".to_string(),
+                    TAtomic::TStringWithFlags(true, false, false),
+                );
+            } else if let TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) = atomic {
+                existing_var_type.types.insert(
+                    "string".to_string(),
+                    TAtomic::TStringWithFlags(true, false, *is_nonspecific_literal),
+                );
             }
         }
     }

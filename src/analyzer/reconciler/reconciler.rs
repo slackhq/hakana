@@ -753,7 +753,9 @@ fn get_value_for_key(
                         }
                     } else if matches!(
                         existing_key_type_part,
-                        TAtomic::TString { .. } | TAtomic::TLiteralString { .. }
+                        TAtomic::TString
+                            | TAtomic::TLiteralString { .. }
+                            | TAtomic::TStringWithFlags(..)
                     ) {
                         return Some(hakana_type::get_string());
                     } else if matches!(

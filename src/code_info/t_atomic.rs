@@ -67,7 +67,6 @@ pub enum TAtomic {
     },
     TNonnullMixed,
     TObject,
-    TNonEmptyString,
     TNothing,
     TNull,
     TNum,
@@ -77,6 +76,10 @@ pub enum TAtomic {
     },
     TScalar,
     TString,
+    // .0 => TTruthyString
+    // .1 => TNonEmptyString
+    // .2 => TNonspecificLiteralString
+    TStringWithFlags(bool, bool, bool),
     TTemplateParam {
         param_name: String,
         as_type: TUnion,
@@ -95,7 +98,6 @@ pub enum TAtomic {
     },
     TTrue,
     TTruthyMixed,
-    TTruthyString,
     TTypeAlias {
         name: String,
         type_params: Option<Vec<TUnion>>,
@@ -325,13 +327,26 @@ impl TAtomic {
                 }
             },
             TAtomic::TTruthyMixed { .. } => "truthy-mixed".to_string(),
-            TAtomic::TTruthyString { .. } => "truthy-string".to_string(),
-            TAtomic::TNonEmptyString { .. } => "non-empty-string".to_string(),
             TAtomic::TNothing => "nothing".to_string(),
             TAtomic::TNull { .. } => "null".to_string(),
             TAtomic::TNum { .. } => "num".to_string(),
             TAtomic::TScalar => "scalar".to_string(),
             TAtomic::TString { .. } => "string".to_string(),
+            TAtomic::TStringWithFlags(is_truthy, is_non_empty, is_nonspecific_literal) => {
+                let mut str = String::new();
+
+                if *is_truthy {
+                    str += "truthy-"
+                } else if *is_non_empty {
+                    str += "non-empty-"
+                }
+
+                if *is_nonspecific_literal {
+                    str += "literal-"
+                }
+
+                return str + "string";
+            }
             TAtomic::TTemplateParam {
                 param_name,
                 defining_entity,
@@ -440,8 +455,6 @@ impl TAtomic {
             | TAtomic::TClosureAlias { .. }
             | TAtomic::TInt { .. }
             | TAtomic::TTruthyMixed { .. }
-            | TAtomic::TTruthyString { .. }
-            | TAtomic::TNonEmptyString { .. }
             | TAtomic::TNothing
             | TAtomic::TNull { .. }
             | TAtomic::TNum { .. }
@@ -461,6 +474,8 @@ impl TAtomic {
             | TAtomic::TScalar
             | TAtomic::TReference { .. }
             | TAtomic::TRegexPattern { .. } => self.get_id(),
+
+            TAtomic::TStringWithFlags(..) => "string".to_string(),
 
             TAtomic::TKeyset { type_param, .. } => {
                 let mut str = String::new();
@@ -722,10 +737,9 @@ impl TAtomic {
             | TAtomic::TFalse { .. }
             | TAtomic::TFloat { .. }
             | TAtomic::TInt { .. }
-            | TAtomic::TTruthyString { .. }
-            | TAtomic::TNonEmptyString { .. }
             | TAtomic::TNum { .. }
             | TAtomic::TString { .. }
+            | TAtomic::TStringWithFlags(..)
             | TAtomic::TTrue { .. }
             | TAtomic::TEnum { .. }
             | TAtomic::TEnumLiteralCase { .. } => true,
@@ -742,8 +756,7 @@ impl TAtomic {
             | TAtomic::TClassname { .. }
             | TAtomic::TTemplateParamClass { .. }
             | TAtomic::TTemplateParamType { .. }
-            | TAtomic::TTruthyString { .. }
-            | TAtomic::TNonEmptyString { .. } => true,
+            | TAtomic::TStringWithFlags { .. } => true,
 
             _ => false,
         }
@@ -756,8 +769,7 @@ impl TAtomic {
             | TAtomic::TClassname { .. }
             | TAtomic::TTemplateParamClass { .. }
             | TAtomic::TTemplateParamType { .. }
-            | TAtomic::TTruthyString { .. }
-            | TAtomic::TNonEmptyString { .. } => true,
+            | TAtomic::TStringWithFlags { .. } => true,
 
             _ => false,
         }
@@ -866,7 +878,7 @@ impl TAtomic {
         match &self {
             &TAtomic::TTrue { .. }
             | &TAtomic::TTruthyMixed { .. }
-            | &TAtomic::TTruthyString { .. }
+            | &TAtomic::TStringWithFlags(true, _, _)
             | &TAtomic::TObject { .. }
             | &TAtomic::TClosure { .. }
             | &TAtomic::TLiteralClassname { .. }

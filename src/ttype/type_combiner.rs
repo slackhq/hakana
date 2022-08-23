@@ -919,8 +919,7 @@ fn scrape_type_properties(
 
     if let TAtomic::TString { .. }
     | TAtomic::TLiteralString { .. }
-    | TAtomic::TNonEmptyString { .. }
-    | TAtomic::TTruthyString { .. }
+    | TAtomic::TStringWithFlags(..)
     | TAtomic::TInt
     | TAtomic::TLiteralInt { .. } = atomic
     {
@@ -945,107 +944,91 @@ fn scrape_type_properties(
         return None;
     }
 
-    if let TAtomic::TTruthyString { .. } = atomic {
-        if let Some(existing_string_type) = combination.value_types.get("string") {
-            if let TAtomic::TString { .. } = existing_string_type {
+    if let TAtomic::TStringWithFlags(mut is_truthy, mut is_nonempty, is_nonspecific_literal) =
+        atomic
+    {
+        if let Some(existing_string_type) = combination.value_types.get_mut("string") {
+            if let TAtomic::TString = existing_string_type {
                 return None;
             }
 
-            if let TAtomic::TNonEmptyString { .. } = existing_string_type {
-                combination.value_types.insert("string".to_string(), atomic);
-            }
+            if let TAtomic::TStringWithFlags(
+                existing_is_truthy,
+                existing_is_non_empty,
+                existing_is_nonspecific,
+            ) = existing_string_type
+            {
+                if *existing_is_truthy == is_truthy
+                    && *existing_is_non_empty == is_nonempty
+                    && *existing_is_nonspecific == is_nonspecific_literal
+                {
+                    return None;
+                }
 
+                *existing_string_type = TAtomic::TStringWithFlags(
+                    *existing_is_truthy && is_truthy,
+                    *existing_is_non_empty && is_nonempty,
+                    *existing_is_nonspecific && is_nonspecific_literal,
+                );
+            }
             return None;
         }
 
-        let mut has_non_truthy_string = false;
-
-        for (_, literal_string_type) in &combination.literal_strings {
-            if let TAtomic::TLiteralString { value, .. } = literal_string_type {
-                if value == "" || value == "0" {
-                    has_non_truthy_string = true;
-                    break;
+        if is_truthy || is_nonempty {
+            for (_, literal_string_type) in &combination.literal_strings {
+                if let TAtomic::TLiteralString { value, .. } = literal_string_type {
+                    if value == "" {
+                        is_nonempty = false;
+                        is_truthy = false;
+                        break;
+                    } else if value == "0" {
+                        is_truthy = false;
+                    }
                 }
             }
         }
 
-        if has_non_truthy_string {
-            combination
-                .value_types
-                .insert("string".to_string(), TAtomic::TString);
-        } else {
-            combination.value_types.insert("string".to_string(), atomic);
-        }
-        combination.literal_strings = FxHashMap::default();
+        combination.value_types.insert(
+            "string".to_string(),
+            if !is_truthy && !is_nonempty && !is_nonspecific_literal {
+                TAtomic::TString
+            } else {
+                TAtomic::TStringWithFlags(is_truthy, is_nonempty, is_nonspecific_literal)
+            },
+        );
 
-        return None;
-    }
-
-    if let TAtomic::TNonEmptyString { .. } = atomic {
-        if let Some(existing_string_type) = combination.value_types.get("string") {
-            if let TAtomic::TString { .. } = existing_string_type {
-                return None;
-            }
-
-            if let TAtomic::TTruthyString { .. } = existing_string_type {
-                combination.value_types.insert("string".to_string(), atomic);
-            }
-
-            return None;
-        }
-
-        let mut has_non_empty_string = false;
-
-        for (_, literal_string_type) in &combination.literal_strings {
-            if let TAtomic::TLiteralString { value, .. } = literal_string_type {
-                if value == "" {
-                    has_non_empty_string = true;
-                    break;
-                }
-            }
-        }
-
-        if has_non_empty_string {
-            combination
-                .value_types
-                .insert("string".to_string(), TAtomic::TString);
-        } else {
-            combination.value_types.insert("string".to_string(), atomic);
-        }
         combination.literal_strings = FxHashMap::default();
 
         return None;
     }
 
     if let TAtomic::TLiteralString { value, .. } = &atomic {
-        if let Some(existing_string_type) = combination.value_types.get("string") {
+        if let Some(existing_string_type) = combination.value_types.get_mut("string") {
             match existing_string_type {
                 TAtomic::TString => return None,
-                TAtomic::TNonEmptyString => {
+                TAtomic::TStringWithFlags(is_truthy, is_nonempty, is_nonspecific_literal) => {
                     if value == "" {
-                        combination
-                            .value_types
-                            .insert("string".to_string(), TAtomic::TString);
+                        *is_truthy = false;
+                        *is_nonempty = false;
+                    } else if value == "0" {
+                        *is_truthy = false;
+                    }
+
+                    if !*is_truthy && !*is_nonempty && !*is_nonspecific_literal {
+                        *existing_string_type = TAtomic::TString;
                     }
 
                     return None;
                 }
-                TAtomic::TTruthyString => {
-                    if value == "" || value == "0" {
-                        combination
-                            .value_types
-                            .insert("string".to_string(), TAtomic::TString);
-                    }
 
-                    return None;
-                }
                 _ => (),
             }
         } else if combination.literal_strings.len() > 20 {
             combination.literal_strings = FxHashMap::default();
-            combination
-                .value_types
-                .insert("string".to_string(), TAtomic::TString);
+            combination.value_types.insert(
+                "string".to_string(),
+                TAtomic::TStringWithFlags(true, false, true),
+            );
         } else {
             combination.literal_strings.insert(type_key, atomic);
         }

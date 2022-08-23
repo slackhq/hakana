@@ -25,15 +25,39 @@ pub(crate) fn is_contained_by(
         return true;
     }
 
-    if matches!(container_type_part, TAtomic::TNonEmptyString)
-        && matches!(input_type_part, TAtomic::TNonEmptyString)
+    if matches!(
+        container_type_part,
+        TAtomic::TStringWithFlags(false, true, false)
+    ) && matches!(input_type_part, TAtomic::TStringWithFlags(false, true, _))
     {
         return true;
     }
 
-    if matches!(container_type_part, TAtomic::TTruthyString)
-        && matches!(input_type_part, TAtomic::TTruthyString)
+    if matches!(
+        container_type_part,
+        TAtomic::TStringWithFlags(true, false, false)
+    ) && matches!(input_type_part, TAtomic::TStringWithFlags(true, false, _))
     {
+        return true;
+    }
+
+    if matches!(
+        container_type_part,
+        TAtomic::TStringWithFlags(false, true, true)
+    ) && matches!(
+        input_type_part,
+        TAtomic::TStringWithFlags(false, true, true)
+    ) {
+        return true;
+    }
+
+    if matches!(
+        container_type_part,
+        TAtomic::TStringWithFlags(true, false, true)
+    ) && matches!(
+        input_type_part,
+        TAtomic::TStringWithFlags(true, false, true)
+    ) {
         return true;
     }
 
@@ -271,26 +295,46 @@ pub(crate) fn is_contained_by(
         return false;
     }
 
-    if matches!(container_type_part, TAtomic::TNonEmptyString)
-        && matches!(
-            input_type_part,
-            TAtomic::TTruthyString | TAtomic::TLiteralClassname { .. } | TAtomic::TClassname { .. }
-        )
-    {
+    if matches!(
+        container_type_part,
+        TAtomic::TStringWithFlags(false, true, false)
+    ) && matches!(
+        input_type_part,
+        TAtomic::TStringWithFlags(true, false, _)
+            | TAtomic::TLiteralClassname { .. }
+            | TAtomic::TClassname { .. }
+    ) {
         return true;
     }
 
-    if matches!(input_type_part, TAtomic::TNonEmptyString)
+    if matches!(
+        container_type_part,
+        TAtomic::TStringWithFlags(false, true, true)
+    ) && matches!(
+        input_type_part,
+        TAtomic::TStringWithFlags(true, false, true)
+            | TAtomic::TLiteralClassname { .. }
+            | TAtomic::TClassname { .. }
+    ) {
+        return true;
+    }
+
+    if matches!(input_type_part, TAtomic::TStringWithFlags(false, true, _))
         && matches!(
             container_type_part,
-            TAtomic::TTruthyString | TAtomic::TLiteralClassname { .. } | TAtomic::TClassname { .. }
+            TAtomic::TStringWithFlags(true, false, _)
+                | TAtomic::TLiteralClassname { .. }
+                | TAtomic::TClassname { .. }
         )
     {
         atomic_comparison_result.type_coerced = Some(true);
         return false;
     }
 
-    if matches!(container_type_part, TAtomic::TNonEmptyString) {
+    if matches!(
+        container_type_part,
+        TAtomic::TStringWithFlags(false, true, _)
+    ) {
         if let TAtomic::TLiteralString {
             value: input_value, ..
         } = input_type_part
@@ -299,7 +343,10 @@ pub(crate) fn is_contained_by(
         }
     }
 
-    if matches!(container_type_part, TAtomic::TTruthyString) {
+    if matches!(
+        container_type_part,
+        TAtomic::TStringWithFlags(true, false, _)
+    ) {
         if let TAtomic::TLiteralString {
             value: input_value, ..
         } = input_type_part

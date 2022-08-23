@@ -139,8 +139,7 @@ impl TUnion {
             match atomic {
                 TAtomic::TString { .. }
                 | TAtomic::TLiteralString { .. }
-                | TAtomic::TNonEmptyString { .. }
-                | TAtomic::TTruthyString { .. } => {
+                | TAtomic::TStringWithFlags { .. } => {
                     return true;
                 }
                 _ => {}
@@ -532,6 +531,23 @@ impl TUnion {
         }
 
         false
+    }
+
+    pub fn all_literals(&self) -> bool {
+        for (_, atomic) in &self.types {
+            match atomic {
+                TAtomic::TLiteralString { .. }
+                | TAtomic::TLiteralInt { .. }
+                | TAtomic::TStringWithFlags(_, _, true) => {
+                    continue;
+                }
+                _ => {
+                    return false;
+                }
+            };
+        }
+
+        return true;
     }
 
     pub fn has_static_object(&self) -> bool {

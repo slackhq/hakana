@@ -675,7 +675,7 @@ pub fn get_atomic_syntax_type(
         }
         TAtomic::TEnumLiteralCase { enum_name, .. } => enum_name.clone(),
         TAtomic::TLiteralInt { .. } => "int".to_string(),
-        TAtomic::TLiteralString { .. } => "string".to_string(),
+        TAtomic::TLiteralString { .. } | TAtomic::TStringWithFlags(..) => "string".to_string(),
         TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => "mixed".to_string(),
         TAtomic::TNamedObject {
             name, type_params, ..
@@ -699,8 +699,6 @@ pub fn get_atomic_syntax_type(
             }
         }
         TAtomic::TTruthyMixed { .. } => "mixed".to_string(),
-        TAtomic::TTruthyString { .. } => "string".to_string(),
-        TAtomic::TNonEmptyString { .. } => "string".to_string(),
         TAtomic::TNothing => "nothing".to_string(),
         TAtomic::TNull { .. } => {
             *is_valid = false;
