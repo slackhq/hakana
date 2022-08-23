@@ -1,7 +1,7 @@
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
 use hakana_type::{
     get_false, get_float, get_int, get_literal_int, get_literal_string, get_nothing, get_null,
-    get_string, get_true, wrap_atomic,
+    get_true, wrap_atomic,
 };
 use oxidized::{
     aast,
@@ -215,7 +215,11 @@ pub fn infer(
             .unwrap(),
         )),
         aast::Expr_::Float(_) => Some(get_float()),
-        aast::Expr_::String(value) => Some(get_literal_string(value.to_string())),
+        aast::Expr_::String(value) => Some(if value.len() > 200 {
+            get_literal_string(value.to_string())
+        } else {
+            wrap_atomic(TAtomic::TStringWithFlags(true, false, true))
+        }),
         aast::Expr_::Tuple(values) => {
             let mut entries = BTreeMap::new();
 
@@ -238,7 +242,7 @@ pub fn infer(
         }
         aast::Expr_::Binop(boxed) => {
             if let ast_defs::Bop::Dot = boxed.0 {
-                Some(get_string())
+                Some(wrap_atomic(TAtomic::TStringWithFlags(true, false, true)))
             } else {
                 None
             }

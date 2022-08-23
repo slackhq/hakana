@@ -1,7 +1,7 @@
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
-pub(crate) fn is_contained_by(
+pub fn is_contained_by(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
