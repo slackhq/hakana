@@ -412,6 +412,26 @@ fn handle_special_functions(
                 None
             }
         }
+        "HH\\Lib\\Str\\format" => {
+            let mut all_literals = true;
+            for (_, arg_expr) in args {
+                if let Some(arg_expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                    if !arg_expr_type.all_literals() {
+                        all_literals = false;
+                        break;
+                    }
+                } else {
+                    all_literals = false;
+                    break;
+                }
+            }
+
+            Some(wrap_atomic(TAtomic::TStringWithFlags(
+                true,
+                false,
+                all_literals,
+            )))
+        }
         _ => None,
     }
 }

@@ -119,6 +119,7 @@ impl TastInfo {
         if let Some(fixmes) = self.hh_fixmes.get(&(issue.pos.start_line as isize)) {
             for (hack_error, _) in fixmes {
                 match *hack_error {
+                    // Unify error
                     4110 => match &issue.kind {
                         IssueKind::FalsableReturnStatement
                         | IssueKind::FalseArgument
@@ -148,6 +149,22 @@ impl TastInfo {
                         | IssueKind::PossiblyFalseArgument
                         | IssueKind::PossiblyInvalidArgument
                         | IssueKind::PossiblyNullArgument => {
+                            return false;
+                        }
+                        _ => {}
+                    },
+                    // RequiredFieldIsOptional
+                    4163 => match &issue.kind {
+                        IssueKind::InvalidArgument
+                        | IssueKind::InvalidReturnStatement
+                        | IssueKind::InvalidReturnType
+                        | IssueKind::InvalidReturnValue
+                        | IssueKind::LessSpecificArgument
+                        | IssueKind::LessSpecificNestedArgumentType
+                        | IssueKind::LessSpecificNestedReturnStatement
+                        | IssueKind::LessSpecificReturnStatement
+                        | IssueKind::PropertyTypeCoercion
+                        | IssueKind::PossiblyInvalidArgument => {
                             return false;
                         }
                         _ => {}
