@@ -409,7 +409,12 @@ pub(crate) fn analyze_atomic_assignment(
                     self_class: Some(&declaring_classlike_storage.name),
                     static_class_type: StaticClassType::Name(&declaring_classlike_storage.name),
                     parent_class: declaring_classlike_storage.direct_parent_class.as_ref(),
-
+                    file_path: Some(
+                        &statements_analyzer
+                            .get_file_analyzer()
+                            .get_file_source()
+                            .file_path,
+                    ),
                     ..Default::default()
                 },
                 &mut tast_info.data_flow_graph,

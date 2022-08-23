@@ -131,6 +131,12 @@ pub(crate) fn analyze(
                 } else {
                     false
                 },
+                file_path: Some(
+                    &statements_analyzer
+                        .get_file_analyzer()
+                        .get_file_source()
+                        .file_path,
+                ),
                 ..Default::default()
             },
             &mut tast_info.data_flow_graph,
@@ -397,24 +403,25 @@ pub(crate) fn handle_inout_at_return(
         if param.is_inout {
             if let Some(context_type) = context.vars_in_scope.get(&param.name) {
                 if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {}
-                let new_parent_node = if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-                    DataFlowNode::get_for_method_argument_out(
-                        context
-                            .function_context
-                            .calling_functionlike_id
-                            .clone()
-                            .unwrap()
-                            .to_string(),
-                        i,
-                        Some(param.location.clone().unwrap()),
-                        None,
-                    )
-                } else {
-                    DataFlowNode::get_for_variable_sink(
-                        "out ".to_string() + param.name.as_str(),
-                        param.location.clone().unwrap(),
-                    )
-                };
+                let new_parent_node =
+                    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                        DataFlowNode::get_for_method_argument_out(
+                            context
+                                .function_context
+                                .calling_functionlike_id
+                                .clone()
+                                .unwrap()
+                                .to_string(),
+                            i,
+                            Some(param.location.clone().unwrap()),
+                            None,
+                        )
+                    } else {
+                        DataFlowNode::get_for_variable_sink(
+                            "out ".to_string() + param.name.as_str(),
+                            param.location.clone().unwrap(),
+                        )
+                    };
 
                 tast_info.data_flow_graph.add_node(new_parent_node.clone());
 

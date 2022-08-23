@@ -217,6 +217,12 @@ pub(crate) fn check_arguments_match(
                         } else {
                             false
                         },
+                        file_path: Some(
+                            &statements_analyzer
+                                .get_file_analyzer()
+                                .get_file_source()
+                                .file_path,
+                        ),
                         ..Default::default()
                     },
                     &mut tast_info.data_flow_graph,
@@ -865,6 +871,12 @@ fn handle_possibly_matching_inout_param(
             } else {
                 false
             },
+            file_path: Some(
+                &statements_analyzer
+                    .get_file_analyzer()
+                    .get_file_source()
+                    .file_path,
+            ),
             ..Default::default()
         },
         &mut tast_info.data_flow_graph,

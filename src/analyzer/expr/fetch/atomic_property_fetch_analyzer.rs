@@ -175,7 +175,12 @@ fn get_class_property_type(
                 self_class: Some(&declaring_class_storage.name),
                 static_class_type: StaticClassType::Name(&declaring_class_storage.name),
                 parent_class: parent_class.as_ref(),
-
+                file_path: Some(
+                    &statements_analyzer
+                        .get_file_analyzer()
+                        .get_file_source()
+                        .file_path,
+                ),
                 ..Default::default()
             },
             &mut tast_info.data_flow_graph,
