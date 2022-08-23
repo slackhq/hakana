@@ -11,8 +11,8 @@ use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
-    get_bool, get_float, get_int, get_mixed, get_mixed_any, get_mixed_vec, get_nothing, get_object,
-    get_string, template, type_expander, wrap_atomic,
+    get_arrayish_params, get_bool, get_float, get_int, get_mixed, get_mixed_any, get_mixed_vec,
+    get_nothing, get_object, get_string, template, type_expander, wrap_atomic,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
@@ -130,7 +130,12 @@ pub(crate) fn fetch(
                 &TypeExpansionOptions {
                     expand_templates: false,
                     expand_generic: true,
-                    file_path: Some(&statements_analyzer.get_file_analyzer().get_file_source().file_path),
+                    file_path: Some(
+                        &statements_analyzer
+                            .get_file_analyzer()
+                            .get_file_source()
+                            .file_path,
+                    ),
                     ..Default::default()
                 },
                 &mut tast_info.data_flow_graph,
@@ -366,6 +371,37 @@ fn handle_special_functions(
                         Some(get_float())
                     } else if expr_type.is_always_falsy() {
                         Some(get_string())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        "HH\\Lib\\Str\\join" => {
+            if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
+                (args.get(0), args.get(1))
+            {
+                if let (Some(first_expr_type), Some(second_expr_type)) = (
+                    tast_info.get_expr_type(first_arg_expr.pos()),
+                    tast_info.get_expr_type(second_arg_expr.pos()),
+                ) {
+                    if second_expr_type.all_literals() && first_expr_type.is_single() {
+                        let first_expr_type = first_expr_type.get_single();
+                        let first_arg_params = get_arrayish_params(first_expr_type, codebase);
+
+                        if let Some(first_arg_params) = first_arg_params {
+                            if first_arg_params.1.all_literals() {
+                                Some(wrap_atomic(TAtomic::TStringWithFlags(true, false, true)))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }

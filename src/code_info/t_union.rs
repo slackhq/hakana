@@ -538,7 +538,9 @@ impl TUnion {
             match atomic {
                 TAtomic::TLiteralString { .. }
                 | TAtomic::TLiteralInt { .. }
-                | TAtomic::TStringWithFlags(_, _, true) => {
+                | TAtomic::TStringWithFlags(_, _, true)
+                | TAtomic::TEnumLiteralCase { .. }
+                | TAtomic::TEnum { .. } => {
                     continue;
                 }
                 _ => {
