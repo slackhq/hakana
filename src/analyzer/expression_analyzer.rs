@@ -444,7 +444,9 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::String2(exprs) => {
-            let mut string_type = get_string();
+            let mut all_literals = true;
+
+            let mut parent_nodes = FxHashMap::default();
 
             for (offset, inner_expr) in exprs.iter().enumerate() {
                 if !expression_analyzer::analyze(
@@ -470,6 +472,10 @@ pub(crate) fn analyze(
                 tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
                 if let Some(expr_part_type) = expr_part_type {
+                    if !expr_part_type.all_literals() {
+                        all_literals = false;
+                    }
+
                     for (_, parent_node) in &expr_part_type.parent_nodes {
                         tast_info.data_flow_graph.add_path(
                             parent_node,
@@ -487,12 +493,20 @@ pub(crate) fn analyze(
                             },
                         );
                     }
+                } else {
+                    all_literals = false;
                 }
 
-                string_type
-                    .parent_nodes
-                    .insert(new_parent_node.get_id().clone(), new_parent_node);
+                parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node);
             }
+
+            let mut string_type = if all_literals {
+                wrap_atomic(TAtomic::TStringWithFlags(true, false, true))
+            } else {
+                get_string()
+            };
+
+            string_type.parent_nodes = parent_nodes;
 
             tast_info.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),

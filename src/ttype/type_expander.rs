@@ -254,6 +254,13 @@ fn expand_atomic(
             true
         };
 
+        if type_definition.is_literal_string {
+            skipped_keys.push(key.clone());
+            *had_split_values = true;
+            new_return_type_parts.push(TAtomic::TStringWithFlags(false, false, true));
+            return;
+        }
+
         if can_expand_type {
             skipped_keys.push(key.clone());
             *had_split_values = true;

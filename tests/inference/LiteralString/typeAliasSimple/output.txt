@@ -1,0 +1,1 @@
+ERROR: LessSpecificArgument - input.hack:12:24 - Argument 1 of takesLiteralString expects literal-string, parent type string provided

@@ -198,6 +198,18 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             ),
             template_types: template_type_map,
             shape_field_taints: None,
+            is_literal_string: typedef.user_attributes.iter().any(|user_attribute| {
+                let name = if let Some(name) = self
+                    .resolved_names
+                    .get(&user_attribute.name.0.start_offset())
+                {
+                    name.clone()
+                } else {
+                    user_attribute.name.1.clone()
+                };
+
+                name == "Hakana\\SpecialTypes\\LiteralString"
+            }),
         };
 
         let shape_source_attribute = typedef

@@ -295,64 +295,53 @@ pub(crate) fn is_contained_by(
         return false;
     }
 
-    if matches!(
-        container_type_part,
-        TAtomic::TStringWithFlags(false, true, false)
-    ) && matches!(
-        input_type_part,
-        TAtomic::TStringWithFlags(true, false, _)
-            | TAtomic::TLiteralClassname { .. }
-            | TAtomic::TClassname { .. }
-    ) {
-        return true;
-    }
+    match container_type_part {
+        TAtomic::TStringWithFlags(
+            container_is_truthy,
+            container_is_nonempty,
+            container_is_nonspecific_literal,
+        ) => match input_type_part {
+            TAtomic::TLiteralClassname { .. } | TAtomic::TClassname { .. } => {
+                return true;
+            }
+            TAtomic::TStringWithFlags(
+                input_is_truthy,
+                input_is_nonempty,
+                input_is_nonspecific_literal,
+            ) => {
+                if (*input_is_truthy || !container_is_truthy)
+                    && (*input_is_nonempty || !container_is_nonempty)
+                    && (*input_is_nonspecific_literal || *container_is_nonspecific_literal)
+                {
+                    return true;
+                }
 
-    if matches!(
-        container_type_part,
-        TAtomic::TStringWithFlags(false, true, true)
-    ) && matches!(
-        input_type_part,
-        TAtomic::TStringWithFlags(true, false, true)
-            | TAtomic::TLiteralClassname { .. }
-            | TAtomic::TClassname { .. }
-    ) {
-        return true;
+                return false;
+            }
+            TAtomic::TLiteralString { value } => {
+                if value == "" {
+                    return !container_is_truthy && !container_is_nonempty;
+                }
+
+                if value == "0" {
+                    return !container_is_truthy;
+                }
+
+                return true;
+            }
+            _ => {}
+        },
+        _ => {}
     }
 
     if matches!(input_type_part, TAtomic::TStringWithFlags(false, true, _))
         && matches!(
             container_type_part,
-            TAtomic::TStringWithFlags(true, false, _)
-                | TAtomic::TLiteralClassname { .. }
-                | TAtomic::TClassname { .. }
+            TAtomic::TLiteralClassname { .. } | TAtomic::TClassname { .. }
         )
     {
         atomic_comparison_result.type_coerced = Some(true);
         return false;
-    }
-
-    if matches!(
-        container_type_part,
-        TAtomic::TStringWithFlags(false, true, _)
-    ) {
-        if let TAtomic::TLiteralString {
-            value: input_value, ..
-        } = input_type_part
-        {
-            return input_value != "";
-        }
-    }
-
-    if matches!(
-        container_type_part,
-        TAtomic::TStringWithFlags(true, false, _)
-    ) {
-        if let TAtomic::TLiteralString {
-            value: input_value, ..
-        } = input_type_part
-        {
-            return input_value != "" && input_value != "0";
-        }
     }
 
     // classname<Foo> into classname<Bar>
