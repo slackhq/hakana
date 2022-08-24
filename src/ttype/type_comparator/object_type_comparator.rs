@@ -157,7 +157,7 @@ fn is_intersection_shallowly_contained_by(
             input_extends,
             &wrap_atomic(intersection_container_type),
             false,
-            false,
+            input_extends.ignore_falsable_issues,
             allow_interface_equality,
             atomic_comparison_result,
         );

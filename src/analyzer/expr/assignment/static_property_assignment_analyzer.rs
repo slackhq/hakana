@@ -224,8 +224,8 @@ pub(crate) fn analyze(
                 codebase,
                 assign_value_type,
                 &class_property_type,
-                true,
-                true,
+                false,
+                assign_value_type.ignore_falsable_issues,
                 true,
                 &mut union_comparison_result,
             );

@@ -1,12 +1,14 @@
 use crate::config::Config;
 use crate::custom_hook::FunctionLikeParamData;
+use crate::dataflow::unused_variable_analyzer::{
+    add_unused_expression_replacements, check_variables_used,
+};
 use crate::expr::fetch::atomic_property_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
-use crate::dataflow::unused_variable_analyzer::{add_unused_expression_replacements, check_variables_used};
 use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
 use function_context::method_identifier::MethodIdentifier;
 use function_context::FunctionLikeIdentifier;
@@ -318,7 +320,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut tast_info = TastInfo::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             statements_analyzer.get_file_analyzer().get_file_source(),
-            &statements_analyzer.comments
+            &statements_analyzer.comments,
         );
 
         if let Some(issue_filter) = &statements_analyzer.get_config().issue_filter {
@@ -450,7 +452,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             &callsite_return_type,
                             &expected_return_type,
                             false,
-                            false,
+                            callsite_return_type.ignore_falsable_issues,
                             false,
                             &mut TypeComparisonResult::new(),
                         ) {
@@ -584,7 +586,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             if let Some(param_pos) = &param.location {
-                let new_parent_node = if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                let new_parent_node = if let GraphKind::WholeProgram(_) =
+                    &tast_info.data_flow_graph.kind
+                {
                     DataFlowNode::get_for_assignment(param.name.clone(), param_pos.clone())
                 } else {
                     let id = format!(

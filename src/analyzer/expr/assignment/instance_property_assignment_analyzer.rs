@@ -88,7 +88,7 @@ pub(crate) fn analyze(
             assignment_type,
             class_property_type,
             true,
-            true,
+            assignment_type.ignore_falsable_issues,
             true,
             &mut union_comparison_result,
         );

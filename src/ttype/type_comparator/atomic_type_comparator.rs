@@ -214,7 +214,7 @@ pub fn is_contained_by(
                 input_type_param,
                 container_type_param,
                 false,
-                false,
+                input_type_param.ignore_falsable_issues,
                 allow_interface_equality,
                 atomic_comparison_result,
             );
@@ -282,7 +282,7 @@ pub fn is_contained_by(
                 input_type_extends,
                 container_type_extends,
                 false,
-                false,
+                input_type_extends.ignore_falsable_issues,
                 allow_interface_equality,
                 atomic_comparison_result,
             );
@@ -390,7 +390,7 @@ pub fn is_contained_by(
                             &input_type_params.1,
                             container_value_param,
                             false,
-                            false,
+                            input_type_params.1.ignore_falsable_issues,
                             allow_interface_equality,
                             &mut array_comparison_result,
                         ) && !array_comparison_result
@@ -415,7 +415,7 @@ pub fn is_contained_by(
                             &input_type_params.0,
                             container_key_param,
                             false,
-                            false,
+                            input_type_params.0.ignore_falsable_issues,
                             allow_interface_equality,
                             &mut array_comparison_result,
                         ) && !array_comparison_result
@@ -442,7 +442,7 @@ pub fn is_contained_by(
                             &input_type_params.1,
                             container_value_param,
                             false,
-                            false,
+                            input_type_params.1.ignore_falsable_issues,
                             allow_interface_equality,
                             &mut array_comparison_result,
                         ) && !array_comparison_result

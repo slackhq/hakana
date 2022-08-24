@@ -325,7 +325,7 @@ fn handle_special_functions(
                         expr_type,
                         &get_string(),
                         false,
-                        false,
+                        expr_type.ignore_falsable_issues,
                         false,
                         &mut TypeComparisonResult::new(),
                     ) {
@@ -349,7 +349,7 @@ fn handle_special_functions(
                         expr_type,
                         &get_string(),
                         false,
-                        false,
+                        expr_type.ignore_falsable_issues,
                         false,
                         &mut TypeComparisonResult::new(),
                     ) {

@@ -154,7 +154,7 @@ pub(crate) fn type_coercing_is_contained_by(
         input_type,
         container_type,
         false,
-        false,
+        input_type.ignore_falsable_issues,
         allow_interface_equality,
         &mut property_type_comparison,
     ) || property_type_comparison
@@ -172,7 +172,7 @@ pub(crate) fn type_coercing_is_contained_by(
         container_type,
         input_type,
         false,
-        false,
+        input_type.ignore_falsable_issues,
         allow_interface_equality,
         &mut inverse_property_type_comparison,
     ) || inverse_property_type_comparison

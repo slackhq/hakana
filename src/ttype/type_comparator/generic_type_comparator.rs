@@ -192,7 +192,7 @@ pub(crate) fn compare_generic_params(
         input_param,
         container_param,
         false,
-        false,
+        input_param.ignore_falsable_issues,
         allow_interface_equality,
         &mut param_comparison_result,
     ) {
@@ -292,7 +292,7 @@ pub(crate) fn compare_generic_params(
                     container_param,
                     input_param,
                     false,
-                    false,
+                    input_param.ignore_falsable_issues,
                     allow_interface_equality,
                     &mut param_comparison_result,
                 ) || param_comparison_result.type_coerced.unwrap_or(false)
