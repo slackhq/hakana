@@ -215,7 +215,7 @@ pub fn infer(
             .unwrap(),
         )),
         aast::Expr_::Float(_) => Some(get_float()),
-        aast::Expr_::String(value) => Some(if value.len() > 200 {
+        aast::Expr_::String(value) => Some(if value.len() < 200 {
             get_literal_string(value.to_string())
         } else {
             wrap_atomic(TAtomic::TStringWithFlags(true, false, true))
