@@ -1,6 +1,14 @@
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
-use crate::{get_mixed_any, template};
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
+use crate::{
+    get_mixed_any, template,
+    type_expander::{self, TypeExpansionOptions},
+};
+use hakana_reflection_info::{
+    codebase_info::CodebaseInfo,
+    data_flow::graph::{DataFlowGraph, GraphKind},
+    t_atomic::TAtomic,
+    t_union::TUnion,
+};
 
 pub(crate) fn is_contained_by(
     codebase: &CodebaseInfo,
@@ -65,7 +73,24 @@ pub(crate) fn is_contained_by(
                     ..
                 } = input_type_part
                 {
-                    *type_params = Some(extended_params.values().cloned().collect());
+                    *type_params = Some(
+                        extended_params
+                            .values()
+                            .cloned()
+                            .into_iter()
+                            .map(|mut v| {
+                                type_expander::expand_union(
+                                    codebase,
+                                    &mut v,
+                                    &TypeExpansionOptions {
+                                        ..Default::default()
+                                    },
+                                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                                );
+                                v
+                            })
+                            .collect(),
+                    );
                 }
             } else {
                 if let TAtomic::TNamedObject {

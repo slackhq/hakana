@@ -217,6 +217,10 @@ pub(crate) fn analyze(
             }
 
             if functionlike_storage.is_async {
+                if inferred_return_type.is_null() && expected_return_type.get_id() == "HH\\Awaitable<void>" {
+                    inferred_return_type = get_void();
+                }
+
                 inferred_return_type = wrap_atomic(TAtomic::TNamedObject {
                     name: "HH\\Awaitable".to_string(),
                     type_params: Some(vec![inferred_return_type]),

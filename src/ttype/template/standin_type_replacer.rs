@@ -1574,12 +1574,12 @@ pub(crate) fn get_mapped_generic_type_params(
                                 .position(|x| x == param_name)
                                 .unwrap();
 
-                            candidate_param_type = Some(
-                                input_type_params
-                                    .get(old_params_offset)
-                                    .unwrap_or(&get_mixed_any())
-                                    .clone(),
-                            );
+                            let candidate_param_type_inner = input_type_params
+                                .get(old_params_offset)
+                                .unwrap_or(&get_mixed_any())
+                                .clone();
+
+                            candidate_param_type = Some(candidate_param_type_inner);
                         }
                     }
                 }
@@ -1608,7 +1608,20 @@ pub(crate) fn get_mapped_generic_type_params(
             ));
         }
 
-        input_type_params = new_input_params;
+        input_type_params = new_input_params
+            .into_iter()
+            .map(|mut v| {
+                type_expander::expand_union(
+                    codebase,
+                    &mut v,
+                    &TypeExpansionOptions {
+                        ..Default::default()
+                    },
+                    &mut DataFlowGraph::new(GraphKind::FunctionBody),
+                );
+                v
+            })
+            .collect::<Vec<_>>();
     }
 
     input_type_params

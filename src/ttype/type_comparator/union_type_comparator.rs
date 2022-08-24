@@ -73,12 +73,11 @@ pub fn is_contained_by(
 
         let mut type_match_found = false;
         let mut all_type_coerced = None;
-        let mut all_type_coerced_from_generic_mixed = None;
-        let mut all_type_coerced_from_generic_any = None;
+        let mut all_type_coerced_from_nested_mixed = None;
+        let mut all_type_coerced_from_nested_any = None;
         let mut all_type_coerced_from_as_mixed = None;
         let mut some_type_coerced = false;
-        let mut some_type_coerced_from_generic_mixed = false;
-        let mut some_type_coerced_from_generic_any = false;
+        let mut some_type_coerced_from_nested_mixed = false;
 
         if let TAtomic::TArraykey { .. } = input_type_part {
             if container_type.has_int() && container_type.has_string() {
@@ -160,14 +159,7 @@ pub fn is_contained_by(
                 .type_coerced_from_nested_mixed
                 .unwrap_or(false)
             {
-                some_type_coerced_from_generic_mixed = true;
-            }
-
-            if atomic_comparison_result
-                .type_coerced_from_nested_any
-                .unwrap_or(false)
-            {
-                some_type_coerced_from_generic_any = true;
+                some_type_coerced_from_nested_mixed = true;
             }
 
             if !atomic_comparison_result.type_coerced.unwrap_or(false)
@@ -181,27 +173,27 @@ pub fn is_contained_by(
             if !atomic_comparison_result
                 .type_coerced_from_nested_mixed
                 .unwrap_or(false)
-                || !all_type_coerced_from_generic_mixed.unwrap_or(true)
+                || !all_type_coerced_from_nested_mixed.unwrap_or(true)
             {
-                all_type_coerced_from_generic_mixed = Some(false);
+                all_type_coerced_from_nested_mixed = Some(false);
             } else {
-                all_type_coerced_from_generic_mixed = Some(true);
+                all_type_coerced_from_nested_mixed = Some(true);
             }
 
             if !atomic_comparison_result
                 .type_coerced_from_nested_any
                 .unwrap_or(false)
-                || !all_type_coerced_from_generic_any.unwrap_or(true)
+                || !all_type_coerced_from_nested_any.unwrap_or(true)
             {
-                all_type_coerced_from_generic_any = Some(false);
+                all_type_coerced_from_nested_any = Some(false);
             } else {
-                all_type_coerced_from_generic_any = Some(true);
+                all_type_coerced_from_nested_any = Some(true);
             }
 
             if is_atomic_contained_by {
                 type_match_found = true;
-                all_type_coerced_from_generic_mixed = Some(false);
-                all_type_coerced_from_generic_any = Some(false);
+                all_type_coerced_from_nested_mixed = Some(false);
+                all_type_coerced_from_nested_any = Some(false);
                 all_type_coerced_from_as_mixed = Some(false);
                 all_type_coerced = Some(false);
             }
@@ -211,7 +203,7 @@ pub fn is_contained_by(
             union_comparison_result.type_coerced = Some(true);
         }
 
-        if all_type_coerced_from_generic_mixed.unwrap_or(false) {
+        if all_type_coerced_from_nested_mixed.unwrap_or(false) {
             union_comparison_result.type_coerced_from_nested_mixed = Some(true);
 
             if input_type.from_template_default || all_type_coerced_from_as_mixed.unwrap_or(false) {
@@ -219,7 +211,7 @@ pub fn is_contained_by(
             }
         }
 
-        if all_type_coerced_from_generic_any.unwrap_or(false) {
+        if all_type_coerced_from_nested_any.unwrap_or(false) {
             union_comparison_result.type_coerced_from_nested_any = Some(true);
         }
 
@@ -228,7 +220,7 @@ pub fn is_contained_by(
                 union_comparison_result.type_coerced = Some(true);
             }
 
-            if some_type_coerced_from_generic_mixed {
+            if some_type_coerced_from_nested_mixed {
                 union_comparison_result.type_coerced_from_as_mixed = Some(true);
 
                 if input_type.from_template_default

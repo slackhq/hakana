@@ -56,27 +56,47 @@ pub(crate) fn is_contained_by(
     }
 
     if !obviously_bad {
-        let input_params = get_arrayish_params(input_type_part, codebase).unwrap();
-        let container_params = get_arrayish_params(container_type_part, codebase).unwrap();
+        let tuples_only = if let TAtomic::TVec {
+            type_param: container_type_param,
+            ..
+        } = container_type_part
+        {
+            if let TAtomic::TVec {
+                type_param: input_type_param,
+                ..
+            } = input_type_part
+            {
+                container_type_param.is_nothing() && input_type_param.is_nothing()
+            } else {
+                false
+            }
+        } else {
+            false
+        };
 
-        if !type_coercing_is_contained_by(
-            codebase,
-            &input_params.0,
-            &container_params.0,
-            allow_interface_equality,
-            atomic_comparison_result,
-        ) {
-            all_types_contain = false;
-        }
+        if !tuples_only {
+            let input_params = get_arrayish_params(input_type_part, codebase).unwrap();
+            let container_params = get_arrayish_params(container_type_part, codebase).unwrap();
 
-        if !type_coercing_is_contained_by(
-            codebase,
-            &input_params.1,
-            &container_params.1,
-            allow_interface_equality,
-            atomic_comparison_result,
-        ) {
-            all_types_contain = false;
+            if !type_coercing_is_contained_by(
+                codebase,
+                &input_params.0,
+                &container_params.0,
+                allow_interface_equality,
+                atomic_comparison_result,
+            ) {
+                all_types_contain = false;
+            }
+
+            if !type_coercing_is_contained_by(
+                codebase,
+                &input_params.1,
+                &container_params.1,
+                allow_interface_equality,
+                atomic_comparison_result,
+            ) {
+                all_types_contain = false;
+            }
         }
     }
 
