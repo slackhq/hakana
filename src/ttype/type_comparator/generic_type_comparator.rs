@@ -207,12 +207,7 @@ pub(crate) fn compare_generic_params(
 
         update_result_from_nested(atomic_comparison_result, &param_comparison_result);
 
-        if !param_comparison_result
-            .type_coerced_from_as_mixed
-            .unwrap_or(false)
-        {
-            *all_types_contain = false;
-        }
+        *all_types_contain = false;
     } else if !container_param.has_template() && !input_param.has_template() {
         if input_param.is_literal_of(container_param) {
             if let None = atomic_comparison_result.replacement_atomic_type {

@@ -1,5 +1,5 @@
 use crate::get_arrayish_params;
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
 
@@ -34,10 +34,12 @@ pub(crate) fn is_contained_by(
                                 all_types_contain = false;
                             }
 
-                            if !type_coercing_is_contained_by(
+                            if !union_type_comparator::is_contained_by(
                                 codebase,
                                 input_property_type,
                                 container_property_type,
+                                false,
+                                input_property_type.ignore_falsable_issues,
                                 allow_interface_equality,
                                 atomic_comparison_result,
                             ) {
@@ -62,20 +64,24 @@ pub(crate) fn is_contained_by(
 
                     if all_types_contain {
                         if !input_value_param.is_nothing() {
-                            if !type_coercing_is_contained_by(
+                            if !union_type_comparator::is_contained_by(
                                 codebase,
                                 &input_key_param,
                                 &container_key_param,
+                                false,
+                                false,
                                 allow_interface_equality,
                                 atomic_comparison_result,
                             ) {
                                 all_types_contain = false;
                             }
 
-                            if !type_coercing_is_contained_by(
+                            if !union_type_comparator::is_contained_by(
                                 codebase,
                                 &input_value_param,
                                 &container_value_param,
+                                false,
+                                false,
                                 allow_interface_equality,
                                 atomic_comparison_result,
                             ) {
@@ -99,10 +105,12 @@ pub(crate) fn is_contained_by(
                 let input_params = get_arrayish_params(input_type_part, codebase).unwrap();
                 let container_params = get_arrayish_params(container_type_part, codebase).unwrap();
 
-                if !type_coercing_is_contained_by(
+                if !union_type_comparator::is_contained_by(
                     codebase,
                     &input_params.0,
                     &container_params.0,
+                    false,
+                    false,
                     allow_interface_equality,
                     atomic_comparison_result,
                 ) {
@@ -111,10 +119,12 @@ pub(crate) fn is_contained_by(
                     }
                 }
 
-                if !type_coercing_is_contained_by(
+                if !union_type_comparator::is_contained_by(
                     codebase,
                     &input_params.1,
                     &container_params.1,
+                    false,
+                    false,
                     allow_interface_equality,
                     atomic_comparison_result,
                 ) {
@@ -138,49 +148,4 @@ pub(crate) fn is_contained_by(
     }
 
     all_types_contain
-}
-
-pub(crate) fn type_coercing_is_contained_by(
-    codebase: &CodebaseInfo,
-    input_type: &TUnion,
-    container_type: &TUnion,
-    allow_interface_equality: bool,
-    atomic_comparison_result: &mut TypeComparisonResult,
-) -> bool {
-    let mut property_type_comparison = TypeComparisonResult::new();
-
-    if union_type_comparator::is_contained_by(
-        codebase,
-        input_type,
-        container_type,
-        false,
-        input_type.ignore_falsable_issues,
-        allow_interface_equality,
-        &mut property_type_comparison,
-    ) || property_type_comparison
-        .type_coerced_to_literal
-        .unwrap_or(false)
-    {
-        return true;
-    }
-
-    let mut inverse_property_type_comparison = TypeComparisonResult::new();
-
-    // it only counts as coercion if the type is cleanly contained
-    if union_type_comparator::is_contained_by(
-        codebase,
-        container_type,
-        input_type,
-        false,
-        input_type.ignore_falsable_issues,
-        allow_interface_equality,
-        &mut inverse_property_type_comparison,
-    ) || inverse_property_type_comparison
-        .type_coerced_to_literal
-        .unwrap_or(false)
-    {
-        atomic_comparison_result.type_coerced = Some(true);
-    }
-
-    return false;
 }

@@ -65,7 +65,7 @@ pub fn is_contained_by(
         || input_type_part.is_templated_as_mixed(&mut input_type_has_any)
     {
         atomic_comparison_result.type_coerced = Some(true);
-        atomic_comparison_result.type_coerced_from_as_mixed = Some(true);
+        atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
         if input_type_has_any {
             atomic_comparison_result.type_coerced_from_nested_any = Some(true);
         }

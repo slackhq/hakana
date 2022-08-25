@@ -255,7 +255,7 @@ pub(crate) fn analyze(
             }
 
             if union_comparison_result.type_coerced.is_some() {
-                if union_comparison_result.type_coerced_from_as_mixed.is_some() {
+                if union_comparison_result.type_coerced_from_nested_mixed.is_some() {
                     tast_info.maybe_add_issue(
                         Issue::new(
                             IssueKind::MixedPropertyTypeCoercion,

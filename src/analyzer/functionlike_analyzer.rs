@@ -149,10 +149,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             )
             .unwrap_or(get_mixed_any());
 
-        if stmt.fun_kind.is_async() {
+        if stmt.fun_kind.is_async() && lambda_storage.return_type.is_none() {
             if inferred_return_type.is_null() {
                 inferred_return_type = get_void();
             }
+
             inferred_return_type = wrap_atomic(TAtomic::TNamedObject {
                 name: "HH\\Awaitable".to_string(),
                 type_params: Some(vec![inferred_return_type]),
@@ -201,7 +202,27 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if !stmt.static_ {
             let mut this_type = wrap_atomic(TAtomic::TNamedObject {
                 name: classlike_storage.name.clone(),
-                type_params: None,
+                type_params: if !classlike_storage.template_types.is_empty() {
+                    Some(
+                        classlike_storage
+                            .template_types
+                            .iter()
+                            .map(|(param_name, template_map)| {
+                                let first_map_entry = template_map.iter().next().unwrap();
+
+                                wrap_atomic(TAtomic::TTemplateParam {
+                                    param_name: param_name.clone(),
+                                    as_type: first_map_entry.1.clone(),
+                                    defining_entity: first_map_entry.0.clone(),
+                                    from_class: false,
+                                    extra_types: None,
+                                })
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                } else {
+                    None
+                },
                 is_this: true,
                 extra_types: None,
                 remapped_params: false,

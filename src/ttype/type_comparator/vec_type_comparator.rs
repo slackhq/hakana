@@ -1,10 +1,9 @@
-use crate::get_arrayish_params;
+use crate::{
+    get_arrayish_params, type_comparator::generic_type_comparator::update_result_from_nested,
+};
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
-use super::{
-    dict_type_comparator::type_coercing_is_contained_by,
-    type_comparison_result::TypeComparisonResult,
-};
+use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
 
 pub(crate) fn is_contained_by(
     codebase: &CodebaseInfo,
@@ -33,23 +32,24 @@ pub(crate) fn is_contained_by(
                         all_types_contain = false;
                     }
 
-                    if !type_coercing_is_contained_by(
+                    let mut nested_comparison_result = TypeComparisonResult::new();
+
+                    if !union_type_comparator::is_contained_by(
                         codebase,
                         input_property_type,
                         container_property_type,
+                        false,
+                        input_property_type.ignore_falsable_issues,
                         allow_interface_equality,
-                        atomic_comparison_result,
+                        &mut nested_comparison_result,
                     ) {
                         all_types_contain = false;
                         obviously_bad = true;
 
-                        let mut mixed_with_any = false;
-                        if input_property_type.is_mixed_with_any(&mut mixed_with_any) {
-                            atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
-                            if mixed_with_any {
-                                atomic_comparison_result.type_coerced_from_nested_any = Some(true);
-                            }
-                        }
+                        update_result_from_nested(
+                            atomic_comparison_result,
+                            &mut nested_comparison_result,
+                        );
                     }
                 } else {
                     if !c_u {
@@ -86,24 +86,36 @@ pub(crate) fn is_contained_by(
             let input_params = get_arrayish_params(input_type_part, codebase).unwrap();
             let container_params = get_arrayish_params(container_type_part, codebase).unwrap();
 
-            if !type_coercing_is_contained_by(
+            let mut nested_comparison_result = TypeComparisonResult::new();
+
+            if !union_type_comparator::is_contained_by(
                 codebase,
                 &input_params.0,
                 &container_params.0,
+                false,
+                input_params.0.ignore_falsable_issues,
                 allow_interface_equality,
-                atomic_comparison_result,
+                &mut nested_comparison_result,
             ) {
                 all_types_contain = false;
+
+                update_result_from_nested(atomic_comparison_result, &mut nested_comparison_result);
             }
 
-            if !type_coercing_is_contained_by(
+            let mut nested_comparison_result = TypeComparisonResult::new();
+
+            if !union_type_comparator::is_contained_by(
                 codebase,
                 &input_params.1,
                 &container_params.1,
+                false,
+                input_params.1.ignore_falsable_issues,
                 allow_interface_equality,
                 atomic_comparison_result,
             ) {
                 all_types_contain = false;
+
+                update_result_from_nested(atomic_comparison_result, &mut nested_comparison_result);
             }
         }
     }

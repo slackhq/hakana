@@ -103,7 +103,7 @@ pub(crate) fn analyze(
 
         if union_comparison_result.type_coerced.unwrap_or(false) {
             if union_comparison_result
-                .type_coerced_from_as_mixed
+                .type_coerced_from_nested_mixed
                 .unwrap_or(false)
             {
                 tast_info.maybe_add_issue(
