@@ -17,7 +17,7 @@ use hakana_reflection_info::{
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
-use crate::{template, type_combiner};
+use crate::{template, type_combiner, wrap_atomic};
 
 #[derive(Debug)]
 pub enum StaticClassType<'a, 'b> {
@@ -226,6 +226,20 @@ fn expand_atomic(
     } = return_type_part
     {
         expand_union(codebase, as_type, options, data_flow_graph);
+
+        return;
+    }
+
+    if let TAtomic::TEnumLiteralCase {
+        ref mut constraint_type,
+        ..
+    } = return_type_part
+    {
+        if let Some(constraint_type) = constraint_type {
+            let mut constraint_union = wrap_atomic((**constraint_type).clone());
+            expand_union(codebase, &mut constraint_union, options, data_flow_graph);
+            *constraint_type = Box::new(constraint_union.get_single_owned());
+        }
 
         return;
     }

@@ -42,6 +42,14 @@ pub(crate) fn is_contained_by(
                     ) {
                         all_types_contain = false;
                         obviously_bad = true;
+
+                        let mut mixed_with_any = false;
+                        if input_property_type.is_mixed_with_any(&mut mixed_with_any) {
+                            atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
+                            if mixed_with_any {
+                                atomic_comparison_result.type_coerced_from_nested_any = Some(true);
+                            }
+                        }
                     }
                 } else {
                     if !c_u {

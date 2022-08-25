@@ -295,6 +295,7 @@ fn handle_literal_negated_equality(
                 if let TAtomic::TEnumLiteralCase {
                     enum_name,
                     member_name,
+                    ..
                 } = assertion_type
                 {
                     if enum_name == existing_name {
@@ -347,10 +348,12 @@ fn handle_literal_negated_equality(
             TAtomic::TEnumLiteralCase {
                 enum_name: existing_name,
                 member_name: existing_member_name,
+                ..
             } => {
                 if let TAtomic::TEnumLiteralCase {
                     enum_name,
                     member_name,
+                    ..
                 } = assertion_type
                 {
                     did_match_literal_type = true;

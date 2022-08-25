@@ -60,6 +60,10 @@ pub fn populate_codebase(codebase: &mut CodebaseInfo) {
         if let Some(ref mut enum_type) = storage.enum_type {
             populate_atomic_type(enum_type, &codebase.symbols);
         }
+
+        if let Some(ref mut enum_constraint) = storage.enum_constraint {
+            populate_atomic_type(enum_constraint, &codebase.symbols);
+        }
     }
 
     for (_, type_alias) in codebase.type_definitions.iter_mut() {

@@ -10,7 +10,7 @@ pub(crate) struct TypeCombination {
     pub has_object_top_type: bool,
 
     pub enum_types: FxHashSet<String>,
-    pub enum_value_types: FxHashMap<String, FxHashSet<String>>,
+    pub enum_value_types: FxHashMap<String, FxHashMap<String, Option<Box<TAtomic>>>>,
 
     pub object_type_params: FxHashMap<String, (String, Vec<TUnion>)>,
 

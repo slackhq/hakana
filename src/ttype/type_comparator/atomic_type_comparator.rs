@@ -96,20 +96,18 @@ pub fn is_contained_by(
         );
     }
 
-    if let TAtomic::TEnumLiteralCase { enum_name, .. } = input_type_part {
-        let resolved_input_type = if let Some(c) = codebase.classlike_infos.get(enum_name) {
-            if let Some(enum_type) = &c.enum_type {
-                enum_type
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        };
-
+    // handles newtypes (hopefully)
+    if let TAtomic::TEnumLiteralCase {
+        constraint_type, ..
+    } = input_type_part
+    {
         return is_contained_by(
             codebase,
-            resolved_input_type,
+            if let Some(enum_type) = &constraint_type {
+                &enum_type
+            } else {
+                &TAtomic::TArraykey
+            },
             container_type_part,
             allow_interface_equality,
             atomic_comparison_result,
@@ -218,6 +216,14 @@ pub fn is_contained_by(
                 allow_interface_equality,
                 atomic_comparison_result,
             );
+        }
+    }
+
+    if let TAtomic::TTypeAlias { name, .. } = &container_type_part {
+        if name == "HH\\Lib\\Regex\\Pattern" {
+            if let TAtomic::TRegexPattern { .. } = input_type_part {
+                return true;
+            }
         }
     }
 

@@ -108,6 +108,14 @@ impl<'a> StatementsAnalyzer<'a> {
             type_resolution_context: &self.type_resolution_context,
         }
     }
+
+    pub fn get_file_path(&self) -> &String {
+        &self
+            .get_file_analyzer()
+            .get_file_analyzer()
+            .get_file_source()
+            .file_path
+    }
 }
 
 impl ScopeAnalyzer for StatementsAnalyzer<'_> {

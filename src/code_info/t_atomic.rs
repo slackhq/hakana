@@ -48,6 +48,7 @@ pub enum TAtomic {
     TEnumLiteralCase {
         enum_name: String,
         member_name: String,
+        constraint_type: Option<Box<TAtomic>>,
     },
     TLiteralInt {
         value: i64,
@@ -743,6 +744,21 @@ impl TAtomic {
             | TAtomic::TTrue { .. }
             | TAtomic::TEnum { .. }
             | TAtomic::TEnumLiteralCase { .. } => true,
+
+            _ => false,
+        }
+    }
+
+    pub fn is_boring_scalar(&self) -> bool {
+        match self {
+            TAtomic::TArraykey { .. }
+            | TAtomic::TBool { .. }
+            | TAtomic::TClassname { .. }
+            | TAtomic::TFalse { .. }
+            | TAtomic::TFloat { .. }
+            | TAtomic::TInt { .. }
+            | TAtomic::TNum { .. }
+            | TAtomic::TString { .. } => true,
 
             _ => false,
         }

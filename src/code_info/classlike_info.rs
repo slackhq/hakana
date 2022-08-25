@@ -182,6 +182,7 @@ pub struct ClassLikeInfo {
     pub enum_cases: Option<FxHashMap<String, EnumCaseInfo>>,
 
     pub enum_type: Option<TAtomic>,
+    pub enum_constraint: Option<Box<TAtomic>>,
 
     pub description: Option<String>,
 
@@ -227,6 +228,7 @@ impl Default for ClassLikeInfo {
             inheritable_method_ids: FxHashMap::default(),
             enum_cases: None,
             enum_type: None,
+            enum_constraint: None,
             extension_requirement: None,
             hash: None,
             implementation_requirements: Vec::new(),

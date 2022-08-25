@@ -289,6 +289,22 @@ pub(crate) fn scan(
                     .unwrap()
                     .1,
                 );
+
+                if let Some(constraint) = &enum_node.constraint {
+                    storage.enum_constraint = Some(Box::new(
+                        get_type_from_hint(
+                            &constraint.1,
+                            None,
+                            &TypeResolutionContext::new(),
+                            resolved_names,
+                        )
+                        .types
+                        .into_iter()
+                        .next()
+                        .unwrap()
+                        .1,
+                    ));
+                }
             }
 
             storage

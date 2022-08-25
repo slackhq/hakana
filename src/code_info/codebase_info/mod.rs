@@ -128,13 +128,24 @@ impl CodebaseInfo {
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
-                let mut constant_type = if let Some(inferred_type) = &constant_storage.inferred_type
+                let mut constant_type = if let Some(provided_type) = &constant_storage.provided_type
                 {
+                    if provided_type
+                        .types
+                        .iter()
+                        .all(|(_, v)| v.is_boring_scalar())
+                    {
+                        if let Some(inferred_type) = &constant_storage.inferred_type {
+                            Some(inferred_type.clone())
+                        } else {
+                            Some(provided_type.clone())
+                        }
+                    } else {
+                        Some(provided_type.clone())
+                    }
+                } else if let Some(inferred_type) = &constant_storage.inferred_type {
                     Some(inferred_type.clone())
-                } else if let Some(provided_type) = &constant_storage.provided_type {
-                    Some(provided_type.clone())
                 } else {
-                    // todo could resolve constant types here
                     None
                 };
 
@@ -143,11 +154,13 @@ impl CodebaseInfo {
                         *constant_type = TUnion::new(vec![TAtomic::TEnumLiteralCase {
                             enum_name: classlike_storage.name.clone(),
                             member_name: const_name.clone(),
+                            constraint_type: classlike_storage.enum_constraint.clone(),
                         }]);
                     } else {
                         constant_type = Some(TUnion::new(vec![TAtomic::TEnumLiteralCase {
                             enum_name: classlike_storage.name.clone(),
                             member_name: const_name.clone(),
+                            constraint_type: classlike_storage.enum_constraint.clone(),
                         }]));
                     }
                 }

@@ -183,24 +183,22 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TEnumLiteralCase { enum_name, .. } = input_type_part {
+    // handles newtypes (hopefully)
+    if let TAtomic::TEnumLiteralCase {
+        constraint_type, ..
+    } = input_type_part
+    {
         if let TAtomic::TEnumLiteralCase { .. } = container_type_part {
             return false;
         }
 
-        let resolved_input_type = if let Some(c) = codebase.classlike_infos.get(enum_name) {
-            if let Some(enum_type) = &c.enum_type {
-                enum_type
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        };
-
-        return is_contained_by(
+        return atomic_type_comparator::is_contained_by(
             codebase,
-            resolved_input_type,
+            if let Some(enum_type) = &constraint_type {
+                &enum_type
+            } else {
+                &TAtomic::TArraykey
+            },
             container_type_part,
             allow_interface_equality,
             atomic_comparison_result,
@@ -210,6 +208,7 @@ pub fn is_contained_by(
     if let TAtomic::TEnumLiteralCase {
         enum_name: container_name,
         member_name,
+        ..
     } = container_type_part
     {
         // check if a string matches an enum case

@@ -294,6 +294,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             false
                         },
                         expand_generic: true,
+                        file_path: Some(&self.file_analyzer.get_file_source().file_path),
 
                         ..Default::default()
                     },
@@ -423,6 +424,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     } else {
                         false
                     },
+                    file_path: Some(statements_analyzer.get_file_path()),
 
                     ..Default::default()
                 },
@@ -554,6 +556,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         },
                         expand_generic: true,
                         expand_templates: true,
+                        file_path: Some(statements_analyzer.get_file_path()),
 
                         ..Default::default()
                     },

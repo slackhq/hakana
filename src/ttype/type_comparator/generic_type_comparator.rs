@@ -205,56 +205,7 @@ pub(crate) fn compare_generic_params(
             return;
         }
 
-        atomic_comparison_result.type_coerced =
-            Some(if let Some(val) = atomic_comparison_result.type_coerced {
-                val
-            } else {
-                param_comparison_result.type_coerced.unwrap_or(false) == true
-            });
-
-        atomic_comparison_result.type_coerced_from_nested_mixed = Some(
-            if let Some(val) = atomic_comparison_result.type_coerced_from_nested_mixed {
-                val
-            } else {
-                param_comparison_result
-                    .type_coerced_from_nested_mixed
-                    .unwrap_or(false)
-                    == true
-            },
-        );
-
-        atomic_comparison_result.type_coerced_from_nested_any = Some(
-            if let Some(val) = atomic_comparison_result.type_coerced_from_nested_any {
-                val
-            } else {
-                param_comparison_result
-                    .type_coerced_from_nested_any
-                    .unwrap_or(false)
-                    == true
-            },
-        );
-
-        atomic_comparison_result.type_coerced_from_as_mixed = Some(
-            if let Some(val) = atomic_comparison_result.type_coerced_from_as_mixed {
-                val
-            } else {
-                param_comparison_result
-                    .type_coerced_from_as_mixed
-                    .unwrap_or(false)
-                    == true
-            },
-        );
-
-        atomic_comparison_result.type_coerced_to_literal = Some(
-            if let Some(val) = atomic_comparison_result.type_coerced_to_literal {
-                val
-            } else {
-                param_comparison_result
-                    .type_coerced_to_literal
-                    .unwrap_or(false)
-                    == true
-            },
-        );
+        update_result_from_nested(atomic_comparison_result, &param_comparison_result);
 
         if !param_comparison_result
             .type_coerced_from_as_mixed
@@ -316,4 +267,56 @@ pub(crate) fn compare_generic_params(
             }
         }
     }
+}
+
+pub(crate) fn update_result_from_nested(
+    atomic_comparison_result: &mut TypeComparisonResult,
+    param_comparison_result: &TypeComparisonResult,
+) {
+    atomic_comparison_result.type_coerced =
+        Some(if let Some(val) = atomic_comparison_result.type_coerced {
+            val
+        } else {
+            param_comparison_result.type_coerced.unwrap_or(false) == true
+        });
+    atomic_comparison_result.type_coerced_from_nested_mixed = Some(
+        if let Some(val) = atomic_comparison_result.type_coerced_from_nested_mixed {
+            val
+        } else {
+            param_comparison_result
+                .type_coerced_from_nested_mixed
+                .unwrap_or(false)
+                == true
+        },
+    );
+    atomic_comparison_result.type_coerced_from_nested_any = Some(
+        if let Some(val) = atomic_comparison_result.type_coerced_from_nested_any {
+            val
+        } else {
+            param_comparison_result
+                .type_coerced_from_nested_any
+                .unwrap_or(false)
+                == true
+        },
+    );
+    atomic_comparison_result.type_coerced_from_as_mixed = Some(
+        if let Some(val) = atomic_comparison_result.type_coerced_from_as_mixed {
+            val
+        } else {
+            param_comparison_result
+                .type_coerced_from_as_mixed
+                .unwrap_or(false)
+                == true
+        },
+    );
+    atomic_comparison_result.type_coerced_to_literal = Some(
+        if let Some(val) = atomic_comparison_result.type_coerced_to_literal {
+            val
+        } else {
+            param_comparison_result
+                .type_coerced_to_literal
+                .unwrap_or(false)
+                == true
+        },
+    );
 }

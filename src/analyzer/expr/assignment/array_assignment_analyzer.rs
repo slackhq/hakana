@@ -436,30 +436,32 @@ fn update_array_assignment_child_type(
     } else {
         for (_, original_type) in &root_type.types {
             match original_type {
-                TAtomic::TVec { known_items, .. } => {
-                    collection_types.push(if !context.inside_loop {
-                        TAtomic::TVec {
-                            type_param: get_nothing(),
-                            known_items: Some(BTreeMap::from([(
-                                if let Some(known_items) = known_items {
-                                    known_items.len()
-                                } else {
-                                    0
-                                },
-                                (false, value_type.clone()),
-                            )])),
-                            known_count: None,
-                            non_empty: true,
-                        }
-                    } else {
-                        TAtomic::TVec {
-                            type_param: value_type.clone(),
-                            known_items: None,
-                            known_count: None,
-                            non_empty: true,
-                        }
-                    })
-                }
+                TAtomic::TVec {
+                    known_items,
+                    type_param,
+                    ..
+                } => collection_types.push(if !context.inside_loop && type_param.is_nothing() {
+                    TAtomic::TVec {
+                        type_param: get_nothing(),
+                        known_items: Some(BTreeMap::from([(
+                            if let Some(known_items) = known_items {
+                                known_items.len()
+                            } else {
+                                0
+                            },
+                            (false, value_type.clone()),
+                        )])),
+                        known_count: None,
+                        non_empty: true,
+                    }
+                } else {
+                    TAtomic::TVec {
+                        type_param: value_type.clone(),
+                        known_items: None,
+                        known_count: None,
+                        non_empty: true,
+                    }
+                }),
                 TAtomic::TDict { .. } => {
                     // should not happen, but works at runtime
                     collection_types.push(TAtomic::TDict {

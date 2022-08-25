@@ -201,7 +201,8 @@ pub fn combine(
                 enum_name.clone(),
                 TAtomic::TEnumLiteralCase {
                     enum_name: enum_name.clone(),
-                    member_name: value,
+                    member_name: value.0,
+                    constraint_type: value.1,
                 },
             );
         }
@@ -772,6 +773,7 @@ fn scrape_type_properties(
     if let TAtomic::TEnumLiteralCase {
         enum_name,
         member_name,
+        constraint_type,
     } = atomic
     {
         if combination.enum_types.contains(&enum_name) {
@@ -781,8 +783,8 @@ fn scrape_type_properties(
         combination
             .enum_value_types
             .entry(enum_name)
-            .or_insert_with(FxHashSet::default)
-            .insert(member_name);
+            .or_insert_with(FxHashMap::default)
+            .insert(member_name, constraint_type);
 
         return None;
     }
