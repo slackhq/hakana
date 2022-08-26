@@ -865,8 +865,27 @@ fn intersect_string(
             | TAtomic::TMixedFromLoopIsset
             | TAtomic::TMixedAny
             | TAtomic::TScalar
-            | TAtomic::TArraykey => {
+            | TAtomic::TArraykey { .. } => {
                 return get_string();
+            }
+            TAtomic::TEnumLiteralCase {
+                constraint_type, ..
+            } => {
+                if let Some(constraint_type) = constraint_type {
+                    if atomic_type_comparator::is_contained_by(
+                        codebase,
+                        constraint_type,
+                        &TAtomic::TString,
+                        false,
+                        &mut TypeComparisonResult::new(),
+                    ) {
+                        acceptable_types.push(atomic.clone());
+                    } else {
+                        did_remove_type = true;
+                    }
+                } else {
+                    return get_string();
+                }
             }
             _ => {
                 if atomic_type_comparator::is_contained_by(
@@ -939,7 +958,7 @@ fn intersect_int(
             | TAtomic::TMixedAny
             | TAtomic::TScalar
             | TAtomic::TNum
-            | TAtomic::TArraykey
+            | TAtomic::TArraykey { .. }
             | TAtomic::TMixedFromLoopIsset => {
                 return get_int();
             }

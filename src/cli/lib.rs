@@ -72,6 +72,11 @@ pub fn init(
                         .help("Only output issues of this/these type(s)"),
                 )
                 .arg(
+                    arg!(--"ignore-mixed-issues")
+                        .required(false)
+                        .help("Ignore mixed/any issues"),
+                )
+                .arg(
                     arg!(--"show-mixed-function-counts")
                         .required(false)
                         .help("Show which functions we lead to mixed types"),
@@ -295,6 +300,7 @@ pub fn init(
             let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
             let show_mixed_function_counts = sub_matches.is_present("show-mixed-function-counts");
             let show_symbol_map = sub_matches.is_present("show-symbol-map");
+            let ignore_mixed_issues = sub_matches.is_present("ignore-mixed-issues");
 
             let mut issue_kinds_filter = FxHashSet::default();
 
@@ -321,6 +327,7 @@ pub fn init(
             } else {
                 None
             };
+            analysis_config.ignore_mixed_issues = ignore_mixed_issues;
 
             analysis_config.hooks = analysis_hooks;
 

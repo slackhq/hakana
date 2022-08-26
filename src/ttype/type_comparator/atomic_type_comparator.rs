@@ -106,7 +106,7 @@ pub fn is_contained_by(
             if let Some(enum_type) = &constraint_type {
                 &enum_type
             } else {
-                &TAtomic::TArraykey
+                &TAtomic::TArraykey { from_any: false }
             },
             container_type_part,
             allow_interface_equality,

@@ -1,0 +1,1 @@
+ERROR: LessSpecificArgument - input.hack:9:17 - Argument 1 of takesString expects string, parent type Foo::A provided

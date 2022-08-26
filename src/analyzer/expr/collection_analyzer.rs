@@ -93,7 +93,7 @@ pub(crate) fn analyze(
                 context,
                 &mut array_creation_info,
                 &item,
-                matches!(container_type, TContainerType::Keyset),
+                &container_type,
                 tast_info,
                 offset,
             );
@@ -286,7 +286,7 @@ fn analyze_array_item(
     context: &mut ScopeContext,
     array_creation_info: &mut ArrayCreationInfo,
     item: &Afield<(), ()>,
-    is_keyset: bool,
+    container_type: &TContainerType,
     tast_info: &mut TastInfo,
     offset: usize,
 ) -> bool {
@@ -358,7 +358,10 @@ fn analyze_array_item(
         array_creation_info,
     );
 
-    if key_item_type.is_single() && !is_keyset {
+    if key_item_type.is_single()
+        && ((key_item_type.has_string() && matches!(container_type, TContainerType::Dict))
+            || (key_item_type.has_int() && matches!(container_type, TContainerType::Vec)))
+    {
         array_creation_info.known_items.push((
             key_item_type.types.into_iter().next().unwrap().1,
             value_item_type,
@@ -391,8 +394,10 @@ fn add_array_value_dataflow(
     array_creation_info: &mut ArrayCreationInfo,
 ) {
     if !value_type.parent_nodes.is_empty()
-        && !(matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(WholeProgramKind::Taint))
-            && !value_type.has_taintable_value())
+        && !(matches!(
+            &tast_info.data_flow_graph.kind,
+            GraphKind::WholeProgram(WholeProgramKind::Taint)
+        ) && !value_type.has_taintable_value())
     {
         let mut node_name = "array".to_string();
 
@@ -462,8 +467,10 @@ fn add_array_key_dataflow(
     array_creation_info: &mut ArrayCreationInfo,
 ) {
     if !key_item_type.parent_nodes.is_empty()
-        && !(matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(WholeProgramKind::Taint))
-            && !key_item_type.has_taintable_value())
+        && !(matches!(
+            &tast_info.data_flow_graph.kind,
+            GraphKind::WholeProgram(WholeProgramKind::Taint)
+        ) && !key_item_type.has_taintable_value())
     {
         let node_name = "array".to_string();
 

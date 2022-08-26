@@ -387,7 +387,7 @@ pub fn get_type_from_hint(
             match applied_type.as_str() {
                 "int" => TAtomic::TInt,
                 "string" => TAtomic::TString,
-                "arraykey" => TAtomic::TArraykey,
+                "arraykey" => TAtomic::TArraykey { from_any: false },
                 "bool" => TAtomic::TBool,
                 "float" => TAtomic::TFloat,
                 "nonnull" => TAtomic::TNonnullMixed,

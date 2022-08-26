@@ -658,7 +658,7 @@ fn subtract_string(
             }
 
             did_remove_type = true;
-        } else if let TAtomic::TArraykey = atomic {
+        } else if let TAtomic::TArraykey { .. } = atomic {
             did_remove_type = true;
 
             if !is_equality {
@@ -765,7 +765,7 @@ fn subtract_int(
             }
 
             did_remove_type = true;
-        } else if let TAtomic::TArraykey = atomic {
+        } else if let TAtomic::TArraykey { .. } = atomic {
             did_remove_type = true;
 
             if !is_equality {
@@ -1006,7 +1006,7 @@ fn subtract_num(
             }
 
             did_remove_type = true;
-        } else if let TAtomic::TArraykey = atomic {
+        } else if let TAtomic::TArraykey { .. } = atomic {
             if !is_equality {
                 existing_var_type.types.remove(type_key);
                 existing_var_type

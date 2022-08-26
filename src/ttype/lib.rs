@@ -88,7 +88,7 @@ pub fn get_num() -> TUnion {
 
 #[inline]
 pub fn get_arraykey() -> TUnion {
-    wrap_atomic(TAtomic::TArraykey)
+    wrap_atomic(TAtomic::TArraykey { from_any: false })
 }
 
 #[inline]

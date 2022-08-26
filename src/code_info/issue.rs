@@ -190,6 +190,31 @@ impl IssueKind {
         }
     }
 
+    pub fn is_mixed_issue(&self) -> bool {
+        match &self {
+            Self::LessSpecificNestedAnyArgumentType
+            | Self::LessSpecificNestedAnyReturnStatement
+            | Self::MixedAnyArgument
+            | Self::MixedAnyArrayAccess
+            | Self::MixedAnyArrayAssignment
+            | Self::MixedAnyArrayOffset
+            | Self::MixedAnyAssignment
+            | Self::MixedAnyMethodCall
+            | Self::MixedAnyPropertyAssignment
+            | Self::MixedAnyPropertyTypeCoercion
+            | Self::MixedAnyReturnStatement
+            | Self::MixedArgument
+            | Self::MixedArrayAccess
+            | Self::MixedArrayAssignment
+            | Self::MixedArrayOffset
+            | Self::MixedMethodCall
+            | Self::MixedPropertyAssignment
+            | Self::MixedPropertyTypeCoercion
+            | Self::MixedReturnStatement => true,
+            _ => false,
+        }
+    }
+
     pub fn is_unused_definition(&self) -> bool {
         match &self {
             Self::UnusedClass

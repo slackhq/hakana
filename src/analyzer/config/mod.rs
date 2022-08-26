@@ -23,6 +23,7 @@ pub struct Config {
     pub security_config: SecurityConfig,
     pub root_dir: String,
     pub hooks: Vec<Box<dyn CustomHook>>,
+    pub ignore_mixed_issues: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -48,6 +49,7 @@ impl Config {
             root_dir,
             find_unused_expressions: false,
             find_unused_definitions: false,
+            ignore_mixed_issues: false,
             issue_filter: None,
             migration_symbols: FxHashSet::default(),
             graph_kind: GraphKind::FunctionBody,

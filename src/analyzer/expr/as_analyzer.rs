@@ -47,6 +47,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             | aast::Expr_::Eif(..)
             | aast::Expr_::Binop(..)
             | aast::Expr_::As(..)
+            | aast::Expr_::ClassConst(..)
     ) {
         let left_var_id = format!(
             "$<tmp coalesce var>{}",

@@ -94,6 +94,10 @@ impl TastInfo {
     }
 
     pub fn maybe_add_issue(&mut self, issue: Issue, config: &Config) {
+        if config.ignore_mixed_issues && issue.kind.is_mixed_issue() {
+            return;
+        }
+
         if !config.allow_issue_kind_in_file(&issue.kind, &issue.pos.file_path) {
             return;
         }

@@ -11,7 +11,9 @@ use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq)]
 pub enum TAtomic {
-    TArraykey,
+    TArraykey {
+        from_any: bool,
+    },
     TBool,
     TClassname {
         as_type: Box<self::TAtomic>,
@@ -440,6 +442,7 @@ impl TAtomic {
         match self {
             TAtomic::TDict { .. } => "dict".to_string(),
             TAtomic::TVec { .. } => "vec".to_string(),
+            TAtomic::TKeyset { .. } => "keyset".to_string(),
             TAtomic::TArraykey { .. } => self.get_id(),
             TAtomic::TBool { .. } => self.get_id(),
             TAtomic::TClassname { as_type, .. } => {
@@ -477,14 +480,6 @@ impl TAtomic {
             | TAtomic::TRegexPattern { .. } => self.get_id(),
 
             TAtomic::TStringWithFlags(..) => "string".to_string(),
-
-            TAtomic::TKeyset { type_param, .. } => {
-                let mut str = String::new();
-                str += "keyset<";
-                str += type_param.get_key().as_str();
-                str += ">";
-                return str;
-            }
 
             TAtomic::TNamedObject {
                 name, type_params, ..
@@ -1127,7 +1122,7 @@ impl TAtomic {
                 ..
             } => {
                 if let TAtomic::TPlaceholder = key_param.get_single() {
-                    *key_param = TUnion::new(vec![TAtomic::TArraykey]);
+                    *key_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                 }
                 if let TAtomic::TPlaceholder = value_param.get_single() {
                     *value_param = TUnion::new(vec![TAtomic::TMixedAny]);
@@ -1135,7 +1130,7 @@ impl TAtomic {
             }
             TAtomic::TKeyset { ref mut type_param } => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
-                    *type_param = TUnion::new(vec![TAtomic::TArraykey]);
+                    *type_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                 }
             }
             TAtomic::TNamedObject {
@@ -1147,7 +1142,8 @@ impl TAtomic {
                     if name == "HH\\KeyedContainer" {
                         if let Some(key_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = key_param.get_single() {
-                                *key_param = TUnion::new(vec![TAtomic::TArraykey]);
+                                *key_param =
+                                    TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                             }
                         }
 
@@ -1159,7 +1155,8 @@ impl TAtomic {
                     } else if name == "HH\\Container" {
                         if let Some(key_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = key_param.get_single() {
-                                *key_param = TUnion::new(vec![TAtomic::TArraykey]);
+                                *key_param =
+                                    TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                             }
                         }
                     }

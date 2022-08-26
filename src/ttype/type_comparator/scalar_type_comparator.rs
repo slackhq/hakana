@@ -61,8 +61,8 @@ pub fn is_contained_by(
         return true;
     }
 
-    if matches!(container_type_part, TAtomic::TArraykey)
-        && matches!(input_type_part, TAtomic::TArraykey)
+    if matches!(container_type_part, TAtomic::TArraykey { .. })
+        && matches!(input_type_part, TAtomic::TArraykey { .. })
     {
         return true;
     }
@@ -197,7 +197,7 @@ pub fn is_contained_by(
             if let Some(enum_type) = &constraint_type {
                 &enum_type
             } else {
-                &TAtomic::TArraykey
+                &TAtomic::TArraykey { from_any: false }
             },
             container_type_part,
             allow_interface_equality,
@@ -272,17 +272,21 @@ pub fn is_contained_by(
         return false;
     }
 
-    if matches!(container_type_part, TAtomic::TArraykey)
+    if matches!(container_type_part, TAtomic::TArraykey { .. })
         && (input_type_part.is_int() || input_type_part.is_string())
     {
         return true;
     }
 
-    if matches!(input_type_part, TAtomic::TArraykey)
-        && (container_type_part.is_int() || container_type_part.is_string())
-    {
-        atomic_comparison_result.type_coerced = Some(true);
-        return false;
+    if let TAtomic::TArraykey { from_any } = input_type_part {
+        if container_type_part.is_int() || container_type_part.is_string() {
+            atomic_comparison_result.type_coerced = Some(true);
+            if *from_any {
+                atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
+                atomic_comparison_result.type_coerced_from_nested_any = Some(true);
+            }
+            return false;
+        }
     }
 
     if matches!(container_type_part, TAtomic::TScalar) && input_type_part.is_some_scalar() {

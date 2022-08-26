@@ -4,7 +4,7 @@ use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_u
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{get_nothing, type_combiner};
+use crate::{get_nothing, type_combiner, wrap_atomic};
 
 use super::{
     standin_type_replacer::{self, get_most_specific_type_from_bounds},
@@ -189,7 +189,11 @@ fn replace_template_param(
 
     if let Some(traversed_type) = traversed_type {
         let template_type_inner = if !as_type.is_mixed() && traversed_type.is_mixed() {
-            as_type.clone()
+            if as_type.is_arraykey() {
+                wrap_atomic(TAtomic::TArraykey { from_any: true })
+            } else {
+                as_type.clone()
+            }
         } else {
             traversed_type.clone()
         };

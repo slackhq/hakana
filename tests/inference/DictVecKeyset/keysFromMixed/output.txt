@@ -1,0 +1,2 @@
+ERROR: MixedAnyArgument - input.hack:4:31 - Argument 1 of HH\Lib\Keyset\keys expects HH\KeyedTraversable<arraykey, any>, any provided
+ERROR: LessSpecificNestedAnyReturnStatement - input.hack:4:12 - The type keyset<arraykey> is more general than the declared return type keyset<string> for foo

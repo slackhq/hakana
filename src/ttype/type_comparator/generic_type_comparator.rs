@@ -205,6 +205,10 @@ pub(crate) fn compare_generic_params(
             return;
         }
 
+        if input_name == "HH\\KeyedContainer" && param_offset == 0 {
+            param_comparison_result.type_coerced_from_nested_mixed = Some(true);
+        }
+
         update_result_from_nested(atomic_comparison_result, &param_comparison_result);
 
         *all_types_contain = false;
