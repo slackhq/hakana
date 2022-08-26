@@ -736,7 +736,11 @@ fn handle_template_param_standin(
 
         if replacement_type.is_mixed() && !as_type.is_mixed() {
             for (_, as_atomic_type) in &as_type.types {
-                atomic_types.push(as_atomic_type.clone());
+                if let TAtomic::TArraykey { from_any: false } = as_atomic_type {
+                    atomic_types.push(TAtomic::TArraykey { from_any: true });
+                } else {
+                    atomic_types.push(as_atomic_type.clone());
+                }
             }
         } else {
             type_expander::expand_union(

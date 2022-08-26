@@ -106,7 +106,7 @@ fn get_unpacked_type(
                 tast_info,
                 context,
                 &atomic_type,
-                &get_arraykey(),
+                &get_arraykey(false),
                 false,
                 &mut has_valid_expected_offset,
                 context.inside_isset,

@@ -27,7 +27,7 @@ pub(crate) fn analyze(
         if !argument_analyzer::verify_type(
             statements_analyzer,
             &arg_type.unwrap_or(get_mixed_any()),
-            &get_arraykey(),
+            &get_arraykey(false),
             &FunctionLikeIdentifier::Function("echo".to_string()),
             i,
             arg_expr,

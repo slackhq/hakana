@@ -58,7 +58,7 @@ pub(crate) fn analyze(
         used_key_type = if let Some(dim_type) = tast_info.get_expr_type(dim.pos()) {
             dim_type.clone()
         } else {
-            get_arraykey()
+            get_arraykey(true)
         };
     } else {
         used_key_type = get_int();
@@ -653,7 +653,7 @@ pub(crate) fn handle_array_access_on_dict(
     let codebase = statements_analyzer.get_codebase();
 
     let key_param = if in_assignment || context.inside_isset {
-        get_arraykey()
+        get_arraykey(false)
     } else {
         if let TAtomic::TDict { key_param, .. } = &dict {
             key_param.clone()
@@ -743,7 +743,7 @@ pub(crate) fn handle_array_access_on_dict(
 
         let mut union_comparison_result = TypeComparisonResult::new();
 
-        let array_key = get_arraykey();
+        let array_key = get_arraykey(false);
 
         let is_contained = union_type_comparator::is_contained_by(
             codebase,

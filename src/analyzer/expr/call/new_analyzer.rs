@@ -386,13 +386,35 @@ fn analyze_named_constructor(
         }
 
         generic_type_params = if !storage.template_types.is_empty() {
-            Some(
+            Some(if expr.1.len() == storage.template_types.len() {
+                let mut generic_params = Vec::new();
+
+                if !expr.1.is_empty() {
+                    for type_arg in expr.1.iter() {
+                        let mut param_type = get_type_from_hint(
+                            &type_arg.1 .1,
+                            context.function_context.calling_class.as_ref(),
+                            &statements_analyzer.get_type_resolution_context(),
+                            statements_analyzer.get_file_analyzer().resolved_names,
+                        );
+
+                        populate_union_type(
+                            &mut param_type,
+                            &statements_analyzer.get_codebase().symbols,
+                        );
+
+                        generic_params.push(param_type);
+                    }
+                }
+
+                generic_params
+            } else {
                 storage
                     .template_types
                     .iter()
                     .map(|(_, map)| map.iter().next().unwrap().1.clone())
-                    .collect::<Vec<_>>(),
-            )
+                    .collect::<Vec<_>>()
+            })
         } else {
             None
         };

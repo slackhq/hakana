@@ -1,7 +1,10 @@
 use crate::get_arrayish_params;
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
-use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
+use super::{
+    generic_type_comparator::update_result_from_nested,
+    type_comparison_result::TypeComparisonResult, union_type_comparator,
+};
 
 pub(crate) fn is_contained_by(
     codebase: &CodebaseInfo,
@@ -44,16 +47,6 @@ pub(crate) fn is_contained_by(
                                 atomic_comparison_result,
                             ) {
                                 all_types_contain = false;
-
-                                let mut mixed_with_any = false;
-                                if input_property_type.is_mixed_with_any(&mut mixed_with_any) {
-                                    atomic_comparison_result.type_coerced_from_nested_mixed =
-                                        Some(true);
-                                    if mixed_with_any {
-                                        atomic_comparison_result.type_coerced_from_nested_any =
-                                            Some(true);
-                                    }
-                                }
                             }
                         } else {
                             if !c_u {
@@ -91,19 +84,21 @@ pub(crate) fn is_contained_by(
                     }
 
                     return all_types_contain;
-                } else {
-                    let mut all_possibly_undefined = true;
-                    for (_, (c_u, _)) in container_known_items {
-                        if !c_u {
-                            all_possibly_undefined = false;
-                        }
-                    }
-
-                    all_types_contain = all_possibly_undefined && input_value_param.is_nothing();
                 }
+
+                let mut all_possibly_undefined = true;
+                for (_, (c_u, _)) in container_known_items {
+                    if !c_u {
+                        all_possibly_undefined = false;
+                    }
+                }
+
+                all_types_contain = all_possibly_undefined && input_value_param.is_nothing();
             } else {
                 let input_params = get_arrayish_params(input_type_part, codebase).unwrap();
                 let container_params = get_arrayish_params(container_type_part, codebase).unwrap();
+
+                let mut nested_comparison_result = TypeComparisonResult::new();
 
                 if !union_type_comparator::is_contained_by(
                     codebase,
@@ -112,12 +107,14 @@ pub(crate) fn is_contained_by(
                     false,
                     false,
                     allow_interface_equality,
-                    atomic_comparison_result,
+                    &mut nested_comparison_result,
                 ) {
-                    if container_params.1.is_arraykey() {
-                        atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
-                    }
+                    all_types_contain = false;
+
+                    update_result_from_nested(atomic_comparison_result, &nested_comparison_result);
                 }
+
+                let mut nested_comparison_result = TypeComparisonResult::new();
 
                 if !union_type_comparator::is_contained_by(
                     codebase,
@@ -126,18 +123,11 @@ pub(crate) fn is_contained_by(
                     false,
                     false,
                     allow_interface_equality,
-                    atomic_comparison_result,
+                    &mut nested_comparison_result,
                 ) {
                     all_types_contain = false;
 
-                    let mut mixed_with_any = false;
-                    if container_params.1.is_mixed_with_any(&mut mixed_with_any) {
-                        atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
-
-                        if mixed_with_any {
-                            atomic_comparison_result.type_coerced_from_nested_any = Some(true);
-                        }
-                    }
+                    update_result_from_nested(atomic_comparison_result, &nested_comparison_result);
                 }
             }
         } else {

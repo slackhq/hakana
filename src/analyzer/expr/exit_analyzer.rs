@@ -31,7 +31,7 @@ pub(crate) fn analyze(
         argument_analyzer::verify_type(
             statements_analyzer,
             &arg_type.unwrap_or(get_mixed_any()),
-            &get_arraykey(),
+            &get_arraykey(false),
             &FunctionLikeIdentifier::Function("exit".to_string()),
             i,
             arg_expr,

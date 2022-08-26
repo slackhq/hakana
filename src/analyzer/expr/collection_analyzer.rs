@@ -312,7 +312,7 @@ fn analyze_array_item(
             let key_item_type = tast_info
                 .get_expr_type(&item_key.pos())
                 .cloned()
-                .unwrap_or(get_arraykey());
+                .unwrap_or(get_arraykey(true));
 
             add_array_key_dataflow(
                 statements_analyzer,

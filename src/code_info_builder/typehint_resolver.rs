@@ -137,7 +137,7 @@ fn get_dict_type_from_hints(
         key_param: if let Some(k) = &key_hint {
             get_type_from_hint(&k.1, classlike_name, type_context, resolved_names)
         } else {
-            get_arraykey()
+            get_arraykey(true)
         },
         value_param: if let Some(v) = &value_hint {
             get_type_from_hint(&v.1, classlike_name, type_context, resolved_names)
@@ -184,7 +184,7 @@ fn get_shape_type_from_hints(
 
     TAtomic::TDict {
         key_param: if shape_info.allows_unknown_fields {
-            get_arraykey()
+            get_arraykey(true)
         } else {
             get_nothing()
         },
@@ -319,7 +319,7 @@ fn get_reference_type(
                     type_params.get(2).unwrap().clone(),
                 ])
             } else {
-                Some(vec![get_arraykey(), get_mixed_any(), get_mixed_any()])
+                Some(vec![get_arraykey(true), get_mixed_any(), get_mixed_any()])
             },
             is_this: false,
             extra_types: None,
@@ -445,7 +445,7 @@ pub fn get_type_from_hint(
                     TAtomic::TDict {
                         known_items: None,
                         enum_items: None,
-                        key_param: get_arraykey(),
+                        key_param: get_arraykey(true),
                         value_param: wrap_atomic(TAtomic::TMixedAny),
                         non_empty: false,
                         shape_name: None,

@@ -593,7 +593,7 @@ fn intersect_keyset(
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
-        return get_keyset(get_arraykey());
+        return get_keyset(get_arraykey(true));
     }
 
     let mut acceptable_types = Vec::new();
@@ -610,7 +610,7 @@ fn intersect_keyset(
             } = atomic
             {
                 if name == "HH\\Container" {
-                    return get_keyset(get_arraykey());
+                    return get_keyset(get_arraykey(true));
                 }
 
                 if name == "HH\\KeyedContainer" {
@@ -679,7 +679,7 @@ fn intersect_dict(
             } = atomic
             {
                 if name == "HH\\Container" {
-                    return get_dict(get_arraykey(), typed_params.get(0).unwrap().clone());
+                    return get_dict(get_arraykey(true), typed_params.get(0).unwrap().clone());
                 }
 
                 if name == "HH\\KeyedContainer" {
@@ -734,7 +734,7 @@ fn intersect_arraykey(
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
-        return get_arraykey();
+        return get_arraykey(false);
     }
 
     let mut acceptable_types = Vec::new();

@@ -87,8 +87,8 @@ pub fn get_num() -> TUnion {
 }
 
 #[inline]
-pub fn get_arraykey() -> TUnion {
-    wrap_atomic(TAtomic::TArraykey { from_any: false })
+pub fn get_arraykey(from_any: bool) -> TUnion {
+    wrap_atomic(TAtomic::TArraykey { from_any })
 }
 
 #[inline]
@@ -181,7 +181,7 @@ pub fn get_mixed_vec() -> TUnion {
 }
 
 pub fn get_mixed_dict() -> TUnion {
-    get_dict(get_arraykey(), get_mixed_any())
+    get_dict(get_arraykey(true), get_mixed_any())
 }
 
 #[inline]
@@ -448,7 +448,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
                     type_params.get(1).unwrap().clone(),
                 ))
             } else if name == "HH\\Container" || name == "HH\\Traversable" {
-                Some((get_arraykey(), type_params.get(0).unwrap().clone()))
+                Some((get_arraykey(true), type_params.get(0).unwrap().clone()))
             } else {
                 None
             }

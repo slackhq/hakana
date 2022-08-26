@@ -1,6 +1,4 @@
-use crate::{
-    get_arrayish_params, type_comparator::generic_type_comparator::update_result_from_nested,
-};
+use crate::get_arrayish_params;
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
@@ -32,8 +30,6 @@ pub(crate) fn is_contained_by(
                         all_types_contain = false;
                     }
 
-                    let mut nested_comparison_result = TypeComparisonResult::new();
-
                     if !union_type_comparator::is_contained_by(
                         codebase,
                         input_property_type,
@@ -41,15 +37,10 @@ pub(crate) fn is_contained_by(
                         false,
                         input_property_type.ignore_falsable_issues,
                         allow_interface_equality,
-                        &mut nested_comparison_result,
+                        atomic_comparison_result,
                     ) {
                         all_types_contain = false;
                         obviously_bad = true;
-
-                        update_result_from_nested(
-                            atomic_comparison_result,
-                            &mut nested_comparison_result,
-                        );
                     }
                 } else {
                     if !c_u {
@@ -86,8 +77,6 @@ pub(crate) fn is_contained_by(
             let input_params = get_arrayish_params(input_type_part, codebase).unwrap();
             let container_params = get_arrayish_params(container_type_part, codebase).unwrap();
 
-            let mut nested_comparison_result = TypeComparisonResult::new();
-
             if !union_type_comparator::is_contained_by(
                 codebase,
                 &input_params.0,
@@ -95,14 +84,10 @@ pub(crate) fn is_contained_by(
                 false,
                 input_params.0.ignore_falsable_issues,
                 allow_interface_equality,
-                &mut nested_comparison_result,
+                atomic_comparison_result,
             ) {
                 all_types_contain = false;
-
-                update_result_from_nested(atomic_comparison_result, &mut nested_comparison_result);
             }
-
-            let mut nested_comparison_result = TypeComparisonResult::new();
 
             if !union_type_comparator::is_contained_by(
                 codebase,
@@ -114,8 +99,6 @@ pub(crate) fn is_contained_by(
                 atomic_comparison_result,
             ) {
                 all_types_contain = false;
-
-                update_result_from_nested(atomic_comparison_result, &mut nested_comparison_result);
             }
         }
     }

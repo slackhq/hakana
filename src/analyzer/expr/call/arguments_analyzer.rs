@@ -664,7 +664,7 @@ fn handle_closure_arg(
                             tast_info,
                             None,
                             signature_type,
-                            &mut get_arraykey(),
+                            &mut get_arraykey(false),
                         );
                     }
                 }

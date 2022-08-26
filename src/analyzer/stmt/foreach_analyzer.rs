@@ -99,7 +99,7 @@ pub(crate) fn analyze(
             return false;
         }
 
-        key_type = Some(result.1.unwrap_or(get_arraykey()));
+        key_type = Some(result.1.unwrap_or(get_arraykey(true)));
         value_type = Some(result.2.unwrap_or(get_mixed_any()));
         always_non_empty_array = result.3;
     }
@@ -111,7 +111,7 @@ pub(crate) fn analyze(
 
     match stmt.1 {
         aast::AsExpr::AsKv(key_expr, _) | aast::AsExpr::AwaitAsKv(_, key_expr, _) => {
-            let key_type = key_type.unwrap_or(get_arraykey());
+            let key_type = key_type.unwrap_or(get_arraykey(true));
 
             assignment_analyzer::analyze(
                 statements_analyzer,
@@ -359,7 +359,7 @@ fn check_iterator_type(
         if iterator_atomic_type.is_mixed() {
             has_valid_iterator = true;
             key_type = Some(add_optional_union_type(
-                get_arraykey(),
+                get_arraykey(true),
                 key_type.as_ref(),
                 Some(codebase),
             ));
@@ -398,7 +398,7 @@ fn check_iterator_type(
                 has_valid_iterator = true;
                 key_type = Some(combine_optional_union_types(
                     key_type.as_ref(),
-                    Some(&get_arraykey()),
+                    Some(&get_arraykey(true)),
                     Some(codebase),
                 ));
                 value_type = Some(combine_optional_union_types(
@@ -423,7 +423,7 @@ fn check_iterator_type(
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
-                        Some(&get_arraykey()),
+                        Some(&get_arraykey(true)),
                         Some(codebase),
                     ));
                     value_type = Some(combine_optional_union_types(

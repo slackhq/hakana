@@ -229,9 +229,14 @@ fn populate_interface_data_from_parent_or_implemented_interface(
     storage: &mut ClassLikeInfo,
     interface_storage: &ClassLikeInfo,
 ) {
-    storage
-        .constants
-        .extend(interface_storage.constants.clone());
+    storage.constants.extend(
+        interface_storage
+            .constants
+            .iter()
+            .filter(|(k, _)| !storage.constants.contains_key(*k))
+            .map(|v| (v.0.clone(), v.1.clone()))
+            .collect::<FxHashMap<_, _>>(),
+    );
 
     storage
         .invalid_dependencies
@@ -347,7 +352,14 @@ fn populate_data_from_parent_classlike(
         storage.has_visitor_issues = true;
     }
 
-    storage.constants.extend(parent_storage.constants.clone());
+    storage.constants.extend(
+        parent_storage
+            .constants
+            .iter()
+            .filter(|(k, _)| !storage.constants.contains_key(*k))
+            .map(|v| (v.0.clone(), v.1.clone()))
+            .collect::<FxHashMap<_, _>>(),
+    );
 
     storage
         .type_constants

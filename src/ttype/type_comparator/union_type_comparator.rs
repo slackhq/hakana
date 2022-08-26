@@ -78,6 +78,7 @@ pub fn is_contained_by(
         let mut all_type_coerced_from_as_mixed = None;
         let mut some_type_coerced = false;
         let mut some_type_coerced_from_nested_mixed = false;
+        let mut some_type_coerced_from_nested_any = false;
 
         if let TAtomic::TArraykey { .. } = input_type_part {
             if container_type.has_int() && container_type.has_string() {
@@ -119,7 +120,8 @@ pub fn is_contained_by(
             );
 
             let mut mixed_from_any = false;
-            if input_type_part.is_mixed_with_any(&mut mixed_from_any)
+            if (input_type_part.is_mixed_with_any(&mut mixed_from_any)
+                || matches!(input_type_part, TAtomic::TArraykey { from_any: true }))
                 && input_type.from_template_default
                 && atomic_comparison_result
                     .type_coerced_from_nested_mixed
@@ -160,6 +162,13 @@ pub fn is_contained_by(
                 .unwrap_or(false)
             {
                 some_type_coerced_from_nested_mixed = true;
+            }
+
+            if atomic_comparison_result
+                .type_coerced_from_nested_any
+                .unwrap_or(false)
+            {
+                some_type_coerced_from_nested_any = true;
             }
 
             if !atomic_comparison_result.type_coerced.unwrap_or(false)
@@ -221,13 +230,17 @@ pub fn is_contained_by(
             }
 
             if some_type_coerced_from_nested_mixed {
-                union_comparison_result.type_coerced_from_as_mixed = Some(true);
+                union_comparison_result.type_coerced_from_nested_mixed = Some(true);
 
                 if input_type.from_template_default
                     || all_type_coerced_from_as_mixed.unwrap_or(false)
                 {
                     union_comparison_result.type_coerced_from_as_mixed = Some(true);
                 }
+            }
+
+            if some_type_coerced_from_nested_any {
+                union_comparison_result.type_coerced_from_nested_any = Some(true);
             }
 
             return false;

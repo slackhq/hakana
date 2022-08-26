@@ -118,7 +118,7 @@ pub(crate) fn analyze(
             tast_info
                 .get_expr_type(current_dim.pos())
                 .cloned()
-                .unwrap_or(get_arraykey()),
+                .unwrap_or(get_arraykey(true)),
         )
     } else {
         None
@@ -406,7 +406,7 @@ fn update_array_assignment_child_type(
 
     if let Some(key_type) = key_type {
         let key_type = if key_type.is_mixed() {
-            get_arraykey()
+            get_arraykey(true)
         } else {
             key_type.clone()
         };
