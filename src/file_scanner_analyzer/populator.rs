@@ -393,6 +393,8 @@ fn populate_data_from_trait(
         .or_insert_with(FxHashSet::default)
         .insert(storage.name.clone());
 
+    storage.all_class_interfaces.extend(trait_storage.direct_class_interfaces.clone());
+
     inherit_methods_from_parent(storage, trait_storage, codebase);
     inherit_properties_from_parent(storage, trait_storage);
 }

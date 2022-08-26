@@ -259,6 +259,40 @@ pub(crate) fn scan(
                     );
                 }
             }
+
+            for extended_interface in &classlike_node.implements {
+                if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
+                    let interface_name =
+                        if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
+                            resolved_name
+                        } else {
+                            &name.1
+                        };
+
+                    storage
+                        .direct_class_interfaces
+                        .insert(interface_name.clone());
+                    storage.all_class_interfaces.insert(interface_name.clone());
+
+                    storage.template_extended_offsets.insert(
+                        interface_name.clone(),
+                        params
+                            .iter()
+                            .map(|param| {
+                                get_type_from_hint(
+                                    &param.1,
+                                    Some(&class_name),
+                                    &TypeResolutionContext {
+                                        template_type_map: storage.template_types.clone(),
+                                        template_supers: FxHashMap::default(),
+                                    },
+                                    resolved_names,
+                                )
+                            })
+                            .collect(),
+                    );
+                }
+            }
         }
         ClassishKind::Cenum => {
             storage.kind = SymbolKind::Enum;
