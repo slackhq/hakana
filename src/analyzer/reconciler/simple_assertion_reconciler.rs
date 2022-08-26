@@ -222,34 +222,49 @@ pub(crate) fn reconcile(
             ));
         }
 
-        if let TAtomic::TVec { .. } = assertion_type {
-            return Some(intersect_vec(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
+        if let TAtomic::TVec {
+            known_items: None,
+            type_param,
+            ..
+        } = assertion_type
+        {
+            if type_param.is_mixed() {
+                return Some(intersect_vec(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
         }
 
-        if let TAtomic::TDict { .. } = assertion_type {
-            return Some(intersect_dict(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
+        if let TAtomic::TDict {
+            known_items: None,
+            key_param,
+            value_param,
+            ..
+        } = assertion_type
+        {
+            if key_param.is_arraykey() && value_param.is_mixed() {
+                return Some(intersect_dict(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
         }
 
         if let TAtomic::TKeyset { .. } = assertion_type {

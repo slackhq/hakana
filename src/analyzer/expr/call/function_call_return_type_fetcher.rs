@@ -12,7 +12,7 @@ use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     get_arrayish_params, get_bool, get_float, get_int, get_mixed, get_mixed_any, get_mixed_vec,
-    get_nothing, get_object, get_string, template, type_expander, wrap_atomic,
+    get_nothing, get_object, get_string, get_vec, template, type_expander, wrap_atomic,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
@@ -431,6 +431,26 @@ fn handle_special_functions(
                 false,
                 all_literals,
             )))
+        }
+        "range" => {
+            let mut all_ints = true;
+            for (_, arg_expr) in args {
+                if let Some(arg_expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                    if !arg_expr_type.is_int() {
+                        all_ints = false;
+                        break;
+                    }
+                } else {
+                    all_ints = false;
+                    break;
+                }
+            }
+
+            if all_ints {
+                Some(get_vec(get_int()))
+            } else {
+                None
+            }
         }
         _ => None,
     }

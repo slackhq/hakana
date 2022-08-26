@@ -282,6 +282,10 @@ pub fn combine_union_types(
         combined_type.possibly_undefined_from_try = true;
     }
 
+    if type_1.ignore_falsable_issues || type_2.ignore_falsable_issues {
+        combined_type.ignore_falsable_issues = true;
+    }
+
     if !type_1.parent_nodes.is_empty() || !type_2.parent_nodes.is_empty() {
         let mut parent_nodes = type_1.parent_nodes.clone();
         parent_nodes.extend(type_2.parent_nodes.clone());
@@ -351,6 +355,10 @@ pub fn add_union_type(
 
     if other_type.possibly_undefined_from_try {
         base_type.possibly_undefined_from_try = true;
+    }
+
+    if other_type.ignore_falsable_issues {
+        base_type.ignore_falsable_issues = true;
     }
 
     if both_failed_reconciliation {

@@ -128,6 +128,41 @@ pub fn is_contained_by(
         }
     }
 
+    if let TAtomic::TNamedObject {
+        name,
+        type_params: Some(type_params),
+        ..
+    } = container_type_part
+    {
+        if name == "HH\\AnyArray" {
+            if let TAtomic::TVec { .. } | TAtomic::TDict { .. } | TAtomic::TKeyset { .. } =
+                input_type_part
+            {
+                let arrayish_params = get_arrayish_params(input_type_part, codebase);
+
+                if let Some(arrayish_params) = arrayish_params {
+                    return union_type_comparator::is_contained_by(
+                        codebase,
+                        &arrayish_params.0,
+                        &type_params[0],
+                        false,
+                        false,
+                        allow_interface_equality,
+                        atomic_comparison_result,
+                    ) && union_type_comparator::is_contained_by(
+                        codebase,
+                        &arrayish_params.1,
+                        &type_params[1],
+                        false,
+                        false,
+                        allow_interface_equality,
+                        atomic_comparison_result,
+                    );
+                }
+            }
+        }
+    }
+
     // handles newtypes (hopefully)
     if let TAtomic::TEnumLiteralCase {
         constraint_type, ..

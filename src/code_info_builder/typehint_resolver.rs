@@ -468,8 +468,12 @@ pub fn get_type_from_hint(
         }
         Hint_::Hoption(inner) => {
             types.push(TAtomic::TNull);
-            let union = get_type_from_hint(&inner.1, classlike_name, type_context, resolved_names);
-            union.get_single().clone()
+            let mut union =
+                get_type_from_hint(&inner.1, classlike_name, type_context, resolved_names);
+
+            let last = union.types.pop_last().unwrap().1;
+            types.extend(union.types.into_iter().map(|(_, v)| v).collect::<Vec<_>>());
+            last
         }
         Hint_::Hlike(_) => panic!(),
         Hint_::Hfun(hint_fun) => {

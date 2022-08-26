@@ -1,3 +1,5 @@
+#![feature(map_first_last)]
+
 use crate::typehint_resolver::get_type_from_hint;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{

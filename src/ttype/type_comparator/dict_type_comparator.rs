@@ -62,7 +62,7 @@ pub(crate) fn is_contained_by(
                                 &input_key_param,
                                 &container_key_param,
                                 false,
-                                false,
+                                input_key_param.ignore_falsable_issues,
                                 allow_interface_equality,
                                 atomic_comparison_result,
                             ) {
@@ -74,7 +74,7 @@ pub(crate) fn is_contained_by(
                                 &input_value_param,
                                 &container_value_param,
                                 false,
-                                false,
+                                input_value_param.ignore_falsable_issues,
                                 allow_interface_equality,
                                 atomic_comparison_result,
                             ) {
@@ -94,6 +94,10 @@ pub(crate) fn is_contained_by(
                 }
 
                 all_types_contain = all_possibly_undefined && input_value_param.is_nothing();
+
+                if !all_types_contain {
+                    atomic_comparison_result.type_coerced = Some(true);
+                }
             } else {
                 let input_params = get_arrayish_params(input_type_part, codebase).unwrap();
                 let container_params = get_arrayish_params(container_type_part, codebase).unwrap();

@@ -146,6 +146,11 @@ fn analyse_known_class_constant(
     is_this: bool,
 ) -> Option<TUnion> {
     if !codebase.class_or_interface_or_enum_exists(&classlike_name) {
+        if const_name == "class" && codebase.type_definitions.contains_key(classlike_name) {
+            return Some(wrap_atomic(TAtomic::TLiteralClassname {
+                name: classlike_name.clone(),
+            }));
+        }
         return None;
     }
 
