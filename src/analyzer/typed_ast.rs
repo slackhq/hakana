@@ -189,6 +189,11 @@ impl TastInfo {
                         IssueKind::NonExistentMethod => return false,
                         _ => {}
                     },
+                    // missing shape field or shape field unknown
+                    4057 | 4138 => match &issue.kind {
+                        IssueKind::LessSpecificArgument => return false,
+                        _ => {}
+                    },
                     _ => {}
                 }
             }

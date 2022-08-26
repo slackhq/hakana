@@ -902,6 +902,31 @@ fn intersect_string(
                     return get_string();
                 }
             }
+            TAtomic::TTemplateParam { as_type, .. } => {
+                if as_type.is_mixed() {
+                    let atomic = atomic.replace_template_extends(get_string());
+
+                    acceptable_types.push(atomic);
+                } else {
+                    let atomic = atomic.replace_template_extends(intersect_string(
+                        codebase,
+                        assertion,
+                        as_type,
+                        &None,
+                        false,
+                        tast_info,
+                        statements_analyzer,
+                        None,
+                        failed_reconciliation,
+                        is_equality,
+                        suppressed_issues,
+                    ));
+
+                    acceptable_types.push(atomic);
+                }
+
+                did_remove_type = true;
+            }
             _ => {
                 if atomic_type_comparator::is_contained_by(
                     codebase,
