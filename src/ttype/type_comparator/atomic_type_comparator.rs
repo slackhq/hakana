@@ -1,4 +1,4 @@
-use crate::{get_arrayish_params, get_value_param};
+use crate::{get_arrayish_params, get_value_param, wrap_atomic};
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 use super::{
@@ -94,6 +94,38 @@ pub fn is_contained_by(
             allow_interface_equality,
             atomic_comparison_result,
         );
+    }
+
+    if let TAtomic::TNamedObject { name, .. } = container_type_part {
+        if name == "XHPChild" {
+            if input_type_part.is_string()
+                || input_type_part.is_int()
+                || matches!(
+                    input_type_part,
+                    TAtomic::TFloat | TAtomic::TNum | TAtomic::TArraykey { .. }
+                )
+            {
+                return true;
+            }
+
+            if let TAtomic::TVec { .. } | TAtomic::TDict { .. } | TAtomic::TKeyset { .. } =
+                input_type_part
+            {
+                let arrayish_params = get_arrayish_params(input_type_part, codebase);
+
+                if let Some(arrayish_params) = arrayish_params {
+                    return union_type_comparator::is_contained_by(
+                        codebase,
+                        &arrayish_params.1,
+                        &wrap_atomic(container_type_part.clone()),
+                        false,
+                        false,
+                        allow_interface_equality,
+                        atomic_comparison_result,
+                    );
+                }
+            }
+        }
     }
 
     // handles newtypes (hopefully)

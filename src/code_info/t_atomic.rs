@@ -720,6 +720,7 @@ impl TAtomic {
         }
     }
 
+    #[inline]
     pub fn is_some_scalar(&self) -> bool {
         match self {
             TAtomic::TTemplateParamClass { .. }
@@ -744,6 +745,7 @@ impl TAtomic {
         }
     }
 
+    #[inline]
     pub fn is_boring_scalar(&self) -> bool {
         match self {
             TAtomic::TArraykey { .. }
@@ -759,6 +761,22 @@ impl TAtomic {
         }
     }
 
+    #[inline]
+    pub fn is_xhpchild_scalar_or_collection(&self) -> bool {
+        if self.is_string()
+            || self.is_int()
+            || matches!(
+                self,
+                TAtomic::TFloat | TAtomic::TNum | TAtomic::TArraykey { .. }
+            )
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    #[inline]
     pub fn is_string(&self) -> bool {
         match self {
             TAtomic::TString { .. }
@@ -773,6 +791,7 @@ impl TAtomic {
         }
     }
 
+    #[inline]
     pub fn is_string_subtype(&self) -> bool {
         match self {
             TAtomic::TLiteralClassname { .. }
@@ -786,6 +805,7 @@ impl TAtomic {
         }
     }
 
+    #[inline]
     pub fn is_int(&self) -> bool {
         match self {
             TAtomic::TLiteralInt { .. } | TAtomic::TInt { .. } => true,
@@ -794,6 +814,7 @@ impl TAtomic {
         }
     }
 
+    #[inline]
     pub fn is_bool(&self) -> bool {
         match self {
             TAtomic::TFalse { .. } | TAtomic::TTrue { .. } | TAtomic::TBool { .. } => true,
