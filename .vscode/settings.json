@@ -1,0 +1,10 @@
+{
+    "search.exclude": {
+        "third-party/hhvm": true,
+        ".hakana_cache": true
+    },
+    "files.exclude": {
+        "third-party/hhvm": true,
+        ".hakana_cache": true
+    }
+}
