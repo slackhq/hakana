@@ -93,65 +93,65 @@ pub(crate) fn analyze(
             &mut union_comparison_result,
         );
 
-        if type_match_found && union_comparison_result.replacement_union_type.is_some() {
+        if type_match_found {
             if let Some(union_type) = union_comparison_result.replacement_union_type {
                 if let Some(var_id) = var_id.clone() {
                     context.vars_in_scope.insert(var_id, Rc::new(union_type));
                 }
             }
-        }
-
-        if union_comparison_result.type_coerced.unwrap_or(false) {
-            if union_comparison_result
-                .type_coerced_from_nested_mixed
-                .unwrap_or(false)
-            {
-                tast_info.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::MixedPropertyTypeCoercion,
-                        format!(
-                            "{} expects {}, parent type {} provided",
-                            var_id.clone().unwrap_or("var".to_string()),
-                            class_property_type.get_id(),
-                            assignment_type.get_id(),
-                        ),
-                        statements_analyzer.get_hpos(&stmt_var.1),
-                    ),
-                    statements_analyzer.get_config(),
-                );
-            } else {
-                tast_info.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::PropertyTypeCoercion,
-                        format!(
-                            "{} expects {}, parent type {} provided",
-                            var_id.clone().unwrap_or("var".to_string()),
-                            class_property_type.get_id(),
-                            assignment_type.get_id(),
-                        ),
-                        statements_analyzer.get_hpos(&stmt_var.1),
-                    ),
-                    statements_analyzer.get_config(),
-                );
-            }
-        }
-
-        if !type_match_found && union_comparison_result.type_coerced.is_none() {
-            // if union_type_comparator::is_contained_by(
-            //     codebase,
-            //     assignment_type,
-            //     class_property_type,
-            //     true,
-            //     true,
-            //     false,
-            //     &mut union_comparison_result,
-            // ) {
-            //     has_valid_assignment_value_type = true;
-            // }
-            invalid_assignment_value_types
-                .insert(&assigned_property.1 .1, class_property_type.get_id());
         } else {
-            // has_valid_assignment_value_type = true;
+            if union_comparison_result.type_coerced.unwrap_or(false) {
+                if union_comparison_result
+                    .type_coerced_from_nested_mixed
+                    .unwrap_or(false)
+                {
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::MixedPropertyTypeCoercion,
+                            format!(
+                                "{} expects {}, parent type {} provided",
+                                var_id.clone().unwrap_or("var".to_string()),
+                                class_property_type.get_id(),
+                                assignment_type.get_id(),
+                            ),
+                            statements_analyzer.get_hpos(&stmt_var.1),
+                        ),
+                        statements_analyzer.get_config(),
+                    );
+                } else {
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::PropertyTypeCoercion,
+                            format!(
+                                "{} expects {}, parent type {} provided",
+                                var_id.clone().unwrap_or("var".to_string()),
+                                class_property_type.get_id(),
+                                assignment_type.get_id(),
+                            ),
+                            statements_analyzer.get_hpos(&stmt_var.1),
+                        ),
+                        statements_analyzer.get_config(),
+                    );
+                }
+            }
+
+            if union_comparison_result.type_coerced.is_none() {
+                // if union_type_comparator::is_contained_by(
+                //     codebase,
+                //     assignment_type,
+                //     class_property_type,
+                //     true,
+                //     true,
+                //     false,
+                //     &mut union_comparison_result,
+                // ) {
+                //     has_valid_assignment_value_type = true;
+                // }
+                invalid_assignment_value_types
+                    .insert(&assigned_property.1 .1, class_property_type.get_id());
+            } else {
+                // has_valid_assignment_value_type = true;
+            }
         }
 
         for (property_id, invalid_class_property_type) in invalid_assignment_value_types {
@@ -289,7 +289,7 @@ pub(crate) fn analyze_regular_assignment(
                 assigned_properties.push(assigned_prop.clone());
 
                 context_type = Some(add_optional_union_type(
-                    assigned_prop.0,
+                    assigned_prop.2,
                     context_type.as_ref(),
                     Some(codebase),
                 ));
