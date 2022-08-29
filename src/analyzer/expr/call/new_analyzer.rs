@@ -15,7 +15,9 @@ use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::template::{self, TemplateBound, TemplateResult};
-use hakana_type::{add_optional_union_type, get_mixed_any, get_named_object, wrap_atomic};
+use hakana_type::{
+    add_optional_union_type, get_mixed_any, get_named_object, get_nothing, wrap_atomic,
+};
 use indexmap::IndexMap;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
@@ -274,7 +276,14 @@ fn analyze_named_constructor(
             (classlike_name.clone(), format!("{}()", method_id.1)),
         );
 
-        let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
+        let mut template_result = TemplateResult::new(
+            if expr.1.is_empty() {
+                IndexMap::new()
+            } else {
+                storage.template_types.clone()
+            },
+            IndexMap::new(),
+        );
 
         let method_storage = codebase.get_method(&declaring_method_id).unwrap();
 
@@ -313,6 +322,10 @@ fn analyze_named_constructor(
                     statements_analyzer.get_file_analyzer().resolved_names,
                 );
 
+                if param_type.is_placeholder() {
+                    continue;
+                }
+
                 populate_union_type(&mut param_type, &statements_analyzer.get_codebase().symbols);
 
                 if let Some((template_name, map)) = template_result.template_types.get_index(i) {
@@ -331,7 +344,7 @@ fn analyze_named_constructor(
             }
 
             let mut v = vec![];
-            for (template_name, base_type_map) in storage.template_types.iter() {
+            for (i, (template_name, base_type_map)) in storage.template_types.iter().enumerate() {
                 let mut generic_param_type = if let Some(template_bounds) =
                     if let Some(result_map) = template_result.lower_bounds.get(template_name) {
                         result_map.get(&classlike_name)
@@ -366,7 +379,11 @@ fn analyze_named_constructor(
                         &found_generic_params,
                     )
                 } else {
-                    base_type_map.iter().next().unwrap().1.clone()
+                    if storage.template_covariants.contains(&i) {
+                        get_nothing()
+                    } else {
+                        base_type_map.iter().next().unwrap().1.clone()
+                    }
                 };
 
                 generic_param_type.had_template = true;
@@ -412,7 +429,10 @@ fn analyze_named_constructor(
                 storage
                     .template_types
                     .iter()
-                    .map(|(_, map)| map.iter().next().unwrap().1.clone())
+                    .map(|(_, map)| {
+                        let upper_bound = map.iter().next().unwrap().1.clone();
+                        upper_bound
+                    })
                     .collect::<Vec<_>>()
             })
         } else {

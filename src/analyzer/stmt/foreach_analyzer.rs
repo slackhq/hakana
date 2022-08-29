@@ -219,7 +219,7 @@ fn check_iterator_type(
 
     let codebase = statements_analyzer.get_codebase();
 
-    while let Some(iterator_atomic_type) = iterator_atomic_types.pop() {
+    while let Some(mut iterator_atomic_type) = iterator_atomic_types.pop() {
         if let TAtomic::TTemplateParam { as_type, .. } = iterator_atomic_type {
             iterator_atomic_types.extend(
                 as_type
@@ -229,6 +229,14 @@ fn check_iterator_type(
                     .collect::<Vec<_>>(),
             );
             continue;
+        }
+
+        if let TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        } = iterator_atomic_type
+        {
+            iterator_atomic_type = (*as_type).clone();
         }
 
         match &iterator_atomic_type {

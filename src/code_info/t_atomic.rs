@@ -104,6 +104,7 @@ pub enum TAtomic {
     TTypeAlias {
         name: String,
         type_params: Option<Vec<TUnion>>,
+        as_type: Option<Box<TAtomic>>,
     },
     TVec {
         known_items: Option<BTreeMap<usize, (bool, TUnion)>>,
@@ -1366,6 +1367,7 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
                         *t_atomic = TAtomic::TTypeAlias {
                             name: name.clone(),
                             type_params: type_params.clone(),
+                            as_type: None,
                         };
                         return;
                     }

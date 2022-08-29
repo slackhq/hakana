@@ -1066,7 +1066,15 @@ fn reconcile_truthy(
 
     existing_var_type.possibly_undefined_from_try = false;
 
-    for (type_key, atomic) in existing_var_types {
+    for (type_key, mut atomic) in existing_var_types {
+        if let TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        } = atomic
+        {
+            atomic = &as_type;
+        }
+
         // if any atomic in the union is either always falsy, we remove it.
         // If not always truthy, we mark the check as not redundant.
         if atomic.is_falsy() {

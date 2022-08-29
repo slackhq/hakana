@@ -349,8 +349,15 @@ fn adjust_array_type(
         return;
     };
 
-    for (_, base_atomic_type) in existing_type.clone().types {
-        let mut base_atomic_type = base_atomic_type;
+    for (_, mut base_atomic_type) in existing_type.clone().types {
+        if let TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        } = base_atomic_type
+        {
+            base_atomic_type = (*as_type).clone();
+        }
+
         match base_atomic_type {
             TAtomic::TDict {
                 ref mut known_items,
@@ -673,11 +680,19 @@ fn get_value_for_key(
 
                 atomic_types.reverse();
 
-                while let Some(existing_key_type_part) = atomic_types.pop() {
+                while let Some(mut existing_key_type_part) = atomic_types.pop() {
                     if let TAtomic::TTemplateParam { as_type, .. } = existing_key_type_part {
                         atomic_types
                             .extend(as_type.types.values().cloned().collect::<Vec<TAtomic>>());
                         continue;
+                    }
+
+                    if let TAtomic::TTypeAlias {
+                        as_type: Some(as_type),
+                        ..
+                    } = existing_key_type_part
+                    {
+                        existing_key_type_part = *as_type.clone();
                     }
 
                     let mut new_base_type_candidate;

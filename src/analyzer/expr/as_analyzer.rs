@@ -49,36 +49,23 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             | aast::Expr_::As(..)
             | aast::Expr_::ClassConst(..)
     ) {
-        let left_var_id = format!(
-            "$<tmp coalesce var>{}",
-            left.pos().start_offset().to_string()
-        );
-
-        expression_analyzer::analyze(
-            statements_analyzer,
+        replacement_left = get_fake_as_var(
             left,
+            statements_analyzer,
             tast_info,
             context,
             if_body_context,
         );
-
-        let condition_type = tast_info
-            .get_expr_type(left.pos())
-            .cloned()
-            .unwrap_or(get_mixed_any());
-
-        context
-            .vars_in_scope
-            .insert(left_var_id.clone(), Rc::new(condition_type));
-
-        replacement_left = Some(aast::Expr(
-            (),
-            left.pos().clone(),
-            aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
-                left.pos().clone(),
-                (5, left_var_id.clone()),
-            ))),
-        ));
+    } else if let aast::Expr_::Lvar(var) = root_expr.2 {
+        if var.1 .1 == "$$" {
+            replacement_left = get_fake_as_var(
+                left,
+                statements_analyzer,
+                tast_info,
+                context,
+                if_body_context,
+            );
+        }
     }
 
     let ternary = aast::Expr(
@@ -161,4 +148,43 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     tast_info.set_expr_type(&stmt_pos, ternary_type);
 
     true
+}
+
+fn get_fake_as_var(
+    left: &aast::Expr<(), ()>,
+    statements_analyzer: &StatementsAnalyzer,
+    tast_info: &mut TastInfo,
+    context: &mut ScopeContext,
+    if_body_context: &mut Option<ScopeContext>,
+) -> Option<aast::Expr<(), ()>> {
+    let left_var_id = format!(
+        "$<tmp coalesce var>{}",
+        left.pos().start_offset().to_string()
+    );
+
+    expression_analyzer::analyze(
+        statements_analyzer,
+        left,
+        tast_info,
+        context,
+        if_body_context,
+    );
+
+    let condition_type = tast_info
+        .get_expr_type(left.pos())
+        .cloned()
+        .unwrap_or(get_mixed_any());
+
+    context
+        .vars_in_scope
+        .insert(left_var_id.clone(), Rc::new(condition_type));
+
+    return Some(aast::Expr(
+        (),
+        left.pos().clone(),
+        aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
+            left.pos().clone(),
+            (5, left_var_id.clone()),
+        ))),
+    ));
 }

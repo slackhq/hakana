@@ -15,5 +15,5 @@ pub mod statements_analyzer;
 mod stmt;
 mod stmt_analyzer;
 
-pub mod typed_ast;
 pub mod dataflow;
+pub mod typed_ast;

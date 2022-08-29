@@ -36,7 +36,10 @@ pub(crate) fn fetch(
     template_result: &TemplateResult,
     call_pos: &Pos,
 ) -> TUnion {
-    let mut return_type_candidate =
+    let mut return_type_candidate = if let Some(return_type) = get_special_method_return(method_id)
+    {
+        return_type
+    } else {
         functionlike_storage
             .return_type
             .clone()
@@ -44,7 +47,8 @@ pub(crate) fn fetch(
                 get_string()
             } else {
                 get_mixed_any()
-            });
+            })
+    };
 
     let codebase = statements_analyzer.get_codebase();
 
@@ -125,6 +129,27 @@ pub(crate) fn fetch(
         tast_info,
         call_pos,
     )
+}
+
+fn get_special_method_return(method_id: &MethodIdentifier) -> Option<TUnion> {
+    if (method_id.0 == "DateTime" || method_id.0 == "DateTimeImmutable")
+        && method_id.1 == "createFromFormat"
+    {
+        let mut false_or_datetime = TUnion::new(vec![
+            TAtomic::TNamedObject {
+                name: method_id.0.clone(),
+                type_params: None,
+                is_this: false,
+                extra_types: None,
+                remapped_params: false,
+            },
+            TAtomic::TFalse,
+        ]);
+        false_or_datetime.ignore_falsable_issues = true;
+        return Some(false_or_datetime);
+    }
+
+    None
 }
 
 fn add_dataflow(

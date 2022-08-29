@@ -247,6 +247,7 @@ fn expand_atomic(
     if let TAtomic::TTypeAlias {
         name: type_name,
         type_params,
+        as_type,
     } = return_type_part
     {
         let type_definition = if let Some(t) = codebase.type_definitions.get(type_name) {
@@ -349,6 +350,38 @@ fn expand_atomic(
                 }
                 v
             }));
+        } else {
+            if let Some(definition_as_type) = &type_definition.as_type {
+                let mut definition_as_type = if let Some(type_params) = type_params {
+                    let mut new_template_types = IndexMap::new();
+
+                    let mut i: usize = 0;
+                    for (k, v) in &type_definition.template_types {
+                        let mut h = FxHashMap::default();
+                        for (kk, _) in v {
+                            h.insert(kk.clone(), type_params.get(i).unwrap().clone());
+                        }
+
+                        new_template_types.insert(k.clone(), h);
+
+                        i += 1;
+                    }
+
+                    template::inferred_type_replacer::replace(
+                        &definition_as_type,
+                        &template::TemplateResult::new(IndexMap::new(), new_template_types),
+                        Some(codebase),
+                    )
+                } else {
+                    definition_as_type.clone()
+                };
+
+                expand_union(codebase, &mut definition_as_type, options, data_flow_graph);
+
+                if definition_as_type.is_single() {
+                    *as_type = Some(Box::new(definition_as_type.get_single_owned()));
+                }
+            }
         }
 
         if let Some(type_params) = type_params {

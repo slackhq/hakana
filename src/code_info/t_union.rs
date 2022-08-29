@@ -562,6 +562,16 @@ impl TUnion {
         false
     }
 
+    pub fn has_typealias(&self) -> bool {
+        for (_, atomic) in &self.types {
+            if let TAtomic::TTypeAlias { .. } = atomic {
+                return true;
+            }
+        }
+
+        false
+    }
+
     pub fn is_static_object(&self) -> bool {
         for (_, atomic) in &self.types {
             if let TAtomic::TNamedObject { is_this: true, .. } = atomic {

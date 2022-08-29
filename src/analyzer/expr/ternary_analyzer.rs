@@ -47,7 +47,6 @@ pub(crate) fn analyze(
     let post_if_context = if_conditional_scope.post_if_context;
     *context = if_conditional_scope.outer_context;
     let mut cond_referenced_var_ids = if_conditional_scope.cond_referenced_var_ids;
-    let _assigned_in_conditional_var_ids = &if_conditional_scope.assigned_in_conditional_var_ids;
 
     let cond_object_id = (expr.0.pos().start_offset(), expr.0.pos().end_offset());
 

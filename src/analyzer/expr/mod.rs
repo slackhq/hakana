@@ -9,7 +9,7 @@ pub(crate) mod cast_analyzer;
 pub(crate) mod collection_analyzer;
 pub(crate) mod const_fetch_analyzer;
 pub(crate) mod echo_analyzer;
-pub(crate) mod eif_analyzer;
+pub(crate) mod ternary_analyzer;
 pub(crate) mod exit_analyzer;
 pub mod expression_identifier;
 pub(crate) mod fetch;

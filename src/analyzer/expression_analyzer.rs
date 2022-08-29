@@ -8,7 +8,7 @@ use crate::expr::fetch::{
 };
 use crate::expr::{
     as_analyzer, binop_analyzer, call_analyzer, cast_analyzer, collection_analyzer,
-    const_fetch_analyzer, eif_analyzer, expression_identifier, pipe_analyzer, shape_analyzer,
+    const_fetch_analyzer, ternary_analyzer, expression_identifier, pipe_analyzer, shape_analyzer,
     tuple_analyzer, unop_analyzer, variable_fetch_analyzer, xml_analyzer, yield_analyzer,
 };
 use crate::expression_analyzer;
@@ -170,7 +170,7 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::Eif(boxed) => {
-            if !eif_analyzer::analyze(
+            if !ternary_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &expr.1,

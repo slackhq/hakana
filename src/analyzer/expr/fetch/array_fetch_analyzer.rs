@@ -331,7 +331,15 @@ pub(crate) fn get_array_access_type_given_offset(
 
     let mut stmt_type = None;
 
-    for (_, atomic_var_type) in array_atomic_types {
+    for (_, mut atomic_var_type) in array_atomic_types {
+        if let TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        } = atomic_var_type
+        {
+            atomic_var_type = &as_type
+        }
+
         match atomic_var_type {
             TAtomic::TKeyset { .. } | TAtomic::TVec { .. } => {
                 let new_type = handle_array_access_on_vec(

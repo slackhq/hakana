@@ -62,6 +62,10 @@ pub(crate) fn check_arguments_match(
                 statements_analyzer.get_file_analyzer().resolved_names,
             );
 
+            if param_type.is_placeholder() {
+                continue;
+            }
+
             populate_union_type(&mut param_type, &statements_analyzer.get_codebase().symbols);
 
             if let Some((template_name, map)) = template_result.template_types.get_index(i) {

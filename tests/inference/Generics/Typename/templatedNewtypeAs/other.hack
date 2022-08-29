@@ -1,0 +1,1 @@
+newtype stringkey_dict<T> as dict<string, T> = dict<string, T>;

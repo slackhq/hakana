@@ -213,6 +213,13 @@ fn intersect_atomic_with_atomic(
             && !matches!(type_2_atomic, TAtomic::TNamedObject { .. }),
         &mut atomic_comparison_results,
     ) {
+        if let TAtomic::TTypeAlias {
+            as_type: Some(_), ..
+        } = type_2_atomic
+        {
+            return Some(type_2_atomic.clone());
+        }
+
         let type_2_atomic =
             if let Some(replacement) = atomic_comparison_results.replacement_atomic_type {
                 replacement
@@ -227,8 +234,6 @@ fn intersect_atomic_with_atomic(
             atomic_comparison_results.type_coerced.unwrap_or(false),
         );
     }
-
-    let mut atomic_comparison_results = TypeComparisonResult::new();
 
     if atomic_type_comparator::is_contained_by(
         codebase,

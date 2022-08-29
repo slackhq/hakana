@@ -1,0 +1,1 @@
+newtype my_dict as dict<string, string> = dict<string, string>;

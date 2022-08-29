@@ -668,7 +668,9 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TTypeAlias {
-        name: input_name, ..
+        name: input_name,
+        as_type,
+        ..
     } = input_type_part
     {
         if input_name == "HH\\FormatString" {
@@ -677,16 +679,14 @@ pub fn is_contained_by(
             }
         }
 
-        if let Some(typedef_info) = codebase.type_definitions.get(input_name) {
-            if let Some(as_type) = &typedef_info.as_type {
-                return is_contained_by(
-                    codebase,
-                    as_type.get_single(),
-                    container_type_part,
-                    allow_interface_equality,
-                    atomic_comparison_result,
-                );
-            }
+        if let Some(as_type) = as_type {
+            return is_contained_by(
+                codebase,
+                as_type,
+                container_type_part,
+                allow_interface_equality,
+                atomic_comparison_result,
+            );
         }
     }
 

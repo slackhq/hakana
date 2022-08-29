@@ -698,7 +698,9 @@ pub fn get_atomic_syntax_type(
                 format!("{}<{}>", name, param_strings.join(", "))
             }
         },
-        TAtomic::TTypeAlias { name, type_params } => {
+        TAtomic::TTypeAlias {
+            name, type_params, ..
+        } => {
             if let None = type_params {
                 name.clone()
             } else {

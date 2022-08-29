@@ -1254,6 +1254,7 @@ fn handle_template_param_type_standin(
                     valid_input_atomic_types.push(TAtomic::TTypeAlias {
                         name: name.clone(),
                         type_params: None,
+                        as_type: None,
                     });
                 } else if let TAtomic::TTemplateParamType {
                     param_name,
@@ -1490,6 +1491,19 @@ fn find_matching_atomic_types_for_template(
                 normalized_key,
                 codebase,
                 as_type,
+            ));
+        }
+
+        if let TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        } = atomic_input_type
+        {
+            matching_atomic_types.extend(find_matching_atomic_types_for_template(
+                base_type,
+                normalized_key,
+                codebase,
+                &wrap_atomic((**as_type).clone()),
             ));
         }
     }
