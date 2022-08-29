@@ -3,7 +3,7 @@ class One {
 }
 
 class B {
-        public function barBar(?One $one = null) : void {
+    public function barBar(?One $one = null) : void {
         $a = rand(0, 4);
 
         if ($one === null) {
