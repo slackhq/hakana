@@ -6,7 +6,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 pub(crate) struct TypeCombination {
     pub value_types: FxHashMap<String, TAtomic>,
 
-    pub named_object_types: FxHashMap<String, TAtomic>,
     pub has_object_top_type: bool,
 
     pub enum_types: FxHashSet<String>,
@@ -55,7 +54,6 @@ impl TypeCombination {
     pub(crate) fn new() -> Self {
         Self {
             value_types: FxHashMap::default(),
-            named_object_types: FxHashMap::default(),
             has_object_top_type: false,
             object_type_params: FxHashMap::default(),
             object_static: FxHashMap::default(),
@@ -83,5 +81,27 @@ impl TypeCombination {
             enum_types: FxHashSet::default(),
             enum_value_types: FxHashMap::default(),
         }
+    }
+
+    #[inline]
+    pub(crate) fn is_simple(&self) -> bool {
+        if self.value_types.len() == 1 {
+            if let (None, None, None) = (
+                &self.dict_type_params,
+                &self.vec_type_param,
+                &self.keyset_type_param,
+            ) {
+                return self.dict_entries.is_empty()
+                    && self.vec_entries.is_empty()
+                    && self.object_type_params.is_empty()
+                    && self.enum_types.is_empty()
+                    && self.enum_value_types.is_empty()
+                    && self.literal_strings.is_empty()
+                    && self.literal_ints.is_empty()
+                    && self.class_string_types.is_empty();
+            }
+        }
+
+        false
     }
 }

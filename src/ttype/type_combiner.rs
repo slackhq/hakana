@@ -50,20 +50,7 @@ pub fn combine(
         return vec![TAtomic::TMixed];
     }
 
-    if combination.value_types.len() == 1
-        && combination.dict_entries.is_empty()
-        && combination.vec_entries.is_empty()
-        && matches!(combination.dict_type_params, None)
-        && matches!(combination.vec_type_param, None)
-        && matches!(combination.keyset_type_param, None)
-        && combination.object_type_params.is_empty()
-        && combination.named_object_types.is_empty()
-        && combination.enum_types.is_empty()
-        && combination.enum_value_types.is_empty()
-        && combination.literal_strings.is_empty()
-        && combination.literal_ints.is_empty()
-        && combination.class_string_types.is_empty()
-    {
+    if combination.is_simple() {
         if combination.value_types.contains_key("false") {
             return vec![TAtomic::TFalse];
         }
@@ -184,10 +171,6 @@ pub fn combine(
         combination.value_types.remove("bool");
         new_types.push(TAtomic::TScalar {});
     }
-
-    combination
-        .value_types
-        .extend(combination.named_object_types);
 
     for enum_name in combination.enum_types {
         combination
@@ -501,7 +484,8 @@ fn scrape_type_properties(
         }
 
         if let Some(known_items) = known_items {
-            let has_existing_entries = !combination.dict_entries.is_empty() || had_previous_dict;
+            let has_existing_entries =
+                !combination.dict_entries.is_empty() || had_previous_dict;
             let mut possibly_undefined_entries: FxHashSet<String> =
                 combination.dict_entries.keys().cloned().collect();
 
@@ -567,8 +551,10 @@ fn scrape_type_properties(
     // can eliminate variants
     if let TAtomic::TObject = atomic {
         combination.has_object_top_type = true;
+        combination
+            .value_types
+            .retain(|_, t| !matches!(t, TAtomic::TNamedObject { .. }));
         combination.value_types.insert(type_key, atomic);
-        combination.named_object_types.clear();
 
         return None;
     }
@@ -803,7 +789,7 @@ fn scrape_type_properties(
     } = atomic
     {
         if !combination.has_object_top_type {
-            if combination.named_object_types.contains_key(&type_key) {
+            if combination.value_types.contains_key(&type_key) {
                 return None;
             }
         } else {
@@ -811,7 +797,7 @@ fn scrape_type_properties(
         }
 
         if let None = codebase {
-            combination.named_object_types.insert(type_key, atomic);
+            combination.value_types.insert(type_key, atomic);
             return None;
         }
 
@@ -826,8 +812,7 @@ fn scrape_type_properties(
         let is_class = codebase.class_exists(&type_key);
 
         let mut types_to_remove = Vec::new();
-        for (key, named_object) in combination.named_object_types.iter() {
-            // I wish this was not necessary
+        for (key, named_object) in combination.value_types.iter() {
             if let TAtomic::TNamedObject {
                 name: existing_name,
                 ..
@@ -866,10 +851,10 @@ fn scrape_type_properties(
             }
         }
 
-        combination.named_object_types.insert(type_key, atomic);
+        combination.value_types.insert(type_key, atomic);
 
         for type_key in types_to_remove {
-            combination.named_object_types.remove(&type_key);
+            combination.value_types.remove(&type_key);
         }
 
         return None;
@@ -878,15 +863,16 @@ fn scrape_type_properties(
     if let TAtomic::TScalar { .. } = atomic {
         combination.literal_strings = FxHashMap::default();
         combination.literal_ints = FxHashMap::default();
-        combination.value_types.remove("string");
-        combination.value_types.remove("int");
-        combination.value_types.remove("bool");
-        combination.value_types.remove("false");
-        combination.value_types.remove("true");
-        combination.value_types.remove("float");
-        combination.value_types.remove("arraykey");
-        combination.value_types.remove("num");
-        combination.value_types.remove("numeric");
+        combination.value_types.retain(|k, _| {
+            k != "string"
+                && k != "int"
+                && k != "bool"
+                && k != "false"
+                && k != "true"
+                && k != "float"
+                && k != "arraykey"
+                && k != "num"
+        });
 
         combination.value_types.insert(type_key, atomic);
         return None;
@@ -899,8 +885,9 @@ fn scrape_type_properties(
 
         combination.literal_strings = FxHashMap::default();
         combination.literal_ints = FxHashMap::default();
-        combination.value_types.remove("string");
-        combination.value_types.remove("int");
+        combination
+            .value_types
+            .retain(|k, _| k != "string" && k != "int");
 
         combination.value_types.insert(type_key, atomic);
         return None;
@@ -912,8 +899,9 @@ fn scrape_type_properties(
         }
 
         combination.literal_ints = FxHashMap::default();
-        combination.value_types.remove("int");
-        combination.value_types.remove("float");
+        combination
+            .value_types
+            .retain(|k, _| k != "float" && k != "int");
 
         combination.value_types.insert(type_key, atomic);
         return None;
