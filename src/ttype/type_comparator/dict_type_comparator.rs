@@ -17,22 +17,21 @@ pub(crate) fn is_contained_by(
 
     if let TAtomic::TDict {
         known_items: container_known_items,
-        key_param: container_key_param,
-        value_param: container_value_param,
+        params: container_params,
         ..
     } = container_type_part
     {
         if let TAtomic::TDict {
             known_items: input_known_items,
-            key_param: input_key_param,
-            value_param: input_value_param,
+            params: input_params,
             ..
         } = input_type_part
         {
             if let Some(container_known_items) = container_known_items {
                 if let Some(input_known_items) = input_known_items {
                     for (key, (c_u, container_property_type)) in container_known_items {
-                        if let Some((i_u, input_property_type)) = input_known_items.get(key) {
+                        if let Some((i_u, input_property_type)) = input_known_items.get(key)
+                        {
                             if *i_u && !c_u {
                                 all_types_contain = false;
                             }
@@ -56,29 +55,36 @@ pub(crate) fn is_contained_by(
                     }
 
                     if all_types_contain {
-                        if !input_value_param.is_nothing() {
-                            if !union_type_comparator::is_contained_by(
-                                codebase,
-                                &input_key_param,
-                                &container_key_param,
-                                false,
-                                input_key_param.ignore_falsable_issues,
-                                allow_interface_equality,
-                                atomic_comparison_result,
-                            ) {
+                        match (input_params, container_params) {
+                            (None, None) => {}
+                            (None, Some(_)) => {}
+                            (Some(_), None) => {
                                 all_types_contain = false;
                             }
+                            (Some(input_params), Some(container_params)) => {
+                                if !union_type_comparator::is_contained_by(
+                                    codebase,
+                                    &input_params.0,
+                                    &container_params.0,
+                                    false,
+                                    input_params.0.ignore_falsable_issues,
+                                    allow_interface_equality,
+                                    atomic_comparison_result,
+                                ) {
+                                    all_types_contain = false;
+                                }
 
-                            if !union_type_comparator::is_contained_by(
-                                codebase,
-                                &input_value_param,
-                                &container_value_param,
-                                false,
-                                input_value_param.ignore_falsable_issues,
-                                allow_interface_equality,
-                                atomic_comparison_result,
-                            ) {
-                                all_types_contain = false;
+                                if !union_type_comparator::is_contained_by(
+                                    codebase,
+                                    &input_params.1,
+                                    &container_params.1,
+                                    false,
+                                    input_params.1.ignore_falsable_issues,
+                                    allow_interface_equality,
+                                    atomic_comparison_result,
+                                ) {
+                                    all_types_contain = false;
+                                }
                             }
                         }
                     }
@@ -93,7 +99,7 @@ pub(crate) fn is_contained_by(
                     }
                 }
 
-                all_types_contain = all_possibly_undefined && input_value_param.is_nothing();
+                all_types_contain = all_possibly_undefined && input_params.is_none();
 
                 if !all_types_contain {
                     atomic_comparison_result.type_coerced = Some(true);

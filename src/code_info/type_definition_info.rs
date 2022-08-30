@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{t_union::TUnion, taint::SourceType};
+use crate::{t_union::TUnion, taint::SourceType, t_atomic::DictKey};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TypeDefinitionInfo {
@@ -24,7 +24,7 @@ pub struct TypeDefinitionInfo {
      */
     pub template_types: IndexMap<String, FxHashMap<String, TUnion>>,
 
-    pub shape_field_taints: Option<FxHashMap<String, FxHashSet<SourceType>>>,
+    pub shape_field_taints: Option<FxHashMap<DictKey, FxHashSet<SourceType>>>,
 
     pub is_literal_string: bool,
 }

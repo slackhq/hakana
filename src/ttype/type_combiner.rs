@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
+use hakana_reflection_info::{
+    codebase_info::CodebaseInfo,
+    t_atomic::{DictKey, TAtomic},
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -87,16 +90,14 @@ pub fn combine(
 
     let mut new_types = Vec::new();
 
-    if let Some((dict_key_param, dict_value_param)) = combination.dict_type_params {
+    if combination.has_dict {
         new_types.push(TAtomic::TDict {
             known_items: if combination.dict_entries.is_empty() {
                 None
             } else {
                 Some(combination.dict_entries)
             },
-            enum_items: None,
-            key_param: dict_key_param,
-            value_param: dict_value_param,
+            params: combination.dict_type_params,
             non_empty: combination.dict_always_filled,
             shape_name: if combination
                 .dict_name
@@ -435,35 +436,35 @@ fn scrape_type_properties(
     }
 
     if let TAtomic::TDict {
-        ref key_param,
-        ref value_param,
+        ref params,
         ref known_items,
         non_empty,
         shape_name,
         ..
     } = atomic
     {
-        let mut had_previous_dict = false;
-        combination.dict_type_params =
-            if let Some(ref existing_types) = combination.dict_type_params {
-                had_previous_dict = true;
-                Some((
-                    combine_union_types(
-                        &existing_types.0,
-                        &key_param,
-                        codebase,
-                        overwrite_empty_array,
-                    ),
-                    combine_union_types(
-                        &existing_types.1,
-                        &value_param,
-                        codebase,
-                        overwrite_empty_array,
-                    ),
-                ))
-            } else {
-                Some((key_param.clone(), value_param.clone()))
-            };
+        let had_previous_dict = combination.has_dict;
+        combination.has_dict = true;
+
+        combination.dict_type_params = match (&combination.dict_type_params, params) {
+            (None, None) => None,
+            (Some(existing_types), None) => Some(existing_types.clone()),
+            (None, Some(params)) => Some(params.clone()),
+            (Some(existing_types), Some(params)) => Some((
+                combine_union_types(
+                    &existing_types.0,
+                    &params.0,
+                    codebase,
+                    overwrite_empty_array,
+                ),
+                combine_union_types(
+                    &existing_types.1,
+                    &params.1,
+                    codebase,
+                    overwrite_empty_array,
+                ),
+            )),
+        };
 
         if non_empty {
             combination.dict_sometimes_filled = true;
@@ -484,9 +485,8 @@ fn scrape_type_properties(
         }
 
         if let Some(known_items) = known_items {
-            let has_existing_entries =
-                !combination.dict_entries.is_empty() || had_previous_dict;
-            let mut possibly_undefined_entries: FxHashSet<String> =
+            let has_existing_entries = !combination.dict_entries.is_empty() || had_previous_dict;
+            let mut possibly_undefined_entries: FxHashSet<DictKey> =
                 combination.dict_entries.keys().cloned().collect();
 
             let mut has_defined_keys = false;
@@ -600,6 +600,7 @@ fn scrape_type_properties(
                 );
 
                 combination.dict_type_params = None;
+                combination.has_dict = false;
             }
 
             // vec<Foo>|Container<Bar> => Container<Foo|Bar>
@@ -684,6 +685,7 @@ fn scrape_type_properties(
                 );
 
                 combination.dict_type_params = None;
+                combination.has_dict = false;
             }
 
             // vec<Foo>|KeyedContainer<string, Bar> => Container<int|string, Foo|Bar>

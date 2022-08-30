@@ -11,7 +11,7 @@ use hakana_reflection_info::{
         path::{PathExpressionKind, PathKind},
     },
     functionlike_info::FunctionLikeInfo,
-    t_atomic::TAtomic,
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
 use indexmap::IndexMap;
@@ -124,18 +124,18 @@ fn expand_atomic(
     key: &String,
     new_return_type_parts: &mut Vec<TAtomic>,
     had_split_values: &mut bool,
-
     extra_data_flow_nodes: &mut Vec<DataFlowNode>,
 ) {
     if let TAtomic::TDict {
         ref mut known_items,
-        ref mut key_param,
-        ref mut value_param,
+        ref mut params,
         ..
     } = return_type_part
     {
-        expand_union(codebase, key_param, options, data_flow_graph);
-        expand_union(codebase, value_param, options, data_flow_graph);
+        if let Some(params) = params {
+            expand_union(codebase, &mut params.0, options, data_flow_graph);
+            expand_union(codebase, &mut params.1, options, data_flow_graph);
+        }
 
         if let Some(known_items) = known_items {
             for (_, (_, item_type)) in known_items {
@@ -319,7 +319,16 @@ fn expand_atomic(
                                 DataFlowNode::new(type_name.clone(), type_name.clone(), None, None);
 
                             for (field_name, taints) in shape_field_taints {
-                                let label = format!("{}['{}']", type_name, field_name);
+                                let label = format!(
+                                    "{}[{}]",
+                                    type_name,
+                                    match field_name {
+                                        DictKey::Int(i) => i.to_string(),
+                                        DictKey::String(k) => "'".to_string() + k.as_str() + "'",
+                                        DictKey::Enum(class_name, member_name) =>
+                                            class_name.clone() + "::" + member_name,
+                                    }
+                                );
                                 let field_node = DataFlowNode::TaintSource {
                                     id: label.clone(),
                                     label,
@@ -332,7 +341,11 @@ fn expand_atomic(
                                     &shape_node,
                                     PathKind::ExpressionAssignment(
                                         PathExpressionKind::ArrayValue,
-                                        field_name.clone(),
+                                        match field_name {
+                                            DictKey::Int(i) => i.to_string(),
+                                            DictKey::String(k) => k.clone(),
+                                            DictKey::Enum(_, _) => todo!(),
+                                        },
                                     ),
                                     None,
                                     None,

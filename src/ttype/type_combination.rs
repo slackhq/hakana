@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
+use hakana_reflection_info::{t_atomic::{TAtomic, DictKey}, t_union::TUnion};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) struct TypeCombination {
@@ -23,9 +23,8 @@ pub(crate) struct TypeCombination {
     pub dict_sometimes_filled: bool,
     pub dict_always_filled: bool,
 
-    // we only care about string dict entries, since
-    // those are the ones allowed by shapes
-    pub dict_entries: BTreeMap<String, (bool, Arc<TUnion>)>,
+    pub has_dict: bool,
+    pub dict_entries: BTreeMap<DictKey, (bool, Arc<TUnion>)>,
     pub vec_entries: BTreeMap<usize, (bool, TUnion)>,
 
     pub dict_type_params: Option<(TUnion, TUnion)>,
@@ -62,6 +61,7 @@ impl TypeCombination {
             vec_always_filled: true,
             dict_sometimes_filled: false,
             dict_always_filled: true,
+            has_dict: false,
             dict_entries: BTreeMap::new(),
             vec_entries: BTreeMap::new(),
             dict_type_params: None,

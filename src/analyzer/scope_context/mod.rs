@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, rc::Rc};
 
 use function_context::FunctionContext;
 use hakana_algebra::Clause;
-use hakana_reflection_info::t_union::TUnion;
+use hakana_reflection_info::{assertion::Assertion, t_union::TUnion};
 use oxidized::ast_defs::Pos;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -315,12 +315,6 @@ impl ScopeContext {
     ) -> Vec<Rc<Clause>> {
         let mut clauses_to_keep = Vec::new();
 
-        let new_type_string = if let Some(new_type) = &new_type {
-            new_type.get_id()
-        } else {
-            "".to_string()
-        };
-
         let mut other_clauses = Vec::new();
 
         'outer: for clause in clauses {
@@ -331,8 +325,25 @@ impl ScopeContext {
             }
 
             let keep_clause = if let Some(possibilities) = clause.possibilities.get(remove_var_id) {
-                possibilities.len() == 1
-                    && possibilities.values().next().unwrap().to_string() == new_type_string
+                if possibilities.len() == 1 {
+                    let assertion = possibilities.values().next().unwrap();
+
+                    if let Assertion::IsType(assertion_type) = assertion {
+                        if let Some(new_type) = new_type {
+                            if new_type.is_single() {
+                                new_type.get_single() == assertion_type
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             } else {
                 true
             };
@@ -345,7 +356,7 @@ impl ScopeContext {
         }
 
         if let Some(statements_analyzer) = statements_analyzer {
-            if let Some(new_type) = &new_type {
+            if let Some(new_type) = new_type {
                 if !new_type.is_mixed() {
                     for clause in other_clauses {
                         let mut type_changed = false;
@@ -374,7 +385,7 @@ impl ScopeContext {
                                 &FxHashMap::default(),
                             );
 
-                            if result_type.get_id() != new_type_string {
+                            if result_type != *new_type {
                                 type_changed = true;
                                 break;
                             }

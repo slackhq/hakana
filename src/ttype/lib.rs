@@ -1,7 +1,9 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
-    codebase_info::CodebaseInfo, functionlike_parameter::FunctionLikeParameter, t_atomic::TAtomic,
+    codebase_info::CodebaseInfo,
+    functionlike_parameter::FunctionLikeParameter,
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
 use itertools::Itertools;
@@ -139,9 +141,7 @@ pub fn get_vec(type_param: TUnion) -> TUnion {
 pub fn get_dict(key_param: TUnion, value_param: TUnion) -> TUnion {
     wrap_atomic(TAtomic::TDict {
         known_items: None,
-        enum_items: None,
-        key_param,
-        value_param,
+        params: Some((key_param, value_param)),
         non_empty: false,
         shape_name: None,
     })
@@ -385,34 +385,45 @@ pub fn intersect_union_types(
 pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<(TUnion, TUnion)> {
     match atomic {
         TAtomic::TDict {
-            key_param,
-            value_param,
+            params,
             known_items,
             ..
         } => {
-            let mut key_types = key_param
-                .types
-                .clone()
-                .into_iter()
-                .map(|(_, v)| v)
-                .collect::<Vec<_>>();
-            let mut value_param = value_param.clone();
+            let mut key_types = vec![];
+            let mut value_param;
+
+            if let Some(params) = params {
+                key_types.extend(
+                    params
+                        .0
+                        .types
+                        .clone()
+                        .into_iter()
+                        .map(|(_, v)| v)
+                        .collect::<Vec<_>>(),
+                );
+                value_param = params.1.clone();
+            } else {
+                key_types.push(TAtomic::TNothing);
+                value_param = get_nothing();
+            }
 
             if let Some(known_items) = known_items {
                 for (key, (_, property_type)) in known_items {
-                    key_types.push(TAtomic::TLiteralString { value: key.clone() });
+                    key_types.push(match key {
+                        DictKey::Int(i) => TAtomic::TLiteralInt { value: *i as i64 },
+                        DictKey::String(k) => TAtomic::TLiteralString { value: k.clone() },
+                        DictKey::Enum(c, m) => codebase
+                            .get_class_constant_type(c, m, FxHashSet::default())
+                            .unwrap()
+                            .get_single_owned(),
+                    });
                     value_param =
                         combine_union_types(property_type, &value_param, Some(codebase), false);
                 }
             }
 
-            let combined_known_keys = TUnion::new(combine(key_types, Some(codebase), false));
-
-            let key_param = if key_param.is_nothing() {
-                combined_known_keys
-            } else {
-                combine_union_types(key_param, &combined_known_keys, Some(codebase), false)
-            };
+            let key_param = TUnion::new(combine(key_types, Some(codebase), false));
 
             Some((key_param, value_param))
         }
@@ -468,11 +479,17 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
 pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUnion> {
     match atomic {
         TAtomic::TDict {
-            value_param,
+            params,
             known_items,
             ..
         } => {
-            let mut value_param = value_param.clone();
+            let mut value_param;
+
+            if let Some(params) = params {
+                value_param = params.1.clone();
+            } else {
+                value_param = get_nothing();
+            }
 
             if let Some(known_items) = known_items {
                 for (_, (_, property_type)) in known_items {
@@ -610,8 +627,7 @@ pub fn get_atomic_syntax_type(
             str
         }
         TAtomic::TDict {
-            key_param,
-            value_param,
+            params,
             known_items,
             shape_name,
             ..
@@ -621,7 +637,11 @@ pub fn get_atomic_syntax_type(
             }
 
             if let Some(known_items) = known_items {
-                if value_param.is_nothing() || (key_param.is_arraykey() && value_param.is_mixed()) {
+                if if let Some(params) = params {
+                    params.0.is_arraykey() && params.1.is_mixed()
+                } else {
+                    true
+                } {
                     let mut str = String::new();
                     str += "shape(";
                     let mut known_item_strings = vec![];
@@ -633,14 +653,19 @@ pub fn get_atomic_syntax_type(
                             format!(
                                 "{}'{}' => {}",
                                 if *pu { "?".to_string() } else { "".to_string() },
-                                property,
+                                match property {
+                                    DictKey::Int(i) => i.to_string(),
+                                    DictKey::String(k) => "'".to_string() + k.as_str() + "'",
+                                    DictKey::Enum(enum_name, member_name) =>
+                                        enum_name.clone() + "::" + member_name.as_str(),
+                                },
                                 property_type_string
                             )
                         })
                     }
                     str += known_item_strings.join(", ").as_str();
 
-                    if !value_param.is_nothing() {
+                    if !params.is_none() {
                         str += ", ...";
                     }
 
@@ -649,9 +674,13 @@ pub fn get_atomic_syntax_type(
                 }
             }
 
-            let key_param = get_union_syntax_type(key_param, codebase, is_valid);
-            let value_param = get_union_syntax_type(value_param, codebase, is_valid);
-            return format!("dict<{}, {}>", key_param, value_param);
+            return if let Some(params) = params {
+                let key_param = get_union_syntax_type(&params.0, codebase, is_valid);
+                let value_param = get_union_syntax_type(&params.1, codebase, is_valid);
+                format!("dict<{}, {}>", key_param, value_param)
+            } else {
+                "dict<nothing, nothing>".to_string()
+            };
         }
         TAtomic::TEnum { name } => name.clone(),
         TAtomic::TFalsyMixed { .. } => "mixed".to_string(),
@@ -720,10 +749,6 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TString { .. } => "string".to_string(),
-        TAtomic::TRegexPattern { .. } => {
-            *is_valid = false;
-            "_".to_string()
-        }
         TAtomic::TTemplateParam { param_name, .. } => param_name.clone(),
         TAtomic::TTemplateParamClass {
             param_name,

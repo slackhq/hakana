@@ -4,7 +4,10 @@ use crate::{
     statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
+    assertion::Assertion,
+    codebase_info::CodebaseInfo,
+    t_atomic::{DictKey, TAtomic},
+    t_union::TUnion,
 };
 use hakana_type::{get_mixed_any, get_nothing, get_null, intersect_union_types};
 use oxidized::ast_defs::Pos;
@@ -1601,10 +1604,8 @@ fn reconcile_falsy(
                     .insert(new_atomic.get_key(), new_atomic);
             } else if let TAtomic::TDict { .. } = atomic {
                 let new_atomic = TAtomic::TDict {
-                    key_param: get_nothing(),
-                    value_param: get_nothing(),
+                    params: None,
                     known_items: None,
-                    enum_items: None,
                     non_empty: false,
                     shape_name: None,
                 };
@@ -1747,10 +1748,8 @@ fn reconcile_empty_countable(
                 existing_var_type.types.remove(type_key);
             } else {
                 let new_atomic = TAtomic::TDict {
-                    key_param: get_nothing(),
-                    value_param: get_nothing(),
+                    params: None,
                     known_items: None,
-                    enum_items: None,
                     non_empty: false,
                     shape_name: None,
                 };
@@ -1902,7 +1901,7 @@ fn reconcile_not_in_array(
     get_mixed_any()
 }
 
-fn reconcile_no_array_key(existing_var_type: &TUnion, key_name: &String) -> TUnion {
+fn reconcile_no_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TUnion {
     let mut existing_var_type = existing_var_type.clone();
 
     for (_, atomic) in existing_var_type.types.iter_mut() {

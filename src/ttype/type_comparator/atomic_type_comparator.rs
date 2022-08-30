@@ -201,10 +201,8 @@ pub fn is_contained_by(
                     codebase,
                     input_type_part,
                     &TAtomic::TDict {
-                        key_param: arrayish_params.0,
-                        value_param: arrayish_params.1,
+                        params: Some(arrayish_params),
                         known_items: None,
-                        enum_items: None,
                         non_empty: false,
                         shape_name: None,
                     },
@@ -283,14 +281,6 @@ pub fn is_contained_by(
                 allow_interface_equality,
                 atomic_comparison_result,
             );
-        }
-    }
-
-    if let TAtomic::TTypeAlias { name, .. } = &container_type_part {
-        if name == "HH\\Lib\\Regex\\Pattern" {
-            if let TAtomic::TRegexPattern { .. } = input_type_part {
-                return true;
-            }
         }
     }
 
@@ -710,23 +700,35 @@ pub(crate) fn can_be_identical(
         );
     }
 
-    if (type1_part.is_dict() && type2_part.is_non_empty_dict())
-        || (type2_part.is_dict() && type1_part.is_non_empty_dict())
+    if let (
+        TAtomic::TDict {
+            params: type_1_dict_params,
+            ..
+        },
+        TAtomic::TDict {
+            params: type_2_dict_params,
+            ..
+        },
+    ) = (type1_part, type2_part)
     {
-        let type1_dict_params = type1_part.get_dict_params().unwrap();
-        let type2_dict_params = type1_part.get_dict_params().unwrap();
-
-        return union_type_comparator::can_expression_types_be_identical(
-            codebase,
-            type1_dict_params.0,
-            type2_dict_params.0,
-            allow_interface_equality,
-        ) && union_type_comparator::can_expression_types_be_identical(
-            codebase,
-            type1_dict_params.1,
-            type2_dict_params.1,
-            allow_interface_equality,
-        );
+        if type2_part.is_non_empty_dict() || type1_part.is_non_empty_dict() {
+            return match (type_1_dict_params, type_2_dict_params) {
+                (None, None) | (None, Some(_)) | (Some(_), None) => true,
+                (Some(type_1_dict_params), Some(type_2_dict_params)) => {
+                    union_type_comparator::can_expression_types_be_identical(
+                        codebase,
+                        &type_1_dict_params.0,
+                        &type_2_dict_params.0,
+                        allow_interface_equality,
+                    ) && union_type_comparator::can_expression_types_be_identical(
+                        codebase,
+                        &type_1_dict_params.1,
+                        &type_2_dict_params.1,
+                        allow_interface_equality,
+                    )
+                }
+            };
+        }
     }
 
     let mut first_comparison_result = TypeComparisonResult::new();

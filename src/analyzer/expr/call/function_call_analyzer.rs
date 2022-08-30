@@ -1,3 +1,4 @@
+use hakana_reflection_info::t_atomic::DictKey;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
@@ -208,7 +209,7 @@ pub(crate) fn analyze(
                             (pos.start_offset(), pos.end_offset()),
                             FxHashMap::from_iter([(
                                 format!("{}", expr_var_id),
-                                vec![Assertion::HasArrayKey(dim_var_id)],
+                                vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
                             )]),
                         );
                     } else {

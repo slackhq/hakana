@@ -174,6 +174,26 @@ impl CodebaseInfo {
         }
     }
 
+    pub fn get_classconst_literal_value(
+        &self,
+        fq_class_name: &String,
+        const_name: &String,
+    ) -> Option<TUnion> {
+        if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
+            if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
+                if let Some(inferred_type) = &constant_storage.inferred_type {
+                    Some(inferred_type.clone())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     pub fn property_exists(&self, classlike_name: &String, property_name: &String) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             classlike_info

@@ -6,7 +6,7 @@ use hakana_reflection_info::{
         node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
-    t_atomic::TAtomic,
+    t_atomic::{TAtomic, DictKey},
     t_union::TUnion,
 };
 use hakana_type::{
@@ -106,8 +106,10 @@ pub(crate) fn analyze(
                 let mut known_items = BTreeMap::new();
 
                 if array_creation_info.item_key_atomic_types.len() < 20 {
-                    for (offset, (key_type, value_type)) in
-                        array_creation_info.known_items.into_iter().enumerate()
+                    for (offset, (key_type, value_type)) in array_creation_info
+                        .known_items
+                        .into_iter()
+                        .enumerate()
                     {
                         if let TAtomic::TLiteralInt {
                             value: key_literal_value,
@@ -162,14 +164,17 @@ pub(crate) fn analyze(
                 let mut known_items = BTreeMap::new();
 
                 if array_creation_info.item_key_atomic_types.len() < 20 {
-                    for (key_type, value_type) in array_creation_info.known_items.into_iter() {
+                    for (key_type, value_type) in array_creation_info.known_items.into_iter()
+                    {
                         if let TAtomic::TLiteralString {
                             value: key_literal_value,
                             ..
                         } = key_type
                         {
-                            known_items
-                                .insert(key_literal_value.clone(), (false, Arc::new(value_type)));
+                            known_items.insert(
+                                DictKey::String(key_literal_value),
+                                (false, Arc::new(value_type)),
+                            );
                         }
                     }
                 }
@@ -180,23 +185,20 @@ pub(crate) fn analyze(
                     } else {
                         None
                     },
-                    enum_items: None,
-                    key_param: if array_creation_info.item_key_atomic_types.is_empty() {
-                        get_nothing()
+                    params: if array_creation_info.item_key_atomic_types.is_empty() {
+                        None
                     } else {
-                        TUnion::new(type_combiner::combine(
-                            array_creation_info.item_key_atomic_types.clone(),
-                            Some(codebase),
-                            false,
-                        ))
-                    },
-                    value_param: if array_creation_info.item_value_atomic_types.is_empty() {
-                        get_nothing()
-                    } else {
-                        TUnion::new(type_combiner::combine(
-                            array_creation_info.item_value_atomic_types.clone(),
-                            Some(codebase),
-                            false,
+                        Some((
+                            TUnion::new(type_combiner::combine(
+                                array_creation_info.item_key_atomic_types.clone(),
+                                Some(codebase),
+                                false,
+                            )),
+                            TUnion::new(type_combiner::combine(
+                                array_creation_info.item_value_atomic_types.clone(),
+                                Some(codebase),
+                                false,
+                            )),
                         ))
                     },
                     non_empty: true,
@@ -249,9 +251,7 @@ pub(crate) fn analyze(
                 &pos,
                 wrap_atomic(TAtomic::TDict {
                     known_items: None,
-                    enum_items: None,
-                    key_param: get_nothing(),
-                    value_param: get_nothing(),
+                    params: None,
                     non_empty: false,
                     shape_name: None,
                 }),

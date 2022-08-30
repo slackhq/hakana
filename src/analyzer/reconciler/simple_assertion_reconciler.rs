@@ -1,7 +1,7 @@
 use super::reconciler::{trigger_issue_for_impossible, ReconciliationStatus};
 use crate::{intersect_simple, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
+    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::{TAtomic, DictKey}, t_union::TUnion,
 };
 use hakana_type::{
     get_arraykey, get_bool, get_dict, get_false, get_float, get_int, get_keyset, get_mixed_any,
@@ -246,12 +246,11 @@ pub(crate) fn reconcile(
 
         if let TAtomic::TDict {
             known_items: None,
-            key_param,
-            value_param,
+            params: Some(params),
             ..
         } = assertion_type
         {
-            if key_param.is_arraykey() && value_param.is_mixed() {
+            if params.0.is_arraykey() && params.1.is_mixed() {
                 return Some(intersect_dict(
                     assertion,
                     existing_var_type,
@@ -1293,13 +1292,13 @@ fn reconcile_non_empty_countable(
             }
         } else if let TAtomic::TDict {
             non_empty,
-            value_param,
+            params,
             known_items,
             ..
         } = atomic
         {
             if !non_empty {
-                if value_param.is_nothing() {
+                if params.is_none() {
                     existing_var_type.types.remove(type_key);
                 } else {
                     let non_empty_dict = atomic.clone().make_non_empty_dict();
@@ -1399,13 +1398,13 @@ fn reconcile_exactly_countable(
             }
         } else if let TAtomic::TDict {
             non_empty,
-            value_param,
+            params,
             known_items,
             ..
         } = atomic
         {
             if !non_empty {
-                if value_param.is_nothing() {
+                if params.is_none() {
                     existing_var_type.types.remove(type_key);
                 } else {
                     let non_empty_dict = atomic.clone().make_non_empty_dict();
@@ -1557,7 +1556,7 @@ fn reconcile_in_array(
     get_mixed_any()
 }
 
-fn reconcile_has_array_key(existing_var_type: &TUnion, key_name: &String) -> TUnion {
+fn reconcile_has_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TUnion {
     let mut existing_var_type = existing_var_type.clone();
 
     for (_, atomic) in existing_var_type.types.iter_mut() {

@@ -3,7 +3,11 @@ use std::hash::Hasher;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{t_atomic::TAtomic, t_union::TUnion, taint::SinkType};
+use crate::{
+    t_atomic::{DictKey, TAtomic},
+    t_union::TUnion,
+    taint::SinkType,
+};
 use core::hash::Hash;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -24,8 +28,8 @@ pub enum Assertion {
     ArrayKeyDoesNotExist,
     InArray(TUnion),
     NotInArray(TUnion),
-    HasArrayKey(String),
-    DoesNotHaveArrayKey(String),
+    HasArrayKey(DictKey),
+    DoesNotHaveArrayKey(DictKey),
     NonEmptyCountable(bool),
     EmptyCountable,
     HasExactCount(usize),
@@ -59,8 +63,28 @@ impl Assertion {
             Assertion::HasIntOrStringArrayAccess => "=int-or-string-array-access".to_string(),
             Assertion::ArrayKeyExists => "array-key-exists".to_string(),
             Assertion::ArrayKeyDoesNotExist => "!array-key-exists".to_string(),
-            Assertion::HasArrayKey(str) => "=has-array-key-".to_string() + str,
-            Assertion::DoesNotHaveArrayKey(str) => "!=has-array-key-".to_string() + str,
+            Assertion::HasArrayKey(key) => {
+                "=has-array-key-".to_string()
+                    + match key {
+                        DictKey::Int(i) => i.to_string(),
+                        DictKey::String(k) => "'".to_string() + k.as_str() + "'",
+                        DictKey::Enum(class_name, member_name) => {
+                            class_name.clone() + "::" + member_name
+                        }
+                    }
+                    .as_str()
+            }
+            Assertion::DoesNotHaveArrayKey(key) => {
+                "!=has-array-key-".to_string()
+                    + match key {
+                        DictKey::Int(i) => i.to_string(),
+                        DictKey::String(k) => "'".to_string() + k.as_str() + "'",
+                        DictKey::Enum(class_name, member_name) => {
+                            class_name.clone() + "::" + member_name
+                        }
+                    }
+                    .as_str()
+            }
             Assertion::InArray(union) => "=in-array-".to_string() + &union.get_id(),
             Assertion::NotInArray(union) => "!=in-array-".to_string() + &union.get_id(),
             Assertion::NonEmptyCountable(negatable) => {

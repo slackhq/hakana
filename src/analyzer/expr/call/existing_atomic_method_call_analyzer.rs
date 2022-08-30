@@ -4,10 +4,12 @@ use function_context::method_identifier::MethodIdentifier;
 use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::{node::DataFlowNode, path::PathKind},
-    t_atomic::TAtomic,
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_type::{add_union_type, get_mixed_any, template::TemplateResult};
+use hakana_type::{
+    add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
+};
 use indexmap::IndexMap;
 use oxidized::{
     aast,
@@ -163,7 +165,7 @@ pub(crate) fn analyze(
                         (pos.start_offset(), pos.end_offset()),
                         FxHashMap::from_iter([(
                             format!("{}", expr_var_id),
-                            vec![Assertion::HasArrayKey(dim_var_id)],
+                            vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
                         )]),
                     );
                 } else {
@@ -200,7 +202,7 @@ pub(crate) fn analyze(
                         ..
                     } = atomic_type
                     {
-                        known_items.remove(&dim_var_id);
+                        known_items.remove(&DictKey::String(dim_var_id.clone()));
                     }
                 }
 
@@ -282,10 +284,17 @@ pub(crate) fn analyze(
     }
 
     if method_id.0 == "HH\\Shapes" && (method_id.1 == "toDict" || method_id.1 == "toArray") {
-        return tast_info
-            .get_expr_type(call_expr.1[0].1.pos())
-            .cloned()
-            .unwrap_or(get_mixed_any());
+        let arg_type = tast_info.get_expr_type(call_expr.1[0].1.pos()).cloned();
+
+        return if let Some(arg_type) = arg_type {
+            if arg_type.is_mixed() {
+                get_dict(get_arraykey(true), get_mixed_any())
+            } else {
+                arg_type
+            }
+        } else {
+            get_mixed_any()
+        };
     }
 
     let return_type_candidate = method_call_return_type_fetcher::fetch(

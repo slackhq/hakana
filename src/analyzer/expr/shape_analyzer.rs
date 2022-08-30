@@ -8,10 +8,10 @@ use hakana_reflection_info::{
         node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
-    t_atomic::TAtomic,
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_type::{get_mixed_any, get_nothing, wrap_atomic};
+use hakana_type::{get_mixed_any, wrap_atomic};
 use oxidized::{
     aast,
     ast_defs::{Pos, ShapeFieldName},
@@ -34,31 +34,46 @@ pub(crate) fn analyze(
 
     let mut known_items = BTreeMap::new();
     for (name, value_expr) in shape_fields {
-        let name = if let ShapeFieldName::SFlitStr((_, name)) = name {
-            Some(name.to_string())
-        } else if let ShapeFieldName::SFclassConst(lhs, name) = name {
-            let mut lhs_name = &lhs.1;
-            if let Some(resolved_name) = statements_analyzer
-                .get_file_analyzer()
-                .resolved_names
-                .get(&lhs.0.start_offset())
-            {
-                lhs_name = resolved_name;
-            }
-            let constant_type =
-                codebase.get_class_constant_type(&lhs_name, &name.1, FxHashSet::default());
-
-            if let Some(constant_type) = constant_type {
-                if let Some(name) = constant_type.get_single_literal_string_value() {
-                    Some(name)
-                } else {
-                    None
+        let name = match name {
+            ShapeFieldName::SFlitInt(name) => Some(DictKey::Int(name.1.parse::<u32>().unwrap())),
+            ShapeFieldName::SFlitStr(name) => Some(DictKey::String(name.1.to_string())),
+            ShapeFieldName::SFclassConst(lhs, name) => {
+                let mut lhs_name = &lhs.1;
+                if let Some(resolved_name) = statements_analyzer
+                    .get_file_analyzer()
+                    .resolved_names
+                    .get(&lhs.0.start_offset())
+                {
+                    lhs_name = resolved_name;
                 }
-            } else {
-                None
+
+                let constant_type =
+                    codebase.get_class_constant_type(&lhs_name, &name.1, FxHashSet::default());
+
+                if let Some(constant_type) = constant_type {
+                    if constant_type.is_single() {
+                        let single = constant_type.get_single_owned();
+
+                        match single {
+                            TAtomic::TEnumLiteralCase {
+                                enum_name,
+                                member_name,
+                                ..
+                            } => Some(DictKey::Enum(enum_name, member_name)),
+                            TAtomic::TLiteralString { value } => Some(DictKey::String(value)),
+                            _ => {
+                                None
+                            }
+                        }
+                    } else {
+                        println!("surprising union type {}", constant_type.get_id());
+                        panic!();
+                    }
+                } else {
+                    println!("unknown constant {}::{}", &lhs_name, &name.1);
+                    panic!();
+                }
             }
-        } else {
-            None
         };
 
         // Now check types of the values
@@ -89,13 +104,19 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 &value_item_type,
                 tast_info,
-                &name.to_string(),
+                &match &name {
+                    DictKey::Int(i) => i.to_string(),
+                    DictKey::String(k) => k.clone(),
+                    DictKey::Enum(class_name, member_name) => {
+                        class_name.clone() + "::" + member_name.as_str()
+                    }
+                },
                 value_expr,
             ) {
                 parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node);
             }
 
-            known_items.insert(name.to_string(), (false, Arc::new(value_item_type)));
+            known_items.insert(name, (false, Arc::new(value_item_type)));
         }
     }
 
@@ -111,9 +132,7 @@ pub(crate) fn analyze(
         } else {
             None
         },
-        enum_items: None,
-        key_param: get_nothing(),
-        value_param: get_nothing(),
+        params: None,
         non_empty: true,
         shape_name: None,
     });
@@ -133,8 +152,10 @@ fn add_shape_value_dataflow(
     value: &aast::Expr<(), ()>,
 ) -> Option<DataFlowNode> {
     if value_type.parent_nodes.is_empty()
-        || (matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(WholeProgramKind::Taint))
-            && !value_type.has_taintable_value())
+        || (matches!(
+            &tast_info.data_flow_graph.kind,
+            GraphKind::WholeProgram(WholeProgramKind::Taint)
+        ) && !value_type.has_taintable_value())
     {
         return None;
     }

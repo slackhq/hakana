@@ -13,7 +13,7 @@ use crate::{
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
-    t_atomic::TAtomic,
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
 use hakana_type::{
@@ -245,13 +245,19 @@ fn check_iterator_type(
                 known_items: None,
                 ..
             }
-            | TAtomic::TDict {
-                key_param: type_param,
-                known_items: None,
-                ..
-            }
             | TAtomic::TKeyset { type_param, .. } => {
                 if type_param.is_nothing() {
+                    always_non_empty_array = false;
+                    has_valid_iterator = true;
+                    continue;
+                }
+            }
+            TAtomic::TDict {
+                params,
+                known_items: None,
+                ..
+            } => {
+                if params.is_none() {
                     always_non_empty_array = false;
                     has_valid_iterator = true;
                     continue;
@@ -291,23 +297,94 @@ fn check_iterator_type(
                 let (key_param, value_param) = match iterator_atomic_type {
                     TAtomic::TDict {
                         known_items,
-                        key_param,
-                        value_param,
+                        params,
                         ..
                     } => {
-                        let mut key_param = key_param;
-                        let mut value_param = value_param;
+                        let mut key_param;
+                        let mut value_param;
+
+                        if let Some(params) = params {
+                            key_param = params.0;
+                            value_param = params.1;
+                        } else {
+                            key_param = get_nothing();
+                            value_param = get_nothing();
+                        }
 
                         if let Some(known_items) = known_items {
                             for (var_id, (_, known_item)) in known_items {
-                                key_param = add_union_type(
-                                    key_param,
-                                    &get_literal_string(var_id),
-                                    Some(codebase),
-                                    false,
-                                );
-                                value_param =
-                                    add_union_type(value_param, &known_item, Some(codebase), false);
+                                match var_id {
+                                    DictKey::Int(var_id) => {
+                                        key_param = add_union_type(
+                                            key_param,
+                                            &get_literal_int(var_id as i64),
+                                            Some(codebase),
+                                            false,
+                                        );
+                                        value_param = add_union_type(
+                                            value_param,
+                                            &known_item,
+                                            Some(codebase),
+                                            false,
+                                        );
+                                    }
+                                    DictKey::String(var_id) => {
+                                        key_param = add_union_type(
+                                            key_param,
+                                            &get_literal_string(var_id),
+                                            Some(codebase),
+                                            false,
+                                        );
+                                        value_param = add_union_type(
+                                            value_param,
+                                            &known_item,
+                                            Some(codebase),
+                                            false,
+                                        );
+                                    }
+                                    DictKey::Enum(enum_name, member_name) => {
+                                        if let Some(literal_value) = statements_analyzer
+                                            .get_codebase()
+                                            .get_classconst_literal_value(&enum_name, &member_name)
+                                        {
+                                            if let Some(value) =
+                                                literal_value.get_single_literal_string_value()
+                                            {
+                                                key_param = add_union_type(
+                                                    key_param,
+                                                    &get_literal_string(value),
+                                                    Some(codebase),
+                                                    false,
+                                                );
+                                                value_param = add_union_type(
+                                                    value_param,
+                                                    &known_item,
+                                                    Some(codebase),
+                                                    false,
+                                                );
+                                            } else if let Some(value) =
+                                                literal_value.get_single_literal_int_value()
+                                            {
+                                                key_param = add_union_type(
+                                                    key_param,
+                                                    &get_literal_int(value),
+                                                    Some(codebase),
+                                                    false,
+                                                );
+                                                value_param = add_union_type(
+                                                    value_param,
+                                                    &known_item,
+                                                    Some(codebase),
+                                                    false,
+                                                );
+                                            } else {
+                                                panic!()
+                                            }
+                                        } else {
+                                            panic!();
+                                        }
+                                    }
+                                }
                             }
                         }
 

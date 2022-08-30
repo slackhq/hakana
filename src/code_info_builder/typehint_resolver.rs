@@ -1,5 +1,6 @@
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
+use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
@@ -134,18 +135,19 @@ fn get_dict_type_from_hints(
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     TAtomic::TDict {
-        key_param: if let Some(k) = &key_hint {
-            get_type_from_hint(&k.1, classlike_name, type_context, resolved_names)
-        } else {
-            get_arraykey(true)
-        },
-        value_param: if let Some(v) = &value_hint {
-            get_type_from_hint(&v.1, classlike_name, type_context, resolved_names)
-        } else {
-            get_mixed_any()
-        },
+        params: Some((
+            if let Some(k) = &key_hint {
+                get_type_from_hint(&k.1, classlike_name, type_context, resolved_names)
+            } else {
+                get_arraykey(true)
+            },
+            if let Some(v) = &value_hint {
+                get_type_from_hint(&v.1, classlike_name, type_context, resolved_names)
+            } else {
+                get_mixed_any()
+            },
+        )),
         known_items: None,
-        enum_items: None,
         non_empty: false,
         shape_name: None,
     }
@@ -158,50 +160,48 @@ fn get_shape_type_from_hints(
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
     let mut known_items = BTreeMap::new();
-    let mut enum_items = BTreeMap::new();
 
     for field in &shape_info.field_map {
         let field_type =
             get_type_from_hint(&field.hint.1, classlike_name, type_context, resolved_names);
 
         match &field.name {
-            ast_defs::ShapeFieldName::SFlitInt(_) => todo!(),
+            ast_defs::ShapeFieldName::SFlitInt(int) => {
+                known_items.insert(
+                    DictKey::Int(int.1.parse::<u32>().unwrap()),
+                    (field.optional, Arc::new(field_type)),
+                );
+            }
             ast_defs::ShapeFieldName::SFlitStr(name) => {
-                known_items.insert(name.1.to_string(), (field.optional, Arc::new(field_type)));
+                known_items.insert(
+                    DictKey::String(name.1.to_string()),
+                    (field.optional, Arc::new(field_type)),
+                );
             }
             ast_defs::ShapeFieldName::SFclassConst(lhs, name) => {
                 let mut lhs_name = &lhs.1;
                 if let Some(resolved_name) = resolved_names.get(&lhs.0.start_offset()) {
                     lhs_name = resolved_name;
                 }
-                enum_items.insert(
-                    (lhs_name.clone(), name.1.clone()),
-                    (field.optional, field_type),
+                known_items.insert(
+                    DictKey::Enum(lhs_name.clone(), name.1.clone()),
+                    (field.optional, Arc::new(field_type)),
                 );
             }
         }
     }
 
     TAtomic::TDict {
-        key_param: if shape_info.allows_unknown_fields {
-            get_arraykey(true)
+        params: if shape_info.allows_unknown_fields {
+            Some((get_arraykey(true), get_mixed()))
         } else {
-            get_nothing()
+            None
         },
-        value_param: if shape_info.allows_unknown_fields {
-            get_mixed()
-        } else {
-            get_nothing()
-        },
+
         known_items: if known_items.is_empty() {
             None
         } else {
             Some(known_items)
-        },
-        enum_items: if enum_items.is_empty() {
-            None
-        } else {
-            Some(enum_items)
         },
         non_empty: false,
         shape_name: None,
@@ -444,9 +444,7 @@ pub fn get_type_from_hint(
                     });
                     TAtomic::TDict {
                         known_items: None,
-                        enum_items: None,
-                        key_param: get_arraykey(true),
-                        value_param: wrap_atomic(TAtomic::TMixedAny),
+                        params: Some((get_arraykey(true), wrap_atomic(TAtomic::TMixedAny))),
                         non_empty: false,
                         shape_name: None,
                     }

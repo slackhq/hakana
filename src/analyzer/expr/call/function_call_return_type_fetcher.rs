@@ -4,7 +4,7 @@ use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
-use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
@@ -299,17 +299,36 @@ fn handle_special_functions(
             known_items: None,
             type_param: wrap_atomic(TAtomic::TDict {
                 known_items: Some(BTreeMap::from([
-                    ("file".to_string(), (false, Arc::new(get_string()))),
-                    ("line".to_string(), (false, Arc::new(get_int()))),
-                    ("function".to_string(), (false, Arc::new(get_string()))),
-                    ("class".to_string(), (true, Arc::new(get_string()))),
-                    ("object".to_string(), (true, Arc::new(get_object()))),
-                    ("type".to_string(), (true, Arc::new(get_string()))),
-                    ("args".to_string(), (true, Arc::new(get_mixed_vec()))),
+                    (
+                        DictKey::String("file".to_string()),
+                        (false, Arc::new(get_string())),
+                    ),
+                    (
+                        DictKey::String("line".to_string()),
+                        (false, Arc::new(get_int())),
+                    ),
+                    (
+                        DictKey::String("function".to_string()),
+                        (false, Arc::new(get_string())),
+                    ),
+                    (
+                        DictKey::String("class".to_string()),
+                        (true, Arc::new(get_string())),
+                    ),
+                    (
+                        DictKey::String("object".to_string()),
+                        (true, Arc::new(get_object())),
+                    ),
+                    (
+                        DictKey::String("type".to_string()),
+                        (true, Arc::new(get_string())),
+                    ),
+                    (
+                        DictKey::String("args".to_string()),
+                        (true, Arc::new(get_mixed_vec())),
+                    ),
                 ])),
-                enum_items: None,
-                key_param: get_nothing(),
-                value_param: get_nothing(),
+                params: None,
                 non_empty: true,
                 shape_name: None,
             }),

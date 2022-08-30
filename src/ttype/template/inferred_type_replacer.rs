@@ -265,13 +265,14 @@ fn replace_atomic(
             }
         }
         TAtomic::TDict {
-            ref mut key_param,
-            ref mut value_param,
+            ref mut params,
             ref mut known_items,
             ..
         } => {
-            *key_param = replace(&key_param, template_result, codebase);
-            *value_param = replace(&value_param, template_result, codebase);
+            if let Some(params) = params {
+                params.0 = replace(&params.0, template_result, codebase);
+                params.1 = replace(&params.1, template_result, codebase);
+            }
 
             if let Some(known_items) = known_items {
                 for (_, (_, t)) in known_items {

@@ -7,7 +7,7 @@ use hakana_reflection_info::{
         path::{PathExpressionKind, PathKind},
     },
     issue::{Issue, IssueKind},
-    t_atomic::TAtomic,
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
 use hakana_type::{
@@ -586,7 +586,8 @@ pub(crate) fn handle_array_access_on_vec(
         if let Some(val) = dim_type.get_single_literal_int_value() {
             let index = val as usize;
 
-            if let Some((actual_possibly_undefined, actual_value)) = known_items.get(&index) {
+            if let Some((actual_possibly_undefined, actual_value)) = known_items.get(&index)
+            {
                 *has_valid_expected_offset = true;
                 // we know exactly which item we are fetching
 
@@ -663,8 +664,12 @@ pub(crate) fn handle_array_access_on_dict(
     let key_param = if in_assignment || context.inside_isset {
         get_arraykey(false)
     } else {
-        if let TAtomic::TDict { key_param, .. } = &dict {
-            key_param.clone()
+        if let TAtomic::TDict { params, .. } = &dict {
+            if let Some(params) = params {
+                params.0.clone()
+            } else {
+                get_nothing()
+            }
         } else {
             panic!()
         }
@@ -687,12 +692,12 @@ pub(crate) fn handle_array_access_on_dict(
 
     if let TAtomic::TDict {
         known_items: Some(known_items),
-        value_param,
+        params,
         ..
     } = &dict
     {
         if let Some(val) = dim_type.get_single_literal_string_value() {
-            let possible_value = known_items.get(&val).cloned();
+            let possible_value = known_items.get(&DictKey::String(val.clone())).cloned();
             if let Some((actual_possibly_undefined, actual_value)) = possible_value {
                 *has_valid_expected_offset = true;
                 // we know exactly which item we are fetching
@@ -723,27 +728,33 @@ pub(crate) fn handle_array_access_on_dict(
             }
 
             if !in_assignment {
-                if value_param.is_nothing() {
-                    // oh no!
-                    tast_info.maybe_add_issue(
-                        Issue::new(
-                            IssueKind::UndefinedStringArrayOffset,
-                            format!(
-                                "Invalid dict fetch on {} using key '{}'",
-                                dict.get_id(),
-                                val
-                            ),
-                            statements_analyzer.get_hpos(&pos),
-                        ),
-                        statements_analyzer.get_config(),
-                    );
+                if let Some(params) = params {
+                    return params.1.clone();
                 }
 
-                return value_param.clone();
+                // oh no!
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UndefinedStringArrayOffset,
+                        format!(
+                            "Invalid dict fetch on {} using key '{}'",
+                            dict.get_id(),
+                            val
+                        ),
+                        statements_analyzer.get_hpos(&pos),
+                    ),
+                    statements_analyzer.get_config(),
+                );
+
+                return get_nothing();
             }
         }
 
-        let mut value_param = value_param.clone();
+        let mut value_param = if let Some(params) = params {
+            params.1.clone()
+        } else {
+            get_nothing()
+        };
 
         for (_, (_, known_item)) in known_items {
             value_param = add_union_type(value_param, &known_item, Some(codebase), false);
@@ -772,12 +783,16 @@ pub(crate) fn handle_array_access_on_dict(
         }
 
         return value_param;
-    } else if let TAtomic::TDict { value_param, .. } = dict {
+    } else if let TAtomic::TDict { params, .. } = dict {
         // TODO Handle Assignments
         // if (context.inside_assignment && replacement_type) {
 
         // }
-        return value_param.clone();
+        return if let Some(params) = params {
+            params.1.clone()
+        } else {
+            get_nothing()
+        };
     }
 
     return get_nothing();

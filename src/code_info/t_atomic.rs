@@ -9,6 +9,13 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, sync::Arc};
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, PartialOrd, Ord, Hash)]
+pub enum DictKey {
+    Int(u32),
+    String(String),
+    Enum(String, String),
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq)]
 pub enum TAtomic {
     TArraykey {
@@ -19,10 +26,8 @@ pub enum TAtomic {
         as_type: Box<self::TAtomic>,
     },
     TDict {
-        known_items: Option<BTreeMap<String, (bool, Arc<TUnion>)>>,
-        enum_items: Option<BTreeMap<(String, String), (bool, TUnion)>>,
-        key_param: TUnion,
-        value_param: TUnion,
+        known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
+        params: Option<(TUnion, TUnion)>,
         non_empty: bool,
         shape_name: Option<String>,
     },
@@ -118,9 +123,6 @@ pub enum TAtomic {
         class_type: Box<TAtomic>,
         member_name: String,
     },
-    TRegexPattern {
-        value: String,
-    },
 }
 
 impl TAtomic {
@@ -136,10 +138,8 @@ impl TAtomic {
                 return str;
             }
             TAtomic::TDict {
-                key_param,
-                value_param,
+                params,
                 known_items,
-                enum_items,
                 shape_name,
                 ..
             } => {
@@ -148,65 +148,42 @@ impl TAtomic {
                 }
 
                 let mut str = String::new();
+
                 if let Some(known_items) = known_items {
                     str += "shape(";
+
                     str += known_items
                         .into_iter()
                         .map(|(property, (u, property_type))| {
                             format!(
-                                "{}'{}' => {}",
+                                "{}{} => {}",
                                 if *u { "?" } else { "" },
-                                property,
+                                match property {
+                                    DictKey::Int(i) => i.to_string(),
+                                    DictKey::String(k) => "'".to_string() + k.as_str() + "'",
+                                    DictKey::Enum(enum_name, member_name) =>
+                                        enum_name.clone() + "::" + member_name.as_str(),
+                                },
                                 property_type.get_id()
                             )
                         })
                         .join(", ")
                         .as_str();
-
-                    if !value_param.is_nothing() {
-                        str += ", ...dict<";
-                        str += key_param.get_id().as_str();
-                        str += ",";
-                        str += value_param.get_id().as_str();
-                        str += ">";
-                    }
-
-                    str += ")";
-                    return str;
-                } else if let Some(enum_items) = enum_items {
-                    str += "shape(";
-                    str += enum_items
-                        .into_iter()
-                        .map(|((l, r), (u, property_type))| {
-                            format!(
-                                "{}{}::{} => {}",
-                                if *u { "?" } else { "" },
-                                l,
-                                r,
-                                property_type.get_id()
-                            )
-                        })
-                        .join(", ")
-                        .as_str();
-
-                    if !value_param.is_nothing() {
-                        str += ", ...dict<";
-                        str += key_param.get_id().as_str();
-                        str += ",";
-                        str += value_param.get_id().as_str();
-                        str += ">";
-                    }
 
                     str += ")";
                     return str;
                 }
 
-                str += "dict<";
-                str += key_param.get_id().as_str();
-                str += ",";
-                str += value_param.get_id().as_str();
-                str += ">";
-                return str;
+                if let Some(params) = params {
+                    str += "dict<";
+                    str += params.0.get_id().as_str();
+                    str += ",";
+                    str += params.1.get_id().as_str();
+                    str += ">";
+                    str
+                } else {
+                    "dict<nothing, nothing>".to_string()
+                }
             }
             TAtomic::TEnum { name } => name.clone(),
             TAtomic::TFalsyMixed { .. } => "falsy-mixed".to_string(),
@@ -435,7 +412,6 @@ impl TAtomic {
             } => {
                 format!("{}::{}", class_type.get_id(), member_name)
             }
-            TAtomic::TRegexPattern { value } => "re\\\"".to_string() + value.as_str() + "\\\"",
         }
     }
 
@@ -477,8 +453,7 @@ impl TAtomic {
             | TAtomic::TTrue { .. }
             | TAtomic::TObject
             | TAtomic::TScalar
-            | TAtomic::TReference { .. }
-            | TAtomic::TRegexPattern { .. } => self.get_id(),
+            | TAtomic::TReference { .. } => self.get_id(),
 
             TAtomic::TStringWithFlags(..) => "string".to_string(),
 
@@ -703,17 +678,6 @@ impl TAtomic {
         }
     }
 
-    pub fn get_dict_params(&self) -> Option<(&TUnion, &TUnion)> {
-        match self {
-            TAtomic::TDict {
-                key_param,
-                value_param,
-                ..
-            } => Some((key_param, value_param)),
-            _ => None,
-        }
-    }
-
     pub fn get_shape_name(&self) -> Option<&String> {
         match self {
             TAtomic::TDict { shape_name, .. } => shape_name.as_ref(),
@@ -890,23 +854,6 @@ impl TAtomic {
         panic!()
     }
 
-    pub fn add_known_items_to_dict(
-        mut self,
-        new_known_items: BTreeMap<String, (bool, Arc<TUnion>)>,
-    ) -> TAtomic {
-        if let TAtomic::TDict {
-            ref mut known_items,
-            ..
-        } = self
-        {
-            *known_items = Some(new_known_items);
-
-            return self;
-        }
-
-        panic!()
-    }
-
     pub fn is_truthy(&self) -> bool {
         match &self {
             &TAtomic::TTrue { .. }
@@ -991,11 +938,11 @@ impl TAtomic {
             &TAtomic::TDict {
                 known_items,
                 non_empty,
-                value_param,
+                params,
                 ..
             } => {
                 if let None = known_items {
-                    if value_param.is_nothing() && !non_empty {
+                    if params.is_none() && !non_empty {
                         return true;
                     }
                 }
@@ -1139,15 +1086,14 @@ impl TAtomic {
     pub fn remove_placeholders(&mut self) {
         match self {
             TAtomic::TDict {
-                ref mut key_param,
-                ref mut value_param,
+                params: Some(ref mut params),
                 ..
             } => {
-                if let TAtomic::TPlaceholder = key_param.get_single() {
-                    *key_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
+                if let TAtomic::TPlaceholder = params.0.get_single() {
+                    params.0 = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                 }
-                if let TAtomic::TPlaceholder = value_param.get_single() {
-                    *value_param = TUnion::new(vec![TAtomic::TMixedAny]);
+                if let TAtomic::TPlaceholder = params.1.get_single() {
+                    params.1 = TUnion::new(vec![TAtomic::TMixedAny]);
                 }
             }
             TAtomic::TKeyset { ref mut type_param } => {
@@ -1193,12 +1139,16 @@ impl HasTypeNodes for TAtomic {
     fn get_child_nodes(&self) -> Vec<TypeNode> {
         match self {
             TAtomic::TDict {
-                key_param,
-                value_param,
+                params,
                 known_items,
                 ..
             } => {
-                let mut vec = vec![TypeNode::Union(key_param), TypeNode::Union(value_param)];
+                let mut vec = vec![];
+
+                if let Some(params) = params {
+                    vec.push(TypeNode::Union(&params.0));
+                    vec.push(TypeNode::Union(&params.1));
+                }
                 if let Some(known_items) = known_items {
                     for (_, (_, prop_type)) in known_items {
                         vec.push(TypeNode::Union(prop_type));
@@ -1283,22 +1233,18 @@ impl HasTypeNodes for TAtomic {
 pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Symbols) {
     match t_atomic {
         TAtomic::TDict {
-            ref mut key_param,
-            ref mut value_param,
+            ref mut params,
             ref mut known_items,
-            ref mut enum_items,
             ..
         } => {
-            populate_union_type(key_param, codebase_symbols);
-            populate_union_type(value_param, codebase_symbols);
+            if let Some(params) = params {
+                populate_union_type(&mut params.0, codebase_symbols);
+                populate_union_type(&mut params.1, codebase_symbols);
+            }
+
             if let Some(known_items) = known_items {
                 for (_, (_, prop_type)) in known_items {
                     populate_union_type(Arc::make_mut(prop_type), codebase_symbols);
-                }
-            }
-            if let Some(enum_items) = enum_items {
-                for (_, (_, prop_type)) in enum_items {
-                    populate_union_type(prop_type, codebase_symbols);
                 }
             }
         }

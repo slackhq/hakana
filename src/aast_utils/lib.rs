@@ -217,6 +217,24 @@ impl<'ast> Visitor<'ast> for Scanner {
         result
     }
 
+    fn visit_shape_field_name(
+        &mut self,
+        nc: &mut NameContext,
+        p: &oxidized::nast::ShapeFieldName,
+    ) -> Result<(), ()> {
+        match p {
+            oxidized::nast::ShapeFieldName::SFclassConst(id, _) => {
+                let resolved_name = nc.get_resolved_name(&id.1, aast::NsKind::NSClass);
+
+                self.resolved_names
+                    .insert(id.0.start_offset(), resolved_name);
+            }
+            _ => {}
+        };
+
+        p.recurse(nc, self)
+    }
+
     fn visit_id(&mut self, nc: &mut NameContext, id: &ast_defs::Id) -> Result<(), ()> {
         if !self.resolved_names.contains_key(&id.0.start_offset()) {
             let resolved_name = if nc.in_xhp_id {

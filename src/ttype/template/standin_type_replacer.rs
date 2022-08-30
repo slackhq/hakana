@@ -275,8 +275,7 @@ fn replace_atomic(
 
     if let TAtomic::TDict {
         ref mut known_items,
-        ref mut key_param,
-        ref mut value_param,
+        ref mut params,
         ..
     } = atomic_type
     {
@@ -317,41 +316,43 @@ fn replace_atomic(
                 None
             };
 
-            *key_param = self::replace(
-                &key_param,
-                template_result,
-                codebase,
-                &if let Some(input_params) = &input_params {
-                    Some(input_params.0.clone())
-                } else {
-                    None
-                },
-                input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                None,
-                depth,
-            );
+            if let Some(params) = params {
+                params.0 = self::replace(
+                    &params.0,
+                    template_result,
+                    codebase,
+                    &if let Some(input_params) = &input_params {
+                        Some(input_params.0.clone())
+                    } else {
+                        None
+                    },
+                    input_arg_offset,
+                    calling_class,
+                    calling_function,
+                    replace,
+                    add_lower_bound,
+                    None,
+                    depth,
+                );
 
-            *value_param = self::replace(
-                &value_param,
-                template_result,
-                codebase,
-                &if let Some(input_params) = &input_params {
-                    Some(input_params.1.clone())
-                } else {
-                    None
-                },
-                input_arg_offset,
-                calling_class,
-                calling_function,
-                replace,
-                add_lower_bound,
-                None,
-                depth,
-            );
+                params.1 = self::replace(
+                    &params.1,
+                    template_result,
+                    codebase,
+                    &if let Some(input_params) = &input_params {
+                        Some(input_params.1.clone())
+                    } else {
+                        None
+                    },
+                    input_arg_offset,
+                    calling_class,
+                    calling_function,
+                    replace,
+                    add_lower_bound,
+                    None,
+                    depth,
+                );
+            }
         }
 
         return atomic_type;

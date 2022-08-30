@@ -7,7 +7,7 @@ use hakana_reflection_info::{
         node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
-    t_atomic::TAtomic,
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
 use hakana_type::{
@@ -126,12 +126,14 @@ pub(crate) fn analyze(
 
     if let Some(dim_type) = &dim_type {
         for (_, key_atomic_type) in &dim_type.types {
-            if let TAtomic::TLiteralString { .. } = key_atomic_type {
-                key_values.push(key_atomic_type.clone());
-            } else if let TAtomic::TLiteralInt { .. } = key_atomic_type {
-                key_values.push(key_atomic_type.clone());
-            } else {
-                // TODO implement this
+            match key_atomic_type {
+                TAtomic::TLiteralString { .. }
+                | TAtomic::TLiteralInt { .. }
+                | TAtomic::TEnumLiteralCase { .. } => {
+                    key_values.push(key_atomic_type.clone());
+                }
+
+                _ => (),
             }
         }
     }
@@ -251,24 +253,29 @@ fn update_atomic_given_key(
                 ref mut shape_name,
                 ..
             } => {
-                if let TAtomic::TLiteralString {
-                    value: key_value, ..
-                } = key_value
-                {
+                let key = match key_value {
+                    TAtomic::TLiteralString { value } => Some(DictKey::String(value.clone())),
+                    TAtomic::TEnumLiteralCase {
+                        enum_name,
+                        member_name,
+                        ..
+                    } => Some(DictKey::Enum(enum_name.clone(), member_name.clone())),
+                    _ => None,
+                };
+                if let Some(key) = key {
                     *has_matching_item = true;
 
                     if let Some(known_items) = known_items {
-                        if let Some((pu, entry)) = known_items.get_mut(key_value) {
+                        if let Some((pu, entry)) = known_items.get_mut(&key) {
                             *entry = Arc::new(current_type.clone());
                             *pu = false;
                         } else {
                             *shape_name = None;
-                            known_items
-                                .insert(key_value.clone(), (false, Arc::new(current_type.clone())));
+                            known_items.insert(key, (false, Arc::new(current_type.clone())));
                         }
                     } else {
                         *known_items = Some(BTreeMap::from([(
-                            key_value.clone(),
+                            key,
                             (false, Arc::new(current_type.clone())),
                         )]));
                     }
@@ -302,18 +309,17 @@ fn update_atomic_given_key(
             }
             TAtomic::TDict {
                 ref mut known_items,
-                ref mut key_param,
-                ref mut value_param,
+                params: ref mut existing_params,
                 ref mut non_empty,
                 ref mut shape_name,
                 ..
             } => {
                 let params = arrayish_params.unwrap();
-                *key_param =
-                    hakana_type::add_union_type(params.0, &key_type, Some(codebase), false);
-                *value_param =
-                    hakana_type::add_union_type(params.1, &current_type, Some(codebase), false);
 
+                *existing_params = Some((
+                    hakana_type::add_union_type(params.0, &key_type, Some(codebase), false),
+                    hakana_type::add_union_type(params.1, &current_type, Some(codebase), false),
+                ));
                 *known_items = None;
                 *shape_name = None;
                 *non_empty = true;
@@ -367,6 +373,29 @@ fn add_array_assignment_dataflow(
                 let key_value = match key_value {
                     TAtomic::TLiteralString { value, .. } => value.clone(),
                     TAtomic::TLiteralInt { value, .. } => value.to_string(),
+                    TAtomic::TEnumLiteralCase {
+                        enum_name,
+                        member_name,
+                        ..
+                    } => {
+                        if let Some(literal_value) = statements_analyzer
+                            .get_codebase()
+                            .get_classconst_literal_value(enum_name, member_name)
+                        {
+                            if let Some(value) = literal_value.get_single_literal_string_value() {
+                                value
+                            } else if let Some(value) = literal_value.get_single_literal_int_value()
+                            {
+                                value.to_string()
+                            } else {
+                                println!("{},", key_value.get_id());
+                                panic!()
+                            }
+                        } else {
+                            println!("{},", key_value.get_id());
+                            panic!();
+                        }
+                    }
                     _ => {
                         println!("{},", key_value.get_id());
                         panic!()
@@ -420,10 +449,8 @@ fn update_array_assignment_child_type(
                     non_empty: true,
                 }),
                 TAtomic::TDict { .. } => collection_types.push(TAtomic::TDict {
-                    key_param: key_type.clone(),
-                    value_param: value_type.clone(),
+                    params: Some((key_type.clone(), value_type.clone())),
                     known_items: None,
-                    enum_items: None,
                     non_empty: true,
                     shape_name: None,
                 }),
@@ -465,10 +492,8 @@ fn update_array_assignment_child_type(
                 TAtomic::TDict { .. } => {
                     // should not happen, but works at runtime
                     collection_types.push(TAtomic::TDict {
-                        key_param: get_int(),
-                        value_param: value_type.clone(),
+                        params: Some((get_int(), value_type.clone())),
                         known_items: None,
-                        enum_items: None,
                         non_empty: true,
                         shape_name: None,
                     })
@@ -591,9 +616,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             // if this becomes a real problem
             let atomic = wrap_atomic(TAtomic::TDict {
                 known_items: None,
-                enum_items: None,
-                key_param: get_nothing(),
-                value_param: get_nothing(),
+                params: None,
                 non_empty: false,
                 shape_name: None,
             });
@@ -814,14 +837,17 @@ fn get_key_values_from_type(dim_type: Option<&TUnion>) -> Vec<TAtomic> {
     key_values
 }
 
-pub(crate) fn get_array_assignment_offset_type(child_stmt_dim_type: &TUnion) -> Option<TAtomic> {
+fn get_array_assignment_offset_type(child_stmt_dim_type: &TUnion) -> Option<TAtomic> {
     // $child_stmt->dim instanceof PhpParser\Node\Scalar\String_
     if child_stmt_dim_type.is_single() {
         let single_atomic = child_stmt_dim_type.get_single();
-        if let TAtomic::TLiteralString { .. } = single_atomic {
-            return Some(single_atomic.clone());
-        } else if let TAtomic::TLiteralInt { .. } = single_atomic {
-            return Some(single_atomic.clone());
+
+        match single_atomic {
+            TAtomic::TLiteralString { .. }
+            | TAtomic::TLiteralInt { .. }
+            | TAtomic::TEnumLiteralCase { .. } => return Some(single_atomic.clone()),
+
+            _ => (),
         }
         // TODO PhpParser\Node\Expr\Variable
         // TODO PhpParser\Node\Expr\PropertyFetch

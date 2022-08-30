@@ -1,4 +1,8 @@
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
+use hakana_reflection_info::{
+    codebase_info::CodebaseInfo,
+    t_atomic::{DictKey, TAtomic},
+    t_union::TUnion,
+};
 use hakana_type::{
     get_false, get_float, get_int, get_literal_int, get_literal_string, get_nothing, get_null,
     get_true, wrap_atomic,
@@ -59,7 +63,10 @@ pub fn infer(
                     let field_type = infer(codebase, expr_types, &field_expr, resolved_names);
 
                     if let Some(field_type) = field_type {
-                        known_items.insert(str.to_string(), (false, Arc::new(field_type)));
+                        known_items.insert(
+                            DictKey::String(str.to_string()),
+                            (false, Arc::new(field_type)),
+                        );
                     } else {
                         return None;
                     }
@@ -71,9 +78,7 @@ pub fn infer(
             Some(wrap_atomic(TAtomic::TDict {
                 non_empty: !known_items.is_empty(),
                 known_items: Some(known_items),
-                enum_items: None,
-                key_param: get_nothing(),
-                value_param: get_nothing(),
+                params: None,
                 shape_name: None,
             }))
         }
@@ -109,7 +114,10 @@ pub fn infer(
                     let value_type = infer(codebase, expr_types, &entry_field.1, resolved_names);
 
                     if let Some(value_type) = value_type {
-                        known_items.insert(key_value.to_string(), (false, Arc::new(value_type)));
+                        known_items.insert(
+                            DictKey::String(key_value.to_string()),
+                            (false, Arc::new(value_type)),
+                        );
                     } else {
                         return None;
                     }
@@ -123,9 +131,7 @@ pub fn infer(
                     oxidized::tast::KvcKind::Dict => Some(wrap_atomic(TAtomic::TDict {
                         non_empty: !known_items.is_empty(),
                         known_items: Some(known_items),
-                        enum_items: None,
-                        key_param: get_nothing(),
-                        value_param: get_nothing(),
+                        params: None,
                         shape_name: None,
                     })),
                     _ => panic!(),
@@ -145,8 +151,10 @@ pub fn infer(
                                 infer(codebase, expr_types, &value_expr, resolved_names);
 
                             if let Some(value_type) = value_type {
-                                known_items
-                                    .insert(key_value.to_string(), (false, Arc::new(value_type)));
+                                known_items.insert(
+                                    DictKey::String(key_value.to_string()),
+                                    (false, Arc::new(value_type)),
+                                );
                             } else {
                                 return None;
                             }
@@ -162,9 +170,7 @@ pub fn infer(
                     Some(wrap_atomic(TAtomic::TDict {
                         non_empty: !known_items.is_empty(),
                         known_items: Some(known_items),
-                        enum_items: None,
-                        key_param: get_nothing(),
-                        value_param: get_nothing(),
+                        params: None,
                         shape_name: None,
                     }))
                 } else {
@@ -282,7 +288,10 @@ pub fn infer(
                     let value_type = infer(codebase, expr_types, &value_expr, resolved_names);
 
                     if let Some(value_type) = value_type {
-                        known_items.insert(key_value.to_string(), (false, Arc::new(value_type)));
+                        known_items.insert(
+                            DictKey::String(key_value.to_string()),
+                            (false, Arc::new(value_type)),
+                        );
                     } else {
                         return None;
                     }
@@ -294,9 +303,7 @@ pub fn infer(
             Some(wrap_atomic(TAtomic::TDict {
                 non_empty: !known_items.is_empty(),
                 known_items: Some(known_items),
-                enum_items: None,
-                key_param: get_nothing(),
-                value_param: get_nothing(),
+                params: None,
                 shape_name: None,
             }))
         }

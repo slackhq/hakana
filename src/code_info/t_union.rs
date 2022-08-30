@@ -653,10 +653,22 @@ impl TUnion {
     pub fn get_single_literal_string_value(&self) -> Option<String> {
         if self.is_single() {
             match self.get_single() {
-                TAtomic::TLiteralString { value, .. } | TAtomic::TRegexPattern { value, .. } => {
-                    Some(value.clone())
+                TAtomic::TLiteralString { value, .. } => Some(value.clone()),
+                TAtomic::TTypeAlias {
+                    name,
+                    as_type: Some(as_type),
+                    type_params: Some(_),
+                } => {
+                    if name == "HH\\Lib\\Regex\\Pattern" {
+                        if let TAtomic::TLiteralString { value, .. } = &**as_type {
+                            Some(value.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 }
-
                 _ => None,
             }
         } else {

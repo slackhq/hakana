@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
-    t_atomic::TAtomic,
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
 use hakana_type::{
@@ -365,12 +365,12 @@ fn adjust_array_type(
             } => {
                 if let Some(known_items) = known_items {
                     known_items.insert(
-                        arraykey_offset.clone(),
+                        DictKey::String(arraykey_offset.clone()),
                         (false, Arc::new(result_type.clone())),
                     );
                 } else {
                     *known_items = Some(BTreeMap::from([(
-                        arraykey_offset.clone(),
+                        DictKey::String(arraykey_offset.clone()),
                         (false, Arc::new(result_type.clone())),
                     )]));
                 }
@@ -381,7 +381,8 @@ fn adjust_array_type(
             } => {
                 let arraykey_offset = arraykey_offset.parse::<usize>().unwrap();
                 if let Some(known_items) = known_items {
-                    known_items.insert(arraykey_offset.clone(), (false, result_type.clone()));
+                    known_items
+                        .insert(arraykey_offset.clone(), (false, result_type.clone()));
                 } else {
                     *known_items = Some(BTreeMap::from([(
                         arraykey_offset.clone(),
@@ -697,12 +698,15 @@ fn get_value_for_key(
 
                     let mut new_base_type_candidate;
 
-                    if let TAtomic::TDict { known_items, .. } = &existing_key_type_part {
+                    if let TAtomic::TDict {
+                        known_items, ..
+                    } = &existing_key_type_part
+                    {
                         if matches!(known_items, Some(_)) && !array_key.starts_with("$") {
                             if let Some(known_items) = known_items {
                                 let key_parts_key = array_key.replace("'", "");
-                                if known_items.contains_key(&key_parts_key) {
-                                    let cl = known_items[&key_parts_key].clone();
+                                if let Some(cl) = known_items.get(&DictKey::String(key_parts_key)) {
+                                    let cl = cl.clone();
 
                                     new_base_type_candidate = (*cl.1).clone();
                                     if cl.0 {
@@ -741,7 +745,9 @@ fn get_value_for_key(
                         ..
                     } = &existing_key_type_part
                     {
-                        if matches!(known_items, Some(_)) && INTEGER_REGEX.is_match(&array_key) {
+                        if matches!(known_items, Some(_))
+                            && INTEGER_REGEX.is_match(&array_key)
+                        {
                             let known_items = known_items.clone().unwrap();
                             let key_parts_key = array_key.parse::<usize>().unwrap();
                             if let Some((u, item)) = known_items.get(&key_parts_key) {
