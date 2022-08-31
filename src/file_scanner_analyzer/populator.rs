@@ -393,7 +393,9 @@ fn populate_data_from_trait(
         .or_insert_with(FxHashSet::default)
         .insert(storage.name.clone());
 
-    storage.all_class_interfaces.extend(trait_storage.direct_class_interfaces.clone());
+    storage
+        .all_class_interfaces
+        .extend(trait_storage.direct_class_interfaces.clone());
 
     inherit_methods_from_parent(storage, trait_storage, codebase);
     inherit_properties_from_parent(storage, trait_storage);
@@ -623,13 +625,13 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
             }
 
             for (t_storage_class, type_map) in &parent_storage.template_extended_params {
-                let storage_ref = storage.clone();
+                let existing_params = storage.template_extended_params.clone();
                 for (i, type_) in type_map {
                     storage
                         .template_extended_params
                         .entry(t_storage_class.clone())
                         .or_insert_with(IndexMap::new)
-                        .insert(i.clone(), extend_type(type_, &storage_ref));
+                        .insert(i.clone(), extend_type(type_, &existing_params));
                 }
             }
         } else {
@@ -654,7 +656,14 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
     }
 }
 
-fn extend_type(type_: &TUnion, storage: &ClassLikeInfo) -> TUnion {
+fn extend_type(
+    type_: &TUnion,
+    template_extended_params: &FxHashMap<String, IndexMap<String, TUnion>>,
+) -> TUnion {
+    if !type_.has_template() {
+        return type_.clone();
+    }
+
     let mut extended_types = Vec::new();
 
     let mut cloned = type_
@@ -671,7 +680,7 @@ fn extend_type(type_: &TUnion, storage: &ClassLikeInfo) -> TUnion {
             ..
         } = &atomic_type
         {
-            if let Some(ex) = storage.template_extended_params.get(defining_entity) {
+            if let Some(ex) = template_extended_params.get(defining_entity) {
                 if let Some(referenced_type) = ex.get(param_name) {
                     extended_types
                         .extend(referenced_type.types.clone().into_iter().map(|(_, v)| v));
