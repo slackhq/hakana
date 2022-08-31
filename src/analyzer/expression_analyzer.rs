@@ -1,6 +1,4 @@
-use std::collections::BTreeMap;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::custom_hook::AfterExprAnalysisData;
 use crate::expr::call::new_analyzer;
@@ -10,8 +8,9 @@ use crate::expr::fetch::{
 };
 use crate::expr::{
     as_analyzer, binop_analyzer, call_analyzer, cast_analyzer, collection_analyzer,
-    const_fetch_analyzer, expression_identifier, pipe_analyzer, shape_analyzer, ternary_analyzer,
-    tuple_analyzer, unop_analyzer, variable_fetch_analyzer, xml_analyzer, yield_analyzer,
+    const_fetch_analyzer, expression_identifier, pipe_analyzer, prefixed_string_analyzer,
+    shape_analyzer, ternary_analyzer, tuple_analyzer, unop_analyzer, variable_fetch_analyzer,
+    xml_analyzer, yield_analyzer,
 };
 use crate::expression_analyzer;
 use crate::functionlike_analyzer::FunctionLikeAnalyzer;
@@ -27,7 +26,7 @@ use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
+use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
 use hakana_type::type_expander::{self, get_closure_from_id, TypeExpansionOptions};
@@ -516,69 +515,16 @@ pub(crate) fn analyze(
             );
         }
         aast::Expr_::PrefixedString(boxed) => {
-            if !expression_analyzer::analyze(
+            if let Some(value) = prefixed_string_analyzer::analyze(
                 statements_analyzer,
-                &boxed.1,
+                boxed,
                 tast_info,
                 context,
                 if_body_context,
+                expr,
             ) {
-                return false;
+                return value;
             }
-
-            let inner_type = if let Some(t) = tast_info
-                .expr_types
-                .get(&(boxed.1.pos().start_offset(), boxed.1.pos().end_offset()))
-            {
-                (**t).clone()
-            } else {
-                get_string()
-            };
-
-            tast_info.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
-                Rc::new(if boxed.0 == "re" {
-                    let mut inner_text = inner_type.get_single_literal_string_value().unwrap();
-                    inner_text = inner_text[1..(inner_text.len() - 1)].to_string();
-
-                    let regex = pcre2::bytes::Regex::new(&inner_text);
-
-                    let mut shape_fields = BTreeMap::new();
-
-                    if let Ok(regex) = regex {
-                        for (i, v) in regex.capture_names().iter().enumerate() {
-                            if let Some(v) = v {
-                                shape_fields.insert(
-                                    DictKey::String(v.clone()),
-                                    (false, Arc::new(get_string())),
-                                );
-                            } else {
-                                shape_fields.insert(
-                                    DictKey::Int(i as u32),
-                                    (false, Arc::new(get_string())),
-                                );
-                            }
-                        }
-                    }
-
-                    wrap_atomic(TAtomic::TTypeAlias {
-                        name: "HH\\Lib\\Regex\\Pattern".to_string(),
-                        type_params: Some(vec![wrap_atomic(TAtomic::TDict {
-                            known_items: if !shape_fields.is_empty() {
-                                Some(shape_fields)
-                            } else {
-                                None
-                            },
-                            params: None,
-                            non_empty: true,
-                            shape_name: None,
-                        })]),
-                        as_type: Some(Box::new(TAtomic::TLiteralString { value: inner_text })),
-                    })
-                } else {
-                    inner_type
-                }),
-            );
         }
         aast::Expr_::Id(boxed) => {
             const_fetch_analyzer::analyze(statements_analyzer, boxed, expr, tast_info);
