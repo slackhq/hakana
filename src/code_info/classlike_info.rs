@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -123,7 +125,7 @@ pub struct ClassLikeInfo {
      * (i.e. the same as the class name). This allows operations with the same-named template defined
      * across multiple classes to not run into trouble.
      */
-    pub template_types: IndexMap<String, FxHashMap<String, TUnion>>,
+    pub template_types: IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
 
     pub template_covariants: FxHashSet<usize>,
 
@@ -134,7 +136,7 @@ pub struct ClassLikeInfo {
      *
      * @internal
      */
-    pub template_extended_offsets: FxHashMap<String, Vec<TUnion>>,
+    pub template_extended_offsets: FxHashMap<String, Vec<Arc<TUnion>>>,
 
     /**
      * A map of which generic classlikes are extended or implemented by this class or interface.
@@ -148,7 +150,7 @@ pub struct ClassLikeInfo {
      *     ]
      * ]
      */
-    pub template_extended_params: FxHashMap<String, IndexMap<String, TUnion>>,
+    pub template_extended_params: FxHashMap<String, IndexMap<String, Arc<TUnion>>>,
 
     pub template_extended_count: u32,
 

@@ -196,7 +196,7 @@ fn get_class_property_type(
                 let mut type_params = vec![];
 
                 for (_, type_map) in &declaring_class_storage.template_types {
-                    type_params.push(type_map.iter().next().unwrap().1.clone());
+                    type_params.push((**type_map.iter().next().unwrap().1).clone());
                 }
 
                 lhs_type_part = TAtomic::TNamedObject {

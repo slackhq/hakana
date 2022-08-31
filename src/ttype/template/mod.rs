@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rustc_hash::FxHashMap;
 
 use hakana_reflection_info::t_union::TUnion;
@@ -25,7 +27,7 @@ pub mod standin_type_replacer;
  */
 #[derive(Clone, Debug)]
 pub struct TemplateResult {
-    pub template_types: IndexMap<String, FxHashMap<String, TUnion>>,
+    pub template_types: IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
     pub lower_bounds: IndexMap<String, FxHashMap<String, Vec<TemplateBound>>>,
     pub upper_bounds: IndexMap<String, FxHashMap<String, TemplateBound>>,
     /**
@@ -37,7 +39,7 @@ pub struct TemplateResult {
 
 impl TemplateResult {
     pub fn new(
-        template_types: IndexMap<String, FxHashMap<String, TUnion>>,
+        template_types: IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
         lower_bounds: IndexMap<String, FxHashMap<String, TUnion>>,
     ) -> TemplateResult {
         let mut new_lower_bounds = IndexMap::new();

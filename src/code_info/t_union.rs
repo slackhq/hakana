@@ -733,6 +733,10 @@ impl TUnion {
 
         any_taintable
     }
+
+    pub fn needs_population(&self) -> bool {
+        !self.populated && self.types.iter().any(|(_, v)| v.needs_population())
+    }
 }
 
 impl PartialEq for TUnion {

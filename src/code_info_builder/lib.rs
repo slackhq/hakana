@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::typehint_resolver::get_type_from_hint;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
@@ -163,7 +165,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             };
 
             let mut h = FxHashMap::default();
-            h.insert("typedef-".to_string() + &type_name, constraint_type.clone());
+            h.insert(
+                "typedef-".to_string() + &type_name,
+                Arc::new(constraint_type.clone()),
+            );
 
             template_type_map.insert(param.name.1.clone(), h);
         }

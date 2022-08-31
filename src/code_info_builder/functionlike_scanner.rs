@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::Context;
 use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
@@ -209,7 +211,7 @@ pub(crate) fn get_functionlike(
                 type_param_node.name.1.clone(),
                 FxHashMap::from_iter([(
                     "fn-".to_string() + functionlike_id.as_str(),
-                    get_mixed_any(),
+                    Arc::new(get_mixed_any()),
                 )]),
             );
         }
@@ -260,7 +262,7 @@ pub(crate) fn get_functionlike(
                 .insert(type_param_node.name.1.clone(), {
                     FxHashMap::from_iter([(
                         "fn-".to_string() + functionlike_id.as_str(),
-                        template_as_type.unwrap_or(get_mixed_any()),
+                        Arc::new(template_as_type.unwrap_or(get_mixed_any())),
                     )])
                 });
         }
@@ -268,7 +270,7 @@ pub(crate) fn get_functionlike(
             functionlike_info.template_types.insert("Td".to_string(), {
                 FxHashMap::from_iter([(
                     "fn-".to_string() + functionlike_id.as_str(),
-                    get_mixed_any(),
+                    Arc::new(get_mixed_any()),
                 )])
             });
         }
@@ -293,7 +295,7 @@ pub(crate) fn get_functionlike(
 
                 let mut template_type = wrap_atomic(TAtomic::TTemplateParam {
                     param_name: "Td".to_string(),
-                    as_type: as_type.clone(),
+                    as_type: (*as_type).clone(),
                     defining_entity: defining_entity.clone(),
                     from_class: false,
                     extra_types: None,
@@ -305,7 +307,7 @@ pub(crate) fn get_functionlike(
 
                 template_type.add_type(TAtomic::TTemplateParam {
                     param_name: "Tv".to_string(),
-                    as_type,
+                    as_type: (*as_type).clone(),
                     defining_entity,
                     from_class: false,
                     extra_types: None,

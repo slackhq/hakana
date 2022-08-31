@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_file_info::FileSource;
@@ -49,7 +51,7 @@ pub(crate) fn scan(
         for type_param_node in classlike_node.tparams.iter() {
             type_context.template_type_map.insert(
                 type_param_node.name.1.clone(),
-                FxHashMap::from_iter([(class_name.clone(), get_mixed_any())]),
+                FxHashMap::from_iter([(class_name.clone(), Arc::new(get_mixed_any()))]),
             );
         }
 
@@ -71,7 +73,7 @@ pub(crate) fn scan(
                 .template_types
                 .insert(type_param_node.name.1.clone(), {
                     let mut h = FxHashMap::default();
-                    h.insert(class_name.clone(), template_as_type);
+                    h.insert(class_name.clone(), Arc::new(template_as_type));
                     h
                 });
 
@@ -124,7 +126,7 @@ pub(crate) fn scan(
                         params
                             .iter()
                             .map(|param| {
-                                get_type_from_hint(
+                                Arc::new(get_type_from_hint(
                                     &param.1,
                                     Some(&class_name),
                                     &TypeResolutionContext {
@@ -132,7 +134,7 @@ pub(crate) fn scan(
                                         template_supers: FxHashMap::default(),
                                     },
                                     resolved_names,
-                                )
+                                ))
                             })
                             .collect(),
                     );
@@ -158,7 +160,7 @@ pub(crate) fn scan(
                         params
                             .iter()
                             .map(|param| {
-                                get_type_from_hint(
+                                Arc::new(get_type_from_hint(
                                     &param.1,
                                     Some(&class_name),
                                     &TypeResolutionContext {
@@ -166,7 +168,7 @@ pub(crate) fn scan(
                                         template_supers: FxHashMap::default(),
                                     },
                                     resolved_names,
-                                )
+                                ))
                             })
                             .collect(),
                     );
@@ -196,7 +198,7 @@ pub(crate) fn scan(
                         params
                             .iter()
                             .map(|param| {
-                                get_type_from_hint(
+                                Arc::new(get_type_from_hint(
                                     &param.1,
                                     Some(&class_name),
                                     &TypeResolutionContext {
@@ -204,7 +206,7 @@ pub(crate) fn scan(
                                         template_supers: FxHashMap::default(),
                                     },
                                     resolved_names,
-                                )
+                                ))
                             })
                             .collect(),
                     );
@@ -245,7 +247,7 @@ pub(crate) fn scan(
                         params
                             .iter()
                             .map(|param| {
-                                get_type_from_hint(
+                                Arc::new(get_type_from_hint(
                                     &param.1,
                                     Some(&class_name),
                                     &TypeResolutionContext {
@@ -253,7 +255,7 @@ pub(crate) fn scan(
                                         template_supers: FxHashMap::default(),
                                     },
                                     resolved_names,
-                                )
+                                ))
                             })
                             .collect(),
                     );
@@ -279,7 +281,7 @@ pub(crate) fn scan(
                         params
                             .iter()
                             .map(|param| {
-                                get_type_from_hint(
+                                Arc::new(get_type_from_hint(
                                     &param.1,
                                     Some(&class_name),
                                     &TypeResolutionContext {
@@ -287,7 +289,7 @@ pub(crate) fn scan(
                                         template_supers: FxHashMap::default(),
                                     },
                                     resolved_names,
-                                )
+                                ))
                             })
                             .collect(),
                     );
@@ -305,9 +307,9 @@ pub(crate) fn scan(
 
             let mut params = Vec::new();
 
-            params.push(wrap_atomic(TAtomic::TEnum {
+            params.push(Arc::new(wrap_atomic(TAtomic::TEnum {
                 name: class_name.clone(),
-            }));
+            })));
 
             if let Some(enum_node) = &classlike_node.enum_ {
                 storage.enum_type = Some(

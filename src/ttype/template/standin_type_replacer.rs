@@ -1343,10 +1343,10 @@ fn handle_template_param_type_standin(
 }
 
 fn template_types_contains<'a>(
-    template_types: &'a IndexMap<String, FxHashMap<String, TUnion>>,
+    template_types: &'a IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
     param_name: &String,
     defining_entity: &String,
-) -> Option<&'a TUnion> {
+) -> Option<&'a Arc<TUnion>> {
     if let Some(mapped_classes) = template_types.get(param_name) {
         return mapped_classes.get(defining_entity);
     }
@@ -1425,8 +1425,8 @@ fn find_matching_atomic_types_for_template(
                                         extended_params
                                             .clone()
                                             .into_iter()
-                                            .map(|(_, v)| v)
-                                            .collect::<Vec<TUnion>>(),
+                                            .map(|(_, v)| (*v).clone())
+                                            .collect::<Vec<_>>(),
                                     ),
                                     is_this: false,
                                     extra_types: None,
@@ -1474,7 +1474,7 @@ fn find_matching_atomic_types_for_template(
                             extended_params
                                 .clone()
                                 .into_iter()
-                                .map(|(_, v)| v)
+                                .map(|(_, v)| (*v).clone())
                                 .collect::<Vec<TUnion>>(),
                         ),
                         is_this: false,
@@ -1648,7 +1648,7 @@ pub(crate) fn get_mapped_generic_type_params(
 
 pub fn get_extended_templated_types<'a>(
     atomic_type: &'a TAtomic,
-    extends: &'a FxHashMap<String, IndexMap<String, TUnion>>,
+    extends: &'a FxHashMap<String, IndexMap<String, Arc<TUnion>>>,
 ) -> Vec<&'a TAtomic> {
     let mut extra_added_types = Vec::new();
 

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rustc_hash::FxHashMap;
 
 use hakana_reflection_info::{
@@ -104,7 +106,7 @@ pub(crate) fn collect(
                     .entry(template_name.clone())
                     .or_insert_with(FxHashMap::default)
                     .entry(class_storage.name.clone())
-                    .or_insert(type_.clone());
+                    .or_insert((**type_).clone());
             }
         }
     }
@@ -179,10 +181,10 @@ pub(crate) fn resolve_template_param(
 
 fn expand_type(
     codebase: &CodebaseInfo,
-    input_type_extends: &TUnion,
-    e: &FxHashMap<String, IndexMap<String, TUnion>>,
+    input_type_extends: &Arc<TUnion>,
+    e: &FxHashMap<String, IndexMap<String, Arc<TUnion>>>,
     static_classlike_name: &String,
-    static_template_types: &IndexMap<String, FxHashMap<String, TUnion>>,
+    static_template_types: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
 ) -> Vec<TAtomic> {
     let mut output_type_extends = Vec::new();
 

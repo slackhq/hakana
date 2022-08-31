@@ -992,6 +992,23 @@ impl TAtomic {
         }
     }
 
+    #[inline]
+    pub fn needs_population(&self) -> bool {
+        match self {
+            TAtomic::TTemplateParamClass { .. }
+            | TAtomic::TClassname { .. }
+            | TAtomic::TDict { .. }
+            | TAtomic::TClosure { .. }
+            | TAtomic::TKeyset { .. }
+            | TAtomic::TNamedObject { .. }
+            | TAtomic::TVec { .. }
+            | TAtomic::TReference { .. }
+            | TAtomic::TClassTypeConstant { .. }
+            | TAtomic::TTemplateParam { .. } => true,
+            _ => false,
+        }
+    }
+
     pub fn add_intersection_type(&mut self, atomic: TAtomic) {
         if let TAtomic::TNamedObject {
             ref mut extra_types,

@@ -78,7 +78,8 @@ pub(crate) fn is_contained_by(
                             .values()
                             .cloned()
                             .into_iter()
-                            .map(|mut v| {
+                            .map(|v| {
+                                let mut v = (*v).clone();
                                 type_expander::expand_union(
                                     codebase,
                                     &mut v,

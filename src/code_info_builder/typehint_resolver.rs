@@ -353,7 +353,7 @@ fn get_reference_type(
     }
 }
 
-fn get_template_type(defining_entities: &FxHashMap<String, TUnion>, type_name: &String) -> TAtomic {
+fn get_template_type(defining_entities: &FxHashMap<String, Arc<TUnion>>, type_name: &String) -> TAtomic {
     let as_type = defining_entities.values().next().unwrap().clone();
     let defining_entity = defining_entities.keys().next().unwrap().clone();
     let from_class =
@@ -361,7 +361,7 @@ fn get_template_type(defining_entities: &FxHashMap<String, TUnion>, type_name: &
 
     return TAtomic::TTemplateParam {
         param_name: type_name.clone(),
-        as_type,
+        as_type: (*as_type).clone(),
         defining_entity,
         from_class,
         extra_types: None,

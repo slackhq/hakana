@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
+use hakana_type::template::standin_type_replacer::get_most_specific_type_from_bounds;
 use rustc_hash::FxHashMap;
 
 use crate::expr::call_analyzer::{check_method_args, get_generic_param_for_offset};
@@ -361,28 +364,37 @@ fn analyze_named_constructor(
                     let found_generic_params = template_result
                         .lower_bounds
                         .iter()
-                        .map(
-                            |(key, type_map)|
+                        .map(|(key, type_map)| {
                             (
                                 key.clone(),
-                                type_map.iter().map(
-                                    |(map_key, bounds)|
-                                    (map_key.clone(), template::standin_type_replacer::get_most_specific_type_from_bounds(bounds, Some(codebase)))
-                                ).collect::<FxHashMap<_, _>>()
-                            ))
+                                type_map
+                                    .iter()
+                                    .map(|(map_key, bounds)| {
+                                        (
+                                            map_key.clone(),
+                                            Arc::new(get_most_specific_type_from_bounds(
+                                                bounds,
+                                                Some(codebase),
+                                            )),
+                                        )
+                                    })
+                                    .collect::<FxHashMap<_, _>>(),
+                            )
+                        })
                         .collect::<FxHashMap<_, _>>();
 
-                    get_generic_param_for_offset(
+                    (*get_generic_param_for_offset(
                         &classlike_name,
                         template_name,
                         &storage.template_extended_params,
                         &found_generic_params,
-                    )
+                    ))
+                    .clone()
                 } else {
                     if storage.template_covariants.contains(&i) {
                         get_nothing()
                     } else {
-                        base_type_map.iter().next().unwrap().1.clone()
+                        (**base_type_map.iter().next().unwrap().1).clone()
                     }
                 };
 
@@ -431,7 +443,7 @@ fn analyze_named_constructor(
                     .iter()
                     .map(|(_, map)| {
                         let upper_bound = map.iter().next().unwrap().1.clone();
-                        upper_bound
+                        (*upper_bound).clone()
                     })
                     .collect::<Vec<_>>()
             })

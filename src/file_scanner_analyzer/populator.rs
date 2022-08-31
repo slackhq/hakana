@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
@@ -37,13 +39,17 @@ pub fn populate_codebase(codebase: &mut CodebaseInfo) {
 
         for (_, map) in storage.template_extended_params.iter_mut() {
             for (_, v) in map {
-                populate_union_type(v, &codebase.symbols);
+                if v.needs_population() {
+                    populate_union_type(Arc::make_mut(v), &codebase.symbols);
+                }
             }
         }
 
         for (_, map) in storage.template_types.iter_mut() {
             for (_, v) in map {
-                populate_union_type(v, &codebase.symbols);
+                if v.needs_population() {
+                    populate_union_type(Arc::make_mut(v), &codebase.symbols);
+                }
             }
         }
 
@@ -120,8 +126,10 @@ fn populate_functionlike_storage(storage: &mut FunctionLikeInfo, codebase_symbol
     }
 
     for (_, type_param_map) in storage.template_types.iter_mut() {
-        for (_, type_param) in type_param_map {
-            populate_union_type(type_param, &codebase_symbols);
+        for (_, v) in type_param_map {
+            if v.needs_population() {
+                populate_union_type(Arc::make_mut(v), &codebase_symbols);
+            }
         }
     }
 }
@@ -625,13 +633,13 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
             }
 
             for (t_storage_class, type_map) in &parent_storage.template_extended_params {
-                let existing_params = storage.template_extended_params.clone();
+                let existing = storage.template_extended_params.clone();
                 for (i, type_) in type_map {
                     storage
                         .template_extended_params
                         .entry(t_storage_class.clone())
                         .or_insert_with(IndexMap::new)
-                        .insert(i.clone(), extend_type(type_, &existing_params));
+                        .insert(i.clone(), extend_type(type_, &existing));
                 }
             }
         } else {
@@ -657,9 +665,9 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
 }
 
 fn extend_type(
-    type_: &TUnion,
-    template_extended_params: &FxHashMap<String, IndexMap<String, TUnion>>,
-) -> TUnion {
+    type_: &Arc<TUnion>,
+    template_extended_params: &FxHashMap<String, IndexMap<String, Arc<TUnion>>>,
+) -> Arc<TUnion> {
     if !type_.has_template() {
         return type_.clone();
     }
@@ -692,5 +700,5 @@ fn extend_type(
         extended_types.push(atomic_type);
     }
 
-    TUnion::new(extended_types)
+    Arc::new(TUnion::new(extended_types))
 }

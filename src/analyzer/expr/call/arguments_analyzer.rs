@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
@@ -132,7 +134,7 @@ pub(crate) fn check_arguments_match(
                     .or_insert_with(FxHashMap::default)
                     .insert(
                         class.clone(),
-                        lower_bounds.get(0).unwrap().bound_type.clone(),
+                        Arc::new(lower_bounds.get(0).unwrap().bound_type.clone()),
                     );
             }
         }
@@ -577,10 +579,10 @@ fn handle_closure_arg(
                         .map(|(map_key, lower_bounds)| {
                             (
                                 map_key.clone(),
-                                template::standin_type_replacer::get_most_specific_type_from_bounds(
+                                Arc::new(template::standin_type_replacer::get_most_specific_type_from_bounds(
                                     lower_bounds,
                                     Some(codebase),
-                                ),
+                                )),
                             )
                         })
                         .collect::<FxHashMap<_, _>>(),
@@ -682,7 +684,7 @@ fn handle_closure_arg(
 }
 
 fn map_class_generic_params(
-    class_generic_params: &IndexMap<String, FxHashMap<String, TUnion>>,
+    class_generic_params: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
     arg_value_type: &mut TUnion,
@@ -922,12 +924,11 @@ fn refine_template_result_for_functionlike(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     tast_info: &mut TastInfo,
-
     method_call_info: &Option<MethodCallInfo>,
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     functionlike_storage: &FunctionLikeInfo,
-    class_template_params: &IndexMap<String, FxHashMap<String, TUnion>>,
+    class_template_params: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
 ) {
     let template_types = get_template_types_for_call(
         codebase,
@@ -948,7 +949,10 @@ fn refine_template_result_for_functionlike(
     }
 
     if template_result.template_types.is_empty() {
-        template_result.template_types = template_types;
+        template_result.template_types = template_types
+            .into_iter()
+            .map(|(k, v)| (k, v.into_iter().map(|(k, v)| (k, Arc::new(v))).collect()))
+            .collect::<IndexMap<_, _>>();
     }
 }
 
@@ -958,8 +962,8 @@ pub(crate) fn get_template_types_for_call(
     declaring_classlike_storage: Option<&ClassLikeInfo>,
     appearing_class_name: Option<&String>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
-    existing_template_types: &IndexMap<String, FxHashMap<String, TUnion>>,
-    class_template_params: &IndexMap<String, FxHashMap<String, TUnion>>,
+    existing_template_types: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
+    class_template_params: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
 ) -> IndexMap<String, FxHashMap<String, TUnion>> {
     let mut template_types = existing_template_types.clone();
 
@@ -980,43 +984,46 @@ pub(crate) fn get_template_types_for_call(
             for (class_name, type_map) in calling_template_extended {
                 for (template_name, type_) in type_map {
                     if class_name == &declaring_classlike_storage.name {
-                        let mut output_type = None;
-
-                        for (_, atomic_type) in &type_.types {
-                            let output_type_candidate = if let TAtomic::TTemplateParam {
-                                defining_entity,
-                                param_name,
-                                ..
-                            } = &atomic_type
-                            {
-                                get_generic_param_for_offset(
+                        let output_type = if type_.has_template() {
+                            let mut output_type = None;
+                            for (_, atomic_type) in &type_.types {
+                                let output_type_candidate = if let TAtomic::TTemplateParam {
                                     defining_entity,
                                     param_name,
-                                    calling_template_extended,
-                                    &{
-                                        let mut p = class_template_params.clone();
-                                        p.extend(template_types.clone());
-                                        p.into_iter().collect::<FxHashMap<_, _>>()
-                                    },
-                                )
-                            } else {
-                                wrap_atomic(atomic_type.clone())
-                            };
+                                    ..
+                                } = &atomic_type
+                                {
+                                    (*get_generic_param_for_offset(
+                                        defining_entity,
+                                        param_name,
+                                        calling_template_extended,
+                                        &{
+                                            let mut p = class_template_params.clone();
+                                            p.extend(template_types.clone());
+                                            p.into_iter().collect::<FxHashMap<_, _>>()
+                                        },
+                                    ))
+                                    .clone()
+                                } else {
+                                    wrap_atomic(atomic_type.clone())
+                                };
 
-                            output_type = Some(add_optional_union_type(
-                                output_type_candidate,
-                                output_type.as_ref(),
-                                Some(codebase),
-                            ));
-                        }
+                                output_type = Some(add_optional_union_type(
+                                    output_type_candidate,
+                                    output_type.as_ref(),
+                                    Some(codebase),
+                                ));
+                            }
+
+                            Arc::new(output_type.unwrap())
+                        } else {
+                            type_.clone()
+                        };
 
                         template_types
                             .entry(template_name.clone())
                             .or_insert_with(FxHashMap::default)
-                            .insert(
-                                declaring_classlike_storage.name.clone(),
-                                output_type.unwrap(),
-                            );
+                            .insert(declaring_classlike_storage.name.clone(), output_type);
                     }
                 }
             }
@@ -1047,8 +1054,9 @@ pub(crate) fn get_template_types_for_call(
             key,
             type_map
                 .into_iter()
-                .map(|(k, mut v)| {
+                .map(|(k, v)| {
                     (k, {
+                        let mut v = (*v).clone();
                         type_expander::expand_union(
                             codebase,
                             &mut v,
