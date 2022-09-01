@@ -62,6 +62,7 @@ pub fn get_aast_for_path_and_contents(
 
     let mut parser_env = AastParserEnv::default();
     parser_env.keep_errors = true;
+    parser_env.parser_options.po_disable_hh_ignore_error = false;
     //parser_env.include_line_comments = true;
 
     let mut parser_result = if let Ok(parser_result) =

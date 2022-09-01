@@ -532,6 +532,69 @@ pub fn is_contained_by(
         }
     }
 
+    // handle KeyedContainer and Container accepting arrays
+    if let TAtomic::TNamedObject {
+        name: input_name,
+        type_params: Some(input_type_params),
+        ..
+    } = input_type_part
+    {
+        if input_name == &"HH\\Container".to_string()
+            || input_name == &"HH\\KeyedContainer".to_string()
+        {
+            if let TAtomic::TKeyset { .. } | TAtomic::TVec { .. } | TAtomic::TDict { .. } =
+                container_type_part
+            {
+                atomic_comparison_result.type_coerced = Some(true);
+
+                let container_arrayish_params =
+                    get_arrayish_params(container_type_part, codebase).unwrap();
+
+                if input_name == &"HH\\Container".to_string() {
+                    if let Some(input_value_param) = input_type_params.get(0) {
+                        union_type_comparator::is_contained_by(
+                            codebase,
+                            &input_value_param,
+                            &container_arrayish_params.1,
+                            false,
+                            input_value_param.ignore_falsable_issues,
+                            allow_interface_equality,
+                            atomic_comparison_result,
+                        );
+                    }
+                } else {
+                    if let Some(input_key_param) = input_type_params.get(0) {
+                        union_type_comparator::is_contained_by(
+                            codebase,
+                            &input_key_param,
+                            &container_arrayish_params.0,
+                            false,
+                            input_key_param.ignore_falsable_issues,
+                            allow_interface_equality,
+                            atomic_comparison_result,
+                        );
+                    }
+
+                    let mut array_comparison_result = TypeComparisonResult::new();
+
+                    if let Some(input_value_param) = input_type_params.get(1) {
+                        union_type_comparator::is_contained_by(
+                            codebase,
+                            &input_value_param,
+                            &container_arrayish_params.1,
+                            false,
+                            input_value_param.ignore_falsable_issues,
+                            allow_interface_equality,
+                            &mut array_comparison_result,
+                        );
+                    }
+                }
+
+                return false;
+            }
+        }
+    }
+
     if let TAtomic::TNamedObject {
         name: container_name,
         ..
