@@ -63,27 +63,9 @@ impl Assertion {
             Assertion::HasIntOrStringArrayAccess => "=int-or-string-array-access".to_string(),
             Assertion::ArrayKeyExists => "array-key-exists".to_string(),
             Assertion::ArrayKeyDoesNotExist => "!array-key-exists".to_string(),
-            Assertion::HasArrayKey(key) => {
-                "=has-array-key-".to_string()
-                    + match key {
-                        DictKey::Int(i) => i.to_string(),
-                        DictKey::String(k) => "'".to_string() + k.as_str() + "'",
-                        DictKey::Enum(class_name, member_name) => {
-                            class_name.clone() + "::" + member_name
-                        }
-                    }
-                    .as_str()
-            }
+            Assertion::HasArrayKey(key) => "=has-array-key-".to_string() + key.to_string().as_str(),
             Assertion::DoesNotHaveArrayKey(key) => {
-                "!=has-array-key-".to_string()
-                    + match key {
-                        DictKey::Int(i) => i.to_string(),
-                        DictKey::String(k) => "'".to_string() + k.as_str() + "'",
-                        DictKey::Enum(class_name, member_name) => {
-                            class_name.clone() + "::" + member_name
-                        }
-                    }
-                    .as_str()
+                "!=has-array-key-".to_string() + key.to_string().as_str()
             }
             Assertion::InArray(union) => "=in-array-".to_string() + &union.get_id(),
             Assertion::NotInArray(union) => "!=in-array-".to_string() + &union.get_id(),

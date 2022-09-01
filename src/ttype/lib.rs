@@ -418,8 +418,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
                             .unwrap()
                             .get_single_owned(),
                     });
-                    value_param =
-                        combine_union_types(property_type, &value_param, Some(codebase), false);
+                    value_param = add_union_type(value_param, property_type, Some(codebase), false);
                 }
             }
 

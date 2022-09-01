@@ -16,6 +16,16 @@ pub enum DictKey {
     Enum(String, String),
 }
 
+impl DictKey {
+    pub fn to_string(&self) -> String {
+        match &self {
+            DictKey::Int(i) => i.to_string(),
+            DictKey::String(k) => "'".to_string() + k.as_str() + "'",
+            DictKey::Enum(c, m) => c.clone() + "::" + m,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq)]
 pub enum TAtomic {
     TArraykey {

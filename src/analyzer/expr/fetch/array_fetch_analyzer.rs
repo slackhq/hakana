@@ -7,7 +7,7 @@ use hakana_reflection_info::{
         path::{PathExpressionKind, PathKind},
     },
     issue::{Issue, IssueKind},
-    t_atomic::{DictKey, TAtomic},
+    t_atomic::TAtomic,
     t_union::TUnion,
 };
 use hakana_type::{
@@ -586,8 +586,7 @@ pub(crate) fn handle_array_access_on_vec(
         if let Some(val) = dim_type.get_single_literal_int_value() {
             let index = val as usize;
 
-            if let Some((actual_possibly_undefined, actual_value)) = known_items.get(&index)
-            {
+            if let Some((actual_possibly_undefined, actual_value)) = known_items.get(&index) {
                 *has_valid_expected_offset = true;
                 // we know exactly which item we are fetching
 
@@ -696,8 +695,8 @@ pub(crate) fn handle_array_access_on_dict(
         ..
     } = &dict
     {
-        if let Some(val) = dim_type.get_single_literal_string_value() {
-            let possible_value = known_items.get(&DictKey::String(val.clone())).cloned();
+        if let Some(dict_key) = dim_type.get_single_dict_key() {
+            let possible_value = known_items.get(&dict_key).cloned();
             if let Some((actual_possibly_undefined, actual_value)) = possible_value {
                 *has_valid_expected_offset = true;
                 // we know exactly which item we are fetching
@@ -713,7 +712,7 @@ pub(crate) fn handle_array_access_on_dict(
                                 format!(
                                     "Fetch on {} using possibly-undefined key '{}'",
                                     dict.get_id(),
-                                    val
+                                    dict_key.to_string()
                                 ),
                                 statements_analyzer.get_hpos(&pos),
                             ),
@@ -739,7 +738,7 @@ pub(crate) fn handle_array_access_on_dict(
                         format!(
                             "Invalid dict fetch on {} using key '{}'",
                             dict.get_id(),
-                            val
+                            dict_key.to_string()
                         ),
                         statements_analyzer.get_hpos(&pos),
                     ),

@@ -115,7 +115,7 @@ pub(crate) fn is_contained_by(
                     &input_params.0,
                     &container_params.0,
                     false,
-                    false,
+                    input_params.0.ignore_falsable_issues,
                     allow_interface_equality,
                     &mut nested_comparison_result,
                 ) {
@@ -131,7 +131,7 @@ pub(crate) fn is_contained_by(
                     &input_params.1,
                     &container_params.1,
                     false,
-                    false,
+                    input_params.1.ignore_falsable_issues,
                     allow_interface_equality,
                     &mut nested_comparison_result,
                 ) {

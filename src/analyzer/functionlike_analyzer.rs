@@ -137,7 +137,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         statements_analyzer.set_function_info(&lambda_storage);
 
-        let mut inferred_return_type = self
+        let inferred_return_type = self
             .analyze_functionlike(
                 &mut statements_analyzer,
                 &lambda_storage,
@@ -148,20 +148,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 Some(tast_info),
             )
             .unwrap_or(get_mixed_any());
-
-        if stmt.fun_kind.is_async() && lambda_storage.return_type.is_none() {
-            if inferred_return_type.is_null() {
-                inferred_return_type = get_void();
-            }
-
-            inferred_return_type = wrap_atomic(TAtomic::TNamedObject {
-                name: "HH\\Awaitable".to_string(),
-                type_params: Some(vec![inferred_return_type]),
-                is_this: false,
-                extra_types: None,
-                remapped_params: false,
-            })
-        }
 
         lambda_storage.return_type = Some(inferred_return_type);
 
@@ -493,7 +479,17 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         }
                     }
                 } else {
-                    inferred_return_type = Some(get_void());
+                    inferred_return_type = Some(if functionlike_storage.is_async {
+                        wrap_atomic(TAtomic::TNamedObject {
+                            name: "HH\\Awaitable".to_string(),
+                            type_params: Some(vec![get_void()]),
+                            is_this: false,
+                            extra_types: None,
+                            remapped_params: false,
+                        })
+                    } else {
+                        get_void()
+                    });
                 }
             }
         } else {
@@ -506,7 +502,17 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     ));
                 }
             } else {
-                inferred_return_type = Some(get_void());
+                inferred_return_type = Some(if functionlike_storage.is_async {
+                    wrap_atomic(TAtomic::TNamedObject {
+                        name: "HH\\Awaitable".to_string(),
+                        type_params: Some(vec![get_void()]),
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    })
+                } else {
+                    get_void()
+                });
             }
         }
 

@@ -1,0 +1,1 @@
+TaintedData - input.hack:13:6 - Data from a URL query string found its way to an HTML tag

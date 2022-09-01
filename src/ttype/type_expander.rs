@@ -319,16 +319,7 @@ fn expand_atomic(
                                 DataFlowNode::new(type_name.clone(), type_name.clone(), None, None);
 
                             for (field_name, taints) in shape_field_taints {
-                                let label = format!(
-                                    "{}[{}]",
-                                    type_name,
-                                    match field_name {
-                                        DictKey::Int(i) => i.to_string(),
-                                        DictKey::String(k) => "'".to_string() + k.as_str() + "'",
-                                        DictKey::Enum(class_name, member_name) =>
-                                            class_name.clone() + "::" + member_name,
-                                    }
-                                );
+                                let label = format!("{}[{}]", type_name, field_name.to_string());
                                 let field_node = DataFlowNode::TaintSource {
                                     id: label.clone(),
                                     label,

@@ -105,6 +105,16 @@ pub(crate) fn analyze(
         &mut tast_info.data_flow_graph,
     );
 
+    if functionlike_storage.is_async {
+        inferred_return_type = wrap_atomic(TAtomic::TNamedObject {
+            name: "HH\\Awaitable".to_string(),
+            type_params: Some(vec![inferred_return_type]),
+            is_this: false,
+            extra_types: None,
+            remapped_params: false,
+        });
+    }
+
     if let Some(_) = return_expr {
         tast_info
             .inferred_return_types
@@ -214,22 +224,6 @@ pub(crate) fn analyze(
                 );
 
                 return;
-            }
-
-            if functionlike_storage.is_async {
-                if inferred_return_type.is_null()
-                    && expected_return_type.get_id() == "HH\\Awaitable<void>"
-                {
-                    inferred_return_type = get_void();
-                }
-
-                inferred_return_type = wrap_atomic(TAtomic::TNamedObject {
-                    name: "HH\\Awaitable".to_string(),
-                    type_params: Some(vec![inferred_return_type]),
-                    is_this: false,
-                    extra_types: None,
-                    remapped_params: false,
-                });
             }
 
             // todo increment non-mixed count

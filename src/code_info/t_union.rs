@@ -1,7 +1,7 @@
 use crate::{
     codebase_info::Symbols,
     data_flow::node::DataFlowNode,
-    t_atomic::{populate_atomic_type, TAtomic},
+    t_atomic::{populate_atomic_type, DictKey, TAtomic},
 };
 use core::panic;
 use itertools::Itertools;
@@ -669,6 +669,23 @@ impl TUnion {
                         None
                     }
                 }
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn get_single_dict_key(&self) -> Option<DictKey> {
+        if self.is_single() {
+            match self.get_single() {
+                TAtomic::TLiteralInt { value, .. } => Some(DictKey::Int(*value as u32)),
+                TAtomic::TLiteralString { value, .. } => Some(DictKey::String(value.clone())),
+                TAtomic::TEnumLiteralCase {
+                    enum_name,
+                    member_name,
+                    ..
+                } => Some(DictKey::Enum(enum_name.clone(), member_name.clone())),
                 _ => None,
             }
         } else {

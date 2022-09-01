@@ -25,3 +25,7 @@ function bar(shape(Suit::Diamonds => int) $s): shape(Suit::Hearts => string, Sui
 function bat(): shape(Suit::Hearts => string, Suit::Clubs => string) {
     return shape(Suit::Hearts => "hello", Suit::Clubs => "goodbye");
 }
+
+function bang(shape(Suit::Hearts => string, Suit::Clubs => dict<string, string>) $shape): string {
+    return $shape[Suit::Hearts];
+}

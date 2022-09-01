@@ -23,11 +23,17 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
     let mut root_expr = left.clone();
+    let mut has_arrayget_key = false;
 
     loop {
         match root_expr.2 {
             aast::Expr_::ArrayGet(boxed) => {
                 root_expr = boxed.0;
+                if let Some(dim) = &boxed.1 {
+                    if let aast::Expr_::ArrayGet(..) = dim.2 {
+                        has_arrayget_key = true;
+                    }
+                }
             }
             aast::Expr_::ObjGet(boxed) => {
                 root_expr = boxed.0;
@@ -40,15 +46,17 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     let mut replacement_left: Option<aast::Expr<(), ()>> = None;
 
-    if matches!(
-        root_expr.2,
-        aast::Expr_::Call(..)
-            | aast::Expr_::Cast(..)
-            | aast::Expr_::Eif(..)
-            | aast::Expr_::Binop(..)
-            | aast::Expr_::As(..)
-            | aast::Expr_::ClassConst(..)
-    ) {
+    if has_arrayget_key
+        || matches!(
+            root_expr.2,
+            aast::Expr_::Call(..)
+                | aast::Expr_::Cast(..)
+                | aast::Expr_::Eif(..)
+                | aast::Expr_::Binop(..)
+                | aast::Expr_::As(..)
+                | aast::Expr_::ClassConst(..)
+        )
+    {
         replacement_left = get_fake_as_var(
             left,
             statements_analyzer,

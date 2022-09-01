@@ -309,13 +309,15 @@ pub(crate) fn analyze(
             tast_info,
             context,
         ),
+        aast::Expr_::Omitted => {
+            // do nothing
+        }
         _ => {
-            //println!("{:#?}", expr);
             tast_info.maybe_add_issue(
                 Issue::new(
                     IssueKind::UnrecognizedExpression,
                     "Unrecognized expression in assignment".to_string(),
-                    statements_analyzer.get_hpos(&assign_var.1),
+                    statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
             );
