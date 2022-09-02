@@ -1,0 +1,1 @@
+UndefinedStringArrayOffset - input.hack:13:7

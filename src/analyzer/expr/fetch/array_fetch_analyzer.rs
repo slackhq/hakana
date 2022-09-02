@@ -745,6 +745,10 @@ pub(crate) fn handle_array_access_on_dict(
                     statements_analyzer.get_config(),
                 );
 
+                // since we're emitting a very specific error
+                // we don't want to emit another error afterwards
+                *has_valid_expected_offset = true;
+
                 return get_nothing();
             }
         }
