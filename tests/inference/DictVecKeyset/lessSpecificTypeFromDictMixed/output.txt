@@ -1,1 +1,4 @@
-LessSpecificArgument
+ERROR: LessSpecificNestedAnyArgumentType - input.hack:6:14 - Argument 1 of foo1 expects shape('id' => string, 'name' => string), parent type dict<arraykey,any> provided
+ERROR: LessSpecificNestedAnyArgumentType - input.hack:7:14 - Argument 1 of foo2 expects shape('id' => string, 'name' => string), parent type dict<arraykey,any> provided
+ERROR: LessSpecificNestedArgumentType - input.hack:12:10 - Argument 1 of foo1 expects shape('id' => string, 'name' => string), parent type dict<string,mixed> provided
+ERROR: LessSpecificNestedArgumentType - input.hack:13:10 - Argument 1 of foo2 expects shape('id' => string, 'name' => string), parent type dict<string,mixed> provided

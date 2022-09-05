@@ -30,8 +30,7 @@ pub(crate) fn is_contained_by(
             if let Some(container_known_items) = container_known_items {
                 if let Some(input_known_items) = input_known_items {
                     for (key, (c_u, container_property_type)) in container_known_items {
-                        if let Some((i_u, input_property_type)) = input_known_items.get(key)
-                        {
+                        if let Some((i_u, input_property_type)) = input_known_items.get(key) {
                             if *i_u && !c_u {
                                 all_types_contain = false;
                             }
@@ -103,6 +102,16 @@ pub(crate) fn is_contained_by(
 
                 if !all_types_contain {
                     atomic_comparison_result.type_coerced = Some(true);
+
+                    if let Some(input_params) = input_params {
+                        let mut has_any = false;
+                        if input_params.1.is_mixed_with_any(&mut has_any) {
+                            atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
+                            if has_any {
+                                atomic_comparison_result.type_coerced_from_nested_any = Some(true);
+                            }
+                        }
+                    }
                 }
             } else {
                 let input_params = get_arrayish_params(input_type_part, codebase).unwrap();
