@@ -1,7 +1,12 @@
+use std::{collections::BTreeMap, sync::Arc};
+
 use super::reconciler::{trigger_issue_for_impossible, ReconciliationStatus};
 use crate::{intersect_simple, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::{TAtomic, DictKey}, t_union::TUnion,
+    assertion::Assertion,
+    codebase_info::CodebaseInfo,
+    t_atomic::{DictKey, TAtomic},
+    t_union::TUnion,
 };
 use hakana_type::{
     get_arraykey, get_bool, get_dict, get_false, get_float, get_int, get_keyset, get_mixed_any,
@@ -1557,21 +1562,71 @@ fn reconcile_in_array(
 }
 
 fn reconcile_has_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TUnion {
-    let mut existing_var_type = existing_var_type.clone();
+    let mut filtered_types = BTreeMap::new();
 
-    for (_, atomic) in existing_var_type.types.iter_mut() {
-        if let TAtomic::TDict {
-            known_items: Some(known_items),
-            ..
-        } = atomic
-        {
-            if let Some(known_item) = known_items.get_mut(key_name) {
-                *known_item = (false, known_item.1.clone());
+    for (atomic_key, atomic) in &existing_var_type.types {
+        let mut atomic = atomic.clone();
 
-                break;
+        match &mut atomic {
+            TAtomic::TDict {
+                known_items,
+                params,
+                ..
+            } => {
+                if let Some(known_items) = known_items {
+                    if let Some(known_item) = known_items.get_mut(key_name) {
+                        *known_item = (false, known_item.1.clone());
+                    } else if let Some((_, value_param)) = params {
+                        known_items
+                            .insert(key_name.clone(), (false, Arc::new(value_param.clone())));
+                    } else {
+                        continue;
+                    }
+                } else {
+                    if let Some((_, value_param)) = params {
+                        *known_items = Some(BTreeMap::from([(
+                            key_name.clone(),
+                            (false, Arc::new(value_param.clone())),
+                        )]));
+                    } else {
+                        continue;
+                    }
+                }
             }
+            TAtomic::TVec {
+                known_items,
+                type_param,
+                ..
+            } => {
+                if let DictKey::Int(i) = key_name {
+                    if let Some(known_items) = known_items {
+                        if let Some(known_item) = known_items.get_mut(&(*i as usize)) {
+                            *known_item = (false, known_item.1.clone());
+                        } else if !type_param.is_nothing() {
+                            known_items.insert(*i as usize, (false, type_param.clone()));
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        if !type_param.is_nothing() {
+                            *known_items =
+                                Some(BTreeMap::from([(*i as usize, (false, type_param.clone()))]));
+                        } else {
+                            continue;
+                        }
+                    }
+                }
+            }
+            _ => (),
         }
+
+        filtered_types.insert(atomic_key.clone(), atomic);
     }
+
+    let existing_var_type = TUnion {
+        types: filtered_types,
+        ..existing_var_type.clone()
+    };
 
     existing_var_type
 }

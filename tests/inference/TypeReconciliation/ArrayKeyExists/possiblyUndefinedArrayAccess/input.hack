@@ -4,6 +4,6 @@ if (rand(0,1)) {
   $a = vec[2, 3];
 }
 
-if (array_key_exists(0, $a)) {
+if (HH\Lib\C\contains_key($a, 0)) {
     echo $a[0];
 }
