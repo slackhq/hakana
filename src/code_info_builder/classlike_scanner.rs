@@ -97,13 +97,9 @@ pub(crate) fn scan(
     }
 
     match classlike_node.kind {
-        ClassishKind::Cclass(abstraction) | ClassishKind::CenumClass(abstraction) => {
+        ClassishKind::Cclass(abstraction) => {
             storage.is_abstract = matches!(abstraction, ast_defs::Abstraction::Abstract);
             storage.is_final = classlike_node.final_;
-
-            if matches!(classlike_node.kind, ClassishKind::CenumClass(..)) {
-                storage.kind = SymbolKind::EnumClass;
-            }
 
             codebase
                 .symbols
@@ -174,6 +170,44 @@ pub(crate) fn scan(
                     );
                 }
             }
+        }
+        ClassishKind::CenumClass(abstraction) => {
+            storage.is_abstract = matches!(abstraction, ast_defs::Abstraction::Abstract);
+            storage.is_final = classlike_node.final_;
+
+            storage.kind = SymbolKind::EnumClass;
+
+            codebase
+                .symbols
+                .add_enum_class_name(&class_name, Some(&file_source.file_path));
+
+            if let Some(enum_node) = &classlike_node.enum_ {
+                storage.enum_type = Some(
+                    get_type_from_hint(
+                        &enum_node.base.1,
+                        None,
+                        &TypeResolutionContext::new(),
+                        resolved_names,
+                    )
+                    .types
+                    .into_iter()
+                    .next()
+                    .unwrap()
+                    .1,
+                );
+            }
+
+            // We inherit from this class so methods like `coerce` works
+            let enum_class = "HH\\BuiltinEnumClass".to_string();
+
+            storage.direct_parent_class = Some(enum_class.clone());
+            storage.all_parent_classes.insert(enum_class.clone());
+
+            let mut params = Vec::new();
+
+            params.push(Arc::new(wrap_atomic(TAtomic::TEnum {
+                name: class_name.clone(),
+            })));
         }
         ClassishKind::Cinterface => {
             storage.kind = SymbolKind::Interface;

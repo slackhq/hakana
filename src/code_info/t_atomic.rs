@@ -1306,6 +1306,17 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
                 }
             }
         },
+        TAtomic::TTypeAlias {
+            ref mut type_params,
+            ..
+        } => match type_params {
+            None => {}
+            Some(type_params) => {
+                for type_param in type_params {
+                    populate_union_type(type_param, codebase_symbols);
+                }
+            }
+        },
         TAtomic::TVec {
             ref mut type_param,
             ref mut known_items,
@@ -1335,7 +1346,6 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
                         *t_atomic = TAtomic::TEnum { name: name.clone() };
                         return;
                     }
-                    SymbolKind::EnumClass => panic!(),
                     SymbolKind::TypeDefinition => {
                         *t_atomic = TAtomic::TTypeAlias {
                             name: name.clone(),

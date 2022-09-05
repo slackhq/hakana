@@ -327,6 +327,14 @@ fn get_reference_type(
         };
     }
 
+    if type_name == "\\HH\\MemberOf" {
+        return TAtomic::TTypeAlias {
+            name: "HH\\MemberOf".to_string(),
+            type_params: Some(type_params),
+            as_type: None,
+        };
+    }
+
     if let Some(defining_entities) = type_context.template_type_map.get(type_name) {
         return get_template_type(defining_entities, type_name);
     }
@@ -353,7 +361,10 @@ fn get_reference_type(
     }
 }
 
-fn get_template_type(defining_entities: &FxHashMap<String, Arc<TUnion>>, type_name: &String) -> TAtomic {
+fn get_template_type(
+    defining_entities: &FxHashMap<String, Arc<TUnion>>,
+    type_name: &String,
+) -> TAtomic {
     let as_type = defining_entities.values().next().unwrap().clone();
     let defining_entity = defining_entities.keys().next().unwrap().clone();
     let from_class =

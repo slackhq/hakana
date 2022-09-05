@@ -24,6 +24,8 @@ pub struct TypeDefinitionInfo {
      */
     pub template_types: IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
 
+    pub template_covariants: FxHashSet<usize>,
+
     pub shape_field_taints: Option<FxHashMap<DictKey, FxHashSet<SourceType>>>,
 
     pub is_literal_string: bool,

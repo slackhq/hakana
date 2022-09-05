@@ -12,6 +12,7 @@ use indexmap::IndexMap;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
+    ast_defs,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -150,7 +151,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let mut template_type_map = IndexMap::new();
 
-        for param in &typedef.tparams {
+        let mut template_covariants = FxHashSet::default();
+
+        for (i, param) in typedef.tparams.iter().enumerate() {
             let constraint = param.constraints.first();
 
             let constraint_type = if let Some(k) = constraint {
@@ -169,6 +172,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 "typedef-".to_string() + &type_name,
                 Arc::new(constraint_type.clone()),
             );
+
+            match param.variance {
+                ast_defs::Variance::Covariant => {
+                    template_covariants.insert(i);
+                }
+                _ => {}
+            }
 
             template_type_map.insert(param.name.1.clone(), h);
         }
@@ -202,6 +212,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &self.resolved_names,
             ),
             template_types: template_type_map,
+            template_covariants,
             shape_field_taints: None,
             is_literal_string: typedef.user_attributes.iter().any(|user_attribute| {
                 let name = if let Some(name) = self

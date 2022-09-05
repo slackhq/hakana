@@ -48,14 +48,19 @@ impl CodebaseInfo {
 
     pub fn class_or_interface_exists(&self, fq_class_name: &String) -> bool {
         match self.symbols.all.get(fq_class_name) {
-            Some(SymbolKind::Class | SymbolKind::Interface) => true,
+            Some(SymbolKind::Class | SymbolKind::EnumClass | SymbolKind::Interface) => true,
             _ => false,
         }
     }
 
     pub fn class_or_interface_or_enum_exists(&self, fq_class_name: &String) -> bool {
         match self.symbols.all.get(fq_class_name) {
-            Some(SymbolKind::Class | SymbolKind::Interface | SymbolKind::Enum) => true,
+            Some(
+                SymbolKind::Class
+                | SymbolKind::EnumClass
+                | SymbolKind::Interface
+                | SymbolKind::Enum,
+            ) => true,
             _ => false,
         }
     }
@@ -63,7 +68,11 @@ impl CodebaseInfo {
     pub fn class_or_interface_or_enum_or_trait_exists(&self, fq_class_name: &String) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(
-                SymbolKind::Class | SymbolKind::Interface | SymbolKind::Enum | SymbolKind::Trait,
+                SymbolKind::Class
+                | SymbolKind::EnumClass
+                | SymbolKind::Interface
+                | SymbolKind::Enum
+                | SymbolKind::Trait,
             ) => true,
             _ => false,
         }
@@ -71,7 +80,7 @@ impl CodebaseInfo {
 
     pub fn class_exists(&self, fq_class_name: &String) -> bool {
         match self.symbols.all.get(fq_class_name) {
-            Some(SymbolKind::Class) => true,
+            Some(SymbolKind::Class | SymbolKind::EnumClass) => true,
             _ => false,
         }
     }
@@ -127,47 +136,44 @@ impl CodebaseInfo {
         _visited_constant_ids: FxHashSet<String>,
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
-            if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
-                let mut constant_type = if let Some(provided_type) = &constant_storage.provided_type
-                {
-                    if provided_type
-                        .types
-                        .iter()
-                        .all(|(_, v)| v.is_boring_scalar())
-                    {
-                        if let Some(inferred_type) = &constant_storage.inferred_type {
+            if matches!(classlike_storage.kind, SymbolKind::Enum) {
+                return Some(TUnion::new(vec![TAtomic::TEnumLiteralCase {
+                    enum_name: classlike_storage.name.clone(),
+                    member_name: const_name.clone(),
+                    constraint_type: classlike_storage.enum_constraint.clone(),
+                }]));
+            } else {
+                if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
+                    if matches!(classlike_storage.kind, SymbolKind::EnumClass) {
+                        return if let Some(provided_type) = &constant_storage.provided_type {
+                            Some(provided_type.clone())
+                        } else {
+                            None
+                        };
+                    } else {
+                        return if let Some(provided_type) = &constant_storage.provided_type {
+                            if provided_type
+                                .types
+                                .iter()
+                                .all(|(_, v)| v.is_boring_scalar())
+                            {
+                                if let Some(inferred_type) = &constant_storage.inferred_type {
+                                    Some(inferred_type.clone())
+                                } else {
+                                    Some(provided_type.clone())
+                                }
+                            } else {
+                                Some(provided_type.clone())
+                            }
+                        } else if let Some(inferred_type) = &constant_storage.inferred_type {
                             Some(inferred_type.clone())
                         } else {
-                            Some(provided_type.clone())
-                        }
-                    } else {
-                        Some(provided_type.clone())
+                            None
+                        };
                     }
-                } else if let Some(inferred_type) = &constant_storage.inferred_type {
-                    Some(inferred_type.clone())
                 } else {
                     None
-                };
-
-                if matches!(classlike_storage.kind, SymbolKind::Enum) {
-                    if let Some(ref mut constant_type) = constant_type {
-                        *constant_type = TUnion::new(vec![TAtomic::TEnumLiteralCase {
-                            enum_name: classlike_storage.name.clone(),
-                            member_name: const_name.clone(),
-                            constraint_type: classlike_storage.enum_constraint.clone(),
-                        }]);
-                    } else {
-                        constant_type = Some(TUnion::new(vec![TAtomic::TEnumLiteralCase {
-                            enum_name: classlike_storage.name.clone(),
-                            member_name: const_name.clone(),
-                            constraint_type: classlike_storage.enum_constraint.clone(),
-                        }]));
-                    }
                 }
-
-                constant_type
-            } else {
-                None
             }
         } else {
             None

@@ -244,6 +244,12 @@ pub(crate) fn compare_generic_params(
                 container_classlike_storage
                     .template_covariants
                     .contains(&param_offset)
+            } else if let Some(container_typealias_storage) =
+                codebase.type_definitions.get(container_name)
+            {
+                container_typealias_storage
+                    .template_covariants
+                    .contains(&param_offset)
             } else {
                 true
             };

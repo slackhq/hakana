@@ -164,7 +164,7 @@ pub(crate) fn analyze(
                     tast_info.if_true_assertions.insert(
                         (pos.start_offset(), pos.end_offset()),
                         FxHashMap::from_iter([(
-                            format!("{}", expr_var_id),
+                            expr_var_id,
                             vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
                         )]),
                     );

@@ -35,6 +35,16 @@ impl Symbols {
         }
     }
 
+    pub fn add_enum_class_name(&mut self, fq_class_name: &String, file_path: Option<&String>) {
+        self.all
+            .insert(fq_class_name.clone(), SymbolKind::EnumClass);
+
+        if let Some(file_path) = file_path {
+            self.classlike_files
+                .insert(fq_class_name.clone(), file_path.clone());
+        }
+    }
+
     pub fn add_interface_name(&mut self, fq_class_name: &String, file_path: Option<&String>) {
         self.all
             .insert(fq_class_name.clone(), SymbolKind::Interface);

@@ -59,28 +59,33 @@ pub(crate) fn analyze(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-    lhs_type_part: &TAtomic,
+    mut lhs_type_part: &TAtomic,
     lhs_var_id: &Option<String>,
     result: &mut AtomicMethodCallAnalysisResult,
 ) {
-    let mut lhs_type_part = lhs_type_part.clone();
     if let TAtomic::TTemplateParam {
         as_type,
         extra_types,
         ..
-    } = lhs_type_part.clone()
+    } = &lhs_type_part
     {
         if !as_type.is_mixed() && as_type.is_single() {
-            lhs_type_part = as_type.get_single().clone();
+            lhs_type_part = as_type.get_single();
 
             if let Some(extra_types) = extra_types {
-                for (_, extra_type) in extra_types {
-                    lhs_type_part.add_intersection_type(extra_type.clone());
+                for (_, _) in extra_types {
+                    //lhs_type_part.add_intersection_type(extra_type.clone());
                 }
             }
 
             result.has_mixed_method_call = true;
         }
+    } else if let TAtomic::TTypeAlias {
+        as_type: Some(as_type),
+        ..
+    } = &lhs_type_part
+    {
+        lhs_type_part = as_type;
     }
 
     let codebase = statements_analyzer.get_codebase();
