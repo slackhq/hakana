@@ -124,6 +124,41 @@ impl<'ast> Visitor<'ast> for Scanner {
                         }
                     }
                 }
+
+                if let aast::Expr_::Id(_) = &boxed.0 .2 {
+                    // do nothing
+                } else {
+                    match &boxed.0 .2 {
+                        aast::Expr_::ObjGet(boxed) => {
+                            let (lhs_expr, _, _, prop_or_method) =
+                                (&boxed.0, &boxed.1, &boxed.2, &boxed.3);
+
+                            match prop_or_method {
+                                ast_defs::PropOrMethod::IsMethod => {
+                                    let lhs_var_id = expression_identifier::get_root_var_id(
+                                        lhs_expr, None, None,
+                                    );
+
+                                    if let Some(lhs_var_id) = lhs_var_id {
+                                        if let None = self.first_var_id {
+                                            self.first_var_id = Some(lhs_var_id.clone());
+                                        }
+                                        self.assignment_map
+                                            .entry(lhs_var_id.clone())
+                                            .or_insert_with(FxHashSet::default)
+                                            .insert(lhs_var_id);
+                                    }
+                                }
+                                _ => {
+                                    // do nothing
+                                }
+                            }
+                        }
+                        _ => {
+                            // do nothing
+                        }
+                    }
+                };
             }
             aast::Expr_::Lfun(_) | aast::Expr_::Efun(_) => {
                 return Result::Ok(());

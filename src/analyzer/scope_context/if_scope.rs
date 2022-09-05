@@ -14,6 +14,8 @@ pub struct IfScope {
 
     pub redefined_vars: Option<FxHashMap<String, TUnion>>,
 
+    pub removed_var_ids: FxHashSet<String>,
+
     pub assigned_var_ids: Option<FxHashMap<String, usize>>,
 
     pub possibly_assigned_var_ids: FxHashSet<String>,
@@ -56,6 +58,7 @@ impl<'a> IfScope {
             reasonable_clauses: Vec::new(),
             final_actions: FxHashSet::default(),
             if_actions: FxHashSet::default(),
+            removed_var_ids: FxHashSet::default(),
         }
     }
 }

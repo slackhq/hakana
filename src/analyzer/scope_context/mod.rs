@@ -161,7 +161,7 @@ pub struct ScopeContext {
 
     pub has_returned: bool,
 
-    pub parent_remove_vars: FxHashSet<String>,
+    pub parent_conflicting_clause_vars: FxHashSet<String>,
 
     pub allow_taints: bool,
 }
@@ -205,7 +205,7 @@ impl ScopeContext {
             case_scope: None,
             finally_scope: None,
             function_context,
-            parent_remove_vars: FxHashSet::default(),
+            parent_conflicting_clause_vars: FxHashSet::default(),
             allow_taints: true,
         }
     }
@@ -214,18 +214,26 @@ impl ScopeContext {
         &self,
         new_vars_in_scope: &BTreeMap<String, Rc<TUnion>>,
         include_new_vars: bool, // default false
+        removed_vars: &mut FxHashSet<String>,
     ) -> FxHashMap<String, TUnion> {
         let mut redefined_vars = FxHashMap::default();
 
-        for (var_id, this_type) in &self.vars_in_scope {
-            if let Some(new_type) = new_vars_in_scope.get(var_id) {
-                if new_type != this_type {
-                    redefined_vars.insert(var_id.clone(), (**this_type).clone());
+        let mut var_ids = self.vars_in_scope.keys().collect::<Vec<_>>();
+        var_ids.extend(new_vars_in_scope.keys());
+
+        for var_id in var_ids {
+            if let Some(this_type) = self.vars_in_scope.get(var_id) {
+                if let Some(new_type) = new_vars_in_scope.get(var_id) {
+                    if new_type != this_type {
+                        redefined_vars.insert(var_id.clone(), (**this_type).clone());
+                    }
+                } else {
+                    if include_new_vars {
+                        redefined_vars.insert(var_id.clone(), (**this_type).clone());
+                    }
                 }
             } else {
-                if include_new_vars {
-                    redefined_vars.insert(var_id.clone(), (**this_type).clone());
-                }
+                removed_vars.insert(var_id.clone());
             }
         }
 
@@ -416,7 +424,8 @@ impl ScopeContext {
             statements_analyzer,
             tast_info,
         );
-        self.parent_remove_vars.insert(remove_var_id.clone());
+        self.parent_conflicting_clause_vars
+            .insert(remove_var_id.clone());
     }
 
     pub(crate) fn remove_descendants(
@@ -454,19 +463,19 @@ impl ScopeContext {
     }
 
     pub(crate) fn remove_mutable_object_vars(&mut self) {
-        let mut all_retained = true;
+        let mut removed_var_ids = vec![];
 
         self.vars_in_scope.retain(|var_id, context_type| {
             let retain =
                 !context_type.has_mutations || (!var_id.contains("->") && !var_id.contains("::"));
 
             if !retain {
-                all_retained = false;
+                removed_var_ids.push(var_id.clone());
             }
             retain
         });
 
-        if all_retained {
+        if removed_var_ids.is_empty() {
             return;
         }
 

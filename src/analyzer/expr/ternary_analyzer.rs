@@ -331,13 +331,15 @@ pub(crate) fn analyze(
         }
     }
 
+    let mut removed_vars = FxHashSet::default();
+
     let redef_var_ifs = if_context
-        .get_redefined_vars(&context.vars_in_scope, false)
+        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars)
         .into_iter()
         .map(|(k, _)| k)
         .collect::<FxHashSet<_>>();
     let redef_var_else = temp_else_context
-        .get_redefined_vars(&context.vars_in_scope, false)
+        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars)
         .into_iter()
         .map(|(k, _)| k)
         .collect::<FxHashSet<_>>();

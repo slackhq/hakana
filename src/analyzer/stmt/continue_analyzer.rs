@@ -1,3 +1,5 @@
+use rustc_hash::FxHashSet;
+
 use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
@@ -15,7 +17,13 @@ pub(crate) fn analyze(
     if let Some(loop_scope) = loop_scope {
         loop_scope.final_actions.push(ControlAction::Continue);
 
-        let redefined_vars = context.get_redefined_vars(&loop_scope.parent_context_vars, false);
+        let mut removed_var_ids = FxHashSet::default();
+
+        let redefined_vars = context.get_redefined_vars(
+            &loop_scope.parent_context_vars,
+            false,
+            &mut removed_var_ids,
+        );
 
         for (var_id, var_type) in redefined_vars {
             loop_scope.possibly_redefined_loop_vars.insert(

@@ -5,7 +5,7 @@ use crate::{
 };
 use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 use hakana_type::combine_optional_union_types;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -28,13 +28,16 @@ pub(crate) fn analyze(
             loop_scope.final_actions.push(ControlAction::Break);
         }
 
-        let redefined_vars = context.get_redefined_vars(&loop_scope.parent_context_vars, false);
+        let mut removed_vars = FxHashSet::default();
+
+        let redefined_vars =
+            context.get_redefined_vars(&loop_scope.parent_context_vars, false, &mut removed_vars);
 
         for (var_id, var_type) in redefined_vars {
             loop_scope.possibly_redefined_loop_parent_vars.insert(
                 var_id.clone(),
                 hakana_type::add_optional_union_type(
-                    var_type,
+                    var_type.clone(),
                     loop_scope.possibly_redefined_loop_parent_vars.get(&var_id),
                     Some(codebase),
                 ),

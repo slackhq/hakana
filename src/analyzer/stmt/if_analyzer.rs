@@ -190,7 +190,11 @@ pub(crate) fn update_if_scope(
     newly_reconciled_var_ids: FxHashSet<String>,
     update_new_vars: bool,
 ) {
-    let redefined_vars = if_context.get_redefined_vars(&outer_context.vars_in_scope, false);
+    let redefined_vars = if_context.get_redefined_vars(
+        &outer_context.vars_in_scope,
+        false,
+        &mut if_scope.removed_var_ids,
+    );
 
     if let Some(ref mut new_vars) = if_scope.new_vars {
         for (new_var_id, new_type) in new_vars.clone() {

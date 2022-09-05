@@ -80,7 +80,7 @@ pub(crate) fn analyze(
         return false;
     }
 
-    for var_id in &else_context.parent_remove_vars {
+    for var_id in &else_context.parent_conflicting_clause_vars {
         outer_context.remove_var_from_conflicting_clauses(var_id, None, None, tast_info);
     }
 

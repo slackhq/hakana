@@ -62,7 +62,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             return false;
         }
 
-        for var_id in &left_context.parent_remove_vars {
+        for var_id in &left_context.parent_conflicting_clause_vars {
             context.remove_var_from_conflicting_clauses(var_id, None, None, tast_info);
         }
 

@@ -228,9 +228,12 @@ pub(crate) fn analyze(
     // which vars of the if we can safely change
     let mut pre_assignment_else_redefined_vars = FxHashMap::default();
 
-    for (var_id, redefined_type) in
-        temp_else_context.get_redefined_vars(&context.vars_in_scope, true)
-    {
+    let mut removed_var_ids = FxHashSet::default();
+
+    let temp_else_redefined_vars =
+        temp_else_context.get_redefined_vars(&context.vars_in_scope, true, &mut removed_var_ids);
+
+    for (var_id, redefined_type) in temp_else_redefined_vars {
         if changed_var_ids.contains(&var_id) {
             pre_assignment_else_redefined_vars.insert(var_id, redefined_type);
         }
@@ -274,6 +277,10 @@ pub(crate) fn analyze(
 
         // TODO handle removal of mixed issues when followed by quick assertion
     }
+
+    context
+        .vars_in_scope
+        .retain(|var_id, _| !if_scope.removed_var_ids.contains(var_id));
 
     if !if_scope.final_actions.contains(&ControlAction::None) {
         context.has_returned = true;

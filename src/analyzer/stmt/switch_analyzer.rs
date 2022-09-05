@@ -752,8 +752,12 @@ fn handle_non_returning_case(
     let codebase = statements_analyzer.get_codebase();
 
     if !matches!(case_exit_type, ControlAction::Continue) {
-        let case_redefined_vars =
-            case_context.get_redefined_vars(&original_context.vars_in_scope, false);
+        let mut removed_var_ids = FxHashSet::default();
+        let case_redefined_vars = case_context.get_redefined_vars(
+            &original_context.vars_in_scope,
+            false,
+            &mut removed_var_ids,
+        );
 
         if let Some(ref mut possibly_redefined_var_ids) = switch_scope.possibly_redefined_vars {
             for (var_id, var_type) in &case_redefined_vars {
