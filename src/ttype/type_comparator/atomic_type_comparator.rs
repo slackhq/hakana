@@ -194,49 +194,61 @@ pub fn is_contained_by(
         return false;
     }
 
-    if let TAtomic::TNamedObject { .. } = container_type_part {
-        if let TAtomic::TDict { .. } = input_type_part {
-            if let Some(arrayish_params) = get_arrayish_params(container_type_part, codebase) {
-                return self::is_contained_by(
-                    codebase,
-                    input_type_part,
-                    &TAtomic::TDict {
-                        params: Some(arrayish_params),
-                        known_items: None,
-                        non_empty: false,
-                        shape_name: None,
-                    },
-                    allow_interface_equality,
-                    atomic_comparison_result,
-                );
+    if let TAtomic::TNamedObject {
+        name: container_name,
+        ..
+    } = container_type_part
+    {
+        match input_type_part {
+            TAtomic::TDict { .. } => {
+                if let Some(arrayish_params) = get_arrayish_params(container_type_part, codebase) {
+                    return self::is_contained_by(
+                        codebase,
+                        input_type_part,
+                        &TAtomic::TDict {
+                            params: Some(arrayish_params),
+                            known_items: None,
+                            non_empty: false,
+                            shape_name: None,
+                        },
+                        allow_interface_equality,
+                        atomic_comparison_result,
+                    );
+                }
             }
-        } else if let TAtomic::TVec { .. } = input_type_part {
-            if let Some(value_param) = get_value_param(container_type_part, codebase) {
-                return self::is_contained_by(
-                    codebase,
-                    input_type_part,
-                    &TAtomic::TVec {
-                        type_param: value_param,
-                        known_items: None,
-                        non_empty: false,
-                        known_count: None,
-                    },
-                    allow_interface_equality,
-                    atomic_comparison_result,
-                );
+            TAtomic::TVec { .. } => {
+                if let Some(value_param) = get_value_param(container_type_part, codebase) {
+                    return self::is_contained_by(
+                        codebase,
+                        input_type_part,
+                        &TAtomic::TVec {
+                            type_param: value_param,
+                            known_items: None,
+                            non_empty: false,
+                            known_count: None,
+                        },
+                        allow_interface_equality,
+                        atomic_comparison_result,
+                    );
+                }
             }
-        } else if let TAtomic::TKeyset { .. } = input_type_part {
-            if let Some(arrayish_params) = get_arrayish_params(container_type_part, codebase) {
-                return self::is_contained_by(
-                    codebase,
-                    input_type_part,
-                    &TAtomic::TKeyset {
-                        type_param: arrayish_params.0,
-                    },
-                    allow_interface_equality,
-                    atomic_comparison_result,
-                );
+            TAtomic::TKeyset { .. } => {
+                if let Some(arrayish_params) = get_arrayish_params(container_type_part, codebase) {
+                    return self::is_contained_by(
+                        codebase,
+                        input_type_part,
+                        &TAtomic::TKeyset {
+                            type_param: arrayish_params.0,
+                        },
+                        allow_interface_equality,
+                        atomic_comparison_result,
+                    );
+                }
             }
+            TAtomic::TEnum { .. } => {
+                return container_name == "HH\\BuiltinEnum";
+            }
+            _ => (),
         }
     }
 

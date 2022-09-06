@@ -70,35 +70,15 @@ pub(crate) fn fetch(
         if let Some(function_return_type) = &function_storage.return_type {
             if !function_storage.template_types.is_empty() {
                 for (template_name, _) in &function_storage.template_types {
-                    match functionlike_id {
-                        FunctionLikeIdentifier::Function(function_name) => {
-                            // these functions take advantage of a bug/feature in the official Hack typechecker
-                            // that treats all unmatched templates as a new type environment variable that can
-                            // be used anywhere for any purpose until it sees clashing type constraints.
-                            //
-                            // For our internal usage we treat this unmatched param as "any", not "nothing"
-                            if function_name == "cache_get" || function_name == "cache_get_unscoped"
-                            {
-                                template_result.lower_bounds.insert(
-                                    template_name.clone(),
-                                    FxHashMap::from_iter([(
-                                        format!("fn-{}", functionlike_id.to_string()),
-                                        vec![TemplateBound::new(get_mixed_any(), 1, None, None)],
-                                    )]),
-                                );
-                                continue;
-                            }
-                        }
-                        FunctionLikeIdentifier::Method(_, _) => panic!(),
-                    };
-
-                    template_result
-                        .lower_bounds
-                        .entry(template_name.clone())
-                        .or_insert(FxHashMap::from_iter([(
-                            format!("fn-{}", functionlike_id.to_string()),
-                            vec![TemplateBound::new(get_nothing(), 1, None, None)],
-                        )]));
+                    if let None = template_result.lower_bounds.get(template_name) {
+                        template_result.lower_bounds.insert(
+                            template_name.clone(),
+                            FxHashMap::from_iter([(
+                                format!("fn-{}", functionlike_id.to_string()),
+                                vec![TemplateBound::new(get_nothing(), 1, None, None)],
+                            )]),
+                        );
+                    }
                 }
             }
 

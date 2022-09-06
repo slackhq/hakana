@@ -34,7 +34,7 @@ pub struct TUnion {
     pub populated: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TypeNode<'a> {
     Union(&'a TUnion),
     Atomic(&'a TAtomic),

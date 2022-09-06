@@ -382,15 +382,22 @@ pub fn is_contained_by(
             name: input_name, ..
         } = input_type_part
         {
-            return atomic_type_comparator::is_contained_by(
-                codebase,
-                &TAtomic::TNamedObject {
+            let input_type = if codebase.enum_exists(input_name) {
+                TAtomic::TEnum {
+                    name: input_name.clone(),
+                }
+            } else {
+                TAtomic::TNamedObject {
                     name: input_name.clone(),
                     type_params: None,
                     is_this: false,
                     extra_types: None,
                     remapped_params: false,
-                },
+                }
+            };
+            return atomic_type_comparator::is_contained_by(
+                codebase,
+                &input_type,
                 container_name,
                 allow_interface_equality,
                 atomic_comparison_result,

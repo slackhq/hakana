@@ -178,7 +178,7 @@ fn get_is_assertions(
 
     let mut is_type = get_type_from_hint(
         &hint.1,
-        None,
+        assertion_context.this_class_name,
         &assertion_context.type_resolution_context,
         assertion_context.resolved_names,
     );

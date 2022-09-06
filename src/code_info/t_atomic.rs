@@ -1123,6 +1123,11 @@ impl TAtomic {
                     params.1 = TUnion::new(vec![TAtomic::TMixedAny]);
                 }
             }
+            TAtomic::TVec { type_param, .. } => {
+                if let TAtomic::TPlaceholder = type_param.get_single() {
+                    *type_param = TUnion::new(vec![TAtomic::TMixedAny]);
+                }
+            }
             TAtomic::TKeyset { ref mut type_param } => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
                     *type_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
@@ -1242,16 +1247,34 @@ impl HasTypeNodes for TAtomic {
             TAtomic::TTemplateParam { as_type, .. } => {
                 vec![TypeNode::Union(as_type)]
             }
-            TAtomic::TTypeAlias { type_params, .. } => match type_params {
-                None => vec![],
-                Some(type_params) => {
-                    let mut vec = vec![];
-                    for type_param in type_params {
-                        vec.push(TypeNode::Union(type_param));
+            TAtomic::TTypeAlias {
+                type_params,
+                as_type,
+                ..
+            } => {
+                let mut nodes = vec![];
+
+                match type_params {
+                    None => {}
+                    Some(type_params) => {
+                        for type_param in type_params {
+                            nodes.push(TypeNode::Union(type_param));
+                        }
                     }
-                    vec
-                }
-            },
+                };
+
+                match as_type {
+                    None => {}
+                    Some(as_type) => {
+                        nodes.push(TypeNode::Atomic(as_type));
+                    }
+                };
+
+                nodes
+            }
+            TAtomic::TClassname { as_type } => {
+                vec![TypeNode::Atomic(&as_type)]
+            }
             _ => vec![],
         }
     }
@@ -1368,6 +1391,9 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
             } else {
                 // println!("Uknown symbol {}", name);
             }
+        }
+        TAtomic::TClassname { as_type } => {
+            populate_atomic_type(as_type, codebase_symbols);
         }
         TAtomic::TClassTypeConstant { class_type, .. } => {
             populate_atomic_type(class_type, codebase_symbols);

@@ -77,8 +77,14 @@ fn get_classname_type_from_hint(
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
-    if let Hint_::Happly(id, _) = &*hint.1 {
-        let as_type = get_reference_type(id, &vec![], classlike_name, type_context, resolved_names);
+    if let Hint_::Happly(id, type_params) = &*hint.1 {
+        let as_type = get_reference_type(
+            id,
+            type_params,
+            classlike_name,
+            type_context,
+            resolved_names,
+        );
 
         if let TAtomic::TTemplateParam {
             param_name,
@@ -106,8 +112,14 @@ fn get_typename_type_from_hint(
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
-    if let Hint_::Happly(id, _) = &*hint.1 {
-        let as_type = get_reference_type(id, &vec![], classlike_name, type_context, resolved_names);
+    if let Hint_::Happly(id, type_params) = &*hint.1 {
+        let as_type = get_reference_type(
+            id,
+            type_params,
+            classlike_name,
+            type_context,
+            resolved_names,
+        );
 
         if let TAtomic::TTemplateParam {
             param_name,

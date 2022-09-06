@@ -273,118 +273,141 @@ fn replace_atomic(
 ) -> TAtomic {
     let mut atomic_type = atomic_type.clone();
 
-    if let TAtomic::TDict {
-        ref mut known_items,
-        ref mut params,
-        ..
-    } = atomic_type
-    {
-        if let Some(ref mut known_items) = known_items {
-            for (offset, (_, property)) in known_items {
-                let input_type_param = if let Some(TAtomic::TDict {
-                    known_items: Some(ref input_known_items),
-                    ..
-                }) = input_type
-                {
-                    if let Some((_, t)) = input_known_items.get(offset) {
-                        Some((**t).clone())
+    match atomic_type {
+        TAtomic::TDict {
+            ref mut known_items,
+            ref mut params,
+            ..
+        } => {
+            if let Some(ref mut known_items) = known_items {
+                for (offset, (_, property)) in known_items {
+                    let input_type_param = if let Some(TAtomic::TDict {
+                        known_items: Some(ref input_known_items),
+                        ..
+                    }) = input_type
+                    {
+                        if let Some((_, t)) = input_known_items.get(offset) {
+                            Some((**t).clone())
+                        } else {
+                            None
+                        }
                     } else {
                         None
-                    }
+                    };
+
+                    *property = Arc::new(self::replace(
+                        property,
+                        template_result,
+                        codebase,
+                        &input_type_param,
+                        input_arg_offset,
+                        calling_class,
+                        calling_function,
+                        replace,
+                        add_lower_bound,
+                        None,
+                        depth,
+                    ));
+                }
+            } else {
+                let input_params = if let Some(TAtomic::TDict { .. }) = &input_type {
+                    get_arrayish_params(&input_type.unwrap(), codebase)
                 } else {
                     None
                 };
 
-                *property = Arc::new(self::replace(
-                    property,
-                    template_result,
-                    codebase,
-                    &input_type_param,
-                    input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    add_lower_bound,
-                    None,
-                    depth,
-                ));
-            }
-        } else {
-            let input_params = if let Some(TAtomic::TDict { .. }) = &input_type {
-                get_arrayish_params(&input_type.unwrap(), codebase)
-            } else {
-                None
-            };
+                if let Some(params) = params {
+                    params.0 = self::replace(
+                        &params.0,
+                        template_result,
+                        codebase,
+                        &if let Some(input_params) = &input_params {
+                            Some(input_params.0.clone())
+                        } else {
+                            None
+                        },
+                        input_arg_offset,
+                        calling_class,
+                        calling_function,
+                        replace,
+                        add_lower_bound,
+                        None,
+                        depth,
+                    );
 
-            if let Some(params) = params {
-                params.0 = self::replace(
-                    &params.0,
-                    template_result,
-                    codebase,
-                    &if let Some(input_params) = &input_params {
-                        Some(input_params.0.clone())
-                    } else {
-                        None
-                    },
-                    input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    add_lower_bound,
-                    None,
-                    depth,
-                );
-
-                params.1 = self::replace(
-                    &params.1,
-                    template_result,
-                    codebase,
-                    &if let Some(input_params) = &input_params {
-                        Some(input_params.1.clone())
-                    } else {
-                        None
-                    },
-                    input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    add_lower_bound,
-                    None,
-                    depth,
-                );
+                    params.1 = self::replace(
+                        &params.1,
+                        template_result,
+                        codebase,
+                        &if let Some(input_params) = &input_params {
+                            Some(input_params.1.clone())
+                        } else {
+                            None
+                        },
+                        input_arg_offset,
+                        calling_class,
+                        calling_function,
+                        replace,
+                        add_lower_bound,
+                        None,
+                        depth,
+                    );
+                }
             }
+
+            return atomic_type;
         }
-
-        return atomic_type;
-    }
-
-    if let TAtomic::TVec {
-        ref mut known_items,
-        ref mut type_param,
-        ..
-    } = atomic_type
-    {
-        if let Some(known_items) = known_items {
-            for (offset, (_, property)) in known_items {
-                let input_type_param = if let Some(TAtomic::TVec {
-                    known_items: Some(ref input_known_items),
-                    ..
-                }) = input_type
-                {
-                    if let Some((_, t)) = input_known_items.get(offset) {
-                        Some(t)
+        TAtomic::TVec {
+            ref mut known_items,
+            ref mut type_param,
+            ..
+        } => {
+            if let Some(known_items) = known_items {
+                for (offset, (_, property)) in known_items {
+                    let input_type_param = if let Some(TAtomic::TVec {
+                        known_items: Some(ref input_known_items),
+                        ..
+                    }) = input_type
+                    {
+                        if let Some((_, t)) = input_known_items.get(offset) {
+                            Some(t)
+                        } else {
+                            None
+                        }
                     } else {
                         None
-                    }
+                    };
+
+                    *property = self::replace(
+                        property,
+                        template_result,
+                        codebase,
+                        &input_type_param.cloned(),
+                        input_arg_offset,
+                        calling_class,
+                        calling_function,
+                        replace,
+                        add_lower_bound,
+                        None,
+                        depth,
+                    );
+                }
+            } else {
+                let input_param = if let Some(TAtomic::TVec { .. }) = &input_type {
+                    get_value_param(&input_type.unwrap(), codebase)
                 } else {
                     None
                 };
 
-                *property = self::replace(
-                    property,
+                *type_param = self::replace(
+                    &type_param,
                     template_result,
                     codebase,
-                    &input_type_param.cloned(),
+                    &if let Some(input_param) = input_param {
+                        Some(input_param)
+                    } else {
+                        None
+                    },
                     input_arg_offset,
                     calling_class,
                     calling_function,
@@ -394,19 +417,21 @@ fn replace_atomic(
                     depth,
                 );
             }
-        } else {
-            let input_param = if let Some(TAtomic::TVec { .. }) = &input_type {
-                get_value_param(&input_type.unwrap(), codebase)
-            } else {
-                None
-            };
 
+            return atomic_type;
+        }
+        TAtomic::TKeyset {
+            ref mut type_param, ..
+        } => {
             *type_param = self::replace(
                 &type_param,
                 template_result,
                 codebase,
-                &if let Some(input_param) = input_param {
-                    Some(input_param)
+                &if let Some(TAtomic::TKeyset {
+                    type_param: input_param,
+                }) = &input_type
+                {
+                    Some(input_param.clone())
                 } else {
                     None
                 },
@@ -418,235 +443,227 @@ fn replace_atomic(
                 None,
                 depth,
             );
+
+            return atomic_type;
         }
-
-        return atomic_type;
-    }
-
-    if let TAtomic::TKeyset {
-        ref mut type_param, ..
-    } = atomic_type
-    {
-        *type_param = self::replace(
-            &type_param,
-            template_result,
-            codebase,
-            &if let Some(TAtomic::TKeyset {
-                type_param: input_param,
-            }) = &input_type
-            {
-                Some(input_param.clone())
-            } else {
-                None
-            },
-            input_arg_offset,
-            calling_class,
-            calling_function,
-            replace,
-            add_lower_bound,
-            None,
-            depth,
-        );
-
-        return atomic_type;
-    }
-
-    if let TAtomic::TNamedObject {
-        ref mut type_params,
-        ref name,
-        remapped_params,
-        ..
-    } = atomic_type
-    {
-        if let Some(ref mut type_params) = type_params {
-            let mapped_type_params = if let Some(TAtomic::TNamedObject {
-                type_params: Some(_),
-                ..
-            }) = &input_type
-            {
-                Some(get_mapped_generic_type_params(
-                    codebase,
-                    &input_type.clone().unwrap(),
-                    name,
-                    remapped_params,
-                ))
-            } else {
-                None
-            };
-
-            let mut offset = 0;
-            for type_param in type_params {
-                let input_type_param = match &input_type {
-                    Some(input_inner) => match input_inner {
-                        TAtomic::TNamedObject {
-                            type_params: Some(ref input_type_parts),
-                            ..
-                        } => input_type_parts.get(offset).cloned(),
-                        TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => {
-                            let (key_param, value_param) =
-                                get_arrayish_params(&input_inner, codebase).unwrap();
-                            if name == "HH\\KeyedContainer" || name == "HH\\KeyedTraversable" {
-                                if offset == 0 {
-                                    Some(key_param)
-                                } else {
-                                    Some(value_param)
-                                }
-                            } else if name == "HH\\Container" || name == "HH\\Traversable" {
-                                Some(value_param)
-                            } else {
-                                None
-                            }
-                        }
-                        TAtomic::TMixedFromLoopIsset => Some(get_mixed_maybe_from_loop(true)),
-                        TAtomic::TMixed | TAtomic::TNonnullMixed | TAtomic::TTruthyMixed => {
-                            Some(get_mixed())
-                        }
-                        TAtomic::TMixedAny => Some(get_mixed_any()),
-                        _ => None,
-                    },
-                    _ => None,
-                };
-
-                *type_param = self::replace(
-                    type_param,
-                    template_result,
-                    codebase,
-                    &if let Some(mapped_type_params) = &mapped_type_params {
-                        mapped_type_params.get(offset).cloned()
-                    } else {
-                        input_type_param
-                    },
-                    input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    add_lower_bound,
-                    None,
-                    depth,
-                );
-
-                offset += 1;
-            }
-        }
-
-        return atomic_type;
-    }
-
-    if let TAtomic::TTypeAlias {
-        ref mut type_params,
-        ref name,
-        ..
-    } = atomic_type
-    {
-        if let Some(ref mut type_params) = type_params {
-            let mapped_type_params = if let Some(TAtomic::TTypeAlias {
-                type_params: Some(input_type_params),
-                name: input_name,
-                ..
-            }) = &input_type
-            {
-                if input_name == name {
-                    Some(input_type_params)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
-            let mut offset = 0;
-            for type_param in type_params {
-                *type_param = self::replace(
-                    type_param,
-                    template_result,
-                    codebase,
-                    &if let Some(mapped_type_params) = &mapped_type_params {
-                        mapped_type_params.get(offset).cloned()
-                    } else {
-                        None
-                    },
-                    input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    add_lower_bound,
-                    None,
-                    depth,
-                );
-
-                offset += 1;
-            }
-        }
-
-        return atomic_type;
-    }
-
-    if let TAtomic::TClosure {
-        ref mut params,
-        ref mut return_type,
-        ..
-    } = atomic_type
-    {
-        let mut offset = 0;
-        for param in params {
-            let input_type_param = if let Some(TAtomic::TClosure {
-                params: input_params,
-                ..
-            }) = &input_type
-            {
-                if let Some(param) = input_params.get(offset) {
-                    &param.signature_type
-                } else {
-                    &None
-                }
-            } else {
-                &None
-            };
-
-            if let Some(ref mut param_type) = param.signature_type {
-                *param_type = self::replace(
-                    &param_type,
-                    template_result,
-                    codebase,
-                    &input_type_param.clone(),
-                    input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    replace,
-                    !add_lower_bound,
-                    None,
-                    depth,
-                );
-            }
-
-            offset += 1;
-        }
-
-        if let Some(ref mut return_type) = return_type {
-            *return_type = self::replace(
-                &return_type,
-                template_result,
-                codebase,
-                if let Some(TAtomic::TClosure {
-                    return_type: input_return_type,
+        TAtomic::TNamedObject {
+            ref mut type_params,
+            ref name,
+            remapped_params,
+            ..
+        } => {
+            if let Some(ref mut type_params) = type_params {
+                let mapped_type_params = if let Some(TAtomic::TNamedObject {
+                    type_params: Some(_),
                     ..
                 }) = &input_type
                 {
-                    &input_return_type
+                    Some(get_mapped_generic_type_params(
+                        codebase,
+                        &input_type.clone().unwrap(),
+                        name,
+                        remapped_params,
+                    ))
+                } else {
+                    None
+                };
+
+                let mut offset = 0;
+                for type_param in type_params {
+                    let input_type_param = match &input_type {
+                        Some(input_inner) => match input_inner {
+                            TAtomic::TNamedObject {
+                                type_params: Some(ref input_type_parts),
+                                ..
+                            } => input_type_parts.get(offset).cloned(),
+                            TAtomic::TDict { .. }
+                            | TAtomic::TVec { .. }
+                            | TAtomic::TKeyset { .. } => {
+                                let (key_param, value_param) =
+                                    get_arrayish_params(&input_inner, codebase).unwrap();
+                                if name == "HH\\KeyedContainer" || name == "HH\\KeyedTraversable" {
+                                    if offset == 0 {
+                                        Some(key_param)
+                                    } else {
+                                        Some(value_param)
+                                    }
+                                } else if name == "HH\\Container" || name == "HH\\Traversable" {
+                                    Some(value_param)
+                                } else {
+                                    None
+                                }
+                            }
+                            TAtomic::TMixedFromLoopIsset => Some(get_mixed_maybe_from_loop(true)),
+                            TAtomic::TMixed | TAtomic::TNonnullMixed | TAtomic::TTruthyMixed => {
+                                Some(get_mixed())
+                            }
+                            TAtomic::TMixedAny => Some(get_mixed_any()),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+
+                    *type_param = self::replace(
+                        type_param,
+                        template_result,
+                        codebase,
+                        &if let Some(mapped_type_params) = &mapped_type_params {
+                            mapped_type_params.get(offset).cloned()
+                        } else {
+                            input_type_param
+                        },
+                        input_arg_offset,
+                        calling_class,
+                        calling_function,
+                        replace,
+                        add_lower_bound,
+                        None,
+                        depth,
+                    );
+
+                    offset += 1;
+                }
+            }
+
+            return atomic_type;
+        }
+        TAtomic::TTypeAlias {
+            ref mut type_params,
+            ref name,
+            ..
+        } => {
+            if let Some(ref mut type_params) = type_params {
+                let mapped_type_params = if let Some(TAtomic::TTypeAlias {
+                    type_params: Some(input_type_params),
+                    name: input_name,
+                    ..
+                }) = &input_type
+                {
+                    if input_name == name {
+                        Some(input_type_params)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                let mut offset = 0;
+                for type_param in type_params {
+                    *type_param = self::replace(
+                        type_param,
+                        template_result,
+                        codebase,
+                        &if let Some(mapped_type_params) = &mapped_type_params {
+                            mapped_type_params.get(offset).cloned()
+                        } else {
+                            None
+                        },
+                        input_arg_offset,
+                        calling_class,
+                        calling_function,
+                        replace,
+                        add_lower_bound,
+                        None,
+                        depth,
+                    );
+
+                    offset += 1;
+                }
+            }
+
+            return atomic_type;
+        }
+        TAtomic::TClosure {
+            ref mut params,
+            ref mut return_type,
+            ..
+        } => {
+            let mut offset = 0;
+            for param in params {
+                let input_type_param = if let Some(TAtomic::TClosure {
+                    params: input_params,
+                    ..
+                }) = &input_type
+                {
+                    if let Some(param) = input_params.get(offset) {
+                        &param.signature_type
+                    } else {
+                        &None
+                    }
                 } else {
                     &None
+                };
+
+                if let Some(ref mut param_type) = param.signature_type {
+                    *param_type = self::replace(
+                        &param_type,
+                        template_result,
+                        codebase,
+                        &input_type_param.clone(),
+                        input_arg_offset,
+                        calling_class,
+                        calling_function,
+                        replace,
+                        !add_lower_bound,
+                        None,
+                        depth,
+                    );
+                }
+
+                offset += 1;
+            }
+
+            if let Some(ref mut return_type) = return_type {
+                *return_type = self::replace(
+                    &return_type,
+                    template_result,
+                    codebase,
+                    if let Some(TAtomic::TClosure {
+                        return_type: input_return_type,
+                        ..
+                    }) = &input_type
+                    {
+                        &input_return_type
+                    } else {
+                        &None
+                    },
+                    input_arg_offset,
+                    calling_class,
+                    calling_function,
+                    replace,
+                    add_lower_bound,
+                    None,
+                    depth - 1,
+                );
+            }
+
+            return atomic_type;
+        }
+        TAtomic::TClassname { ref mut as_type } => {
+            *as_type = Box::new(replace_atomic(
+                &as_type,
+                template_result,
+                codebase,
+                if let Some(TAtomic::TClassname {
+                    as_type: input_as_type,
+                }) = input_type
+                {
+                    Some(*input_as_type)
+                } else {
+                    None
                 },
                 input_arg_offset,
                 calling_class,
                 calling_function,
                 replace,
                 add_lower_bound,
-                None,
-                depth - 1,
-            );
-        }
+                depth,
+            ));
 
-        return atomic_type;
+            return atomic_type;
+        }
+        _ => (),
     }
 
     atomic_type.clone()
@@ -1411,16 +1428,20 @@ fn find_matching_atomic_types_for_template(
                 ..
             } = base_type
             {
-                if let TAtomic::TNamedObject { name: as_value, .. } = &**base_as_type {
+                if let TAtomic::TNamedObject {
+                    name: base_as_value,
+                    ..
+                } = &**base_as_type
+                {
                     let classlike_info = codebase.classlike_infos.get(atomic_class_name);
 
                     if let Some(classlike_info) = classlike_info {
                         if let Some(extended_params) =
-                            classlike_info.template_extended_params.get(as_value)
+                            classlike_info.template_extended_params.get(base_as_value)
                         {
                             matching_atomic_types.push(TAtomic::TClassname {
                                 as_type: Box::new(TAtomic::TNamedObject {
-                                    name: as_value.clone(),
+                                    name: base_as_value.clone(),
                                     type_params: Some(
                                         extended_params
                                             .clone()

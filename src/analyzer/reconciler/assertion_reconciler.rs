@@ -260,21 +260,48 @@ fn intersect_atomic_with_atomic(
 
     // todo intersect arrays
 
-    if let TAtomic::TEnum { name: type_1_name } = type_1_atomic {
-        if let TAtomic::TEnum { name: type_2_name } = type_2_atomic {
-            if let (Some(storage_1), Some(storage_2)) = (
-                codebase.classlike_infos.get(type_1_name),
-                codebase.classlike_infos.get(type_2_name),
-            ) {
-                for (_, c1) in &storage_1.constants {
-                    for (_, c2) in &storage_2.constants {
-                        if let (Some(c1_type), Some(c2_type)) =
-                            (&c1.inferred_type, &c2.inferred_type)
-                        {
-                            if c1_type == c2_type {
-                                return Some(type_2_atomic.clone());
-                            }
+    if let (TAtomic::TEnum { name: type_1_name }, TAtomic::TEnum { name: type_2_name }) =
+        (type_1_atomic, type_2_atomic)
+    {
+        if let (Some(storage_1), Some(storage_2)) = (
+            codebase.classlike_infos.get(type_1_name),
+            codebase.classlike_infos.get(type_2_name),
+        ) {
+            for (_, c1) in &storage_1.constants {
+                for (_, c2) in &storage_2.constants {
+                    if let (Some(c1_type), Some(c2_type)) = (&c1.inferred_type, &c2.inferred_type) {
+                        if c1_type == c2_type {
+                            return Some(type_2_atomic.clone());
                         }
+                    } else {
+                        return Some(type_2_atomic.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    if let (
+        TAtomic::TEnumLiteralCase {
+            enum_name: type_1_name,
+            member_name,
+            ..
+        },
+        TAtomic::TEnum { name: type_2_name },
+    ) = (type_1_atomic, type_2_atomic)
+    {
+        if let (Some(storage_1), Some(storage_2)) = (
+            codebase.classlike_infos.get(type_1_name),
+            codebase.classlike_infos.get(type_2_name),
+        ) {
+            if let Some(c1) = &storage_1.constants.get(member_name) {
+                for (_, c2) in &storage_2.constants {
+                    if let (Some(c1_type), Some(c2_type)) = (&c1.inferred_type, &c2.inferred_type) {
+                        if c1_type == c2_type {
+                            return Some(type_2_atomic.clone());
+                        }
+                    } else {
+                        return Some(type_2_atomic.clone());
                     }
                 }
             }
@@ -298,7 +325,42 @@ fn intersect_atomic_with_atomic(
         }
     }
 
-    // future todo: handle keyed array assertions
+    if let (
+        TAtomic::TDict {
+            known_items: Some(type_1_known_items),
+            params: type_1_params,
+            ..
+        },
+        TAtomic::TDict {
+            known_items: Some(type_2_known_items),
+            params: type_2_params,
+            ..
+        },
+    ) = (type_1_atomic, type_2_atomic)
+    {
+        let params = match (type_1_params, type_2_params) {
+            (Some(_type_1_params), Some(type_2_params)) => Some(type_2_params.clone()),
+            _ => None,
+        };
+
+        let mut type_2_known_items = type_2_known_items.clone();
+
+        for (type_2_key, type_2_value) in type_2_known_items.iter_mut() {
+            if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
+                type_2_value.0 = type_2_value.0 && type_1_value.0;
+                // todo check intersected type is valie
+            } else if let None = type_1_params {
+                return None;
+            }
+        }
+
+        return Some(TAtomic::TDict {
+            known_items: Some(type_2_known_items),
+            params,
+            non_empty: true,
+            shape_name: None,
+        });
+    }
 
     if let TAtomic::TNamedObject { .. } = type_2_atomic {
         if let TAtomic::TTemplateParam { as_type, .. } = type_1_atomic {

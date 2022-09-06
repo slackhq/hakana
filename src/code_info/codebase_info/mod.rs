@@ -92,6 +92,13 @@ impl CodebaseInfo {
         }
     }
 
+    pub fn enum_exists(&self, fq_class_name: &String) -> bool {
+        match self.symbols.all.get(fq_class_name) {
+            Some(SymbolKind::Enum) => true,
+            _ => false,
+        }
+    }
+
     pub fn typedef_exists(&self, fq_alias_name: &String) -> bool {
         match self.symbols.all.get(fq_alias_name) {
             Some(SymbolKind::TypeDefinition) => true,

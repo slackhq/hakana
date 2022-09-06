@@ -5,6 +5,7 @@ use crate::{code_location::HPos, taint::SinkType};
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
 pub enum IssueKind {
+    CannotInferGenericParam,
     CustomIssue(String),
     EmptyBlock,
     FalsableReturnStatement,
@@ -93,6 +94,7 @@ pub enum IssueKind {
 impl IssueKind {
     pub fn from_str(str: &str) -> Result<IssueKind, String> {
         match str {
+            "CannotInferGenericParam" => Ok(IssueKind::CannotInferGenericParam),
             "EmptyBlock" => Ok(IssueKind::EmptyBlock),
             "FalsableReturnStatement" => Ok(IssueKind::FalsableReturnStatement),
             "FalseArgument" => Ok(IssueKind::FalseArgument),

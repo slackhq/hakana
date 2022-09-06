@@ -295,7 +295,7 @@ fn handle_literal_negated_equality(
                 if let TAtomic::TEnumLiteralCase {
                     enum_name,
                     member_name,
-                    ..
+                    constraint_type,
                 } = assertion_type
                 {
                     if enum_name == existing_name {
@@ -307,13 +307,11 @@ fn handle_literal_negated_equality(
 
                         for (cname, _) in &enum_storage.constants {
                             if cname != member_name {
-                                if let Some(constant_type) = codebase.get_class_constant_type(
-                                    existing_name,
-                                    cname,
-                                    FxHashSet::default(),
-                                ) {
-                                    existing_var_type.add_type(constant_type.get_single_owned());
-                                }
+                                existing_var_type.add_type(TAtomic::TEnumLiteralCase {
+                                    enum_name: enum_name.clone(),
+                                    member_name: cname.clone(),
+                                    constraint_type: constraint_type.clone(),
+                                });
                             }
                         }
                     }
