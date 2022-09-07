@@ -736,7 +736,7 @@ pub(crate) fn handle_array_access_on_dict(
                     Issue::new(
                         IssueKind::UndefinedStringArrayOffset,
                         format!(
-                            "Invalid dict fetch on {} using key '{}'",
+                            "Invalid dict fetch on {} using key {}",
                             dict.get_id(),
                             dict_key.to_string()
                         ),

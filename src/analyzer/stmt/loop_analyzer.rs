@@ -223,12 +223,15 @@ pub(crate) fn analyze<'a>(
                 has_changes = true;
             }
 
+            let mut different_from_pre_loop_types = FxHashSet::default();
+
             for (var_id, continue_context_type) in continue_context.vars_in_scope.clone() {
                 if always_assigned_before_loop_body_vars.contains(&var_id) {
                     // set the vars to whatever the while/foreach loop expects them to be
                     if let Some(pre_loop_context_type) = pre_loop_context.vars_in_scope.get(&var_id)
                     {
                         if continue_context_type != *pre_loop_context_type {
+                            different_from_pre_loop_types.insert(var_id.clone());
                             has_changes = true;
                         }
                     } else {
@@ -326,9 +329,11 @@ pub(crate) fn analyze<'a>(
             for var_id in &always_assigned_before_loop_body_vars {
                 let pre_loop_context_type = pre_loop_context.vars_in_scope.get(var_id);
 
-                if if let Some(continue_context_type) = continue_context.vars_in_scope.get(var_id) {
-                    if let Some(pre_loop_context_type) = pre_loop_context_type {
-                        continue_context_type.get_id() != pre_loop_context_type.get_id()
+                if if different_from_pre_loop_types.contains(var_id) {
+                    true
+                } else if let Some(_) = continue_context.vars_in_scope.get(var_id) {
+                    if let Some(_) = pre_loop_context_type {
+                        false
                     } else {
                         true
                     }
@@ -427,7 +432,7 @@ pub(crate) fn analyze<'a>(
 
     for (var_id, var_type) in &loop_parent_context.vars_in_scope.clone() {
         if let Some(loop_context_type) = loop_context.vars_in_scope.get(var_id) {
-            if loop_context_type.get_id() != var_type.get_id() {
+            if loop_context_type != var_type {
                 loop_parent_context.vars_in_scope.insert(
                     var_id.clone(),
                     Rc::new(combine_union_types(
@@ -467,7 +472,7 @@ pub(crate) fn analyze<'a>(
                         .insert(var_id.clone(), continue_context_type.clone());
                     loop_parent_context
                         .remove_var_from_conflicting_clauses(&var_id, None, None, tast_info);
-                } else if continue_context_type.get_id() != var_type.get_id() {
+                } else if continue_context_type != &var_type {
                     loop_parent_context.vars_in_scope.insert(
                         var_id.clone(),
                         Rc::new(combine_union_types(

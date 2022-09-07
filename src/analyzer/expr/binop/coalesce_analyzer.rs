@@ -21,12 +21,18 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 ) -> bool {
     let mut root_expr = left;
     let mut root_not_left = false;
+    let mut has_arrayget_key = false;
 
     loop {
         match &root_expr.2 {
             aast::Expr_::ArrayGet(boxed) => {
                 root_expr = &boxed.0;
                 root_not_left = true;
+                if let Some(dim) = &boxed.1 {
+                    if let aast::Expr_::ArrayGet(..) = dim.2 {
+                        has_arrayget_key = true;
+                    }
+                }
             }
             aast::Expr_::ObjGet(boxed) => {
                 root_expr = &boxed.0;
@@ -54,14 +60,16 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     let mut replacement_left = None;
 
-    if matches!(
-        root_expr.2,
-        aast::Expr_::Call(..)
-            | aast::Expr_::Cast(..)
-            | aast::Expr_::Eif(..)
-            | aast::Expr_::Binop(..)
-            | aast::Expr_::As(..)
-    ) {
+    if has_arrayget_key
+        || matches!(
+            root_expr.2,
+            aast::Expr_::Call(..)
+                | aast::Expr_::Cast(..)
+                | aast::Expr_::Eif(..)
+                | aast::Expr_::Binop(..)
+                | aast::Expr_::As(..)
+        )
+    {
         replacement_left = Some(get_left_expr(
             context,
             statements_analyzer,
