@@ -266,17 +266,7 @@ pub(crate) fn compare_generic_params(
                 ) || param_comparison_result.type_coerced.unwrap_or(false)
                 {
                     if !container_param.has_static_object() || !input_param.is_static_object() {
-                        let mut mixed_from_any = false;
-                        if container_param.is_mixed_with_any(&mut mixed_from_any)
-                            || container_param.is_arraykey()
-                        {
-                            atomic_comparison_result.type_coerced_from_nested_mixed = Some(true);
-                            if mixed_from_any {
-                                atomic_comparison_result.type_coerced_from_nested_any = Some(true);
-                            }
-                        } else {
-                            *all_types_contain = false;
-                        }
+                        *all_types_contain = false;
 
                         atomic_comparison_result.type_coerced = Some(false);
                     }
