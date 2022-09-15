@@ -11,8 +11,8 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use hakana_type::{
-    get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing, type_combiner,
-    wrap_atomic,
+    combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
+    type_combiner, wrap_atomic,
 };
 use oxidized::{
     aast::{self, Expr},
@@ -247,6 +247,18 @@ fn update_atomic_given_key(
                     *non_empty = true;
                 }
             }
+            TAtomic::TKeyset {
+                ref mut type_param, ..
+            } => {
+                *has_matching_item = true;
+
+                *type_param = combine_union_types(
+                    type_param,
+                    &wrap_atomic(key_value.clone()),
+                    Some(codebase),
+                    true,
+                );
+            }
             TAtomic::TDict {
                 ref mut known_items,
                 ref mut non_empty,
@@ -306,6 +318,16 @@ fn update_atomic_given_key(
 
                 *known_items = None;
                 *known_count = None;
+            }
+            TAtomic::TKeyset {
+                ref mut type_param, ..
+            } => {
+                *type_param = hakana_type::add_union_type(
+                    arrayish_params.unwrap().1,
+                    &current_type,
+                    Some(codebase),
+                    false,
+                );
             }
             TAtomic::TDict {
                 ref mut known_items,
