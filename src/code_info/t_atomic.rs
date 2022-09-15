@@ -180,6 +180,14 @@ impl TAtomic {
                         .join(", ")
                         .as_str();
 
+                    if let Some(params) = params {
+                        str += ", ...dict<";
+                        str += params.0.get_id().as_str();
+                        str += ",";
+                        str += params.1.get_id().as_str();
+                        str += ">";
+                    }
+
                     str += ")";
                     return str;
                 }

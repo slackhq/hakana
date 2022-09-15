@@ -381,8 +381,7 @@ fn adjust_array_type(
             } => {
                 let arraykey_offset = arraykey_offset.parse::<usize>().unwrap();
                 if let Some(known_items) = known_items {
-                    known_items
-                        .insert(arraykey_offset.clone(), (false, result_type.clone()));
+                    known_items.insert(arraykey_offset.clone(), (false, result_type.clone()));
                 } else {
                     *known_items = Some(BTreeMap::from([(
                         arraykey_offset.clone(),
@@ -698,25 +697,24 @@ fn get_value_for_key(
 
                     let mut new_base_type_candidate;
 
-                    if let TAtomic::TDict {
-                        known_items, ..
-                    } = &existing_key_type_part
-                    {
-                        if matches!(known_items, Some(_)) && !array_key.starts_with("$") {
+                    if let TAtomic::TDict { known_items, .. } = &existing_key_type_part {
+                        let known_item = if array_key.starts_with("$") {
                             if let Some(known_items) = known_items {
                                 let key_parts_key = array_key.replace("'", "");
-                                if let Some(cl) = known_items.get(&DictKey::String(key_parts_key)) {
-                                    let cl = cl.clone();
-
-                                    new_base_type_candidate = (*cl.1).clone();
-                                    if cl.0 {
-                                        *possibly_undefined = true;
-                                    }
-                                } else {
-                                    return None;
-                                }
+                                known_items.get(&DictKey::String(key_parts_key))
                             } else {
-                                panic!();
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        if let Some(known_item) = known_item {
+                            let known_item = known_item.clone();
+
+                            new_base_type_candidate = (*known_item.1).clone();
+                            if known_item.0 {
+                                *possibly_undefined = true;
                             }
                         } else {
                             new_base_type_candidate =
@@ -739,25 +737,21 @@ fn get_value_for_key(
                                 *possibly_undefined = true;
                             }
                         }
-                    } else if let TAtomic::TVec {
-                        known_items,
-                        type_param,
-                        ..
-                    } = &existing_key_type_part
-                    {
-                        if matches!(known_items, Some(_))
-                            && INTEGER_REGEX.is_match(&array_key)
-                        {
-                            let known_items = known_items.clone().unwrap();
-                            let key_parts_key = array_key.parse::<usize>().unwrap();
-                            if let Some((u, item)) = known_items.get(&key_parts_key) {
-                                new_base_type_candidate = item.clone();
-                                *possibly_undefined = *u;
-                            } else if !type_param.is_nothing() {
-                                new_base_type_candidate = type_param.clone();
+                    } else if let TAtomic::TVec { known_items, .. } = &existing_key_type_part {
+                        let known_item = if INTEGER_REGEX.is_match(&array_key) {
+                            if let Some(known_items) = known_items {
+                                let key_parts_key = array_key.parse::<usize>().unwrap();
+                                known_items.get(&key_parts_key)
                             } else {
-                                return None;
+                                None
                             }
+                        } else {
+                            None
+                        };
+
+                        if let Some(known_item) = known_item {
+                            new_base_type_candidate = known_item.1.clone();
+                            *possibly_undefined = known_item.0;
                         } else {
                             new_base_type_candidate =
                                 get_value_param(&existing_key_type_part, codebase).unwrap();

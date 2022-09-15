@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use hakana_reflection_info::{t_atomic::{TAtomic, DictKey}, t_union::TUnion};
 use rustc_hash::{FxHashMap, FxHashSet};
 
+#[derive(Debug)]
 pub(crate) struct TypeCombination {
     pub value_types: FxHashMap<String, TAtomic>,
 

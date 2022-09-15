@@ -447,7 +447,7 @@ fn intersect_contained_atomic_with_another(
     Some(type_2_atomic)
 }
 
-pub fn get_missing_type(assertion: &Assertion, inside_loop: bool) -> TUnion {
+fn get_missing_type(assertion: &Assertion, inside_loop: bool) -> TUnion {
     if matches!(assertion, Assertion::IsIsset | Assertion::IsEqualIsset) {
         return get_mixed_maybe_from_loop(inside_loop);
     }
