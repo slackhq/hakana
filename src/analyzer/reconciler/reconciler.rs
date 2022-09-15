@@ -698,7 +698,7 @@ fn get_value_for_key(
                     let mut new_base_type_candidate;
 
                     if let TAtomic::TDict { known_items, .. } = &existing_key_type_part {
-                        let known_item = if array_key.starts_with("$") {
+                        let known_item = if !array_key.starts_with("$") {
                             if let Some(known_items) = known_items {
                                 let key_parts_key = array_key.replace("'", "");
                                 known_items.get(&DictKey::String(key_parts_key))

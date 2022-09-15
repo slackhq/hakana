@@ -133,6 +133,10 @@ pub enum TAtomic {
         class_type: Box<TAtomic>,
         member_name: String,
     },
+    TEnumClassLabel {
+        class_name: Option<String>,
+        member_name: String,
+    },
 }
 
 impl TAtomic {
@@ -430,6 +434,16 @@ impl TAtomic {
             } => {
                 format!("{}::{}", class_type.get_id(), member_name)
             }
+            TAtomic::TEnumClassLabel {
+                class_name,
+                member_name,
+            } => {
+                if let Some(class_name) = class_name {
+                    format!("#{}::{}", class_name, member_name)
+                } else {
+                    format!("#{}", member_name)
+                }
+            }
         }
     }
 
@@ -471,7 +485,8 @@ impl TAtomic {
             | TAtomic::TTrue { .. }
             | TAtomic::TObject
             | TAtomic::TScalar
-            | TAtomic::TReference { .. } => self.get_id(),
+            | TAtomic::TReference { .. }
+            | TAtomic::TEnumClassLabel { .. } => self.get_id(),
 
             TAtomic::TStringWithFlags(..) => "string".to_string(),
 

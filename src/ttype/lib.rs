@@ -809,5 +809,9 @@ pub fn get_atomic_syntax_type(
             let lhs = get_atomic_syntax_type(class_type, codebase, is_valid);
             format!("{}::{}", lhs, member_name)
         }
+        TAtomic::TEnumClassLabel { .. } => {
+            *is_valid = false;
+            "_".to_string()
+        }
     }
 }

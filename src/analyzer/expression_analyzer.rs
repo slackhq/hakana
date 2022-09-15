@@ -602,6 +602,27 @@ pub(crate) fn analyze(
         aast::Expr_::Import(_) => {
             // do nothing with require/include
         }
+        aast::Expr_::EnumClassLabel(boxed) => {
+            let class_name = if let Some(id) = &boxed.0 {
+                let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+
+                Some(
+                    resolved_names
+                        .get(&id.0.start_offset())
+                        .cloned()
+                        .unwrap_or(id.1.clone()),
+                )
+            } else {
+                None
+            };
+            tast_info.expr_types.insert(
+                (expr.1.start_offset(), expr.1.end_offset()),
+                Rc::new(wrap_atomic(TAtomic::TEnumClassLabel {
+                    class_name,
+                    member_name: boxed.1.clone(),
+                })),
+            );
+        }
         aast::Expr_::Darray(_)
         | aast::Expr_::Varray(_)
         | aast::Expr_::ValCollection(_)
@@ -619,7 +640,6 @@ pub(crate) fn analyze(
         | aast::Expr_::SmethodId(_)
         | aast::Expr_::Pair(_)
         | aast::Expr_::ETSplice(_)
-        | aast::Expr_::EnumClassLabel(_)
         | aast::Expr_::Hole(_) => {
             //println!("{:#?}", expr);
             tast_info.maybe_add_issue(
