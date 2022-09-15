@@ -257,6 +257,7 @@ pub(crate) fn reconcile(
         {
             if params.0.is_arraykey() && params.1.is_mixed() {
                 return Some(intersect_dict(
+                    codebase,
                     assertion,
                     existing_var_type,
                     key,
@@ -669,6 +670,7 @@ fn intersect_keyset(
 }
 
 fn intersect_dict(
+    codebase: &CodebaseInfo,
     assertion: &Assertion,
     existing_var_type: &TUnion,
     key: &Option<String>,
@@ -688,28 +690,55 @@ fn intersect_dict(
     let mut did_remove_type = false;
 
     for (_, atomic) in &existing_var_type.types {
-        if matches!(atomic, TAtomic::TDict { .. }) {
-            acceptable_types.push(atomic.clone());
-        } else {
-            if let TAtomic::TNamedObject {
-                name,
-                type_params: Some(typed_params),
-                ..
-            } = atomic
-            {
-                if name == "HH\\Container" {
-                    return get_dict(get_arraykey(true), typed_params.get(0).unwrap().clone());
-                }
-
-                if name == "HH\\KeyedContainer" {
-                    return get_dict(
-                        typed_params.get(0).unwrap().clone(),
-                        typed_params.get(1).unwrap().clone(),
-                    );
-                }
+        match atomic {
+            TAtomic::TDict { .. } => {
+                acceptable_types.push(atomic.clone());
             }
+            TAtomic::TTemplateParam { as_type, .. } => {
+                if as_type.is_mixed() {
+                    let atomic = atomic.replace_template_extends(get_mixed_dict());
 
-            did_remove_type = true;
+                    acceptable_types.push(atomic);
+                } else {
+                    let atomic = atomic.replace_template_extends(intersect_dict(
+                        codebase,
+                        assertion,
+                        as_type,
+                        &None,
+                        false,
+                        tast_info,
+                        statements_analyzer,
+                        None,
+                        failed_reconciliation,
+                        is_equality,
+                        suppressed_issues,
+                    ));
+                    acceptable_types.push(atomic);
+                }
+
+                did_remove_type = true;
+            }
+            _ => {
+                if let TAtomic::TNamedObject {
+                    name,
+                    type_params: Some(typed_params),
+                    ..
+                } = atomic
+                {
+                    if name == "HH\\Container" {
+                        return get_dict(get_arraykey(true), typed_params.get(0).unwrap().clone());
+                    }
+
+                    if name == "HH\\KeyedContainer" {
+                        return get_dict(
+                            typed_params.get(0).unwrap().clone(),
+                            typed_params.get(1).unwrap().clone(),
+                        );
+                    }
+                }
+
+                did_remove_type = true;
+            }
         }
     }
 
