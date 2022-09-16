@@ -149,6 +149,21 @@ fn get_special_method_return(method_id: &MethodIdentifier) -> Option<TUnion> {
         return Some(false_or_datetime);
     }
 
+    if method_id.0 == "DOMDocument" && method_id.1 == "createElement" {
+        let mut false_or_domelement = TUnion::new(vec![
+            TAtomic::TNamedObject {
+                name: "DOMElement".to_string(),
+                type_params: None,
+                is_this: false,
+                extra_types: None,
+                remapped_params: false,
+            },
+            TAtomic::TFalse,
+        ]);
+        false_or_domelement.ignore_falsable_issues = true;
+        return Some(false_or_domelement);
+    }
+
     None
 }
 

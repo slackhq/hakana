@@ -103,6 +103,12 @@ pub(crate) fn analyze(
                 continue; // handled above
             }
 
+            if let TAtomic::TFalse = lhs_atomic_type {
+                if class_type.ignore_falsable_issues {
+                    continue;
+                }
+            }
+
             atomic_method_call_analyzer::analyze(
                 statements_analyzer,
                 expr,
