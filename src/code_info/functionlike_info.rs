@@ -47,8 +47,6 @@ pub struct FunctionLikeInfo {
      */
     pub template_types: IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
 
-    pub template_covariants: FxHashMap<u32, bool>,
-
     pub assertions: Option<FxHashMap<usize, Assertion>>,
 
     pub if_true_assertions: Option<FxHashMap<usize, Assertion>>,
@@ -119,7 +117,6 @@ impl FunctionLikeInfo {
             deprecated: false,
             internal_to: None,
             template_types: IndexMap::new(),
-            template_covariants: FxHashMap::default(),
             assertions: None,
             if_true_assertions: None,
             if_false_assertions: None,

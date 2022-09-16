@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
     class_constant_info::ConstantInfo,
-    classlike_info::ClassLikeInfo,
+    classlike_info::{ClassLikeInfo, Variance},
     code_location::HPos,
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
     member_visibility::MemberVisibility,
@@ -79,17 +79,19 @@ pub(crate) fn scan(
 
             match type_param_node.variance {
                 ast_defs::Variance::Covariant => {
-                    storage.template_covariants.insert(i);
+                    storage.generic_variance.insert(i, Variance::Covariant);
                 }
                 ast_defs::Variance::Contravariant => {
-                    // todo handle this
+                    storage.generic_variance.insert(i, Variance::Contravariant);
                 }
                 ast_defs::Variance::Invariant => {
                     // default, do nothing
 
                     if class_name == "HH\\Vector" {
                         // cheat here for vectors
-                        storage.template_covariants.insert(i);
+                        storage.generic_variance.insert(i, Variance::Covariant);
+                    } else {
+                        storage.generic_variance.insert(i, Variance::Invariant);
                     }
                 }
             }

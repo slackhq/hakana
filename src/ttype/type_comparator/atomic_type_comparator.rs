@@ -730,6 +730,42 @@ pub fn is_contained_by(
                 return true;
             }
         }
+
+        if container_name == "HH\\EnumClass\\Label" {
+            if let TAtomic::TEnumClassLabel {
+                class_name: input_class_name,
+                member_name: input_member_name,
+            } = input_type_part
+            {
+                if let Some(container_type_params) = container_type_params {
+                    if let (Some(container_enum_param), Some(_)) =
+                        (container_type_params.get(0), container_type_params.get(1))
+                    {
+                        let container_enum_param = container_enum_param.get_single();
+
+                        if let TAtomic::TNamedObject {
+                            name: container_enum_name,
+                            ..
+                        } = container_enum_param
+                        {
+                            if let Some(input_class_name) = input_class_name {
+                                return input_class_name == container_enum_name;
+                            } else {
+                                let classlike_info =
+                                    codebase.classlike_infos.get(container_enum_name).unwrap();
+                                return classlike_info.constants.contains_key(input_member_name);
+                            }
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+        }
     }
 
     if let TAtomic::TTypeAlias {

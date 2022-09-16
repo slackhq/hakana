@@ -1,4 +1,5 @@
 use crate::{
+    classlike_info::Variance,
     codebase_info::{symbols::SymbolKind, CodebaseInfo, Symbols},
     functionlike_parameter::FunctionLikeParameter,
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
@@ -578,7 +579,7 @@ impl TAtomic {
                 Some(type_params) => {
                     let covariants =
                         if let Some(classlike_storage) = codebase.classlike_infos.get(name) {
-                            &classlike_storage.template_covariants
+                            &classlike_storage.generic_variance
                         } else {
                             return self.get_key();
                         };
@@ -590,7 +591,7 @@ impl TAtomic {
                         .into_iter()
                         .enumerate()
                         .map(|(i, tunion)| {
-                            if covariants.contains(&i) {
+                            if let Some(Variance::Covariant) = covariants.get(&i) {
                                 "*".to_string()
                             } else {
                                 tunion.get_key()

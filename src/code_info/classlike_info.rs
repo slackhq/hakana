@@ -15,6 +15,13 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Variance {
+    Invariant,
+    Covariant,
+    Contravariant,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClassLikeInfo {
     pub constants: FxHashMap<String, ConstantInfo>,
 
@@ -127,7 +134,7 @@ pub struct ClassLikeInfo {
      */
     pub template_types: IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
 
-    pub template_covariants: FxHashSet<usize>,
+    pub generic_variance: FxHashMap<usize, Variance>,
 
     /**
      * A map of which generic classlikes are extended or implemented by this class or interface.
@@ -246,7 +253,7 @@ impl Default for ClassLikeInfo {
             potential_declaring_method_ids: FxHashMap::default(),
             properties: FxHashMap::default(),
             suppressed_issues: None,
-            template_covariants: FxHashSet::default(),
+            generic_variance: FxHashMap::default(),
             template_extended_count: 0,
             template_extended_params: FxHashMap::default(),
             template_extended_offsets: FxHashMap::default(),

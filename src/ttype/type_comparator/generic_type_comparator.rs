@@ -4,6 +4,7 @@ use crate::{
     type_expander::{self, TypeExpansionOptions},
 };
 use hakana_reflection_info::{
+    classlike_info::Variance,
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
@@ -199,6 +200,21 @@ pub(crate) fn compare_generic_params(
 
     let mut param_comparison_result = TypeComparisonResult::new();
 
+    let container_type_param_variance = if let Some(container_classlike_storage) =
+        codebase.classlike_infos.get(container_name)
+    {
+        container_classlike_storage
+            .generic_variance
+            .get(&param_offset)
+    } else if let Some(container_typealias_storage) = codebase.type_definitions.get(container_name)
+    {
+        container_typealias_storage
+            .generic_variance
+            .get(&param_offset)
+    } else {
+        None
+    };
+
     if !union_type_comparator::is_contained_by(
         codebase,
         input_param,
@@ -208,13 +224,18 @@ pub(crate) fn compare_generic_params(
         allow_interface_equality,
         &mut param_comparison_result,
     ) {
-        if input_name == "Generator"
-            && param_offset == 2
-            && param_comparison_result
-                .type_coerced_from_nested_mixed
-                .unwrap_or(false)
-        {
-            return;
+        if let Some(Variance::Contravariant) = container_type_param_variance {
+            if union_type_comparator::is_contained_by(
+                codebase,
+                container_param,
+                input_param,
+                false,
+                container_param.ignore_falsable_issues,
+                allow_interface_equality,
+                &mut param_comparison_result,
+            ) {
+                return;
+            }
         }
 
         if input_name == "HH\\KeyedContainer" && param_offset == 0 {
@@ -238,23 +259,9 @@ pub(crate) fn compare_generic_params(
                 type_params.insert(param_offset, container_param.clone());
             }
         } else {
-            let container_type_params_covariant = if let Some(container_classlike_storage) =
-                codebase.classlike_infos.get(container_name)
+            if !matches!(container_type_param_variance, Some(Variance::Covariant))
+                && !container_param.had_template
             {
-                container_classlike_storage
-                    .template_covariants
-                    .contains(&param_offset)
-            } else if let Some(container_typealias_storage) =
-                codebase.type_definitions.get(container_name)
-            {
-                container_typealias_storage
-                    .template_covariants
-                    .contains(&param_offset)
-            } else {
-                true
-            };
-
-            if !container_type_params_covariant && !container_param.had_template {
                 if !union_type_comparator::is_contained_by(
                     codebase,
                     container_param,

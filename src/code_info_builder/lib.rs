@@ -3,9 +3,9 @@ use std::sync::Arc;
 use crate::typehint_resolver::get_type_from_hint;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
-    class_constant_info::ConstantInfo, code_location::HPos, codebase_info::CodebaseInfo,
-    t_atomic::TAtomic, taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
-    type_resolution::TypeResolutionContext,
+    class_constant_info::ConstantInfo, classlike_info::Variance, code_location::HPos,
+    codebase_info::CodebaseInfo, t_atomic::TAtomic, taint::string_to_source_types,
+    type_definition_info::TypeDefinitionInfo, type_resolution::TypeResolutionContext,
 };
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
@@ -151,7 +151,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let mut template_type_map = IndexMap::new();
 
-        let mut template_covariants = FxHashSet::default();
+        let mut generic_variance = FxHashMap::default();
 
         for (i, param) in typedef.tparams.iter().enumerate() {
             let constraint = param.constraints.first();
@@ -175,9 +175,14 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
             match param.variance {
                 ast_defs::Variance::Covariant => {
-                    template_covariants.insert(i);
+                    generic_variance.insert(i, Variance::Covariant);
                 }
-                _ => {}
+                ast_defs::Variance::Contravariant => {
+                    generic_variance.insert(i, Variance::Contravariant);
+                }
+                ast_defs::Variance::Invariant => {
+                    generic_variance.insert(i, Variance::Invariant);
+                }
             }
 
             template_type_map.insert(param.name.1.clone(), h);
@@ -212,7 +217,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &self.resolved_names,
             ),
             template_types: template_type_map,
-            template_covariants,
+            generic_variance,
             shape_field_taints: None,
             is_literal_string: typedef.user_attributes.iter().any(|user_attribute| {
                 let name = if let Some(name) = self

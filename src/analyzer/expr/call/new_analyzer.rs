@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hakana_reflection_info::classlike_info::Variance;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_type::template::standin_type_replacer::get_most_specific_type_from_bounds;
@@ -391,7 +392,7 @@ fn analyze_named_constructor(
                     ))
                     .clone()
                 } else {
-                    if storage.template_covariants.contains(&i) {
+                    if let Some(Variance::Contravariant) = storage.generic_variance.get(&i) {
                         get_nothing()
                     } else {
                         (**base_type_map.iter().next().unwrap().1).clone()
