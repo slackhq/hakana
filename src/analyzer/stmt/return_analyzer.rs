@@ -124,6 +124,7 @@ pub(crate) fn analyze(
     let expected_return_type = if let Some(expected_return_type) = &functionlike_storage.return_type
     {
         let mut expected_type = expected_return_type.clone();
+
         type_expander::expand_union(
             statements_analyzer.get_codebase(),
             &mut expected_type,

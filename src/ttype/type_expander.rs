@@ -230,6 +230,30 @@ fn expand_atomic(
         return;
     }
 
+    if let TAtomic::TClassname {
+        ref mut as_type, ..
+    } = return_type_part
+    {
+        let mut atomic_return_type_parts = vec![];
+        expand_atomic(
+            as_type,
+            codebase,
+            options,
+            data_flow_graph,
+            &mut Vec::new(),
+            key,
+            &mut atomic_return_type_parts,
+            &mut false,
+            extra_data_flow_nodes,
+        );
+
+        if !atomic_return_type_parts.is_empty() {
+            *as_type = Box::new(atomic_return_type_parts.remove(0));
+        }
+
+        return;
+    }
+
     if let TAtomic::TEnumLiteralCase {
         ref mut constraint_type,
         ..
