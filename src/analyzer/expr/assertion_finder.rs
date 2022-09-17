@@ -1,5 +1,6 @@
-use super::expression_identifier::get_extended_var_id;
+use super::expression_identifier::{get_dim_id, get_extended_var_id};
 use crate::{formula_generator::AssertionContext, typed_ast::TastInfo};
+use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind},
@@ -43,20 +44,11 @@ pub(crate) fn scrape_assertions(
             return get_is_assertions(&is_expr.0, &is_expr.1, assertion_context, inside_negation);
         }
         aast::Expr_::Call(call) => {
-            if let aast::Expr_::Id(boxed_id) = &call.0 .2 {
-                let mut name = &boxed_id.1;
+            let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
 
-                if name != "isset" {
-                    if let Some(fq_name) = assertion_context
-                        .resolved_names
-                        .get(&conditional.1.start_offset())
-                    {
-                        name = fq_name;
-                    }
-                }
-
+            if let Some(FunctionLikeIdentifier::Function(name)) = functionlike_id {
                 return scrape_function_assertions(
-                    name,
+                    &name,
                     &call.2,
                     &conditional.1,
                     assertion_context,
@@ -218,9 +210,92 @@ fn get_is_assertions(
                 })
                 .collect::<Vec<Assertion>>()],
         );
+    } else {
+        match &var_expr.2 {
+            aast::Expr_::Call(call) => {
+                let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
+
+                if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) =
+                    functionlike_id
+                {
+                    if class_name == "HH\\Shapes" && member_name == "idx" {
+                        if let TAtomic::TNonnullMixed = is_type.get_single() {
+                            let shape_name = get_extended_var_id(
+                                &call.2[0].1,
+                                assertion_context.this_class_name,
+                                assertion_context.file_source,
+                                assertion_context.resolved_names,
+                            );
+
+                            let dim_id = get_dim_id(&call.2[1].1);
+
+                            if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
+                                if_types.insert(
+                                    format!("{}[{}]", shape_name, dim_id),
+                                    vec![vec![Assertion::IsIsset]],
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 
     vec![if_types]
+}
+
+fn get_functionlike_id_from_call(
+    call: &(
+        aast::Expr<(), ()>,
+        Vec<aast::Targ<()>>,
+        Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        Option<aast::Expr<(), ()>>,
+    ),
+    assertion_context: &AssertionContext,
+) -> Option<FunctionLikeIdentifier> {
+    match &call.0 .2 {
+        aast::Expr_::Id(boxed_id) => {
+            let mut name = &boxed_id.1;
+
+            if name != "isset" {
+                if let Some(fq_name) = assertion_context
+                    .resolved_names
+                    .get(&boxed_id.0.start_offset())
+                {
+                    name = fq_name;
+                }
+            }
+
+            Some(FunctionLikeIdentifier::Function(name.clone()))
+        }
+        aast::Expr_::ClassConst(boxed) => {
+            let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
+
+            match &class_id.2 {
+                aast::ClassId_::CIexpr(lhs_expr) => {
+                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                        let mut name_string = id.1.clone();
+                        let resolved_names = assertion_context.resolved_names;
+
+                        if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
+                            name_string = fq_name.clone();
+                        }
+
+                        Some(FunctionLikeIdentifier::Method(
+                            name_string,
+                            rhs_expr.1.clone(),
+                        ))
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
 }
 
 fn scrape_equality_assertions(

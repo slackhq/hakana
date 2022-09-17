@@ -37,67 +37,66 @@ pub(crate) fn analyze(
 ) -> bool {
     let function_name_expr = expr.0;
 
-    if let aast::Expr_::Id(boxed_id) = &function_name_expr.2 {
-        return function_call_analyzer::analyze(
-            statements_analyzer,
-            ((&boxed_id.0, &boxed_id.1), expr.1, expr.2, expr.3),
-            pos,
-            tast_info,
-            context,
-            if_body_context,
-        );
-    } else {
-        match &function_name_expr.2 {
-            aast::Expr_::ObjGet(boxed) => {
-                let (lhs_expr, rhs_expr, nullfetch, prop_or_method) =
-                    (&boxed.0, &boxed.1, &boxed.2, &boxed.3);
+    match &function_name_expr.2 {
+        aast::Expr_::Id(boxed_id) => {
+            return function_call_analyzer::analyze(
+                statements_analyzer,
+                ((&boxed_id.0, &boxed_id.1), expr.1, expr.2, expr.3),
+                pos,
+                tast_info,
+                context,
+                if_body_context,
+            );
+        }
+        aast::Expr_::ObjGet(boxed) => {
+            let (lhs_expr, rhs_expr, nullfetch, prop_or_method) =
+                (&boxed.0, &boxed.1, &boxed.2, &boxed.3);
 
-                match prop_or_method {
-                    ast_defs::PropOrMethod::IsMethod => {
-                        return instance_call_analyzer::analyze(
-                            statements_analyzer,
-                            (lhs_expr, rhs_expr, expr.1, expr.2, expr.3),
-                            &pos,
-                            tast_info,
-                            context,
-                            if_body_context,
-                            matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
-                        )
-                    }
-                    _ => {
-                        return expression_call_analyzer::analyze(
-                            statements_analyzer,
-                            (expr.0, expr.1, expr.2, expr.3),
-                            pos,
-                            tast_info,
-                            context,
-                            if_body_context,
-                        );
-                    }
+            match prop_or_method {
+                ast_defs::PropOrMethod::IsMethod => {
+                    return instance_call_analyzer::analyze(
+                        statements_analyzer,
+                        (lhs_expr, rhs_expr, expr.1, expr.2, expr.3),
+                        &pos,
+                        tast_info,
+                        context,
+                        if_body_context,
+                        matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
+                    )
+                }
+                _ => {
+                    return expression_call_analyzer::analyze(
+                        statements_analyzer,
+                        (expr.0, expr.1, expr.2, expr.3),
+                        pos,
+                        tast_info,
+                        context,
+                        if_body_context,
+                    );
                 }
             }
-            aast::Expr_::ClassConst(boxed) => {
-                let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
+        }
+        aast::Expr_::ClassConst(boxed) => {
+            let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
 
-                return static_call_analyzer::analyze(
-                    statements_analyzer,
-                    (class_id, rhs_expr, expr.1, expr.2, expr.3),
-                    &pos,
-                    tast_info,
-                    context,
-                    if_body_context,
-                );
-            }
-            _ => {
-                return expression_call_analyzer::analyze(
-                    statements_analyzer,
-                    (expr.0, expr.1, expr.2, expr.3),
-                    pos,
-                    tast_info,
-                    context,
-                    if_body_context,
-                );
-            }
+            return static_call_analyzer::analyze(
+                statements_analyzer,
+                (class_id, rhs_expr, expr.1, expr.2, expr.3),
+                &pos,
+                tast_info,
+                context,
+                if_body_context,
+            );
+        }
+        _ => {
+            return expression_call_analyzer::analyze(
+                statements_analyzer,
+                (expr.0, expr.1, expr.2, expr.3),
+                pos,
+                tast_info,
+                context,
+                if_body_context,
+            );
         }
     };
 }
