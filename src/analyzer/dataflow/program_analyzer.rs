@@ -39,7 +39,6 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
 
 pub fn find_connections(graph: &DataFlowGraph, config: &Config, debug: bool) -> Vec<Issue> {
     let mut new_issues = vec![];
-    println!("got here");
 
     let sources = graph
         .sources
@@ -205,6 +204,25 @@ fn get_child_nodes(
     let mut new_child_nodes = Vec::new();
 
     if let Some(forward_edges) = graph.forward_edges.get(&generated_source.id) {
+        if !match_sinks {
+            for t in source_taints {
+                if let SinkType::Custom(target_id) = t {
+                    if &generated_source.id == target_id {
+                        let message = format!(
+                            "Data found its way to {} using path {}",
+                            target_id,
+                            generated_source.get_trace()
+                        );
+                        new_issues.push(Issue::new(
+                            IssueKind::TaintedData(t.clone()),
+                            message,
+                            (**generated_source.pos.as_ref().unwrap()).clone(),
+                        ));
+                    }
+                }
+            }
+        }
+
         for (to_id, path) in forward_edges {
             let destination_node = if let Some(n) = graph.vertices.get(to_id) {
                 n
