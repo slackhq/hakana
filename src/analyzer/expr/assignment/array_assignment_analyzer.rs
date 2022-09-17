@@ -78,11 +78,12 @@ pub(crate) fn analyze(
 
     let mut current_type = root_type.clone();
 
-    let root_var_id = expression_identifier::get_extended_var_id(
+    let root_var_id = expression_identifier::get_var_id(
         &root_array_expr,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
+        Some(statements_analyzer.get_codebase()),
     );
 
     let current_dim = analyze_nested_array_assignment(
@@ -603,14 +604,19 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             };
 
             var_id_additions.push(
-                if let Some(dim_id) = expression_identifier::get_dim_id(dim) {
+                if let Some(dim_id) = expression_identifier::get_dim_id(
+                    dim,
+                    Some(statements_analyzer.get_codebase()),
+                    &statements_analyzer.get_file_analyzer().resolved_names,
+                ) {
                     format!("[{}]", dim_id)
                 } else {
-                    if let Some(dim_id) = expression_identifier::get_extended_var_id(
+                    if let Some(dim_id) = expression_identifier::get_var_id(
                         dim,
                         context.function_context.calling_class.as_ref(),
                         statements_analyzer.get_file_analyzer().get_file_source(),
                         statements_analyzer.get_file_analyzer().resolved_names,
+                        Some(statements_analyzer.get_codebase()),
                     ) {
                         format!("[{}]", dim_id)
                     } else {
@@ -685,11 +691,12 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                 array_expr.0.pos(),
                 array_expr_var_type_inner,
                 &assign_value_type,
-                expression_identifier::get_extended_var_id(
+                expression_identifier::get_var_id(
                     array_expr.0,
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.get_file_analyzer().get_file_source(),
                     statements_analyzer.get_file_analyzer().resolved_names,
+                    Some(statements_analyzer.get_codebase()),
                 ),
                 &if let Some(offset_type) = array_expr_offset_atomic_type {
                     vec![offset_type]
@@ -767,11 +774,12 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
         let mut parent_array_var_id = None;
 
-        let array_expr_id = if let Some(var_var_id) = expression_identifier::get_extended_var_id(
+        let array_expr_id = if let Some(var_var_id) = expression_identifier::get_var_id(
             array_expr.0,
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
+            Some(statements_analyzer.get_codebase()),
         ) {
             parent_array_var_id = Some(var_var_id.clone());
             Some(format!(

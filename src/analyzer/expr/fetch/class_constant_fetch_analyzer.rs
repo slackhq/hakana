@@ -13,7 +13,7 @@ use oxidized::{
     aast::{self, ClassId},
     ast_defs::Pos,
 };
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -34,50 +34,15 @@ pub(crate) fn analyze(
     let classlike_name = match &expr.0 .2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                match id.1.as_str() {
-                    "self" => {
-                        let self_name =
-                            if let Some(calling_class) = &context.function_context.calling_class {
-                                calling_class
-                            } else {
-                                return false;
-                            };
-
-                        self_name.clone()
-                    }
-                    "parent" => {
-                        let self_name =
-                            if let Some(calling_class) = &context.function_context.calling_class {
-                                calling_class
-                            } else {
-                                return false;
-                            };
-
-                        let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-                        classlike_storage.direct_parent_class.clone().unwrap()
-                    }
-                    "static" => {
-                        is_static = true;
-                        let self_name =
-                            if let Some(calling_class) = &context.function_context.calling_class {
-                                calling_class
-                            } else {
-                                return false;
-                            };
-
-                        self_name.clone()
-                    }
-                    _ => {
-                        let mut name_string = id.1.clone();
-
-                        let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
-
-                        if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
-                            name_string = fq_name.clone();
-                        }
-
-                        name_string
-                    }
+                match get_id_name(
+                    id,
+                    &context.function_context.calling_class,
+                    codebase,
+                    &mut is_static,
+                    statements_analyzer.get_file_analyzer().resolved_names,
+                ) {
+                    Some(value) => value,
+                    None => return false,
                 }
             } else {
                 let was_inside_general_use = context.inside_general_use;
@@ -135,6 +100,55 @@ pub(crate) fn analyze(
     tast_info.set_expr_type(&pos, stmt_type);
 
     return true;
+}
+
+pub(crate) fn get_id_name(
+    id: &Box<oxidized::ast_defs::Id>,
+    calling_class: &Option<String>,
+    codebase: &CodebaseInfo,
+    is_static: &mut bool,
+    resolved_names: &FxHashMap<usize, String>,
+) -> Option<String> {
+    Some(match id.1.as_str() {
+        "self" => {
+            let self_name = if let Some(calling_class) = calling_class {
+                calling_class
+            } else {
+                return None;
+            };
+
+            self_name.clone()
+        }
+        "parent" => {
+            let self_name = if let Some(calling_class) = calling_class {
+                calling_class
+            } else {
+                return None;
+            };
+
+            let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
+            classlike_storage.direct_parent_class.clone().unwrap()
+        }
+        "static" => {
+            *is_static = true;
+            let self_name = if let Some(calling_class) = calling_class {
+                calling_class
+            } else {
+                return None;
+            };
+
+            self_name.clone()
+        }
+        _ => {
+            let mut name_string = id.1.clone();
+
+            if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
+                name_string = fq_name.clone();
+            }
+
+            name_string
+        }
+    })
 }
 
 fn analyse_known_class_constant(

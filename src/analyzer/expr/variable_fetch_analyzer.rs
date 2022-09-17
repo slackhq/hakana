@@ -20,13 +20,6 @@ pub(crate) fn analyze(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> bool {
-    if lid.1 .1 == "$$" {
-        if let Some(pipe_expr_type) = tast_info.pipe_expr_type.clone() {
-            tast_info.set_expr_type(&pos, pipe_expr_type);
-            return true;
-        }
-    }
-
     tast_info
         .pure_exprs
         .insert((pos.start_offset(), pos.end_offset()));

@@ -9,9 +9,8 @@ use crate::expr::assignment::instance_property_assignment_analyzer;
 use crate::expr::assignment::static_property_assignment_analyzer;
 use crate::expr::call::argument_analyzer::get_removed_taints_in_comments;
 use crate::expr::expression_identifier;
-use crate::expr::expression_identifier::get_extended_var_id;
-use crate::expr::expression_identifier::get_root_var_id;
 use crate::expr::expression_identifier::get_var_id;
+use crate::expr::expression_identifier::get_root_var_id;
 use crate::expr::fetch::array_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::formula_generator;
@@ -56,13 +55,15 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
+        Some(statements_analyzer.get_codebase()),
     );
 
-    let extended_var_id = get_extended_var_id(
+    let extended_var_id = get_var_id(
         assign_var,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
+        Some(statements_analyzer.get_codebase()),
     );
 
     //let removed_taints = Vec::new();
@@ -275,6 +276,7 @@ pub(crate) fn analyze(
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 statements_analyzer.get_file_analyzer().resolved_names,
+                Some(statements_analyzer.get_codebase()),
             );
             instance_property_assignment_analyzer::analyze(
                 statements_analyzer,
@@ -379,11 +381,12 @@ fn analyze_list_assignment(
     let codebase = statements_analyzer.get_codebase();
 
     for (offset, assign_var_item) in expressions.iter().enumerate() {
-        let list_var_id = expression_identifier::get_extended_var_id(
+        let list_var_id = expression_identifier::get_var_id(
             assign_var_item,
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
+            Some(statements_analyzer.get_codebase()),
         );
 
         if list_var_id.unwrap_or("".to_string()) == "$_" {
@@ -442,11 +445,12 @@ fn analyze_list_assignment(
         }
 
         if let Some(source_expr) = source_expr {
-            let source_expr_id = expression_identifier::get_extended_var_id(
+            let source_expr_id = expression_identifier::get_var_id(
                 source_expr,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 statements_analyzer.get_file_analyzer().resolved_names,
+                Some(statements_analyzer.get_codebase()),
             );
 
             let keyed_array_var_id = if let Some(source_expr_id) = source_expr_id {

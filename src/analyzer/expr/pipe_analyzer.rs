@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::expression_analyzer;
 use crate::typed_ast::TastInfo;
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
@@ -27,7 +29,7 @@ pub(crate) fn analyze(
         .cloned()
         .unwrap_or(get_mixed_any());
 
-    tast_info.pipe_expr_type = Some(pipe_expr_type);
+    context.vars_in_scope.insert("$$".to_string(), Rc::new(pipe_expr_type));
 
     let analyzed_ok = expression_analyzer::analyze(
         statements_analyzer,
@@ -37,7 +39,7 @@ pub(crate) fn analyze(
         if_body_context,
     );
 
-    tast_info.pipe_expr_type = None;
+    context.vars_in_scope.remove(&"$$".to_string());
 
     tast_info.set_expr_type(
         &pos,

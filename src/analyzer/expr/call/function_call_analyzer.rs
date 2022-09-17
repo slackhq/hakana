@@ -192,14 +192,19 @@ pub(crate) fn analyze(
         || name == "HH\\Lib\\Dict\\contains"
     {
         if name == "HH\\Lib\\C\\contains_key" || name == "HH\\Lib\\Dict\\contains_key" {
-            let expr_var_id = expression_identifier::get_extended_var_id(
+            let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].1,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 resolved_names,
+                Some(statements_analyzer.get_codebase()),
             );
 
-            let dim_var_id = expression_identifier::get_dim_id(&expr.2[1].1);
+            let dim_var_id = expression_identifier::get_dim_id(
+                &expr.2[1].1,
+                Some(statements_analyzer.get_codebase()),
+                resolved_names,
+            );
 
             if let Some(expr_var_id) = expr_var_id {
                 if let Some(mut dim_var_id) = dim_var_id {
@@ -236,11 +241,12 @@ pub(crate) fn analyze(
         }
 
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-            let second_arg_var_id = expression_identifier::get_extended_var_id(
+            let second_arg_var_id = expression_identifier::get_var_id(
                 &expr.2[1].1,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 resolved_names,
+                Some(statements_analyzer.get_codebase()),
             );
 
             if let Some(expr_var_id) = second_arg_var_id {
@@ -258,11 +264,12 @@ pub(crate) fn analyze(
         }
     } else if name == "HH\\Lib\\Str\\starts_with" && expr.2.len() == 2 {
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-            let expr_var_id = expression_identifier::get_extended_var_id(
+            let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].1,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 resolved_names,
+                Some(statements_analyzer.get_codebase()),
             );
 
             let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
@@ -292,11 +299,12 @@ pub(crate) fn analyze(
         }
     } else if name == "HH\\Lib\\Regex\\matches" && expr.2.len() == 2 {
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-            let expr_var_id = expression_identifier::get_extended_var_id(
+            let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].1,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 resolved_names,
+                Some(statements_analyzer.get_codebase()),
             );
 
             let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());

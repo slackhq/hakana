@@ -58,11 +58,12 @@ pub(crate) fn analyze(
 
     add_branch_dataflow(statements_analyzer, &stmt.0, tast_info);
 
-    let switch_var_id = if let Some(switch_var_id) = expression_identifier::get_extended_var_id(
+    let switch_var_id = if let Some(switch_var_id) = expression_identifier::get_var_id(
         stmt.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
+        Some(statements_analyzer.get_codebase())
     ) {
         switch_var_id
     } else {

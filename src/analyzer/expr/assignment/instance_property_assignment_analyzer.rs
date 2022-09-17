@@ -208,6 +208,7 @@ pub(crate) fn analyze_regular_assignment(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
+        Some(statements_analyzer.get_codebase()),
     );
 
     // if let Some(var_id) = var_id.clone() {
@@ -351,6 +352,7 @@ pub(crate) fn analyze_atomic_assignment(
             None,
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
+            Some(statements_analyzer.get_codebase()),
         );
 
         add_instance_property_dataflow(

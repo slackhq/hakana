@@ -19,7 +19,6 @@ pub struct TastInfo {
     pub data_flow_graph: DataFlowGraph,
     pub case_scopes: Vec<CaseScope>,
     pub issues_to_emit: Vec<Issue>,
-    pub pipe_expr_type: Option<TUnion>,
     pub inferred_return_types: Vec<TUnion>,
     pub fully_matched_switch_offsets: FxHashSet<usize>,
     pub closures: FxHashMap<Pos, FunctionLikeInfo>,
@@ -72,7 +71,6 @@ impl TastInfo {
             data_flow_graph,
             case_scopes: Vec::new(),
             issues_to_emit: Vec::new(),
-            pipe_expr_type: None,
             inferred_return_types: Vec::new(),
             fully_matched_switch_offsets: FxHashSet::default(),
             recording_level: 0,
@@ -174,7 +172,7 @@ impl TastInfo {
                         _ => {}
                     },
                     4063 => match &issue.kind {
-                        IssueKind::MixedArrayAccess => {
+                        IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess => {
                             return false;
                         }
                         _ => {}

@@ -15,7 +15,10 @@ use oxidized::{
     tast::Pos,
 };
 
-use crate::{expr::expression_identifier, typed_ast::TastInfo};
+use crate::{
+    expr::{expression_identifier, fetch::class_constant_fetch_analyzer::get_id_name},
+    typed_ast::TastInfo,
+};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
@@ -84,45 +87,20 @@ pub(crate) fn analyze(
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 statements_analyzer.get_file_analyzer().resolved_names,
+                Some(statements_analyzer.get_codebase()),
             );
 
             match &expr.2 {
                 aast::Expr_::Id(id) => {
-                    // eg. Number1::$foo, self::$foo
-                    let classlike_name = match id.1.as_str() {
-                        "self" => {
-                            let self_name =
-                                &context.function_context.calling_class.clone().unwrap();
-
-                            self_name.clone()
-                        }
-                        "parent" => {
-                            let self_name =
-                                &context.function_context.calling_class.clone().unwrap();
-
-                            let classlike_storage =
-                                codebase.classlike_infos.get(self_name).unwrap();
-                            classlike_storage.direct_parent_class.clone().unwrap()
-                        }
-                        "static" => {
-                            let self_name =
-                                &context.function_context.calling_class.clone().unwrap();
-
-                            self_name.clone()
-                        }
-                        _ => {
-                            let mut name_string = id.1.clone();
-
-                            let resolved_names =
-                                statements_analyzer.get_file_analyzer().resolved_names;
-
-                            if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
-                                name_string = fq_name.clone();
-                            }
-
-                            name_string
-                        }
-                    };
+                    let mut is_static = false;
+                    let classlike_name = get_id_name(
+                        id,
+                        &context.function_context.calling_class,
+                        codebase,
+                        &mut is_static,
+                        statements_analyzer.get_file_analyzer().resolved_names,
+                    )
+                    .unwrap();
 
                     fq_class_names.push(classlike_name);
                 }
@@ -255,7 +233,10 @@ pub(crate) fn analyze(
             }
 
             if union_comparison_result.type_coerced.is_some() {
-                if union_comparison_result.type_coerced_from_nested_mixed.is_some() {
+                if union_comparison_result
+                    .type_coerced_from_nested_mixed
+                    .is_some()
+                {
                     tast_info.maybe_add_issue(
                         Issue::new(
                             IssueKind::MixedPropertyTypeCoercion,

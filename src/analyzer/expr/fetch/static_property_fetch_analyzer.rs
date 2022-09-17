@@ -1,3 +1,4 @@
+use super::class_constant_fetch_analyzer::get_id_name;
 use super::{
     atomic_property_fetch_analyzer::add_unspecialized_property_fetch_dataflow,
     instance_property_fetch_analyzer,
@@ -45,35 +46,15 @@ pub(crate) fn analyze(
     let classlike_name = match &stmt_class.2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                match id.1.as_str() {
-                    "self" => {
-                        let self_name = &context.function_context.calling_class.clone().unwrap();
-
-                        self_name.clone()
-                    }
-                    "parent" => {
-                        let self_name = &context.function_context.calling_class.clone().unwrap();
-
-                        let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-                        classlike_storage.direct_parent_class.clone().unwrap()
-                    }
-                    "static" => {
-                        let self_name = &context.function_context.calling_class.clone().unwrap();
-
-                        self_name.clone()
-                    }
-                    _ => {
-                        let mut name_string = id.1.clone();
-
-                        let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
-
-                        if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
-                            name_string = fq_name.clone();
-                        }
-
-                        name_string
-                    }
-                }
+                let mut is_static = false;
+                get_id_name(
+                    id,
+                    &context.function_context.calling_class,
+                    codebase,
+                    &mut is_static,
+                    statements_analyzer.get_file_analyzer().resolved_names,
+                )
+                .unwrap()
             } else {
                 analyze_variable_static_property_fetch(
                     statements_analyzer,

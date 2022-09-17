@@ -64,11 +64,12 @@ pub(crate) fn analyze(
 
     context.inside_general_use = was_inside_general_use;
 
-    let stmt_var_id = expression_identifier::get_extended_var_id(
+    let stmt_var_id = expression_identifier::get_var_id(
         &expr.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
+        Some(statements_analyzer.get_codebase()),
     );
 
     let var_id = if let Some(stmt_var_id) = stmt_var_id.clone() {

@@ -66,6 +66,7 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
+        Some(statements_analyzer.get_codebase()),
     );
 
     let iterator_type = if let Some(stmt_expr_type) = tast_info.get_expr_type(stmt.0.pos()) {

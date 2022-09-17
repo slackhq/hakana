@@ -488,11 +488,12 @@ pub(crate) fn check_arguments_match(
 
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             if let Some(removed_taints) = &function_param.removed_taints_when_returning_true {
-                if let Some(expr_var_id) = expression_identifier::get_extended_var_id(
+                if let Some(expr_var_id) = expression_identifier::get_var_id(
                     arg_expr,
                     None,
                     statements_analyzer.get_file_analyzer().get_file_source(),
                     statements_analyzer.get_file_analyzer().resolved_names,
+                    Some(statements_analyzer.get_codebase()),
                 ) {
                     tast_info.if_true_assertions.insert(
                         (
@@ -773,6 +774,7 @@ pub(crate) fn evaluate_arbitrary_param(
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
+            Some(statements_analyzer.get_codebase()),
         );
 
         if let Some(var_id) = var_id {

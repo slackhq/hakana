@@ -30,11 +30,12 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     keyed_array_var_id: Option<String>,
 ) -> bool {
-    let extended_var_id = expression_identifier::get_extended_var_id(
+    let extended_var_id = expression_identifier::get_var_id(
         &expr.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
+        Some(statements_analyzer.get_codebase()),
     );
 
     let mut used_key_type;
@@ -442,7 +443,14 @@ pub(crate) fn get_array_access_type_given_offset(
                 if in_assignment {
                 } else {
                     if !context.inside_isset {
-                        // error if not nullsafe
+                        tast_info.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::PossiblyNullArrayAccess,
+                                format!("Unsafe array access on null"),
+                                statements_analyzer.get_hpos(&stmt.0.pos()),
+                            ),
+                            statements_analyzer.get_config(),
+                        );
                     }
 
                     stmt_type = Some(add_optional_union_type(

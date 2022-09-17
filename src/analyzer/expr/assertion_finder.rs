@@ -1,4 +1,4 @@
-use super::expression_identifier::{get_dim_id, get_extended_var_id};
+use super::expression_identifier::{get_dim_id, get_var_id};
 use crate::{formula_generator::AssertionContext, typed_ast::TastInfo};
 use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
@@ -62,11 +62,12 @@ pub(crate) fn scrape_assertions(
         _ => {}
     }
 
-    let var_name = get_extended_var_id(
+    let var_name = get_var_id(
         &conditional,
         assertion_context.this_class_name,
         assertion_context.file_source,
         assertion_context.resolved_names,
+        assertion_context.codebase,
     );
 
     // matches if ($foo) {}
@@ -188,11 +189,12 @@ fn get_is_assertions(
         );
     }
 
-    let var_name = get_extended_var_id(
+    let var_name = get_var_id(
         var_expr,
         assertion_context.this_class_name,
         assertion_context.file_source,
         assertion_context.resolved_names,
+        assertion_context.codebase,
     );
 
     if let Some(var_name) = var_name {
@@ -220,14 +222,19 @@ fn get_is_assertions(
                 {
                     if class_name == "HH\\Shapes" && member_name == "idx" {
                         if let TAtomic::TNonnullMixed = is_type.get_single() {
-                            let shape_name = get_extended_var_id(
+                            let shape_name = get_var_id(
                                 &call.2[0].1,
                                 assertion_context.this_class_name,
                                 assertion_context.file_source,
                                 assertion_context.resolved_names,
+                                assertion_context.codebase,
                             );
 
-                            let dim_id = get_dim_id(&call.2[1].1);
+                            let dim_id = get_dim_id(
+                                &call.2[1].1,
+                                assertion_context.codebase,
+                                assertion_context.resolved_names,
+                            );
 
                             if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
                                 if_types.insert(
@@ -407,11 +414,12 @@ fn scrape_function_assertions(
     _negate: bool,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let firsts = if let Some(first_arg) = args.first() {
-        let first_var_name = get_extended_var_id(
+        let first_var_name = get_var_id(
             &first_arg.1,
             assertion_context.this_class_name,
             assertion_context.file_source,
             assertion_context.resolved_names,
+            assertion_context.codebase,
         );
         let first_var_type = tast_info.get_expr_type(first_arg.1.pos());
         Some((&first_arg.1, first_var_name, first_var_type))
@@ -481,11 +489,12 @@ fn get_null_equality_assertions(
         OtherValuePosition::Right => left,
     };
 
-    let var_name = get_extended_var_id(
+    let var_name = get_var_id(
         base_conditional,
         assertion_context.this_class_name,
         assertion_context.file_source,
         assertion_context.resolved_names,
+        assertion_context.codebase,
     );
 
     if let Some(var_name) = var_name {
@@ -509,11 +518,12 @@ fn get_null_inequality_assertions(
         OtherValuePosition::Right => left,
     };
 
-    let var_name = get_extended_var_id(
+    let var_name = get_var_id(
         base_conditional,
         assertion_context.this_class_name,
         assertion_context.file_source,
         assertion_context.resolved_names,
+        assertion_context.codebase,
     );
 
     if let Some(var_name) = var_name {
@@ -553,11 +563,12 @@ fn get_true_equality_assertions(
         OtherValuePosition::Right => left,
     };
 
-    let var_name = get_extended_var_id(
+    let var_name = get_var_id(
         base_conditional,
         assertion_context.this_class_name,
         assertion_context.file_source,
         assertion_context.resolved_names,
+        assertion_context.codebase,
     );
 
     if let Some(var_name) = var_name {
@@ -589,17 +600,19 @@ pub(crate) fn has_typed_value_comparison(
     tast_info: &TastInfo,
     assertion_context: &AssertionContext,
 ) -> Option<OtherValuePosition> {
-    let left_var_id = get_extended_var_id(
+    let left_var_id = get_var_id(
         left,
         assertion_context.this_class_name,
         assertion_context.file_source,
         assertion_context.resolved_names,
+        assertion_context.codebase,
     );
-    let right_var_id = get_extended_var_id(
+    let right_var_id = get_var_id(
         right,
         assertion_context.this_class_name,
         assertion_context.file_source,
         assertion_context.resolved_names,
+        assertion_context.codebase,
     );
 
     if let Some(right_type) = tast_info.get_expr_type(right.pos()) {
@@ -632,11 +645,12 @@ fn get_false_equality_assertions(
         OtherValuePosition::Right => left,
     };
 
-    let var_name = get_extended_var_id(
+    let var_name = get_var_id(
         base_conditional,
         assertion_context.this_class_name,
         assertion_context.file_source,
         assertion_context.resolved_names,
+        assertion_context.codebase,
     );
 
     if let Some(var_name) = var_name {
@@ -663,34 +677,38 @@ fn get_typed_value_equality_assertions(
 
     match typed_value_position {
         OtherValuePosition::Right => {
-            var_name = get_extended_var_id(
+            var_name = get_var_id(
                 left,
                 assertion_context.this_class_name,
                 assertion_context.file_source,
                 assertion_context.resolved_names,
+                assertion_context.codebase,
             );
-            other_value_var_name = get_extended_var_id(
+            other_value_var_name = get_var_id(
                 right,
                 assertion_context.this_class_name,
                 assertion_context.file_source,
                 assertion_context.resolved_names,
+                assertion_context.codebase,
             );
 
             var_type = tast_info.get_expr_type(left.pos());
             other_value_type = tast_info.get_expr_type(right.pos());
         }
         OtherValuePosition::Left => {
-            var_name = get_extended_var_id(
+            var_name = get_var_id(
                 right,
                 assertion_context.this_class_name,
                 assertion_context.file_source,
                 assertion_context.resolved_names,
+                assertion_context.codebase,
             );
-            other_value_var_name = get_extended_var_id(
+            other_value_var_name = get_var_id(
                 left,
                 assertion_context.this_class_name,
                 assertion_context.file_source,
                 assertion_context.resolved_names,
+                assertion_context.codebase,
             );
 
             var_type = tast_info.get_expr_type(right.pos());
@@ -743,34 +761,38 @@ fn get_typed_value_inequality_assertions(
 
     match typed_value_position {
         OtherValuePosition::Right => {
-            var_name = get_extended_var_id(
+            var_name = get_var_id(
                 left,
                 assertion_context.this_class_name,
                 assertion_context.file_source,
                 assertion_context.resolved_names,
+                assertion_context.codebase,
             );
-            other_value_var_name = get_extended_var_id(
+            other_value_var_name = get_var_id(
                 right,
                 assertion_context.this_class_name,
                 assertion_context.file_source,
                 assertion_context.resolved_names,
+                assertion_context.codebase,
             );
 
             var_type = tast_info.get_expr_type(left.pos());
             other_value_type = tast_info.get_expr_type(right.pos());
         }
         OtherValuePosition::Left => {
-            var_name = get_extended_var_id(
+            var_name = get_var_id(
                 right,
                 assertion_context.this_class_name,
                 assertion_context.file_source,
                 assertion_context.resolved_names,
+                assertion_context.codebase,
             );
-            other_value_var_name = get_extended_var_id(
+            other_value_var_name = get_var_id(
                 left,
                 assertion_context.this_class_name,
                 assertion_context.file_source,
                 assertion_context.resolved_names,
+                assertion_context.codebase,
             );
 
             var_type = tast_info.get_expr_type(right.pos());

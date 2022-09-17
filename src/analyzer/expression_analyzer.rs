@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use crate::custom_hook::AfterExprAnalysisData;
 use crate::expr::call::new_analyzer;
+use crate::expr::fetch::class_constant_fetch_analyzer::get_id_name;
 use crate::expr::fetch::{
     array_fetch_analyzer, class_constant_fetch_analyzer, instance_property_fetch_analyzer,
     static_property_fetch_analyzer,
@@ -21,7 +22,6 @@ use crate::typed_ast::TastInfo;
 use function_context::method_identifier::MethodIdentifier;
 use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -152,11 +152,12 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::ArrayGet(boxed) => {
-            let keyed_array_var_id = expression_identifier::get_extended_var_id(
+            let keyed_array_var_id = expression_identifier::get_var_id(
                 &expr,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 statements_analyzer.get_file_analyzer().resolved_names,
+                Some(statements_analyzer.get_codebase()),
             );
 
             if !array_fetch_analyzer::analyze(
@@ -689,9 +690,17 @@ fn analyze_function_pointer(
             let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
             let calling_class = &context.function_context.calling_class;
 
-            let class_name =
-                get_class_id_classname(class_id, calling_class, Some(codebase), resolved_names)
-                    .unwrap();
+            let class_name = match &class_id.2 {
+                aast::ClassId_::CIexpr(inner_expr) => {
+                    if let aast::Expr_::Id(id) = &inner_expr.2 {
+                        get_id_name(id, &calling_class, codebase, &mut false, resolved_names)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+            .unwrap();
 
             FunctionLikeIdentifier::Method(class_name, method_name.1.clone())
         }
@@ -745,55 +754,6 @@ fn analyze_function_pointer(
     tast_info
         .pure_exprs
         .insert((expr.1.start_offset(), expr.1.end_offset()));
-}
-
-pub(crate) fn get_class_id_classname(
-    class_id: &aast::ClassId<(), ()>,
-    calling_class: &Option<String>,
-    codebase: Option<&CodebaseInfo>,
-    resolved_names: &FxHashMap<usize, String>,
-) -> Option<String> {
-    match &class_id.2 {
-        aast::ClassId_::CIexpr(inner_expr) => {
-            if let aast::Expr_::Id(id) = &inner_expr.2 {
-                Some(match id.1.as_str() {
-                    "self" => {
-                        let self_name = calling_class.clone().unwrap();
-
-                        self_name.clone()
-                    }
-                    "parent" => {
-                        let self_name = calling_class.clone().unwrap();
-
-                        if let Some(codebase) = codebase {
-                            let classlike_storage =
-                                codebase.classlike_infos.get(&self_name).unwrap();
-                            classlike_storage.direct_parent_class.clone().unwrap()
-                        } else {
-                            self_name.clone()
-                        }
-                    }
-                    "static" => {
-                        let self_name = calling_class.clone().unwrap();
-
-                        self_name.clone()
-                    }
-                    _ => {
-                        let mut name_string = id.1.clone();
-
-                        if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
-                            name_string = fq_name.clone();
-                        }
-
-                        name_string
-                    }
-                })
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
 }
 
 pub(crate) fn add_decision_dataflow(

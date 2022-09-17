@@ -148,14 +148,16 @@ pub(crate) fn analyze(
     }
 
     if method_id.0 == "HH\\Shapes" && method_id.1 == "keyExists" && call_expr.1.len() == 2 {
-        let expr_var_id = expression_identifier::get_extended_var_id(
+        let expr_var_id = expression_identifier::get_var_id(
             &call_expr.1[0].1,
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
+            Some(statements_analyzer.get_codebase()),
         );
 
-        let dim_var_id = expression_identifier::get_dim_id(&call_expr.1[1].1);
+        let dim_var_id =
+            expression_identifier::get_dim_id(&call_expr.1[1].1, None, &FxHashMap::default());
 
         if let Some(expr_var_id) = expr_var_id {
             if let Some(mut dim_var_id) = dim_var_id {
@@ -182,13 +184,15 @@ pub(crate) fn analyze(
     }
 
     if method_id.0 == "HH\\Shapes" && method_id.1 == "removeKey" && call_expr.1.len() == 2 {
-        let expr_var_id = expression_identifier::get_extended_var_id(
+        let expr_var_id = expression_identifier::get_var_id(
             &call_expr.1[0].1,
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
+            Some(statements_analyzer.get_codebase()),
         );
-        let dim_var_id = expression_identifier::get_dim_id(&call_expr.1[1].1);
+        let dim_var_id =
+            expression_identifier::get_dim_id(&call_expr.1[1].1, None, &FxHashMap::default());
 
         if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
             if let Some(expr_type) = context.vars_in_scope.get(&expr_var_id) {
