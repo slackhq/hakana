@@ -371,9 +371,14 @@ pub(crate) fn analyze(
         && stmt.1.is_empty()
         && stmt.2.is_empty()
     {
-        if tast_info
-            .pure_exprs
-            .contains(&(stmt.0 .1.start_offset(), stmt.0 .1.end_offset()))
+        let effects = tast_info
+            .expr_effects
+            .get(&(stmt.0 .1.start_offset(), stmt.0 .1.end_offset()))
+            .unwrap_or(&0);
+
+        if let crate::typed_ast::PURE
+        | crate::typed_ast::READ_GLOBALS
+        | crate::typed_ast::READ_PROPS = *effects
         {
             tast_info.replacements.insert(
                 (

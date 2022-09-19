@@ -25,10 +25,6 @@ pub(crate) fn analyze(
 ) -> bool {
     let codebase = statements_analyzer.get_codebase();
 
-    tast_info
-        .pure_exprs
-        .insert((pos.start_offset(), pos.end_offset()));
-
     let const_name = expr.1 .1;
     let mut is_static = false;
     let classlike_name = match &expr.0 .2 {

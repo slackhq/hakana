@@ -24,7 +24,6 @@ pub(crate) struct AtomicMethodCallAnalysisResult {
     pub has_valid_method_call_type: bool,
     pub has_mixed_method_call: bool,
     pub existent_method_ids: FxHashSet<String>,
-    pub is_pure: bool,
 }
 
 impl AtomicMethodCallAnalysisResult {
@@ -34,7 +33,6 @@ impl AtomicMethodCallAnalysisResult {
             has_valid_method_call_type: false,
             has_mixed_method_call: false,
             existent_method_ids: FxHashSet::default(),
-            is_pure: true,
         }
     }
 }

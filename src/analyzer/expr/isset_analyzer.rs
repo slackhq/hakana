@@ -22,6 +22,10 @@ pub(crate) fn analyze(
         if_body_context,
     );
     context.inside_isset = false;
+    tast_info.expr_effects.insert(
+        (pos.start_offset(), pos.end_offset()),
+        crate::typed_ast::IMPURE,
+    );
 
     tast_info.set_expr_type(&pos, get_bool());
     result

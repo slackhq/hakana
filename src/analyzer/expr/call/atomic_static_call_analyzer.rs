@@ -100,6 +100,11 @@ pub(crate) fn analyze(
             statements_analyzer.get_config(),
         );
 
+        tast_info.expr_effects.insert(
+            (pos.start_offset(), pos.end_offset()),
+            crate::typed_ast::IMPURE,
+        );
+
         return;
     }
 

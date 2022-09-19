@@ -23,14 +23,13 @@ pub(crate) fn analyze(
         if_body_context,
     );
 
-    if tast_info
-        .pure_exprs
-        .contains(&(expr.1.pos().start_offset(), expr.1.pos().end_offset()))
-    {
-        tast_info
-            .pure_exprs
-            .insert((pos.start_offset(), pos.end_offset()));
-    }
+    tast_info.expr_effects.insert(
+        (pos.start_offset(), pos.end_offset()),
+        *tast_info
+            .expr_effects
+            .get(&(expr.1.pos().start_offset(), expr.1.pos().end_offset()))
+            .unwrap_or(&0),
+    );
 
     match expr.0 {
         oxidized::ast_defs::Uop::Utild => {

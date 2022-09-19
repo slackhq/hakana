@@ -6,9 +6,9 @@ use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use crate::dataflow::program_analyzer::should_ignore_fetch;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::dataflow::program_analyzer::should_ignore_fetch;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
@@ -208,9 +208,14 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             if let aast::Stmt_::Expr(boxed) = &stmt.1 {
                 if let aast::Expr_::Binop(boxed) = &boxed.2 {
                     if let oxidized::ast_defs::Bop::Eq(_) = &boxed.0 {
-                        if tast_info
-                            .pure_exprs
-                            .contains(&(boxed.2 .1.start_offset(), boxed.2 .1.end_offset()))
+                        let expression_effects = tast_info
+                            .expr_effects
+                            .get(&(boxed.2 .1.start_offset(), boxed.2 .1.end_offset()))
+                            .unwrap_or(&0);
+
+                        if let crate::typed_ast::PURE
+                        | crate::typed_ast::READ_GLOBALS
+                        | crate::typed_ast::READ_PROPS = *expression_effects
                         {
                             if !self.in_single_block {
                                 let span = stmt.0.to_raw_span();
@@ -228,10 +233,18 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             // remove trailing array fetches
                             if let aast::Expr_::ArrayGet(array_get) = &boxed.2 .2 {
                                 if let Some(array_offset_expr) = &array_get.1 {
-                                    if tast_info.pure_exprs.contains(&(
-                                        array_offset_expr.1.start_offset(),
-                                        array_offset_expr.1.end_offset(),
-                                    )) {
+                                    let array_offset_effects = tast_info
+                                        .expr_effects
+                                        .get(&(
+                                            array_offset_expr.1.start_offset(),
+                                            array_offset_expr.1.end_offset(),
+                                        ))
+                                        .unwrap_or(&0);
+
+                                    if let crate::typed_ast::PURE
+                                    | crate::typed_ast::READ_GLOBALS
+                                    | crate::typed_ast::READ_PROPS = *array_offset_effects
+                                    {
                                         tast_info.replacements.insert(
                                             (
                                                 array_offset_expr.pos().start_offset() - 1,

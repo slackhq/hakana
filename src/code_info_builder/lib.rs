@@ -371,6 +371,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             name.clone(),
             &self.file_source.comments,
             &self.file_source,
+            is_anonymous,
         );
 
         functionlike_storage.user_defined = self.user_defined && !is_anonymous;

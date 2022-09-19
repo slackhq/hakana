@@ -50,17 +50,12 @@ pub(crate) fn analyze(
         return false;
     }
 
-    if tast_info
-        .pure_exprs
-        .contains(&(expr.0.pos().start_offset(), expr.0.pos().end_offset()))
-        && tast_info
-            .pure_exprs
-            .contains(&(expr.1.pos().start_offset(), expr.1.pos().end_offset()))
-    {
-        tast_info
-            .pure_exprs
-            .insert((pos.start_offset(), pos.end_offset()));
-    }
+    tast_info.combine_effects_with(
+        expr.0.pos(),
+        expr.1.pos(),
+        pos,
+        crate::typed_ast::READ_PROPS,
+    );
 
     context.inside_general_use = was_inside_general_use;
 

@@ -6,7 +6,7 @@ use hakana_reflection_info::{
         node::DataFlowNode,
         path::{PathExpressionKind, PathKind},
     },
-    t_atomic::{TAtomic, DictKey},
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
 use hakana_type::{
@@ -29,7 +29,7 @@ pub(crate) struct ArrayCreationInfo {
     item_value_atomic_types: Vec<TAtomic>,
     known_items: Vec<(TAtomic, TUnion)>,
     parent_nodes: FxHashMap<String, DataFlowNode>,
-    all_pure: bool,
+    effects: u8,
 }
 
 impl ArrayCreationInfo {
@@ -39,7 +39,7 @@ impl ArrayCreationInfo {
             item_value_atomic_types: Vec::new(),
             parent_nodes: FxHashMap::default(),
             known_items: Vec::new(),
-            all_pure: true,
+            effects: 0,
         }
     }
 }
@@ -106,10 +106,8 @@ pub(crate) fn analyze(
                 let mut known_items = BTreeMap::new();
 
                 if array_creation_info.item_key_atomic_types.len() < 20 {
-                    for (offset, (key_type, value_type)) in array_creation_info
-                        .known_items
-                        .into_iter()
-                        .enumerate()
+                    for (offset, (key_type, value_type)) in
+                        array_creation_info.known_items.into_iter().enumerate()
                     {
                         if let TAtomic::TLiteralInt {
                             value: key_literal_value,
@@ -164,8 +162,7 @@ pub(crate) fn analyze(
                 let mut known_items = BTreeMap::new();
 
                 if array_creation_info.item_key_atomic_types.len() < 20 {
-                    for (key_type, value_type) in array_creation_info.known_items.into_iter()
-                    {
+                    for (key_type, value_type) in array_creation_info.known_items.into_iter() {
                         if let TAtomic::TLiteralString {
                             value: key_literal_value,
                             ..
@@ -224,11 +221,10 @@ pub(crate) fn analyze(
             }
         }
 
-        if array_creation_info.all_pure {
-            tast_info
-                .pure_exprs
-                .insert((pos.start_offset(), pos.end_offset()));
-        }
+        tast_info.expr_effects.insert(
+            (pos.start_offset(), pos.end_offset()),
+            array_creation_info.effects,
+        );
 
         return true;
     }
@@ -274,10 +270,6 @@ pub(crate) fn analyze(
         }
     }
 
-    tast_info
-        .pure_exprs
-        .insert((pos.start_offset(), pos.end_offset()));
-
     true
 }
 
@@ -302,12 +294,10 @@ fn analyze_array_item(
                 &mut None,
             );
 
-            if !tast_info
-                .pure_exprs
-                .contains(&(item_key.pos().start_offset(), item_key.pos().end_offset()))
-            {
-                array_creation_info.all_pure = false;
-            }
+            array_creation_info.effects |= tast_info
+                .expr_effects
+                .get(&(item_key.pos().start_offset(), item_key.pos().end_offset()))
+                .unwrap_or(&0);
 
             let key_item_type = tast_info
                 .get_expr_type(&item_key.pos())
@@ -337,12 +327,10 @@ fn analyze_array_item(
     // Now check types of the values
     expression_analyzer::analyze(statements_analyzer, value, tast_info, context, &mut None);
 
-    if !tast_info
-        .pure_exprs
-        .contains(&(value.pos().start_offset(), value.pos().end_offset()))
-    {
-        array_creation_info.all_pure = false;
-    }
+    array_creation_info.effects |= tast_info
+        .expr_effects
+        .get(&(value.pos().start_offset(), value.pos().end_offset()))
+        .unwrap_or(&0);
 
     let value_item_type = tast_info
         .get_expr_type(&value.pos())

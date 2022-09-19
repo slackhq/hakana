@@ -265,7 +265,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (&boxed.0, boxed.1.as_ref(), assign_var.pos()),
                 assign_value_type,
-                &pos.clone(),
+                pos,
                 tast_info,
                 context,
             );
@@ -281,6 +281,7 @@ pub(crate) fn analyze(
             instance_property_assignment_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1),
+                pos,
                 var_id,
                 &assign_value_type,
                 tast_info,

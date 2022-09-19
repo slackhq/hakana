@@ -51,7 +51,7 @@ pub enum TAtomic {
     TClosure {
         params: Vec<FunctionLikeParameter>,
         return_type: Option<TUnion>,
-        is_pure: Option<bool>,
+        effects: Option<u8>,
     },
     TClosureAlias {
         id: FunctionLikeIdentifier,

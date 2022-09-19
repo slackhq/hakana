@@ -172,7 +172,7 @@ pub fn get_mixed_closure() -> TUnion {
             removed_taints_when_returning_true: None,
         }],
         return_type: None,
-        is_pure: None,
+        effects: None,
     })
 }
 

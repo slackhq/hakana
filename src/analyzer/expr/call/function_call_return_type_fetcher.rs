@@ -174,7 +174,7 @@ fn handle_special_functions(
         // bool
         "hash_equals" | "in_array" => Some(get_bool()),
         // int
-        "mb_strlen" => Some(get_int()),
+        "mb_strlen" | "rand" => Some(get_int()),
         // string
         "utf8_encode" | "sha1" | "dirname" | "hash_hmac" | "vsprintf" | "trim" | "ltrim"
         | "rtrim" | "strpad" | "str_repeat" | "md5" | "basename" | "strtolower" | "strtoupper" => {

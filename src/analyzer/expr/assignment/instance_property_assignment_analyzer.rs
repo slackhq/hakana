@@ -35,6 +35,7 @@ use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&Expr<(), ()>, &Expr<(), ()>),
+    pos: &Pos,
     var_id: Option<String>,
     assign_value_type: &TUnion,
     tast_info: &mut TastInfo,
@@ -61,6 +62,7 @@ pub(crate) fn analyze(
     let assigned_properties = analyze_regular_assignment(
         statements_analyzer,
         expr,
+        pos,
         var_id.clone(),
         assign_value_type,
         tast_info,
@@ -178,6 +180,7 @@ pub(crate) fn analyze(
 pub(crate) fn analyze_regular_assignment(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&Expr<(), ()>, &Expr<(), ()>),
+    pos: &Pos,
     var_id: Option<String>,
     assign_value_type: &TUnion,
     tast_info: &mut TastInfo,
@@ -196,6 +199,11 @@ pub(crate) fn analyze_regular_assignment(
     expression_analyzer::analyze(statements_analyzer, stmt_var, tast_info, context, &mut None);
 
     context.inside_general_use = was_inside_general_use;
+
+    tast_info.expr_effects.insert(
+        (pos.start_offset(), pos.end_offset()),
+        crate::typed_ast::WRITE_PROPS,
+    );
 
     let lhs_type = tast_info.get_expr_type(&stmt_var.pos()).cloned();
 

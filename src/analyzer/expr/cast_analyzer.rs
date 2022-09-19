@@ -44,20 +44,23 @@ pub(crate) fn analyze(
 
     // todo emit issues about redundant casts
 
-    if hint_type.has_taintable_value() || tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
+    if hint_type.has_taintable_value() || tast_info.data_flow_graph.kind == GraphKind::FunctionBody
+    {
         hint_type.parent_nodes = expr_type.parent_nodes;
     }
 
     tast_info.set_expr_type(&expr_pos, hint_type);
 
-    if tast_info.pure_exprs.contains(&(
-        inner_expr.pos().start_offset(),
-        inner_expr.pos().end_offset(),
-    )) {
-        tast_info
-            .pure_exprs
-            .insert((expr_pos.start_offset(), expr_pos.end_offset()));
-    }
+    tast_info.expr_effects.insert(
+        (expr_pos.start_offset(), expr_pos.end_offset()),
+        *tast_info
+            .expr_effects
+            .get(&(
+                inner_expr.pos().start_offset(),
+                inner_expr.pos().end_offset(),
+            ))
+            .unwrap_or(&0),
+    );
 
     true
 }

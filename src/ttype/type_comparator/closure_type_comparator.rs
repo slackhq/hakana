@@ -12,20 +12,23 @@ pub(crate) fn is_contained_by(
     if let TAtomic::TClosure {
         params: input_params,
         return_type: input_return_type,
-        is_pure: input_is_pure,
+        effects: input_effects,
     } = input_type_part
     {
         if let TAtomic::TClosure {
             params: container_params,
             return_type: container_return_type,
-            is_pure: container_is_pure,
+            effects: container_effects,
         } = container_type_part
         {
-            if container_is_pure.unwrap_or(false) && !input_is_pure.unwrap_or(false) {
-                atomic_comparison_result.type_coerced = Some(true);
-
-                return false;
+            if let Some(container_effects) = container_effects {
+                if container_effects == &0 && input_effects.unwrap_or(0) > 0 {
+                    atomic_comparison_result.type_coerced = Some(true);
+    
+                    return false;
+                }
             }
+            
 
             for (i, input_param) in input_params.iter().enumerate() {
                 let mut container_param = None;

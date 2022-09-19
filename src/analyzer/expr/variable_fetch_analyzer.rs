@@ -20,10 +20,6 @@ pub(crate) fn analyze(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> bool {
-    tast_info
-        .pure_exprs
-        .insert((pos.start_offset(), pos.end_offset()));
-
     if !context.has_variable(&lid.1 .1) {
         let superglobal_type = match lid.1 .1.as_str() {
             "$_FILES" | "$_POST" | "$_GET" | "$_ENV" | "$_SERVER" | "$_REQUEST" | "$_COOKIE" => {
@@ -53,7 +49,13 @@ pub(crate) fn analyze(
                 Rc::new(get_mixed_any())
             }
         };
+
         tast_info.set_rc_expr_type(&pos, superglobal_type);
+
+        tast_info.expr_effects.insert(
+            (pos.start_offset(), pos.end_offset()),
+            crate::typed_ast::READ_GLOBALS,
+        );
     } else if let Some(var_type) = context.vars_in_scope.get(&lid.1 .1) {
         let mut var_type = (**var_type).clone();
 

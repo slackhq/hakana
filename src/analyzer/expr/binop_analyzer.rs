@@ -121,17 +121,7 @@ pub(crate) fn analyze(
                 get_bool(),
             );
 
-            if tast_info
-                .pure_exprs
-                .contains(&(expr.1.pos().start_offset(), expr.1.pos().end_offset()))
-                && tast_info
-                    .pure_exprs
-                    .contains(&(expr.2.pos().start_offset(), expr.2.pos().end_offset()))
-            {
-                tast_info
-                    .pure_exprs
-                    .insert((pos.start_offset(), pos.end_offset()));
-            }
+            tast_info.combine_effects(expr.1.pos(), expr.2.pos(), pos);
 
             return true;
         }
@@ -179,17 +169,7 @@ pub(crate) fn analyze(
                 get_int(),
             );
 
-            if tast_info
-                .pure_exprs
-                .contains(&(expr.1.pos().start_offset(), expr.1.pos().end_offset()))
-                && tast_info
-                    .pure_exprs
-                    .contains(&(expr.2.pos().start_offset(), expr.2.pos().end_offset()))
-            {
-                tast_info
-                    .pure_exprs
-                    .insert((pos.start_offset(), pos.end_offset()));
-            }
+            tast_info.combine_effects(expr.1.pos(), expr.2.pos(), pos);
 
             return true;
         }

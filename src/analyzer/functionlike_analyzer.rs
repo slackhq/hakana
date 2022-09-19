@@ -137,19 +137,18 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         statements_analyzer.set_function_info(&lambda_storage);
 
-        let inferred_return_type = self
-            .analyze_functionlike(
-                &mut statements_analyzer,
-                &lambda_storage,
-                context,
-                &stmt.params,
-                &stmt.body.fb_ast,
-                analysis_result,
-                Some(tast_info),
-            )
-            .unwrap_or(get_mixed_any());
+        let (inferred_return_type, effects) = self.analyze_functionlike(
+            &mut statements_analyzer,
+            &lambda_storage,
+            context,
+            &stmt.params,
+            &stmt.body.fb_ast,
+            analysis_result,
+            Some(tast_info),
+        );
 
-        lambda_storage.return_type = Some(inferred_return_type);
+        lambda_storage.return_type = Some(inferred_return_type.unwrap_or(get_mixed_any()));
+        lambda_storage.effects = Some(effects);
 
         Some(lambda_storage)
     }
@@ -324,7 +323,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         fb_ast: &Vec<aast::Stmt<(), ()>>,
         analysis_result: &mut AnalysisResult,
         parent_tast_info: Option<&mut TastInfo>,
-    ) -> Option<TUnion> {
+    ) -> (Option<TUnion>, u8) {
         let mut tast_info = TastInfo::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             statements_analyzer.get_file_analyzer().get_file_source(),
@@ -516,6 +515,14 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         }
 
+        let mut effects = 0;
+
+        if let None = functionlike_storage.effects {
+            for (_, effect) in &tast_info.expr_effects {
+                effects |= effect;
+            }
+        }
+
         if let Some(parent_tast_info) = parent_tast_info {
             if !tast_info.replacements.is_empty() {
                 parent_tast_info.replacements.extend(tast_info.replacements);
@@ -532,8 +539,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             parent_tast_info
                 .data_flow_graph
                 .add_graph(tast_info.data_flow_graph);
-
-            parent_tast_info.pure_exprs.extend(tast_info.pure_exprs);
         } else {
             update_analysis_result_with_tast(
                 tast_info,
@@ -546,7 +551,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             );
         }
 
-        inferred_return_type
+        (inferred_return_type, effects)
     }
 
     fn add_param_types_to_context(

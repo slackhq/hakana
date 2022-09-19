@@ -53,7 +53,7 @@ pub(crate) fn analyze(
         if let TAtomic::TClosure {
             params: closure_params,
             return_type: closure_return_type,
-            is_pure,
+            effects,
         } = &lhs_type_part
         {
             let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
@@ -63,7 +63,7 @@ pub(crate) fn analyze(
             let mut lambda_storage = FunctionLikeInfo::new(closure_id.clone());
             lambda_storage.params = closure_params.clone();
             lambda_storage.return_type = closure_return_type.clone();
-            lambda_storage.pure = is_pure.unwrap_or(false);
+            lambda_storage.effects = *effects;
 
             let functionlike_id = FunctionLikeIdentifier::Function(closure_id);
 

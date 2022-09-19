@@ -30,7 +30,7 @@ pub(crate) fn analyze(
 
     let mut parent_nodes = FxHashMap::default();
 
-    let mut all_pure = true;
+    let mut effects = 0;
 
     let mut known_items = BTreeMap::new();
     for (name, value_expr) in shape_fields {
@@ -61,9 +61,7 @@ pub(crate) fn analyze(
                                 ..
                             } => Some(DictKey::Enum(enum_name, member_name)),
                             TAtomic::TLiteralString { value } => Some(DictKey::String(value)),
-                            _ => {
-                                None
-                            }
+                            _ => None,
                         }
                     } else {
                         println!("surprising union type {}", constant_type.get_id());
@@ -87,12 +85,13 @@ pub(crate) fn analyze(
             return false;
         }
 
-        if !tast_info.pure_exprs.contains(&(
-            value_expr.pos().start_offset(),
-            value_expr.pos().end_offset(),
-        )) {
-            all_pure = false;
-        }
+        effects |= tast_info
+            .expr_effects
+            .get(&(
+                value_expr.pos().start_offset(),
+                value_expr.pos().end_offset(),
+            ))
+            .unwrap_or(&0);
 
         if let Some(name) = name {
             let value_item_type = tast_info
@@ -120,11 +119,9 @@ pub(crate) fn analyze(
         }
     }
 
-    if all_pure {
-        tast_info
-            .pure_exprs
-            .insert((pos.start_offset(), pos.end_offset()));
-    }
+    tast_info
+        .expr_effects
+        .insert((pos.start_offset(), pos.end_offset()), effects);
 
     let mut new_dict = wrap_atomic(TAtomic::TDict {
         known_items: if known_items.len() > 0 {

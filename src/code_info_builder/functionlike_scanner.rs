@@ -71,6 +71,7 @@ pub(crate) fn scan_method(
         method_id.to_string(),
         comments,
         file_source,
+        false,
     );
 
     let mut classlike_storage = codebase.classlike_infos.get_mut(&classlike_name).unwrap();
@@ -200,6 +201,7 @@ pub(crate) fn get_functionlike(
     functionlike_id: String,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
+    is_anonymous: bool,
 ) -> FunctionLikeInfo {
     let mut functionlike_info = FunctionLikeInfo::new(name.clone());
 
@@ -436,13 +438,17 @@ pub(crate) fn get_functionlike(
 
     functionlike_info.def_location = Some(definition_location);
     functionlike_info.is_async = fun_kind.is_async();
-    functionlike_info.pure = if let Some(contexts) = contexts {
-        contexts.1.len() == 0
+    functionlike_info.effects = if let Some(contexts) = contexts {
+        Some(if contexts.1.len() == 0 { 0 } else { 7 })
     } else {
-        false
+        if is_anonymous {
+            None
+        } else {
+            Some(7)
+        }
     };
 
-    if functionlike_info.pure || !functionlike_id.contains("::") {
+    if functionlike_info.effects.unwrap_or(1) == 0 || !functionlike_id.contains("::") {
         functionlike_info.specialize_call = true;
     }
 

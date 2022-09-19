@@ -17,7 +17,6 @@ use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::taint::SinkType;
-use hakana_type::get_int;
 use hakana_type::template::TemplateResult;
 use indexmap::IndexMap;
 use oxidized::pos::Pos;
@@ -76,11 +75,6 @@ pub(crate) fn analyze(
         return echo_analyzer::analyze(statements_analyzer, expr.2, pos, tast_info, context);
     }
 
-    if name == "rand" {
-        tast_info.set_expr_type(&pos, get_int());
-        return true;
-    }
-
     let function_storage = if let Some(function_storage) =
         get_named_function_info(statements_analyzer, &name, expr.0 .0)
     {
@@ -127,7 +121,7 @@ pub(crate) fn analyze(
         pos,
     );
 
-    if !function_storage.pure {
+    if function_storage.effects.unwrap_or(0) >= crate::typed_ast::WRITE_PROPS {
         context.remove_mutable_object_vars();
     }
 
@@ -145,24 +139,14 @@ pub(crate) fn analyze(
         &functionlike_id,
     );
 
-    if function_storage.pure {
-        let mut was_pure_span = true;
+    if let Some(stored_effects) = function_storage.effects {
+        tast_info
+            .expr_effects
+            .insert((pos.start_offset(), pos.end_offset()), stored_effects);
+    }
 
-        for arg in expr.2 {
-            if !tast_info
-                .pure_exprs
-                .contains(&(arg.1.pos().start_offset(), arg.1.pos().end_offset()))
-            {
-                was_pure_span = false;
-                break;
-            }
-        }
-
-        if was_pure_span {
-            tast_info
-                .pure_exprs
-                .insert((pos.start_offset(), pos.end_offset()));
-        }
+    for arg in expr.2 {
+        tast_info.combine_effects(arg.1.pos(), pos, pos);
     }
 
     let stmt_type = function_call_return_type_fetcher::fetch(

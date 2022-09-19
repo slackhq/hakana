@@ -574,6 +574,6 @@ fn get_expanded_closure(
         } else {
             None
         },
-        is_pure: Some(functionlike_info.pure),
+        effects: functionlike_info.effects,
     }
 }

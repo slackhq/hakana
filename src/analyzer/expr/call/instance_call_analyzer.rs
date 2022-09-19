@@ -124,7 +124,12 @@ pub(crate) fn analyze(
         }
     }
 
-    if !analysis_result.is_pure {
+    if tast_info
+        .expr_effects
+        .get(&(pos.start_offset(), pos.end_offset()))
+        .unwrap_or(&0)
+        >= &crate::typed_ast::WRITE_PROPS
+    {
         context.remove_mutable_object_vars();
     }
 

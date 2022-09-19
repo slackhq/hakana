@@ -12,6 +12,13 @@ use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
+pub(crate) const PURE: u8 = 0b00000000;
+pub(crate) const READ_PROPS: u8 = 0b00000001;
+pub(crate) const READ_GLOBALS: u8 = 0b00000010;
+pub(crate) const WRITE_PROPS: u8 = 0b00000100;
+pub(crate) const WRITE_GLOBALS: u8 = 0b0001000;
+pub(crate) const IMPURE: u8 = READ_PROPS | READ_GLOBALS | WRITE_PROPS | WRITE_GLOBALS;
+
 pub struct TastInfo {
     pub expr_types: FxHashMap<(usize, usize), Rc<TUnion>>,
     pub if_true_assertions: FxHashMap<(usize, usize), FxHashMap<String, Vec<Assertion>>>,
@@ -25,7 +32,7 @@ pub struct TastInfo {
     pub replacements: BTreeMap<(usize, usize), String>,
     pub symbol_references: SymbolReferences,
     pub issue_filter: Option<FxHashSet<IssueKind>>,
-    pub pure_exprs: FxHashSet<(usize, usize)>,
+    pub expr_effects: FxHashMap<(usize, usize), u8>,
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
@@ -82,7 +89,7 @@ impl TastInfo {
             hh_fixmes: file_source.hh_fixmes.clone(),
             symbol_references: SymbolReferences::new(),
             issue_filter: None,
-            pure_exprs: FxHashSet::default(),
+            expr_effects: FxHashMap::default(),
             hakana_ignores,
         }
     }
@@ -245,6 +252,44 @@ impl TastInfo {
         if let Some(issues) = self.recorded_issues.last_mut() {
             issues.push(issue);
         }
+    }
+
+    pub fn combine_effects(
+        &mut self,
+        source_pos_1: &Pos,
+        source_pos_2: &Pos,
+        destination_pos: &Pos,
+    ) {
+        self.expr_effects.insert(
+            (destination_pos.start_offset(), destination_pos.end_offset()),
+            self.expr_effects
+                .get(&(source_pos_1.start_offset(), source_pos_1.end_offset()))
+                .unwrap_or(&0)
+                | self
+                    .expr_effects
+                    .get(&(source_pos_2.start_offset(), source_pos_2.end_offset()))
+                    .unwrap_or(&0),
+        );
+    }
+
+    pub fn combine_effects_with(
+        &mut self,
+        source_pos_1: &Pos,
+        source_pos_2: &Pos,
+        destination_pos: &Pos,
+        effect: u8,
+    ) {
+        self.expr_effects.insert(
+            (destination_pos.start_offset(), destination_pos.end_offset()),
+            self.expr_effects
+                .get(&(source_pos_1.start_offset(), source_pos_1.end_offset()))
+                .unwrap_or(&0)
+                | self
+                    .expr_effects
+                    .get(&(source_pos_2.start_offset(), source_pos_2.end_offset()))
+                    .unwrap_or(&0)
+                | effect,
+        );
     }
 
     #[inline]

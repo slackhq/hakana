@@ -215,6 +215,22 @@ pub(crate) fn check_method_args(
         return false;
     }
 
+    if let Some(existing_effects) = tast_info
+        .expr_effects
+        .get_mut(&(pos.start_offset(), pos.end_offset()))
+    {
+        *existing_effects |= functionlike_storage.effects.unwrap_or(0);
+    } else {
+        tast_info.expr_effects.insert(
+            (pos.start_offset(), pos.end_offset()),
+            functionlike_storage.effects.unwrap_or(0),
+        );
+    }
+
+    for arg in call_expr.2 {
+        tast_info.combine_effects(&arg.1, pos, pos);
+    }
+
     if !template_result.template_types.is_empty() {
         check_template_result(statements_analyzer, template_result, pos, &functionlike_id);
     }

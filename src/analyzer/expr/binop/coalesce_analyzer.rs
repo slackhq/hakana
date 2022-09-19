@@ -141,17 +141,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     tast_info.set_expr_type(&pos, ternary_type);
 
-    if tast_info
-        .pure_exprs
-        .contains(&(left.pos().start_offset(), left.pos().end_offset()))
-        && tast_info
-            .pure_exprs
-            .contains(&(right.pos().start_offset(), right.pos().end_offset()))
-    {
-        tast_info
-            .pure_exprs
-            .insert((pos.start_offset(), pos.end_offset()));
-    }
+    tast_info.combine_effects(left.pos(), right.pos(), pos);
 
     true
 }

@@ -109,10 +109,6 @@ pub(crate) fn analyze(
         None
     };
 
-    if lhs_var_id.cloned().unwrap_or_default() == "$this" {
-        // todo check for analysis inside traits, update class_template_params
-    }
-
     let functionlike_storage = codebase.get_method(&declaring_method_id).unwrap();
 
     // todo support if_this_is_type template params
@@ -121,10 +117,6 @@ pub(crate) fn analyze(
         functionlike_storage.template_types.clone(),
         class_template_params.unwrap_or(IndexMap::new()),
     );
-
-    if !functionlike_storage.pure {
-        result.is_pure = false;
-    }
 
     if !check_method_args(
         statements_analyzer,
@@ -137,6 +129,11 @@ pub(crate) fn analyze(
         if_body_context,
         pos,
     ) {
+        tast_info.expr_effects.insert(
+            (pos.start_offset(), pos.end_offset()),
+            crate::typed_ast::IMPURE,
+        );
+
         return get_mixed_any();
     }
 

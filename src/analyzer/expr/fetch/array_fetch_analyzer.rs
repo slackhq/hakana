@@ -88,10 +88,6 @@ pub(crate) fn analyze(
                 .vars_in_scope
                 .insert(keyed_array_var_id.clone(), stmt_type.clone());
 
-            tast_info
-                .pure_exprs
-                .insert((pos.start_offset(), pos.end_offset()));
-
             return true;
         }
     }
@@ -136,18 +132,7 @@ pub(crate) fn analyze(
         }
     }
 
-    if tast_info
-        .pure_exprs
-        .contains(&(expr.0.pos().start_offset(), expr.0.pos().end_offset()))
-        && tast_info.pure_exprs.contains(&(
-            expr.1.as_ref().unwrap().pos().start_offset(),
-            expr.1.as_ref().unwrap().pos().end_offset(),
-        ))
-    {
-        tast_info
-            .pure_exprs
-            .insert((pos.start_offset(), pos.end_offset()));
-    }
+    tast_info.combine_effects(expr.0.pos(), expr.1.as_ref().unwrap().pos(), pos);
 
     true
 }

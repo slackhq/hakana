@@ -71,9 +71,10 @@ pub(crate) fn analyze(
         }
     };
 
-    tast_info
-        .pure_exprs
-        .insert((pos.start_offset(), pos.end_offset()));
+    tast_info.expr_effects.insert(
+        (pos.start_offset(), pos.end_offset()),
+        crate::typed_ast::READ_PROPS,
+    );
 
     // TODO
     // if (count($stmt->class->parts) === 1

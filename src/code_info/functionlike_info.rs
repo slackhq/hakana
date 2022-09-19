@@ -61,7 +61,7 @@ pub struct FunctionLikeInfo {
 
     pub mutation_free: bool,
 
-    pub pure: bool,
+    pub effects: Option<u8>,
 
     /**
      * Whether or not the function output is dependent solely on input - a function can be
@@ -123,7 +123,7 @@ impl FunctionLikeInfo {
             has_visitor_issues: false,
             has_yield: false,
             mutation_free: false,
-            pure: false,
+            effects: None,
             specialize_call: false,
             taint_source_types: FxHashSet::default(),
             added_taints: None,

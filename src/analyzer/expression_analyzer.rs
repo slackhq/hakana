@@ -81,27 +81,19 @@ pub(crate) fn analyze(
                     },
                 ),
             );
-            tast_info
-                .pure_exprs
-                .insert((expr.1.start_offset(), expr.1.end_offset()));
         }
         aast::Expr_::String(value) => {
             tast_info.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_literal_string(value.to_string())),
             );
-            tast_info
-                .pure_exprs
-                .insert((expr.1.start_offset(), expr.1.end_offset()));
+            
         }
         aast::Expr_::Float(_) => {
             tast_info.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_float()),
             );
-            tast_info
-                .pure_exprs
-                .insert((expr.1.start_offset(), expr.1.end_offset()));
         }
         aast::Expr_::Is(boxed) => {
             let (lhs_expr, _) = (&boxed.0, &boxed.1);
@@ -291,27 +283,18 @@ pub(crate) fn analyze(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_null()),
             );
-            tast_info
-                .pure_exprs
-                .insert((expr.1.start_offset(), expr.1.end_offset()));
         }
         aast::Expr_::True => {
             tast_info.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_true()),
             );
-            tast_info
-                .pure_exprs
-                .insert((expr.1.start_offset(), expr.1.end_offset()));
         }
         aast::Expr_::False => {
             tast_info.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_false()),
             );
-            tast_info
-                .pure_exprs
-                .insert((expr.1.start_offset(), expr.1.end_offset()));
         }
         aast::Expr_::Unop(x) => {
             let (unop, inner_expr) = (&x.0, &x.1);
@@ -371,7 +354,7 @@ pub(crate) fn analyze(
             let mut closure_type = wrap_atomic(TAtomic::TClosure {
                 params: lambda_storage.params,
                 return_type: lambda_storage.return_type,
-                is_pure: None, // todo infer this
+                effects: lambda_storage.effects,
             });
 
             let closure_id = format!(
@@ -750,10 +733,6 @@ fn analyze_function_pointer(
             Rc::new(wrap_atomic(closure)),
         );
     }
-
-    tast_info
-        .pure_exprs
-        .insert((expr.1.start_offset(), expr.1.end_offset()));
 }
 
 pub(crate) fn add_decision_dataflow(

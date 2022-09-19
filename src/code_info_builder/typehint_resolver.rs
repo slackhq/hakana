@@ -281,7 +281,7 @@ fn get_function_type_from_hints(
             type_context,
             resolved_names,
         )),
-        is_pure: None,
+        effects: None,
     }
 }
 
