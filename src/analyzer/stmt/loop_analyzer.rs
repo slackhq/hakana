@@ -413,20 +413,47 @@ pub(crate) fn analyze<'a>(
     let does_always_break = does_sometimes_break && cloned_loop_scope.final_actions.len() == 1;
 
     if does_sometimes_break {
-        for (var_id, var_type) in &cloned_loop_scope.possibly_redefined_loop_parent_vars {
-            loop_parent_context.vars_in_scope.insert(
-                var_id.clone(),
-                Rc::new(combine_union_types(
-                    var_type,
-                    loop_parent_context.vars_in_scope.get(var_id).unwrap(),
-                    None,
-                    false,
-                )),
-            );
+        if let Some(mut inner_do_context_inner) = inner_do_context {
+            for (var_id, possibly_redefined_var_type) in
+                &cloned_loop_scope.possibly_redefined_loop_parent_vars
+            {
+                if let Some(do_context_type) = inner_do_context_inner.vars_in_scope.get_mut(var_id)
+                {
+                    *do_context_type = if do_context_type == possibly_redefined_var_type {
+                        possibly_redefined_var_type.clone()
+                    } else {
+                        Rc::new(combine_union_types(
+                            possibly_redefined_var_type,
+                            do_context_type,
+                            None,
+                            false,
+                        ))
+                    };
+                }
 
-            loop_parent_context
-                .possibly_assigned_var_ids
-                .insert(var_id.clone());
+                loop_parent_context
+                    .possibly_assigned_var_ids
+                    .insert(var_id.clone());
+            }
+
+            inner_do_context = Some(inner_do_context_inner);
+        } else {
+            for (var_id, var_type) in &cloned_loop_scope.possibly_redefined_loop_parent_vars {
+                if let Some(loop_parent_context_type) =
+                    loop_parent_context.vars_in_scope.get_mut(var_id)
+                {
+                    *loop_parent_context_type = Rc::new(combine_union_types(
+                        var_type,
+                        loop_parent_context_type,
+                        None,
+                        false,
+                    ));
+                }
+
+                loop_parent_context
+                    .possibly_assigned_var_ids
+                    .insert(var_id.clone());
+            }
         }
     }
 

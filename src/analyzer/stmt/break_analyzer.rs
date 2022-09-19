@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use super::control_analyzer::BreakContext;
 use crate::{
     scope_analyzer::ScopeAnalyzer,
@@ -16,6 +18,7 @@ pub(crate) fn analyze(
     let mut leaving_switch = true;
 
     let codebase = statements_analyzer.get_codebase();
+
     if let Some(loop_scope) = loop_scope {
         if if let Some(last_break_type) = context.break_types.last() {
             last_break_type == &BreakContext::Switch
@@ -28,19 +31,19 @@ pub(crate) fn analyze(
             loop_scope.final_actions.push(ControlAction::Break);
         }
 
-        let mut removed_vars = FxHashSet::default();
-
-        let redefined_vars =
-            context.get_redefined_vars(&loop_scope.parent_context_vars, false, &mut removed_vars);
-
-        for (var_id, var_type) in redefined_vars {
+        for (var_id, var_type) in &context.vars_in_scope {
             loop_scope.possibly_redefined_loop_parent_vars.insert(
                 var_id.clone(),
-                hakana_type::add_optional_union_type(
-                    var_type.clone(),
-                    loop_scope.possibly_redefined_loop_parent_vars.get(&var_id),
-                    Some(codebase),
-                ),
+                if let Some(existing_redefined_loop_parent_var) = loop_scope.possibly_redefined_loop_parent_vars.get(var_id) {
+                    Rc::new(hakana_type::add_union_type(
+                        (**var_type).clone(),
+                        existing_redefined_loop_parent_var,
+                        Some(codebase),
+                        false
+                    ))
+                } else {
+                    var_type.clone()
+                },
             );
         }
 

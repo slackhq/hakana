@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::control_action::ControlAction;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LoopScope {
     pub iteration_count: usize,
 
@@ -15,7 +15,7 @@ pub struct LoopScope {
 
     pub possibly_redefined_loop_vars: FxHashMap<String, TUnion>,
 
-    pub possibly_redefined_loop_parent_vars: FxHashMap<String, TUnion>,
+    pub possibly_redefined_loop_parent_vars: FxHashMap<String, Rc<TUnion>>,
 
     pub possibly_defined_loop_parent_vars: FxHashMap<String, TUnion>,
 

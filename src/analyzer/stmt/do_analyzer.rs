@@ -131,29 +131,8 @@ pub(crate) fn analyze(
         );
     }
 
-    let loop_scope = &loop_scope.unwrap();
-
     for (var_id, var_type) in inner_loop_context.vars_in_scope {
-        // if there are break statements in the loop it's not certain
-        // that the loop has finished executing, so the assertions at the end
-        // the loop in the while conditional may not hold
-        if loop_scope.final_actions.contains(&ControlAction::Break) {
-            if let Some(possibly_defined_var) =
-                loop_scope.possibly_defined_loop_parent_vars.get(&var_id)
-            {
-                context.vars_in_scope.insert(
-                    var_id.clone(),
-                    Rc::new(combine_union_types(
-                        &var_type,
-                        possibly_defined_var,
-                        Some(codebase),
-                        false,
-                    )),
-                );
-            }
-        } else {
-            context.vars_in_scope.insert(var_id, var_type);
-        }
+        context.vars_in_scope.insert(var_id, var_type);
     }
 
     return analysis_result;
