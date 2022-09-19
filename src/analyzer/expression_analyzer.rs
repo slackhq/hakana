@@ -87,7 +87,6 @@ pub(crate) fn analyze(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_literal_string(value.to_string())),
             );
-            
         }
         aast::Expr_::Float(_) => {
             tast_info.expr_types.insert(
@@ -354,7 +353,7 @@ pub(crate) fn analyze(
             let mut closure_type = wrap_atomic(TAtomic::TClosure {
                 params: lambda_storage.params,
                 return_type: lambda_storage.return_type,
-                effects: lambda_storage.effects,
+                effects: lambda_storage.effects.to_u8(),
             });
 
             let closure_id = format!(

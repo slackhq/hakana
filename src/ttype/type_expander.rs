@@ -574,6 +574,6 @@ fn get_expanded_closure(
         } else {
             None
         },
-        effects: functionlike_info.effects,
+        effects: functionlike_info.effects.to_u8(),
     }
 }

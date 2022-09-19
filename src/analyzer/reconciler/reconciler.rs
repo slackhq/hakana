@@ -991,10 +991,14 @@ pub(crate) fn trigger_issue_for_impossible(
     }
 
     if redundant {
+        if not_operator && assertion_string == "falsy" {
+            not_operator = false;
+            assertion_string = "truthy".to_string();
+        }
+
         let description = format!(
-            "Type {} for {} is {} {}",
+            "Type {} is {} {}",
             old_var_type_string,
-            key,
             (if not_operator { "never" } else { "always" }),
             &assertion_string
         );
@@ -1008,10 +1012,14 @@ pub(crate) fn trigger_issue_for_impossible(
             statements_analyzer.get_config(),
         );
     } else {
+        if !not_operator && assertion_string == "falsy" {
+            not_operator = true;
+            assertion_string = "truthy".to_string();
+        }
+
         let description = format!(
-            "Type {} for {} is {} {}",
+            "Type {} is {} {}",
             old_var_type_string,
-            key,
             (if not_operator { "always" } else { "never" }),
             &assertion_string
         );

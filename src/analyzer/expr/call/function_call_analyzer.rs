@@ -1,4 +1,4 @@
-use hakana_reflection_info::t_atomic::DictKey;
+use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
@@ -14,7 +14,7 @@ use crate::typed_ast::TastInfo;
 use function_context::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
+use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::taint::SinkType;
 use hakana_type::template::TemplateResult;
@@ -121,8 +121,51 @@ pub(crate) fn analyze(
         pos,
     );
 
-    if function_storage.effects.unwrap_or(0) >= crate::typed_ast::WRITE_PROPS {
-        context.remove_mutable_object_vars();
+    match function_storage.effects {
+        FnEffect::Some(stored_effects) => {
+            if stored_effects > crate::typed_ast::WRITE_PROPS {
+                tast_info
+                    .expr_effects
+                    .insert((pos.start_offset(), pos.end_offset()), stored_effects);
+            }
+        }
+        FnEffect::Arg(arg_offset) => {
+            if let Some((_, arg_expr)) = expr.2.get(arg_offset as usize) {
+                if let Some(arg_type) = tast_info
+                    .expr_types
+                    .get(&(arg_expr.pos().start_offset(), arg_expr.pos().end_offset()))
+                {
+                    for (_, arg_atomic_type) in &arg_type.types {
+                        if let TAtomic::TClosure { effects, .. } = arg_atomic_type {
+                            if let Some(evaluated_effects) = effects {
+                                tast_info.expr_effects.insert(
+                                    (pos.start_offset(), pos.end_offset()),
+                                    *evaluated_effects,
+                                );
+                            } else {
+                                tast_info
+                                    .expr_effects
+                                    .insert((pos.start_offset(), pos.end_offset()), 7);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => (),
+    }
+
+    for arg in expr.2 {
+        tast_info.combine_effects(arg.1.pos(), pos, pos);
+    }
+
+    if let Some(effects) = tast_info
+        .expr_effects
+        .get(&(pos.start_offset(), pos.end_offset()))
+    {
+        if effects > &crate::typed_ast::WRITE_PROPS {
+            context.remove_mutable_object_vars();
+        }
     }
 
     if function_storage.ignore_taints_if_true {
@@ -138,16 +181,6 @@ pub(crate) fn analyze(
         pos,
         &functionlike_id,
     );
-
-    if let Some(stored_effects) = function_storage.effects {
-        tast_info
-            .expr_effects
-            .insert((pos.start_offset(), pos.end_offset()), stored_effects);
-    }
-
-    for arg in expr.2 {
-        tast_info.combine_effects(arg.1.pos(), pos, pos);
-    }
 
     let stmt_type = function_call_return_type_fetcher::fetch(
         statements_analyzer,

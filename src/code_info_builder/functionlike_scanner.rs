@@ -10,6 +10,7 @@ use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::functionlike_info::FnEffect;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::issue::IssueKind;
@@ -439,16 +440,37 @@ pub(crate) fn get_functionlike(
     functionlike_info.def_location = Some(definition_location);
     functionlike_info.is_async = fun_kind.is_async();
     functionlike_info.effects = if let Some(contexts) = contexts {
-        Some(if contexts.1.len() == 0 { 0 } else { 7 })
+        if contexts.1.len() == 0 {
+            FnEffect::None
+        } else if contexts.1.len() == 1 {
+            let context = &contexts.1[0];
+
+            if let tast::Hint_::HfunContext(boxed) = &*context.1 {
+                let position = functionlike_info
+                    .params
+                    .iter()
+                    .position(|p| &p.name == boxed);
+
+                if let Some(position) = position {
+                    FnEffect::Arg(position as u8)
+                } else {
+                    panic!()
+                }
+            } else {
+                FnEffect::Some(7)
+            }
+        } else {
+            FnEffect::Some(7)
+        }
     } else {
         if is_anonymous {
-            None
+            FnEffect::Unknown
         } else {
-            Some(7)
+            FnEffect::Some(7)
         }
     };
 
-    if functionlike_info.effects.unwrap_or(1) == 0 || !functionlike_id.contains("::") {
+    if matches!(functionlike_info.effects, FnEffect::None) || !functionlike_id.contains("::") {
         functionlike_info.specialize_call = true;
     }
 

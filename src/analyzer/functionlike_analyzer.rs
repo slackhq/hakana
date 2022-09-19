@@ -18,7 +18,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, VariableSourceKind};
 use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
-use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
+use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -148,7 +148,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         );
 
         lambda_storage.return_type = Some(inferred_return_type.unwrap_or(get_mixed_any()));
-        lambda_storage.effects = Some(effects);
+        lambda_storage.effects = FnEffect::from_u8(&Some(effects));
 
         Some(lambda_storage)
     }
@@ -517,7 +517,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let mut effects = 0;
 
-        if let None = functionlike_storage.effects {
+        if let FnEffect::Unknown = functionlike_storage.effects {
             for (_, effect) in &tast_info.expr_effects {
                 effects |= effect;
             }

@@ -17,6 +17,37 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FnEffect {
+    Unknown,
+    None,
+    Arg(u8),
+    Some(u8),
+}
+
+impl FnEffect {
+    pub fn to_u8(&self) -> Option<u8> {
+        match self {
+            FnEffect::Unknown => None,
+            FnEffect::None => Some(0),
+            FnEffect::Arg(_) => None,
+            FnEffect::Some(effects) => Some(*effects),
+        }
+    }
+
+    pub fn from_u8(effects: &Option<u8>) -> Self {
+        if let Some(effects) = effects {
+            if effects == &0 {
+                FnEffect::None
+            } else {
+                FnEffect::Some(*effects)
+            }
+        } else {
+            FnEffect::Unknown
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionLikeInfo {
     pub def_location: Option<HPos>,
 
@@ -61,7 +92,7 @@ pub struct FunctionLikeInfo {
 
     pub mutation_free: bool,
 
-    pub effects: Option<u8>,
+    pub effects: FnEffect,
 
     /**
      * Whether or not the function output is dependent solely on input - a function can be
@@ -123,7 +154,7 @@ impl FunctionLikeInfo {
             has_visitor_issues: false,
             has_yield: false,
             mutation_free: false,
-            effects: None,
+            effects: FnEffect::Unknown,
             specialize_call: false,
             taint_source_types: FxHashSet::default(),
             added_taints: None,

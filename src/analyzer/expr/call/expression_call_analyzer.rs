@@ -6,7 +6,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use function_context::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
+use hakana_reflection_info::functionlike_info::{FunctionLikeInfo, FnEffect};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_type::get_mixed_any;
 use hakana_type::template::TemplateResult;
@@ -63,7 +63,7 @@ pub(crate) fn analyze(
             let mut lambda_storage = FunctionLikeInfo::new(closure_id.clone());
             lambda_storage.params = closure_params.clone();
             lambda_storage.return_type = closure_return_type.clone();
-            lambda_storage.effects = *effects;
+            lambda_storage.effects = FnEffect::from_u8(effects);
 
             let functionlike_id = FunctionLikeIdentifier::Function(closure_id);
 

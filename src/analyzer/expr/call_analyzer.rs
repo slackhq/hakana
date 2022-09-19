@@ -8,7 +8,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use function_context::method_identifier::MethodIdentifier;
 use function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
+use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::get_mixed_any;
@@ -215,15 +215,20 @@ pub(crate) fn check_method_args(
         return false;
     }
 
+    let effect = match functionlike_storage.effects {
+        FnEffect::Unknown | FnEffect::None | FnEffect::Arg(_) => 0,
+        FnEffect::Some(effect) => effect,
+    };
+
     if let Some(existing_effects) = tast_info
         .expr_effects
         .get_mut(&(pos.start_offset(), pos.end_offset()))
     {
-        *existing_effects |= functionlike_storage.effects.unwrap_or(0);
+        *existing_effects |= effect;
     } else {
         tast_info.expr_effects.insert(
             (pos.start_offset(), pos.end_offset()),
-            functionlike_storage.effects.unwrap_or(0),
+            effect,
         );
     }
 
