@@ -1,4 +1,4 @@
-function foo(bool $b) {
+function foo(bool $b): void {
     do {
         $s = rand(0, 1);
     } while (!$b && $s);
@@ -6,7 +6,7 @@ function foo(bool $b) {
     if ($b) {}
 }
 
-function bar(bool $b) {
+function bar(bool $b): void {
     do {
         $s = rand(0, 1);
         if (!$b && $s) {
