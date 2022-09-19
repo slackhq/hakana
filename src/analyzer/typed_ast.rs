@@ -95,7 +95,9 @@ impl TastInfo {
     }
 
     pub fn add_issue(&mut self, issue: Issue) {
-        self.issues_to_emit.push(issue);
+        if !self.issues_to_emit.contains(&issue) {
+            self.issues_to_emit.push(issue);
+        }
     }
 
     pub fn maybe_add_issue(&mut self, issue: Issue, config: &Config) {
