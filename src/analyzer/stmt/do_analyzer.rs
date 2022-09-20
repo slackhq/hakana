@@ -1,15 +1,13 @@
-use std::{collections::BTreeMap, rc::Rc};
+use std::collections::BTreeMap;
 
 use hakana_algebra::Clause;
-use hakana_type::combine_union_types;
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     formula_generator,
     reconciler::reconciler,
-    scope_analyzer::ScopeAnalyzer,
-    scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
+    scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
     typed_ast::TastInfo,
 };
@@ -53,8 +51,6 @@ pub(crate) fn analyze(
     }
 
     let cond_id = (stmt.1 .1.start_offset(), stmt.1 .1.end_offset());
-
-    let codebase = statements_analyzer.get_codebase();
 
     let assertion_context =
         statements_analyzer.get_assertion_context(context.function_context.calling_class.as_ref());

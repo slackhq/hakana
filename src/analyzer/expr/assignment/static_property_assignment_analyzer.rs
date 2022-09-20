@@ -15,10 +15,7 @@ use oxidized::{
     tast::Pos,
 };
 
-use crate::{
-    expr::{expression_identifier, fetch::class_constant_fetch_analyzer::get_id_name},
-    typed_ast::TastInfo,
-};
+use crate::{expr::fetch::class_constant_fetch_analyzer::get_id_name, typed_ast::TastInfo};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
@@ -29,6 +26,7 @@ pub(crate) fn analyze(
     expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
     assign_value_pos: Option<&Pos>,
     assign_value_type: &TUnion,
+    var_id: &Option<String>,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> bool {
@@ -72,24 +70,14 @@ pub(crate) fn analyze(
         None
     };
 
-    if let None = prop_name.to_owned() {
+    if let None = prop_name {
         return false;
     }
-
-    let mut var_id = None;
 
     let mut fq_class_names = Vec::new();
 
     match &stmt_class.2 {
         aast::ClassId_::CIexpr(expr) => {
-            var_id = expression_identifier::get_var_id(
-                expr,
-                context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().get_file_source(),
-                statements_analyzer.get_file_analyzer().resolved_names,
-                Some(statements_analyzer.get_codebase()),
-            );
-
             match &expr.2 {
                 aast::Expr_::Id(id) => {
                     let mut is_static = false;
@@ -147,10 +135,6 @@ pub(crate) fn analyze(
         if let Some(declaring_property_class) = declaring_property_class {
             let declaring_property_id =
                 declaring_property_class.to_owned() + &"::$" + &property_id.1;
-
-            if let Some(var_id) = &var_id {
-                context.vars_in_scope.get(var_id);
-            }
 
             let mut class_property_type = if let Some(prop_type) =
                 codebase.get_property_type(&fq_class_name, &property_id.1)

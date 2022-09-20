@@ -9,8 +9,8 @@ use crate::expr::assignment::instance_property_assignment_analyzer;
 use crate::expr::assignment::static_property_assignment_analyzer;
 use crate::expr::call::argument_analyzer::get_removed_taints_in_comments;
 use crate::expr::expression_identifier;
-use crate::expr::expression_identifier::get_var_id;
 use crate::expr::expression_identifier::get_root_var_id;
+use crate::expr::expression_identifier::get_var_id;
 use crate::expr::fetch::array_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::formula_generator;
@@ -58,28 +58,18 @@ pub(crate) fn analyze(
         Some(statements_analyzer.get_codebase()),
     );
 
-    let extended_var_id = get_var_id(
-        assign_var,
-        context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().get_file_source(),
-        statements_analyzer.get_file_analyzer().resolved_names,
-        Some(statements_analyzer.get_codebase()),
-    );
-
     //let removed_taints = Vec::new();
 
     let mut extended_var_type = None;
 
-    if let Some(extended_var_id) = &extended_var_id {
-        context.cond_referenced_var_ids.remove(extended_var_id);
+    if let Some(var_id) = &var_id {
+        context.cond_referenced_var_ids.remove(var_id);
         context
             .assigned_var_ids
-            .insert(extended_var_id.clone(), assign_var.pos().start_offset());
-        context
-            .possibly_assigned_var_ids
-            .insert(extended_var_id.clone());
+            .insert(var_id.clone(), assign_var.pos().start_offset());
+        context.possibly_assigned_var_ids.insert(var_id.clone());
 
-        extended_var_type = context.vars_in_scope.get(extended_var_id).cloned();
+        extended_var_type = context.vars_in_scope.get(var_id).cloned();
     }
 
     if let Some(assign_value) = assign_value {
@@ -143,18 +133,15 @@ pub(crate) fn analyze(
         context.inside_general_use = false;
 
         if !analyzed_ok {
-            if let Some(var_id) = var_id {
-                if let Some(extended_var_id) = &extended_var_id {
-                    if let Some(existing_type) = context.vars_in_scope.clone().get(extended_var_id)
-                    {
-                        context.remove_descendants(
-                            extended_var_id,
-                            existing_type,
-                            assign_value_type,
-                            None,
-                            tast_info,
-                        );
-                    }
+            if let Some(var_id) = &var_id {
+                if let Some(existing_type) = context.vars_in_scope.clone().get(var_id) {
+                    context.remove_descendants(
+                        var_id,
+                        existing_type,
+                        assign_value_type,
+                        None,
+                        tast_info,
+                    );
                 }
 
                 // if we're not exiting immediately, make everything mixed
@@ -188,9 +175,9 @@ pub(crate) fn analyze(
     if tast_info.data_flow_graph.kind == GraphKind::FunctionBody
         && assign_value_type.parent_nodes.is_empty()
     {
-        if let Some(extended_var_id) = &extended_var_id {
+        if let Some(var_id) = &var_id {
             let assignment_node = DataFlowNode::get_for_assignment(
-                extended_var_id.clone(),
+                var_id.clone(),
                 statements_analyzer.get_hpos(assign_var.pos()),
             );
 
@@ -200,19 +187,17 @@ pub(crate) fn analyze(
         };
     }
 
-    if let Some((extended_var_id, extended_var_type)) =
-        if let Some(extended_var_id) = &extended_var_id {
-            if let Some(extended_var_type) = extended_var_type {
-                Some((extended_var_id.clone(), extended_var_type))
-            } else {
-                None
-            }
+    if let Some((var_id, extended_var_type)) = if let Some(var_id) = &var_id {
+        if let Some(extended_var_type) = extended_var_type {
+            Some((var_id.clone(), extended_var_type))
         } else {
             None
         }
-    {
+    } else {
+        None
+    } {
         context.remove_descendants(
-            &extended_var_id,
+            &var_id,
             &extended_var_type,
             Some(&assign_value_type),
             Some(statements_analyzer),
@@ -255,7 +240,7 @@ pub(crate) fn analyze(
             assign_var,
             assign_value,
             assign_value_type,
-            &var_id.clone().unwrap(),
+            var_id.as_ref().unwrap(),
             tast_info,
             context,
             is_inout,
@@ -271,13 +256,6 @@ pub(crate) fn analyze(
             );
         }
         aast::Expr_::ObjGet(boxed) => {
-            let var_id = expression_identifier::get_var_id(
-                &assign_var,
-                context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().get_file_source(),
-                statements_analyzer.get_file_analyzer().resolved_names,
-                Some(statements_analyzer.get_codebase()),
-            );
             instance_property_assignment_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1),
@@ -300,6 +278,7 @@ pub(crate) fn analyze(
                     None
                 },
                 &assign_value_type,
+                &var_id,
                 tast_info,
                 context,
             );

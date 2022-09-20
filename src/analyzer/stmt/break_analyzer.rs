@@ -7,7 +7,7 @@ use crate::{
 };
 use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
 use hakana_type::combine_optional_union_types;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -34,12 +34,14 @@ pub(crate) fn analyze(
         for (var_id, var_type) in &context.vars_in_scope {
             loop_scope.possibly_redefined_loop_parent_vars.insert(
                 var_id.clone(),
-                if let Some(existing_redefined_loop_parent_var) = loop_scope.possibly_redefined_loop_parent_vars.get(var_id) {
+                if let Some(existing_redefined_loop_parent_var) =
+                    loop_scope.possibly_redefined_loop_parent_vars.get(var_id)
+                {
                     Rc::new(hakana_type::add_union_type(
                         (**var_type).clone(),
                         existing_redefined_loop_parent_var,
                         Some(codebase),
-                        false
+                        false,
                     ))
                 } else {
                     var_type.clone()
