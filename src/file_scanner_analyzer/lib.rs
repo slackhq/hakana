@@ -3,8 +3,8 @@ pub(crate) mod populator;
 use crate::file_cache_provider::FileStatus;
 use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_analyzer::config::Config;
+use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_analyzer::file_analyzer;
-use hakana_analyzer::dataflow::program_analyzer::{find_tainted_data, find_connections};
 use hakana_file_info::FileSource;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -162,8 +162,12 @@ pub fn scan_and_analyze(
 
     if let GraphKind::WholeProgram(whole_program_kind) = config.graph_kind {
         let issues = match whole_program_kind {
-            WholeProgramKind::Taint => find_tainted_data(&analysis_result.program_dataflow_graph, &config, debug),
-            WholeProgramKind::Query => find_connections(&analysis_result.program_dataflow_graph, &config, debug),
+            WholeProgramKind::Taint => {
+                find_tainted_data(&analysis_result.program_dataflow_graph, &config, debug)
+            }
+            WholeProgramKind::Query => {
+                find_connections(&analysis_result.program_dataflow_graph, &config, debug)
+            }
         };
 
         for issue in issues {
@@ -397,7 +401,11 @@ pub fn scan_and_analyze_single_file(
     )?;
 
     if matches!(analysis_config.graph_kind, GraphKind::WholeProgram(_)) {
-        let issues = find_tainted_data(&analysis_result.program_dataflow_graph, &analysis_config, false);
+        let issues = find_tainted_data(
+            &analysis_result.program_dataflow_graph,
+            &analysis_config,
+            false,
+        );
 
         for issue in issues {
             analysis_result
