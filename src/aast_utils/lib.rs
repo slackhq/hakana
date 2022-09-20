@@ -236,6 +236,11 @@ impl<'ast> Visitor<'ast> for Scanner {
         p.recurse(nc, self)
     }
 
+    fn visit_catch(&mut self, nc: &mut NameContext, catch: &oxidized::nast::Catch) -> Result<(), ()> {
+        nc.in_class_id = true;
+        catch.recurse(nc, self)
+    }
+
     fn visit_id(&mut self, nc: &mut NameContext, id: &ast_defs::Id) -> Result<(), ()> {
         if !self.resolved_names.contains_key(&id.0.start_offset()) {
             let resolved_name = if nc.in_xhp_id {

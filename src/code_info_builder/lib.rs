@@ -345,12 +345,25 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             None
         };
 
+        let mut template_type_map = if let Some(parent_function_storage) = parent_function_storage {
+            parent_function_storage.template_types.clone()
+        } else {
+            IndexMap::new()
+        };
+
+        if let Some(classlike_name) = &c.classlike_name {
+            template_type_map.extend(
+                self.codebase
+                    .classlike_infos
+                    .get(classlike_name)
+                    .unwrap()
+                    .template_types
+                    .clone(),
+            );
+        }
+
         let mut type_resolution_context = TypeResolutionContext {
-            template_type_map: if let Some(parent_function_storage) = parent_function_storage {
-                parent_function_storage.template_types.clone()
-            } else {
-                IndexMap::new()
-            },
+            template_type_map,
             template_supers: FxHashMap::default(),
         };
 

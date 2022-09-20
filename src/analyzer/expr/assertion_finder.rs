@@ -83,39 +83,55 @@ pub(crate) fn scrape_assertions(
     }
 
     if let aast::Expr_::Binop(binop) = &conditional.2 {
-        if binop.0.is_eqeq() || binop.0.is_eqeqeq() {
-            return scrape_equality_assertions(
-                &binop.0,
-                &binop.1,
-                &binop.2,
-                &tast_info,
-                assertion_context,
-                cache,
-                inside_conditional,
-            );
-        }
+        match binop.0 {
+            ast_defs::Bop::Eqeq | ast_defs::Bop::Eqeqeq => {
+                return scrape_equality_assertions(
+                    &binop.0,
+                    &binop.1,
+                    &binop.2,
+                    &tast_info,
+                    assertion_context,
+                    cache,
+                    inside_conditional,
+                );
+            }
+            ast_defs::Bop::Diff | ast_defs::Bop::Diff2 => {
+                return scrape_inequality_assertions(
+                    &binop.0,
+                    &binop.1,
+                    &binop.2,
+                    &tast_info,
+                    assertion_context,
+                    cache,
+                    inside_conditional,
+                );
+            }
+            ast_defs::Bop::QuestionQuestion => {
+                if let aast::Expr_::False | aast::Expr_::Null = &binop.2 .2 {
+                    let var_name = get_var_id(
+                        &binop.1,
+                        assertion_context.this_class_name,
+                        assertion_context.file_source,
+                        assertion_context.resolved_names,
+                        assertion_context.codebase,
+                    );
 
-        if binop.0.is_diff() || binop.0.is_diff2() {
-            return scrape_inequality_assertions(
-                &binop.0,
-                &binop.1,
-                &binop.2,
-                &tast_info,
-                assertion_context,
-                cache,
-                inside_conditional,
-            );
-        }
-
-        if binop.0.is_gt() || binop.0.is_gte() {
-            // return scrape_greater_assertions(
-            //     &binop.1,
-            //     &binop.2,
-            //     this_class_name,
-            //     source,
-            //     &tast_info,
-            //     resolved_names,
-            // );
+                    if let Some(var_name) = var_name {
+                        if_types.insert(var_name, vec![vec![Assertion::IsIsset]]);
+                    }
+                }
+            }
+            ast_defs::Bop::Gt | ast_defs::Bop::Gte => {
+                // return scrape_greater_assertions(
+                //     &binop.1,
+                //     &binop.2,
+                //     this_class_name,
+                //     source,
+                //     &tast_info,
+                //     resolved_names,
+                // );
+            }
+            _ => {}
         }
     }
 

@@ -203,12 +203,6 @@ fn is_intersection_shallowly_contained_by(
         && codebase.class_or_interface_exists(container_name)
         && codebase.class_extends_or_implements(input_name, container_name)
     {
-        if container_is_this && !input_is_this {
-            atomic_comparison_result.type_coerced = Some(true);
-
-            return false;
-        }
-
         return true;
     }
 

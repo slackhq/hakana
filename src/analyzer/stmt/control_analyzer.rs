@@ -29,14 +29,21 @@ pub(crate) fn get_control_actions(
 
     'outer: for stmt in stmts {
         match &stmt.1 {
-            aast::Stmt_::Expr(_) => {
-                let inner_expr = &stmt.1.as_expr().unwrap().2;
-
-                if let aast::Expr_::Call(call_expr) = inner_expr {
+            aast::Stmt_::Expr(boxed) => {
+                if let aast::Expr_::Call(call_expr) = &boxed.2 {
                     if let Some(value) =
                         handle_call(call_expr, resolved_names, codebase, &control_actions)
                     {
                         return value;
+                    }
+                }
+
+                if let Some(tast_info) = tast_info {
+                    if let Some(t) = tast_info.get_expr_type(&boxed.pos()) {
+                        if t.is_nothing() {
+                            control_actions.insert(ControlAction::End);
+                            return control_actions;
+                        }
                     }
                 }
             }
