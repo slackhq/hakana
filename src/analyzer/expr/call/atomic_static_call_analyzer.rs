@@ -54,6 +54,9 @@ pub(crate) fn analyze(
                 return;
             }
         }
+        TAtomic::TLiteralClassname { name } => {
+            name.clone()
+        }
         TAtomic::TTemplateParam { as_type, .. } => {
             let mut classlike_name = None;
             for (_, generic_param_type) in &as_type.types {
