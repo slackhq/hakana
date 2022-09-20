@@ -67,6 +67,7 @@ pub enum IssueKind {
     PossiblyNullArrayAccess,
     PossiblyNullArrayOffset,
     PossiblyNullIterator,
+    PossiblyNullPropertyFetch,
     PossiblyUndefinedIntArrayOffset,
     PossiblyUndefinedStringArrayOffset,
     PossiblyUnusedProperty,

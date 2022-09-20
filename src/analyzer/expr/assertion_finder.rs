@@ -464,17 +464,20 @@ fn scrape_function_assertions(
                 }
             }
         }
+    } else if function_name == "is_null" {
+        if let Some(first_var_name) = firsts.unwrap().1 {
+            if_types.insert(
+                first_var_name.clone(),
+                vec![vec![Assertion::IsType(TAtomic::TNull)]],
+            );
+        }
     }
 
     let custom_assertions = process_custom_assertions(pos, tast_info);
 
     if_types.extend(custom_assertions);
 
-    if if_types.len() > 0 {
-        vec![if_types]
-    } else {
-        vec![]
-    }
+    vec![if_types]
 }
 
 fn has_null_variable(
@@ -516,12 +519,11 @@ fn get_null_equality_assertions(
 
     if let Some(var_name) = var_name {
         if_types.insert(var_name, vec![vec![Assertion::IsType(TAtomic::TNull)]]);
-        return vec![if_types];
     } else {
         scrape_shapes_isset(base_conditional, assertion_context, &mut if_types, true);
     }
 
-    Vec::new()
+    vec![if_types]
 }
 
 fn get_null_inequality_assertions(
@@ -547,12 +549,11 @@ fn get_null_inequality_assertions(
 
     if let Some(var_name) = var_name {
         if_types.insert(var_name, vec![vec![Assertion::IsNotType(TAtomic::TNull)]]);
-        return vec![if_types];
     } else {
         scrape_shapes_isset(base_conditional, assertion_context, &mut if_types, false);
     }
 
-    Vec::new()
+    vec![if_types]
 }
 
 pub(crate) fn has_true_variable(

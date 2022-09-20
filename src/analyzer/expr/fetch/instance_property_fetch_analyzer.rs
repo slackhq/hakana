@@ -2,6 +2,7 @@ use super::atomic_property_fetch_analyzer;
 use crate::{expr::expression_identifier, typed_ast::TastInfo};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_type::get_mixed_any;
 use oxidized::{
@@ -113,7 +114,19 @@ pub(crate) fn analyze(
                     has_nullsafe_null = true;
                     continue;
                 }
+
+                if !context.inside_isset {
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::PossiblyNullPropertyFetch,
+                            format!("Unsafe array access on null"),
+                            statements_analyzer.get_hpos(&expr.0.pos()),
+                        ),
+                        statements_analyzer.get_config(),
+                    );
+                }
             }
+
             // TODO $lhs_type_part instanceof TTemplateParam
             atomic_property_fetch_analyzer::analyze(
                 statements_analyzer,

@@ -180,8 +180,20 @@ impl TastInfo {
                         }
                         _ => {}
                     },
+                    4323 => match &issue.kind {
+                        IssueKind::PossiblyNullArgument => {
+                            return false;
+                        }
+                        _ => {}
+                    },
                     4063 => match &issue.kind {
                         IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess => {
+                            return false;
+                        }
+                        _ => {}
+                    },
+                    4064 => match &issue.kind {
+                        IssueKind::PossiblyNullArgument | IssueKind::PossiblyNullPropertyFetch => {
                             return false;
                         }
                         _ => {}
