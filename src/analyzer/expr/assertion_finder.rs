@@ -213,44 +213,61 @@ fn get_is_assertions(
                 .collect::<Vec<Assertion>>()],
         );
     } else {
-        match &var_expr.2 {
-            aast::Expr_::Call(call) => {
-                let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
-
-                if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) =
-                    functionlike_id
-                {
-                    if class_name == "HH\\Shapes" && member_name == "idx" {
-                        if let TAtomic::TNonnullMixed = is_type.get_single() {
-                            let shape_name = get_var_id(
-                                &call.2[0].1,
-                                assertion_context.this_class_name,
-                                assertion_context.file_source,
-                                assertion_context.resolved_names,
-                                assertion_context.codebase,
-                            );
-
-                            let dim_id = get_dim_id(
-                                &call.2[1].1,
-                                assertion_context.codebase,
-                                assertion_context.resolved_names,
-                            );
-
-                            if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
-                                if_types.insert(
-                                    format!("{}[{}]", shape_name, dim_id),
-                                    vec![vec![Assertion::IsIsset]],
-                                );
-                            }
-                        }
-                    }
-                }
+        match is_type.get_single() {
+            TAtomic::TNonnullMixed => {
+                scrape_shapes_isset(var_expr, assertion_context, &mut if_types, false);
+            }
+            TAtomic::TNull => {
+                scrape_shapes_isset(var_expr, assertion_context, &mut if_types, true);
             }
             _ => {}
         }
     }
 
     vec![if_types]
+}
+
+fn scrape_shapes_isset(
+    var_expr: &aast::Expr<(), ()>,
+    assertion_context: &AssertionContext,
+    if_types: &mut FxHashMap<String, Vec<Vec<Assertion>>>,
+    negated: bool,
+) {
+    match &var_expr.2 {
+        aast::Expr_::Call(call) => {
+            let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
+
+            if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
+                if class_name == "HH\\Shapes" && member_name == "idx" {
+                    let shape_name = get_var_id(
+                        &call.2[0].1,
+                        assertion_context.this_class_name,
+                        assertion_context.file_source,
+                        assertion_context.resolved_names,
+                        assertion_context.codebase,
+                    );
+
+                    let dim_id = get_dim_id(
+                        &call.2[1].1,
+                        assertion_context.codebase,
+                        assertion_context.resolved_names,
+                    );
+
+                    if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
+                        if_types.insert(
+                            format!("{}[{}]", shape_name, dim_id),
+                            vec![vec![if negated {
+                                Assertion::IsNotIsset
+                            } else {
+                                Assertion::IsIsset
+                            }]],
+                        );
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
 }
 
 fn get_functionlike_id_from_call(
@@ -500,6 +517,8 @@ fn get_null_equality_assertions(
     if let Some(var_name) = var_name {
         if_types.insert(var_name, vec![vec![Assertion::IsType(TAtomic::TNull)]]);
         return vec![if_types];
+    } else {
+        scrape_shapes_isset(base_conditional, assertion_context, &mut if_types, true);
     }
 
     Vec::new()
@@ -529,6 +548,8 @@ fn get_null_inequality_assertions(
     if let Some(var_name) = var_name {
         if_types.insert(var_name, vec![vec![Assertion::IsNotType(TAtomic::TNull)]]);
         return vec![if_types];
+    } else {
+        scrape_shapes_isset(base_conditional, assertion_context, &mut if_types, false);
     }
 
     Vec::new()
