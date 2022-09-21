@@ -209,7 +209,11 @@ fn add_dataflow(
             let declaring_method_call_node = DataFlowNode::get_for_method_return(
                 declaring_method_id.to_string(),
                 functionlike_storage.return_type_location.clone(),
-                None,
+                if functionlike_storage.specialize_call {
+                    Some(statements_analyzer.get_hpos(call_pos))
+                } else {
+                    None
+                },
             );
 
             data_flow_graph.add_node(declaring_method_call_node.clone());
