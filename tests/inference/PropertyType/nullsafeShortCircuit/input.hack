@@ -5,6 +5,6 @@ class Foo {
 
     public function doBar(): ?Foo
     {
-        return $this->nullableSelf?->self->self;
+        return $this->nullableSelf?->self;
     }
 }

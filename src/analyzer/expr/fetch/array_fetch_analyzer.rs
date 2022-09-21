@@ -431,7 +431,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         tast_info.maybe_add_issue(
                             Issue::new(
                                 IssueKind::PossiblyNullArrayAccess,
-                                format!("Unsafe array access on null"),
+                                "Unsafe array access on null".to_string(),
                                 statements_analyzer.get_hpos(&stmt.0.pos()),
                             ),
                             statements_analyzer.get_config(),

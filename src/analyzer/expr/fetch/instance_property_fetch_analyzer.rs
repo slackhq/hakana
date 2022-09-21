@@ -119,7 +119,7 @@ pub(crate) fn analyze(
                     tast_info.maybe_add_issue(
                         Issue::new(
                             IssueKind::PossiblyNullPropertyFetch,
-                            format!("Unsafe array access on null"),
+                            "Unsafe property access on null".to_string(),
                             statements_analyzer.get_hpos(&expr.0.pos()),
                         ),
                         statements_analyzer.get_config(),
