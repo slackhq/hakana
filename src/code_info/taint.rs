@@ -155,9 +155,13 @@ pub fn string_to_sink_types(str: String) -> FxHashSet<SinkType> {
         "CurlUri" => FxHashSet::from_iter([SinkType::CurlUri]),
         "CurlHeader" => FxHashSet::from_iter([SinkType::CurlHeader]),
         "HtmlAttributeUri" => FxHashSet::from_iter([SinkType::HtmlAttributeUri]),
+        "HtmlAttribute" => FxHashSet::from_iter([SinkType::HtmlAttribute]),
         "RedirectUri" => FxHashSet::from_iter([SinkType::RedirectUri]),
         "FileSystem" => FxHashSet::from_iter([SinkType::FileSystem]),
         "Logging" => FxHashSet::from_iter([SinkType::Logging]),
+        "Shell" => FxHashSet::from_iter([SinkType::Shell]),
+        "Unserialize" => FxHashSet::from_iter([SinkType::Unserialize]),
+        "Cookie" => FxHashSet::from_iter([SinkType::Cookie]),
         _ => {
             println!("Unrecognised annotation {}", str);
             panic!()

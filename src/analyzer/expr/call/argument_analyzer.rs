@@ -782,7 +782,11 @@ fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) 
                     // return vec![TaintType::ResponseHeader];
                 }
             }
-            "igbinary_unserialize" | "unserialize" => {
+            "igbinary_unserialize"
+            | "unserialize"
+            | "unserialize_pure"
+            | "fb_unserialize"
+            | "fb_compact_unserialize" => {
                 if arg_offset == 0 {
                     return vec![SinkType::Unserialize];
                 }
