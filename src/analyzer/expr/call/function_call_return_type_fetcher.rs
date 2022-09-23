@@ -675,7 +675,7 @@ fn get_special_argument_nodes(
                 )],
                 None,
             ),
-            "str_split" | "HH\\Lib\\Str\\split" | "HH\\Lib\\Str\\chunk" => (
+            "str_split" | "HH\\Lib\\Str\\split" | "HH\\Lib\\Str\\chunk" | "HH\\Lib\\Regex\\every_match" => (
                 vec![(
                     0,
                     PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),

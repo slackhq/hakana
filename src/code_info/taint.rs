@@ -42,7 +42,7 @@ pub enum SinkType {
     Custom(String),
 }
 
-const PAIRS: [(SourceType, SinkType); 31] = [
+const PAIRS: [(SourceType, SinkType); 34] = [
     (SourceType::UriRequestHeader, SinkType::HtmlTag),
     (SourceType::UriRequestHeader, SinkType::HtmlAttribute),
     (SourceType::UriRequestHeader, SinkType::HtmlAttributeUri),
@@ -66,6 +66,9 @@ const PAIRS: [(SourceType, SinkType); 31] = [
     (SourceType::StoredUserData, SinkType::Unserialize),
     (SourceType::StoredUserData, SinkType::CurlHeader),
     (SourceType::StoredUserData, SinkType::CurlUri),
+    (SourceType::StoredUserData, SinkType::HtmlAttribute),
+    (SourceType::StoredUserData, SinkType::HtmlAttributeUri),
+    (SourceType::StoredUserData, SinkType::HtmlTag),
     (SourceType::UserSecret, SinkType::Logging),
     (SourceType::UserSecret, SinkType::HtmlAttribute),
     (SourceType::UserSecret, SinkType::HtmlAttributeUri),
