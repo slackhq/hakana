@@ -30,6 +30,12 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> Vec<DataFlowNode> {
 
     //println!("{:#?}", graph);
 
+    // for (from_id, to) in &graph.forward_edges {
+    //     for (to_id, _) in to {
+    //         println!("{} -> {}", from_id, to_id);
+    //     }
+    // }
+
     let mut unused_nodes = Vec::new();
 
     for (_, source_node) in vars {
