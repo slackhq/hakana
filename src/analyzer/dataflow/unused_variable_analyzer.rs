@@ -124,6 +124,7 @@ fn get_variable_child_nodes(
                 path_types: generated_source.clone().path_types,
                 kind: generated_source.kind.clone(),
                 pos: generated_source.pos.clone(),
+                name: generated_source.name.clone(),
             };
 
             new_destination.path_types.push(path.kind.clone());
@@ -307,6 +308,7 @@ pub struct VariableUseNode {
     pub pos: Rc<HPos>,
     pub path_types: Vec<PathKind>,
     pub kind: VariableSourceKind,
+    pub name: String,
 }
 
 impl VariableUseNode {
@@ -317,18 +319,21 @@ impl VariableUseNode {
                 pos: Rc::new(pos.clone().unwrap()),
                 path_types: Vec::new(),
                 kind: VariableSourceKind::Default,
+                name: "".to_string(),
             },
-            DataFlowNode::VariableUseSource { kind, id, pos } => Self {
+            DataFlowNode::VariableUseSource { kind, id, pos, name } => Self {
                 id: id.clone(),
                 pos: Rc::new(pos.clone()),
                 path_types: Vec::new(),
                 kind: kind.clone(),
+                name: name.clone(),
             },
             DataFlowNode::VariableUseSink { id, pos } => Self {
                 id: id.clone(),
                 pos: Rc::new(pos.clone()),
                 path_types: Vec::new(),
                 kind: VariableSourceKind::Default,
+                name: "".to_string(),
             },
             _ => {
                 panic!();

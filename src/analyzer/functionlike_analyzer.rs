@@ -121,6 +121,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         };
 
+        tast_info
+            .closure_spans
+            .push((stmt.span.start_offset(), stmt.span.end_offset()));
+
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
             lambda_storage.type_resolution_context.as_ref().unwrap(),
@@ -539,6 +543,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             parent_tast_info
                 .data_flow_graph
                 .add_graph(tast_info.data_flow_graph);
+
+            parent_tast_info
+                .closure_spans
+                .extend(tast_info.closure_spans);
         } else {
             update_analysis_result_with_tast(
                 tast_info,
@@ -651,6 +659,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         },
                         id,
                         pos: param_pos.clone(),
+                        name: param.name.clone(),
                     }
                 };
 
@@ -770,8 +779,8 @@ fn report_unused_expressions(
 
     for node in &unused_source_nodes {
         match node {
-            DataFlowNode::VariableUseSource { kind, id, pos } => {
-                if id.starts_with("$_") {
+            DataFlowNode::VariableUseSource { kind, id, pos, name } => {
+                if name.starts_with("$_") {
                     continue;
                 }
 
@@ -796,12 +805,27 @@ fn report_unused_expressions(
                             if config.issues_to_fix.contains(&IssueKind::UnusedVariable) {
                                 unused_variable_nodes.push(node.clone());
                             } else {
+                                let unused_closure_variable = tast_info.closure_spans.iter().any(
+                                    |(closure_start, closure_end)| {
+                                        &pos.start_offset > closure_start
+                                            && &pos.start_offset < closure_end
+                                    },
+                                );
+                                
                                 tast_info.maybe_add_issue(
-                                    Issue::new(
-                                        IssueKind::UnusedVariable,
-                                        "Unused variable ".to_string() + id.as_str(),
-                                        pos.clone(),
-                                    ),
+                                    if unused_closure_variable {
+                                        Issue::new(
+                                            IssueKind::UnusedVariableInClosure,
+                                            "Unused variable in closure ".to_string() + name.as_str(),
+                                            pos.clone(),
+                                        )
+                                    } else {
+                                        Issue::new(
+                                            IssueKind::UnusedVariable,
+                                            "Unused variable ".to_string() + name.as_str(),
+                                            pos.clone(),
+                                        )
+                                    },
                                     statements_analyzer.get_config(),
                                 );
                             }

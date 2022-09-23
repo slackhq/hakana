@@ -91,6 +91,7 @@ pub enum IssueKind {
     UnusedPublicOrProtectedMethod,
     UnusedTrait,
     UnusedVariable,
+    UnusedVariableInClosure,
 }
 
 impl IssueKind {
@@ -183,6 +184,7 @@ impl IssueKind {
             "UnusedPublicOrProtectedMethod" => Ok(IssueKind::UnusedPublicOrProtectedMethod),
             "UnusedTrait" => Ok(IssueKind::UnusedTrait),
             "UnusedVariable" => Ok(IssueKind::UnusedVariable),
+            "UnusedVariableInClosure" => Ok(IssueKind::UnusedVariableInClosure),
             _ => Ok(IssueKind::CustomIssue(str.to_string())),
         }
     }

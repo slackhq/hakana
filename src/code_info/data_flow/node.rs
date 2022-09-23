@@ -28,6 +28,7 @@ pub enum DataFlowNode {
     VariableUseSource {
         kind: VariableSourceKind,
         id: String,
+        name: String,
         pos: HPos,
     },
     VariableUseSink {
@@ -199,6 +200,7 @@ impl DataFlowNode {
             kind: VariableSourceKind::Default,
             id,
             pos: assignment_location,
+            name: label,
         }
     }
 
