@@ -675,6 +675,23 @@ fn handle_closure_arg(
                         );
                     }
                 }
+                if (function_name == "HH\\Lib\\Vec\\map_with_key"
+                    || function_name == "HH\\Lib\\Dict\\map_with_key"
+                    || function_name == "HH\\Lib\\Keyset\\map_with_key"
+                    || function_name == "HH\\Lib\\Dict\\map_with_key_async")
+                    && param_offset == 1
+                {
+                    if let Some(ref mut signature_type) = param_storage.signature_type {
+                        add_array_fetch_dataflow(
+                            statements_analyzer,
+                            &args[0].1,
+                            tast_info,
+                            None,
+                            signature_type,
+                            &mut get_arraykey(false),
+                        );
+                    }
+                }
             }
         }
     }

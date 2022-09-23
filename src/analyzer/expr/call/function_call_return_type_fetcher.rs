@@ -675,7 +675,10 @@ fn get_special_argument_nodes(
                 )],
                 None,
             ),
-            "str_split" | "HH\\Lib\\Str\\split" | "HH\\Lib\\Str\\chunk" | "HH\\Lib\\Regex\\every_match" => (
+            "str_split"
+            | "HH\\Lib\\Str\\split"
+            | "HH\\Lib\\Str\\chunk"
+            | "HH\\Lib\\Regex\\every_match" => (
                 vec![(
                     0,
                     PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),
@@ -698,7 +701,11 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Keyset\\map"
             | "HH\\Lib\\Vec\\map_async"
             | "HH\\Lib\\Dict\\map_async"
-            | "HH\\Lib\\Keyset\\map_async" => (
+            | "HH\\Lib\\Keyset\\map_async"
+            | "HH\\Lib\\Vec\\map_with_key"
+            | "HH\\Lib\\Dict\\map_with_key"
+            | "HH\\Lib\\Keyset\\map_with_key"
+            | "HH\\Lib\\Dict\\map_with_key_async" => (
                 vec![(
                     1,
                     PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),
