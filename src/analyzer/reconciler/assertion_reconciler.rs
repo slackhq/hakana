@@ -364,9 +364,18 @@ fn intersect_atomic_with_atomic(
 
     if let TAtomic::TNamedObject { .. } = type_2_atomic {
         if let TAtomic::TTemplateParam { as_type, .. } = type_1_atomic {
-            if as_type.is_objecty() {
+            let new_as = intersect_union_with_atomic(codebase, as_type, type_2_atomic);
+
+            if let Some(new_as) = new_as {
                 let mut type_1_atomic = type_1_atomic.clone();
-                type_1_atomic.add_intersection_type(type_2_atomic.clone());
+
+                if let TAtomic::TTemplateParam {
+                    ref mut as_type, ..
+                } = type_1_atomic
+                {
+                    *as_type = new_as;
+                }
+
                 return Some(type_1_atomic);
             }
         }
@@ -374,10 +383,19 @@ fn intersect_atomic_with_atomic(
 
     if let TAtomic::TNamedObject { .. } = type_1_atomic {
         if let TAtomic::TTemplateParam { as_type, .. } = type_2_atomic {
-            if as_type.is_objecty() {
-                let mut type_1_atomic = type_1_atomic.clone();
-                type_1_atomic.add_intersection_type(type_2_atomic.clone());
-                return Some(type_1_atomic);
+            let new_as = intersect_union_with_atomic(codebase, as_type, type_1_atomic);
+
+            if let Some(new_as) = new_as {
+                let mut type_2_atomic = type_2_atomic.clone();
+
+                if let TAtomic::TTemplateParam {
+                    ref mut as_type, ..
+                } = type_2_atomic
+                {
+                    *as_type = new_as;
+                }
+
+                return Some(type_2_atomic);
             }
         }
     }
