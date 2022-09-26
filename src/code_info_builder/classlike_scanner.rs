@@ -217,6 +217,8 @@ pub(crate) fn scan(
                 .symbols
                 .add_interface_name(&class_name, Some(&file_source.file_path));
 
+            handle_reqs(classlike_node, resolved_names, &mut storage, class_name);
+
             for parent_interface in &classlike_node.extends {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_interface.1 {
                     let parent_name =
@@ -256,47 +258,7 @@ pub(crate) fn scan(
                 .symbols
                 .add_trait_name(&class_name, Some(&file_source.file_path));
 
-            for req in &classlike_node.reqs {
-                if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
-                    let require_name =
-                        if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
-                            resolved_name
-                        } else {
-                            &name.1
-                        };
-
-                    match &req.1 {
-                        aast::RequireKind::RequireExtends => {
-                            storage.direct_parent_class = Some(require_name.clone());
-                        }
-                        aast::RequireKind::RequireImplements => {
-                            storage
-                                .direct_parent_interfaces
-                                .insert(require_name.clone());
-                            storage.all_parent_interfaces.insert(require_name.clone());
-                        }
-                        aast::RequireKind::RequireClass => todo!(),
-                    };
-
-                    storage.template_extended_offsets.insert(
-                        require_name.clone(),
-                        params
-                            .iter()
-                            .map(|param| {
-                                Arc::new(get_type_from_hint(
-                                    &param.1,
-                                    Some(&class_name),
-                                    &TypeResolutionContext {
-                                        template_type_map: storage.template_types.clone(),
-                                        template_supers: FxHashMap::default(),
-                                    },
-                                    resolved_names,
-                                ))
-                            })
-                            .collect(),
-                    );
-                }
-            }
+            handle_reqs(classlike_node, resolved_names, &mut storage, class_name);
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
@@ -483,6 +445,56 @@ pub(crate) fn scan(
     codebase.classlike_infos.insert(class_name.clone(), storage);
 
     true
+}
+
+fn handle_reqs(
+    classlike_node: &aast::Class_<(), ()>,
+    resolved_names: &FxHashMap<usize, String>,
+    storage: &mut ClassLikeInfo,
+    class_name: &String,
+) {
+    for req in &classlike_node.reqs {
+        if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
+            let require_name =
+                if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
+                    resolved_name
+                } else {
+                    &name.1
+                };
+
+            match &req.1 {
+                aast::RequireKind::RequireExtends => {
+                    storage.direct_parent_class = Some(require_name.clone());
+                    storage.all_parent_classes.insert(require_name.clone());
+                }
+                aast::RequireKind::RequireImplements => {
+                    storage
+                        .direct_parent_interfaces
+                        .insert(require_name.clone());
+                    storage.all_parent_interfaces.insert(require_name.clone());
+                }
+                aast::RequireKind::RequireClass => todo!(),
+            };
+
+            storage.template_extended_offsets.insert(
+                require_name.clone(),
+                params
+                    .iter()
+                    .map(|param| {
+                        Arc::new(get_type_from_hint(
+                            &param.1,
+                            Some(&class_name),
+                            &TypeResolutionContext {
+                                template_type_map: storage.template_types.clone(),
+                                template_supers: FxHashMap::default(),
+                            },
+                            resolved_names,
+                        ))
+                    })
+                    .collect(),
+            );
+        }
+    }
 }
 
 fn visit_xhp_attribute(

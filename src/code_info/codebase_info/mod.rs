@@ -122,7 +122,8 @@ impl CodebaseInfo {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage
                 .all_parent_interfaces
-                .contains(parent_class);
+                .contains(parent_class)
+                || classlike_storage.all_parent_classes.contains(parent_class);
         }
         false
     }
