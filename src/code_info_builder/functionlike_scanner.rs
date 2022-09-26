@@ -13,7 +13,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_info::FnEffect;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
-use hakana_reflection_info::issue::IssueKind;
+use hakana_reflection_info::issue::get_issue_from_comment;
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_info::MethodInfo;
 use hakana_reflection_info::property_info::PropertyInfo;
@@ -414,16 +414,9 @@ pub(crate) fn get_functionlike(
                         text.trim()
                     };
 
-                    if trimmed_text.starts_with("HAKANA_IGNORE[") {
-                        let trimmed_text = trimmed_text[14..].to_string();
-
-                        if let Some(bracket_pos) = trimmed_text.find("]") {
-                            let issue_kind =
-                                IssueKind::from_str(&trimmed_text[..bracket_pos]).unwrap();
-
-                            let comment_pos = HPos::new(comment_pos, &file_source.file_path);
-                            suppressed_issues.insert(issue_kind, comment_pos);
-                        }
+                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text) {
+                        let comment_pos = HPos::new(comment_pos, &file_source.file_path);
+                        suppressed_issues.insert(issue_kind, comment_pos);
                     }
 
                     definition_location.start_line = start_line;

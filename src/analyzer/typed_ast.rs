@@ -4,7 +4,7 @@ use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind},
     functionlike_info::FunctionLikeInfo,
-    issue::{Issue, IssueKind},
+    issue::{get_issue_from_comment, Issue, IssueKind},
     symbol_references::SymbolReferences,
     t_union::TUnion,
 };
@@ -56,18 +56,11 @@ impl TastInfo {
                         text.trim()
                     };
 
-                    if trimmed_text.starts_with("HAKANA_IGNORE[") {
-                        let trimmed_text = trimmed_text[14..].to_string();
-
-                        if let Some(bracket_pos) = trimmed_text.find("]") {
-                            let issue_kind =
-                                IssueKind::from_str(&trimmed_text[..bracket_pos]).unwrap();
-
-                            hakana_ignores
-                                .entry(pos.line())
-                                .or_insert_with(Vec::new)
-                                .push(issue_kind);
-                        }
+                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text) {
+                        hakana_ignores
+                            .entry(pos.line())
+                            .or_insert_with(Vec::new)
+                            .push(issue_kind);
                     }
                 }
                 _ => {}
