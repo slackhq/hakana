@@ -41,6 +41,8 @@ pub(crate) fn analyze(
         &mut if_scope,
     );
 
+    tast_info.copy_effects(expr.0.pos(), pos);
+
     add_branch_dataflow(statements_analyzer, &expr.0, tast_info);
 
     let mut if_context = if_conditional_scope.if_body_context;
@@ -242,6 +244,8 @@ pub(crate) fn analyze(
             return false;
         }
 
+        tast_info.combine_effects(if_branch.pos(), pos, pos);
+
         let mut new_referenced_var_ids = context.cond_referenced_var_ids.clone();
         new_referenced_var_ids.extend(if_context.cond_referenced_var_ids.clone());
 
@@ -301,6 +305,8 @@ pub(crate) fn analyze(
     ) {
         return false;
     }
+
+    tast_info.combine_effects(expr.2.pos(), pos, pos);
 
     // we do this here so it's accurate, tast_info might get overwritten for the same position later
     let stmt_else_type = tast_info.get_expr_type(expr.2.pos()).cloned();

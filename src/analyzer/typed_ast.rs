@@ -270,7 +270,17 @@ impl TastInfo {
         }
     }
 
-    pub fn combine_effects(
+    pub(crate) fn copy_effects(&mut self, source_pos_1: &Pos, destination_pos: &Pos) {
+        self.expr_effects.insert(
+            (destination_pos.start_offset(), destination_pos.end_offset()),
+            *self
+                .expr_effects
+                .get(&(source_pos_1.start_offset(), source_pos_1.end_offset()))
+                .unwrap_or(&0),
+        );
+    }
+
+    pub(crate) fn combine_effects(
         &mut self,
         source_pos_1: &Pos,
         source_pos_2: &Pos,
@@ -288,7 +298,7 @@ impl TastInfo {
         );
     }
 
-    pub fn combine_effects_with(
+    pub(crate) fn combine_effects_with(
         &mut self,
         source_pos_1: &Pos,
         source_pos_2: &Pos,
