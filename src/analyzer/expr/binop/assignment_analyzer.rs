@@ -332,7 +332,9 @@ fn check_variable_or_property_assignment(
     }
     let ref mut data_flow_graph = tast_info.data_flow_graph;
 
-    if !var_type.parent_nodes.is_empty() && context.allow_taints {
+    if !var_type.parent_nodes.is_empty()
+        && (matches!(&data_flow_graph.kind, GraphKind::FunctionBody) || context.allow_taints)
+    {
         let removed_taints = get_removed_taints_in_comments(statements_analyzer, assign_var_pos);
 
         // todo create AddRemoveTaintsEvent

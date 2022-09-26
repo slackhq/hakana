@@ -538,6 +538,10 @@ pub(crate) fn analyze(
                 .cloned()
                 .unwrap_or(get_mixed_any());
 
+            tast_info
+                .expr_effects
+                .insert((expr.1.start_offset(), expr.1.end_offset()), 7);
+
             for (_, atomic_type) in awaited_stmt_type.types {
                 if let TAtomic::TNamedObject {
                     name,
@@ -546,9 +550,12 @@ pub(crate) fn analyze(
                 } = atomic_type
                 {
                     if name == "HH\\Awaitable" && type_params.len() == 1 {
+                        let mut inside_type = type_params.get(0).unwrap().clone();
+                        inside_type.parent_nodes = awaited_stmt_type.parent_nodes.clone();
+
                         tast_info.expr_types.insert(
                             (expr.1.start_offset(), expr.1.end_offset()),
-                            Rc::new(type_params.get(0).unwrap().clone()),
+                            Rc::new(inside_type),
                         );
                         break;
                     }

@@ -20,6 +20,7 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> Vec<DataFlowNode> {
     let vars = graph
         .sources
         .iter()
+        .filter(|(_, source)| matches!(source, DataFlowNode::VariableUseSource { .. }))
         .map(|(_, value)| match value {
             DataFlowNode::VariableUseSource { pos, .. } => (pos.start_offset, value),
             _ => {
@@ -327,7 +328,12 @@ impl VariableUseNode {
                 kind: VariableSourceKind::Default,
                 name: "".to_string(),
             },
-            DataFlowNode::VariableUseSource { kind, id, pos, name } => Self {
+            DataFlowNode::VariableUseSource {
+                kind,
+                id,
+                pos,
+                name,
+            } => Self {
                 id: id.clone(),
                 pos: Rc::new(pos.clone()),
                 path_types: Vec::new(),

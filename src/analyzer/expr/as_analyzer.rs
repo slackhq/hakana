@@ -25,6 +25,10 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     let mut root_expr = left.clone();
     let mut has_arrayget_key = false;
 
+    tast_info
+        .expr_effects
+        .insert((stmt_pos.start_offset(), stmt_pos.end_offset()), 7);
+
     loop {
         match root_expr.2 {
             aast::Expr_::ArrayGet(boxed) => {
