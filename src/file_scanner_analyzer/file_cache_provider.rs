@@ -25,10 +25,11 @@ pub(crate) fn get_file_manifest(cache_dir: &String) -> Option<FxHashMap<String, 
     None
 }
 
-fn get_contents_hash(file_path: &String) -> u64 {
-    let file_contents = fs::read_to_string(&file_path)
-        .unwrap_or_else(|_| panic!("Could not read file {}", &file_path));
-    xxhash_rust::xxh3::xxh3_64(file_contents.as_bytes())
+fn get_contents_hash(file_path: &String) -> Result<u64, std::io::Error> {
+    match fs::read_to_string(&file_path) {
+        Ok(file_contents) => Ok(xxhash_rust::xxh3::xxh3_64(file_contents.as_bytes())),
+        Err(error) => Err(error),
+    }
 }
 
 pub(crate) fn get_file_diff(
@@ -48,18 +49,20 @@ pub(crate) fn get_file_diff(
             }
 
             if new_update_time != old_update_time {
-                let new_contents_hash = get_contents_hash(&file_path);
-
-                if new_contents_hash != *old_contents_hash {
-                    file_statuses.insert(
-                        file_path.clone(),
-                        FileStatus::Modified(new_contents_hash, *new_update_time),
-                    );
+                if let Ok(new_contents_hash) = get_contents_hash(&file_path) {
+                    if new_contents_hash != *old_contents_hash {
+                        file_statuses.insert(
+                            file_path.clone(),
+                            FileStatus::Modified(new_contents_hash, *new_update_time),
+                        );
+                    } else {
+                        file_statuses.insert(
+                            file_path.clone(),
+                            FileStatus::Unchanged(new_contents_hash, *new_update_time),
+                        );
+                    }
                 } else {
-                    file_statuses.insert(
-                        file_path.clone(),
-                        FileStatus::Unchanged(new_contents_hash, *new_update_time),
-                    );
+                    continue;
                 }
             } else {
                 file_statuses.insert(
@@ -73,10 +76,14 @@ pub(crate) fn get_file_diff(
                 continue;
             }
 
-            file_statuses.insert(
-                file_path.clone(),
-                FileStatus::Added(get_contents_hash(&file_path), *new_update_time),
-            );
+            if let Ok(contents_hash) = get_contents_hash(&file_path) {
+                file_statuses.insert(
+                    file_path.clone(),
+                    FileStatus::Added(contents_hash, *new_update_time),
+                );
+            } else {
+                continue;
+            }
         }
     }
 

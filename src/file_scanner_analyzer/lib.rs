@@ -725,6 +725,8 @@ fn find_files_in_dir(
     walker_builder
         .sort_by_file_path(|a, b| a.file_name().cmp(&b.file_name()))
         .follow_links(true);
+    walker_builder.git_ignore(false);
+    walker_builder.add_ignore(Path::new(".git"));
 
     for ignore_path in &config.ignore_files {
         walker_builder.add_ignore(Path::new(ignore_path));
@@ -799,7 +801,10 @@ pub fn get_aast_for_path(
     } else if path.ends_with("tests/stubs/stubs.hack") {
         "function hakana_expect_type<T>(T $id): void {}".to_string()
     } else {
-        fs::read_to_string(path).unwrap_or_else(|_| panic!("Could not read file {}", path))
+        match fs::read_to_string(path) {
+            Ok(str_file) => str_file,
+            Err(err) => return Err(err.to_string()),
+        }
     };
 
     let mut local_path = path.clone();
@@ -1098,8 +1103,7 @@ fn analyze_file(
     let aast_result = get_aast_for_path(str_path, &config.root_dir, cache_dir, has_changed);
     let aast = match aast_result {
         Ok(aast) => aast,
-        Err(error) => {
-            println!("invalid syntax in {}\n{}\n", str_path, error);
+        Err(_) => {
             return;
         }
     };
