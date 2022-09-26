@@ -350,7 +350,10 @@ fn intersect_atomic_with_atomic(
                 type_2_value.0 = type_2_value.0 && type_1_value.0;
                 // todo check intersected type is valie
             } else if let None = type_1_params {
-                return None;
+                // if the type_2 key is always defined, the intersection is impossible
+                if !type_2_value.0 {
+                    return None;
+                }
             }
         }
 
