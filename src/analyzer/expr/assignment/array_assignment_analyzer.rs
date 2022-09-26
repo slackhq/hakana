@@ -216,87 +216,89 @@ fn update_atomic_given_key(
     if let TAtomic::TTemplateParam { .. } = atomic_type {
         // TODO
     }
-    if key_values.len() == 1 {
-        let key_value = key_values.get(0).unwrap();
-        // TODO also strings
-        match atomic_type {
-            TAtomic::TVec {
-                ref mut known_items,
-                ref mut non_empty,
-                ..
-            } => {
-                if let TAtomic::TLiteralInt {
-                    value: key_value, ..
-                } = key_value
-                {
+    if key_values.len() > 0 {
+        for key_value in key_values {
+            // TODO also strings
+            match atomic_type {
+                TAtomic::TVec {
+                    ref mut known_items,
+                    ref mut non_empty,
+                    ..
+                } => {
+                    if let TAtomic::TLiteralInt {
+                        value: key_value, ..
+                    } = key_value
+                    {
+                        *has_matching_item = true;
+
+                        if let Some(known_items) = known_items {
+                            if let Some((pu, entry)) = known_items.get_mut(&(*key_value as usize)) {
+                                *entry = current_type.clone();
+                                *pu = false;
+                            } else {
+                                known_items
+                                    .insert(*key_value as usize, (false, current_type.clone()));
+                            }
+                        } else {
+                            *known_items = Some(BTreeMap::from([(
+                                *key_value as usize,
+                                (false, current_type.clone()),
+                            )]));
+                        }
+
+                        *non_empty = true;
+                    }
+                }
+                TAtomic::TKeyset {
+                    ref mut type_param, ..
+                } => {
                     *has_matching_item = true;
 
-                    if let Some(known_items) = known_items {
-                        if let Some((pu, entry)) = known_items.get_mut(&(*key_value as usize)) {
-                            *entry = current_type.clone();
-                            *pu = false;
-                        } else {
-                            known_items.insert(*key_value as usize, (false, current_type.clone()));
-                        }
-                    } else {
-                        *known_items = Some(BTreeMap::from([(
-                            *key_value as usize,
-                            (false, current_type.clone()),
-                        )]));
-                    }
-
-                    *non_empty = true;
+                    *type_param = combine_union_types(
+                        type_param,
+                        &wrap_atomic(key_value.clone()),
+                        Some(codebase),
+                        true,
+                    );
                 }
-            }
-            TAtomic::TKeyset {
-                ref mut type_param, ..
-            } => {
-                *has_matching_item = true;
+                TAtomic::TDict {
+                    ref mut known_items,
+                    ref mut non_empty,
+                    ref mut shape_name,
+                    ..
+                } => {
+                    let key = match key_value {
+                        TAtomic::TLiteralString { value } => Some(DictKey::String(value.clone())),
+                        TAtomic::TEnumLiteralCase {
+                            enum_name,
+                            member_name,
+                            ..
+                        } => Some(DictKey::Enum(enum_name.clone(), member_name.clone())),
+                        _ => None,
+                    };
+                    if let Some(key) = key {
+                        *has_matching_item = true;
 
-                *type_param = combine_union_types(
-                    type_param,
-                    &wrap_atomic(key_value.clone()),
-                    Some(codebase),
-                    true,
-                );
-            }
-            TAtomic::TDict {
-                ref mut known_items,
-                ref mut non_empty,
-                ref mut shape_name,
-                ..
-            } => {
-                let key = match key_value {
-                    TAtomic::TLiteralString { value } => Some(DictKey::String(value.clone())),
-                    TAtomic::TEnumLiteralCase {
-                        enum_name,
-                        member_name,
-                        ..
-                    } => Some(DictKey::Enum(enum_name.clone(), member_name.clone())),
-                    _ => None,
-                };
-                if let Some(key) = key {
-                    *has_matching_item = true;
-
-                    if let Some(known_items) = known_items {
-                        if let Some((pu, entry)) = known_items.get_mut(&key) {
-                            *entry = Arc::new(current_type.clone());
-                            *pu = false;
+                        if let Some(known_items) = known_items {
+                            if let Some((pu, entry)) = known_items.get_mut(&key) {
+                                *entry = Arc::new(current_type.clone());
+                                *pu = false;
+                            } else {
+                                *shape_name = None;
+                                known_items.insert(key, (false, Arc::new(current_type.clone())));
+                            }
                         } else {
-                            *shape_name = None;
-                            known_items.insert(key, (false, Arc::new(current_type.clone())));
+                            *known_items = Some(BTreeMap::from([(
+                                key,
+                                (false, Arc::new(current_type.clone())),
+                            )]));
                         }
-                    } else {
-                        *known_items = Some(BTreeMap::from([(
-                            key,
-                            (false, Arc::new(current_type.clone())),
-                        )]));
-                    }
 
-                    *non_empty = true;
+                        *non_empty = true;
+                    }
                 }
+                _ => {}
             }
-            _ => (),
         }
     } else {
         let key_type = key_type.cloned().unwrap_or(get_int());
@@ -447,6 +449,9 @@ fn add_array_assignment_dataflow(
     parent_expr_type
 }
 
+/*
+ * Updates an array when the $key used does not have literals
+*/
 fn update_array_assignment_child_type(
     codebase: &CodebaseInfo,
     key_type: Option<&TUnion>,
@@ -465,15 +470,34 @@ fn update_array_assignment_child_type(
 
         for (_, original_type) in &root_type.types {
             match original_type {
-                TAtomic::TVec { .. } => collection_types.push(TAtomic::TVec {
+                TAtomic::TVec { known_items, .. } => collection_types.push(TAtomic::TVec {
                     type_param: value_type.clone(),
-                    known_items: None,
+                    known_items: if let Some(known_items) = known_items {
+                        Some(
+                            known_items
+                                .iter()
+                                .map(|(k, v)| (k.clone(), (v.0, v.1.clone())))
+                                .collect::<BTreeMap<_, _>>(),
+                        )
+                    } else {
+                        None
+                    },
                     known_count: None,
                     non_empty: true,
                 }),
-                TAtomic::TDict { .. } => collection_types.push(TAtomic::TDict {
+                TAtomic::TDict { known_items, .. } => collection_types.push(TAtomic::TDict {
                     params: Some((key_type.clone(), value_type.clone())),
-                    known_items: None,
+                    known_items: if let Some(known_items) = known_items {
+                        let known_item = Arc::new(value_type.clone());
+                        Some(
+                            known_items
+                                .iter()
+                                .map(|(k, v)| (k.clone(), (v.0, known_item.clone())))
+                                .collect::<BTreeMap<_, _>>(),
+                        )
+                    } else {
+                        None
+                    },
                     non_empty: true,
                     shape_name: None,
                 }),
@@ -579,7 +603,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
     array_exprs.reverse();
     for (i, array_expr) in array_exprs.iter().enumerate() {
         let mut array_expr_offset_type = None;
-        let mut array_expr_offset_atomic_type = None;
+        let mut array_expr_offset_atomic_types = vec![];
 
         if let Some(dim) = array_expr.1 {
             let was_inside_general_use = context.inside_general_use;
@@ -596,7 +620,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             context.inside_general_use = was_inside_general_use;
             let dim_type = tast_info.get_expr_type(dim.pos()).cloned();
             array_expr_offset_type = if let Some(dim_type) = dim_type {
-                array_expr_offset_atomic_type = get_array_assignment_offset_type(&dim_type);
+                array_expr_offset_atomic_types = get_array_assignment_offset_types(&dim_type);
 
                 Some(dim_type)
             } else {
@@ -698,11 +722,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                     statements_analyzer.get_file_analyzer().resolved_names,
                     Some(statements_analyzer.get_codebase()),
                 ),
-                &if let Some(offset_type) = array_expr_offset_atomic_type {
-                    vec![offset_type]
-                } else {
-                    vec![]
-                },
+                &array_expr_offset_atomic_types,
             );
         } else {
             tast_info.set_expr_type(&array_expr.2, array_expr_type.clone());
@@ -867,22 +887,17 @@ fn get_key_values_from_type(dim_type: Option<&TUnion>) -> Vec<TAtomic> {
     key_values
 }
 
-fn get_array_assignment_offset_type(child_stmt_dim_type: &TUnion) -> Option<TAtomic> {
-    // $child_stmt->dim instanceof PhpParser\Node\Scalar\String_
-    if child_stmt_dim_type.is_single() {
-        let single_atomic = child_stmt_dim_type.get_single();
-
+fn get_array_assignment_offset_types(child_stmt_dim_type: &TUnion) -> Vec<TAtomic> {
+    let mut valid_offset_types = vec![];
+    for (_, single_atomic) in &child_stmt_dim_type.types {
         match single_atomic {
             TAtomic::TLiteralString { .. }
             | TAtomic::TLiteralInt { .. }
-            | TAtomic::TEnumLiteralCase { .. } => return Some(single_atomic.clone()),
+            | TAtomic::TEnumLiteralCase { .. } => valid_offset_types.push(single_atomic.clone()),
 
             _ => (),
         }
-        // TODO PhpParser\Node\Expr\Variable
-        // TODO PhpParser\Node\Expr\PropertyFetch
-        // TODO PhpParser\Node\Expr\ClassConstFetch
     }
 
-    return None;
+    valid_offset_types
 }
