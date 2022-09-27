@@ -823,14 +823,12 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         last_array_expr_dim = array_expr.1;
 
         if let Some(array_expr_id) = &array_expr_id {
-            if array_expr_id.contains("[$") {
-                context
-                    .vars_in_scope
-                    .insert(array_expr_id.clone(), Rc::new(array_expr_type.clone()));
-                context
-                    .possibly_assigned_var_ids
-                    .insert(array_expr_id.clone());
-            }
+            context
+                .vars_in_scope
+                .insert(array_expr_id.clone(), Rc::new(array_expr_type.clone()));
+            context
+                .possibly_assigned_var_ids
+                .insert(array_expr_id.clone());
         }
 
         let array_type = tast_info

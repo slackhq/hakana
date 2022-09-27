@@ -1177,10 +1177,9 @@ impl TAtomic {
                             }
                         }
                     } else if name == "HH\\Container" {
-                        if let Some(key_param) = type_params.get_mut(0) {
-                            if let TAtomic::TPlaceholder = key_param.get_single() {
-                                *key_param =
-                                    TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
+                        if let Some(value_param) = type_params.get_mut(0) {
+                            if let TAtomic::TPlaceholder = value_param.get_single() {
+                                *value_param = TUnion::new(vec![TAtomic::TMixedAny]);
                             }
                         }
                     }
