@@ -86,7 +86,7 @@ impl TypeCombination {
 
     #[inline]
     pub(crate) fn is_simple(&self) -> bool {
-        if self.value_types.len() == 1 {
+        if self.value_types.len() == 1 && !self.has_dict {
             if let (None, None, None) = (
                 &self.dict_type_params,
                 &self.vec_type_param,
