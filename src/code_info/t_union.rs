@@ -12,7 +12,6 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct TUnion {
     pub types: BTreeMap<String, TAtomic>,
-    pub failed_reconciliation: bool,
     pub parent_nodes: FxHashMap<String, DataFlowNode>,
     pub had_template: bool,
 
@@ -65,7 +64,6 @@ impl TUnion {
         TUnion {
             types: keyed_types,
             parent_nodes: FxHashMap::default(),
-            failed_reconciliation: false,
             had_template: false,
             reference_free: false,
             possibly_undefined_from_try: false,

@@ -228,22 +228,6 @@ pub fn combine_union_types(
     if type_1.is_vanilla_mixed() && type_2.is_vanilla_mixed() {
         combined_type = get_mixed();
     } else {
-        let mut both_failed_reconciliation = false;
-
-        if type_1.failed_reconciliation {
-            if type_2.failed_reconciliation {
-                both_failed_reconciliation = true;
-            } else {
-                let mut type_2 = type_2.clone();
-                type_2.parent_nodes.extend(type_1.clone().parent_nodes);
-                return type_2;
-            }
-        } else if type_2.failed_reconciliation {
-            let mut type_1 = type_1.clone();
-            type_1.parent_nodes.extend(type_2.clone().parent_nodes);
-            return type_1;
-        }
-
         let mut all_atomic_types = type_1
             .types
             .clone()
@@ -271,10 +255,6 @@ pub fn combine_union_types(
 
         if type_1.reference_free && type_2.reference_free {
             combined_type.reference_free = true;
-        }
-
-        if both_failed_reconciliation {
-            combined_type.failed_reconciliation = true;
         }
     }
 
@@ -305,26 +285,9 @@ pub fn add_union_type(
         return base_type;
     }
 
-    let mut both_failed_reconciliation = false;
-
     base_type.types = if base_type.is_vanilla_mixed() && other_type.is_vanilla_mixed() {
         base_type.types
     } else {
-        if base_type.failed_reconciliation {
-            if other_type.failed_reconciliation {
-                both_failed_reconciliation = true;
-            } else {
-                let mut other_type = other_type.clone();
-                other_type.parent_nodes.extend(base_type.parent_nodes);
-                return other_type;
-            }
-        } else if other_type.failed_reconciliation {
-            base_type
-                .parent_nodes
-                .extend(other_type.clone().parent_nodes);
-            return base_type;
-        }
-
         let mut all_atomic_types = base_type
             .types
             .into_iter()
@@ -359,10 +322,6 @@ pub fn add_union_type(
 
     if other_type.ignore_falsable_issues {
         base_type.ignore_falsable_issues = true;
-    }
-
-    if both_failed_reconciliation {
-        base_type.failed_reconciliation = true;
     }
 
     if !other_type.parent_nodes.is_empty() {

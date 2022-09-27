@@ -275,7 +275,7 @@ impl Issue {
 pub fn get_issue_from_comment(trimmed_text: &str) -> Option<IssueKind> {
     if trimmed_text.starts_with("HAKANA_") {
         if let Some(start_bracket_pos) = trimmed_text.find("[") {
-            match &trimmed_text[8..start_bracket_pos] {
+            match &trimmed_text[7..start_bracket_pos] {
                 "IGNORE" | "FIXME" => {
                     if let Some(end_bracket_pos) = trimmed_text.find("]") {
                         return Some(

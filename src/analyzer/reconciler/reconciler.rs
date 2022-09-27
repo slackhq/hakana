@@ -311,10 +311,6 @@ pub(crate) fn reconcile_keyed_types(
             changed_var_ids.insert(key.clone());
         }
 
-        if failed_reconciliation == ReconciliationStatus::Empty {
-            result_type.failed_reconciliation = true;
-        }
-
         context
             .vars_in_scope
             .insert(key.clone(), Rc::new(result_type));

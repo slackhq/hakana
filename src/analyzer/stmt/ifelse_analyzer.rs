@@ -345,7 +345,7 @@ pub(crate) fn analyze(
 
     for (var_id, var_type) in if_scope.possibly_redefined_vars {
         if let Some(existing_var_type) = context.vars_in_scope.get(&var_id) {
-            if !var_type.failed_reconciliation && !if_scope.updated_vars.contains(&var_id) {
+            if !if_scope.updated_vars.contains(&var_id) {
                 let combined_type =
                     combine_union_types(existing_var_type, &var_type, Some(codebase), false);
 

@@ -216,11 +216,11 @@ pub fn combine(
         new_types.push(atomic);
     }
 
-    if new_types.is_empty() && !has_nothing {
-        panic!();
-    }
+    if new_types.is_empty() {
+        if !has_nothing {
+            panic!();
+        }
 
-    if new_types.is_empty() && has_nothing {
         return vec![TAtomic::TNothing];
     }
 
@@ -233,63 +233,69 @@ fn scrape_type_properties(
     codebase: Option<&CodebaseInfo>,
     overwrite_empty_array: bool,
 ) -> Option<Vec<TAtomic>> {
-    if let TAtomic::TMixed | TAtomic::TMixedAny = atomic {
-        combination.falsy_mixed = false;
-        combination.truthy_mixed = false;
-        combination.mixed_from_loop_isset = Some(false);
-        combination.vanilla_mixed = true;
+    match atomic {
+        TAtomic::TMixed | TAtomic::TMixedAny => {
+            combination.falsy_mixed = false;
+            combination.truthy_mixed = false;
+            combination.mixed_from_loop_isset = Some(false);
+            combination.vanilla_mixed = true;
 
-        if let TAtomic::TMixedAny = atomic {
-            combination.any_mixed = true;
-        }
+            if let TAtomic::TMixedAny = atomic {
+                combination.any_mixed = true;
+            }
 
-        return None;
-    } else if let TAtomic::TMixedFromLoopIsset = atomic {
-        if combination.vanilla_mixed || combination.any_mixed {
             return None;
         }
+        TAtomic::TMixedFromLoopIsset => {
+            if combination.vanilla_mixed || combination.any_mixed {
+                return None;
+            }
 
-        if let None = combination.mixed_from_loop_isset {
-            combination.mixed_from_loop_isset = Some(true);
-        }
+            if let None = combination.mixed_from_loop_isset {
+                combination.mixed_from_loop_isset = Some(true);
+            }
 
-        combination.value_types.insert("mixed".to_string(), atomic);
-        return None;
-    } else if let TAtomic::TTruthyMixed | TAtomic::TFalsyMixed = atomic {
-        if combination.vanilla_mixed || combination.any_mixed {
+            combination.value_types.insert("mixed".to_string(), atomic);
             return None;
         }
+        TAtomic::TTruthyMixed | TAtomic::TFalsyMixed => {
+            if combination.vanilla_mixed || combination.any_mixed {
+                return None;
+            }
 
-        combination.mixed_from_loop_isset = Some(false);
+            combination.mixed_from_loop_isset = Some(false);
 
-        if matches!(atomic, TAtomic::TTruthyMixed) {
-            combination.truthy_mixed = true;
+            if matches!(atomic, TAtomic::TTruthyMixed) {
+                combination.truthy_mixed = true;
+
+                if combination.falsy_mixed {
+                    return Some(vec![TAtomic::TMixed]);
+                }
+            } else if matches!(atomic, TAtomic::TFalsyMixed) {
+                combination.falsy_mixed = true;
+
+                if combination.truthy_mixed {
+                    return Some(vec![TAtomic::TMixed]);
+                }
+            }
+
+            return None;
+        }
+        TAtomic::TNonnullMixed => {
+            if combination.vanilla_mixed || combination.any_mixed {
+                return None;
+            }
 
             if combination.falsy_mixed {
                 return Some(vec![TAtomic::TMixed]);
             }
-        } else if matches!(atomic, TAtomic::TFalsyMixed) {
-            combination.falsy_mixed = true;
 
-            if combination.truthy_mixed {
-                return Some(vec![TAtomic::TMixed]);
-            }
-        }
+            combination.mixed_from_loop_isset = Some(false);
+            combination.nonnull_mixed = true;
 
-        return None;
-    } else if let TAtomic::TNonnullMixed = atomic {
-        if combination.vanilla_mixed || combination.any_mixed {
             return None;
         }
-
-        if combination.falsy_mixed {
-            return Some(vec![TAtomic::TMixed]);
-        }
-
-        combination.mixed_from_loop_isset = Some(false);
-        combination.nonnull_mixed = true;
-
-        return None;
+        _ => (),
     }
 
     // bool|false = bool
