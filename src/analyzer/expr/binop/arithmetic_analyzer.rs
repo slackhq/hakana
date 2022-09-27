@@ -1,9 +1,10 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::expression_analyzer;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
+use crate::{expr::expression_identifier, expression_analyzer};
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
@@ -31,10 +32,36 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
         None => &fallback,
     };
 
+    let e1_var_id = if context.inside_loop {
+        expression_identifier::get_var_id(
+            left,
+            None,
+            statements_analyzer.get_file_analyzer().get_file_source(),
+            &FxHashMap::default(),
+            None,
+        )
+    } else {
+        None
+    };
+
     let e2_type = match tast_info.get_expr_type(&right.1) {
         Some(var_type) => var_type,
         None => &fallback,
     };
+
+    let e2_var_id = if context.inside_loop {
+        expression_identifier::get_var_id(
+            right,
+            None,
+            statements_analyzer.get_file_analyzer().get_file_source(),
+            &FxHashMap::default(),
+            None,
+        )
+    } else {
+        None
+    };
+
+    let has_loop_variable = e1_var_id.is_some() || e2_var_id.is_some();
 
     let zero = TAtomic::TLiteralInt { value: 0 };
 
@@ -55,43 +82,56 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
                 e2_type_atomic = &zero;
             }
 
-            results.push(match (e1_type_atomic, e2_type_atomic) {
-                (
-                    TAtomic::TLiteralInt { value: e1_value },
-                    TAtomic::TLiteralInt { value: e2_value },
-                ) => match operator {
-                    oxidized::ast_defs::Bop::Plus => TAtomic::TLiteralInt {
-                        value: e1_value + e2_value,
+            results.push(if has_loop_variable {
+                match (e1_type_atomic, e2_type_atomic) {
+                    (
+                        TAtomic::TInt | TAtomic::TLiteralInt { .. },
+                        TAtomic::TInt | TAtomic::TLiteralInt { .. },
+                    ) => match operator {
+                        oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
+                        _ => TAtomic::TInt,
                     },
-                    oxidized::ast_defs::Bop::Minus => TAtomic::TLiteralInt {
-                        value: e1_value - e2_value,
+                    _ => TAtomic::TFloat,
+                }
+            } else {
+                match (e1_type_atomic, e2_type_atomic) {
+                    (
+                        TAtomic::TLiteralInt { value: e1_value },
+                        TAtomic::TLiteralInt { value: e2_value },
+                    ) => match operator {
+                        oxidized::ast_defs::Bop::Plus => TAtomic::TLiteralInt {
+                            value: e1_value + e2_value,
+                        },
+                        oxidized::ast_defs::Bop::Minus => TAtomic::TLiteralInt {
+                            value: e1_value - e2_value,
+                        },
+                        oxidized::ast_defs::Bop::Amp => TAtomic::TLiteralInt {
+                            value: e1_value & e2_value,
+                        },
+                        oxidized::ast_defs::Bop::Bar => TAtomic::TLiteralInt {
+                            value: e1_value | e2_value,
+                        },
+                        oxidized::ast_defs::Bop::Ltlt => TAtomic::TLiteralInt {
+                            value: e1_value << e2_value,
+                        },
+                        oxidized::ast_defs::Bop::Gtgt => TAtomic::TLiteralInt {
+                            value: e1_value >> e2_value,
+                        },
+                        oxidized::ast_defs::Bop::Percent => TAtomic::TLiteralInt {
+                            value: e1_value % e2_value,
+                        },
+                        oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
+                        _ => TAtomic::TInt,
                     },
-                    oxidized::ast_defs::Bop::Amp => TAtomic::TLiteralInt {
-                        value: e1_value & e2_value,
+                    (
+                        TAtomic::TInt | TAtomic::TLiteralInt { .. },
+                        TAtomic::TInt | TAtomic::TLiteralInt { .. },
+                    ) => match operator {
+                        oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
+                        _ => TAtomic::TInt,
                     },
-                    oxidized::ast_defs::Bop::Bar => TAtomic::TLiteralInt {
-                        value: e1_value | e2_value,
-                    },
-                    oxidized::ast_defs::Bop::Ltlt => TAtomic::TLiteralInt {
-                        value: e1_value << e2_value,
-                    },
-                    oxidized::ast_defs::Bop::Gtgt => TAtomic::TLiteralInt {
-                        value: e1_value >> e2_value,
-                    },
-                    oxidized::ast_defs::Bop::Percent => TAtomic::TLiteralInt {
-                        value: e1_value % e2_value,
-                    },
-                    oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
-                    _ => TAtomic::TInt,
-                },
-                (
-                    TAtomic::TInt | TAtomic::TLiteralInt { .. },
-                    TAtomic::TInt | TAtomic::TLiteralInt { .. },
-                ) => match operator {
-                    oxidized::ast_defs::Bop::Slash => TAtomic::TNum,
-                    _ => TAtomic::TInt,
-                },
-                _ => TAtomic::TFloat,
+                    _ => TAtomic::TFloat,
+                }
             });
         }
     }

@@ -33,14 +33,6 @@ pub(crate) fn analyze(
         l
     });
 
-    analyze_do_naively(
-        statements_analyzer,
-        stmt,
-        tast_info,
-        context,
-        &mut loop_scope,
-    );
-
     let mut mixed_var_ids = vec![];
 
     let loop_scope_inner = loop_scope.as_ref().unwrap();
@@ -128,24 +120,10 @@ pub(crate) fn analyze(
     }
 
     for (var_id, var_type) in inner_loop_context.vars_in_scope {
-        context.vars_in_scope.insert(var_id, var_type);
+        context
+            .vars_in_scope
+            .insert(var_id.clone(), var_type.clone());
     }
 
     return analysis_result;
-}
-
-fn analyze_do_naively(
-    statements_analyzer: &StatementsAnalyzer,
-    stmt: (&aast::Block<(), ()>, &aast::Expr<(), ()>),
-    tast_info: &mut TastInfo,
-    context: &mut ScopeContext,
-    loop_scope: &mut Option<LoopScope>,
-) {
-    let mut do_context = context.clone();
-
-    // todo suppress some issues
-
-    statements_analyzer.analyze(stmt.0, tast_info, &mut do_context, loop_scope);
-
-    // todo unsupress some issues
 }
