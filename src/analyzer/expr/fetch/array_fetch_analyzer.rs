@@ -132,7 +132,9 @@ pub(crate) fn analyze(
         }
     }
 
-    tast_info.combine_effects(expr.0.pos(), expr.1.as_ref().unwrap().pos(), pos);
+    if let Some(dim_expr) = expr.1 {
+        tast_info.combine_effects(expr.0.pos(), dim_expr.pos(), pos);
+    }
 
     true
 }
