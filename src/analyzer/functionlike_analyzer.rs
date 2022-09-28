@@ -779,7 +779,12 @@ fn report_unused_expressions(
 
     for node in &unused_source_nodes {
         match node {
-            DataFlowNode::VariableUseSource { kind, id, pos, name } => {
+            DataFlowNode::VariableUseSource {
+                kind,
+                id,
+                pos,
+                name,
+            } => {
                 if name.starts_with("$_") {
                     continue;
                 }
@@ -811,18 +816,18 @@ fn report_unused_expressions(
                                             && &pos.start_offset < closure_end
                                     },
                                 );
-                                
+
                                 tast_info.maybe_add_issue(
                                     if unused_closure_variable {
                                         Issue::new(
                                             IssueKind::UnusedVariableInClosure,
-                                            "Unused variable in closure ".to_string() + name.as_str(),
+                                            format!("Variable {} is unused in this closure ", name),
                                             pos.clone(),
                                         )
                                     } else {
                                         Issue::new(
                                             IssueKind::UnusedVariable,
-                                            "Unused variable ".to_string() + name.as_str(),
+                                            format!("Variable {} is unused", name),
                                             pos.clone(),
                                         )
                                     },
