@@ -19,7 +19,7 @@ pub(crate) fn reconcile(
     assertion: &Assertion,
     existing_var_type: &TUnion,
     possibly_undefined: bool,
-    key: &Option<String>,
+    key: Option<String>,
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
     old_var_type_string: String,
@@ -38,7 +38,7 @@ pub(crate) fn reconcile(
         return handle_literal_negated_equality(
             assertion,
             existing_var_type,
-            key,
+            &key,
             statements_analyzer,
             tast_info,
             old_var_type_string,
@@ -72,20 +72,12 @@ pub(crate) fn reconcile(
 
     if !is_equality {
         if let Some(assertion_type) = assertion.get_type() {
-            let assertion_type_key = assertion_type.get_key();
-            if !existing_var_type.is_single()
-                || !existing_var_type.has_named_object()
-                || !existing_var_type.types.contains_key(&assertion_type_key)
-            {
-                if let None = existing_var_type.types.remove(&assertion_type_key) {
-                    handle_named_object_subtraction(
-                        assertion_type,
-                        existing_atomic_types,
-                        codebase,
-                        &mut existing_var_type,
-                    );
-                }
-            }
+            subtract_complex_type(
+                assertion_type,
+                existing_atomic_types,
+                codebase,
+                &mut existing_var_type,
+            );
         }
     } else if let Some(assertion_type) = assertion.get_type() {
         // todo prevent complaining about $this assertions in traits
@@ -143,34 +135,52 @@ pub(crate) fn reconcile(
     existing_var_type
 }
 
-fn handle_named_object_subtraction(
+fn subtract_complex_type(
     assertion_type: &TAtomic,
     existing_atomic_types: &std::collections::BTreeMap<String, TAtomic>,
     codebase: &CodebaseInfo,
     existing_var_type: &mut TUnion,
 ) {
-    if let TAtomic::TNamedObject {
-        name: assertion_object_name,
-        ..
-    } = assertion_type
-    {
-        for (type_key, atomic) in existing_atomic_types {
-            if !atomic.is_object_type() {
-                continue;
-            }
+    for (type_key, existing_atomic) in existing_atomic_types {
+        if atomic_type_comparator::is_contained_by(
+            codebase,
+            existing_atomic,
+            assertion_type,
+            false,
+            &mut TypeComparisonResult::new(),
+        ) {
+            existing_var_type.types.remove(type_key);
+        } else if atomic_type_comparator::is_contained_by(
+            codebase,
+            assertion_type,
+            existing_atomic,
+            false,
+            &mut TypeComparisonResult::new(),
+        ) {
+            // todo set is_different property
+        }
 
-            if let TAtomic::TNamedObject {
-                name: existing_name,
-                ..
-            } = atomic
-            {
-                if let Some(classlike_storage) = codebase.classlike_infos.get(existing_name) {
+        match (existing_atomic, assertion_type) {
+            (
+                TAtomic::TNamedObject {
+                    name: existing_classlike_name,
+                    ..
+                },
+                TAtomic::TNamedObject {
+                    name: assertion_classlike_name,
+                    ..
+                },
+            ) => {
+                if let Some(classlike_storage) =
+                    codebase.classlike_infos.get(existing_classlike_name)
+                {
+                    // handle __Sealed classes, negating where possible
                     if let Some(child_classlikes) = &classlike_storage.child_classlikes {
-                        if child_classlikes.contains(assertion_object_name) {
+                        if child_classlikes.contains(assertion_classlike_name) {
                             existing_var_type.types.remove(type_key);
 
                             for child_classlike in child_classlikes {
-                                if child_classlike != assertion_object_name {
+                                if child_classlike != assertion_classlike_name {
                                     let result_error = TAtomic::TNamedObject {
                                         name: child_classlike.clone(),
                                         type_params: None,
@@ -189,24 +199,17 @@ fn handle_named_object_subtraction(
                     }
                 }
             }
-
-            if atomic_type_comparator::is_contained_by(
-                codebase,
-                atomic,
-                assertion_type,
-                false,
-                &mut TypeComparisonResult::new(),
-            ) {
-                existing_var_type.types.remove(type_key);
-            } else if atomic_type_comparator::is_contained_by(
-                codebase,
-                assertion_type,
-                atomic,
-                false,
-                &mut TypeComparisonResult::new(),
-            ) {
-                // todo set is_different property
+            (
+                TAtomic::TDict {
+                    ..
+                },
+                TAtomic::TDict {
+                    ..
+                },
+            ) => {
+                // todo subtract assertion dict from existing
             }
+            _ => (),
         }
     }
 }
@@ -392,7 +395,7 @@ fn handle_literal_negated_equality(
         }
     }
 
-    if let Some(key) = key {
+    if let Some(key) = &key {
         if let Some(pos) = pos {
             if did_match_literal_type && (!did_remove_type || existing_var_type_single) {
                 trigger_issue_for_impossible(

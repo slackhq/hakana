@@ -382,7 +382,7 @@ impl ScopeContext {
                                 assertion,
                                 Some(&new_type.clone()),
                                 false,
-                                &None,
+                                None,
                                 statements_analyzer,
                                 tast_info,
                                 false,

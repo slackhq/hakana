@@ -177,7 +177,7 @@ pub(crate) fn reconcile_keyed_types(
                     assertion,
                     result_type.as_ref(),
                     possibly_undefined,
-                    &Some(key.clone()),
+                    Some(key.clone()),
                     statements_analyzer,
                     tast_info,
                     inside_loop,

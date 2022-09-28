@@ -261,7 +261,7 @@ pub(crate) fn analyze(
             &Assertion::Truthy,
             Some(cond_type),
             false,
-            &None,
+            None,
             statements_analyzer,
             tast_info,
             context.inside_loop,
