@@ -419,7 +419,10 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             type_params: Some(type_params),
             ..
         } => {
-            if name == "HH\\KeyedContainer" || name == "HH\\KeyedTraversable" {
+            if name == "HH\\KeyedContainer"
+                || name == "HH\\KeyedTraversable"
+                || name == "HH\\AnyArray"
+            {
                 Some((
                     type_params.get(0).unwrap().clone(),
                     type_params.get(1).unwrap().clone(),
@@ -479,7 +482,10 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             type_params: Some(type_params),
             ..
         } => {
-            if name == "HH\\KeyedContainer" || name == "HH\\KeyedTraversable" {
+            if name == "HH\\KeyedContainer"
+                || name == "HH\\KeyedTraversable"
+                || name == "HH\\AnyArray"
+            {
                 Some(type_params.get(1).unwrap().clone())
             } else if name == "HH\\Container" || name == "HH\\Traversable" {
                 Some(type_params.get(0).unwrap().clone())
@@ -496,6 +502,7 @@ pub fn is_array_container(name: &String) -> bool {
         || name == "HH\\KeyedTraversable"
         || name == "HH\\Container"
         || name == "HH\\KeyedContainer"
+        || name == "HH\\AnyArray"
 }
 
 pub fn get_union_syntax_type(

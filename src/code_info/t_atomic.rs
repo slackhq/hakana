@@ -898,7 +898,7 @@ impl TAtomic {
             | &TAtomic::TLiteralClassname { .. }
             | &TAtomic::TClassname { .. } => true,
             &TAtomic::TNamedObject { name, .. } => {
-                name != "HH\\Container" && name != "HH\\KeyedContainer"
+                name != "HH\\Container" && name != "HH\\KeyedContainer" && name != "HH\\AnyArray"
             }
             &TAtomic::TLiteralInt { value, .. } => {
                 if *value != 0 {
@@ -1011,7 +1011,9 @@ impl TAtomic {
     pub fn is_array_accessible_with_string_key(&self) -> bool {
         match self {
             TAtomic::TDict { .. } | TAtomic::TKeyset { .. } => true,
-            TAtomic::TNamedObject { name, .. } => name == "HH\\KeyedContainer",
+            TAtomic::TNamedObject { name, .. } => {
+                name == "HH\\KeyedContainer" || name == "HH\\AnyArray"
+            }
             _ => false,
         }
     }
@@ -1020,7 +1022,7 @@ impl TAtomic {
         match self {
             TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => true,
             TAtomic::TNamedObject { name, .. } => {
-                name == "HH\\KeyedContainer" || name == "HH\\Container"
+                name == "HH\\KeyedContainer" || name == "HH\\Container" || name == "HH\\AnyArray"
             }
             _ => false,
         }
@@ -1163,7 +1165,7 @@ impl TAtomic {
                 ..
             } => {
                 if let Some(type_params) = type_params {
-                    if name == "HH\\KeyedContainer" {
+                    if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
                         if let Some(key_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = key_param.get_single() {
                                 *key_param =

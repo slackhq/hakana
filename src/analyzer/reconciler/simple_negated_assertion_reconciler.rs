@@ -147,7 +147,7 @@ pub(crate) fn reconcile(
                 params: Some(params),
                 ..
             } => {
-                if params.0.is_arraykey() && params.1.is_mixed() {
+                if params.0.is_placeholder() && params.1.is_placeholder() {
                     return Some(subtract_dict(
                         assertion,
                         existing_var_type,

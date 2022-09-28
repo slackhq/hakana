@@ -10,7 +10,7 @@ use hakana_reflection_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
 };
 use hakana_type::{
-    get_mixed_any, get_mixed_maybe_from_loop, get_nothing,
+    get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing,
     type_comparator::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
     },
@@ -317,9 +317,40 @@ fn intersect_atomic_with_atomic(
                 name: type_1_name, ..
             },
             TAtomic::TNamedObject {
-                name: type_2_name, ..
+                name: type_2_name,
+                type_params: type_2_params,
+                ..
             },
         ) => {
+            if type_1_name == "XHPChild" {
+                if type_2_name == "HH\\KeyedContainer" {
+                    let mut atomic = TAtomic::TNamedObject {
+                        name: "HH\\AnyArray".to_string(),
+                        type_params: type_2_params.clone(),
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    };
+                    atomic.remove_placeholders();
+                    return Some(atomic);
+                } else if type_2_name == "HH\\Container" {
+                    let type_2_params = if let Some(type_2_params) = type_2_params {
+                        Some(vec![get_arraykey(true), type_2_params[0].clone()])
+                    } else {
+                        None
+                    };
+
+                    let mut atomic = TAtomic::TNamedObject {
+                        name: "HH\\AnyArray".to_string(),
+                        type_params: type_2_params,
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    };
+                    atomic.remove_placeholders();
+                    return Some(atomic);
+                }
+            }
             if codebase.interface_exists(type_1_name) || codebase.interface_exists(type_2_name) {
                 let mut type_1_atomic = type_1_atomic.clone();
                 type_1_atomic.add_intersection_type(type_2_atomic.clone());
@@ -355,6 +386,60 @@ fn intersect_atomic_with_atomic(
                     if !type_2_value.0 {
                         return None;
                     }
+                }
+            }
+
+            return Some(TAtomic::TDict {
+                known_items: Some(type_2_known_items),
+                params,
+                non_empty: true,
+                shape_name: None,
+            });
+        }
+        (
+            TAtomic::TNamedObject {
+                name: type_1_name,
+                type_params: Some(type_1_params),
+                ..
+            },
+            TAtomic::TDict {
+                known_items: Some(type_2_known_items),
+                params: type_2_params,
+                ..
+            },
+        ) => {
+            let type_1_key_param = if type_1_name == "HH\\Container" {
+                get_arraykey(true)
+            } else if type_1_name == "HH\\KeyedContainer" {
+                type_1_params[0].clone()
+            } else {
+                return None;
+            };
+
+            let type_1_value_param = if type_1_name == "HH\\Container" {
+                &type_1_params[0]
+            } else if type_1_name == "HH\\KeyedContainer" {
+                &type_1_params[1]
+            } else {
+                return None;
+            };
+
+            let mut type_2_known_items = type_2_known_items.clone();
+
+            for (_, type_2_value) in type_2_known_items.iter_mut() {
+                if type_1_value_param.is_nothing() {
+                    // if the type_2 key is always defined, the intersection is impossible
+                    if !type_2_value.0 {
+                        return None;
+                    }
+                }
+            }
+
+            let mut params = type_2_params.clone();
+
+            if let Some(ref mut params) = params {
+                if params.0.is_arraykey() {
+                    params.0 = type_1_key_param;
                 }
             }
 

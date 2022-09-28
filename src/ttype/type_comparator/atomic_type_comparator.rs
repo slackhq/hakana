@@ -449,8 +449,9 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if container_name == &"HH\\Container".to_string()
-            || container_name == &"HH\\KeyedContainer".to_string()
+        if container_name == &"HH\\Container"
+            || container_name == &"HH\\KeyedContainer"
+            || container_name == &"HH\\AnyArray"
         {
             let type_params = get_arrayish_params(input_type_part, codebase);
 
@@ -551,8 +552,9 @@ pub fn is_contained_by(
         ..
     } = input_type_part
     {
-        if input_name == &"HH\\Container".to_string()
-            || input_name == &"HH\\KeyedContainer".to_string()
+        if input_name == &"HH\\Container"
+            || input_name == &"HH\\KeyedContainer"
+            || input_name == &"HH\\AnyArray"
         {
             if let TAtomic::TKeyset { .. } | TAtomic::TVec { .. } | TAtomic::TDict { .. } =
                 container_type_part

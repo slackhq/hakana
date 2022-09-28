@@ -54,9 +54,17 @@ pub(crate) fn analyze(
         (expr.1.start_offset(), expr.1.end_offset()),
         Rc::new(if boxed.0 == "re" {
             let mut inner_text = inner_type.get_single_literal_string_value().unwrap();
-            inner_text = inner_text[1..(inner_text.len() - 1)].to_string();
+            let first_char = inner_text[0..1].to_string();
+            let shape_fields;
+            if let Some(last_pos) = inner_text.rfind(&first_char) {
+                if last_pos > 1 {
+                    inner_text = inner_text[1..last_pos].to_string();
+                }
 
-            let shape_fields = get_shape_fields_from_regex(&inner_text);
+                shape_fields = get_shape_fields_from_regex(&inner_text);
+            } else {
+                shape_fields = BTreeMap::new();
+            }
 
             wrap_atomic(TAtomic::TTypeAlias {
                 name: "HH\\Lib\\Regex\\Pattern".to_string(),
@@ -81,7 +89,9 @@ pub(crate) fn analyze(
 
 #[cfg(not(target_arch = "wasm32"))]
 fn get_shape_fields_from_regex(inner_text: &String) -> BTreeMap<DictKey, (bool, Arc<TUnion>)> {
-    let regex = pcre2::bytes::Regex::new(inner_text);
+    let regex = pcre2::bytes::RegexBuilder::new()
+        .utf(true)
+        .build(inner_text);
 
     let mut shape_fields = BTreeMap::new();
 

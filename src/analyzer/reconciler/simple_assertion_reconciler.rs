@@ -245,7 +245,7 @@ pub(crate) fn reconcile(
                 params: Some(params),
                 ..
             } => {
-                if params.0.is_arraykey() && params.1.is_mixed() {
+                if params.0.is_placeholder() && params.1.is_placeholder() {
                     return Some(intersect_dict(
                         codebase,
                         assertion,
@@ -551,7 +551,7 @@ fn intersect_vec(
                     return get_vec(typed_params.get(0).unwrap().clone());
                 }
 
-                if name == "HH\\KeyedContainer" {
+                if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
                     return get_vec(typed_params.get(1).unwrap().clone());
                 }
             }
@@ -620,7 +620,7 @@ fn intersect_keyset(
                     return get_keyset(get_arraykey(true));
                 }
 
-                if name == "HH\\KeyedContainer" {
+                if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
                     return get_keyset(typed_params.get(0).unwrap().clone());
                 }
             }
@@ -716,7 +716,7 @@ fn intersect_dict(
                         return get_dict(get_arraykey(true), typed_params.get(0).unwrap().clone());
                     }
 
-                    if name == "HH\\KeyedContainer" {
+                    if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
                         return get_dict(
                             typed_params.get(0).unwrap().clone(),
                             typed_params.get(1).unwrap().clone(),
