@@ -29,175 +29,196 @@ pub(crate) fn reconcile(
     let assertion_type = assertion.get_type();
 
     if let Some(assertion_type) = assertion_type {
-        if let TAtomic::TObject = assertion_type {
-            return Some(subtract_object(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TBool { .. } = assertion_type {
-            return Some(subtract_bool(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TNum { .. } = assertion_type {
-            return Some(subtract_num(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TFloat { .. } = assertion_type {
-            return Some(subtract_float(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TInt { .. } = assertion_type {
-            return Some(subtract_int(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TString { .. } = assertion_type {
-            return Some(subtract_string(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TArraykey { .. } = assertion_type {
-            return Some(subtract_arraykey(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TVec { .. } = assertion_type {
-            return Some(subtract_vec(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TDict { .. } = assertion_type {
-            return Some(subtract_dict(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TKeyset { .. } = assertion_type {
-            return Some(subtract_keyset(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TNull { .. } = assertion_type {
-            return Some(subtract_null(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TFalse { .. } = assertion_type {
-            return Some(subtract_false(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        } else if let TAtomic::TTrue { .. } = assertion_type {
-            return Some(subtract_true(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
+        match assertion_type {
+            TAtomic::TObject => {
+                return Some(subtract_object(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TBool { .. } => {
+                return Some(subtract_bool(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TNum { .. } => {
+                return Some(subtract_num(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TFloat { .. } => {
+                return Some(subtract_float(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TInt { .. } => {
+                return Some(subtract_int(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TString { .. } => {
+                return Some(subtract_string(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TArraykey { .. } => {
+                return Some(subtract_arraykey(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TVec { .. } => {
+                return Some(subtract_vec(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TDict {
+                known_items: None,
+                params: Some(params),
+                ..
+            } => {
+                if params.0.is_arraykey() && params.1.is_mixed() {
+                    return Some(subtract_dict(
+                        assertion,
+                        existing_var_type,
+                        key,
+                        negated,
+                        tast_info,
+                        statements_analyzer,
+                        pos,
+                        failed_reconciliation,
+                        assertion.has_equality(),
+                        suppressed_issues,
+                    ));
+                }
+            }
+            TAtomic::TKeyset { .. } => {
+                return Some(subtract_keyset(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TNull { .. } => {
+                return Some(subtract_null(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TFalse { .. } => {
+                return Some(subtract_false(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TTrue { .. } => {
+                return Some(subtract_true(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            _ => (),
         }
     }
 

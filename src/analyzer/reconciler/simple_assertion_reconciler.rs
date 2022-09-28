@@ -40,201 +40,174 @@ pub(crate) fn reconcile(
             return Some(existing_var_type.clone());
         }
 
-        if let TAtomic::TClosure { .. } = assertion_type {
-            return intersect_simple!(
-                TAtomic::TClosure { .. },
-                TAtomic::TMixedAny
-                    | TAtomic::TMixed
-                    | TAtomic::TTruthyMixed
-                    | TAtomic::TNonnullMixed
-                    | TAtomic::TMixedFromLoopIsset,
-                get_mixed_closure(),
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            );
-        }
-
-        if let TAtomic::TScalar { .. } = assertion_type {
-            return intersect_simple!(
-                TAtomic::TLiteralClassname { .. }
-                    | TAtomic::TLiteralInt { .. }
-                    | TAtomic::TLiteralString { .. }
-                    | TAtomic::TArraykey { .. }
-                    | TAtomic::TBool { .. }
-                    | TAtomic::TClassname { .. }
-                    | TAtomic::TFalse
-                    | TAtomic::TFloat
-                    | TAtomic::TInt { .. }
-                    | TAtomic::TStringWithFlags(..)
-                    | TAtomic::TNum
-                    | TAtomic::TString
-                    | TAtomic::TTrue,
-                TAtomic::TMixed
-                    | TAtomic::TFalsyMixed
-                    | TAtomic::TTruthyMixed
-                    | TAtomic::TNonnullMixed
-                    | TAtomic::TMixedAny
-                    | TAtomic::TMixedFromLoopIsset,
-                get_scalar(),
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            );
-        }
-
-        if let TAtomic::TBool { .. } = assertion_type {
-            return intersect_simple!(
-                TAtomic::TBool { .. } | TAtomic::TFalse | TAtomic::TTrue,
-                TAtomic::TMixed
-                    | TAtomic::TFalsyMixed
-                    | TAtomic::TTruthyMixed
-                    | TAtomic::TNonnullMixed
-                    | TAtomic::TMixedAny
-                    | TAtomic::TScalar
-                    | TAtomic::TMixedFromLoopIsset,
-                get_bool(),
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            );
-        }
-
-        if let TAtomic::TFalse { .. } = assertion_type {
-            return intersect_simple!(
-                TAtomic::TFalse { .. },
-                TAtomic::TMixed
-                    | TAtomic::TFalsyMixed
-                    | TAtomic::TNonnullMixed
-                    | TAtomic::TMixedAny
-                    | TAtomic::TScalar
-                    | TAtomic::TBool
-                    | TAtomic::TMixedFromLoopIsset,
-                get_false(),
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            );
-        }
-
-        if let TAtomic::TTrue { .. } = assertion_type {
-            return intersect_simple!(
-                TAtomic::TTrue { .. },
-                TAtomic::TMixed
-                    | TAtomic::TTruthyMixed
-                    | TAtomic::TNonnullMixed
-                    | TAtomic::TMixedAny
-                    | TAtomic::TScalar
-                    | TAtomic::TBool
-                    | TAtomic::TMixedFromLoopIsset,
-                get_true(),
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            );
-        }
-
-        if let TAtomic::TFloat { .. } = assertion_type {
-            return intersect_simple!(
-                TAtomic::TFloat { .. },
-                TAtomic::TMixed
-                    | TAtomic::TFalsyMixed
-                    | TAtomic::TTruthyMixed
-                    | TAtomic::TNonnullMixed
-                    | TAtomic::TMixedAny
-                    | TAtomic::TScalar
-                    | TAtomic::TNum
-                    | TAtomic::TMixedFromLoopIsset,
-                get_float(),
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            );
-        }
-
-        if let TAtomic::TNull { .. } = assertion_type {
-            return intersect_simple!(
-                TAtomic::TNull { .. },
-                TAtomic::TMixed | TAtomic::TFalsyMixed | TAtomic::TMixedAny,
-                get_null(),
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            );
-        }
-
-        if let TAtomic::TObject = assertion_type {
-            return Some(intersect_object(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        }
-
-        if let TAtomic::TVec {
-            known_items: None,
-            type_param,
-            ..
-        } = assertion_type
-        {
-            if type_param.is_mixed() {
-                return Some(intersect_vec(
+        match assertion_type {
+            TAtomic::TClosure { .. } => {
+                return intersect_simple!(
+                    TAtomic::TClosure { .. },
+                    TAtomic::TMixedAny
+                        | TAtomic::TMixed
+                        | TAtomic::TTruthyMixed
+                        | TAtomic::TNonnullMixed
+                        | TAtomic::TMixedFromLoopIsset,
+                    get_mixed_closure(),
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                );
+            }
+            TAtomic::TScalar { .. } => {
+                return intersect_simple!(
+                    TAtomic::TLiteralClassname { .. }
+                        | TAtomic::TLiteralInt { .. }
+                        | TAtomic::TLiteralString { .. }
+                        | TAtomic::TArraykey { .. }
+                        | TAtomic::TBool { .. }
+                        | TAtomic::TClassname { .. }
+                        | TAtomic::TFalse
+                        | TAtomic::TFloat
+                        | TAtomic::TInt { .. }
+                        | TAtomic::TStringWithFlags(..)
+                        | TAtomic::TNum
+                        | TAtomic::TString
+                        | TAtomic::TTrue,
+                    TAtomic::TMixed
+                        | TAtomic::TFalsyMixed
+                        | TAtomic::TTruthyMixed
+                        | TAtomic::TNonnullMixed
+                        | TAtomic::TMixedAny
+                        | TAtomic::TMixedFromLoopIsset,
+                    get_scalar(),
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                );
+            }
+            TAtomic::TBool { .. } => {
+                return intersect_simple!(
+                    TAtomic::TBool { .. } | TAtomic::TFalse | TAtomic::TTrue,
+                    TAtomic::TMixed
+                        | TAtomic::TFalsyMixed
+                        | TAtomic::TTruthyMixed
+                        | TAtomic::TNonnullMixed
+                        | TAtomic::TMixedAny
+                        | TAtomic::TScalar
+                        | TAtomic::TMixedFromLoopIsset,
+                    get_bool(),
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                );
+            }
+            TAtomic::TFalse { .. } => {
+                return intersect_simple!(
+                    TAtomic::TFalse { .. },
+                    TAtomic::TMixed
+                        | TAtomic::TFalsyMixed
+                        | TAtomic::TNonnullMixed
+                        | TAtomic::TMixedAny
+                        | TAtomic::TScalar
+                        | TAtomic::TBool
+                        | TAtomic::TMixedFromLoopIsset,
+                    get_false(),
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                );
+            }
+            TAtomic::TTrue { .. } => {
+                return intersect_simple!(
+                    TAtomic::TTrue { .. },
+                    TAtomic::TMixed
+                        | TAtomic::TTruthyMixed
+                        | TAtomic::TNonnullMixed
+                        | TAtomic::TMixedAny
+                        | TAtomic::TScalar
+                        | TAtomic::TBool
+                        | TAtomic::TMixedFromLoopIsset,
+                    get_true(),
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                );
+            }
+            TAtomic::TFloat { .. } => {
+                return intersect_simple!(
+                    TAtomic::TFloat { .. },
+                    TAtomic::TMixed
+                        | TAtomic::TFalsyMixed
+                        | TAtomic::TTruthyMixed
+                        | TAtomic::TNonnullMixed
+                        | TAtomic::TMixedAny
+                        | TAtomic::TScalar
+                        | TAtomic::TNum
+                        | TAtomic::TMixedFromLoopIsset,
+                    get_float(),
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                );
+            }
+            TAtomic::TNull { .. } => {
+                return intersect_simple!(
+                    TAtomic::TNull { .. },
+                    TAtomic::TMixed | TAtomic::TFalsyMixed | TAtomic::TMixedAny,
+                    get_null(),
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                );
+            }
+            TAtomic::TObject => {
+                return Some(intersect_object(
                     assertion,
                     existing_var_type,
                     key,
@@ -247,16 +220,91 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-        }
-
-        if let TAtomic::TDict {
-            known_items: None,
-            params: Some(params),
-            ..
-        } = assertion_type
-        {
-            if params.0.is_arraykey() && params.1.is_mixed() {
-                return Some(intersect_dict(
+            TAtomic::TVec {
+                known_items: None,
+                type_param,
+                ..
+            } => {
+                if type_param.is_mixed() {
+                    return Some(intersect_vec(
+                        assertion,
+                        existing_var_type,
+                        key,
+                        negated,
+                        tast_info,
+                        statements_analyzer,
+                        pos,
+                        failed_reconciliation,
+                        assertion.has_equality(),
+                        suppressed_issues,
+                    ));
+                }
+            }
+            TAtomic::TDict {
+                known_items: None,
+                params: Some(params),
+                ..
+            } => {
+                if params.0.is_arraykey() && params.1.is_mixed() {
+                    return Some(intersect_dict(
+                        codebase,
+                        assertion,
+                        existing_var_type,
+                        key,
+                        negated,
+                        tast_info,
+                        statements_analyzer,
+                        pos,
+                        failed_reconciliation,
+                        assertion.has_equality(),
+                        suppressed_issues,
+                    ));
+                }
+            }
+            TAtomic::TKeyset { .. } => {
+                return Some(intersect_keyset(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TArraykey { .. } => {
+                return Some(intersect_arraykey(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TNum { .. } => {
+                return Some(intersect_num(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TString => {
+                return Some(intersect_string(
                     codebase,
                     assertion,
                     existing_var_type,
@@ -270,83 +318,22 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-        }
-
-        if let TAtomic::TKeyset { .. } = assertion_type {
-            return Some(intersect_keyset(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        }
-
-        if let TAtomic::TArraykey { .. } = assertion_type {
-            return Some(intersect_arraykey(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        }
-
-        if let TAtomic::TNum { .. } = assertion_type {
-            return Some(intersect_num(
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        }
-
-        if let TAtomic::TString = assertion_type {
-            return Some(intersect_string(
-                codebase,
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
-        }
-
-        if let TAtomic::TInt = assertion_type {
-            return Some(intersect_int(
-                codebase,
-                assertion,
-                existing_var_type,
-                key,
-                negated,
-                tast_info,
-                statements_analyzer,
-                pos,
-                failed_reconciliation,
-                assertion.has_equality(),
-                suppressed_issues,
-            ));
+            TAtomic::TInt => {
+                return Some(intersect_int(
+                    codebase,
+                    assertion,
+                    existing_var_type,
+                    key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            _ => (),
         }
     }
 
