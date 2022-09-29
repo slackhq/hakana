@@ -7,5 +7,9 @@ enum A: string {
 
 function foo(string $s): void {
     /* HAKANA_FIXME[ImpossibleTypeComparison] */
-    $a = $s is ?A ? $s : exit();
+    if ($s is ?A) {
+        $a = $s;
+    } else {
+        exit();
+    }
 }

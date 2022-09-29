@@ -199,7 +199,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     failed_reconciliation,
-                    assertion.has_equality(),
                     suppressed_issues,
                 ));
             }
@@ -445,7 +444,6 @@ fn intersect_null(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
-    is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
@@ -481,12 +479,12 @@ fn intersect_null(
                         statements_analyzer,
                         None,
                         failed_reconciliation,
-                        is_equality,
                         suppressed_issues,
                     ));
 
                     nullable_types.push(atomic);
                 }
+                did_remove_type = true;
             }
             TAtomic::TNamedObject {
                 name,
@@ -496,13 +494,17 @@ fn intersect_null(
                 if name == "XHPChild" {
                     nullable_types.push(TAtomic::TNull);
                     did_remove_type = true;
+                } else {
+                    did_remove_type = true;
                 }
             }
-            _ => {}
+            _ => {
+                did_remove_type = true;
+            }
         }
     }
 
-    if (nullable_types.is_empty() || !did_remove_type) && !is_equality {
+    if nullable_types.is_empty() || !did_remove_type {
         if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(

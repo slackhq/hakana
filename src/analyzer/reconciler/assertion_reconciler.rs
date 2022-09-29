@@ -306,11 +306,51 @@ fn intersect_atomic_with_atomic(
                 }
             }
         }
-        (TAtomic::TEnumLiteralCase { .. }, TAtomic::TString | TAtomic::TStringWithFlags(..)) => {
-            return Some(type_1_atomic.clone());
-        }
-        (TAtomic::TString | TAtomic::TStringWithFlags(..), TAtomic::TEnumLiteralCase { .. }) => {
+        (
+            TAtomic::TEnumLiteralCase {
+                enum_name: type_1_name,
+                member_name: type_1_member_name,
+                ..
+            },
+            TAtomic::TString | TAtomic::TStringWithFlags(..),
+        ) => {
+            let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
+
+            if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
+                if let Some(inferred_type) = &member_storage.inferred_type {
+                    if let Some(inferred_value) = inferred_type.get_single_literal_string_value() {
+                        return Some(TAtomic::TLiteralString {
+                            value: inferred_value,
+                        });
+                    }
+                }
+            }
+
             return Some(type_2_atomic.clone());
+        }
+        (
+            TAtomic::TString | TAtomic::TStringWithFlags(..),
+            TAtomic::TEnumLiteralCase {
+                enum_name: type_2_name,
+                member_name: type_2_member_name,
+                ..
+            },
+        ) => {
+            let enum_storage = codebase.classlike_infos.get(type_2_name).unwrap();
+
+            if let Some(member_storage) = enum_storage.constants.get(type_2_member_name) {
+                if let Some(inferred_type) = &member_storage.inferred_type {
+                    if let Some(inferred_value) = inferred_type.get_single_literal_string_value() {
+                        return Some(TAtomic::TLiteralString {
+                            value: inferred_value,
+                        });
+                    } else {
+                        return None;
+                    }
+                }
+            }
+
+            return Some(type_1_atomic.clone());
         }
         (
             TAtomic::TNamedObject {
