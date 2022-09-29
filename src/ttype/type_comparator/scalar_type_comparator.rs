@@ -172,6 +172,16 @@ pub fn is_contained_by(
     if let TAtomic::TEnum { name: input_name } = input_type_part {
         if let Some(c) = codebase.classlike_infos.get(input_name) {
             if let Some(enum_type) = &c.enum_type {
+                if let TAtomic::TStringWithFlags(..) = container_type_part {
+                    return is_contained_by(
+                        codebase,
+                        enum_type,
+                        &TAtomic::TString,
+                        allow_interface_equality,
+                        atomic_comparison_result,
+                    );
+                }
+
                 return is_contained_by(
                     codebase,
                     enum_type,

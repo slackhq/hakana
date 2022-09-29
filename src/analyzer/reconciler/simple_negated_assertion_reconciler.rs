@@ -1310,40 +1310,54 @@ fn subtract_null(
     let mut existing_var_type = existing_var_type.clone();
 
     for (type_key, atomic) in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = atomic {
-            if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
-                let atomic = atomic.replace_template_extends(subtract_null(
-                    assertion,
-                    as_type,
-                    None,
-                    false,
-                    tast_info,
-                    statements_analyzer,
-                    None,
-                    &mut template_failed_reconciliation,
-                    is_equality,
-                    suppressed_issues,
-                ));
+        match atomic {
+            TAtomic::TTemplateParam { as_type, .. } => {
+                if !is_equality && !as_type.is_mixed() {
+                    let mut template_failed_reconciliation = ReconciliationStatus::Ok;
+                    let atomic = atomic.replace_template_extends(subtract_null(
+                        assertion,
+                        as_type,
+                        None,
+                        false,
+                        tast_info,
+                        statements_analyzer,
+                        None,
+                        &mut template_failed_reconciliation,
+                        is_equality,
+                        suppressed_issues,
+                    ));
 
-                if template_failed_reconciliation == ReconciliationStatus::Ok {
-                    existing_var_type.types.remove(type_key);
-                    existing_var_type.types.insert(atomic.get_key(), atomic);
+                    if template_failed_reconciliation == ReconciliationStatus::Ok {
+                        existing_var_type.types.remove(type_key);
+                        existing_var_type.types.insert(atomic.get_key(), atomic);
+                        did_remove_type = true;
+                    }
+                } else {
                     did_remove_type = true;
                 }
-            } else {
-                did_remove_type = true;
             }
-        } else if let TAtomic::TMixed | TAtomic::TMixedAny | TAtomic::TFalsyMixed { .. } = atomic {
-            did_remove_type = true;
-            existing_var_type.types.remove(type_key);
-            existing_var_type
-                .types
-                .insert("nonnull".to_string(), TAtomic::TNonnullMixed);
-        } else if let TAtomic::TNull { .. } = atomic {
-            did_remove_type = true;
+            TAtomic::TMixed | TAtomic::TMixedAny | TAtomic::TFalsyMixed { .. } => {
+                did_remove_type = true;
+                existing_var_type.types.remove(type_key);
+                existing_var_type
+                    .types
+                    .insert("nonnull".to_string(), TAtomic::TNonnullMixed);
+            }
+            TAtomic::TNull { .. } => {
+                did_remove_type = true;
 
-            existing_var_type.types.remove(type_key);
+                existing_var_type.types.remove(type_key);
+            }
+            TAtomic::TNamedObject {
+                name,
+                type_params: None,
+                ..
+            } => {
+                if name == "XHPChild" {
+                    did_remove_type = true;
+                }
+            }
+            _ => (),
         }
     }
 

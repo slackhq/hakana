@@ -269,6 +269,7 @@ fn update_atomic_given_key(
                 } => {
                     let key = match key_value {
                         TAtomic::TLiteralString { value } => Some(DictKey::String(value.clone())),
+                        TAtomic::TLiteralInt { value } => Some(DictKey::Int(*value as u32)),
                         TAtomic::TEnumLiteralCase {
                             enum_name,
                             member_name,

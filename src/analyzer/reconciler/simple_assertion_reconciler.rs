@@ -190,10 +190,7 @@ pub(crate) fn reconcile(
                 );
             }
             TAtomic::TNull { .. } => {
-                return intersect_simple!(
-                    TAtomic::TNull { .. },
-                    TAtomic::TMixed | TAtomic::TFalsyMixed | TAtomic::TMixedAny,
-                    get_null(),
+                return Some(intersect_null(
                     assertion,
                     existing_var_type,
                     key,
@@ -204,7 +201,7 @@ pub(crate) fn reconcile(
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
-                );
+                ));
             }
             TAtomic::TObject => {
                 return Some(intersect_object(
@@ -437,6 +434,99 @@ pub(crate) fn reconcile(
         )),
         _ => None,
     };
+}
+
+fn intersect_null(
+    assertion: &Assertion,
+    existing_var_type: &TUnion,
+    key: &Option<String>,
+    negated: bool,
+    tast_info: &mut TastInfo,
+    statements_analyzer: &StatementsAnalyzer,
+    pos: Option<&Pos>,
+    failed_reconciliation: &mut ReconciliationStatus,
+    is_equality: bool,
+    suppressed_issues: &FxHashMap<String, usize>,
+) -> TUnion {
+    if existing_var_type.is_mixed() {
+        return get_null();
+    }
+
+    let old_var_type_string = existing_var_type.get_id();
+
+    let mut nullable_types = Vec::new();
+    let mut did_remove_type = false;
+
+    for (_, atomic) in &existing_var_type.types {
+        match atomic {
+            TAtomic::TNull => {
+                nullable_types.push(TAtomic::TNull);
+            }
+            TAtomic::TMixed | TAtomic::TFalsyMixed | TAtomic::TMixedAny => {
+                nullable_types.push(TAtomic::TNull);
+                did_remove_type = true;
+            }
+            TAtomic::TTemplateParam { as_type, .. } => {
+                if as_type.is_mixed() {
+                    let atomic = atomic.replace_template_extends(get_null());
+
+                    nullable_types.push(atomic);
+                } else {
+                    let atomic = atomic.replace_template_extends(intersect_null(
+                        assertion,
+                        as_type,
+                        &None,
+                        false,
+                        tast_info,
+                        statements_analyzer,
+                        None,
+                        failed_reconciliation,
+                        is_equality,
+                        suppressed_issues,
+                    ));
+
+                    nullable_types.push(atomic);
+                }
+            }
+            TAtomic::TNamedObject {
+                name,
+                type_params: None,
+                ..
+            } => {
+                if name == "XHPChild" {
+                    nullable_types.push(TAtomic::TNull);
+                    did_remove_type = true;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if (nullable_types.is_empty() || !did_remove_type) && !is_equality {
+        if let Some(key) = key {
+            if let Some(pos) = pos {
+                trigger_issue_for_impossible(
+                    tast_info,
+                    statements_analyzer,
+                    &old_var_type_string,
+                    &key,
+                    assertion,
+                    !did_remove_type,
+                    negated,
+                    pos,
+                    suppressed_issues,
+                );
+            }
+        }
+    }
+
+    if !nullable_types.is_empty() {
+        return TUnion::new(nullable_types);
+    }
+
+    *failed_reconciliation = ReconciliationStatus::Empty;
+
+    get_nothing()
 }
 
 fn intersect_object(
@@ -947,6 +1037,16 @@ fn intersect_string(
 
                 did_remove_type = true;
             }
+            TAtomic::TNamedObject {
+                name,
+                type_params: None,
+                ..
+            } => {
+                if name == "XHPChild" {
+                    acceptable_types.push(TAtomic::TString);
+                    did_remove_type = true;
+                }
+            }
             _ => {
                 if atomic_type_comparator::is_contained_by(
                     codebase,
@@ -1021,6 +1121,30 @@ fn intersect_int(
             | TAtomic::TArraykey { .. }
             | TAtomic::TMixedFromLoopIsset => {
                 return get_int();
+            }
+            TAtomic::TTemplateParam { as_type, .. } => {
+                if as_type.is_mixed() {
+                    let atomic = atomic.replace_template_extends(get_int());
+
+                    acceptable_types.push(atomic);
+                } else {
+                    let atomic = atomic.replace_template_extends(intersect_int(
+                        codebase,
+                        assertion,
+                        as_type,
+                        &None,
+                        false,
+                        tast_info,
+                        statements_analyzer,
+                        None,
+                        failed_reconciliation,
+                        is_equality,
+                        suppressed_issues,
+                    ));
+                    acceptable_types.push(atomic);
+                }
+
+                did_remove_type = true;
             }
             _ => {
                 if atomic_type_comparator::is_contained_by(

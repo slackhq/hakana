@@ -306,10 +306,10 @@ fn intersect_atomic_with_atomic(
                 }
             }
         }
-        (TAtomic::TEnumLiteralCase { .. }, TAtomic::TString) => {
+        (TAtomic::TEnumLiteralCase { .. }, TAtomic::TString | TAtomic::TStringWithFlags(..)) => {
             return Some(type_1_atomic.clone());
         }
-        (TAtomic::TString, TAtomic::TEnumLiteralCase { .. }) => {
+        (TAtomic::TString | TAtomic::TStringWithFlags(..), TAtomic::TEnumLiteralCase { .. }) => {
             return Some(type_2_atomic.clone());
         }
         (
