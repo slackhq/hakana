@@ -71,7 +71,7 @@ pub trait TestRunner {
     fn get_config_for_test(&self, dir: &String) -> config::Config {
         let mut analysis_config = config::Config::new(dir.clone());
         analysis_config.find_unused_expressions =
-            dir.contains("/unused/") || dir.contains("/fix/UnusedVariable/");
+            dir.contains("/unused/") || dir.contains("/fix/UnusedAssignment/");
         analysis_config.find_unused_definitions = dir.contains("/unused/UnusedCode/");
         analysis_config.graph_kind = if dir.contains("/security/") {
             GraphKind::WholeProgram(WholeProgramKind::Taint)

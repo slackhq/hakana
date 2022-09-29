@@ -90,8 +90,8 @@ pub enum IssueKind {
     UnusedProperty,
     UnusedPublicOrProtectedMethod,
     UnusedTrait,
-    UnusedVariable,
-    UnusedVariableInClosure,
+    UnusedAssignment,
+    UnusedAssignmentInClosure,
 }
 
 impl IssueKind {
@@ -183,8 +183,8 @@ impl IssueKind {
             "UnusedProperty" => Ok(IssueKind::UnusedProperty),
             "UnusedPublicOrProtectedMethod" => Ok(IssueKind::UnusedPublicOrProtectedMethod),
             "UnusedTrait" => Ok(IssueKind::UnusedTrait),
-            "UnusedVariable" => Ok(IssueKind::UnusedVariable),
-            "UnusedVariableInClosure" => Ok(IssueKind::UnusedVariableInClosure),
+            "UnusedAssignment" => Ok(IssueKind::UnusedAssignment),
+            "UnusedAssignmentInClosure" => Ok(IssueKind::UnusedAssignmentInClosure),
             _ => Ok(IssueKind::CustomIssue(str.to_string())),
         }
     }
@@ -236,7 +236,7 @@ impl IssueKind {
 
     pub fn is_unused_expression(&self) -> bool {
         match &self {
-            Self::UnusedVariable => true,
+            Self::UnusedAssignment => true,
             _ => false,
         }
     }

@@ -805,9 +805,9 @@ fn report_unused_expressions(
                     }
                     VariableSourceKind::Default => {
                         if config
-                            .allow_issue_kind_in_file(&IssueKind::UnusedVariable, &pos.file_path)
+                            .allow_issue_kind_in_file(&IssueKind::UnusedAssignment, &pos.file_path)
                         {
-                            if config.issues_to_fix.contains(&IssueKind::UnusedVariable) {
+                            if config.issues_to_fix.contains(&IssueKind::UnusedAssignment) {
                                 unused_variable_nodes.push(node.clone());
                             } else {
                                 let unused_closure_variable = tast_info.closure_spans.iter().any(
@@ -820,14 +820,14 @@ fn report_unused_expressions(
                                 tast_info.maybe_add_issue(
                                     if unused_closure_variable {
                                         Issue::new(
-                                            IssueKind::UnusedVariableInClosure,
-                                            format!("Variable {} is unused in this closure ", name),
+                                            IssueKind::UnusedAssignmentInClosure,
+                                            format!("Assignment to {} is unused in this closure ", name),
                                             pos.clone(),
                                         )
                                     } else {
                                         Issue::new(
-                                            IssueKind::UnusedVariable,
-                                            format!("Variable {} is unused", name),
+                                            IssueKind::UnusedAssignment,
+                                            format!("Assignment to {} is unused", name),
                                             pos.clone(),
                                         )
                                     },
