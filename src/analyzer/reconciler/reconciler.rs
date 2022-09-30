@@ -72,7 +72,8 @@ pub(crate) fn reconcile_keyed_types(
             .get(key)
             .unwrap_or(&Vec::new())
             .eq(new_type_parts);
-        let mut is_equality = is_real;
+
+        let mut is_equality = false;
 
         for new_type_part_parts in new_type_parts {
             for assertion in new_type_part_parts {
@@ -282,14 +283,18 @@ pub(crate) fn reconcile_keyed_types(
             true
         };
 
-        if type_changed || failed_reconciliation != ReconciliationStatus::Ok {
-            changed_var_ids.insert(key.clone());
-
+        if type_changed || !did_type_exist {
             if key.ends_with("]") && !has_inverted_isset && !is_equality {
                 let key_parts = break_up_path_into_parts(key);
 
                 adjust_array_type(key_parts, context, changed_var_ids, &result_type);
-            } else if key != "$this" {
+            }
+        }
+
+        if type_changed || failed_reconciliation != ReconciliationStatus::Ok {
+            changed_var_ids.insert(key.clone());
+
+            if key != "$this" && !key.ends_with("]") {
                 let mut removable_keys = Vec::new();
                 for (new_key, _) in context.vars_in_scope.iter() {
                     if new_key.eq(key) {
@@ -331,8 +336,11 @@ fn adjust_array_type(
         return;
     }
 
+    let mut has_string_offset = false;
+
     let arraykey_offset = if array_key.starts_with("'") || array_key.starts_with("\"") {
-        array_key[1..][..1].to_string()
+        has_string_offset = true;
+        array_key[1..(array_key.len() - 1)].to_string()
     } else {
         array_key.clone()
     };
@@ -359,14 +367,17 @@ fn adjust_array_type(
                 ref mut known_items,
                 ..
             } => {
+                let dictkey = if has_string_offset {
+                    DictKey::String(arraykey_offset.clone())
+                } else {
+                    DictKey::Int(arraykey_offset.parse::<u32>().unwrap())
+                };
+
                 if let Some(known_items) = known_items {
-                    known_items.insert(
-                        DictKey::String(arraykey_offset.clone()),
-                        (false, Arc::new(result_type.clone())),
-                    );
+                    known_items.insert(dictkey, (false, Arc::new(result_type.clone())));
                 } else {
                     *known_items = Some(BTreeMap::from([(
-                        DictKey::String(arraykey_offset.clone()),
+                        dictkey,
                         (false, Arc::new(result_type.clone())),
                     )]));
                 }
