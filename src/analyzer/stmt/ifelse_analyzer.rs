@@ -74,6 +74,7 @@ pub(crate) fn analyze(
 
     let mut if_body_context = if_conditional_scope.if_body_context;
     let post_if_context = if_conditional_scope.post_if_context;
+
     *context = if_conditional_scope.outer_context;
     let _assigned_in_conditional_var_ids = &if_conditional_scope.assigned_in_conditional_var_ids;
 

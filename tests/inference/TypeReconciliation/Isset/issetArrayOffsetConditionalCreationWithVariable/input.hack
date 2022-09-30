@@ -1,6 +1,4 @@
-function foo(dict<int, string> $arr) : string {
-    $b = 5;
-
+function foo(dict<int, string> $arr, int $b) : string {
     if (!isset($arr[$b])) {
         $arr[$b] = "hello";
     }

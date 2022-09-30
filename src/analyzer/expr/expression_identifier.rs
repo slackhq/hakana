@@ -145,7 +145,7 @@ pub(crate) fn get_dim_id(
                                 if let Some(constant_type_string) =
                                     constant_type.get_single_literal_string_value()
                                 {
-                                    return Some(constant_type_string);
+                                    return Some(format!("'{}'", constant_type_string));
                                 }
                             }
                         }

@@ -58,6 +58,9 @@ pub(crate) fn reconcile_keyed_types(
 
     let codebase = statements_analyzer.get_codebase();
 
+    // we want to remove any
+    let mut added_var_ids = FxHashSet::default();
+
     for (key, new_type_parts) in &new_types {
         if key.contains("::") && !key.contains("$") && !key.contains("[") {
             continue;
@@ -149,6 +152,7 @@ pub(crate) fn reconcile_keyed_types(
                 codebase,
                 key.clone(),
                 context,
+                &mut added_var_ids,
                 &new_types,
                 has_isset,
                 has_inverted_isset,
@@ -283,11 +287,19 @@ pub(crate) fn reconcile_keyed_types(
             true
         };
 
-        if type_changed || !did_type_exist {
-            if key.ends_with("]") && !has_inverted_isset && !is_equality {
-                let key_parts = break_up_path_into_parts(key);
+        if key.ends_with("]") {
+            if type_changed || !did_type_exist {
+                if !has_inverted_isset && !is_equality {
+                    let key_parts = break_up_path_into_parts(key);
 
-                adjust_array_type(key_parts, context, changed_var_ids, &result_type);
+                    adjust_array_type(
+                        key_parts,
+                        context,
+                        &mut added_var_ids,
+                        changed_var_ids,
+                        &result_type,
+                    );
+                }
             }
         }
 
@@ -320,11 +332,16 @@ pub(crate) fn reconcile_keyed_types(
             .vars_in_scope
             .insert(key.clone(), Rc::new(result_type));
     }
+
+    context
+        .vars_in_scope
+        .retain(|var_id, _| !added_var_ids.contains(var_id));
 }
 
 fn adjust_array_type(
     mut key_parts: Vec<String>,
     context: &mut ScopeContext,
+    added_var_ids: &mut FxHashSet<String>,
     changed_var_ids: &mut FxHashSet<String>,
     result_type: &TUnion,
 ) {
@@ -370,7 +387,12 @@ fn adjust_array_type(
                 let dictkey = if has_string_offset {
                     DictKey::String(arraykey_offset.clone())
                 } else {
-                    DictKey::Int(arraykey_offset.parse::<u32>().unwrap())
+                    if let Ok(arraykey_value) = arraykey_offset.parse::<u32>() {
+                        DictKey::Int(arraykey_value)
+                    } else {
+                        println!("bad int key {}", arraykey_offset);
+                        continue;
+                    }
                 };
 
                 if let Some(known_items) = known_items {
@@ -386,14 +408,15 @@ fn adjust_array_type(
                 ref mut known_items,
                 ..
             } => {
-                let arraykey_offset = arraykey_offset.parse::<usize>().unwrap();
-                if let Some(known_items) = known_items {
-                    known_items.insert(arraykey_offset.clone(), (false, result_type.clone()));
-                } else {
-                    *known_items = Some(BTreeMap::from([(
-                        arraykey_offset.clone(),
-                        (false, result_type.clone()),
-                    )]));
+                if let Ok(arraykey_offset) = arraykey_offset.parse::<usize>() {
+                    if let Some(known_items) = known_items {
+                        known_items.insert(arraykey_offset.clone(), (false, result_type.clone()));
+                    } else {
+                        *known_items = Some(BTreeMap::from([(
+                            arraykey_offset.clone(),
+                            (false, result_type.clone()),
+                        )]));
+                    }
                 }
             }
             _ => {
@@ -410,6 +433,7 @@ fn adjust_array_type(
                 adjust_array_type(
                     key_parts.clone(),
                     context,
+                    added_var_ids,
                     changed_var_ids,
                     &wrap_atomic(base_atomic_type),
                 );
@@ -611,6 +635,7 @@ fn get_value_for_key(
     codebase: &CodebaseInfo,
     key: String,
     context: &mut ScopeContext,
+    added_var_ids: &mut FxHashSet<String>,
     new_assertions: &BTreeMap<String, Vec<Vec<Assertion>>>,
     has_isset: bool,
     has_inverted_isset: bool,
@@ -825,6 +850,10 @@ fn get_value_for_key(
                         Some(new_base_type_candidate.clone())
                     };
 
+                    if !array_key.starts_with("$") {
+                        added_var_ids.insert(new_base_key.clone());
+                    }
+
                     context.vars_in_scope.insert(
                         new_base_key.clone(),
                         Rc::new(new_base_type.clone().unwrap()),
@@ -841,14 +870,9 @@ fn get_value_for_key(
             if !context.vars_in_scope.contains_key(&new_base_key) {
                 let mut new_base_type: Option<TUnion> = None;
 
-                let mut atomic_types = context
-                    .vars_in_scope
-                    .get(&base_key)
-                    .unwrap()
-                    .types
-                    .values()
-                    .cloned()
-                    .collect::<Vec<TAtomic>>();
+                let base_type = context.vars_in_scope.get(&base_key).unwrap();
+
+                let mut atomic_types = base_type.types.values().cloned().collect::<Vec<TAtomic>>();
 
                 while let Some(existing_key_type_part) = atomic_types.pop() {
                     if let TAtomic::TTemplateParam { as_type, .. } = existing_key_type_part {

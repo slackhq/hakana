@@ -112,7 +112,7 @@ pub(crate) fn analyze(
             if let Some(keyed_array_var_id) = &keyed_array_var_id {
                 let can_store_result = context.inside_assignment || !stmt_var_type.is_mixed();
 
-                if !context.inside_isset && can_store_result {
+                if !context.inside_isset && can_store_result && keyed_array_var_id.contains("[$") {
                     context
                         .vars_in_scope
                         .insert(keyed_array_var_id.clone(), Rc::new(stmt_type.clone()));
@@ -280,7 +280,7 @@ pub(crate) fn get_array_access_type_given_offset(
     offset_type: &TUnion,
     in_assignment: bool,
     extended_var_id: &Option<String>,
-    context: &mut ScopeContext,
+    context: &ScopeContext,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
 
@@ -549,7 +549,7 @@ pub(crate) fn handle_array_access_on_vec(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     tast_info: &mut TastInfo,
-    context: &mut ScopeContext,
+    context: &ScopeContext,
     vec: TAtomic,
     dim_type: TUnion,
     in_assignment: bool,
@@ -645,7 +645,7 @@ pub(crate) fn handle_array_access_on_dict(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     tast_info: &mut TastInfo,
-    context: &mut ScopeContext,
+    context: &ScopeContext,
     dict: &TAtomic,
     dim_type: &TUnion,
     in_assignment: bool,
@@ -852,7 +852,7 @@ pub(crate) fn handle_array_access_on_mixed(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     tast_info: &mut TastInfo,
-    context: &mut ScopeContext,
+    context: &ScopeContext,
     mixed: &TAtomic,
     mixed_union: &TUnion,
     stmt_type: Option<TUnion>,

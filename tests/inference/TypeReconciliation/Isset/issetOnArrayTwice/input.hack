@@ -1,4 +1,4 @@
-function foo(vec_or_dict $options): void {
+function foo(dict<arraykey, mixed> $options): void {
     if (!isset($options["a"])) {
         $options["a"] = "hello";
     }
