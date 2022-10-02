@@ -1,6 +1,8 @@
 pub mod functionlike_identifier;
 pub mod method_identifier;
 
+use std::sync::Arc;
+
 use rustc_hash::FxHashMap;
 
 pub use functionlike_identifier::FunctionLikeIdentifier;
@@ -9,7 +11,7 @@ pub use functionlike_identifier::FunctionLikeIdentifier;
 pub struct FunctionContext {
     pub namespace: Option<String>,
 
-    pub calling_class: Option<String>,
+    pub calling_class: Option<Arc<String>>,
 
     pub aliased_namespaces: FxHashMap<String, String>,
 

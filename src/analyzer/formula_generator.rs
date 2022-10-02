@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use rustc_hash::FxHashMap;
 
@@ -18,7 +18,7 @@ pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource,
     pub resolved_names: &'a FxHashMap<usize, String>,
     pub codebase: Option<&'a CodebaseInfo>,
-    pub this_class_name: Option<&'a String>,
+    pub this_class_name: Option<&'a Arc<String>>,
     pub type_resolution_context: &'a TypeResolutionContext,
 }
 

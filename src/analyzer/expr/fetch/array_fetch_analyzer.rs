@@ -454,7 +454,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 type_params: Some(type_params),
                 ..
             } => {
-                if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
+                if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
                     if let Some(existing_type) = stmt_type {
                         stmt_type = Some(add_union_type(
                             existing_type,
@@ -467,7 +467,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     }
 
                     has_valid_expected_offset = true;
-                } else if name == "HH\\Container" {
+                } else if **name == "HH\\Container" {
                     if let Some(existing_type) = stmt_type {
                         stmt_type = Some(add_union_type(
                             existing_type,

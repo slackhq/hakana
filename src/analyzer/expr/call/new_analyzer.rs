@@ -88,7 +88,7 @@ pub(crate) fn analyze(
                             name_string = fq_name.clone();
                         }
 
-                        get_named_object(name_string)
+                        get_named_object(Arc::new(name_string))
                     }
                 }
             } else {
@@ -237,7 +237,7 @@ fn analyze_named_constructor(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-    classlike_name: String,
+    classlike_name: Arc<String>,
     from_static: bool,
     can_extend: bool,
     result: &mut AtomicMethodCallAnalysisResult,
@@ -258,12 +258,11 @@ fn analyze_named_constructor(
     }
 
     if storage.is_deprecated
-        && classlike_name
-            != context
-                .function_context
-                .calling_class
-                .clone()
-                .unwrap_or("".to_string())
+        && if let Some(calling_class) = &context.function_context.calling_class {
+            calling_class != &classlike_name
+        } else {
+            true
+        }
     {
         // todo complain about deprecated class
     }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rustc_hash::FxHashSet;
 
 use serde::{Deserialize, Serialize};
@@ -18,7 +20,7 @@ pub struct MethodInfo {
 
     pub overridden_somewhere: bool,
 
-    pub defining_fqcln: Option<String>,
+    pub defining_fqcln: Option<Arc<String>>,
 
     pub external_mutation_free: bool,
 

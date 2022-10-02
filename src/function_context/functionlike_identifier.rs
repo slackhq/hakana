@@ -1,18 +1,20 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 
 use crate::method_identifier::MethodIdentifier;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FunctionLikeIdentifier {
-    Function(String),
-    Method(String, String),
+    Function(Arc<String>),
+    Method(Arc<String>, String),
 }
 
 impl FunctionLikeIdentifier {
     pub fn as_method_identifier(&self) -> Option<MethodIdentifier> {
         if let FunctionLikeIdentifier::Method(fq_classlike_name, method_name) = &self {
             Some(MethodIdentifier(
-                fq_classlike_name.to_string(),
+                fq_classlike_name.clone(),
                 method_name.to_string(),
             ))
         } else {

@@ -491,7 +491,7 @@ fn intersect_null(
                 type_params: None,
                 ..
             } => {
-                if name == "XHPChild" {
+                if **name == "XHPChild" {
                     nullable_types.push(TAtomic::TNull);
                     did_remove_type = true;
                 } else {
@@ -639,11 +639,11 @@ fn intersect_vec(
                 ..
             } = atomic
             {
-                if name == "HH\\Container" {
+                if **name == "HH\\Container" {
                     return get_vec(typed_params.get(0).unwrap().clone());
                 }
 
-                if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
+                if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
                     return get_vec(typed_params.get(1).unwrap().clone());
                 }
             }
@@ -708,11 +708,11 @@ fn intersect_keyset(
                 ..
             } = atomic
             {
-                if name == "HH\\Container" {
+                if **name == "HH\\Container" {
                     return get_keyset(get_arraykey(true));
                 }
 
-                if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
+                if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
                     return get_keyset(typed_params.get(0).unwrap().clone());
                 }
             }
@@ -804,11 +804,11 @@ fn intersect_dict(
                     ..
                 } = atomic
                 {
-                    if name == "HH\\Container" {
+                    if **name == "HH\\Container" {
                         return get_dict(get_arraykey(true), typed_params.get(0).unwrap().clone());
                     }
 
-                    if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
+                    if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
                         return get_dict(
                             typed_params.get(0).unwrap().clone(),
                             typed_params.get(1).unwrap().clone(),
@@ -1044,7 +1044,7 @@ fn intersect_string(
                 type_params: None,
                 ..
             } => {
-                if name == "XHPChild" {
+                if **name == "XHPChild" {
                     acceptable_types.push(TAtomic::TString);
                     did_remove_type = true;
                 }

@@ -99,15 +99,10 @@ pub fn combine(
             },
             params: combination.dict_type_params,
             non_empty: combination.dict_always_filled,
-            shape_name: if combination
-                .dict_name
-                .clone()
-                .unwrap_or("".to_string())
-                .is_empty()
-            {
-                None
+            shape_name: if let Some(dict_alias_name) = combination.dict_alias_name {
+                dict_alias_name.clone()
             } else {
-                combination.dict_name.clone()
+                None
             },
         });
     }
@@ -176,7 +171,7 @@ pub fn combine(
     for enum_name in combination.enum_types {
         combination
             .value_types
-            .insert(enum_name.clone(), TAtomic::TEnum { name: enum_name });
+            .insert((*enum_name).clone(), TAtomic::TEnum { name: enum_name });
     }
 
     for (enum_name, values) in combination.enum_value_types {
@@ -482,15 +477,17 @@ fn scrape_type_properties(
         }
 
         if let Some(shape_name) = &shape_name {
-            if let Some(ref mut existing_name) = combination.dict_name {
-                if existing_name != shape_name {
-                    *existing_name = "".to_string();
+            if let Some(ref mut existing_name) = combination.dict_alias_name {
+                if let Some(existing_name_inner) = existing_name {
+                    if existing_name_inner != shape_name {
+                        *existing_name = None;
+                    }
                 }
             } else {
-                combination.dict_name = Some(shape_name.clone());
+                combination.dict_alias_name = Some(Some(shape_name.clone()));
             }
         } else {
-            combination.dict_name = Some("".to_string());
+            combination.dict_alias_name = Some(None);
         }
 
         if let Some(known_items) = known_items {
@@ -588,7 +585,7 @@ fn scrape_type_properties(
         ..
     } = atomic
     {
-        if fq_class_name == "HH\\Container" {
+        if **fq_class_name == "HH\\Container" {
             // dict<string, Foo>|Container<Bar> => Container<Foo|Bar>
             if let Some(ref dict_types) = combination.dict_type_params {
                 let container_value_type = if let Some((_, container_types)) =
@@ -659,7 +656,7 @@ fn scrape_type_properties(
             }
         }
 
-        if fq_class_name == "HH\\KeyedContainer" || fq_class_name == "HH\\AnyArray" {
+        if **fq_class_name == "HH\\KeyedContainer" || **fq_class_name == "HH\\AnyArray" {
             merge_array_subtype(combination, fq_class_name, codebase);
         }
 
@@ -771,7 +768,7 @@ fn scrape_type_properties(
                     }
                 } else {
                     if codebase.interface_extends(existing_name, fq_class_name) {
-                        types_to_remove.push(existing_name.clone());
+                        types_to_remove.push((**existing_name).clone());
                         continue;
                     }
 
@@ -994,10 +991,10 @@ fn scrape_type_properties(
 
 fn merge_array_subtype(
     combination: &mut TypeCombination,
-    fq_class_name: &String,
+    fq_class_name: &Arc<String>,
     codebase: Option<&CodebaseInfo>,
 ) {
-    let keyed_container_types = combination.object_type_params.get(fq_class_name);
+    let keyed_container_types = combination.object_type_params.get(&**fq_class_name);
     // dict<string, Foo>|KeyedContainer<int, Bar> => KeyedContainer<string|int, Foo|Bar>
     if let Some(ref dict_types) = combination.dict_type_params {
         let container_key_type = if let Some((_, keyed_container_types)) = keyed_container_types {
@@ -1021,7 +1018,7 @@ fn merge_array_subtype(
             dict_types.1.clone()
         };
         combination.object_type_params.insert(
-            fq_class_name.clone(),
+            (**fq_class_name).clone(),
             (
                 fq_class_name.clone(),
                 vec![container_key_type, container_value_type],
@@ -1033,7 +1030,7 @@ fn merge_array_subtype(
     }
     // vec<Foo>|KeyedContainer<string, Bar> => Container<int|string, Foo|Bar>
     if let Some(ref value_param) = combination.vec_type_param {
-        let keyed_container_types = combination.object_type_params.get(fq_class_name);
+        let keyed_container_types = combination.object_type_params.get(&**fq_class_name);
         let container_key_type = if let Some((_, keyed_container_types)) = keyed_container_types {
             combine_union_types(
                 keyed_container_types.get(0).unwrap(),
@@ -1056,7 +1053,7 @@ fn merge_array_subtype(
             value_param.clone()
         };
         combination.object_type_params.insert(
-            fq_class_name.clone(),
+            (**fq_class_name).clone(),
             (
                 fq_class_name.clone(),
                 vec![container_key_type, container_value_type],

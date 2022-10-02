@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::scope_context::ScopeContext;
 use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
@@ -108,7 +110,7 @@ pub(crate) fn analyze(
     if functionlike_storage.is_async {
         let parent_nodes = inferred_return_type.parent_nodes.clone();
         inferred_return_type = wrap_atomic(TAtomic::TNamedObject {
-            name: "HH\\Awaitable".to_string(),
+            name: Arc::new("HH\\Awaitable".to_string()),
             type_params: Some(vec![inferred_return_type]),
             is_this: false,
             extra_types: None,
@@ -375,7 +377,7 @@ pub(crate) fn analyze(
     } else if !expected_return_type.is_void()
         && !functionlike_storage.has_yield
         && !functionlike_storage.is_async
-        && functionlike_storage.name != "__construct"
+        && *functionlike_storage.name != "__construct"
     {
         tast_info.maybe_add_issue(
             Issue::new(

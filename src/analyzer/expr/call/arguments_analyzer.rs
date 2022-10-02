@@ -101,7 +101,7 @@ pub(crate) fn check_arguments_match(
     };
 
     if let Some(method_id) = functionlike_id.as_method_identifier() {
-        let static_fq_class_name = fq_classlike_name.unwrap().to_string();
+        let static_fq_class_name = fq_classlike_name.unwrap();
         let mut self_fq_classlike_name = static_fq_class_name.clone();
 
         let declaring_method_id = codebase.get_declaring_method_id(&method_id);
@@ -437,7 +437,7 @@ pub(crate) fn check_arguments_match(
         if function_param.is_inout {
             // First inout param for HH\Shapes::removeKey is already handled
             if if let FunctionLikeIdentifier::Method(classname, method_name) = functionlike_id {
-                classname != "HH\\Shapes" || method_name != "removeKey"
+                **classname != "HH\\Shapes" || method_name != "removeKey"
             } else {
                 true
             } {
@@ -656,12 +656,12 @@ fn handle_closure_arg(
 
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
-                if (function_name == "HH\\Lib\\Vec\\map"
-                    || function_name == "HH\\Lib\\Dict\\map"
-                    || function_name == "HH\\Lib\\Keyset\\map"
-                    || function_name == "HH\\Lib\\Vec\\filter"
-                    || function_name == "HH\\Lib\\Dict\\filter"
-                    || function_name == "HH\\Lib\\Keyset\\filter")
+                if (**function_name == "HH\\Lib\\Vec\\map"
+                    || **function_name == "HH\\Lib\\Dict\\map"
+                    || **function_name == "HH\\Lib\\Keyset\\map"
+                    || **function_name == "HH\\Lib\\Vec\\filter"
+                    || **function_name == "HH\\Lib\\Dict\\filter"
+                    || **function_name == "HH\\Lib\\Keyset\\filter")
                     && param_offset == 0
                 {
                     if let Some(ref mut signature_type) = param_storage.signature_type {
@@ -675,10 +675,10 @@ fn handle_closure_arg(
                         );
                     }
                 }
-                if (function_name == "HH\\Lib\\Vec\\map_with_key"
-                    || function_name == "HH\\Lib\\Dict\\map_with_key"
-                    || function_name == "HH\\Lib\\Keyset\\map_with_key"
-                    || function_name == "HH\\Lib\\Dict\\map_with_key_async")
+                if (**function_name == "HH\\Lib\\Vec\\map_with_key"
+                    || **function_name == "HH\\Lib\\Dict\\map_with_key"
+                    || **function_name == "HH\\Lib\\Keyset\\map_with_key"
+                    || **function_name == "HH\\Lib\\Dict\\map_with_key_async")
                     && param_offset == 1
                 {
                     if let Some(ref mut signature_type) = param_storage.signature_type {
@@ -702,7 +702,7 @@ fn handle_closure_arg(
 }
 
 fn map_class_generic_params(
-    class_generic_params: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
+    class_generic_params: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
     arg_value_type: &mut TUnion,
@@ -947,7 +947,7 @@ fn refine_template_result_for_functionlike(
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     functionlike_storage: &FunctionLikeInfo,
-    class_template_params: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
+    class_template_params: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
 ) {
     let template_types = get_template_types_for_call(
         codebase,
@@ -979,11 +979,11 @@ pub(crate) fn get_template_types_for_call(
     codebase: &CodebaseInfo,
     tast_info: &mut TastInfo,
     declaring_classlike_storage: Option<&ClassLikeInfo>,
-    appearing_class_name: Option<&String>,
+    appearing_class_name: Option<&Arc<String>>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
-    existing_template_types: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
-    class_template_params: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
-) -> IndexMap<String, FxHashMap<String, TUnion>> {
+    existing_template_types: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
+    class_template_params: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
+) -> IndexMap<String, FxHashMap<Arc<String>, TUnion>> {
     let mut template_types = existing_template_types.clone();
 
     if let Some(declaring_classlike_storage) = declaring_classlike_storage {

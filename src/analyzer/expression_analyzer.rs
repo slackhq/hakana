@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::custom_hook::AfterExprAnalysisData;
 use crate::expr::call::new_analyzer;
@@ -549,7 +550,7 @@ pub(crate) fn analyze(
                     ..
                 } = atomic_type
                 {
-                    if name == "HH\\Awaitable" && type_params.len() == 1 {
+                    if *name == "HH\\Awaitable" && type_params.len() == 1 {
                         let mut inside_type = type_params.get(0).unwrap().clone();
                         inside_type.parent_nodes = awaited_stmt_type.parent_nodes.clone();
 
@@ -596,12 +597,12 @@ pub(crate) fn analyze(
             let class_name = if let Some(id) = &boxed.0 {
                 let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                Some(
+                Some(Arc::new(
                     resolved_names
                         .get(&id.0.start_offset())
                         .cloned()
                         .unwrap_or(id.1.clone()),
-                )
+                ))
             } else {
                 None
             };
@@ -670,10 +671,12 @@ fn analyze_function_pointer(
         aast::FunctionPtrId::FPId(id) => FunctionLikeIdentifier::Function({
             let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-            resolved_names
-                .get(&id.0.start_offset())
-                .cloned()
-                .unwrap_or(id.1.clone())
+            Arc::new(
+                resolved_names
+                    .get(&id.0.start_offset())
+                    .cloned()
+                    .unwrap_or(id.1.clone()),
+            )
         }),
         aast::FunctionPtrId::FPClassConst(class_id, method_name) => {
             let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;

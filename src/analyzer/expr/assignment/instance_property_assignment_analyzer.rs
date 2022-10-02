@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
@@ -186,7 +186,7 @@ pub(crate) fn analyze_regular_assignment(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     prop_name: &String,
-) -> Vec<(TUnion, (String, String), TUnion)> {
+) -> Vec<(TUnion, (Arc<String>, String), TUnion)> {
     let stmt_var = expr.0;
 
     let mut assigned_properties = Vec::new();
@@ -326,29 +326,13 @@ pub(crate) fn analyze_atomic_assignment(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     prop_name: &String,
-) -> Option<(TUnion, (String, String), TUnion)> {
+) -> Option<(TUnion, (Arc<String>, String), TUnion)> {
     let codebase = statements_analyzer.get_codebase();
-    let mut fq_class_name = if let TAtomic::TNamedObject { name, .. } = lhs_type_part {
+    let fq_class_name = if let TAtomic::TNamedObject { name, .. } = lhs_type_part {
         name.clone()
     } else {
         return None;
     };
-
-    if !codebase.class_exists(&lhs_type_part.get_id()) {
-        if codebase.interface_exists(&lhs_type_part.get_id()) {
-            let intersection_types = lhs_type_part.get_intersection_types();
-            for (_, intersection_type) in intersection_types.0 {
-                if codebase.class_exists(&intersection_type.get_id()) {
-                    fq_class_name = intersection_type.get_id();
-                }
-            }
-            for (_, intersection_type) in intersection_types.1 {
-                if codebase.class_exists(&intersection_type.get_id()) {
-                    fq_class_name = intersection_type.get_id();
-                }
-            }
-        }
-    }
 
     let property_id = (fq_class_name.clone(), prop_name.clone());
 
@@ -463,8 +447,8 @@ fn add_instance_property_dataflow(
     context: &mut ScopeContext,
     assignment_value_type: &TUnion,
     prop_name: &String,
-    fq_class_name: &String,
-    property_id: &(String, String),
+    fq_class_name: &Arc<String>,
+    property_id: &(Arc<String>, String),
 ) -> () {
     let codebase = statements_analyzer.get_codebase();
 
@@ -504,7 +488,7 @@ fn add_instance_property_assignment_dataflow(
     lhs_var_id: String,
     var_pos: &Pos,
     name_pos: &Pos,
-    property_id: &(String, String),
+    property_id: &(Arc<String>, String),
     assignment_value_type: &TUnion,
     context: &mut ScopeContext,
 ) {
@@ -547,13 +531,13 @@ fn add_instance_property_assignment_dataflow(
 
 pub(crate) fn add_unspecialized_property_assignment_dataflow(
     statements_analyzer: &StatementsAnalyzer,
-    property_id: &(String, String),
+    property_id: &(Arc<String>, String),
     stmt_name_pos: &Pos,
     var_pos: Option<&Pos>,
     tast_info: &mut TastInfo,
     assignment_value_type: &TUnion,
     codebase: &CodebaseInfo,
-    fq_class_name: &String,
+    fq_class_name: &Arc<String>,
     prop_name: &String,
 ) {
     let localized_property_node = DataFlowNode::get_for_assignment(

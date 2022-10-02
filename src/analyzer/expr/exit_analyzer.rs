@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -32,7 +34,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             &arg_type.unwrap_or(get_mixed_any()),
             &get_arraykey(false),
-            &FunctionLikeIdentifier::Function("exit".to_string()),
+            &FunctionLikeIdentifier::Function(Arc::new("exit".to_string())),
             i,
             arg_expr,
             context,

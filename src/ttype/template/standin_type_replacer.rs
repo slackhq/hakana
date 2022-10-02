@@ -25,7 +25,7 @@ pub fn replace(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&String>,
+    calling_class: Option<&Arc<String>>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,                             // true
     add_lower_bound: bool,                     // false
@@ -104,7 +104,7 @@ fn handle_atomic_standin(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&String>,
+    calling_class: Option<&Arc<String>>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
@@ -114,9 +114,9 @@ fn handle_atomic_standin(
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
     let normalized_key = if let TAtomic::TNamedObject { name, .. } = atomic_type {
-        name.clone()
+        (**name).clone()
     } else if let TAtomic::TTypeAlias { name, .. } = atomic_type {
-        name.clone()
+        (**name).clone()
     } else {
         key.clone()
     };
@@ -265,7 +265,7 @@ fn replace_atomic(
     codebase: &CodebaseInfo,
     input_type: Option<TAtomic>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&String>,
+    calling_class: Option<&Arc<String>>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
@@ -481,13 +481,15 @@ fn replace_atomic(
                             | TAtomic::TKeyset { .. } => {
                                 let (key_param, value_param) =
                                     get_arrayish_params(&input_inner, codebase).unwrap();
-                                if name == "HH\\KeyedContainer" || name == "HH\\KeyedTraversable" {
+                                if **name == "HH\\KeyedContainer"
+                                    || **name == "HH\\KeyedTraversable"
+                                {
                                     if offset == 0 {
                                         Some(key_param)
                                     } else {
                                         Some(value_param)
                                     }
-                                } else if name == "HH\\Container" || name == "HH\\Traversable" {
+                                } else if **name == "HH\\Container" || **name == "HH\\Traversable" {
                                     Some(value_param)
                                 } else {
                                     None
@@ -677,7 +679,7 @@ fn handle_template_param_standin(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&String>,
+    calling_class: Option<&Arc<String>>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
@@ -804,10 +806,11 @@ fn handle_template_param_standin(
                     ..
                 } = replacement_atomic_type
                 {
-                    if replacement_defining_entity != calling_class.unwrap_or(&"".to_string())
+                    if (calling_function.is_none()
+                        || replacement_defining_entity != calling_class.unwrap())
                         && (calling_function.is_none()
-                            || replacement_defining_entity
-                                != &format!("fn-{}", calling_function.unwrap().to_string()))
+                            || **replacement_defining_entity
+                                != format!("fn-{}", calling_function.unwrap().to_string()))
                     {
                         for (_, nested_type_atomic) in &replacement_as_type.types {
                             replacements_found = true;
@@ -1066,7 +1069,7 @@ fn handle_template_param_class_standin(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&String>,
+    calling_class: Option<&Arc<String>>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
@@ -1082,8 +1085,10 @@ fn handle_template_param_class_standin(
     } = atomic_type
     {
         let mut atomic_type_as = *as_type.clone();
-        if defining_entity == calling_class.unwrap_or(&"".to_string()) {
-            return vec![atomic_type.clone()];
+        if let Some(calling_class) = calling_class {
+            if defining_entity == calling_class {
+                return vec![atomic_type.clone()];
+            }
         }
 
         let mut atomic_types = vec![];
@@ -1240,7 +1245,7 @@ fn handle_template_param_type_standin(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&String>,
+    calling_class: Option<&Arc<String>>,
     depth: usize,
     was_single: bool,
 ) -> Vec<TAtomic> {
@@ -1250,8 +1255,10 @@ fn handle_template_param_type_standin(
         ..
     } = atomic_type
     {
-        if defining_entity == calling_class.unwrap_or(&"".to_string()) {
-            return vec![atomic_type.clone()];
+        if let Some(calling_class) = calling_class {
+            if defining_entity == calling_class {
+                return vec![atomic_type.clone()];
+            }
         }
 
         let mut atomic_types = vec![];
@@ -1360,7 +1367,7 @@ fn handle_template_param_type_standin(
 }
 
 fn template_types_contains<'a>(
-    template_types: &'a IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
+    template_types: &'a IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
     param_name: &String,
     defining_entity: &String,
 ) -> Option<&'a Arc<TUnion>> {
@@ -1389,9 +1396,9 @@ fn find_matching_atomic_types_for_template(
 
     for (input_key, atomic_input_type) in &input_type.types {
         let input_key = &if let TAtomic::TNamedObject { name, .. } = atomic_input_type {
-            name.clone()
+            (**name).clone()
         } else if let TAtomic::TTypeAlias { name, .. } = atomic_input_type {
-            name.clone()
+            (**name).clone()
         } else {
             input_key.clone()
         };
@@ -1527,7 +1534,7 @@ fn find_matching_atomic_types_for_template(
                     ..
                 } = base_type
                 {
-                    if base_name == "HH\\EnumClass\\Label" {
+                    if **base_name == "HH\\EnumClass\\Label" {
                         let enum_type = if let Some(class_name) = class_name {
                             TAtomic::TNamedObject {
                                 name: class_name.clone(),
@@ -1580,7 +1587,7 @@ fn find_matching_atomic_types_for_template(
 pub(crate) fn get_mapped_generic_type_params(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
-    container_name: &String,
+    container_name: &Arc<String>,
     container_remapped_params: bool,
 ) -> Vec<TUnion> {
     let mut input_type_params = match input_type_part {
@@ -1606,7 +1613,7 @@ pub(crate) fn get_mapped_generic_type_params(
 
     let mut i = 0;
 
-    let mut replacement_templates: IndexMap<String, FxHashMap<String, TUnion>> = IndexMap::new();
+    let mut replacement_templates = IndexMap::new();
 
     if matches!(
         input_type_part,
@@ -1714,7 +1721,7 @@ pub(crate) fn get_mapped_generic_type_params(
 
 pub fn get_extended_templated_types<'a>(
     atomic_type: &'a TAtomic,
-    extends: &'a FxHashMap<String, IndexMap<String, Arc<TUnion>>>,
+    extends: &'a FxHashMap<Arc<String>, IndexMap<String, Arc<TUnion>>>,
 ) -> Vec<&'a TAtomic> {
     let mut extra_added_types = Vec::new();
 
@@ -1746,10 +1753,10 @@ pub fn get_extended_templated_types<'a>(
 }
 
 pub(crate) fn get_root_template_type(
-    lower_bounds: &IndexMap<String, FxHashMap<String, Vec<TemplateBound>>>,
+    lower_bounds: &IndexMap<String, FxHashMap<Arc<String>, Vec<TemplateBound>>>,
     param_name: &String,
     defining_entity: &String,
-    mut visited_entities: FxHashSet<String>,
+    mut visited_entities: FxHashSet<Arc<String>>,
     codebase: Option<&CodebaseInfo>,
 ) -> Option<TUnion> {
     if visited_entities.contains(defining_entity) {

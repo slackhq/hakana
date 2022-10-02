@@ -37,6 +37,8 @@ impl<'a> ClassLikeAnalyzer<'a> {
         let codebase = self.file_analyzer.get_codebase();
         let classlike_storage = codebase.classlike_infos.get(&name).unwrap();
 
+        let name = classlike_storage.name.clone();
+
         for parent_class in &classlike_storage.all_parent_classes {
             analysis_result
                 .symbol_references

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use rustc_hash::FxHashMap;
 
@@ -43,7 +43,7 @@ pub(crate) fn fetch(
         functionlike_storage
             .return_type
             .clone()
-            .unwrap_or(if method_id.0 == "__toString" {
+            .unwrap_or(if method_id.1 == "__toString" {
                 get_string()
             } else {
                 get_mixed_any()
@@ -57,12 +57,13 @@ pub(crate) fn fetch(
     let mut template_result = template_result.clone();
 
     if !functionlike_storage.template_types.is_empty() {
+        let fn_id = Arc::new(format!("fn-{}", method_id.to_string()));
         for (template_name, _) in &functionlike_storage.template_types {
             template_result
                 .lower_bounds
                 .entry(template_name.clone())
                 .or_insert(FxHashMap::from_iter([(
-                    format!("fn-{}", method_id.to_string()),
+                    fn_id.clone(),
                     vec![TemplateBound::new(get_nothing(), 1, None, None)],
                 )]));
         }
@@ -132,7 +133,7 @@ pub(crate) fn fetch(
 }
 
 fn get_special_method_return(method_id: &MethodIdentifier) -> Option<TUnion> {
-    if (method_id.0 == "DateTime" || method_id.0 == "DateTimeImmutable")
+    if (*method_id.0 == "DateTime" || *method_id.0 == "DateTimeImmutable")
         && method_id.1 == "createFromFormat"
     {
         let mut false_or_datetime = TUnion::new(vec![
@@ -149,10 +150,10 @@ fn get_special_method_return(method_id: &MethodIdentifier) -> Option<TUnion> {
         return Some(false_or_datetime);
     }
 
-    if method_id.0 == "DOMDocument" && method_id.1 == "createElement" {
+    if *method_id.0 == "DOMDocument" && method_id.1 == "createElement" {
         let mut false_or_domelement = TUnion::new(vec![
             TAtomic::TNamedObject {
-                name: "DOMElement".to_string(),
+                name: Arc::new("DOMElement".to_string()),
                 type_params: None,
                 is_this: false,
                 extra_types: None,

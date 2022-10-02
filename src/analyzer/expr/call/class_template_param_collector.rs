@@ -14,7 +14,7 @@ pub(crate) fn collect(
     static_class_storage: &ClassLikeInfo,
     lhs_type_part: Option<&TAtomic>, // default None
     self_call: bool,                 // default false
-) -> Option<IndexMap<String, FxHashMap<String, TUnion>>> {
+) -> Option<IndexMap<String, FxHashMap<Arc<String>, TUnion>>> {
     let template_types = &class_storage.template_types;
 
     if template_types.is_empty() {
@@ -148,9 +148,9 @@ pub(crate) fn resolve_template_param(
                 }
             } else if let Some(input_type_extends) = static_class_storage
                 .template_extended_params
-                .get(param_name)
-                .unwrap_or(&IndexMap::new())
                 .get(defining_entity)
+                .unwrap_or(&IndexMap::new())
+                .get(param_name)
             {
                 let nested_output_type = resolve_template_param(
                     codebase,
@@ -182,9 +182,9 @@ pub(crate) fn resolve_template_param(
 fn expand_type(
     codebase: &CodebaseInfo,
     input_type_extends: &Arc<TUnion>,
-    e: &FxHashMap<String, IndexMap<String, Arc<TUnion>>>,
-    static_classlike_name: &String,
-    static_template_types: &IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
+    e: &FxHashMap<Arc<String>, IndexMap<String, Arc<TUnion>>>,
+    static_classlike_name: &Arc<String>,
+    static_template_types: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
 ) -> Vec<TAtomic> {
     let mut output_type_extends = Vec::new();
 

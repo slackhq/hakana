@@ -69,12 +69,13 @@ pub(crate) fn fetch(
     } else {
         if let Some(function_return_type) = &function_storage.return_type {
             if !function_storage.template_types.is_empty() {
+                let fn_id = Arc::new(format!("fn-{}", functionlike_id.to_string()));
                 for (template_name, _) in &function_storage.template_types {
                     if let None = template_result.lower_bounds.get(template_name) {
                         template_result.lower_bounds.insert(
                             template_name.clone(),
                             FxHashMap::from_iter([(
-                                format!("fn-{}", functionlike_id.to_string()),
+                                fn_id.clone(),
                                 vec![TemplateBound::new(get_nothing(), 1, None, None)],
                             )]),
                         );
@@ -515,7 +516,7 @@ fn add_dataflow(
 
         for (param_offset, path_kind) in param_offsets {
             let argument_node = DataFlowNode::get_for_method_argument(
-                functionlike_storage.name.clone(),
+                (*functionlike_storage.name).clone(),
                 param_offset,
                 if let Some(arg) = expr.2.get(param_offset) {
                     Some(statements_analyzer.get_hpos(arg.1.pos()))

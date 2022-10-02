@@ -23,8 +23,8 @@ pub mod typehint_resolver;
 
 #[derive(Clone)]
 struct Context {
-    classlike_name: Option<String>,
-    function_name: Option<String>,
+    classlike_name: Option<Arc<String>>,
+    function_name: Option<Arc<String>>,
     has_yield: bool,
 }
 
@@ -52,6 +52,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         if class_name.starts_with("\\") {
             class_name = class_name[1..].to_string();
         }
+
+        let class_name = Arc::new(class_name);
 
         self.codebase
             .classlikes_in_files
@@ -143,6 +145,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             type_name = resolved_name.clone();
         }
 
+        let type_name = Arc::new(type_name);
+
         self.codebase
             .typedefs_in_files
             .entry((*self.file_source.file_path).clone())
@@ -169,7 +173,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
             let mut h = FxHashMap::default();
             h.insert(
-                "typedef-".to_string() + &type_name,
+                Arc::new("typedef-".to_string() + &type_name),
                 Arc::new(constraint_type.clone()),
             );
 
@@ -339,6 +343,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             name = format!("{}:{}", f.name.0.filename(), f.name.0.start_offset());
         }
 
+        let name = Arc::new(name);
+
         let parent_function_storage = if let Some(parent_function_id) = &c.function_name {
             self.codebase.functionlike_infos.get(parent_function_id)
         } else {
@@ -381,7 +387,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             &mut type_resolution_context,
             None,
             &self.resolved_names,
-            name.clone(),
+            &name.clone(),
             &self.file_source.comments,
             &self.file_source,
             is_anonymous,

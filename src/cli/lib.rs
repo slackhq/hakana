@@ -501,7 +501,7 @@ pub fn init(
             if let Ok(contents) = buf {
                 analysis_config.migration_symbols = contents
                     .lines()
-                    .map(|v| (migration_name.clone(), v.to_string()))
+                    .map(|v| (migration_name.clone(), Arc::new(v.to_string())))
                     .collect();
             } else {
                 println!(

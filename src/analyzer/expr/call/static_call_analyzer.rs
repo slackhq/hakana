@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
@@ -90,7 +92,7 @@ pub(crate) fn analyze(
                             name_string = fq_name.clone();
                         }
 
-                        get_named_object(name_string)
+                        get_named_object(Arc::new(name_string))
                     }
                 }
             } else {

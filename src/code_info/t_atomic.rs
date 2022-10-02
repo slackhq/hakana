@@ -14,7 +14,7 @@ use std::{collections::BTreeMap, sync::Arc};
 pub enum DictKey {
     Int(u32),
     String(String),
-    Enum(String, String),
+    Enum(Arc<String>, String),
 }
 
 impl DictKey {
@@ -22,7 +22,7 @@ impl DictKey {
         match &self {
             DictKey::Int(i) => i.to_string(),
             DictKey::String(k) => "'".to_string() + k.as_str() + "'",
-            DictKey::Enum(c, m) => c.clone() + "::" + m,
+            DictKey::Enum(c, m) => (**c).clone() + "::" + m,
         }
     }
 }
@@ -40,10 +40,10 @@ pub enum TAtomic {
         known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
         params: Option<(TUnion, TUnion)>,
         non_empty: bool,
-        shape_name: Option<String>,
+        shape_name: Option<Arc<String>>,
     },
     TEnum {
-        name: String,
+        name: Arc<String>,
     },
     TFalsyMixed,
     TFalse,
@@ -61,10 +61,10 @@ pub enum TAtomic {
         type_param: TUnion,
     },
     TLiteralClassname {
-        name: String,
+        name: Arc<String>,
     },
     TEnumLiteralCase {
-        enum_name: String,
+        enum_name: Arc<String>,
         member_name: String,
         constraint_type: Option<Box<TAtomic>>,
     },
@@ -78,7 +78,7 @@ pub enum TAtomic {
     TMixed,
     TMixedFromLoopIsset,
     TNamedObject {
-        name: String,
+        name: Arc<String>,
         type_params: Option<Vec<TUnion>>,
         is_this: bool,
         extra_types: Option<FxHashMap<String, TAtomic>>,
@@ -90,7 +90,7 @@ pub enum TAtomic {
     TNull,
     TNum,
     TReference {
-        name: String,
+        name: Arc<String>,
         type_params: Option<Vec<TUnion>>,
     },
     TScalar,
@@ -102,23 +102,23 @@ pub enum TAtomic {
     TTemplateParam {
         param_name: String,
         as_type: TUnion,
-        defining_entity: String,
+        defining_entity: Arc<String>,
         from_class: bool,
         extra_types: Option<FxHashMap<String, TAtomic>>,
     },
     TTemplateParamClass {
         param_name: String,
         as_type: Box<crate::t_atomic::TAtomic>,
-        defining_entity: String,
+        defining_entity: Arc<String>,
     },
     TTemplateParamType {
         param_name: String,
-        defining_entity: String,
+        defining_entity: Arc<String>,
     },
     TTrue,
     TTruthyMixed,
     TTypeAlias {
-        name: String,
+        name: Arc<String>,
         type_params: Option<Vec<TUnion>>,
         as_type: Option<Box<TAtomic>>,
     },
@@ -135,7 +135,7 @@ pub enum TAtomic {
         member_name: String,
     },
     TEnumClassLabel {
-        class_name: Option<String>,
+        class_name: Option<Arc<String>>,
         member_name: String,
     },
 }
@@ -173,12 +173,7 @@ impl TAtomic {
                             format!(
                                 "{}{} => {}",
                                 if *u { "?" } else { "" },
-                                match property {
-                                    DictKey::Int(i) => i.to_string(),
-                                    DictKey::String(k) => "'".to_string() + k.as_str() + "'",
-                                    DictKey::Enum(enum_name, member_name) =>
-                                        enum_name.clone() + "::" + member_name.as_str(),
-                                },
+                                property.to_string(),
                                 property_type.get_id()
                             )
                         })
@@ -208,7 +203,7 @@ impl TAtomic {
                     "dict<nothing, nothing>".to_string()
                 }
             }
-            TAtomic::TEnum { name } => name.clone(),
+            TAtomic::TEnum { name } => (**name).clone(),
             TAtomic::TFalsyMixed { .. } => "falsy-mixed".to_string(),
             TAtomic::TFalse { .. } => "false".to_string(),
             TAtomic::TFloat { .. } => "float".to_string(),
@@ -494,7 +489,7 @@ impl TAtomic {
             TAtomic::TNamedObject {
                 name, type_params, ..
             } => match type_params {
-                None => name.clone(),
+                None => (**name).clone(),
                 Some(type_params) => {
                     let mut str = String::new();
                     str += name.as_str();
@@ -575,7 +570,7 @@ impl TAtomic {
             TAtomic::TNamedObject {
                 name, type_params, ..
             } => match type_params {
-                None => name.clone(),
+                None => (**name).clone(),
                 Some(type_params) => {
                     let covariants =
                         if let Some(classlike_storage) = codebase.classlike_infos.get(name) {
@@ -712,7 +707,7 @@ impl TAtomic {
         }
     }
 
-    pub fn get_shape_name(&self) -> Option<&String> {
+    pub fn get_shape_name(&self) -> Option<&Arc<String>> {
         match self {
             TAtomic::TDict { shape_name, .. } => shape_name.as_ref(),
             _ => None,
@@ -898,7 +893,9 @@ impl TAtomic {
             | &TAtomic::TLiteralClassname { .. }
             | &TAtomic::TClassname { .. } => true,
             &TAtomic::TNamedObject { name, .. } => {
-                name != "HH\\Container" && name != "HH\\KeyedContainer" && name != "HH\\AnyArray"
+                **name != "HH\\Container"
+                    && **name != "HH\\KeyedContainer"
+                    && **name != "HH\\AnyArray"
             }
             &TAtomic::TLiteralInt { value, .. } => {
                 if *value != 0 {
@@ -1012,7 +1009,7 @@ impl TAtomic {
         match self {
             TAtomic::TDict { .. } | TAtomic::TKeyset { .. } => true,
             TAtomic::TNamedObject { name, .. } => {
-                name == "HH\\KeyedContainer" || name == "HH\\AnyArray"
+                **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray"
             }
             _ => false,
         }
@@ -1022,7 +1019,9 @@ impl TAtomic {
         match self {
             TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => true,
             TAtomic::TNamedObject { name, .. } => {
-                name == "HH\\KeyedContainer" || name == "HH\\Container" || name == "HH\\AnyArray"
+                **name == "HH\\KeyedContainer"
+                    || **name == "HH\\Container"
+                    || **name == "HH\\AnyArray"
             }
             _ => false,
         }
@@ -1165,7 +1164,7 @@ impl TAtomic {
                 ..
             } => {
                 if let Some(type_params) = type_params {
-                    if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
+                    if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
                         if let Some(key_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = key_param.get_single() {
                                 *key_param =
@@ -1178,7 +1177,7 @@ impl TAtomic {
                                 *value_param = TUnion::new(vec![TAtomic::TMixedAny]);
                             }
                         }
-                    } else if name == "HH\\Container" {
+                    } else if **name == "HH\\Container" {
                         if let Some(value_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = value_param.get_single() {
                                 *value_param = TUnion::new(vec![TAtomic::TMixedAny]);

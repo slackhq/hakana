@@ -11,6 +11,7 @@ use oxidized::aast;
 use oxidized::ast_defs;
 use rustc_hash::FxHashSet;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use super::assignment::instance_property_assignment_analyzer::add_unspecialized_property_assignment_dataflow;
 
@@ -34,6 +35,8 @@ pub(crate) fn analyze(
     if let Some(fq_name) = resolved_names.get(&boxed.0 .0.start_offset()) {
         name_string = fq_name.clone();
     }
+
+    let name_string = Arc::new(name_string.clone());
 
     tast_info
         .symbol_references
@@ -83,7 +86,7 @@ pub(crate) fn analyze(
 
 fn analyze_xhp_attribute_assignment(
     statements_analyzer: &StatementsAnalyzer,
-    element_name: &String,
+    element_name: &Arc<String>,
     attribute_info: &aast::XhpSimple<(), ()>,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
@@ -135,11 +138,11 @@ fn analyze_xhp_attribute_assignment(
                     {
                         // We allow input value attributes to have user-submitted values
                         // because that's to be expected
-                        if element_name == "Facebook\\XHP\\HTML\\label"
+                        if **element_name == "Facebook\\XHP\\HTML\\label"
                             && attribute_info.name.1 == "for"
                         {
                             // do nothing
-                        } else if element_name == "Facebook\\XHP\\HTML\\meta"
+                        } else if **element_name == "Facebook\\XHP\\HTML\\meta"
                             && attribute_info.name.1 == "content"
                         {
                             // do nothing
@@ -148,42 +151,42 @@ fn analyze_xhp_attribute_assignment(
                             || attribute_info.name.1 == "lang"
                         {
                             // do nothing
-                        } else if (element_name == "Facebook\\XHP\\HTML\\input"
-                            || element_name == "Facebook\\XHP\\HTML\\option")
+                        } else if (**element_name == "Facebook\\XHP\\HTML\\input"
+                            || **element_name == "Facebook\\XHP\\HTML\\option")
                             && (attribute_info.name.1 == "value"
                                 || attribute_info.name.1 == "checked")
                         {
                             // do nothing
-                        } else if (element_name == "Facebook\\XHP\\HTML\\a"
-                            || element_name == "Facebook\\XHP\\HTML\\area"
-                            || element_name == "Facebook\\XHP\\HTML\\base"
-                            || element_name == "Facebook\\XHP\\HTML\\link")
+                        } else if (**element_name == "Facebook\\XHP\\HTML\\a"
+                            || **element_name == "Facebook\\XHP\\HTML\\area"
+                            || **element_name == "Facebook\\XHP\\HTML\\base"
+                            || **element_name == "Facebook\\XHP\\HTML\\link")
                             && attribute_info.name.1 == "href"
                         {
                             taints.insert(SinkType::HtmlAttributeUri);
-                        } else if element_name == "Facebook\\XHP\\HTML\\body"
+                        } else if **element_name == "Facebook\\XHP\\HTML\\body"
                             && attribute_info.name.1 == "background"
                         {
                             taints.insert(SinkType::HtmlAttributeUri);
-                        } else if element_name == "Facebook\\XHP\\HTML\\form"
+                        } else if **element_name == "Facebook\\XHP\\HTML\\form"
                             && attribute_info.name.1 == "action"
                         {
                             taints.insert(SinkType::HtmlAttributeUri);
-                        } else if (element_name == "Facebook\\XHP\\HTML\\button"
-                            || element_name == "Facebook\\XHP\\HTML\\input")
+                        } else if (**element_name == "Facebook\\XHP\\HTML\\button"
+                            || **element_name == "Facebook\\XHP\\HTML\\input")
                             && attribute_info.name.1 == "formaction"
                         {
                             taints.insert(SinkType::HtmlAttributeUri);
-                        } else if (element_name == "Facebook\\XHP\\HTML\\iframe"
-                            || element_name == "Facebook\\XHP\\HTML\\img"
-                            || element_name == "Facebook\\XHP\\HTML\\script"
-                            || element_name == "Facebook\\XHP\\HTML\\audio"
-                            || element_name == "Facebook\\XHP\\HTML\\video"
-                            || element_name == "Facebook\\XHP\\HTML\\source")
+                        } else if (**element_name == "Facebook\\XHP\\HTML\\iframe"
+                            || **element_name == "Facebook\\XHP\\HTML\\img"
+                            || **element_name == "Facebook\\XHP\\HTML\\script"
+                            || **element_name == "Facebook\\XHP\\HTML\\audio"
+                            || **element_name == "Facebook\\XHP\\HTML\\video"
+                            || **element_name == "Facebook\\XHP\\HTML\\source")
                             && attribute_info.name.1 == "src"
                         {
                             taints.insert(SinkType::HtmlAttributeUri);
-                        } else if element_name == "Facebook\\XHP\\HTML\\video"
+                        } else if **element_name == "Facebook\\XHP\\HTML\\video"
                             && attribute_info.name.1 == "poster"
                         {
                             taints.insert(SinkType::HtmlAttributeUri);

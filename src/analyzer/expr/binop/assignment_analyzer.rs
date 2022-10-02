@@ -410,7 +410,7 @@ fn analyze_list_assignment(
                 ..
             } = assign_value_atomic_type
             {
-                if name == "HH\\Vector" {
+                if **name == "HH\\Vector" {
                     type_params[0].clone()
                 } else {
                     get_nothing()

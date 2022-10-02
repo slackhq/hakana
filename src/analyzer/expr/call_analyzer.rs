@@ -136,10 +136,10 @@ pub(crate) fn check_template_result(
 }
 
 pub(crate) fn get_generic_param_for_offset(
-    classlike_name: &String,
+    classlike_name: &Arc<String>,
     template_name: &String,
-    template_extended_params: &FxHashMap<String, IndexMap<String, Arc<TUnion>>>,
-    found_generic_params: &FxHashMap<String, FxHashMap<String, Arc<TUnion>>>,
+    template_extended_params: &FxHashMap<Arc<String>, IndexMap<String, Arc<TUnion>>>,
+    found_generic_params: &FxHashMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
 ) -> Arc<TUnion> {
     if let Some(found_generic_param) =
         if let Some(result_map) = found_generic_params.get(template_name) {

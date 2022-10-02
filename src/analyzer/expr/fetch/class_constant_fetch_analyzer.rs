@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
@@ -100,11 +102,11 @@ pub(crate) fn analyze(
 
 pub(crate) fn get_id_name(
     id: &Box<oxidized::ast_defs::Id>,
-    calling_class: &Option<String>,
+    calling_class: &Option<Arc<String>>,
     codebase: &CodebaseInfo,
     is_static: &mut bool,
     resolved_names: &FxHashMap<usize, String>,
-) -> Option<String> {
+) -> Option<Arc<String>> {
     Some(match id.1.as_str() {
         "self" => {
             let self_name = if let Some(calling_class) = calling_class {
@@ -142,7 +144,7 @@ pub(crate) fn get_id_name(
                 name_string = fq_name.clone();
             }
 
-            name_string
+            Arc::new(name_string)
         }
     })
 }
@@ -151,7 +153,7 @@ fn analyse_known_class_constant(
     codebase: &CodebaseInfo,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
-    classlike_name: &String,
+    classlike_name: &Arc<String>,
     const_name: &String,
     is_this: bool,
 ) -> Option<TUnion> {

@@ -38,7 +38,7 @@ pub fn infer(
                                     }
 
                                     Some(wrap_atomic(TAtomic::TLiteralClassname {
-                                        name: name_string,
+                                        name: Arc::new(name_string),
                                     }))
                                 }
                             }

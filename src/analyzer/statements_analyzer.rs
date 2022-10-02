@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::config::Config;
 use crate::file_analyzer::FileAnalyzer;
 use crate::formula_generator::AssertionContext;
@@ -98,7 +100,7 @@ impl<'a> StatementsAnalyzer<'a> {
     #[inline]
     pub(crate) fn get_assertion_context<'b>(
         &'b self,
-        this_class_name: Option<&'a String>,
+        this_class_name: Option<&'a Arc<String>>,
     ) -> AssertionContext {
         AssertionContext {
             file_source: self.get_file_analyzer().get_file_source(),

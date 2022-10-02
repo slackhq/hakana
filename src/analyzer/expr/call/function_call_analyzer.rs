@@ -92,6 +92,8 @@ pub(crate) fn analyze(
         return false;
     };
 
+    let name = function_storage.name.clone();
+
     tast_info
         .symbol_references
         .add_reference_to_symbol(&context.function_context, name.clone());
@@ -199,16 +201,16 @@ pub(crate) fn analyze(
         context.has_returned = true;
     }
 
-    if name == "HH\\invariant" {
+    if *name == "HH\\invariant" {
         if let Some((_, first_arg)) = &expr.2.get(0) {
             process_function_effects(first_arg, context, statements_analyzer, tast_info);
         }
-    } else if name == "HH\\Lib\\C\\contains_key"
-        || name == "HH\\Lib\\Dict\\contains_key"
-        || name == "HH\\Lib\\C\\contains"
-        || name == "HH\\Lib\\Dict\\contains"
+    } else if *name == "HH\\Lib\\C\\contains_key"
+        || *name == "HH\\Lib\\Dict\\contains_key"
+        || *name == "HH\\Lib\\C\\contains"
+        || *name == "HH\\Lib\\Dict\\contains"
     {
-        if name == "HH\\Lib\\C\\contains_key" || name == "HH\\Lib\\Dict\\contains_key" {
+        if *name == "HH\\Lib\\C\\contains_key" || *name == "HH\\Lib\\Dict\\contains_key" {
             let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].1,
                 context.function_context.calling_class.as_ref(),
@@ -279,7 +281,7 @@ pub(crate) fn analyze(
                 );
             }
         }
-    } else if name == "HH\\Lib\\Str\\starts_with" && expr.2.len() == 2 {
+    } else if *name == "HH\\Lib\\Str\\starts_with" && expr.2.len() == 2 {
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].1,
@@ -314,7 +316,7 @@ pub(crate) fn analyze(
                 }
             }
         }
-    } else if name == "HH\\Lib\\Regex\\matches" && expr.2.len() == 2 {
+    } else if *name == "HH\\Lib\\Regex\\matches" && expr.2.len() == 2 {
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].1,

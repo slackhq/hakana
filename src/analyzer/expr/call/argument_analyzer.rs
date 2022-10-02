@@ -443,8 +443,12 @@ pub(crate) fn verify_type(
     }
 
     if !param_type.is_nullable()
-        && functionlike_id != &FunctionLikeIdentifier::Function("echo".to_string())
-        && functionlike_id != &FunctionLikeIdentifier::Function("print".to_string())
+        && (match functionlike_id {
+            FunctionLikeIdentifier::Function(function_id) => {
+                **function_id != "echo" && **function_id != "print"
+            }
+            FunctionLikeIdentifier::Method(_, _) => true,
+        })
     {
         if input_type.is_null() && !param_type.is_null() {
             tast_info.maybe_add_issue(
@@ -486,8 +490,12 @@ pub(crate) fn verify_type(
     if !param_type.is_falsable()
         && !param_type.has_bool()
         && !param_type.has_scalar()
-        && functionlike_id != &FunctionLikeIdentifier::Function("echo".to_string())
-        && functionlike_id != &FunctionLikeIdentifier::Function("print".to_string())
+        && (match functionlike_id {
+            FunctionLikeIdentifier::Function(function_id) => {
+                **function_id != "echo" && **function_id != "print"
+            }
+            FunctionLikeIdentifier::Method(_, _) => true,
+        })
     {
         if input_type.is_false() {
             tast_info.maybe_add_issue(
@@ -594,7 +602,7 @@ fn add_dataflow(
                             if codebase.declaring_method_exists(&dependent_classlike, &method_name)
                             {
                                 let new_sink = DataFlowNode::get_for_method_argument(
-                                    dependent_classlike.clone() + "::" + method_name,
+                                    (**dependent_classlike).clone() + "::" + method_name,
                                     argument_offset,
                                     None,
                                     None,

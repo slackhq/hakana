@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use function_context::method_identifier::MethodIdentifier;
 use hakana_reflection_info::{
@@ -35,7 +35,7 @@ use super::{
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    mut classlike_name: String,
+    mut classlike_name: Arc<String>,
     method_name: &String,
     call_expr: (
         &Vec<aast::Targ<()>>,
@@ -55,7 +55,7 @@ pub(crate) fn analyze(
         .symbol_references
         .add_reference_to_symbol(&context.function_context, classlike_name.clone());
 
-    if classlike_name == "static" {
+    if *classlike_name == "static" {
         classlike_name = context.function_context.calling_class.clone().unwrap();
     }
 
@@ -94,7 +94,7 @@ pub(crate) fn analyze(
         }
     }
 
-    let class_template_params = if classlike_name != "HH\\Vector" || method_name != "fromItems" {
+    let class_template_params = if *classlike_name != "HH\\Vector" || method_name != "fromItems" {
         class_template_param_collector::collect(
             codebase,
             codebase
@@ -144,7 +144,62 @@ pub(crate) fn analyze(
         );
     }
 
-    if method_id.0 == "HH\\Shapes" && method_id.1 == "keyExists" && call_expr.1.len() == 2 {
+    if *method_id.0 == "HH\\Shapes" {
+        if let Some(value) = handle_shapes_static_method(
+            &method_id,
+            call_expr,
+            context,
+            statements_analyzer,
+            tast_info,
+            pos,
+            codebase,
+        ) {
+            return value;
+        }
+    }
+
+    let return_type_candidate = method_call_return_type_fetcher::fetch(
+        statements_analyzer,
+        tast_info,
+        context,
+        &method_id,
+        &declaring_method_id,
+        lhs_type_part,
+        lhs_var_id,
+        lhs_var_pos,
+        functionlike_storage,
+        classlike_storage,
+        &template_result,
+        pos,
+    );
+
+    // todo check method visibility
+
+    // todo support if_this_is type
+
+    // todo check for method call purity
+
+    // todo apply assertions
+
+    // todo dispatch after method call analysis events
+
+    return_type_candidate
+}
+
+fn handle_shapes_static_method(
+    method_id: &MethodIdentifier,
+    call_expr: (
+        &Vec<oxidized::aast::Targ<()>>,
+        &Vec<(oxidized::ast_defs::ParamKind, oxidized::aast::Expr<(), ()>)>,
+        &Option<oxidized::aast::Expr<(), ()>>,
+    ),
+    context: &mut ScopeContext,
+    statements_analyzer: &StatementsAnalyzer,
+    tast_info: &mut TastInfo,
+    pos: &Pos,
+    codebase: &hakana_reflection_info::codebase_info::CodebaseInfo,
+) -> Option<TUnion> {
+    if method_id.1 == "keyExists" && call_expr.1.len() == 2 {
         let expr_var_id = expression_identifier::get_var_id(
             &call_expr.1[0].1,
             context.function_context.calling_class.as_ref(),
@@ -179,8 +234,7 @@ pub(crate) fn analyze(
             }
         }
     }
-
-    if method_id.0 == "HH\\Shapes" && method_id.1 == "removeKey" && call_expr.1.len() == 2 {
+    if method_id.1 == "removeKey" && call_expr.1.len() == 2 {
         let expr_var_id = expression_identifier::get_var_id(
             &call_expr.1[0].1,
             context.function_context.calling_class.as_ref(),
@@ -233,8 +287,7 @@ pub(crate) fn analyze(
             }
         }
     }
-
-    if method_id.0 == "HH\\Shapes" && method_id.1 == "idx" && call_expr.1.len() >= 2 {
+    if method_id.1 == "idx" && call_expr.1.len() >= 2 {
         let dict_type = tast_info.get_rc_expr_type(call_expr.1[0].1.pos()).cloned();
         let dim_type = tast_info.get_rc_expr_type(call_expr.1[1].1.pos()).cloned();
 
@@ -281,13 +334,12 @@ pub(crate) fn analyze(
             }
         }
 
-        return expr_type.unwrap_or(get_mixed_any());
+        return Some(expr_type.unwrap_or(get_mixed_any()));
     }
-
-    if method_id.0 == "HH\\Shapes" && (method_id.1 == "toDict" || method_id.1 == "toArray") {
+    if method_id.1 == "toDict" || method_id.1 == "toArray" {
         let arg_type = tast_info.get_expr_type(call_expr.1[0].1.pos()).cloned();
 
-        return if let Some(arg_type) = arg_type {
+        return Some(if let Some(arg_type) = arg_type {
             if arg_type.is_mixed() {
                 get_dict(get_arraykey(true), get_mixed_any())
             } else {
@@ -295,33 +347,7 @@ pub(crate) fn analyze(
             }
         } else {
             get_mixed_any()
-        };
+        });
     }
-
-    let return_type_candidate = method_call_return_type_fetcher::fetch(
-        statements_analyzer,
-        tast_info,
-        context,
-        &method_id,
-        &declaring_method_id,
-        lhs_type_part,
-        lhs_var_id,
-        lhs_var_pos,
-        functionlike_storage,
-        classlike_storage,
-        &template_result,
-        pos,
-    );
-
-    // todo check method visibility
-
-    // todo support if_this_is type
-
-    // todo check for method call purity
-
-    // todo apply assertions
-
-    // todo dispatch after method call analysis events
-
-    return_type_candidate
+    None
 }

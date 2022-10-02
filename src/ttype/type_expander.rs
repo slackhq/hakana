@@ -22,14 +22,14 @@ use crate::{template, type_combiner, wrap_atomic};
 #[derive(Debug)]
 pub enum StaticClassType<'a, 'b> {
     None,
-    Name(&'a String),
+    Name(&'a Arc<String>),
     Object(&'b TAtomic),
 }
 
 pub struct TypeExpansionOptions<'a> {
-    pub self_class: Option<&'a String>,
+    pub self_class: Option<&'a Arc<String>>,
     pub static_class_type: StaticClassType<'a, 'a>,
-    pub parent_class: Option<&'a String>,
+    pub parent_class: Option<&'a Arc<String>>,
     pub file_path: Option<&'a String>,
 
     pub evaluate_class_constants: bool,
@@ -179,9 +179,9 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        if name == "this" {
+        if **name == "this" {
             *name = match options.static_class_type {
-                StaticClassType::None => "this".to_string(),
+                StaticClassType::None => Arc::new("this".to_string()),
                 StaticClassType::Name(this_name) => this_name.clone().clone(),
                 StaticClassType::Object(obj) => {
                     skipped_keys.push(key.clone());
@@ -339,8 +339,12 @@ fn expand_atomic(
                     } = v
                     {
                         if let Some(shape_field_taints) = &type_definition.shape_field_taints {
-                            let shape_node =
-                                DataFlowNode::new(type_name.clone(), type_name.clone(), None, None);
+                            let shape_node = DataFlowNode::new(
+                                (**type_name).clone(),
+                                (**type_name).clone(),
+                                None,
+                                None,
+                            );
 
                             for (field_name, taints) in shape_field_taints {
                                 let label = format!("{}[{}]", type_name, field_name.to_string());
@@ -477,7 +481,7 @@ fn expand_atomic(
                         ..
                     } = v
                     {
-                        *shape_name = Some(format!("{}::{}", class_name, member_name));
+                        *shape_name = Some(Arc::new(format!("{}::{}", class_name, member_name)));
                     };
                     v
                 }));
@@ -506,7 +510,7 @@ pub fn get_closure_from_id(
 ) -> Option<TAtomic> {
     match id {
         FunctionLikeIdentifier::Function(name) => {
-            if let Some(functionlike_info) = codebase.functionlike_infos.get(name) {
+            if let Some(functionlike_info) = codebase.functionlike_infos.get(&**name) {
                 return Some(get_expanded_closure(
                     functionlike_info,
                     codebase,

@@ -816,8 +816,8 @@ fn get_value_for_key(
                         ..
                     } = &existing_key_type_part
                     {
-                        if name == "HH\\KeyedContainer" || name == "HH\\Container" {
-                            new_base_type_candidate = if name == "HH\\KeyedContainer" {
+                        if **name == "HH\\KeyedContainer" || **name == "HH\\Container" {
+                            new_base_type_candidate = if **name == "HH\\KeyedContainer" {
                                 type_params[1].clone()
                             } else {
                                 type_params[0].clone()
@@ -899,7 +899,7 @@ fn get_value_for_key(
                         ..
                     } = existing_key_type_part
                     {
-                        if fq_class_name == "stdClass" {
+                        if *fq_class_name == "stdClass" {
                             class_property_type = get_mixed_any();
                         } else if !codebase.class_or_interface_exists(&fq_class_name) {
                             class_property_type = get_mixed_any();
@@ -959,7 +959,7 @@ fn get_value_for_key(
 
 fn get_property_type(
     codebase: &CodebaseInfo,
-    classlike_name: &String,
+    classlike_name: &Arc<String>,
     property_name: &String,
     tast_info: &mut TastInfo,
 ) -> Option<TUnion> {

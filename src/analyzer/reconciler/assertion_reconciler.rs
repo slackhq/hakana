@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::{
     negated_assertion_reconciler,
     reconciler::{trigger_issue_for_impossible, ReconciliationStatus},
@@ -362,10 +364,10 @@ fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            if type_1_name == "XHPChild" {
-                if type_2_name == "HH\\KeyedContainer" {
+            if **type_1_name == "XHPChild" {
+                if **type_2_name == "HH\\KeyedContainer" {
                     let mut atomic = TAtomic::TNamedObject {
-                        name: "HH\\AnyArray".to_string(),
+                        name: Arc::new("HH\\AnyArray".to_string()),
                         type_params: type_2_params.clone(),
                         is_this: false,
                         extra_types: None,
@@ -373,7 +375,7 @@ fn intersect_atomic_with_atomic(
                     };
                     atomic.remove_placeholders();
                     return Some(atomic);
-                } else if type_2_name == "HH\\Container" {
+                } else if **type_2_name == "HH\\Container" {
                     let type_2_params = if let Some(type_2_params) = type_2_params {
                         Some(vec![get_arraykey(true), type_2_params[0].clone()])
                     } else {
@@ -381,7 +383,7 @@ fn intersect_atomic_with_atomic(
                     };
 
                     let mut atomic = TAtomic::TNamedObject {
-                        name: "HH\\AnyArray".to_string(),
+                        name: Arc::new("HH\\AnyArray".to_string()),
                         type_params: type_2_params,
                         is_this: false,
                         extra_types: None,
@@ -448,17 +450,17 @@ fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            let type_1_key_param = if type_1_name == "HH\\Container" {
+            let type_1_key_param = if **type_1_name == "HH\\Container" {
                 get_arraykey(true)
-            } else if type_1_name == "HH\\KeyedContainer" {
+            } else if **type_1_name == "HH\\KeyedContainer" {
                 type_1_params[0].clone()
             } else {
                 return None;
             };
 
-            let type_1_value_param = if type_1_name == "HH\\Container" {
+            let type_1_value_param = if **type_1_name == "HH\\Container" {
                 &type_1_params[0]
-            } else if type_1_name == "HH\\KeyedContainer" {
+            } else if **type_1_name == "HH\\KeyedContainer" {
                 &type_1_params[1]
             } else {
                 return None;

@@ -135,8 +135,8 @@ fn populate_functionlike_storage(storage: &mut FunctionLikeInfo, codebase_symbol
 }
 
 fn populate_classlike_storage(
-    classlike_name: &String,
-    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
+    classlike_name: &Arc<String>,
+    all_classlike_descendants: &mut FxHashMap<Arc<String>, FxHashSet<Arc<String>>>,
     codebase: &mut CodebaseInfo,
 ) {
     let mut storage = if let Some(storage) = codebase.classlike_infos.remove(classlike_name) {
@@ -257,9 +257,9 @@ fn populate_interface_data_from_parent_or_implemented_interface(
 
 fn populate_interface_data_from_parent_interface(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
+    all_classlike_descendants: &mut FxHashMap<Arc<String>, FxHashSet<Arc<String>>>,
     codebase: &mut CodebaseInfo,
-    parent_storage_interface: &String,
+    parent_storage_interface: &Arc<String>,
 ) {
     populate_classlike_storage(
         parent_storage_interface,
@@ -289,9 +289,9 @@ fn populate_interface_data_from_parent_interface(
 
 fn populate_data_from_implemented_interface(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
+    all_classlike_descendants: &mut FxHashMap<Arc<String>, FxHashSet<Arc<String>>>,
     codebase: &mut CodebaseInfo,
-    parent_storage_interface: &String,
+    parent_storage_interface: &Arc<String>,
 ) {
     populate_classlike_storage(
         parent_storage_interface,
@@ -324,9 +324,9 @@ fn populate_data_from_implemented_interface(
 
 fn populate_data_from_parent_classlike(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
+    all_classlike_descendants: &mut FxHashMap<Arc<String>, FxHashSet<Arc<String>>>,
     codebase: &mut CodebaseInfo,
-    parent_storage_class: &String,
+    parent_storage_class: &Arc<String>,
 ) {
     populate_classlike_storage(parent_storage_class, all_classlike_descendants, codebase);
     let parent_storage = codebase.classlike_infos.get(parent_storage_class);
@@ -382,9 +382,9 @@ fn populate_data_from_parent_classlike(
 
 fn populate_data_from_trait(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<String, FxHashSet<String>>,
+    all_classlike_descendants: &mut FxHashMap<Arc<String>, FxHashSet<Arc<String>>>,
     codebase: &mut CodebaseInfo,
-    trait_name: &String,
+    trait_name: &Arc<String>,
 ) {
     populate_classlike_storage(trait_name, all_classlike_descendants, codebase);
     let trait_storage = codebase.classlike_infos.get(trait_name);
@@ -666,7 +666,7 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
 
 fn extend_type(
     type_: &Arc<TUnion>,
-    template_extended_params: &FxHashMap<String, IndexMap<String, Arc<TUnion>>>,
+    template_extended_params: &FxHashMap<Arc<String>, IndexMap<String, Arc<TUnion>>>,
 ) -> Arc<TUnion> {
     if !type_.has_template() {
         return type_.clone();

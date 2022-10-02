@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 fn get_vec_type_from_hint(
     hint: &Hint,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
@@ -32,7 +32,7 @@ fn get_vec_type_from_hint(
 
 fn get_tuple_type_from_hints(
     hints: &Vec<Hint>,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
@@ -62,7 +62,7 @@ fn get_tuple_type_from_hints(
 
 fn get_keyset_type_from_hint(
     hint: &Hint,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
@@ -73,7 +73,7 @@ fn get_keyset_type_from_hint(
 
 fn get_classname_type_from_hint(
     hint: &Hint,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
@@ -108,7 +108,7 @@ fn get_classname_type_from_hint(
 
 fn get_typename_type_from_hint(
     hint: &Hint,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
@@ -142,7 +142,7 @@ fn get_typename_type_from_hint(
 fn get_dict_type_from_hints(
     key_hint: Option<&Hint>,
     value_hint: Option<&Hint>,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
@@ -167,7 +167,7 @@ fn get_dict_type_from_hints(
 
 fn get_shape_type_from_hints(
     shape_info: &NastShapeInfo,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
@@ -196,7 +196,7 @@ fn get_shape_type_from_hints(
                     lhs_name = resolved_name;
                 }
                 known_items.insert(
-                    DictKey::Enum(lhs_name.clone(), name.1.clone()),
+                    DictKey::Enum(Arc::new(lhs_name.clone()), name.1.clone()),
                     (field.optional, Arc::new(field_type)),
                 );
             }
@@ -222,7 +222,7 @@ fn get_shape_type_from_hints(
 
 fn get_function_type_from_hints(
     function_info: &HintFun,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
@@ -288,7 +288,7 @@ fn get_function_type_from_hints(
 fn get_reference_type(
     applied_type: &Id,
     extra_info: &Vec<Hint>,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TAtomic {
@@ -304,7 +304,7 @@ fn get_reference_type(
         let class_name = if let Some(classlike_name) = classlike_name {
             classlike_name.clone()
         } else {
-            "this".to_string()
+            Arc::new("this".to_string())
         };
 
         return TAtomic::TNamedObject {
@@ -323,7 +323,7 @@ fn get_reference_type(
 
     if type_name == "Generator" {
         return TAtomic::TNamedObject {
-            name: "Generator".to_string(),
+            name: Arc::new("Generator".to_string()),
             type_params: if type_params.len() == 3 {
                 Some(vec![
                     type_params.get(0).unwrap().clone(),
@@ -341,7 +341,7 @@ fn get_reference_type(
 
     if type_name == "\\HH\\MemberOf" {
         return TAtomic::TTypeAlias {
-            name: "HH\\MemberOf".to_string(),
+            name: Arc::new("HH\\MemberOf".to_string()),
             type_params: Some(type_params),
             as_type: None,
         };
@@ -355,7 +355,7 @@ fn get_reference_type(
 
     match resolved_name {
         Some(resolved_name) => TAtomic::TReference {
-            name: resolved_name.clone(),
+            name: Arc::new(resolved_name.clone()),
             type_params: if type_params.is_empty() {
                 None
             } else {
@@ -363,7 +363,7 @@ fn get_reference_type(
             },
         },
         None => TAtomic::TReference {
-            name: type_name.clone(),
+            name: Arc::new(type_name.clone()),
             type_params: if type_params.is_empty() {
                 None
             } else {
@@ -374,7 +374,7 @@ fn get_reference_type(
 }
 
 fn get_template_type(
-    defining_entities: &FxHashMap<String, Arc<TUnion>>,
+    defining_entities: &FxHashMap<Arc<String>, Arc<TUnion>>,
     type_name: &String,
 ) -> TAtomic {
     let as_type = defining_entities.values().next().unwrap().clone();
@@ -393,7 +393,7 @@ fn get_template_type(
 
 pub fn get_type_from_hint(
     hint: &Hint_,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> TUnion {
@@ -546,7 +546,7 @@ pub fn get_type_from_hint(
 
 pub fn get_type_from_optional_hint(
     hint: &Option<Hint>,
-    classlike_name: Option<&String>,
+    classlike_name: Option<&Arc<String>>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, String>,
 ) -> Option<TUnion> {

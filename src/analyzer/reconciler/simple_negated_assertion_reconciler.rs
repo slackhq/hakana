@@ -1353,7 +1353,7 @@ fn subtract_null(
                 type_params: None,
                 ..
             } => {
-                if name == "XHPChild" {
+                if **name == "XHPChild" {
                     did_remove_type = true;
                 }
             }

@@ -67,7 +67,7 @@ pub(crate) fn analyze(
             }
 
             wrap_atomic(TAtomic::TTypeAlias {
-                name: "HH\\Lib\\Regex\\Pattern".to_string(),
+                name: Arc::new("HH\\Lib\\Regex\\Pattern".to_string()),
                 type_params: Some(vec![wrap_atomic(TAtomic::TDict {
                     known_items: if !shape_fields.is_empty() {
                         Some(shape_fields)

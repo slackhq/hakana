@@ -467,7 +467,7 @@ fn check_iterator_type(
             ..
         } = iterator_atomic_type
         {
-            if name == "HH\\KeyedContainer" || name == "HH\\KeyedIterator" {
+            if *name == "HH\\KeyedContainer" || *name == "HH\\KeyedIterator" {
                 has_valid_iterator = true;
                 key_type = Some(combine_optional_union_types(
                     key_type.as_ref(),
@@ -479,7 +479,9 @@ fn check_iterator_type(
                     Some(type_params.get(1).unwrap()),
                     Some(codebase),
                 ));
-            } else if name == "HH\\Container" || name == "HH\\Iterator" || name == "HH\\Traversable"
+            } else if *name == "HH\\Container"
+                || *name == "HH\\Iterator"
+                || *name == "HH\\Traversable"
             {
                 has_valid_iterator = true;
                 key_type = Some(combine_optional_union_types(
@@ -493,7 +495,7 @@ fn check_iterator_type(
                     Some(codebase),
                 ));
             } else if is_async {
-                if name == "HH\\AsyncKeyedIterator" {
+                if *name == "HH\\AsyncKeyedIterator" {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
@@ -505,7 +507,7 @@ fn check_iterator_type(
                         Some(type_params.get(1).unwrap()),
                         Some(codebase),
                     ));
-                } else if name == "HH\\AsyncIterator" {
+                } else if *name == "HH\\AsyncIterator" {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),

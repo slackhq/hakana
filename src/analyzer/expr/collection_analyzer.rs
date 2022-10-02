@@ -208,7 +208,7 @@ pub(crate) fn analyze(
             }
             TContainerType::Vector => {
                 let mut new_vec = wrap_atomic(TAtomic::TNamedObject {
-                    name: "HH\\Vector".to_string(),
+                    name: Arc::new("HH\\Vector".to_string()),
                     type_params: Some(vec![get_mixed_any()]),
                     is_this: false,
                     extra_types: None,
@@ -260,7 +260,7 @@ pub(crate) fn analyze(
             tast_info.set_expr_type(
                 &pos,
                 wrap_atomic(TAtomic::TNamedObject {
-                    name: "HH\\Vector".to_string(),
+                    name: Arc::new("HH\\Vector".to_string()),
                     type_params: Some(vec![get_mixed_any()]),
                     is_this: false,
                     extra_types: None,

@@ -59,7 +59,7 @@ pub struct FunctionLikeInfo {
 
     pub return_type_location: Option<HPos>,
 
-    pub name: String,
+    pub name: Arc<String>,
 
     pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
 
@@ -76,7 +76,7 @@ pub struct FunctionLikeInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: IndexMap<String, FxHashMap<String, Arc<TUnion>>>,
+    pub template_types: IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
 
     pub assertions: Option<FxHashMap<usize, Assertion>>,
 
@@ -136,7 +136,7 @@ pub struct FunctionLikeInfo {
 }
 
 impl FunctionLikeInfo {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: Arc<String>) -> Self {
         Self {
             def_location: None,
             name_location: None,

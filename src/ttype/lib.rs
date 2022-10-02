@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
@@ -114,7 +116,7 @@ pub fn get_object() -> TUnion {
 }
 
 #[inline]
-pub fn get_named_object(name: String) -> TUnion {
+pub fn get_named_object(name: Arc<String>) -> TUnion {
     wrap_atomic(TAtomic::TNamedObject {
         name,
         type_params: None,
@@ -419,15 +421,15 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             type_params: Some(type_params),
             ..
         } => {
-            if name == "HH\\KeyedContainer"
-                || name == "HH\\KeyedTraversable"
-                || name == "HH\\AnyArray"
+            if **name == "HH\\KeyedContainer"
+                || **name == "HH\\KeyedTraversable"
+                || **name == "HH\\AnyArray"
             {
                 Some((
                     type_params.get(0).unwrap().clone(),
                     type_params.get(1).unwrap().clone(),
                 ))
-            } else if name == "HH\\Container" || name == "HH\\Traversable" {
+            } else if **name == "HH\\Container" || **name == "HH\\Traversable" {
                 Some((get_arraykey(true), type_params.get(0).unwrap().clone()))
             } else {
                 None
@@ -482,12 +484,12 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             type_params: Some(type_params),
             ..
         } => {
-            if name == "HH\\KeyedContainer"
-                || name == "HH\\KeyedTraversable"
-                || name == "HH\\AnyArray"
+            if **name == "HH\\KeyedContainer"
+                || **name == "HH\\KeyedTraversable"
+                || **name == "HH\\AnyArray"
             {
                 Some(type_params.get(1).unwrap().clone())
-            } else if name == "HH\\Container" || name == "HH\\Traversable" {
+            } else if **name == "HH\\Container" || **name == "HH\\Traversable" {
                 Some(type_params.get(0).unwrap().clone())
             } else {
                 None
@@ -550,8 +552,8 @@ pub fn get_union_syntax_type(
     if t_atomic_strings.len() != 1 && t_atomic_strings.len() == t_object_parents.len() {
         let flattened_parents = t_object_parents
             .into_iter()
-            .map(|(_, v)| v.clone())
-            .collect::<FxHashSet<String>>();
+            .map(|(_, v)| (*v).clone())
+            .collect::<FxHashSet<_>>();
 
         if flattened_parents.len() == 1 {
             t_atomic_strings = flattened_parents;
@@ -598,7 +600,7 @@ pub fn get_atomic_syntax_type(
             ..
         } => {
             if let Some(shape_name) = shape_name {
-                return shape_name.clone();
+                return (**shape_name).clone();
             }
 
             if let Some(known_items) = known_items {
@@ -618,12 +620,7 @@ pub fn get_atomic_syntax_type(
                             format!(
                                 "{}'{}' => {}",
                                 if *pu { "?".to_string() } else { "".to_string() },
-                                match property {
-                                    DictKey::Int(i) => i.to_string(),
-                                    DictKey::String(k) => "'".to_string() + k.as_str() + "'",
-                                    DictKey::Enum(enum_name, member_name) =>
-                                        enum_name.clone() + "::" + member_name.as_str(),
-                                },
+                                property.to_string(),
                                 property_type_string
                             )
                         })
@@ -647,7 +644,7 @@ pub fn get_atomic_syntax_type(
                 "dict<nothing, nothing>".to_string()
             };
         }
-        TAtomic::TEnum { name } => name.clone(),
+        TAtomic::TEnum { name } => (**name).clone(),
         TAtomic::TFalsyMixed { .. } => "mixed".to_string(),
         TAtomic::TFalse { .. } => "bool".to_string(),
         TAtomic::TFloat { .. } => "float".to_string(),
@@ -675,14 +672,14 @@ pub fn get_atomic_syntax_type(
             *is_valid = false;
             "_".to_string()
         }
-        TAtomic::TEnumLiteralCase { enum_name, .. } => enum_name.clone(),
+        TAtomic::TEnumLiteralCase { enum_name, .. } => (**enum_name).clone(),
         TAtomic::TLiteralInt { .. } => "int".to_string(),
         TAtomic::TLiteralString { .. } | TAtomic::TStringWithFlags(..) => "string".to_string(),
         TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => "mixed".to_string(),
         TAtomic::TNamedObject {
             name, type_params, ..
         } => match type_params {
-            None => name.clone(),
+            None => (**name).clone(),
             Some(type_params) => {
                 let mut param_strings = vec![];
                 for param in type_params {
@@ -696,7 +693,7 @@ pub fn get_atomic_syntax_type(
             name, type_params, ..
         } => {
             if let None = type_params {
-                name.clone()
+                (**name).clone()
             } else {
                 *is_valid = false;
                 "_".to_string()

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -9,7 +11,7 @@ use super::fetch::class_constant_fetch_analyzer::get_id_name;
 // gets a var id from a simple variable
 pub fn get_var_id(
     conditional: &aast::Expr<(), ()>,
-    this_class_name: Option<&String>,
+    this_class_name: Option<&Arc<String>>,
     source: &FileSource,
     resolved_names: &FxHashMap<usize, String>,
     codebase: Option<&CodebaseInfo>,
@@ -96,7 +98,7 @@ pub fn get_var_id(
 // gets a the beginning var id from a chain
 pub(crate) fn get_root_var_id(
     conditional: &aast::Expr<(), ()>,
-    this_class_name: Option<&String>,
+    this_class_name: Option<&Arc<String>>,
     source: Option<&FileSource>,
 ) -> Option<String> {
     match &conditional.2 {

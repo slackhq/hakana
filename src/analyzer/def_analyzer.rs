@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::classlike_analyzer::ClassLikeAnalyzer;
 use crate::functionlike_analyzer::FunctionLikeAnalyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -44,7 +46,7 @@ pub(crate) fn analyze(
         }
         aast::Def::Constant(boxed) => {
             let mut context = ScopeContext::new(FunctionContext::new());
-            context.function_context.calling_class = Some(boxed.name.1.clone());
+            context.function_context.calling_class = Some(Arc::new(boxed.name.1.clone()));
             expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed.value,

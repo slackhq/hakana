@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
@@ -14,7 +16,7 @@ struct Scanner {
 }
 
 struct Context {
-    this_class_name: Option<String>,
+    this_class_name: Option<Arc<String>>,
 }
 
 impl Scanner {
@@ -174,7 +176,7 @@ pub fn get_assignment_map(
     pre_conditions: Vec<&aast::Expr<(), ()>>,
     post_expressions: Vec<&aast::Expr<(), ()>>,
     stmts: &Vec<aast::Stmt<(), ()>>,
-    this_class_name: Option<String>,
+    this_class_name: Option<Arc<String>>,
 ) -> (FxHashMap<String, FxHashSet<String>>, Option<String>) {
     let mut scanner = Scanner::new();
     let mut context = Context { this_class_name };

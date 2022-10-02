@@ -26,7 +26,7 @@ use crate::typehint_resolver::get_type_from_hint;
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
     resolved_names: &FxHashMap<usize, String>,
-    class_name: &String,
+    class_name: &Arc<String>,
     classlike_node: &aast::Class_<(), ()>,
     file_source: &FileSource,
     user_defined: bool,
@@ -87,7 +87,7 @@ pub(crate) fn scan(
                 ast_defs::Variance::Invariant => {
                     // default, do nothing
 
-                    if class_name == "HH\\Vector" {
+                    if **class_name == "HH\\Vector" {
                         // cheat here for vectors
                         storage.generic_variance.insert(i, Variance::Covariant);
                     } else {
@@ -109,12 +109,14 @@ pub(crate) fn scan(
 
             if let Some(parent_class) = classlike_node.extends.first() {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_class.1 {
-                    let parent_name =
+                    let parent_name = Arc::new(
                         if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
                             resolved_name
                         } else {
                             &name.1
-                        };
+                        }
+                        .clone(),
+                    );
 
                     storage.direct_parent_class = Some(parent_name.clone());
                     storage.all_parent_classes.insert(parent_name.clone());
@@ -141,12 +143,14 @@ pub(crate) fn scan(
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
-                    let interface_name =
+                    let interface_name = Arc::new(
                         if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
                             resolved_name
                         } else {
                             &name.1
-                        };
+                        }
+                        .clone(),
+                    );
 
                     storage
                         .direct_class_interfaces
@@ -200,7 +204,7 @@ pub(crate) fn scan(
             }
 
             // We inherit from this class so methods like `coerce` works
-            let enum_class = "HH\\BuiltinEnumClass".to_string();
+            let enum_class = Arc::new("HH\\BuiltinEnumClass".to_string());
 
             storage.direct_parent_class = Some(enum_class.clone());
             storage.all_parent_classes.insert(enum_class.clone());
@@ -221,12 +225,14 @@ pub(crate) fn scan(
 
             for parent_interface in &classlike_node.extends {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_interface.1 {
-                    let parent_name =
+                    let parent_name = Arc::new(
                         if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
                             resolved_name
                         } else {
                             &name.1
-                        };
+                        }
+                        .clone(),
+                    );
 
                     storage.direct_parent_interfaces.insert(parent_name.clone());
                     storage.all_parent_interfaces.insert(parent_name.clone());
@@ -262,12 +268,14 @@ pub(crate) fn scan(
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
-                    let interface_name =
+                    let interface_name = Arc::new(
                         if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
                             resolved_name
                         } else {
                             &name.1
-                        };
+                        }
+                        .clone(),
+                    );
 
                     storage
                         .direct_class_interfaces
@@ -298,7 +306,7 @@ pub(crate) fn scan(
             storage.kind = SymbolKind::Enum;
 
             // We inherit from this class so methods like `coerce` works
-            let enum_class = "HH\\BuiltinEnum".to_string();
+            let enum_class = Arc::new("HH\\BuiltinEnum".to_string());
 
             storage.direct_parent_class = Some(enum_class.clone());
             storage.all_parent_classes.insert(enum_class.clone());
@@ -414,10 +422,11 @@ pub(crate) fn scan(
 
                 if let Some(attribute_param_type) = attribute_param_type {
                     for atomic in attribute_param_type.types.into_iter() {
-                        if let TAtomic::TLiteralClassname { name: value }
-                        | TAtomic::TLiteralString { value } = atomic.1
-                        {
-                            child_classlikes.insert(value);
+                        match atomic.1 {
+                            TAtomic::TLiteralClassname { name: value } => {
+                                child_classlikes.insert(value);
+                            }
+                            _ => (),
                         }
                     }
                 }
@@ -451,16 +460,18 @@ fn handle_reqs(
     classlike_node: &aast::Class_<(), ()>,
     resolved_names: &FxHashMap<usize, String>,
     storage: &mut ClassLikeInfo,
-    class_name: &String,
+    class_name: &Arc<String>,
 ) {
     for req in &classlike_node.reqs {
         if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
-            let require_name =
+            let require_name = Arc::new(
                 if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
                     resolved_name
                 } else {
                     &name.1
-                };
+                }
+                .clone(),
+            );
 
             match &req.1 {
                 aast::RequireKind::RequireExtends => {
@@ -695,7 +706,7 @@ fn visit_property_declaration(
 
 fn get_classlike_storage(
     codebase: &mut CodebaseInfo,
-    class_name: &String,
+    class_name: &Arc<String>,
     //mut is_classlike_overridden: bool,
     class: &aast::Class_<(), ()>,
     file_source: &FileSource,
@@ -716,11 +727,8 @@ fn get_classlike_storage(
             // todo maybe handle dependent classlikes
         }
     } else {
-        storage = ClassLikeInfo {
-            name: class_name.clone(),
-            name_location: Some(HPos::new(class.name.pos(), &file_source.file_path)),
-            ..Default::default()
-        };
+        storage = ClassLikeInfo::new(class_name.clone());
+        storage.name_location = Some(HPos::new(class.name.pos(), &file_source.file_path));
     }
     storage.is_user_defined = !codebase.register_stub_files;
     storage.is_stubbed = codebase.register_stub_files;

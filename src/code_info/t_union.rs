@@ -416,7 +416,7 @@ impl TUnion {
     pub fn is_generator(&self) -> bool {
         for (_, atomic) in &self.types {
             if let &TAtomic::TNamedObject { name, .. } = &atomic {
-                if name == "Generator" {
+                if **name == "Generator" {
                     continue;
                 }
             }
@@ -657,7 +657,7 @@ impl TUnion {
                     as_type: Some(as_type),
                     type_params: Some(_),
                 } => {
-                    if name == "HH\\Lib\\Regex\\Pattern" {
+                    if **name == "HH\\Lib\\Regex\\Pattern" {
                         if let TAtomic::TLiteralString { value, .. } = &**as_type {
                             Some(value.clone())
                         } else {

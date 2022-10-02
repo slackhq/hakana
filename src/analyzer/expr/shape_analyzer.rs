@@ -47,6 +47,8 @@ pub(crate) fn analyze(
                     lhs_name = resolved_name;
                 }
 
+                let lhs_name = Arc::new(lhs_name);
+
                 let constant_type =
                     codebase.get_class_constant_type(&lhs_name, &name.1, FxHashSet::default());
 
@@ -107,7 +109,7 @@ pub(crate) fn analyze(
                     DictKey::Int(i) => i.to_string(),
                     DictKey::String(k) => k.clone(),
                     DictKey::Enum(class_name, member_name) => {
-                        class_name.clone() + "::" + member_name.as_str()
+                        (**class_name).clone() + "::" + member_name.as_str()
                     }
                 },
                 value_expr,

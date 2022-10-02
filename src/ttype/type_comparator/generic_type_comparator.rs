@@ -131,7 +131,7 @@ pub(crate) fn is_contained_by(
         _ => panic!(),
     };
 
-    if input_name == "HH\\Awaitable" && container_name == "HH\\Awaitable" {
+    if **input_name == "HH\\Awaitable" && **container_name == "HH\\Awaitable" {
         if let (Some(input_param), Some(container_param)) =
             (input_type_params.get(0), container_type_params.get(0))
         {

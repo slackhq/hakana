@@ -1,4 +1,4 @@
-use std::{path::Path, process::exit};
+use std::{path::Path, process::exit, sync::Arc};
 
 use hakana_reflection_info::{
     data_flow::graph::GraphKind,
@@ -12,7 +12,7 @@ use crate::custom_hook::CustomHook;
 pub mod json_config;
 
 pub struct Config {
-    pub migration_symbols: FxHashSet<(String, String)>,
+    pub migration_symbols: FxHashSet<(String, Arc<String>)>,
     pub find_unused_expressions: bool,
     pub find_unused_definitions: bool,
     pub issue_filter: Option<FxHashSet<IssueKind>>,

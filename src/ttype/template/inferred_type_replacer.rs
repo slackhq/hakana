@@ -134,15 +134,16 @@ pub fn replace(
                         })
                     } else if let TAtomic::TTypeAlias { .. } = template_type_part {
                         class_template_type = Some(template_type_part.clone());
-                    } else if let TAtomic::TDict {
-                        shape_name: Some(shape_name),
-                        ..
-                    } = template_type_part
-                    {
-                        class_template_type = Some(TAtomic::TLiteralClassname {
-                            name: shape_name.clone(),
-                        });
                     }
+                    // else if let TAtomic::TDict {
+                    //     shape_name: Some(shape_name),
+                    //     ..
+                    // } = template_type_part
+                    // {
+                    //     class_template_type = Some(TAtomic::TLiteralClassname {
+                    //         name: shape_name.clone(),
+                    //     });
+                    // }
                 }
 
                 if let Some(class_template_type) = class_template_type {
@@ -170,7 +171,7 @@ pub fn replace(
 }
 
 fn replace_template_param(
-    inferred_lower_bounds: &IndexMap<String, FxHashMap<String, Vec<TemplateBound>>>,
+    inferred_lower_bounds: &IndexMap<String, FxHashMap<Arc<String>, Vec<TemplateBound>>>,
     param_name: &String,
     defining_entity: &String,
     codebase: Option<&CodebaseInfo>,

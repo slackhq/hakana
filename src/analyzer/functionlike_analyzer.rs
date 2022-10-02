@@ -31,6 +31,7 @@ use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub(crate) struct FunctionLikeAnalyzer<'a> {
     file_analyzer: &'a FileAnalyzer<'a>,
@@ -82,8 +83,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         statements_analyzer.set_function_info(&function_storage);
 
-        context.function_context.calling_functionlike_id =
-            Some(FunctionLikeIdentifier::Function(name));
+        context.function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Function(
+            function_storage.name.clone(),
+        ));
 
         self.analyze_functionlike(
             &mut statements_analyzer,
@@ -105,14 +107,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         expr_pos: &Pos,
     ) -> Option<FunctionLikeInfo> {
         let lambda_storage = tast_info.closures.get(expr_pos).cloned();
-        let name = format!("{}:{}", stmt.name.0.filename(), stmt.name.0.start_offset());
-
-        context.function_context.calling_functionlike_id =
-            Some(FunctionLikeIdentifier::Function(name.clone()));
 
         let mut lambda_storage = if let Some(lambda_storage) = lambda_storage {
             lambda_storage
         } else {
+            let name = format!("{}:{}", stmt.name.0.filename(), stmt.name.0.start_offset());
             if let Some(lambda_storage) = self.file_analyzer.codebase.functionlike_infos.get(&name)
             {
                 lambda_storage.clone()
@@ -120,6 +119,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 return None;
             }
         };
+
+        context.function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Function(
+            lambda_storage.name.clone(),
+        ));
 
         tast_info
             .closure_spans
@@ -381,7 +384,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                     .clone()
                                     .unwrap()
                                     .clone(),
-                                functionlike_storage.name.clone(),
+                                (*functionlike_storage.name).clone(),
                             ),
                             functionlike_storage.name_location.clone(),
                             None,
@@ -484,7 +487,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     inferred_return_type = Some(if functionlike_storage.is_async {
                         wrap_atomic(TAtomic::TNamedObject {
-                            name: "HH\\Awaitable".to_string(),
+                            name: Arc::new("HH\\Awaitable".to_string()),
                             type_params: Some(vec![get_void()]),
                             is_this: false,
                             extra_types: None,
@@ -507,7 +510,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 inferred_return_type = Some(if functionlike_storage.is_async {
                     wrap_atomic(TAtomic::TNamedObject {
-                        name: "HH\\Awaitable".to_string(),
+                        name: Arc::new("HH\\Awaitable".to_string()),
                         type_params: Some(vec![get_void()]),
                         is_this: false,
                         extra_types: None,
@@ -821,7 +824,10 @@ fn report_unused_expressions(
                                     if unused_closure_variable {
                                         Issue::new(
                                             IssueKind::UnusedAssignmentInClosure,
-                                            format!("Assignment to {} is unused in this closure ", name),
+                                            format!(
+                                                "Assignment to {} is unused in this closure ",
+                                                name
+                                            ),
                                             pos.clone(),
                                         )
                                     } else {

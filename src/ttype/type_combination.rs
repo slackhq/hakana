@@ -1,6 +1,9 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use hakana_reflection_info::{t_atomic::{TAtomic, DictKey}, t_union::TUnion};
+use hakana_reflection_info::{
+    t_atomic::{DictKey, TAtomic},
+    t_union::TUnion,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug)]
@@ -9,12 +12,12 @@ pub(crate) struct TypeCombination {
 
     pub has_object_top_type: bool,
 
-    pub enum_types: FxHashSet<String>,
-    pub enum_value_types: FxHashMap<String, FxHashMap<String, Option<Box<TAtomic>>>>,
+    pub enum_types: FxHashSet<Arc<String>>,
+    pub enum_value_types: FxHashMap<Arc<String>, FxHashMap<String, Option<Box<TAtomic>>>>,
 
-    pub object_type_params: FxHashMap<String, (String, Vec<TUnion>)>,
+    pub object_type_params: FxHashMap<String, (Arc<String>, Vec<TUnion>)>,
 
-    pub object_static: FxHashMap<String, bool>,
+    pub object_static: FxHashMap<Arc<String>, bool>,
 
     pub vec_counts: Option<FxHashSet<usize>>,
 
@@ -32,7 +35,7 @@ pub(crate) struct TypeCombination {
     pub vec_type_param: Option<TUnion>,
     pub keyset_type_param: Option<TUnion>,
 
-    pub dict_name: Option<String>,
+    pub dict_alias_name: Option<Option<Arc<String>>>,
 
     pub falsy_mixed: bool,
     pub truthy_mixed: bool,
@@ -68,7 +71,7 @@ impl TypeCombination {
             dict_type_params: None,
             vec_type_param: None,
             keyset_type_param: None,
-            dict_name: None,
+            dict_alias_name: None,
             falsy_mixed: false,
             truthy_mixed: false,
             nonnull_mixed: false,

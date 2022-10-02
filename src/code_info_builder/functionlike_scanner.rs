@@ -57,7 +57,7 @@ pub(crate) fn scan_method(
 
     let mut functionlike_info = get_functionlike(
         &codebase,
-        method_name.clone(),
+        Arc::new(method_name.clone()),
         &m.span,
         &m.name.0,
         &m.tparams,
@@ -69,7 +69,7 @@ pub(crate) fn scan_method(
         &mut type_resolution_context,
         Some(&classlike_name),
         resolved_names,
-        method_id.to_string(),
+        &method_id.to_string(),
         comments,
         file_source,
         false,
@@ -128,7 +128,7 @@ fn add_promoted_param_property(
     param_node: &aast::FunParam<(), ()>,
     param_visibility: ast_defs::Visibility,
     resolved_names: &FxHashMap<usize, String>,
-    classlike_name: &String,
+    classlike_name: &Arc<String>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
 ) {
@@ -187,7 +187,7 @@ fn add_promoted_param_property(
 
 pub(crate) fn get_functionlike(
     codebase: &CodebaseInfo,
-    name: String,
+    name: Arc<String>,
     def_pos: &Pos,
     name_pos: &Pos,
     tparams: &Vec<aast::Tparam<(), ()>>,
@@ -197,9 +197,9 @@ pub(crate) fn get_functionlike(
     user_attributes: &Vec<UserAttribute>,
     contexts: &Option<tast::Contexts>,
     type_context: &mut TypeResolutionContext,
-    this_name: Option<&String>,
+    this_name: Option<&Arc<String>>,
     resolved_names: &FxHashMap<usize, String>,
-    functionlike_id: String,
+    functionlike_id: &String,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
     is_anonymous: bool,
@@ -209,13 +209,12 @@ pub(crate) fn get_functionlike(
     let mut template_supers = FxHashMap::default();
 
     if !tparams.is_empty() {
+        let fn_id = Arc::new("fn-".to_string() + functionlike_id.as_str());
+
         for type_param_node in tparams.iter() {
             type_context.template_type_map.insert(
                 type_param_node.name.1.clone(),
-                FxHashMap::from_iter([(
-                    "fn-".to_string() + functionlike_id.as_str(),
-                    Arc::new(get_mixed_any()),
-                )]),
+                FxHashMap::from_iter([(fn_id.clone(), Arc::new(get_mixed_any()))]),
             );
         }
 
@@ -251,7 +250,7 @@ pub(crate) fn get_functionlike(
                         } else {
                             get_mixed_any()
                         },
-                        defining_entity: "fn-".to_string() + functionlike_id.as_str(),
+                        defining_entity: fn_id.clone(),
                         from_class: false,
                         extra_types: None,
                     });
@@ -264,17 +263,14 @@ pub(crate) fn get_functionlike(
                 .template_types
                 .insert(type_param_node.name.1.clone(), {
                     FxHashMap::from_iter([(
-                        "fn-".to_string() + functionlike_id.as_str(),
+                        fn_id.clone(),
                         Arc::new(template_as_type.unwrap_or(get_mixed_any())),
                     )])
                 });
         }
-        if name == "HH\\idx" {
+        if *name == "HH\\idx" {
             functionlike_info.template_types.insert("Td".to_string(), {
-                FxHashMap::from_iter([(
-                    "fn-".to_string() + functionlike_id.as_str(),
-                    Arc::new(get_mixed_any()),
-                )])
+                FxHashMap::from_iter([(fn_id.clone(), Arc::new(get_mixed_any()))])
             });
         }
     }
@@ -291,7 +287,7 @@ pub(crate) fn get_functionlike(
     {
         Some(t)
     } else {
-        if name == "HH\\idx" {
+        if *name == "HH\\idx" {
             if let Some(defining_entities) = type_context.template_type_map.get(&"Td".to_string()) {
                 let as_type = defining_entities.values().next().unwrap().clone();
                 let defining_entity = defining_entities.keys().next().unwrap().clone();

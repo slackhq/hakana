@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::{expr::call::arguments_analyzer::get_template_types_for_call, typed_ast::TastInfo};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
@@ -152,7 +154,7 @@ pub(crate) fn analyze(
 
 fn get_class_property_type(
     statements_analyzer: &StatementsAnalyzer,
-    classlike_name: &String,
+    classlike_name: &Arc<String>,
     property_name: &String,
     declaring_property_class: &String,
     mut lhs_type_part: TAtomic,
@@ -338,7 +340,7 @@ fn add_property_dataflow(
     classlike_storage: &ClassLikeInfo,
     stmt_type: TUnion,
     in_assignment: bool,
-    property_id: &(String, String),
+    property_id: &(Arc<String>, String),
     lhs_var_id: &Option<String>,
     expr_id: &Option<String>,
 ) -> TUnion {
@@ -408,7 +410,7 @@ fn add_property_dataflow(
 
 pub(crate) fn add_unspecialized_property_fetch_dataflow(
     expr_id: &Option<String>,
-    property_id: &(String, String),
+    property_id: &(Arc<String>, String),
     pos: HPos,
     tast_info: &mut TastInfo,
     in_assignment: bool,

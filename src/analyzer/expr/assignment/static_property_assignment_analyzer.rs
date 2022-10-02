@@ -109,7 +109,7 @@ pub(crate) fn analyze(
 
                     if let Some(lhs_type) = lhs_type {
                         for (_, lhs_atomic_type) in lhs_type.types.clone() {
-                            fq_class_names.push(lhs_atomic_type.get_id());
+                            //fq_class_names.push(lhs_atomic_type.get_id());
                         }
                     }
                 }
@@ -125,7 +125,7 @@ pub(crate) fn analyze(
     for fq_class_name in fq_class_names {
         // TODO if (!$prop_name instanceof PhpParser\Node\Identifier) {
 
-        let property_id = (fq_class_name.to_owned(), prop_name.to_owned().unwrap());
+        let property_id = (fq_class_name.clone(), prop_name.to_owned().unwrap());
 
         // TODO if (ClassLikeAnalyzer::checkPropertyVisibility(
 
@@ -133,9 +133,6 @@ pub(crate) fn analyze(
             codebase.get_declaring_class_for_property(&fq_class_name, &property_id.1);
 
         if let Some(declaring_property_class) = declaring_property_class {
-            let declaring_property_id =
-                declaring_property_class.to_owned() + &"::$" + &property_id.1;
-
             let mut class_property_type = if let Some(prop_type) =
                 codebase.get_property_type(&fq_class_name, &property_id.1)
             {
@@ -205,8 +202,9 @@ pub(crate) fn analyze(
                     Issue::new(
                         IssueKind::InvalidPropertyAssignmentValue,
                         format!(
-                            "{} with declared type {}, cannot be assigned type {}",
-                            declaring_property_id,
+                            "{}::${} with declared type {}, cannot be assigned type {}",
+                            declaring_property_class,
+                            property_id.1,
                             class_property_type.get_id(),
                             assign_value_type.get_id(),
                         ),

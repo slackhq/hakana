@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::expression_identifier::{get_dim_id, get_var_id};
 use crate::{formula_generator::AssertionContext, typed_ast::TastInfo};
 use function_context::FunctionLikeIdentifier;
@@ -254,7 +256,7 @@ fn scrape_shapes_isset(
             let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
 
             if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
-                if class_name == "HH\\Shapes" && member_name == "idx" {
+                if *class_name == "HH\\Shapes" && member_name == "idx" {
                     let shape_name = get_var_id(
                         &call.2[0].1,
                         assertion_context.this_class_name,
@@ -308,7 +310,7 @@ fn get_functionlike_id_from_call(
                 }
             }
 
-            Some(FunctionLikeIdentifier::Function(name.clone()))
+            Some(FunctionLikeIdentifier::Function(Arc::new(name.clone())))
         }
         aast::Expr_::ClassConst(boxed) => {
             let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
@@ -324,7 +326,7 @@ fn get_functionlike_id_from_call(
                         }
 
                         Some(FunctionLikeIdentifier::Method(
-                            name_string,
+                            Arc::new(name_string),
                             rhs_expr.1.clone(),
                         ))
                     } else {

@@ -250,7 +250,7 @@ fn analyze_awaitall(
                         ..
                     } = inner
                     {
-                        if name == "HH\\Awaitable" {
+                        if **name == "HH\\Awaitable" {
                             let mut new = type_params.get(0).unwrap().clone();
 
                             new.parent_nodes = parent_nodes;
