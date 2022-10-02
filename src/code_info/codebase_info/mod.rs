@@ -20,11 +20,11 @@ pub struct CodebaseInfo {
     pub symbols: Symbols,
     pub infer_types_from_usage: bool,
     pub register_stub_files: bool,
-    pub constant_infos: FxHashMap<String, ConstantInfo>,
+    pub constant_infos: FxHashMap<Symbol, ConstantInfo>,
     pub classlikes_in_files: FxHashMap<String, FxHashSet<Symbol>>,
     pub typedefs_in_files: FxHashMap<String, FxHashSet<Symbol>>,
     pub functions_in_files: FxHashMap<String, FxHashSet<Symbol>>,
-    pub const_files: FxHashMap<String, FxHashSet<String>>,
+    pub const_files: FxHashMap<String, FxHashSet<Symbol>>,
     pub classlike_descendents: FxHashMap<Symbol, FxHashSet<Symbol>>,
 }
 

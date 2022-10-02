@@ -14,6 +14,7 @@ use parser_core_types::{indexed_source_text::IndexedSourceText, source_text::Sou
 use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::io::Write;
+use std::sync::Arc;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -117,7 +118,7 @@ pub fn get_aast_for_path_and_contents(
 }
 
 struct Scanner {
-    pub resolved_names: FxHashMap<usize, String>,
+    pub resolved_names: FxHashMap<usize, Arc<String>>,
 }
 
 impl Scanner {
@@ -163,11 +164,11 @@ impl<'ast> Visitor<'ast> for Scanner {
 
         self.resolved_names.insert(
             c.name.0.start_offset(),
-            if let Some(namespace_name) = namespace_name {
+            Arc::new(if let Some(namespace_name) = namespace_name {
                 format!("{}\\{}", namespace_name, c.name.1)
             } else {
                 c.name.1.clone()
-            },
+            }),
         );
 
         c.recurse(nc, self)
@@ -178,11 +179,11 @@ impl<'ast> Visitor<'ast> for Scanner {
 
         self.resolved_names.insert(
             t.name.0.start_offset(),
-            if let Some(namespace_name) = namespace_name {
+            Arc::new(if let Some(namespace_name) = namespace_name {
                 format!("{}\\{}", namespace_name, t.name.1)
             } else {
                 t.name.1.clone()
-            },
+            }),
         );
 
         t.recurse(nc, self)
@@ -228,7 +229,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 let resolved_name = nc.get_resolved_name(&id.1, aast::NsKind::NSClass);
 
                 self.resolved_names
-                    .insert(id.0.start_offset(), resolved_name);
+                    .insert(id.0.start_offset(), Arc::new(resolved_name));
             }
             _ => {}
         };
@@ -236,7 +237,11 @@ impl<'ast> Visitor<'ast> for Scanner {
         p.recurse(nc, self)
     }
 
-    fn visit_catch(&mut self, nc: &mut NameContext, catch: &oxidized::nast::Catch) -> Result<(), ()> {
+    fn visit_catch(
+        &mut self,
+        nc: &mut NameContext,
+        catch: &oxidized::nast::Catch,
+    ) -> Result<(), ()> {
         nc.in_class_id = true;
         catch.recurse(nc, self)
     }
@@ -257,7 +262,7 @@ impl<'ast> Visitor<'ast> for Scanner {
             };
 
             self.resolved_names
-                .insert(id.0.start_offset(), resolved_name);
+                .insert(id.0.start_offset(), Arc::new(resolved_name));
         }
 
         nc.in_class_id = false;
@@ -271,11 +276,11 @@ impl<'ast> Visitor<'ast> for Scanner {
 
         self.resolved_names.insert(
             f.name.0.start_offset(),
-            if let Some(namespace_name) = namespace_name {
+            Arc::new(if let Some(namespace_name) = namespace_name {
                 format!("{}\\{}", namespace_name, f.name.1)
             } else {
                 f.name.1.clone()
-            },
+            }),
         );
 
         f.recurse(nc, self)
@@ -289,7 +294,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 let resolved_name =
                     nc.get_resolved_name(&happly.0 .1, aast::NsKind::NSClassAndNamespace);
                 self.resolved_names
-                    .insert(happly.0 .0.start_offset(), resolved_name);
+                    .insert(happly.0 .0.start_offset(), Arc::new(resolved_name));
             }
         }
 
@@ -305,7 +310,7 @@ impl<'ast> Visitor<'ast> for Scanner {
     }
 }
 
-pub fn scope_names(program: &aast::Program<(), ()>) -> FxHashMap<usize, String> {
+pub fn scope_names(program: &aast::Program<(), ()>) -> FxHashMap<usize, Arc<String>> {
     let mut scanner = Scanner::new();
     let mut context = NameContext::new();
     visit(&mut scanner, &mut context, program).unwrap();

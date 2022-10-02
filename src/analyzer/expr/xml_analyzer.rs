@@ -12,7 +12,6 @@ use oxidized::aast;
 use oxidized::ast_defs;
 use rustc_hash::FxHashSet;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use super::assignment::instance_property_assignment_analyzer::add_unspecialized_property_assignment_dataflow;
 
@@ -28,16 +27,11 @@ pub(crate) fn analyze(
     if_body_context: &mut Option<ScopeContext>,
     expr: &aast::Expr<(), ()>,
 ) {
-    let mut name_string = boxed.0 .1.clone();
-    if name_string.starts_with(":") {
-        name_string = name_string[1..].to_string();
-    }
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
-    if let Some(fq_name) = resolved_names.get(&boxed.0 .0.start_offset()) {
-        name_string = fq_name.clone();
-    }
-
-    let name_string = Arc::new(name_string.clone());
+    let name_string = resolved_names
+        .get(&boxed.0 .0.start_offset())
+        .unwrap()
+        .clone();
 
     tast_info
         .symbol_references

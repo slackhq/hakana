@@ -1,5 +1,4 @@
 use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::custom_hook::AfterExprAnalysisData;
 use crate::expr::call::new_analyzer;
@@ -24,9 +23,9 @@ use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
@@ -511,7 +510,7 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::Id(boxed) => {
-            const_fetch_analyzer::analyze(statements_analyzer, boxed, expr, tast_info);
+            const_fetch_analyzer::analyze(statements_analyzer, boxed, tast_info);
         }
         aast::Expr_::Xml(boxed) => {
             xml_analyzer::analyze(
@@ -597,12 +596,7 @@ pub(crate) fn analyze(
             let class_name = if let Some(id) = &boxed.0 {
                 let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                Some(Arc::new(
-                    resolved_names
-                        .get(&id.0.start_offset())
-                        .cloned()
-                        .unwrap_or(id.1.clone()),
-                ))
+                Some(resolved_names.get(&id.0.start_offset()).cloned().unwrap())
             } else {
                 None
             };
@@ -671,12 +665,7 @@ fn analyze_function_pointer(
         aast::FunctionPtrId::FPId(id) => FunctionLikeIdentifier::Function({
             let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-            Arc::new(
-                resolved_names
-                    .get(&id.0.start_offset())
-                    .cloned()
-                    .unwrap_or(id.1.clone()),
-            )
+            resolved_names.get(&id.0.start_offset()).cloned().unwrap()
         }),
         aast::FunctionPtrId::FPClassConst(class_id, method_name) => {
             let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;

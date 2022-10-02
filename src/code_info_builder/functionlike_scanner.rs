@@ -10,12 +10,12 @@ use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::functionlike_info::FnEffect;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::issue::get_issue_from_comment;
 use hakana_reflection_info::member_visibility::MemberVisibility;
+use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::method_info::MethodInfo;
 use hakana_reflection_info::property_info::PropertyInfo;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -35,7 +35,7 @@ use rustc_hash::FxHashSet;
 
 pub(crate) fn scan_method(
     codebase: &mut CodebaseInfo,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     m: &aast::Method_<(), ()>,
     c: &mut Context,
     comments: &Vec<(Pos, Comment)>,
@@ -128,7 +128,7 @@ pub(crate) fn scan_method(
 fn add_promoted_param_property(
     param_node: &aast::FunParam<(), ()>,
     param_visibility: ast_defs::Visibility,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     classlike_name: &Symbol,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
@@ -199,7 +199,7 @@ pub(crate) fn get_functionlike(
     contexts: &Option<tast::Contexts>,
     type_context: &mut TypeResolutionContext,
     this_name: Option<&Symbol>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     functionlike_id: &String,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
@@ -323,13 +323,12 @@ pub(crate) fn get_functionlike(
     };
 
     for user_attribute in user_attributes {
-        let name = if let Some(name) = resolved_names.get(&user_attribute.name.0.start_offset()) {
-            name.clone()
-        } else {
-            user_attribute.name.1.clone()
-        };
+        let name = resolved_names
+            .get(&user_attribute.name.0.start_offset())
+            .unwrap()
+            .clone();
 
-        if name == "Hakana\\SecurityAnalysis\\Source" {
+        if *name == "Hakana\\SecurityAnalysis\\Source" {
             let mut source_types = FxHashSet::default();
 
             for attribute_param_expr in &user_attribute.params {
@@ -348,13 +347,13 @@ pub(crate) fn get_functionlike(
             }
 
             functionlike_info.taint_source_types = source_types;
-        } else if name == "Hakana\\SecurityAnalysis\\SpecializeCall" {
+        } else if *name == "Hakana\\SecurityAnalysis\\SpecializeCall" {
             functionlike_info.specialize_call = true;
-        } else if name == "Hakana\\SecurityAnalysis\\IgnorePath" || name == "__EntryPoint" {
+        } else if *name == "Hakana\\SecurityAnalysis\\IgnorePath" || *name == "__EntryPoint" {
             functionlike_info.ignore_taint_path = true;
-        } else if name == "Hakana\\SecurityAnalysis\\IgnorePathIfTrue" {
+        } else if *name == "Hakana\\SecurityAnalysis\\IgnorePathIfTrue" {
             functionlike_info.ignore_taints_if_true = true;
-        } else if name == "Hakana\\SecurityAnalysis\\Sanitize" {
+        } else if *name == "Hakana\\SecurityAnalysis\\Sanitize" {
             let mut removed_types = FxHashSet::default();
 
             for attribute_param_expr in &user_attribute.params {
@@ -375,11 +374,11 @@ pub(crate) fn get_functionlike(
             functionlike_info.removed_taints = Some(removed_types);
         }
 
-        if name == "__EntryPoint" || name == "__DynamicallyCallable" {
+        if *name == "__EntryPoint" || *name == "__DynamicallyCallable" {
             functionlike_info.dynamically_callable = true;
         }
 
-        if name == "Codegen" {
+        if *name == "Codegen" {
             functionlike_info.generated = true;
         }
     }
@@ -472,7 +471,7 @@ pub(crate) fn get_functionlike(
 fn convert_param_nodes(
     codebase: &CodebaseInfo,
     param_nodes: &Vec<aast::FunParam<(), ()>>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     type_context: &TypeResolutionContext,
     file_source: &FileSource,
 ) -> Vec<FunctionLikeParameter> {
@@ -499,14 +498,11 @@ fn convert_param_nodes(
                 None
             };
             for user_attribute in &param_node.user_attributes {
-                let name =
-                    if let Some(name) = resolved_names.get(&user_attribute.name.0.start_offset()) {
-                        name.clone()
-                    } else {
-                        user_attribute.name.1.clone()
-                    };
+                let name = resolved_names
+                    .get(&user_attribute.name.0.start_offset())
+                    .unwrap();
 
-                if name == "Hakana\\SecurityAnalysis\\Sink" {
+                if **name == "Hakana\\SecurityAnalysis\\Sink" {
                     let mut sink_types = FxHashSet::default();
 
                     for attribute_param_expr in &user_attribute.params {
@@ -527,7 +523,7 @@ fn convert_param_nodes(
                     }
 
                     param.taint_sinks = Some(sink_types);
-                } else if name == "Hakana\\SecurityAnalysis\\RemoveTaintsWhenReturningTrue" {
+                } else if **name == "Hakana\\SecurityAnalysis\\RemoveTaintsWhenReturningTrue" {
                     let mut removed_taints = FxHashSet::default();
 
                     for attribute_param_expr in &user_attribute.params {

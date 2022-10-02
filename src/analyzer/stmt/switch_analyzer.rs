@@ -1,5 +1,5 @@
 use hakana_reflection_info::{
-    codebase_info::CodebaseInfo,
+    codebase_info::{symbols::Symbol, CodebaseInfo},
     issue::{Issue, IssueKind},
 };
 use hakana_type::{combine_optional_union_types, combine_union_types, get_mixed_any};
@@ -63,7 +63,7 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
-        Some(statements_analyzer.get_codebase())
+        Some(statements_analyzer.get_codebase()),
     ) {
         switch_var_id
     } else {
@@ -841,7 +841,7 @@ fn update_case_exit_map(
     codebase: &CodebaseInfo,
     case_stmts: &Vec<aast::Stmt<(), ()>>,
     tast_info: &mut TastInfo,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     case_action_map: &mut FxHashMap<usize, FxHashSet<ControlAction>>,
     i: usize,
     last_case_exit_type: &mut ControlAction,

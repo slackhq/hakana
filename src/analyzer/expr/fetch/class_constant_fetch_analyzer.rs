@@ -1,10 +1,8 @@
-use std::sync::Arc;
-
 use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
-use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
+use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
@@ -106,7 +104,7 @@ pub(crate) fn get_id_name(
     calling_class: &Option<Symbol>,
     codebase: &CodebaseInfo,
     is_static: &mut bool,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
 ) -> Option<Symbol> {
     Some(match id.1.as_str() {
         "self" => {
@@ -138,15 +136,7 @@ pub(crate) fn get_id_name(
 
             self_name.clone()
         }
-        _ => {
-            let mut name_string = id.1.clone();
-
-            if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
-                name_string = fq_name.clone();
-            }
-
-            Arc::new(name_string)
-        }
+        _ => resolved_names.get(&id.0.start_offset()).unwrap().clone(),
     })
 }
 

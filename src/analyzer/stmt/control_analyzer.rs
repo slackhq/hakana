@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::scope_context::control_action::ControlAction;
-use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::codebase_info::{symbols::Symbol, CodebaseInfo};
 use oxidized::aast;
 
 use crate::typed_ast::TastInfo;
@@ -14,7 +14,7 @@ pub enum BreakContext {
 
 pub(crate) fn get_control_actions(
     codebase: &CodebaseInfo,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     stmts: &Vec<aast::Stmt<(), ()>>,
     tast_info: Option<&TastInfo>,
     break_context: Vec<BreakContext>,
@@ -444,7 +444,7 @@ fn handle_call(
         Vec<(oxidized::ast_defs::ParamKind, aast::Expr<(), ()>)>,
         Option<aast::Expr<(), ()>>,
     )>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     codebase: &CodebaseInfo,
     control_actions: &FxHashSet<ControlAction>,
 ) -> Option<FxHashSet<ControlAction>> {
@@ -454,12 +454,11 @@ fn handle_call(
                 return Some(control_end(control_actions.clone()));
             }
 
-            if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
-                if let Some(functionlike_storage) = codebase.functionlike_infos.get(resolved_name) {
-                    if let Some(return_type) = &functionlike_storage.return_type {
-                        if return_type.is_nothing() {
-                            return Some(control_end(control_actions.clone()));
-                        }
+            let resolved_name = resolved_names.get(&id.0.start_offset()).unwrap();
+            if let Some(functionlike_storage) = codebase.functionlike_infos.get(resolved_name) {
+                if let Some(return_type) = &functionlike_storage.return_type {
+                    if return_type.is_nothing() {
+                        return Some(control_end(control_actions.clone()));
                     }
                 }
             }
@@ -468,16 +467,14 @@ fn handle_call(
             match &boxed.0 .2 {
                 aast::ClassId_::CIexpr(lhs_expr) => {
                     if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                        let mut name_string = &id.1;
+                        let name_string = &id.1;
 
                         match name_string.as_str() {
                             "self" | "parent" | "static" => {
                                 // do nothing
                             }
                             _ => {
-                                if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
-                                    name_string = fq_name;
-                                }
+                                let name_string = resolved_names.get(&id.0.start_offset()).unwrap();
 
                                 if let Some(classlike_storage) =
                                     codebase.classlike_infos.get(name_string)

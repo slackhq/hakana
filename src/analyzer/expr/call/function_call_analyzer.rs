@@ -1,6 +1,7 @@
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::expr::call::arguments_analyzer;
 use crate::expr::call_analyzer::check_template_result;
@@ -37,7 +38,7 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
-    let mut name = expr.0 .1.clone();
+    let name = expr.0 .1.clone();
 
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
@@ -63,15 +64,15 @@ pub(crate) fn analyze(
         }
     }
 
-    if name == "\\in_array" {
-        name = "in_array".to_string();
+    let name = if name == "\\in_array" {
+         Arc::new("in_array".to_string())
     } else if let Some(fq_name) = resolved_names.get(&pos.start_offset()) {
-        name = fq_name.clone();
-    } else if let Some(fq_name) = resolved_names.get(&(pos.start_offset() + 1)) {
-        name = fq_name.clone();
-    }
+        fq_name.clone()
+    } else {
+        resolved_names.get(&(pos.start_offset() + 1)).unwrap().clone()
+    };
 
-    if name == "echo" {
+    if *name == "echo" {
         return echo_analyzer::analyze(statements_analyzer, expr.2, pos, tast_info, context);
     }
 

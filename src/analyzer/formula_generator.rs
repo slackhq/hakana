@@ -18,7 +18,7 @@ use crate::{expr::assertion_finder, typed_ast::TastInfo};
 
 pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource,
-    pub resolved_names: &'a FxHashMap<usize, String>,
+    pub resolved_names: &'a FxHashMap<usize, Symbol>,
     pub codebase: Option<&'a CodebaseInfo>,
     pub this_class_name: Option<&'a Symbol>,
     pub type_resolution_context: &'a TypeResolutionContext,

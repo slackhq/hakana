@@ -38,14 +38,11 @@ pub(crate) fn analyze(
             ShapeFieldName::SFlitInt(name) => Some(DictKey::Int(name.1.parse::<u32>().unwrap())),
             ShapeFieldName::SFlitStr(name) => Some(DictKey::String(name.1.to_string())),
             ShapeFieldName::SFclassConst(lhs, name) => {
-                let mut lhs_name = &lhs.1;
-                if let Some(resolved_name) = statements_analyzer
+                let lhs_name = statements_analyzer
                     .get_file_analyzer()
                     .resolved_names
                     .get(&lhs.0.start_offset())
-                {
-                    lhs_name = resolved_name;
-                }
+                    .unwrap();
 
                 let lhs_name = Arc::new(lhs_name);
 

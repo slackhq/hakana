@@ -11,7 +11,7 @@ pub fn get_var_id(
     conditional: &aast::Expr<(), ()>,
     this_class_name: Option<&Symbol>,
     source: &FileSource,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     codebase: Option<&CodebaseInfo>,
 ) -> Option<String> {
     match &conditional.2 {
@@ -112,7 +112,7 @@ pub(crate) fn get_root_var_id(
 pub(crate) fn get_dim_id(
     conditional: &aast::Expr<(), ()>,
     codebase: Option<&CodebaseInfo>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
 ) -> Option<String> {
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => Some(var_expr.1 .1.clone()),

@@ -16,11 +16,11 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, VariableSourceKind};
 use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
-use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
+use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
@@ -49,16 +49,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         analysis_result: &mut AnalysisResult,
     ) {
         let resolved_names = self.file_analyzer.resolved_names.clone();
-        let resolved_name = resolved_names.get(&stmt.fun.name.0.start_offset());
-
-        let mut name = match resolved_name {
-            Some(resolved_name) => resolved_name.clone(),
-            None => stmt.fun.name.1.clone(),
-        };
-
-        if name.starts_with("\\") {
-            name = name[1..].to_string();
-        }
+        let name = resolved_names
+            .get(&stmt.fun.name.0.start_offset())
+            .unwrap()
+            .clone();
 
         let function_storage =
             if let Some(f) = self.file_analyzer.codebase.functionlike_infos.get(&name) {

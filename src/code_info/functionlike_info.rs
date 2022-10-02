@@ -117,7 +117,7 @@ pub struct FunctionLikeInfo {
 
     pub removed_taints: Option<FxHashSet<SinkType>>,
 
-    pub return_source_params: FxHashMap<usize, String>,
+    pub return_source_params: FxHashMap<usize, Symbol>,
 
     pub attributes: Vec<AttributeInfo>,
 

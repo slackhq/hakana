@@ -1,5 +1,5 @@
 use hakana_reflection_info::{
-    codebase_info::CodebaseInfo,
+    codebase_info::{symbols::Symbol, CodebaseInfo},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
@@ -18,7 +18,7 @@ pub fn infer(
     codebase: &CodebaseInfo,
     expr_types: &mut FxHashMap<Pos, TUnion>,
     expr: &aast::Expr<(), ()>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
 ) -> Option<TUnion> {
     return match &expr.2 {
         aast::Expr_::ArrayGet(_) => None,
@@ -30,15 +30,11 @@ pub fn infer(
                             match id.1.as_str() {
                                 "self" | "parent" | "static" => None,
                                 _ => {
-                                    let mut name_string = id.1.clone();
-
-                                    if let Some(fq_name) = resolved_names.get(&id.0.start_offset())
-                                    {
-                                        name_string = fq_name.clone();
-                                    }
+                                    let name_string =
+                                        resolved_names.get(&id.0.start_offset()).unwrap().clone();
 
                                     Some(wrap_atomic(TAtomic::TLiteralClassname {
-                                        name: Arc::new(name_string),
+                                        name: name_string,
                                     }))
                                 }
                             }

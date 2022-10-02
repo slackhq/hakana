@@ -14,8 +14,8 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
@@ -51,7 +51,7 @@ pub(crate) fn analyze(
     let lhs_type = match &expr.0 .2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                let mut name_string = id.1.clone();
+                let name_string = id.1.clone();
                 match name_string.as_str() {
                     "self" => {
                         let self_name = &context.function_context.calling_class.clone().unwrap();
@@ -85,11 +85,9 @@ pub(crate) fn analyze(
                     _ => {
                         let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                        if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
-                            name_string = fq_name.clone();
-                        }
+                        let name_string = resolved_names.get(&id.0.start_offset()).unwrap().clone();
 
-                        get_named_object(Arc::new(name_string))
+                        get_named_object(name_string)
                     }
                 }
             } else {

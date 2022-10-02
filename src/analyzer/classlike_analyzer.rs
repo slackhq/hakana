@@ -27,12 +27,10 @@ impl<'a> ClassLikeAnalyzer<'a> {
         analysis_result: &mut AnalysisResult,
     ) {
         let resolved_names = self.file_analyzer.resolved_names.clone();
-        let resolved_name = resolved_names.get(&stmt.name.0.start_offset());
-
-        let name = match resolved_name {
-            Some(resolved_name) => resolved_name.clone(),
-            None => stmt.name.1.clone(),
-        };
+        let name = resolved_names
+            .get(&stmt.name.0.start_offset())
+            .unwrap()
+            .clone();
 
         let codebase = self.file_analyzer.get_codebase();
         let classlike_storage = codebase.classlike_infos.get(&name).unwrap();

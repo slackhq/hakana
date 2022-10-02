@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
@@ -34,7 +32,7 @@ pub(crate) fn analyze(
     let lhs_type = match &expr.0 .2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                let mut name_string = id.1.clone();
+                let name_string = id.1.clone();
                 match name_string.as_str() {
                     "self" => {
                         let self_name =
@@ -88,11 +86,9 @@ pub(crate) fn analyze(
                     _ => {
                         let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                        if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
-                            name_string = fq_name.clone();
-                        }
+                        let name_string = resolved_names.get(&id.0.start_offset()).unwrap().clone();
 
-                        get_named_object(Arc::new(name_string))
+                        get_named_object(name_string)
                     }
                 }
             } else {

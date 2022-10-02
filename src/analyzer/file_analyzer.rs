@@ -7,6 +7,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::function_context::FunctionContext;
@@ -18,7 +19,7 @@ use rustc_hash::FxHashMap;
 pub struct FileAnalyzer<'a> {
     file_source: FileSource,
     namespace_name: Option<String>,
-    pub resolved_names: &'a FxHashMap<usize, String>,
+    pub resolved_names: &'a FxHashMap<usize, Symbol>,
     pub codebase: &'a CodebaseInfo,
     pub analysis_config: &'a Config,
 }
@@ -26,7 +27,7 @@ pub struct FileAnalyzer<'a> {
 impl<'a> FileAnalyzer<'a> {
     pub fn new(
         file_source: FileSource,
-        resolved_names: &'a FxHashMap<usize, String>,
+        resolved_names: &'a FxHashMap<usize, Symbol>,
         codebase: &'a CodebaseInfo,
         analysis_config: &'a Config,
     ) -> Self {

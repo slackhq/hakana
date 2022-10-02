@@ -8,7 +8,6 @@ use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_type::{combine_optional_union_types, combine_union_types, get_named_object};
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::sync::Arc;
 use std::{collections::BTreeMap, rc::Rc};
 
 use super::control_analyzer;
@@ -167,19 +166,14 @@ pub(crate) fn analyze(
             }
         }
 
-        let catch_classlike_name =
-            if let Some(resolved_name) = resolved_names.get(&catch.0 .0.start_offset()) {
-                resolved_name
-            } else {
-                &catch.0 .1
-            };
+        let catch_classlike_name = resolved_names.get(&catch.0 .0.start_offset()).unwrap();
 
         // discard all clauses because crazy stuff may have happened in try block
         catch_context.clauses = vec![];
 
         let catch_var_id = &catch.1 .1 .1;
 
-        let mut catch_type = get_named_object(Arc::new(catch_classlike_name.clone()));
+        let mut catch_type = get_named_object(catch_classlike_name.clone());
 
         catch_context.remove_descendants(
             catch_var_id,

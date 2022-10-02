@@ -299,18 +299,19 @@ fn get_functionlike_id_from_call(
 ) -> Option<FunctionLikeIdentifier> {
     match &call.0 .2 {
         aast::Expr_::Id(boxed_id) => {
-            let mut name = &boxed_id.1;
-
-            if name != "isset" {
-                if let Some(fq_name) = assertion_context
+            let name = if boxed_id.1 == "isset" {
+                Arc::new("isset".to_string())
+            } else if boxed_id.1 == "\\in_array" {
+                Arc::new("in_array".to_string())
+            } else {
+                assertion_context
                     .resolved_names
                     .get(&boxed_id.0.start_offset())
-                {
-                    name = fq_name;
-                }
-            }
+                    .unwrap()
+                    .clone()
+            };
 
-            Some(FunctionLikeIdentifier::Function(Arc::new(name.clone())))
+            Some(FunctionLikeIdentifier::Function(name))
         }
         aast::Expr_::ClassConst(boxed) => {
             let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
@@ -318,15 +319,12 @@ fn get_functionlike_id_from_call(
             match &class_id.2 {
                 aast::ClassId_::CIexpr(lhs_expr) => {
                     if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                        let mut name_string = id.1.clone();
                         let resolved_names = assertion_context.resolved_names;
 
-                        if let Some(fq_name) = resolved_names.get(&id.0.start_offset()) {
-                            name_string = fq_name.clone();
-                        }
+                        let name_string = resolved_names.get(&id.0.start_offset()).unwrap().clone();
 
                         Some(FunctionLikeIdentifier::Method(
-                            Arc::new(name_string),
+                            name_string,
                             rhs_expr.1.clone(),
                         ))
                     } else {

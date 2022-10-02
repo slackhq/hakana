@@ -3,9 +3,14 @@ use std::sync::Arc;
 use crate::typehint_resolver::get_type_from_hint;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
-    class_constant_info::ConstantInfo, classlike_info::Variance, code_location::HPos,
-    codebase_info::{CodebaseInfo, symbols::Symbol}, t_atomic::TAtomic, taint::string_to_source_types,
-    type_definition_info::TypeDefinitionInfo, type_resolution::TypeResolutionContext,
+    class_constant_info::ConstantInfo,
+    classlike_info::Variance,
+    code_location::HPos,
+    codebase_info::{symbols::Symbol, CodebaseInfo},
+    t_atomic::TAtomic,
+    taint::string_to_source_types,
+    type_definition_info::TypeDefinitionInfo,
+    type_resolution::TypeResolutionContext,
 };
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
@@ -31,7 +36,7 @@ struct Context {
 struct Scanner<'a> {
     codebase: &'a mut CodebaseInfo,
     file_source: FileSource,
-    resolved_names: FxHashMap<usize, String>,
+    resolved_names: FxHashMap<usize, Arc<String>>,
     user_defined: bool,
 }
 
@@ -43,17 +48,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_class_(&mut self, c: &mut Context, class: &aast::Class_<(), ()>) -> Result<(), ()> {
-        let mut class_name = class.name.1.clone();
-
-        if let Some(resolved_name) = self.resolved_names.get(&class.name.0.start_offset()) {
-            class_name = resolved_name.clone();
-        }
-
-        if class_name.starts_with("\\") {
-            class_name = class_name[1..].to_string();
-        }
-
-        let class_name = Arc::new(class_name);
+        let class_name = self
+            .resolved_names
+            .get(&class.name.0.start_offset())
+            .unwrap()
+            .clone();
 
         self.codebase
             .classlikes_in_files
@@ -81,11 +80,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_gconst(&mut self, c: &mut Context, gc: &aast::Gconst<(), ()>) -> Result<(), ()> {
-        let mut name = gc.name.1.clone();
-
-        if let Some(resolved_name) = self.resolved_names.get(&gc.name.0.start_offset()) {
-            name = resolved_name.clone();
-        }
+        let name = self
+            .resolved_names
+            .get(&gc.name.0.start_offset())
+            .unwrap()
+            .clone();
 
         self.codebase
             .const_files
@@ -139,13 +138,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         c: &mut Context,
         typedef: &aast::Typedef<(), ()>,
     ) -> Result<(), ()> {
-        let mut type_name = typedef.name.1.clone();
-
-        if let Some(resolved_name) = self.resolved_names.get(&typedef.name.0.start_offset()) {
-            type_name = resolved_name.clone();
-        }
-
-        let type_name = Arc::new(type_name);
+        let type_name = self
+            .resolved_names
+            .get(&typedef.name.0.start_offset())
+            .unwrap()
+            .clone();
 
         self.codebase
             .typedefs_in_files
@@ -224,16 +221,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             generic_variance,
             shape_field_taints: None,
             is_literal_string: typedef.user_attributes.iter().any(|user_attribute| {
-                let name = if let Some(name) = self
+                **self
                     .resolved_names
                     .get(&user_attribute.name.0.start_offset())
-                {
-                    name.clone()
-                } else {
-                    user_attribute.name.1.clone()
-                };
-
-                name == "Hakana\\SpecialTypes\\LiteralString"
+                    .unwrap()
+                    == "Hakana\\SpecialTypes\\LiteralString"
             }),
         };
 
@@ -241,16 +233,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .user_attributes
             .iter()
             .filter(|user_attribute| {
-                let name = if let Some(name) = self
+                **self
                     .resolved_names
                     .get(&user_attribute.name.0.start_offset())
-                {
-                    name.clone()
-                } else {
-                    user_attribute.name.1.clone()
-                };
-
-                name == "Hakana\\SecurityAnalysis\\ShapeSource"
+                    .unwrap()
+                    == "Hakana\\SecurityAnalysis\\ShapeSource"
             })
             .next();
 
@@ -326,24 +313,21 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_fun_(&mut self, c: &mut Context, f: &aast::Fun_<(), ()>) -> Result<(), ()> {
-        let resolved_name = self.resolved_names.get(&f.name.0.start_offset());
-
-        let mut name = match resolved_name {
-            Some(resolved_name) => resolved_name.clone(),
-            None => f.name.1.clone(),
-        };
-
-        if name.starts_with("\\") {
-            name = name[1..].to_string();
-        }
+        let mut name = self
+            .resolved_names
+            .get(&f.name.0.start_offset())
+            .unwrap()
+            .clone();
 
         let is_anonymous = name.contains(";");
 
         if is_anonymous {
-            name = format!("{}:{}", f.name.0.filename(), f.name.0.start_offset());
+            name = Arc::new(format!(
+                "{}:{}",
+                f.name.0.filename(),
+                f.name.0.start_offset()
+            ));
         }
-
-        let name = Arc::new(name);
 
         let parent_function_storage = if let Some(parent_function_id) = &c.function_name {
             self.codebase.functionlike_infos.get(parent_function_id)
@@ -438,7 +422,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
 pub fn collect_info_for_aast(
     program: &aast::Program<(), ()>,
-    resolved_names: FxHashMap<usize, String>,
+    resolved_names: FxHashMap<usize, Arc<String>>,
     codebase: &mut CodebaseInfo,
     file_source: FileSource,
     user_defined: bool,

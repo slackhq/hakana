@@ -28,7 +28,7 @@ use crate::typehint_resolver::get_type_from_hint;
 
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Arc<String>>,
     class_name: &Symbol,
     classlike_node: &aast::Class_<(), ()>,
     file_source: &FileSource,
@@ -112,14 +112,7 @@ pub(crate) fn scan(
 
             if let Some(parent_class) = classlike_node.extends.first() {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_class.1 {
-                    let parent_name = Arc::new(
-                        if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
-                            resolved_name
-                        } else {
-                            &name.1
-                        }
-                        .clone(),
-                    );
+                    let parent_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
 
                     storage.direct_parent_class = Some(parent_name.clone());
                     storage.all_parent_classes.insert(parent_name.clone());
@@ -146,14 +139,8 @@ pub(crate) fn scan(
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
-                    let interface_name = Arc::new(
-                        if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
-                            resolved_name
-                        } else {
-                            &name.1
-                        }
-                        .clone(),
-                    );
+                    let interface_name =
+                        resolved_names.get(&name.0.start_offset()).unwrap().clone();
 
                     storage
                         .direct_class_interfaces
@@ -228,14 +215,7 @@ pub(crate) fn scan(
 
             for parent_interface in &classlike_node.extends {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_interface.1 {
-                    let parent_name = Arc::new(
-                        if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
-                            resolved_name
-                        } else {
-                            &name.1
-                        }
-                        .clone(),
-                    );
+                    let parent_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
 
                     storage.direct_parent_interfaces.insert(parent_name.clone());
                     storage.all_parent_interfaces.insert(parent_name.clone());
@@ -271,14 +251,8 @@ pub(crate) fn scan(
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
-                    let interface_name = Arc::new(
-                        if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
-                            resolved_name
-                        } else {
-                            &name.1
-                        }
-                        .clone(),
-                    );
+                    let interface_name =
+                        resolved_names.get(&name.0.start_offset()).unwrap().clone();
 
                     storage
                         .direct_class_interfaces
@@ -400,19 +374,18 @@ pub(crate) fn scan(
     }
 
     for user_attribute in &classlike_node.user_attributes {
-        let name = if let Some(name) = resolved_names.get(&user_attribute.name.0.start_offset()) {
-            name.clone()
-        } else {
-            user_attribute.name.1.clone()
-        };
+        let name = resolved_names
+            .get(&user_attribute.name.0.start_offset())
+            .unwrap()
+            .clone();
 
         storage.specialize_instance = true;
 
-        if name == "Codegen" {
+        if *name == "Codegen" {
             storage.generated = true;
         }
 
-        if name == "__Sealed" {
+        if *name == "__Sealed" {
             let mut child_classlikes = FxHashSet::default();
 
             for attribute_param_expr in &user_attribute.params {
@@ -461,7 +434,7 @@ pub(crate) fn scan(
 
 fn handle_reqs(
     classlike_node: &aast::Class_<(), ()>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     storage: &mut ClassLikeInfo,
     class_name: &Symbol,
 ) {
@@ -513,7 +486,7 @@ fn handle_reqs(
 
 fn visit_xhp_attribute(
     xhp_attribute: &aast::XhpAttr<(), ()>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
 ) {
@@ -572,7 +545,7 @@ fn visit_xhp_attribute(
 
 fn visit_class_const_declaration(
     const_node: &aast::ClassConst<(), ()>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     codebase: &CodebaseInfo,
@@ -622,7 +595,7 @@ fn visit_class_const_declaration(
 
 fn visit_class_typeconst_declaration(
     const_node: &aast::ClassTypeconstDef<(), ()>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     classlike_storage: &mut ClassLikeInfo,
 ) {
     let const_type = match &const_node.kind {
@@ -647,7 +620,7 @@ fn visit_class_typeconst_declaration(
 
 fn visit_property_declaration(
     property_node: &aast::ClassVar<(), ()>,
-    resolved_names: &FxHashMap<usize, String>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
 ) {
