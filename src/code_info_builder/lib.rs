@@ -4,7 +4,7 @@ use crate::typehint_resolver::get_type_from_hint;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
     class_constant_info::ConstantInfo, classlike_info::Variance, code_location::HPos,
-    codebase_info::CodebaseInfo, t_atomic::TAtomic, taint::string_to_source_types,
+    codebase_info::{CodebaseInfo, symbols::Symbol}, t_atomic::TAtomic, taint::string_to_source_types,
     type_definition_info::TypeDefinitionInfo, type_resolution::TypeResolutionContext,
 };
 use hakana_type::get_mixed_any;
@@ -23,8 +23,8 @@ pub mod typehint_resolver;
 
 #[derive(Clone)]
 struct Context {
-    classlike_name: Option<Arc<String>>,
-    function_name: Option<Arc<String>>,
+    classlike_name: Option<Symbol>,
+    function_name: Option<Symbol>,
     has_yield: bool,
 }
 

@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
+use hakana_reflection_info::codebase_info::symbols::Symbol;
 use rustc_hash::FxHashMap;
 
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use function_context::method_identifier::MethodIdentifier;
-use function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::method_identifier::MethodIdentifier;
+use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
@@ -136,10 +137,10 @@ pub(crate) fn check_template_result(
 }
 
 pub(crate) fn get_generic_param_for_offset(
-    classlike_name: &Arc<String>,
+    classlike_name: &Symbol,
     template_name: &String,
-    template_extended_params: &FxHashMap<Arc<String>, IndexMap<String, Arc<TUnion>>>,
-    found_generic_params: &FxHashMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
+    template_extended_params: &FxHashMap<Symbol, IndexMap<String, Arc<TUnion>>>,
+    found_generic_params: &FxHashMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
 ) -> Arc<TUnion> {
     if let Some(found_generic_param) =
         if let Some(result_map) = found_generic_params.get(template_name) {

@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use function_context::{
-    functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
-};
 use hakana_reflection_info::{
-    codebase_info::CodebaseInfo,
+    codebase_info::{symbols::Symbol, CodebaseInfo},
     data_flow::{
         graph::DataFlowGraph,
         node::DataFlowNode,
@@ -14,6 +11,9 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
+use hakana_reflection_info::{
+    functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
+};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
@@ -22,14 +22,14 @@ use crate::{template, type_combiner, wrap_atomic};
 #[derive(Debug)]
 pub enum StaticClassType<'a, 'b> {
     None,
-    Name(&'a Arc<String>),
+    Name(&'a Symbol),
     Object(&'b TAtomic),
 }
 
 pub struct TypeExpansionOptions<'a> {
-    pub self_class: Option<&'a Arc<String>>,
+    pub self_class: Option<&'a Symbol>,
     pub static_class_type: StaticClassType<'a, 'a>,
-    pub parent_class: Option<&'a Arc<String>>,
+    pub parent_class: Option<&'a Symbol>,
     pub file_path: Option<&'a String>,
 
     pub evaluate_class_constants: bool,

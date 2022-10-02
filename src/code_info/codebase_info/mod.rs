@@ -1,33 +1,31 @@
 pub mod symbols;
 
-use std::sync::Arc;
-
-use self::symbols::SymbolKind;
 pub use self::symbols::Symbols;
+use self::symbols::{Symbol, SymbolKind};
 use crate::class_constant_info::ConstantInfo;
 use crate::classlike_info::ClassLikeInfo;
+use crate::method_identifier::MethodIdentifier;
 use crate::functionlike_info::FunctionLikeInfo;
 use crate::t_atomic::TAtomic;
 use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
-use function_context::method_identifier::MethodIdentifier;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CodebaseInfo {
-    pub classlike_infos: FxHashMap<Arc<String>, ClassLikeInfo>,
-    pub functionlike_infos: FxHashMap<Arc<String>, FunctionLikeInfo>,
-    pub type_definitions: FxHashMap<Arc<String>, TypeDefinitionInfo>,
+    pub classlike_infos: FxHashMap<Symbol, ClassLikeInfo>,
+    pub functionlike_infos: FxHashMap<Symbol, FunctionLikeInfo>,
+    pub type_definitions: FxHashMap<Symbol, TypeDefinitionInfo>,
     pub symbols: Symbols,
     pub infer_types_from_usage: bool,
     pub register_stub_files: bool,
     pub constant_infos: FxHashMap<String, ConstantInfo>,
-    pub classlikes_in_files: FxHashMap<String, FxHashSet<Arc<String>>>,
-    pub typedefs_in_files: FxHashMap<String, FxHashSet<Arc<String>>>,
-    pub functions_in_files: FxHashMap<String, FxHashSet<Arc<String>>>,
+    pub classlikes_in_files: FxHashMap<String, FxHashSet<Symbol>>,
+    pub typedefs_in_files: FxHashMap<String, FxHashSet<Symbol>>,
+    pub functions_in_files: FxHashMap<String, FxHashSet<Symbol>>,
     pub const_files: FxHashMap<String, FxHashSet<String>>,
-    pub classlike_descendents: FxHashMap<Arc<String>, FxHashSet<Arc<String>>>,
+    pub classlike_descendents: FxHashMap<Symbol, FxHashSet<Symbol>>,
 }
 
 impl CodebaseInfo {
@@ -192,7 +190,7 @@ impl CodebaseInfo {
 
     pub fn get_classconst_literal_value(
         &self,
-        fq_class_name: &Arc<String>,
+        fq_class_name: &Symbol,
         const_name: &String,
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
@@ -210,7 +208,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn property_exists(&self, classlike_name: &Arc<String>, property_name: &String) -> bool {
+    pub fn property_exists(&self, classlike_name: &Symbol, property_name: &String) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             classlike_info
                 .declaring_property_ids
@@ -220,7 +218,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn method_exists(&self, classlike_name: &Arc<String>, method_name: &String) -> bool {
+    pub fn method_exists(&self, classlike_name: &Symbol, method_name: &String) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             classlike_info
                 .declaring_method_ids
@@ -230,11 +228,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn declaring_method_exists(
-        &self,
-        classlike_name: &Arc<String>,
-        method_name: &String,
-    ) -> bool {
+    pub fn declaring_method_exists(&self, classlike_name: &Symbol, method_name: &String) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             if let Some(declaring_class) = classlike_info.declaring_method_ids.get(method_name) {
                 declaring_class == classlike_name
@@ -248,9 +242,9 @@ impl CodebaseInfo {
 
     pub fn get_declaring_class_for_property(
         &self,
-        fq_class_name: &Arc<String>,
+        fq_class_name: &Symbol,
         property_name: &String,
-    ) -> Option<&Arc<String>> {
+    ) -> Option<&Symbol> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             return classlike_storage.declaring_property_ids.get(property_name);
         }
@@ -260,7 +254,7 @@ impl CodebaseInfo {
 
     pub fn get_property_type(
         &self,
-        fq_class_name: &Arc<String>,
+        fq_class_name: &Symbol,
         property_name: &String,
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {

@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use hakana_reflection_info::{
+    codebase_info::symbols::Symbol,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
@@ -12,12 +13,12 @@ pub(crate) struct TypeCombination {
 
     pub has_object_top_type: bool,
 
-    pub enum_types: FxHashSet<Arc<String>>,
-    pub enum_value_types: FxHashMap<Arc<String>, FxHashMap<String, Option<Box<TAtomic>>>>,
+    pub enum_types: FxHashSet<Symbol>,
+    pub enum_value_types: FxHashMap<Symbol, FxHashMap<String, Option<Box<TAtomic>>>>,
 
-    pub object_type_params: FxHashMap<String, (Arc<String>, Vec<TUnion>)>,
+    pub object_type_params: FxHashMap<String, (Symbol, Vec<TUnion>)>,
 
-    pub object_static: FxHashMap<Arc<String>, bool>,
+    pub object_static: FxHashMap<Symbol, bool>,
 
     pub vec_counts: Option<FxHashSet<usize>>,
 
@@ -35,7 +36,7 @@ pub(crate) struct TypeCombination {
     pub vec_type_param: Option<TUnion>,
     pub keyset_type_param: Option<TUnion>,
 
-    pub dict_alias_name: Option<Option<Arc<String>>>,
+    pub dict_alias_name: Option<Option<Symbol>>,
 
     pub falsy_mixed: bool,
     pub truthy_mixed: bool,

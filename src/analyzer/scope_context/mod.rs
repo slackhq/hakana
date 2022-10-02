@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc};
 
-use function_context::FunctionContext;
 use hakana_algebra::Clause;
+use hakana_reflection_info::function_context::FunctionContext;
 use hakana_reflection_info::{assertion::Assertion, t_union::TUnion};
 use oxidized::ast_defs::Pos;
 use regex::Regex;

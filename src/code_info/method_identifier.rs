@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use crate::codebase_info::symbols::Symbol;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MethodIdentifier(pub Arc<String>, pub String);
+pub struct MethodIdentifier(pub Symbol, pub String);
 
 impl MethodIdentifier {
     pub fn to_string(&self) -> String {

@@ -1,4 +1,4 @@
-use function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo, t_union::TUnion,
 };

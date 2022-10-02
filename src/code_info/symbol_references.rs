@@ -1,34 +1,31 @@
-use std::sync::Arc;
-
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use function_context::{functionlike_identifier::FunctionLikeIdentifier, FunctionContext};
+use crate::codebase_info::symbols::Symbol;
+use crate::function_context::{FunctionContext, FunctionLikeIdentifier};
 
 #[derive(Debug, Clone)]
 pub struct SymbolReferences {
     // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
     // (class method, enum case, class property etc)
-    symbol_references_to_members: FxHashMap<Arc<String>, FxHashSet<(Arc<String>, String)>>,
+    symbol_references_to_members: FxHashMap<Symbol, FxHashSet<(Symbol, String)>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
-    symbol_references_to_symbols: FxHashMap<Arc<String>, FxHashSet<Arc<String>>>,
+    symbol_references_to_symbols: FxHashMap<Symbol, FxHashSet<Symbol>>,
 
     // A lookup table of all classlike members that reference another classlike member
     classlike_member_references_to_members:
-        FxHashMap<(Arc<String>, String), FxHashSet<(Arc<String>, String)>>,
+        FxHashMap<(Symbol, String), FxHashSet<(Symbol, String)>>,
 
     // A lookup table of all classlike members that reference another symbol
-    classlike_member_references_to_symbols:
-        FxHashMap<(Arc<String>, String), FxHashSet<Arc<String>>>,
+    classlike_member_references_to_symbols: FxHashMap<(Symbol, String), FxHashSet<Symbol>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
     // (class method, enum case, class property etc)
-    symbol_references_to_overridden_members:
-        FxHashMap<Arc<String>, FxHashSet<(Arc<String>, String)>>,
+    symbol_references_to_overridden_members: FxHashMap<Symbol, FxHashSet<(Symbol, String)>>,
 
     // A lookup table of all classlike members that reference another classlike member
     classlike_member_references_to_overridden_members:
-        FxHashMap<(Arc<String>, String), FxHashSet<(Arc<String>, String)>>,
+        FxHashMap<(Symbol, String), FxHashSet<(Symbol, String)>>,
 
     // A lookup table used for getting all the functions that reference a method's return value
     // This is used for dead code detection when we want to see what return values are unused
@@ -51,8 +48,8 @@ impl SymbolReferences {
 
     pub fn add_symbol_reference_to_class_member(
         &mut self,
-        referencing_symbol: Arc<String>,
-        class_member: (Arc<String>, String),
+        referencing_symbol: Symbol,
+        class_member: (Symbol, String),
     ) {
         self.add_symbol_reference_to_symbol(referencing_symbol.clone(), class_member.0.clone());
         self.symbol_references_to_members
@@ -61,11 +58,7 @@ impl SymbolReferences {
             .insert(class_member);
     }
 
-    pub fn add_symbol_reference_to_symbol(
-        &mut self,
-        referencing_symbol: Arc<String>,
-        symbol: Arc<String>,
-    ) {
+    pub fn add_symbol_reference_to_symbol(&mut self, referencing_symbol: Symbol, symbol: Symbol) {
         self.symbol_references_to_symbols
             .entry(referencing_symbol)
             .or_insert_with(FxHashSet::default)
@@ -74,8 +67,8 @@ impl SymbolReferences {
 
     pub fn add_class_member_reference_to_class_member(
         &mut self,
-        referencing_class_member: (Arc<String>, String),
-        class_member: (Arc<String>, String),
+        referencing_class_member: (Symbol, String),
+        class_member: (Symbol, String),
     ) {
         self.add_symbol_reference_to_symbol(
             referencing_class_member.0.clone(),
@@ -89,8 +82,8 @@ impl SymbolReferences {
 
     pub fn add_class_member_reference_to_symbol(
         &mut self,
-        referencing_class_member: (Arc<String>, String),
-        symbol: Arc<String>,
+        referencing_class_member: (Symbol, String),
+        symbol: Symbol,
     ) {
         self.add_symbol_reference_to_symbol(referencing_class_member.0.clone(), symbol.clone());
 
@@ -103,7 +96,7 @@ impl SymbolReferences {
     pub fn add_reference_to_class_member(
         &mut self,
         function_context: &FunctionContext,
-        class_member: (Arc<String>, String),
+        class_member: (Symbol, String),
     ) {
         if let Some(referencing_functionlike) = &function_context.calling_functionlike_id {
             match referencing_functionlike {
@@ -124,7 +117,7 @@ impl SymbolReferences {
     pub fn add_reference_to_overridden_class_member(
         &mut self,
         function_context: &FunctionContext,
-        class_member: (Arc<String>, String),
+        class_member: (Symbol, String),
     ) {
         if let Some(referencing_functionlike) = &function_context.calling_functionlike_id {
             match referencing_functionlike {
@@ -149,11 +142,7 @@ impl SymbolReferences {
         }
     }
 
-    pub fn add_reference_to_symbol(
-        &mut self,
-        function_context: &FunctionContext,
-        symbol: Arc<String>,
-    ) {
+    pub fn add_reference_to_symbol(&mut self, function_context: &FunctionContext, symbol: Symbol) {
         if let Some(referencing_functionlike) = &function_context.calling_functionlike_id {
             match referencing_functionlike {
                 FunctionLikeIdentifier::Function(function_name) => {
@@ -225,7 +214,7 @@ impl SymbolReferences {
         }
     }
 
-    pub fn get_referenced_symbols(&self) -> FxHashSet<&Arc<String>> {
+    pub fn get_referenced_symbols(&self) -> FxHashSet<&Symbol> {
         let mut referenced_symbols = FxHashSet::default();
 
         for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols {
@@ -235,7 +224,7 @@ impl SymbolReferences {
         referenced_symbols
     }
 
-    pub fn get_referenced_class_members(&self) -> FxHashSet<&(Arc<String>, String)> {
+    pub fn get_referenced_class_members(&self) -> FxHashSet<&(Symbol, String)> {
         let mut referenced_class_members = FxHashSet::default();
 
         for (_, symbol_references_to_class_members) in &self.symbol_references_to_members {
@@ -251,7 +240,7 @@ impl SymbolReferences {
         referenced_class_members
     }
 
-    pub fn get_referenced_overridden_class_members(&self) -> FxHashSet<&(Arc<String>, String)> {
+    pub fn get_referenced_overridden_class_members(&self) -> FxHashSet<&(Symbol, String)> {
         let mut referenced_class_members = FxHashSet::default();
 
         for (_, symbol_references_to_class_members) in &self.symbol_references_to_overridden_members

@@ -2,11 +2,11 @@ use std::{rc::Rc, sync::Arc};
 
 use rustc_hash::FxHashMap;
 
-use function_context::method_identifier::MethodIdentifier;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
+use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::{

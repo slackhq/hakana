@@ -4,7 +4,7 @@ use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_type::{get_arraykey, get_mixed_any};
 use oxidized::ast_defs::Pos;

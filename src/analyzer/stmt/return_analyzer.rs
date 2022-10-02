@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::scope_context::ScopeContext;
-use function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
     data_flow::{
         graph::{DataFlowGraph, GraphKind},

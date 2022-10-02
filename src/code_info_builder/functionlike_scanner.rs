@@ -4,12 +4,13 @@ use super::Context;
 use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
-use function_context::method_identifier::MethodIdentifier;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
+use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::functionlike_info::FnEffect;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
@@ -128,7 +129,7 @@ fn add_promoted_param_property(
     param_node: &aast::FunParam<(), ()>,
     param_visibility: ast_defs::Visibility,
     resolved_names: &FxHashMap<usize, String>,
-    classlike_name: &Arc<String>,
+    classlike_name: &Symbol,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
 ) {
@@ -187,7 +188,7 @@ fn add_promoted_param_property(
 
 pub(crate) fn get_functionlike(
     codebase: &CodebaseInfo,
-    name: Arc<String>,
+    name: Symbol,
     def_pos: &Pos,
     name_pos: &Pos,
     tparams: &Vec<aast::Tparam<(), ()>>,
@@ -197,7 +198,7 @@ pub(crate) fn get_functionlike(
     user_attributes: &Vec<UserAttribute>,
     contexts: &Option<tast::Contexts>,
     type_context: &mut TypeResolutionContext,
-    this_name: Option<&Arc<String>>,
+    this_name: Option<&Symbol>,
     resolved_names: &FxHashMap<usize, String>,
     functionlike_id: &String,
     comments: &Vec<(Pos, Comment)>,

@@ -3,7 +3,10 @@ use std::sync::Arc;
 use rustc_hash::FxHashMap;
 
 use hakana_reflection_info::{
-    classlike_info::ClassLikeInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
+    classlike_info::ClassLikeInfo,
+    codebase_info::{symbols::Symbol, CodebaseInfo},
+    t_atomic::TAtomic,
+    t_union::TUnion,
 };
 use hakana_type::{add_optional_union_type, get_mixed_any, wrap_atomic};
 use indexmap::IndexMap;
@@ -14,7 +17,7 @@ pub(crate) fn collect(
     static_class_storage: &ClassLikeInfo,
     lhs_type_part: Option<&TAtomic>, // default None
     self_call: bool,                 // default false
-) -> Option<IndexMap<String, FxHashMap<Arc<String>, TUnion>>> {
+) -> Option<IndexMap<String, FxHashMap<Symbol, TUnion>>> {
     let template_types = &class_storage.template_types;
 
     if template_types.is_empty() {
@@ -182,9 +185,9 @@ pub(crate) fn resolve_template_param(
 fn expand_type(
     codebase: &CodebaseInfo,
     input_type_extends: &Arc<TUnion>,
-    e: &FxHashMap<Arc<String>, IndexMap<String, Arc<TUnion>>>,
-    static_classlike_name: &Arc<String>,
-    static_template_types: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
+    e: &FxHashMap<Symbol, IndexMap<String, Arc<TUnion>>>,
+    static_classlike_name: &Symbol,
+    static_template_types: &IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
 ) -> Vec<TAtomic> {
     let mut output_type_extends = Vec::new();
 

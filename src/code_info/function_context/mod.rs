@@ -1,17 +1,14 @@
-pub mod functionlike_identifier;
-pub mod method_identifier;
-
-use std::sync::Arc;
-
 use rustc_hash::FxHashMap;
 
-pub use functionlike_identifier::FunctionLikeIdentifier;
+pub use crate::functionlike_identifier::FunctionLikeIdentifier;
+
+use crate::codebase_info::symbols::Symbol;
 
 #[derive(Clone, Debug)]
 pub struct FunctionContext {
     pub namespace: Option<String>,
 
-    pub calling_class: Option<Arc<String>>,
+    pub calling_class: Option<Symbol>,
 
     pub aliased_namespaces: FxHashMap<String, String>,
 

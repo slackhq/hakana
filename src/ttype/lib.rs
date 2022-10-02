@@ -1,9 +1,7 @@
-use std::sync::Arc;
-
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
-    codebase_info::CodebaseInfo,
+    codebase_info::{symbols::Symbol, CodebaseInfo},
     functionlike_parameter::FunctionLikeParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
@@ -116,7 +114,7 @@ pub fn get_object() -> TUnion {
 }
 
 #[inline]
-pub fn get_named_object(name: Arc<String>) -> TUnion {
+pub fn get_named_object(name: Symbol) -> TUnion {
     wrap_atomic(TAtomic::TNamedObject {
         name,
         type_params: None,

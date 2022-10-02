@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::{
-    codebase_info::CodebaseInfo,
+    codebase_info::{CodebaseInfo, symbols::Symbol},
     t_atomic::{DictKey, TAtomic},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -991,7 +991,7 @@ fn scrape_type_properties(
 
 fn merge_array_subtype(
     combination: &mut TypeCombination,
-    fq_class_name: &Arc<String>,
+    fq_class_name: &Symbol,
     codebase: Option<&CodebaseInfo>,
 ) {
     let keyed_container_types = combination.object_type_params.get(&**fq_class_name);

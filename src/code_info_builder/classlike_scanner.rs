@@ -7,7 +7,10 @@ use hakana_reflection_info::{
     class_constant_info::ConstantInfo,
     classlike_info::{ClassLikeInfo, Variance},
     code_location::HPos,
-    codebase_info::{symbols::SymbolKind, CodebaseInfo},
+    codebase_info::{
+        symbols::{Symbol, SymbolKind},
+        CodebaseInfo,
+    },
     member_visibility::MemberVisibility,
     property_info::PropertyInfo,
     t_atomic::TAtomic,
@@ -26,7 +29,7 @@ use crate::typehint_resolver::get_type_from_hint;
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
     resolved_names: &FxHashMap<usize, String>,
-    class_name: &Arc<String>,
+    class_name: &Symbol,
     classlike_node: &aast::Class_<(), ()>,
     file_source: &FileSource,
     user_defined: bool,
@@ -460,7 +463,7 @@ fn handle_reqs(
     classlike_node: &aast::Class_<(), ()>,
     resolved_names: &FxHashMap<usize, String>,
     storage: &mut ClassLikeInfo,
-    class_name: &Arc<String>,
+    class_name: &Symbol,
 ) {
     for req in &classlike_node.reqs {
         if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
@@ -706,7 +709,7 @@ fn visit_property_declaration(
 
 fn get_classlike_storage(
     codebase: &mut CodebaseInfo,
-    class_name: &Arc<String>,
+    class_name: &Symbol,
     //mut is_classlike_overridden: bool,
     class: &aast::Class_<(), ()>,
     file_source: &FileSource,

@@ -7,7 +7,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use function_context::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_type::get_mixed_any;

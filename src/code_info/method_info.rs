@@ -1,10 +1,8 @@
-use std::sync::Arc;
-
 use rustc_hash::FxHashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::member_visibility::MemberVisibility;
+use crate::{codebase_info::symbols::Symbol, member_visibility::MemberVisibility};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MethodInfo {
@@ -20,7 +18,7 @@ pub struct MethodInfo {
 
     pub overridden_somewhere: bool,
 
-    pub defining_fqcln: Option<Arc<String>>,
+    pub defining_fqcln: Option<Symbol>,
 
     pub external_mutation_free: bool,
 

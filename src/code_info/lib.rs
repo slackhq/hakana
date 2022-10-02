@@ -22,3 +22,6 @@ pub mod t_union;
 pub mod taint;
 pub mod type_definition_info;
 pub mod type_resolution;
+pub mod function_context;
+pub mod functionlike_identifier;
+pub mod method_identifier;

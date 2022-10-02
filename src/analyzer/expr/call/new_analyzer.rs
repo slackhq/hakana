@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::classlike_info::Variance;
+use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_type::template::standin_type_replacer::get_most_specific_type_from_bounds;
@@ -12,8 +13,8 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use function_context::method_identifier::MethodIdentifier;
 use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
@@ -237,7 +238,7 @@ fn analyze_named_constructor(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-    classlike_name: Arc<String>,
+    classlike_name: Symbol,
     from_static: bool,
     can_extend: bool,
     result: &mut AtomicMethodCallAnalysisResult,

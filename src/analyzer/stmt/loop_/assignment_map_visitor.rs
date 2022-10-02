@@ -1,5 +1,4 @@
-use std::sync::Arc;
-
+use hakana_reflection_info::codebase_info::symbols::Symbol;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
@@ -16,7 +15,7 @@ struct Scanner {
 }
 
 struct Context {
-    this_class_name: Option<Arc<String>>,
+    this_class_name: Option<Symbol>,
 }
 
 impl Scanner {
@@ -176,7 +175,7 @@ pub fn get_assignment_map(
     pre_conditions: Vec<&aast::Expr<(), ()>>,
     post_expressions: Vec<&aast::Expr<(), ()>>,
     stmts: &Vec<aast::Stmt<(), ()>>,
-    this_class_name: Option<Arc<String>>,
+    this_class_name: Option<Symbol>,
 ) -> (FxHashMap<String, FxHashSet<String>>, Option<String>) {
     let mut scanner = Scanner::new();
     let mut context = Context { this_class_name };

@@ -1,9 +1,8 @@
-use std::sync::Arc;
-
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::{expr::call::arguments_analyzer::get_template_types_for_call, typed_ast::TastInfo};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::code_location::HPos;
+use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
@@ -154,7 +153,7 @@ pub(crate) fn analyze(
 
 fn get_class_property_type(
     statements_analyzer: &StatementsAnalyzer,
-    classlike_name: &Arc<String>,
+    classlike_name: &Symbol,
     property_name: &String,
     declaring_property_class: &String,
     mut lhs_type_part: TAtomic,
@@ -340,7 +339,7 @@ fn add_property_dataflow(
     classlike_storage: &ClassLikeInfo,
     stmt_type: TUnion,
     in_assignment: bool,
-    property_id: &(Arc<String>, String),
+    property_id: &(Symbol, String),
     lhs_var_id: &Option<String>,
     expr_id: &Option<String>,
 ) -> TUnion {
@@ -410,7 +409,7 @@ fn add_property_dataflow(
 
 pub(crate) fn add_unspecialized_property_fetch_dataflow(
     expr_id: &Option<String>,
-    property_id: &(Arc<String>, String),
+    property_id: &(Symbol, String),
     pos: HPos,
     tast_info: &mut TastInfo,
     in_assignment: bool,

@@ -1,10 +1,13 @@
+use crate::functionlike_identifier::FunctionLikeIdentifier;
 use crate::{
     classlike_info::Variance,
-    codebase_info::{symbols::SymbolKind, CodebaseInfo, Symbols},
+    codebase_info::{
+        symbols::{Symbol, SymbolKind},
+        CodebaseInfo, Symbols,
+    },
     functionlike_parameter::FunctionLikeParameter,
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };
-use function_context::functionlike_identifier::FunctionLikeIdentifier;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -14,7 +17,7 @@ use std::{collections::BTreeMap, sync::Arc};
 pub enum DictKey {
     Int(u32),
     String(String),
-    Enum(Arc<String>, String),
+    Enum(Symbol, String),
 }
 
 impl DictKey {
@@ -40,10 +43,10 @@ pub enum TAtomic {
         known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
         params: Option<(TUnion, TUnion)>,
         non_empty: bool,
-        shape_name: Option<Arc<String>>,
+        shape_name: Option<Symbol>,
     },
     TEnum {
-        name: Arc<String>,
+        name: Symbol,
     },
     TFalsyMixed,
     TFalse,
@@ -61,10 +64,10 @@ pub enum TAtomic {
         type_param: TUnion,
     },
     TLiteralClassname {
-        name: Arc<String>,
+        name: Symbol,
     },
     TEnumLiteralCase {
-        enum_name: Arc<String>,
+        enum_name: Symbol,
         member_name: String,
         constraint_type: Option<Box<TAtomic>>,
     },
@@ -78,7 +81,7 @@ pub enum TAtomic {
     TMixed,
     TMixedFromLoopIsset,
     TNamedObject {
-        name: Arc<String>,
+        name: Symbol,
         type_params: Option<Vec<TUnion>>,
         is_this: bool,
         extra_types: Option<FxHashMap<String, TAtomic>>,
@@ -90,7 +93,7 @@ pub enum TAtomic {
     TNull,
     TNum,
     TReference {
-        name: Arc<String>,
+        name: Symbol,
         type_params: Option<Vec<TUnion>>,
     },
     TScalar,
@@ -102,23 +105,23 @@ pub enum TAtomic {
     TTemplateParam {
         param_name: String,
         as_type: TUnion,
-        defining_entity: Arc<String>,
+        defining_entity: Symbol,
         from_class: bool,
         extra_types: Option<FxHashMap<String, TAtomic>>,
     },
     TTemplateParamClass {
         param_name: String,
         as_type: Box<crate::t_atomic::TAtomic>,
-        defining_entity: Arc<String>,
+        defining_entity: Symbol,
     },
     TTemplateParamType {
         param_name: String,
-        defining_entity: Arc<String>,
+        defining_entity: Symbol,
     },
     TTrue,
     TTruthyMixed,
     TTypeAlias {
-        name: Arc<String>,
+        name: Symbol,
         type_params: Option<Vec<TUnion>>,
         as_type: Option<Box<TAtomic>>,
     },
@@ -135,7 +138,7 @@ pub enum TAtomic {
         member_name: String,
     },
     TEnumClassLabel {
-        class_name: Option<Arc<String>>,
+        class_name: Option<Symbol>,
         member_name: String,
     },
 }
@@ -707,7 +710,7 @@ impl TAtomic {
         }
     }
 
-    pub fn get_shape_name(&self) -> Option<&Arc<String>> {
+    pub fn get_shape_name(&self) -> Option<&Symbol> {
         match self {
             TAtomic::TDict { shape_name, .. } => shape_name.as_ref(),
             _ => None,

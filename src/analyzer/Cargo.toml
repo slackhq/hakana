@@ -10,7 +10,6 @@ rand = "0.8.5"
 indexmap = "1.8.0"
 hakana-type = { path = "../ttype" }
 hakana-algebra = { path = "../algebra" }
-function_context = { path = "../function_context" }
 hakana-reflection-info = { path = "../code_info" }
 hakana-reflector = { path = "../code_info_builder" }
 hakana-file-info = { path = "../file_info" }

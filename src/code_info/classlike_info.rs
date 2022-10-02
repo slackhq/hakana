@@ -3,8 +3,11 @@ use std::sync::Arc;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    code_location::HPos, codebase_info::symbols::SymbolKind, functionlike_info::FunctionLikeInfo,
-    t_atomic::TAtomic, t_union::TUnion,
+    code_location::HPos,
+    codebase_info::symbols::{Symbol, SymbolKind},
+    functionlike_info::FunctionLikeInfo,
+    t_atomic::TAtomic,
+    t_union::TUnion,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -40,39 +43,39 @@ pub struct ClassLikeInfo {
 
     pub suppressed_issues: Option<FxHashMap<u32, String>>,
 
-    pub name: Arc<String>,
+    pub name: Symbol,
 
     pub is_user_defined: bool,
 
     /**
      * Interfaces this class implements directly
      */
-    pub direct_class_interfaces: FxHashSet<Arc<String>>,
+    pub direct_class_interfaces: FxHashSet<Symbol>,
 
     /**
      * Interfaces this class implements explicitly and implicitly
      */
-    pub all_class_interfaces: FxHashSet<Arc<String>>,
+    pub all_class_interfaces: FxHashSet<Symbol>,
 
     /**
      * Parent interfaces listed explicitly
      */
-    pub direct_parent_interfaces: FxHashSet<Arc<String>>,
+    pub direct_parent_interfaces: FxHashSet<Symbol>,
 
     /**
      * All parent interfaces
      */
-    pub all_parent_interfaces: FxHashSet<Arc<String>>,
+    pub all_parent_interfaces: FxHashSet<Symbol>,
 
     /**
      * There can only be one parent class
      */
-    pub direct_parent_class: Option<Arc<String>>,
+    pub direct_parent_class: Option<Symbol>,
 
     /**
      * Parent classes
      */
-    pub all_parent_classes: FxHashSet<Arc<String>>,
+    pub all_parent_classes: FxHashSet<Symbol>,
 
     pub def_location: Option<HPos>,
 
@@ -84,7 +87,7 @@ pub struct ClassLikeInfo {
 
     pub kind: SymbolKind,
 
-    pub used_traits: FxHashSet<Arc<String>>,
+    pub used_traits: FxHashSet<Symbol>,
 
     pub immutable: bool,
 
@@ -92,30 +95,30 @@ pub struct ClassLikeInfo {
 
     pub methods: FxHashMap<String, FunctionLikeInfo>,
 
-    pub declaring_method_ids: FxHashMap<String, Arc<String>>,
+    pub declaring_method_ids: FxHashMap<String, Symbol>,
 
-    pub appearing_method_ids: FxHashMap<String, Arc<String>>,
+    pub appearing_method_ids: FxHashMap<String, Symbol>,
 
     /**
      * Map from lowercase method name to list of declarations in order from parent, to grandparent, to
      * great-grandparent, etc **including traits and interfaces**. Ancestors that don't have their own declaration are
      * skipped.
      */
-    pub overridden_method_ids: FxHashMap<String, FxHashSet<Arc<String>>>,
+    pub overridden_method_ids: FxHashMap<String, FxHashSet<Symbol>>,
 
-    pub inheritable_method_ids: FxHashMap<String, Arc<String>>,
+    pub inheritable_method_ids: FxHashMap<String, Symbol>,
 
-    pub potential_declaring_method_ids: FxHashMap<String, FxHashSet<Arc<String>>>,
+    pub potential_declaring_method_ids: FxHashMap<String, FxHashSet<Symbol>>,
 
     pub properties: FxHashMap<String, PropertyInfo>,
 
-    pub appearing_property_ids: FxHashMap<String, Arc<String>>,
+    pub appearing_property_ids: FxHashMap<String, Symbol>,
 
-    pub declaring_property_ids: FxHashMap<String, Arc<String>>,
+    pub declaring_property_ids: FxHashMap<String, Symbol>,
 
-    pub inheritable_property_ids: FxHashMap<String, Arc<String>>,
+    pub inheritable_property_ids: FxHashMap<String, Symbol>,
 
-    pub overridden_property_ids: FxHashMap<String, Vec<Arc<String>>>,
+    pub overridden_property_ids: FxHashMap<String, Vec<Symbol>>,
 
     /**
      * An array holding the class template "as" types.
@@ -126,7 +129,7 @@ pub struct ClassLikeInfo {
      * (i.e. the same as the class name). This allows operations with the same-named template defined
      * across multiple classes to not run into trouble.
      */
-    pub template_types: IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
+    pub template_types: IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
 
     pub generic_variance: FxHashMap<usize, Variance>,
 
@@ -137,7 +140,7 @@ pub struct ClassLikeInfo {
      *
      * @internal
      */
-    pub template_extended_offsets: FxHashMap<Arc<String>, Vec<Arc<TUnion>>>,
+    pub template_extended_offsets: FxHashMap<Symbol, Vec<Arc<TUnion>>>,
 
     /**
      * A map of which generic classlikes are extended or implemented by this class or interface.
@@ -151,7 +154,7 @@ pub struct ClassLikeInfo {
      *     ]
      * ]
      */
-    pub template_extended_params: FxHashMap<Arc<String>, IndexMap<String, Arc<TUnion>>>,
+    pub template_extended_params: FxHashMap<Symbol, IndexMap<String, Arc<TUnion>>>,
 
     pub template_extended_count: u32,
 
@@ -161,7 +164,7 @@ pub struct ClassLikeInfo {
 
     pub initialized_properties: FxHashSet<String>,
 
-    pub invalid_dependencies: Vec<Arc<String>>,
+    pub invalid_dependencies: Vec<Symbol>,
 
     /**
      * A hash of the source file's name, contents, and this file's modified on date
@@ -195,11 +198,11 @@ pub struct ClassLikeInfo {
 
     pub generated: bool,
 
-    pub child_classlikes: Option<FxHashSet<Arc<String>>>,
+    pub child_classlikes: Option<FxHashSet<Symbol>>,
 }
 
 impl ClassLikeInfo {
-    pub fn new(name: Arc<String>) -> ClassLikeInfo {
+    pub fn new(name: Symbol) -> ClassLikeInfo {
         ClassLikeInfo {
             constants: FxHashMap::default(),
             is_populated: false,

@@ -4,6 +4,7 @@ use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
@@ -102,11 +103,11 @@ pub(crate) fn analyze(
 
 pub(crate) fn get_id_name(
     id: &Box<oxidized::ast_defs::Id>,
-    calling_class: &Option<Arc<String>>,
+    calling_class: &Option<Symbol>,
     codebase: &CodebaseInfo,
     is_static: &mut bool,
     resolved_names: &FxHashMap<usize, String>,
-) -> Option<Arc<String>> {
+) -> Option<Symbol> {
     Some(match id.1.as_str() {
         "self" => {
             let self_name = if let Some(calling_class) = calling_class {
@@ -153,7 +154,7 @@ fn analyse_known_class_constant(
     codebase: &CodebaseInfo,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
-    classlike_name: &Arc<String>,
+    classlike_name: &Symbol,
     const_name: &String,
     is_this: bool,
 ) -> Option<TUnion> {

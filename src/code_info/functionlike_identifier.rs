@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
 
-use crate::method_identifier::MethodIdentifier;
+use crate::{method_identifier::MethodIdentifier, codebase_info::symbols::Symbol};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FunctionLikeIdentifier {
-    Function(Arc<String>),
-    Method(Arc<String>, String),
+    Function(Symbol),
+    Method(Symbol, String),
 }
 
 impl FunctionLikeIdentifier {

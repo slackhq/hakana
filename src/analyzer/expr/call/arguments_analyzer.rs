@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
+use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
 use rustc_hash::FxHashMap;
@@ -14,7 +15,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use function_context::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -702,7 +703,7 @@ fn handle_closure_arg(
 }
 
 fn map_class_generic_params(
-    class_generic_params: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
+    class_generic_params: &IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
     arg_value_type: &mut TUnion,
@@ -947,7 +948,7 @@ fn refine_template_result_for_functionlike(
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     functionlike_storage: &FunctionLikeInfo,
-    class_template_params: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
+    class_template_params: &IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
 ) {
     let template_types = get_template_types_for_call(
         codebase,
@@ -979,11 +980,11 @@ pub(crate) fn get_template_types_for_call(
     codebase: &CodebaseInfo,
     tast_info: &mut TastInfo,
     declaring_classlike_storage: Option<&ClassLikeInfo>,
-    appearing_class_name: Option<&Arc<String>>,
+    appearing_class_name: Option<&Symbol>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
-    existing_template_types: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
-    class_template_params: &IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
-) -> IndexMap<String, FxHashMap<Arc<String>, TUnion>> {
+    existing_template_types: &IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
+    class_template_params: &IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
+) -> IndexMap<String, FxHashMap<Symbol, TUnion>> {
     let mut template_types = existing_template_types.clone();
 
     if let Some(declaring_classlike_storage) = declaring_classlike_storage {

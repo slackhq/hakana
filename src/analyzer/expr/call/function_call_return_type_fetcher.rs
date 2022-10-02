@@ -1,8 +1,8 @@
-use function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
+use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;

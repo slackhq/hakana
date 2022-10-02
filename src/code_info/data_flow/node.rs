@@ -1,10 +1,10 @@
 use core::panic;
 
+use crate::method_identifier::MethodIdentifier;
 use crate::{
     code_location::HPos,
     taint::{SinkType, SourceType},
 };
-use function_context::method_identifier::MethodIdentifier;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 

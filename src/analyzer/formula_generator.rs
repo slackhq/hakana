@@ -1,11 +1,13 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 
 use rustc_hash::FxHashMap;
 
 use hakana_algebra::Clause;
 use hakana_file_info::FileSource;
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
+    assertion::Assertion,
+    codebase_info::{symbols::Symbol, CodebaseInfo},
+    type_resolution::TypeResolutionContext,
 };
 use oxidized::{
     aast,
@@ -18,7 +20,7 @@ pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource,
     pub resolved_names: &'a FxHashMap<usize, String>,
     pub codebase: Option<&'a CodebaseInfo>,
-    pub this_class_name: Option<&'a Arc<String>>,
+    pub this_class_name: Option<&'a Symbol>,
     pub type_resolution_context: &'a TypeResolutionContext,
 }
 

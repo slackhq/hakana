@@ -6,7 +6,7 @@ use crate::{
 };
 use hakana_reflection_info::{
     assertion::Assertion,
-    codebase_info::CodebaseInfo,
+    codebase_info::{CodebaseInfo, symbols::Symbol},
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
@@ -959,7 +959,7 @@ fn get_value_for_key(
 
 fn get_property_type(
     codebase: &CodebaseInfo,
-    classlike_name: &Arc<String>,
+    classlike_name: &Symbol,
     property_name: &String,
     tast_info: &mut TastInfo,
 ) -> Option<TUnion> {

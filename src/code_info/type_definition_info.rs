@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{classlike_info::Variance, t_atomic::DictKey, t_union::TUnion, taint::SourceType};
+use crate::{classlike_info::Variance, t_atomic::DictKey, t_union::TUnion, taint::SourceType, codebase_info::symbols::Symbol};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TypeDefinitionInfo {
@@ -22,7 +22,7 @@ pub struct TypeDefinitionInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
+    pub template_types: IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
 
     pub generic_variance: FxHashMap<usize, Variance>,
 

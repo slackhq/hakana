@@ -1,9 +1,9 @@
-use std::{path::Path, process::exit, sync::Arc};
+use std::{path::Path, process::exit};
 
 use hakana_reflection_info::{
     data_flow::graph::GraphKind,
     issue::{Issue, IssueKind},
-    taint::SinkType,
+    taint::SinkType, codebase_info::symbols::Symbol,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -12,7 +12,7 @@ use crate::custom_hook::CustomHook;
 pub mod json_config;
 
 pub struct Config {
-    pub migration_symbols: FxHashSet<(String, Arc<String>)>,
+    pub migration_symbols: FxHashSet<(String, Symbol)>,
     pub find_unused_expressions: bool,
     pub find_unused_definitions: bool,
     pub issue_filter: Option<FxHashSet<IssueKind>>,

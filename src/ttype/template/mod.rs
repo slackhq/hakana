@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rustc_hash::FxHashMap;
 
-use hakana_reflection_info::t_union::TUnion;
+use hakana_reflection_info::{codebase_info::symbols::Symbol, t_union::TUnion};
 use indexmap::IndexMap;
 
 pub mod inferred_type_replacer;
@@ -27,9 +27,9 @@ pub mod standin_type_replacer;
  */
 #[derive(Clone, Debug)]
 pub struct TemplateResult {
-    pub template_types: IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
-    pub lower_bounds: IndexMap<String, FxHashMap<Arc<String>, Vec<TemplateBound>>>,
-    pub upper_bounds: IndexMap<String, FxHashMap<Arc<String>, TemplateBound>>,
+    pub template_types: IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
+    pub lower_bounds: IndexMap<String, FxHashMap<Symbol, Vec<TemplateBound>>>,
+    pub upper_bounds: IndexMap<String, FxHashMap<Symbol, TemplateBound>>,
     /**
      * If set to true then we shouldn't update the template bounds
      */
@@ -39,8 +39,8 @@ pub struct TemplateResult {
 
 impl TemplateResult {
     pub fn new(
-        template_types: IndexMap<String, FxHashMap<Arc<String>, Arc<TUnion>>>,
-        lower_bounds: IndexMap<String, FxHashMap<Arc<String>, TUnion>>,
+        template_types: IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
+        lower_bounds: IndexMap<String, FxHashMap<Symbol, TUnion>>,
     ) -> TemplateResult {
         let mut new_lower_bounds = IndexMap::new();
 
