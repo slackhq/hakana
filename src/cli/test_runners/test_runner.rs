@@ -96,7 +96,7 @@ pub trait TestRunner {
 
             analysis_config.migration_symbols = replacements
                 .lines()
-                .map(|v| (migration_name.clone(), Arc::new(v.to_string())))
+                .map(|v| (migration_name.clone(), v.to_string()))
                 .collect();
         } else if dir.contains("/fix/") {
             let issue_name = dir_parts.get(1).unwrap().to_string();

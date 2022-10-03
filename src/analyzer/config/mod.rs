@@ -3,7 +3,7 @@ use std::{path::Path, process::exit};
 use hakana_reflection_info::{
     data_flow::graph::GraphKind,
     issue::{Issue, IssueKind},
-    taint::SinkType, codebase_info::symbols::Symbol,
+    taint::SinkType,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -12,7 +12,7 @@ use crate::custom_hook::CustomHook;
 pub mod json_config;
 
 pub struct Config {
-    pub migration_symbols: FxHashSet<(String, Symbol)>,
+    pub migration_symbols: FxHashSet<(String, String)>,
     pub find_unused_expressions: bool,
     pub find_unused_definitions: bool,
     pub issue_filter: Option<FxHashSet<IssueKind>>,

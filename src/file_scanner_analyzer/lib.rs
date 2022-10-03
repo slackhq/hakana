@@ -224,7 +224,7 @@ fn find_unused_definitions(
 
                 if config
                     .migration_symbols
-                    .contains(&("unused_symbol".to_string(), function_name.clone()))
+                    .contains(&("unused_symbol".to_string(), (**function_name).clone()))
                 {
                     if let Some(def_pos) = &functionlike_info.def_location {
                         analysis_result

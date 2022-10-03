@@ -19,7 +19,7 @@ pub type Symbol = Arc<String>;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Symbols {
     pub all: FxHashMap<Symbol, SymbolKind>,
-    pub classlike_files: FxHashMap<Symbol, String>,
+    pub classlike_files: FxHashMap<Symbol, Arc<String>>,
 }
 
 impl Symbols {
@@ -30,7 +30,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<&String>) {
+    pub fn add_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
         self.all.insert(fq_class_name.clone(), SymbolKind::Class);
 
         if let Some(file_path) = file_path {
@@ -39,7 +39,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_enum_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<&String>) {
+    pub fn add_enum_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
         self.all
             .insert(fq_class_name.clone(), SymbolKind::EnumClass);
 
@@ -49,7 +49,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_interface_name(&mut self, fq_class_name: &Symbol, file_path: Option<&String>) {
+    pub fn add_interface_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
         self.all
             .insert(fq_class_name.clone(), SymbolKind::Interface);
 
@@ -59,7 +59,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_trait_name(&mut self, fq_class_name: &Symbol, file_path: Option<&String>) {
+    pub fn add_trait_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
         self.all.insert(fq_class_name.clone(), SymbolKind::Trait);
 
         if let Some(file_path) = file_path {
@@ -68,7 +68,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_enum_name(&mut self, fq_class_name: &Symbol, file_path: Option<&String>) {
+    pub fn add_enum_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
         self.all.insert(fq_class_name.clone(), SymbolKind::Enum);
 
         if let Some(file_path) = file_path {
