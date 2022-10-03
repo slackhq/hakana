@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::{
-    codebase_info::{CodebaseInfo, symbols::Symbol},
+    codebase_info::{symbols::Symbol, CodebaseInfo},
     t_atomic::{DictKey, TAtomic},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -13,7 +13,7 @@ use crate::{
 
 pub fn combine(
     types: Vec<TAtomic>,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
     overwrite_empty_array: bool,
 ) -> Vec<TAtomic> {
     if types.len() == 1 {
@@ -225,7 +225,7 @@ pub fn combine(
 fn scrape_type_properties(
     atomic: TAtomic,
     combination: &mut TypeCombination,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
     overwrite_empty_array: bool,
 ) -> Option<Vec<TAtomic>> {
     match atomic {
@@ -322,11 +322,7 @@ fn scrape_type_properties(
             "HH\\KeyedContainer".to_string()
         }
     } else {
-        if let Some(codebase) = codebase {
-            atomic.get_combiner_key(codebase)
-        } else {
-            atomic.get_key()
-        }
+        atomic.get_combiner_key(codebase)
     };
 
     if let TAtomic::TVec {
@@ -731,13 +727,6 @@ fn scrape_type_properties(
             return None;
         }
 
-        if let None = codebase {
-            combination.value_types.insert(type_key, atomic);
-            return None;
-        }
-
-        let codebase = codebase.unwrap();
-
         if !codebase.class_or_interface_or_enum_exists(&type_key) {
             combination.value_types.insert(type_key, atomic);
 
@@ -992,7 +981,7 @@ fn scrape_type_properties(
 fn merge_array_subtype(
     combination: &mut TypeCombination,
     fq_class_name: &Symbol,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
 ) {
     let keyed_container_types = combination.object_type_params.get(&**fq_class_name);
     // dict<string, Foo>|KeyedContainer<int, Bar> => KeyedContainer<string|int, Foo|Bar>

@@ -83,7 +83,7 @@ pub(crate) fn analyze(
                         Rc::new(hakana_type::combine_union_types(
                             &var_type,
                             &possibly_defined_type,
-                            Some(codebase),
+                            codebase,
                             false,
                         )),
                     );

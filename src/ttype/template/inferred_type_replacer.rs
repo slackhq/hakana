@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::{codebase_info::{CodebaseInfo, symbols::Symbol}, t_atomic::TAtomic, t_union::TUnion};
+use hakana_reflection_info::{
+    codebase_info::{symbols::Symbol, CodebaseInfo},
+    t_atomic::TAtomic,
+    t_union::TUnion,
+};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -14,7 +18,7 @@ use super::{
 pub fn replace(
     union: &TUnion,
     template_result: &TemplateResult,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
 ) -> TUnion {
     let mut keys_to_unset = FxHashSet::default();
 
@@ -174,7 +178,7 @@ fn replace_template_param(
     inferred_lower_bounds: &IndexMap<String, FxHashMap<Symbol, Vec<TemplateBound>>>,
     param_name: &String,
     defining_entity: &String,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
     as_type: &TUnion,
     extra_types: &Option<FxHashMap<String, TAtomic>>,
     key: &String,
@@ -206,7 +210,7 @@ fn replace_template_param(
         }
 
         template_type = Some(template_type_inner);
-    } else if let Some(codebase) = codebase {
+    } else {
         for (_, template_type_map) in inferred_lower_bounds {
             for (map_defining_entity, _) in template_type_map {
                 if map_defining_entity.starts_with("fn-")
@@ -232,8 +236,7 @@ fn replace_template_param(
                             if let Some(bounds) = bounds_map.get(template_name) {
                                 template_type =
                                     Some(standin_type_replacer::get_most_specific_type_from_bounds(
-                                        bounds,
-                                        Some(codebase),
+                                        bounds, codebase,
                                     ))
                             }
                         }
@@ -249,7 +252,7 @@ fn replace_template_param(
 fn replace_atomic(
     mut atomic: TAtomic,
     template_result: &TemplateResult,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
 ) -> TAtomic {
     match atomic {
         TAtomic::TVec {

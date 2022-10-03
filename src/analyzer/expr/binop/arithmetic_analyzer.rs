@@ -139,7 +139,7 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
     let result_type = TUnion::new(if results.len() == 1 {
         results
     } else {
-        type_combiner::combine(results, None, false)
+        type_combiner::combine(results, statements_analyzer.get_codebase(), false)
     });
 
     assign_arithmetic_type(

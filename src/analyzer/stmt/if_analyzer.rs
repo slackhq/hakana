@@ -201,7 +201,7 @@ pub(crate) fn update_if_scope(
             if let Some(if_var_type) = if_context.vars_in_scope.get(&new_var_id) {
                 new_vars.insert(
                     new_var_id,
-                    hakana_type::add_union_type(new_type, if_var_type, Some(codebase), false),
+                    hakana_type::add_union_type(new_type, if_var_type, codebase, false),
                 );
             } else {
                 new_vars.remove(&new_var_id);
@@ -252,7 +252,7 @@ pub(crate) fn update_if_scope(
                     hakana_type::combine_union_types(
                         redefined_var_type,
                         &scope_redefined_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     ),
                 );
@@ -277,7 +277,7 @@ pub(crate) fn update_if_scope(
                     add_union_type(
                         possibly_redefined_type,
                         &existing_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     ),
                 );

@@ -300,7 +300,7 @@ pub(crate) fn analyze_regular_assignment(
                 context_type = Some(add_optional_union_type(
                     assigned_prop.2,
                     context_type.as_ref(),
-                    Some(codebase),
+                    codebase,
                 ));
             }
         }

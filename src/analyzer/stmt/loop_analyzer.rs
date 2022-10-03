@@ -121,6 +121,7 @@ pub(crate) fn analyze<'a>(
             loop_context,
             &mut continue_context,
             loop_parent_context,
+            statements_analyzer,
         );
 
         for post_expression in post_expressions {
@@ -166,6 +167,7 @@ pub(crate) fn analyze<'a>(
             loop_context,
             &mut continue_context,
             &original_parent_context,
+            statements_analyzer,
         );
 
         continue_context.protected_var_ids = original_protected_var_ids.clone();
@@ -249,7 +251,7 @@ pub(crate) fn analyze<'a>(
                             Rc::new(combine_union_types(
                                 &continue_context_type,
                                 parent_context_type,
-                                None,
+                                codebase,
                                 false,
                             )),
                         );
@@ -274,7 +276,7 @@ pub(crate) fn analyze<'a>(
                             Rc::new(combine_union_types(
                                 &continue_context_type,
                                 loop_context_type,
-                                None,
+                                codebase,
                                 false,
                             )),
                         );
@@ -361,6 +363,7 @@ pub(crate) fn analyze<'a>(
                 loop_context,
                 &mut continue_context,
                 &original_parent_context,
+                statements_analyzer,
             );
 
             continue_context.protected_var_ids = original_protected_var_ids.clone();
@@ -425,7 +428,7 @@ pub(crate) fn analyze<'a>(
                         Rc::new(combine_union_types(
                             possibly_redefined_var_type,
                             do_context_type,
-                            None,
+                            codebase,
                             false,
                         ))
                     };
@@ -445,7 +448,7 @@ pub(crate) fn analyze<'a>(
                     *loop_parent_context_type = Rc::new(combine_union_types(
                         var_type,
                         loop_parent_context_type,
-                        None,
+                        codebase,
                         false,
                     ));
                 }
@@ -465,7 +468,7 @@ pub(crate) fn analyze<'a>(
                     Rc::new(combine_union_types(
                         var_type,
                         loop_context_type,
-                        None,
+                        codebase,
                         false,
                     )),
                 );
@@ -505,7 +508,7 @@ pub(crate) fn analyze<'a>(
                         Rc::new(combine_union_types(
                             &var_type,
                             continue_context_type,
-                            None,
+                            codebase,
                             false,
                         )),
                     );
@@ -598,7 +601,7 @@ pub(crate) fn analyze<'a>(
                         Rc::new(combine_union_types(
                             var_type,
                             possibly_defined_type,
-                            None,
+                            codebase,
                             false,
                         )),
                     );
@@ -747,6 +750,7 @@ fn update_loop_scope_contexts(
     loop_context: &mut ScopeContext,
     continue_context: &mut ScopeContext,
     pre_outer_context: &ScopeContext,
+    statements_analyzer: &StatementsAnalyzer,
 ) {
     let loop_scope = loop_scope.as_mut().unwrap();
 
@@ -767,7 +771,7 @@ fn update_loop_scope_contexts(
                     Rc::new(combine_union_types(
                         &continue_context.vars_in_scope.get(var_id).unwrap(),
                         var_type,
-                        None,
+                        statements_analyzer.get_codebase(),
                         false,
                     )),
                 );

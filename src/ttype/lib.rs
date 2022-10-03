@@ -188,7 +188,7 @@ pub fn get_mixed_dict() -> TUnion {
 pub fn add_optional_union_type(
     base_type: TUnion,
     maybe_type: Option<&TUnion>,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
 ) -> TUnion {
     if let Some(type_2) = maybe_type {
         add_union_type(base_type, type_2, codebase, false)
@@ -200,7 +200,7 @@ pub fn add_optional_union_type(
 pub fn combine_optional_union_types(
     type_1: Option<&TUnion>,
     type_2: Option<&TUnion>,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
 ) -> TUnion {
     if let Some(type_1) = type_1 {
         if let Some(type_2) = type_2 {
@@ -216,7 +216,7 @@ pub fn combine_optional_union_types(
 pub fn combine_union_types(
     type_1: &TUnion,
     type_2: &TUnion,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
     overwrite_empty_array: bool, // default false
 ) -> TUnion {
     if type_1 == type_2 {
@@ -278,7 +278,7 @@ pub fn combine_union_types(
 pub fn add_union_type(
     mut base_type: TUnion,
     other_type: &TUnion,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
     overwrite_empty_array: bool, // default false
 ) -> TUnion {
     if &base_type == other_type {
@@ -336,7 +336,7 @@ pub fn add_union_type(
 pub fn intersect_union_types(
     _type_1: &TUnion,
     _type_2: &TUnion,
-    _codebase: Option<&CodebaseInfo>,
+    _codebase: &CodebaseInfo,
 ) -> Option<TUnion> {
     None
 }
@@ -377,11 +377,11 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
                             .unwrap()
                             .get_single_owned(),
                     });
-                    value_param = add_union_type(value_param, property_type, Some(codebase), false);
+                    value_param = add_union_type(value_param, property_type, codebase, false);
                 }
             }
 
-            let key_param = TUnion::new(combine(key_types, Some(codebase), false));
+            let key_param = TUnion::new(combine(key_types, codebase, false));
 
             Some((key_param, value_param))
         }
@@ -399,16 +399,16 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
                         value: key.clone() as i64,
                     });
                     type_param =
-                        combine_union_types(property_type, &type_param, Some(codebase), false);
+                        combine_union_types(property_type, &type_param, codebase, false);
                 }
             }
 
-            let combined_known_keys = TUnion::new(combine(key_types, Some(codebase), false));
+            let combined_known_keys = TUnion::new(combine(key_types, codebase, false));
 
             let key_param = if type_param.is_nothing() {
                 combined_known_keys
             } else {
-                add_union_type(get_int(), &combined_known_keys, Some(codebase), false)
+                add_union_type(get_int(), &combined_known_keys, codebase, false)
             };
 
             Some((key_param, type_param))
@@ -455,7 +455,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             if let Some(known_items) = known_items {
                 for (_, (_, property_type)) in known_items {
                     value_param =
-                        combine_union_types(property_type, &value_param, Some(codebase), false);
+                        combine_union_types(property_type, &value_param, codebase, false);
                 }
             }
 
@@ -471,7 +471,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             if let Some(known_items) = known_items {
                 for (_, (_, property_type)) in known_items {
                     type_param =
-                        combine_union_types(property_type, &type_param, Some(codebase), false);
+                        combine_union_types(property_type, &type_param, codebase, false);
                 }
             }
 

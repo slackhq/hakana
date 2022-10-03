@@ -91,7 +91,7 @@ pub(crate) fn analyze(
             stmt_type = Some(hakana_type::combine_optional_union_types(
                 stmt_type.as_ref(),
                 closure_return_type.as_ref(),
-                Some(codebase),
+                codebase,
             ));
         }
     }

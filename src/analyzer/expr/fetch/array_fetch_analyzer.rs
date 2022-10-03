@@ -345,7 +345,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     stmt_type = Some(add_union_type(
                         existing_type,
                         &new_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     ));
                 } else {
@@ -370,7 +370,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     stmt_type = Some(add_union_type(
                         existing_type,
                         &new_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     ));
                 } else {
@@ -390,7 +390,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     stmt_type = Some(add_union_type(
                         existing_type,
                         &new_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     ));
                 } else {
@@ -417,7 +417,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     stmt_type = Some(add_union_type(
                         existing_type,
                         &new_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     ));
                 } else {
@@ -443,7 +443,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     stmt_type = Some(add_optional_union_type(
                         get_null(),
                         stmt_type.as_ref(),
-                        Some(codebase),
+                        codebase,
                     ));
                 }
 
@@ -459,7 +459,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         stmt_type = Some(add_union_type(
                             existing_type,
                             &type_params.get(1).unwrap(),
-                            Some(codebase),
+                            codebase,
                             false,
                         ));
                     } else {
@@ -472,7 +472,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         stmt_type = Some(add_union_type(
                             existing_type,
                             &type_params.get(0).unwrap(),
-                            Some(codebase),
+                            codebase,
                             false,
                         ));
                     } else {
@@ -627,7 +627,7 @@ pub(crate) fn handle_array_access_on_vec(
         let mut type_param = type_param;
 
         for (_, (_, known_item)) in known_items {
-            type_param = add_union_type(type_param, &known_item, Some(codebase), false);
+            type_param = add_union_type(type_param, &known_item, codebase, false);
         }
 
         return type_param;
@@ -755,7 +755,7 @@ pub(crate) fn handle_array_access_on_dict(
         };
 
         for (_, (_, known_item)) in known_items {
-            value_param = add_union_type(value_param, &known_item, Some(codebase), false);
+            value_param = add_union_type(value_param, &known_item, codebase, false);
         }
 
         let mut union_comparison_result = TypeComparisonResult::new();

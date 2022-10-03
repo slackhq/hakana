@@ -348,7 +348,7 @@ pub(crate) fn analyze(
         if let Some(existing_var_type) = context.vars_in_scope.get(&var_id) {
             if !if_scope.updated_vars.contains(&var_id) {
                 let combined_type =
-                    combine_union_types(existing_var_type, &var_type, Some(codebase), false);
+                    combine_union_types(existing_var_type, &var_type, codebase, false);
 
                 if combined_type != var_type {
                     context.remove_descendants(&var_id, &combined_type, None, None, tast_info);

@@ -325,7 +325,7 @@ fn handle_shapes_static_method(
                 let default_type = tast_info.get_expr_type(call_expr.1[2].1.pos());
                 expr_type = if let Some(expr_type) = expr_type {
                     Some(if let Some(default_type) = default_type {
-                        add_union_type(expr_type, default_type, Some(codebase), false)
+                        add_union_type(expr_type, default_type, codebase, false)
                     } else {
                         get_mixed_any()
                     })

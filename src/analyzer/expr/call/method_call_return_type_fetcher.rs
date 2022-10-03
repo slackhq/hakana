@@ -86,7 +86,7 @@ pub(crate) fn fetch(
         return_type_candidate = template::inferred_type_replacer::replace(
             &return_type_candidate,
             &template_result,
-            Some(codebase),
+            codebase,
         );
     }
 

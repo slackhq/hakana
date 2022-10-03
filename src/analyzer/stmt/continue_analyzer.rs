@@ -31,7 +31,7 @@ pub(crate) fn analyze(
                 hakana_type::add_optional_union_type(
                     var_type,
                     loop_scope.possibly_redefined_loop_vars.get(&var_id),
-                    Some(codebase),
+                    codebase,
                 ),
             );
         }

@@ -1678,7 +1678,7 @@ fn reconcile_in_array(
     suppressed_issues: &FxHashMap<String, usize>,
     typed_value: &TUnion,
 ) -> TUnion {
-    let intersection = intersect_union_types(typed_value, existing_var_type, Some(codebase));
+    let intersection = intersect_union_types(typed_value, existing_var_type, codebase);
 
     if let Some(intersection) = intersection {
         return intersection;

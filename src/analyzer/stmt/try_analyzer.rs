@@ -73,7 +73,7 @@ pub(crate) fn analyze(
                         None
                     },
                     Some(var_type),
-                    Some(codebase),
+                    codebase,
                 )),
             );
         }
@@ -102,7 +102,7 @@ pub(crate) fn analyze(
                 Rc::new(combine_union_types(
                     &try_type,
                     &context_type,
-                    Some(codebase),
+                    codebase,
                     false,
                 )),
             );
@@ -153,7 +153,7 @@ pub(crate) fn analyze(
                     Rc::new(combine_union_types(
                         &after_try_type,
                         &before_try_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     )),
                 );
@@ -242,7 +242,7 @@ pub(crate) fn analyze(
                         Rc::new(combine_union_types(
                             &context_type,
                             var_type,
-                            Some(codebase),
+                            codebase,
                             false,
                         )),
                     );
@@ -258,7 +258,7 @@ pub(crate) fn analyze(
                         Rc::new(combine_union_types(
                             &finally_type,
                             &var_type,
-                            Some(codebase),
+                            codebase,
                             false,
                         )),
                     );
@@ -306,7 +306,7 @@ pub(crate) fn analyze(
                         *context_type = Rc::new(combine_union_types(
                             &context_type,
                             &finally_type,
-                            Some(codebase),
+                            codebase,
                             false,
                         ));
                     } else {

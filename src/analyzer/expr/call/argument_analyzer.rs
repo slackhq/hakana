@@ -183,7 +183,7 @@ fn get_unpacked_type(
     let mut result_type = inner_types.pop().unwrap();
 
     for inner_type in &inner_types {
-        result_type = add_union_type(result_type, inner_type, Some(codebase), false);
+        result_type = add_union_type(result_type, inner_type, codebase, false);
     }
 
     result_type

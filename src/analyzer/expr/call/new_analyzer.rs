@@ -355,7 +355,7 @@ fn analyze_named_constructor(
                     } {
                     template::standin_type_replacer::get_most_specific_type_from_bounds(
                         template_bounds,
-                        Some(codebase),
+                        codebase,
                     )
                 } else if !storage.template_extended_params.is_empty()
                     && !template_result.lower_bounds.is_empty()
@@ -373,7 +373,7 @@ fn analyze_named_constructor(
                                             map_key.clone(),
                                             Arc::new(get_most_specific_type_from_bounds(
                                                 bounds,
-                                                Some(codebase),
+                                                codebase,
                                             )),
                                         )
                                     })
@@ -475,7 +475,7 @@ fn analyze_named_constructor(
     result.return_type = Some(add_optional_union_type(
         result_type,
         result.return_type.as_ref(),
-        Some(codebase),
+        codebase,
     ));
 }
 

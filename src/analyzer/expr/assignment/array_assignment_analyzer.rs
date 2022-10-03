@@ -257,7 +257,7 @@ fn update_atomic_given_key(
                     *type_param = combine_union_types(
                         type_param,
                         &wrap_atomic(key_value.clone()),
-                        Some(codebase),
+                        codebase,
                         true,
                     );
                 }
@@ -316,7 +316,7 @@ fn update_atomic_given_key(
                 *type_param = hakana_type::add_union_type(
                     arrayish_params.unwrap().1,
                     &current_type,
-                    Some(codebase),
+                    codebase,
                     false,
                 );
 
@@ -329,7 +329,7 @@ fn update_atomic_given_key(
                 *type_param = hakana_type::add_union_type(
                     arrayish_params.unwrap().1,
                     &current_type,
-                    Some(codebase),
+                    codebase,
                     false,
                 );
             }
@@ -343,8 +343,8 @@ fn update_atomic_given_key(
                 let params = arrayish_params.unwrap();
 
                 *existing_params = Some((
-                    hakana_type::add_union_type(params.0, &key_type, Some(codebase), false),
-                    hakana_type::add_union_type(params.1, &current_type, Some(codebase), false),
+                    hakana_type::add_union_type(params.0, &key_type, codebase, false),
+                    hakana_type::add_union_type(params.1, &current_type, codebase, false),
                 ));
                 *known_items = None;
                 *shape_name = None;
@@ -570,14 +570,14 @@ fn update_array_assignment_child_type(
 
     let array_assignment_type = TUnion::new(type_combiner::combine(
         collection_types,
-        Some(codebase),
+        codebase,
         false,
     ));
 
     let new_child_type = if let Some(new_child_type) = new_child_type {
         new_child_type
     } else {
-        hakana_type::add_union_type(root_type, &array_assignment_type, Some(codebase), true)
+        hakana_type::add_union_type(root_type, &array_assignment_type, codebase, true)
     };
 
     new_child_type

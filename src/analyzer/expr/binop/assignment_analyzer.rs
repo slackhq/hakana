@@ -423,7 +423,7 @@ fn analyze_list_assignment(
                 get_nothing()
             };
 
-            value_type = add_union_type(value_type, &atomic_value_type, Some(codebase), false);
+            value_type = add_union_type(value_type, &atomic_value_type, codebase, false);
         }
 
         if let Some(source_expr) = source_expr {

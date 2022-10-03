@@ -40,7 +40,7 @@ pub(crate) fn analyze(
                     Rc::new(hakana_type::add_union_type(
                         (**var_type).clone(),
                         existing_redefined_loop_parent_var,
-                        Some(codebase),
+                        codebase,
                         false,
                     ))
                 } else {
@@ -57,7 +57,7 @@ pub(crate) fn analyze(
                         combine_optional_union_types(
                             Some(var_type),
                             loop_scope.possibly_defined_loop_parent_vars.get(var_id),
-                            Some(codebase),
+                            codebase,
                         ),
                     );
                 }
@@ -82,7 +82,7 @@ pub(crate) fn analyze(
                     combine_optional_union_types(
                         Some(var_type),
                         new_break_vars.get(var_id),
-                        Some(codebase),
+                        codebase,
                     ),
                 );
             }

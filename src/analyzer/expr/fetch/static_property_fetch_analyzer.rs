@@ -286,7 +286,7 @@ fn analyze_variable_static_property_fetch(
             fake_stmt_type = Some(tast_info.get_expr_type(&pos).unwrap());
         }
 
-        let stmt_type = combine_optional_union_types(fake_stmt_type, None, Some(codebase));
+        let stmt_type = combine_optional_union_types(fake_stmt_type, None, codebase);
         tast_info.set_expr_type(&pos, stmt_type);
     }
 }

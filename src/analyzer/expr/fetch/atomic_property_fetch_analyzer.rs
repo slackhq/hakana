@@ -144,7 +144,7 @@ pub(crate) fn analyze(
         add_optional_union_type(
             class_property_type,
             tast_info.get_expr_type(pos),
-            Some(codebase),
+            codebase,
         ),
     );
 
@@ -324,7 +324,7 @@ pub(crate) fn localize_property_type(
         class_property_type = inferred_type_replacer::replace(
             &class_property_type,
             &TemplateResult::new(IndexMap::new(), template_types),
-            Some(codebase),
+            codebase,
         );
     }
 

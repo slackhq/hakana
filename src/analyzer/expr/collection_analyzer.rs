@@ -133,7 +133,7 @@ pub(crate) fn analyze(
                         known_items: None,
                         type_param: TUnion::new(type_combiner::combine(
                             array_creation_info.item_value_atomic_types.clone(),
-                            Some(codebase),
+                            codebase,
                             false,
                         )),
                         known_count: None,
@@ -148,7 +148,7 @@ pub(crate) fn analyze(
             TContainerType::Keyset => {
                 let item_value_type = TUnion::new(type_combiner::combine(
                     array_creation_info.item_value_atomic_types.clone(),
-                    Some(codebase),
+                    codebase,
                     false,
                 ));
 
@@ -188,12 +188,12 @@ pub(crate) fn analyze(
                         Some((
                             TUnion::new(type_combiner::combine(
                                 array_creation_info.item_key_atomic_types.clone(),
-                                Some(codebase),
+                                codebase,
                                 false,
                             )),
                             TUnion::new(type_combiner::combine(
                                 array_creation_info.item_value_atomic_types.clone(),
-                                Some(codebase),
+                                codebase,
                                 false,
                             )),
                         ))

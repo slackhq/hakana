@@ -69,7 +69,7 @@ pub(crate) fn analyze(
                                 )
                                 .unwrap_or(get_mixed_any()),
                                 stmt_type.as_ref(),
-                                Some(codebase),
+                                codebase,
                             ));
                         }
                     }

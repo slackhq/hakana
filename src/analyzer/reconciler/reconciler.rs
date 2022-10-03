@@ -213,7 +213,7 @@ pub(crate) fn reconcile_keyed_types(
                     Some(add_union_type(
                         result_type_candidate,
                         &orred_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     ))
                 } else {
@@ -843,7 +843,7 @@ fn get_value_for_key(
                         Some(hakana_type::add_union_type(
                             new_base_type,
                             &new_base_type_candidate,
-                            Some(&codebase),
+                            &codebase,
                             false,
                         ))
                     } else {
@@ -930,7 +930,7 @@ fn get_value_for_key(
                         Some(hakana_type::add_union_type(
                             new_base_type,
                             &class_property_type,
-                            Some(&codebase),
+                            &codebase,
                             false,
                         ))
                     } else {

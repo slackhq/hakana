@@ -583,7 +583,7 @@ fn handle_closure_arg(
                                 map_key.clone(),
                                 Arc::new(template::standin_type_replacer::get_most_specific_type_from_bounds(
                                     lower_bounds,
-                                    Some(codebase),
+                                    codebase,
                                 )),
                             )
                         })
@@ -609,7 +609,7 @@ fn handle_closure_arg(
     );
 
     replaced_type =
-        inferred_type_replacer::replace(&replaced_type, &replace_template_result, Some(codebase));
+        inferred_type_replacer::replace(&replaced_type, &replace_template_result, codebase);
 
     let closure_id = format!(
         "{}:{}",
@@ -644,7 +644,7 @@ fn handle_closure_arg(
                         newly_inferred_type = Some(combine_optional_union_types(
                             newly_inferred_type.as_ref(),
                             Some(replaced_param_type),
-                            Some(codebase),
+                            codebase,
                         ));
                     }
                 }
@@ -872,7 +872,7 @@ fn handle_possibly_matching_inout_param(
             inout_type = inferred_type_replacer::replace(
                 &original_inout_type,
                 template_result,
-                Some(codebase),
+                codebase,
             );
         }
     }
@@ -1031,7 +1031,7 @@ pub(crate) fn get_template_types_for_call(
                                 output_type = Some(add_optional_union_type(
                                     output_type_candidate,
                                     output_type.as_ref(),
-                                    Some(codebase),
+                                    codebase,
                                 ));
                             }
 

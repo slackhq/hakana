@@ -145,7 +145,7 @@ pub(crate) fn resolve_template_param(
                         output_type_extends = Some(add_optional_union_type(
                             type_param.clone(),
                             output_type_extends.as_ref(),
-                            Some(codebase),
+                            codebase,
                         ));
                     }
                 }
@@ -166,7 +166,7 @@ pub(crate) fn resolve_template_param(
                     output_type_extends = Some(add_optional_union_type(
                         nested_output_type,
                         output_type_extends.as_ref(),
-                        Some(codebase),
+                        codebase,
                     ));
                 }
             }
@@ -174,7 +174,7 @@ pub(crate) fn resolve_template_param(
             output_type_extends = Some(add_optional_union_type(
                 wrap_atomic(type_extends_atomic.clone()),
                 output_type_extends.as_ref(),
-                Some(codebase),
+                codebase,
             ));
         }
     }

@@ -319,13 +319,13 @@ fn check_iterator_type(
                                         key_param = add_union_type(
                                             key_param,
                                             &get_literal_int(var_id as i64),
-                                            Some(codebase),
+                                            codebase,
                                             false,
                                         );
                                         value_param = add_union_type(
                                             value_param,
                                             &known_item,
-                                            Some(codebase),
+                                            codebase,
                                             false,
                                         );
                                     }
@@ -333,13 +333,13 @@ fn check_iterator_type(
                                         key_param = add_union_type(
                                             key_param,
                                             &get_literal_string(var_id),
-                                            Some(codebase),
+                                            codebase,
                                             false,
                                         );
                                         value_param = add_union_type(
                                             value_param,
                                             &known_item,
-                                            Some(codebase),
+                                            codebase,
                                             false,
                                         );
                                     }
@@ -354,13 +354,13 @@ fn check_iterator_type(
                                                 key_param = add_union_type(
                                                     key_param,
                                                     &get_literal_string(value),
-                                                    Some(codebase),
+                                                    codebase,
                                                     false,
                                                 );
                                                 value_param = add_union_type(
                                                     value_param,
                                                     &known_item,
-                                                    Some(codebase),
+                                                    codebase,
                                                     false,
                                                 );
                                             } else if let Some(value) =
@@ -369,13 +369,13 @@ fn check_iterator_type(
                                                 key_param = add_union_type(
                                                     key_param,
                                                     &get_literal_int(value),
-                                                    Some(codebase),
+                                                    codebase,
                                                     false,
                                                 );
                                                 value_param = add_union_type(
                                                     value_param,
                                                     &known_item,
-                                                    Some(codebase),
+                                                    codebase,
                                                     false,
                                                 );
                                             } else {
@@ -408,11 +408,11 @@ fn check_iterator_type(
                                 key_param = add_union_type(
                                     key_param,
                                     &get_literal_int(offset as i64),
-                                    Some(codebase),
+                                    codebase,
                                     false,
                                 );
                                 value_param =
-                                    add_union_type(value_param, &known_item, Some(codebase), false);
+                                    add_union_type(value_param, &known_item, codebase, false);
                             }
                         }
 
@@ -425,13 +425,13 @@ fn check_iterator_type(
                 key_type = Some(add_optional_union_type(
                     key_param,
                     key_type.as_ref(),
-                    Some(codebase),
+                    codebase,
                 ));
 
                 value_type = Some(add_optional_union_type(
                     value_param,
                     value_type.as_ref(),
-                    Some(codebase),
+                    codebase,
                 ));
 
                 has_valid_iterator = true;
@@ -447,13 +447,13 @@ fn check_iterator_type(
             key_type = Some(add_optional_union_type(
                 get_arraykey(true),
                 key_type.as_ref(),
-                Some(codebase),
+                codebase,
             ));
 
             value_type = Some(add_optional_union_type(
                 get_mixed_any(),
                 value_type.as_ref(),
-                Some(codebase),
+                codebase,
             ));
 
             if !context.function_context.pure {
@@ -472,12 +472,12 @@ fn check_iterator_type(
                 key_type = Some(combine_optional_union_types(
                     key_type.as_ref(),
                     Some(type_params.get(0).unwrap()),
-                    Some(codebase),
+                    codebase,
                 ));
                 value_type = Some(combine_optional_union_types(
                     value_type.as_ref(),
                     Some(type_params.get(1).unwrap()),
-                    Some(codebase),
+                    codebase,
                 ));
             } else if *name == "HH\\Container"
                 || *name == "HH\\Iterator"
@@ -487,12 +487,12 @@ fn check_iterator_type(
                 key_type = Some(combine_optional_union_types(
                     key_type.as_ref(),
                     Some(&get_arraykey(true)),
-                    Some(codebase),
+                    codebase,
                 ));
                 value_type = Some(combine_optional_union_types(
                     value_type.as_ref(),
                     Some(type_params.get(0).unwrap()),
-                    Some(codebase),
+                    codebase,
                 ));
             } else if is_async {
                 if *name == "HH\\AsyncKeyedIterator" {
@@ -500,24 +500,24 @@ fn check_iterator_type(
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
                         Some(type_params.get(0).unwrap()),
-                        Some(codebase),
+                        codebase,
                     ));
                     value_type = Some(combine_optional_union_types(
                         value_type.as_ref(),
                         Some(type_params.get(1).unwrap()),
-                        Some(codebase),
+                        codebase,
                     ));
                 } else if *name == "HH\\AsyncIterator" {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
                         Some(&get_arraykey(true)),
-                        Some(codebase),
+                        codebase,
                     ));
                     value_type = Some(combine_optional_union_types(
                         value_type.as_ref(),
                         Some(type_params.get(0).unwrap()),
-                        Some(codebase),
+                        codebase,
                     ));
                 }
             } else {

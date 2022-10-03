@@ -330,7 +330,7 @@ pub(crate) fn analyze(
                 Rc::new(combine_union_types(
                     &if_context.vars_in_scope[var_id.0],
                     &temp_else_context.vars_in_scope[var_id.0],
-                    Some(codebase),
+                    codebase,
                     false,
                 )),
             );
@@ -362,7 +362,7 @@ pub(crate) fn analyze(
             Rc::new(combine_union_types(
                 &if_context.vars_in_scope[redef_var_id],
                 &temp_else_context.vars_in_scope[redef_var_id],
-                Some(codebase),
+                codebase,
                 false,
             )),
         );
@@ -380,7 +380,7 @@ pub(crate) fn analyze(
                     Rc::new(combine_union_types(
                         &context.vars_in_scope[redef_var_ifs_id],
                         &temp_else_context.vars_in_scope[redef_var_ifs_id],
-                        Some(codebase),
+                        codebase,
                         false,
                     )),
                 );
@@ -398,7 +398,7 @@ pub(crate) fn analyze(
                 Rc::new(combine_union_types(
                     &context.vars_in_scope[redef_var_else_id],
                     &temp_else_context.vars_in_scope[redef_var_else_id],
-                    Some(codebase),
+                    codebase,
                     false,
                 )),
             );
@@ -434,7 +434,7 @@ pub(crate) fn analyze(
         } else {
             true
         } {
-            let union_type = add_union_type(stmt_else_type, &lhs_type, Some(codebase), false);
+            let union_type = add_union_type(stmt_else_type, &lhs_type, codebase, false);
             tast_info.set_expr_type(&pos, union_type);
         }
     } else {

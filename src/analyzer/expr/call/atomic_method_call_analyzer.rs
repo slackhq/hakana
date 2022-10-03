@@ -151,7 +151,7 @@ pub(crate) fn analyze(
             result.return_type = Some(hakana_type::add_optional_union_type(
                 return_type_candidate,
                 result.return_type.as_ref(),
-                Some(codebase),
+                codebase,
             ));
         } else {
             for (param_kind, arg_expr) in expr.3 {

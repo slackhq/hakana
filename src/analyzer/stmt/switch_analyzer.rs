@@ -243,7 +243,7 @@ pub(crate) fn analyze(
                 Rc::new(combine_union_types(
                     &var_type,
                     &context_type,
-                    Some(codebase),
+                    codebase,
                     false,
                 )),
             );
@@ -662,7 +662,7 @@ fn analyze_case(
                     combine_optional_union_types(
                         Some(var_type),
                         possibly_redefined_var_ids.get(var_id),
-                        Some(codebase),
+                        codebase,
                     ),
                 );
             }
@@ -685,7 +685,7 @@ fn analyze_case(
                             Rc::new(combine_union_types(
                                 &break_var_type,
                                 &var_type,
-                                Some(codebase),
+                                codebase,
                                 false,
                             )),
                         );
@@ -706,7 +706,7 @@ fn analyze_case(
                         Rc::new(combine_union_types(
                             &break_var_type,
                             &var_type,
-                            Some(codebase),
+                            codebase,
                             false,
                         )),
                     );
@@ -767,7 +767,7 @@ fn handle_non_returning_case(
                     combine_optional_union_types(
                         Some(var_type),
                         possibly_redefined_var_ids.get(var_id),
-                        Some(codebase),
+                        codebase,
                     ),
                 );
             }
@@ -789,7 +789,7 @@ fn handle_non_returning_case(
                         Rc::new(combine_union_types(
                             &break_var_type,
                             &var_type,
-                            Some(codebase),
+                            codebase,
                             false,
                         )),
                     );
@@ -814,7 +814,7 @@ fn handle_non_returning_case(
                         Rc::new(combine_union_types(
                             &case_context.vars_in_scope.get(&var_id).unwrap(),
                             &var_type,
-                            Some(codebase),
+                            codebase,
                             false,
                         )),
                     );

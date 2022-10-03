@@ -97,7 +97,7 @@ pub fn expand_union(
         }
 
         let expanded_types = if had_split_values {
-            type_combiner::combine(new_return_type_parts, Some(codebase), false)
+            type_combiner::combine(new_return_type_parts, codebase, false)
         } else {
             new_return_type_parts
         };
@@ -322,7 +322,7 @@ fn expand_atomic(
                 template::inferred_type_replacer::replace(
                     &type_definition.actual_type,
                     &template::TemplateResult::new(IndexMap::new(), new_template_types),
-                    Some(codebase),
+                    codebase,
                 )
             } else {
                 type_definition.actual_type.clone()
@@ -402,7 +402,7 @@ fn expand_atomic(
                     template::inferred_type_replacer::replace(
                         &definition_as_type,
                         &template::TemplateResult::new(IndexMap::new(), new_template_types),
-                        Some(codebase),
+                        codebase,
                     )
                 } else {
                     definition_as_type.clone()

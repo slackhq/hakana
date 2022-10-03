@@ -468,13 +468,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             inferred_return_type = Some(add_optional_union_type(
                                 callsite_return_type.clone(),
                                 inferred_return_type.as_ref(),
-                                Some(codebase),
+                                codebase,
                             ));
                         } else {
                             inferred_return_type = Some(add_optional_union_type(
                                 expected_return_type.clone(),
                                 inferred_return_type.as_ref(),
-                                Some(codebase),
+                                codebase,
                             ));
                         }
                     }
@@ -498,7 +498,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     inferred_return_type = Some(add_optional_union_type(
                         callsite_return_type.clone(),
                         inferred_return_type.as_ref(),
-                        Some(codebase),
+                        codebase,
                     ));
                 }
             } else {

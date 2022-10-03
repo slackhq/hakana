@@ -80,7 +80,7 @@ pub fn replace(
         }
 
         let mut new_union_type = TUnion::new(if atomic_types.len() > 1 {
-            type_combiner::combine(atomic_types, Some(codebase), false)
+            type_combiner::combine(atomic_types, codebase, false)
         } else {
             atomic_types
         });
@@ -1017,11 +1017,7 @@ fn handle_template_param_standin(
                         false,
                         &mut TypeComparisonResult::new(),
                     ) {
-                        intersect_union_types(
-                            &upper_bound.bound_type,
-                            &generic_param,
-                            Some(codebase),
-                        )
+                        intersect_union_types(&upper_bound.bound_type, &generic_param, codebase)
                     } else {
                         Some(generic_param.clone())
                     };
@@ -1173,8 +1169,8 @@ fn handle_template_param_class_standin(
                     *template_bounds = vec![TemplateBound::new(
                         add_union_type(
                             generic_param,
-                            &get_most_specific_type_from_bounds(&template_bounds, Some(codebase)),
-                            Some(codebase),
+                            &get_most_specific_type_from_bounds(&template_bounds, codebase),
+                            codebase,
                             false,
                         ),
                         depth,
@@ -1315,8 +1311,8 @@ fn handle_template_param_type_standin(
                     *template_bounds = vec![TemplateBound::new(
                         add_union_type(
                             generic_param,
-                            &get_most_specific_type_from_bounds(&template_bounds, Some(codebase)),
-                            Some(codebase),
+                            &get_most_specific_type_from_bounds(&template_bounds, codebase),
+                            codebase,
                             false,
                         ),
                         depth,
@@ -1685,7 +1681,7 @@ pub(crate) fn get_mapped_generic_type_params(
                     Some(add_union_type(
                         new_input_param,
                         &candidate_param_type,
-                        None,
+                        codebase,
                         true,
                     ))
                 } else {
@@ -1696,7 +1692,7 @@ pub(crate) fn get_mapped_generic_type_params(
             new_input_params.push(inferred_type_replacer::replace(
                 &new_input_param.unwrap(),
                 &TemplateResult::new(IndexMap::new(), replacement_templates.clone()),
-                Some(codebase),
+                codebase,
             ));
         }
 
@@ -1757,7 +1753,7 @@ pub(crate) fn get_root_template_type(
     param_name: &String,
     defining_entity: &String,
     mut visited_entities: FxHashSet<Symbol>,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
 ) -> Option<TUnion> {
     if visited_entities.contains(defining_entity) {
         return None;
@@ -1801,7 +1797,7 @@ pub(crate) fn get_root_template_type(
 
 pub fn get_most_specific_type_from_bounds(
     lower_bounds: &Vec<TemplateBound>,
-    codebase: Option<&CodebaseInfo>,
+    codebase: &CodebaseInfo,
 ) -> TUnion {
     if lower_bounds.len() == 1 {
         return lower_bounds.get(0).unwrap().bound_type.clone();

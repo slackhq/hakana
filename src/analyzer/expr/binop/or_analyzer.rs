@@ -78,7 +78,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                     Rc::new(combine_union_types(
                         context_type,
                         left_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     )),
                 );
@@ -323,7 +323,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                     Rc::new(combine_union_types(
                         &right_type,
                         &if_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     )),
                 );
@@ -333,7 +333,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                     Rc::new(combine_union_types(
                         &right_type,
                         &left_type,
-                        Some(codebase),
+                        codebase,
                         false,
                     )),
                 );
