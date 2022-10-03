@@ -66,10 +66,10 @@ pub(crate) fn analyze(
 
     let name = if name == "\\in_array" {
          Arc::new("in_array".to_string())
-    } else if let Some(fq_name) = resolved_names.get(&pos.start_offset()) {
+    } else if let Some(fq_name) = resolved_names.get(&expr.0.0.start_offset()) {
         fq_name.clone()
     } else {
-        resolved_names.get(&(pos.start_offset() + 1)).unwrap().clone()
+        panic!()
     };
 
     if *name == "echo" {

@@ -806,7 +806,7 @@ fn handle_template_param_standin(
                     ..
                 } = replacement_atomic_type
                 {
-                    if (calling_function.is_none()
+                    if (calling_class.is_none()
                         || replacement_defining_entity != calling_class.unwrap())
                         && (calling_function.is_none()
                             || **replacement_defining_entity
