@@ -1,4 +1,6 @@
 use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
+use hakana_reflection_info::codebase_info::symbols::Symbol;
+use hakana_reflection_info::Interner;
 use name_context::NameContext;
 use ocamlrep::rc::RcOc;
 use oxidized::ast_defs::Pos;
@@ -14,7 +16,7 @@ use parser_core_types::{indexed_source_text::IndexedSourceText, source_text::Sou
 use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::io::Write;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -118,13 +120,15 @@ pub fn get_aast_for_path_and_contents(
 }
 
 struct Scanner {
-    pub resolved_names: FxHashMap<usize, Arc<String>>,
+    pub resolved_names: FxHashMap<usize, Symbol>,
+    pub interner: Arc<Mutex<Interner>>,
 }
 
 impl Scanner {
-    fn new() -> Self {
+    fn new(interner: Arc<Mutex<Interner>>) -> Self {
         Self {
             resolved_names: FxHashMap::default(),
+            interner,
         }
     }
 }
@@ -162,14 +166,14 @@ impl<'ast> Visitor<'ast> for Scanner {
     fn visit_class_(&mut self, nc: &mut NameContext, c: &aast::Class_<(), ()>) -> Result<(), ()> {
         let namespace_name = nc.get_namespace_name();
 
-        self.resolved_names.insert(
-            c.name.0.start_offset(),
-            Arc::new(if let Some(namespace_name) = namespace_name {
-                format!("{}\\{}", namespace_name, c.name.1)
-            } else {
-                c.name.1.clone()
-            }),
-        );
+        let p = if let Some(namespace_name) = namespace_name {
+            let str = namespace_name.clone() + "\\" + c.name.1.as_str();
+            self.interner.lock().unwrap().intern(str)
+        } else {
+            self.interner.lock().unwrap().intern(c.name.1.clone())
+        };
+
+        self.resolved_names.insert(c.name.0.start_offset(), p);
 
         c.recurse(nc, self)
     }
@@ -177,14 +181,14 @@ impl<'ast> Visitor<'ast> for Scanner {
     fn visit_typedef(&mut self, nc: &mut NameContext, t: &aast::Typedef<(), ()>) -> Result<(), ()> {
         let namespace_name = nc.get_namespace_name();
 
-        self.resolved_names.insert(
-            t.name.0.start_offset(),
-            Arc::new(if let Some(namespace_name) = namespace_name {
-                format!("{}\\{}", namespace_name, t.name.1)
-            } else {
-                t.name.1.clone()
-            }),
-        );
+        let p = if let Some(namespace_name) = namespace_name {
+            let str = namespace_name.clone() + "\\" + t.name.1.as_str();
+            self.interner.lock().unwrap().intern(str)
+        } else {
+            self.interner.lock().unwrap().intern(t.name.1.clone())
+        };
+
+        self.resolved_names.insert(t.name.0.start_offset(), p);
 
         t.recurse(nc, self)
     }
@@ -228,8 +232,9 @@ impl<'ast> Visitor<'ast> for Scanner {
             oxidized::nast::ShapeFieldName::SFclassConst(id, _) => {
                 let resolved_name = nc.get_resolved_name(&id.1, aast::NsKind::NSClass);
 
-                self.resolved_names
-                    .insert(id.0.start_offset(), Arc::new(resolved_name));
+                let p = self.interner.lock().unwrap().intern(resolved_name);
+
+                self.resolved_names.insert(id.0.start_offset(), p);
             }
             _ => {}
         };
@@ -261,8 +266,9 @@ impl<'ast> Visitor<'ast> for Scanner {
                 )
             };
 
-            self.resolved_names
-                .insert(id.0.start_offset(), Arc::new(resolved_name));
+            let p = self.interner.lock().unwrap().intern(resolved_name);
+
+            self.resolved_names.insert(id.0.start_offset(), p);
         }
 
         nc.in_class_id = false;
@@ -274,14 +280,14 @@ impl<'ast> Visitor<'ast> for Scanner {
     fn visit_fun_(&mut self, nc: &mut NameContext, f: &aast::Fun_<(), ()>) -> Result<(), ()> {
         let namespace_name = nc.get_namespace_name();
 
-        self.resolved_names.insert(
-            f.name.0.start_offset(),
-            Arc::new(if let Some(namespace_name) = namespace_name {
-                format!("{}\\{}", namespace_name, f.name.1)
-            } else {
-                f.name.1.clone()
-            }),
-        );
+        let p = if let Some(namespace_name) = namespace_name {
+            let str = namespace_name.clone() + "\\" + f.name.1.as_str();
+            self.interner.lock().unwrap().intern(str)
+        } else {
+            self.interner.lock().unwrap().intern(f.name.1.clone())
+        };
+
+        self.resolved_names.insert(f.name.0.start_offset(), p);
 
         f.recurse(nc, self)
     }
@@ -293,8 +299,10 @@ impl<'ast> Visitor<'ast> for Scanner {
             if !NameContext::is_reserved(&happly.0 .1) {
                 let resolved_name =
                     nc.get_resolved_name(&happly.0 .1, aast::NsKind::NSClassAndNamespace);
-                self.resolved_names
-                    .insert(happly.0 .0.start_offset(), Arc::new(resolved_name));
+
+                let p = self.interner.lock().unwrap().intern(resolved_name);
+
+                self.resolved_names.insert(happly.0 .0.start_offset(), p);
             }
         }
 
@@ -310,8 +318,11 @@ impl<'ast> Visitor<'ast> for Scanner {
     }
 }
 
-pub fn scope_names(program: &aast::Program<(), ()>) -> FxHashMap<usize, Arc<String>> {
-    let mut scanner = Scanner::new();
+pub fn scope_names(
+    program: &aast::Program<(), ()>,
+    interner: Arc<Mutex<Interner>>,
+) -> FxHashMap<usize, Symbol> {
+    let mut scanner = Scanner::new(interner);
     let mut context = NameContext::new();
     visit(&mut scanner, &mut context, program).unwrap();
     scanner.resolved_names

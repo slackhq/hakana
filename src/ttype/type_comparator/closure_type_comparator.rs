@@ -13,12 +13,14 @@ pub(crate) fn is_contained_by(
         params: input_params,
         return_type: input_return_type,
         effects: input_effects,
+        ..
     } = input_type_part
     {
         if let TAtomic::TClosure {
             params: container_params,
             return_type: container_return_type,
             effects: container_effects,
+            ..
         } = container_type_part
         {
             if let Some(container_effects) = container_effects {

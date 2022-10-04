@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::{
     negated_assertion_reconciler,
     reconciler::{trigger_issue_for_impossible, ReconciliationStatus},
@@ -46,7 +44,7 @@ pub(crate) fn reconcile(
         return get_missing_type(assertion, inside_loop);
     };
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string = existing_var_type.get_id(Some(&codebase.interner));
 
     *failed_reconciliation = ReconciliationStatus::Ok;
 
@@ -129,7 +127,7 @@ pub(crate) fn refine_atomic_with_union(
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string = existing_var_type.get_id(Some(&codebase.interner));
 
     if !new_type.is_mixed() {
         if let Some(key) = key {
@@ -320,7 +318,9 @@ fn intersect_atomic_with_atomic(
 
             if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
                 if let Some(inferred_type) = &member_storage.inferred_type {
-                    if let Some(inferred_value) = inferred_type.get_single_literal_string_value() {
+                    if let Some(inferred_value) =
+                        inferred_type.get_single_literal_string_value(&codebase.interner)
+                    {
                         return Some(TAtomic::TLiteralString {
                             value: inferred_value,
                         });
@@ -342,7 +342,9 @@ fn intersect_atomic_with_atomic(
 
             if let Some(member_storage) = enum_storage.constants.get(type_2_member_name) {
                 if let Some(inferred_type) = &member_storage.inferred_type {
-                    if let Some(inferred_value) = inferred_type.get_single_literal_string_value() {
+                    if let Some(inferred_value) =
+                        inferred_type.get_single_literal_string_value(&codebase.interner)
+                    {
                         return Some(TAtomic::TLiteralString {
                             value: inferred_value,
                         });
@@ -364,18 +366,20 @@ fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            if **type_1_name == "XHPChild" {
-                if **type_2_name == "HH\\KeyedContainer" {
+            if codebase.interner.lookup(*type_1_name) == "XHPChild" {
+                let type_2_name = codebase.interner.lookup(*type_2_name);
+
+                if type_2_name == "HH\\KeyedContainer" {
                     let mut atomic = TAtomic::TNamedObject {
-                        name: Arc::new("HH\\AnyArray".to_string()),
+                        name: codebase.interner.get("HH\\AnyArray").unwrap(),
                         type_params: type_2_params.clone(),
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
                     };
-                    atomic.remove_placeholders();
+                    atomic.remove_placeholders(&codebase.interner);
                     return Some(atomic);
-                } else if **type_2_name == "HH\\Container" {
+                } else if type_2_name == "HH\\Container" {
                     let type_2_params = if let Some(type_2_params) = type_2_params {
                         Some(vec![get_arraykey(true), type_2_params[0].clone()])
                     } else {
@@ -383,13 +387,13 @@ fn intersect_atomic_with_atomic(
                     };
 
                     let mut atomic = TAtomic::TNamedObject {
-                        name: Arc::new("HH\\AnyArray".to_string()),
+                        name: codebase.interner.get("HH\\AnyArray").unwrap(),
                         type_params: type_2_params,
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
                     };
-                    atomic.remove_placeholders();
+                    atomic.remove_placeholders(&codebase.interner);
                     return Some(atomic);
                 }
             }
@@ -450,17 +454,19 @@ fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            let type_1_key_param = if **type_1_name == "HH\\Container" {
+            let type_1_name = codebase.interner.lookup(*type_1_name);
+
+            let type_1_key_param = if type_1_name == "HH\\Container" {
                 get_arraykey(true)
-            } else if **type_1_name == "HH\\KeyedContainer" {
+            } else if type_1_name == "HH\\KeyedContainer" {
                 type_1_params[0].clone()
             } else {
                 return None;
             };
 
-            let type_1_value_param = if **type_1_name == "HH\\Container" {
+            let type_1_value_param = if type_1_name == "HH\\Container" {
                 &type_1_params[0]
-            } else if **type_1_name == "HH\\KeyedContainer" {
+            } else if type_1_name == "HH\\KeyedContainer" {
                 &type_1_params[1]
             } else {
                 return None;
@@ -587,7 +593,7 @@ fn intersect_contained_atomic_with_another(
     }
 
     let mut type_2_atomic = type_2_atomic.clone();
-    type_2_atomic.remove_placeholders();
+    type_2_atomic.remove_placeholders(&codebase.interner);
 
     Some(type_2_atomic)
 }

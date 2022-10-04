@@ -97,7 +97,7 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TNamedObject { name, .. } = container_type_part {
-        if **name == "XHPChild" {
+        if name == &codebase.interner.get("XHPChild").unwrap() {
             if input_type_part.is_string()
                 || input_type_part.is_int()
                 || matches!(
@@ -134,7 +134,7 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if **name == "HH\\AnyArray" {
+        if name == &codebase.interner.get("HH\\AnyArray").unwrap() {
             if let TAtomic::TVec { .. } | TAtomic::TDict { .. } | TAtomic::TKeyset { .. } =
                 input_type_part
             {
@@ -246,7 +246,7 @@ pub fn is_contained_by(
                 }
             }
             TAtomic::TEnum { .. } => {
-                return **container_name == "HH\\BuiltinEnum";
+                return container_name == &codebase.interner.get("HH\\BuiltinEnum").unwrap();
             }
             _ => (),
         }
@@ -429,13 +429,13 @@ pub fn is_contained_by(
         name: input_name, ..
     } = input_type_part
     {
-        if **input_name == "static" {
+        if codebase.interner.lookup(*input_name) == "static" {
             if let TAtomic::TNamedObject {
                 name: container_name,
                 ..
             } = container_type_part
             {
-                if **container_name == "self" {
+                if codebase.interner.lookup(*container_name) == "self" {
                     return true;
                 }
             }
@@ -449,17 +449,18 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if **container_name == "HH\\Container"
-            || **container_name == "HH\\KeyedContainer"
-            || **container_name == "HH\\AnyArray"
-        {
+        let container_name_key = codebase.interner.lookup(*container_name);
+        if match container_name_key {
+            "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" => true,
+            _ => false,
+        } {
             let type_params = get_arrayish_params(input_type_part, codebase);
 
             if let Some(input_type_params) = type_params {
                 let mut all_types_contain = true;
 
                 let mut array_comparison_result = TypeComparisonResult::new();
-                if **container_name == "HH\\Container" {
+                if container_name_key == "HH\\Container" {
                     if let Some(container_value_param) = container_type_params.get(0) {
                         if !union_type_comparator::is_contained_by(
                             codebase,
@@ -552,10 +553,11 @@ pub fn is_contained_by(
         ..
     } = input_type_part
     {
-        if **input_name == "HH\\Container"
-            || **input_name == "HH\\KeyedContainer"
-            || **input_name == "HH\\AnyArray"
-        {
+        let input_name_key = codebase.interner.lookup(*input_name);
+        if match input_name_key {
+            "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" => true,
+            _ => false,
+        } {
             if let TAtomic::TKeyset { .. } | TAtomic::TVec { .. } | TAtomic::TDict { .. } =
                 container_type_part
             {
@@ -564,7 +566,7 @@ pub fn is_contained_by(
                 let container_arrayish_params =
                     get_arrayish_params(container_type_part, codebase).unwrap();
 
-                if **input_name == "HH\\Container".to_string() {
+                if input_name_key == "HH\\Container" {
                     if let Some(input_value_param) = input_type_params.get(0) {
                         union_type_comparator::is_contained_by(
                             codebase,
@@ -614,7 +616,7 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if **container_name == "XHPChild" {
+        if container_name == &codebase.interner.get("XHPChild").unwrap() {
             if let TAtomic::TString
             | TAtomic::TLiteralString { .. }
             | TAtomic::TInt
@@ -723,7 +725,7 @@ pub fn is_contained_by(
             }
         }
 
-        if **container_name == "HH\\FormatString" {
+        if container_name == &codebase.interner.get("HH\\FormatString").unwrap() {
             if let TAtomic::TString { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TStringWithFlags { .. } = input_type_part
@@ -733,7 +735,7 @@ pub fn is_contained_by(
             }
         }
 
-        if **container_name == "HH\\EnumClass\\Label" {
+        if container_name == &codebase.interner.get("HH\\EnumClass\\Label").unwrap() {
             if let TAtomic::TEnumClassLabel {
                 class_name: input_class_name,
                 member_name: input_member_name,
@@ -776,7 +778,7 @@ pub fn is_contained_by(
         ..
     } = input_type_part
     {
-        if **input_name == "HH\\FormatString" {
+        if input_name == &codebase.interner.get("HH\\FormatString").unwrap() {
             if let TAtomic::TString { .. } = container_type_part {
                 return true;
             }

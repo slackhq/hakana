@@ -1,10 +1,10 @@
-use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
+use hakana_reflection_info::StrId;
 use hakana_type::*;
 use oxidized::aast::Hint;
 use oxidized::aast::Hint_;
@@ -244,10 +244,6 @@ fn get_function_type_from_hints(
                 type_context,
                 resolved_names,
             ));
-            param.signature_type_location = Some(HPos::new(
-                &param_type.0,
-                &Arc::new(param_type.0.filename().to_string()),
-            ));
 
             param
         })
@@ -257,16 +253,8 @@ fn get_function_type_from_hints(
         let mut param = FunctionLikeParameter::new("".to_string());
 
         param.is_variadic = true;
-        param.signature_type = Some(get_type_from_hint(
-            &variadic_type.1,
-            classlike_name,
-            type_context,
-            resolved_names,
-        ));
-        param.signature_type_location = Some(HPos::new(
-            &variadic_type.0,
-            &Arc::new(variadic_type.0.filename().to_string()),
-        ));
+        param.signature_type = None;
+        param.signature_type_location = None;
 
         params.push(param);
     }
@@ -300,9 +288,9 @@ fn get_reference_type(
     // static & self are used in class type constants
     if type_name == "this" || type_name == "static" || type_name == "self" {
         let class_name = if let Some(classlike_name) = classlike_name {
-            classlike_name.clone()
+            *classlike_name
         } else {
-            Arc::new("this".to_string())
+            *resolved_names.get(&applied_type.0.start_offset()).unwrap()
         };
 
         return TAtomic::TNamedObject {
@@ -321,7 +309,7 @@ fn get_reference_type(
 
     if type_name == "Generator" {
         return TAtomic::TNamedObject {
-            name: Arc::new("Generator".to_string()),
+            name: *resolved_names.get(&applied_type.0.start_offset()).unwrap(),
             type_params: if type_params.len() == 3 {
                 Some(vec![
                     type_params.get(0).unwrap().clone(),
@@ -339,7 +327,7 @@ fn get_reference_type(
 
     if type_name == "\\HH\\MemberOf" {
         return TAtomic::TTypeAlias {
-            name: Arc::new("HH\\MemberOf".to_string()),
+            name: StrId::member_of(),
             type_params: Some(type_params),
             as_type: None,
         };
@@ -367,14 +355,12 @@ fn get_template_type(
 ) -> TAtomic {
     let as_type = defining_entities.values().next().unwrap().clone();
     let defining_entity = defining_entities.keys().next().unwrap().clone();
-    let from_class =
-        !defining_entity.starts_with("fn-") && !defining_entity.starts_with("typedef-");
 
     return TAtomic::TTemplateParam {
         param_name: type_name.clone(),
         as_type: (*as_type).clone(),
         defining_entity,
-        from_class,
+        from_class: false,
         extra_types: None,
     };
 }

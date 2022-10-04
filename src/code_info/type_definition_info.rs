@@ -5,11 +5,14 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{classlike_info::Variance, t_atomic::DictKey, t_union::TUnion, taint::SourceType, codebase_info::symbols::Symbol};
+use crate::{
+    classlike_info::Variance, codebase_info::symbols::Symbol, t_atomic::DictKey, t_union::TUnion,
+    taint::SourceType, StrId,
+};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TypeDefinitionInfo {
-    pub newtype_file: Option<Arc<String>>,
+    pub newtype_file: Option<StrId>,
     pub as_type: Option<TUnion>,
     pub actual_type: TUnion,
 

@@ -110,7 +110,11 @@ pub(crate) fn analyze(
     let mut var_id = None;
 
     if let Some(prop_name) = &prop_name {
-        var_id = Some(format!("{}::${}", &classlike_name, prop_name));
+        var_id = Some(format!(
+            "{}::${}",
+            codebase.interner.lookup(classlike_name),
+            prop_name
+        ));
     }
 
     let property_id = (classlike_name.clone(), prop_name.unwrap());
@@ -129,6 +133,7 @@ pub(crate) fn analyze(
                 tast_info,
                 false,
                 stmt_type,
+                &codebase.interner,
             );
 
             // we don't need to check anything since this variable is known in this scope
@@ -192,6 +197,7 @@ pub(crate) fn analyze(
                 tast_info,
                 false,
                 inserted_type,
+                &statements_analyzer.get_codebase().interner,
             );
 
             let rc = Rc::new(inserted_type.clone());

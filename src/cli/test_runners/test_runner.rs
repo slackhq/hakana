@@ -1,5 +1,6 @@
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
+use hakana_reflection_info::Interner;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
@@ -119,7 +120,7 @@ pub trait TestRunner {
         had_error: &mut bool,
         test_diagnostics: &mut Vec<(String, String)>,
         build_checksum: &str,
-        starter_codebase: Option<CodebaseInfo>,
+        starter_data: Option<(CodebaseInfo, Interner)>,
     ) -> String {
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
@@ -136,7 +137,7 @@ pub trait TestRunner {
         let config = Arc::new(analysis_config);
 
         let result = hakana_workhorse::scan_and_analyze(
-            starter_codebase.is_none(),
+            starter_data.is_none(),
             stub_dirs,
             None,
             Some(FxHashSet::from_iter([
@@ -144,7 +145,7 @@ pub trait TestRunner {
                 format!("{}/third-party/xhp-lib/src", cwd),
             ])),
             config.clone(),
-            if starter_codebase.is_none() {
+            if starter_data.is_none() {
                 cache_dir
             } else {
                 None
@@ -152,7 +153,7 @@ pub trait TestRunner {
             1,
             false,
             build_checksum,
-            starter_codebase,
+            starter_data,
         );
 
         if dir.contains("/migrations/") || dir.contains("/fix/") {
@@ -182,9 +183,9 @@ pub trait TestRunner {
             let test_output = match result {
                 Ok(analysis_result) => {
                     let mut output = vec![];
-                    for issues in analysis_result.emitted_issues.values() {
+                    for (file_path, issues) in &analysis_result.emitted_issues {
                         for issue in issues {
-                            output.push(issue.format());
+                            output.push(issue.format(&file_path));
                         }
                     }
 

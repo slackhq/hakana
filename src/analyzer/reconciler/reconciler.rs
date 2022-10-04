@@ -6,7 +6,7 @@ use crate::{
 };
 use hakana_reflection_info::{
     assertion::Assertion,
-    codebase_info::{CodebaseInfo, symbols::Symbol},
+    codebase_info::{symbols::Symbol, CodebaseInfo},
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
@@ -675,12 +675,14 @@ fn get_value_for_key(
             let fq_class_name = base_key_parts[0].to_string();
             let const_name = base_key_parts[1].to_string();
 
-            if !codebase.class_or_interface_exists(&fq_class_name) {
+            let fq_class_name = &codebase.interner.get(fq_class_name.as_str()).unwrap();
+
+            if !codebase.class_or_interface_exists(fq_class_name) {
                 return None;
             }
 
             let class_constant =
-                codebase.get_class_constant_type(&fq_class_name, &const_name, FxHashSet::default());
+                codebase.get_class_constant_type(fq_class_name, &const_name, FxHashSet::default());
 
             if let Some(class_constant) = class_constant {
                 context
@@ -816,24 +818,28 @@ fn get_value_for_key(
                         ..
                     } = &existing_key_type_part
                     {
-                        if **name == "HH\\KeyedContainer" || **name == "HH\\Container" {
-                            new_base_type_candidate = if **name == "HH\\KeyedContainer" {
-                                type_params[1].clone()
-                            } else {
-                                type_params[0].clone()
-                            };
+                        let real_name = codebase.interner.lookup(*name);
+                        match real_name {
+                            "HH\\KeyedContainer" | "HH\\Container" => {
+                                new_base_type_candidate = if real_name == "HH\\KeyedContainer" {
+                                    type_params[1].clone()
+                                } else {
+                                    type_params[0].clone()
+                                };
 
-                            if (has_isset || has_inverted_isset)
-                                && new_assertions.contains_key(&new_base_key)
-                            {
-                                if has_inverted_isset && new_base_key.eq(&key) {
-                                    new_base_type_candidate.add_type(TAtomic::TNull);
+                                if (has_isset || has_inverted_isset)
+                                    && new_assertions.contains_key(&new_base_key)
+                                {
+                                    if has_inverted_isset && new_base_key.eq(&key) {
+                                        new_base_type_candidate.add_type(TAtomic::TNull);
+                                    }
+
+                                    *possibly_undefined = true;
                                 }
-
-                                *possibly_undefined = true;
                             }
-                        } else {
-                            return Some(hakana_type::get_mixed_any());
+                            _ => {
+                                return Some(hakana_type::get_mixed_any());
+                            }
                         }
                     } else {
                         return Some(hakana_type::get_mixed_any());
@@ -899,7 +905,7 @@ fn get_value_for_key(
                         ..
                     } = existing_key_type_part
                     {
-                        if *fq_class_name == "stdClass" {
+                        if codebase.interner.lookup(fq_class_name) == "stdClass" {
                             class_property_type = get_mixed_any();
                         } else if !codebase.class_or_interface_exists(&fq_class_name) {
                             class_property_type = get_mixed_any();
@@ -1007,7 +1013,8 @@ pub(crate) fn trigger_issue_for_impossible(
     pos: &Pos,
     _suppressed_issues: &FxHashMap<String, usize>,
 ) {
-    let mut assertion_string = assertion.to_string();
+    let mut assertion_string =
+        assertion.to_string(Some(&statements_analyzer.get_codebase().interner));
     let mut not_operator = assertion_string.starts_with("!");
 
     if not_operator {
@@ -1041,6 +1048,7 @@ pub(crate) fn trigger_issue_for_impossible(
                 statements_analyzer.get_hpos(&pos),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
     } else {
         if !not_operator && assertion_string == "falsy" {
@@ -1062,6 +1070,7 @@ pub(crate) fn trigger_issue_for_impossible(
                 statements_analyzer.get_hpos(&pos),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
     }
 }

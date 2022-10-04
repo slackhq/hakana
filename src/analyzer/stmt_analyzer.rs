@@ -204,6 +204,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&stmt.0),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
             return false;
         }
@@ -250,7 +251,9 @@ fn analyze_awaitall(
                         ..
                     } = inner
                     {
-                        if **name == "HH\\Awaitable" {
+                        if statements_analyzer.get_codebase().interner.lookup(*name)
+                            == "HH\\Awaitable"
+                        {
                             let mut new = type_params.get(0).unwrap().clone();
 
                             new.parent_nodes = parent_nodes;

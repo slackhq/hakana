@@ -31,7 +31,6 @@ use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::rc::Rc;
-use std::sync::Arc;
 
 pub(crate) struct FunctionLikeAnalyzer<'a> {
     file_analyzer: &'a FileAnalyzer<'a>,
@@ -58,7 +57,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let Some(f) = self.file_analyzer.codebase.functionlike_infos.get(&name) {
                 f
             } else {
-                panic!("Function {} could not be loaded", name);
+                panic!(
+                    "Function {} could not be loaded",
+                    self.get_codebase().interner.lookup(name)
+                );
             };
 
         let mut statements_analyzer = StatementsAnalyzer::new(
@@ -105,7 +107,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut lambda_storage = if let Some(lambda_storage) = lambda_storage {
             lambda_storage
         } else {
-            let name = format!("{}:{}", stmt.name.0.filename(), stmt.name.0.start_offset());
+            let name = self
+                .get_codebase()
+                .interner
+                .get(format!("{}:{}", stmt.name.0.filename(), stmt.name.0.start_offset()).as_str())
+                .unwrap();
             if let Some(lambda_storage) = self.file_analyzer.codebase.functionlike_infos.get(&name)
             {
                 lambda_storage.clone()
@@ -256,6 +262,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         function_storage: &FunctionLikeInfo,
         context: &mut ScopeContext,
     ) {
+        let interner = &self.get_codebase().interner;
         for (property_name, declaring_class) in &classlike_storage.declaring_property_ids {
             let property_class_storage = self
                 .file_analyzer
@@ -272,7 +279,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if property_storage.is_static {
                 let mut property_type = property_storage.type_.clone();
 
-                let expr_id = format!("{}::${}", classlike_storage.name, property_name);
+                let expr_id = format!(
+                    "{}::${}",
+                    interner.lookup(classlike_storage.name),
+                    property_name
+                );
 
                 if let Some(property_pos) = &property_storage.pos {
                     property_type =
@@ -283,6 +294,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             tast_info,
                             false,
                             property_type,
+                            interner,
                         );
                 }
 
@@ -363,7 +375,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             statements_analyzer.analyze(&fb_ast, &mut tast_info, context, &mut None);
 
         if !context.has_returned {
-            handle_inout_at_return(functionlike_storage, context, &mut tast_info, None);
+            handle_inout_at_return(
+                functionlike_storage,
+                statements_analyzer,
+                context,
+                &mut tast_info,
+                None,
+            );
         }
 
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
@@ -378,7 +396,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                     .clone()
                                     .unwrap()
                                     .clone(),
-                                (*functionlike_storage.name).clone(),
+                                self.get_codebase()
+                                    .interner
+                                    .lookup(functionlike_storage.name)
+                                    .to_string(),
                             ),
                             functionlike_storage.name_location.clone(),
                             None,
@@ -411,7 +432,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut inferred_return_type = None;
 
         if let Some(expected_return_type) = &functionlike_storage.return_type {
-            let expected_type_id = expected_return_type.get_id();
+            let expected_type_id = expected_return_type.get_id(Some(&codebase.interner));
             let mut expected_return_type = expected_return_type.clone();
             type_expander::expand_union(
                 statements_analyzer.get_codebase(),
@@ -481,7 +502,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     inferred_return_type = Some(if functionlike_storage.is_async {
                         wrap_atomic(TAtomic::TNamedObject {
-                            name: Arc::new("HH\\Awaitable".to_string()),
+                            name: codebase.interner.get("HH\\Awaitable").unwrap(),
                             type_params: Some(vec![get_void()]),
                             is_this: false,
                             extra_types: None,
@@ -504,7 +525,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 inferred_return_type = Some(if functionlike_storage.is_async {
                     wrap_atomic(TAtomic::TNamedObject {
-                        name: Arc::new("HH\\Awaitable".to_string()),
+                        name: codebase.interner.get("HH\\Awaitable").unwrap(),
                         type_params: Some(vec![get_void()]),
                         is_this: false,
                         extra_types: None,
@@ -548,10 +569,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             update_analysis_result_with_tast(
                 tast_info,
                 analysis_result,
-                &statements_analyzer
-                    .get_file_analyzer()
-                    .get_file_source()
-                    .file_path,
+                self.get_codebase().interner.lookup(
+                    statements_analyzer
+                        .get_file_analyzer()
+                        .get_file_source()
+                        .file_path,
+                ),
                 functionlike_storage.ignore_taint_path,
             );
         }
@@ -567,6 +590,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         context: &mut ScopeContext,
         statements_analyzer: &mut StatementsAnalyzer,
     ) {
+        let interner = &statements_analyzer.get_codebase().interner;
+
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {
                 let mut param_type = param_type.clone();
@@ -634,7 +659,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     let id = format!(
                         "{}-{}:{}-{}",
                         param.name,
-                        param_pos.file_path,
+                        interner.lookup(param_pos.file_path),
                         param_pos.start_offset,
                         param_pos.end_offset
                     );
@@ -721,7 +746,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         };
 
                     let argument_node = DataFlowNode::get_for_method_argument(
-                        calling_id.to_string(),
+                        calling_id.to_string(&self.get_codebase().interner),
                         i,
                         param.location.clone(),
                         None,
@@ -752,6 +777,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             config,
                             param_type: &param_type,
                             param_node,
+                            codebase: statements_analyzer.get_codebase(),
                         },
                     );
                 }
@@ -795,15 +821,20 @@ fn report_unused_expressions(
                                 pos.clone(),
                             ),
                             statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
                         );
                     }
                     VariableSourceKind::NonPrivateParam => {
                         // todo register public/private param
                     }
                     VariableSourceKind::Default => {
-                        if config
-                            .allow_issue_kind_in_file(&IssueKind::UnusedAssignment, &pos.file_path)
-                        {
+                        if config.allow_issue_kind_in_file(
+                            &IssueKind::UnusedAssignment,
+                            statements_analyzer
+                                .get_codebase()
+                                .interner
+                                .lookup(pos.file_path),
+                        ) {
                             if config.issues_to_fix.contains(&IssueKind::UnusedAssignment) {
                                 unused_variable_nodes.push(node.clone());
                             } else {
@@ -832,6 +863,7 @@ fn report_unused_expressions(
                                         )
                                     },
                                     statements_analyzer.get_config(),
+                                    statements_analyzer.get_file_path_actual(),
                                 );
                             }
                         }
@@ -860,20 +892,20 @@ fn report_unused_expressions(
 pub(crate) fn update_analysis_result_with_tast(
     tast_info: TastInfo,
     analysis_result: &mut AnalysisResult,
-    file_path: &String,
+    file_path: &str,
     ignore_taint_path: bool,
 ) {
     if !tast_info.replacements.is_empty() {
         analysis_result
             .replacements
-            .entry(file_path.clone())
+            .entry(file_path.to_string())
             .or_insert_with(BTreeMap::new)
             .extend(tast_info.replacements);
     }
 
     analysis_result
         .emitted_issues
-        .entry(file_path.clone())
+        .entry(file_path.to_string())
         .or_insert_with(Vec::new)
         .extend(tast_info.issues_to_emit);
 

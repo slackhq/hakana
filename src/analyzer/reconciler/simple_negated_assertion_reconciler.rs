@@ -237,6 +237,7 @@ pub(crate) fn reconcile(
         )),
         Assertion::IsNotIsset => Some(reconcile_not_isset(
             existing_var_type,
+            statements_analyzer,
             possibly_undefined,
             key,
             pos,
@@ -306,7 +307,8 @@ fn subtract_object(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -393,7 +395,8 @@ fn subtract_vec(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -479,7 +482,8 @@ fn subtract_keyset(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -565,7 +569,8 @@ fn subtract_dict(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -651,7 +656,8 @@ fn subtract_string(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -758,7 +764,8 @@ fn subtract_int(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -877,7 +884,8 @@ fn subtract_float(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -987,7 +995,8 @@ fn subtract_num(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -1095,7 +1104,8 @@ fn subtract_arraykey(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -1205,7 +1215,8 @@ fn subtract_bool(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -1302,7 +1313,8 @@ fn subtract_null(
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -1352,11 +1364,12 @@ fn subtract_null(
                 name,
                 type_params: None,
                 ..
-            } => {
-                if **name == "XHPChild" {
+            } => match statements_analyzer.get_codebase().interner.lookup(*name) {
+                "XHPChild" => {
                     did_remove_type = true;
                 }
-            }
+                _ => {}
+            },
             _ => (),
         }
     }
@@ -1407,7 +1420,8 @@ fn subtract_false(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -1497,7 +1511,8 @@ fn subtract_true(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -1583,7 +1598,8 @@ fn reconcile_falsy(
     suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = existing_var_type.possibly_undefined_from_try;
 
@@ -1595,7 +1611,9 @@ fn reconcile_falsy(
     for (type_key, atomic) in existing_var_types {
         // if any atomic in the union is either always falsy, we remove it.
         // If not always truthy, we mark the check as not redundant.
-        if atomic.is_truthy() && !existing_var_type.possibly_undefined_from_try {
+        if atomic.is_truthy(&statements_analyzer.get_codebase().interner)
+            && !existing_var_type.possibly_undefined_from_try
+        {
             did_remove_type = true;
             existing_var_type.types.remove(type_key);
         } else if !atomic.is_falsy() {
@@ -1712,6 +1730,7 @@ fn reconcile_falsy(
 
 fn reconcile_not_isset(
     existing_var_type: &TUnion,
+    statements_analyzer: &StatementsAnalyzer,
     possibly_undefined: bool,
     key: Option<String>,
     pos: Option<&Pos>,
@@ -1724,7 +1743,9 @@ fn reconcile_not_isset(
     if !existing_var_type.is_nullable() {
         if let Some(key) = key {
             if !key.contains("[")
-                && (!existing_var_type.is_mixed() || existing_var_type.is_always_truthy())
+                && (!existing_var_type.is_mixed()
+                    || existing_var_type
+                        .is_always_truthy(&statements_analyzer.get_codebase().interner))
             {
                 if let Some(_pos) = pos {
                     // todo do stuff
@@ -1750,7 +1771,8 @@ fn reconcile_empty_countable(
     suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = existing_var_type.possibly_undefined_from_try;
 
@@ -1763,7 +1785,7 @@ fn reconcile_empty_countable(
         if let TAtomic::TVec { .. } = atomic {
             did_remove_type = true;
 
-            if atomic.is_truthy() {
+            if atomic.is_truthy(&statements_analyzer.get_codebase().interner) {
                 existing_var_type.types.remove(type_key);
             } else {
                 let new_atomic = TAtomic::TVec {
@@ -1779,7 +1801,7 @@ fn reconcile_empty_countable(
         } else if let TAtomic::TDict { .. } = atomic {
             did_remove_type = true;
 
-            if atomic.is_truthy() {
+            if atomic.is_truthy(&statements_analyzer.get_codebase().interner) {
                 existing_var_type.types.remove(type_key);
             } else {
                 let new_atomic = TAtomic::TDict {
@@ -1839,7 +1861,8 @@ fn reconcile_not_exactly_countable(
     recursive_check: bool,
     count: &usize,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = existing_var_type.possibly_undefined_from_try;
 
@@ -1920,7 +1943,7 @@ fn reconcile_not_in_array(
             trigger_issue_for_impossible(
                 tast_info,
                 statements_analyzer,
-                &existing_var_type.get_id(),
+                &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
                 &key,
                 assertion,
                 true,

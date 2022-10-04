@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hakana_reflection_info::Interner;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::symbols::{Symbol, SymbolKind};
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
@@ -11,7 +12,7 @@ use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 // as currently constructed this is not efficient memory-wise
-pub fn populate_codebase(codebase: &mut CodebaseInfo) {
+pub fn populate_codebase(codebase: &mut CodebaseInfo, interner: &Interner) {
     let mut all_classlike_descendants = FxHashMap::default();
 
     let classlike_names = codebase
@@ -109,7 +110,7 @@ pub fn populate_codebase(codebase: &mut CodebaseInfo) {
         }
     }
 
-    all_classlike_descendants.retain(|k, _| !k.starts_with("HH\\"));
+    all_classlike_descendants.retain(|k, _| !interner.lookup(*k).starts_with("HH\\"));
 
     codebase.classlike_descendents = all_classlike_descendants;
 }

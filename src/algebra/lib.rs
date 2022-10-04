@@ -152,7 +152,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
         for (clause_var, var_possibilities) in &clause_a.possibilities {
             let only_type = &var_possibilities.values().next().unwrap();
             let negated_clause_type = only_type.get_negation();
-            let negated_string = negated_clause_type.to_string();
+            let negated_string = negated_clause_type.to_string(None);
 
             for clause_b in &unique_clauses {
                 if clause_a == clause_b || !clause_b.reconcilable || clause_b.wedge {
@@ -364,7 +364,7 @@ pub fn get_truths_from_formula(
 
                 for (_, assertion) in possible_types {
                     if matches!(assertion, Assertion::Falsy) || !assertion.has_negation() {
-                        things_that_can_be_said.insert(assertion.to_string(), assertion);
+                        things_that_can_be_said.insert(assertion.to_string(None), assertion);
                     }
                 }
 
@@ -419,7 +419,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
                 let mut seed_clause_possibilities = BTreeMap::new();
                 seed_clause_possibilities.insert(
                     var.clone(),
-                    BTreeMap::from([(impossible_type.to_string(), impossible_type.clone())]),
+                    BTreeMap::from([(impossible_type.to_string(None), impossible_type.clone())]),
                 );
 
                 let seed_clause = Clause::new(
@@ -479,7 +479,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
                     new_clause_possibilities
                         .entry(var.clone())
                         .or_insert_with(BTreeMap::new)
-                        .insert(impossible_type.to_string(), impossible_type);
+                        .insert(impossible_type.to_string(None), impossible_type);
 
                     new_clauses.push(Clause::new(
                         new_clause_possibilities,

@@ -54,9 +54,7 @@ pub(crate) fn analyze(
                 return;
             }
         }
-        TAtomic::TLiteralClassname { name } => {
-            name.clone()
-        }
+        TAtomic::TLiteralClassname { name } => name.clone(),
         TAtomic::TTemplateParam { as_type, .. } => {
             let mut classlike_name = None;
             for (_, generic_param_type) in &as_type.types {
@@ -84,6 +82,7 @@ pub(crate) fn analyze(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
             }
 
@@ -97,10 +96,15 @@ pub(crate) fn analyze(
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentMethod,
-                format!("Method {}::{} does not exist", classlike_name, &expr.1 .1),
+                format!(
+                    "Method {}::{} does not exist",
+                    codebase.interner.lookup(classlike_name),
+                    &expr.1 .1
+                ),
                 statements_analyzer.get_hpos(&pos),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
 
         tast_info.expr_effects.insert(

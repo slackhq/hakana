@@ -355,10 +355,10 @@ pub fn init(
             );
 
             if let Ok(analysis_result) = result {
-                for issues in analysis_result.emitted_issues.values() {
+                for (file_path, issues) in &analysis_result.emitted_issues {
                     for issue in issues {
                         had_error = true;
-                        println!("{}", issue.format());
+                        println!("{}", issue.format(&file_path));
                     }
                 }
 
@@ -421,10 +421,10 @@ pub fn init(
                 None,
             );
             if let Ok(analysis_result) = result {
-                for issues in analysis_result.emitted_issues.values() {
+                for (file_path, issues) in &analysis_result.emitted_issues {
                     for issue in issues {
                         had_error = true;
-                        println!("{}", issue.format());
+                        println!("{}", issue.format(&file_path));
                     }
                 }
 
@@ -469,10 +469,10 @@ pub fn init(
                 None,
             );
             if let Ok(analysis_result) = result {
-                for issues in analysis_result.emitted_issues.values() {
+                for (file_path, issues) in analysis_result.emitted_issues {
                     for issue in issues {
                         had_error = true;
-                        println!("{}", issue.format());
+                        println!("{}", issue.format(&file_path));
                     }
                 }
 
@@ -587,9 +587,9 @@ fn write_output_files(output_file: String, cwd: &String, analysis_result: &Analy
         let mut output_path = fs::File::create(Path::new(&output_path)).unwrap();
         let mut checkpoint_entries = vec![];
 
-        for issues in analysis_result.emitted_issues.values() {
+        for (file_path, issues) in &analysis_result.emitted_issues {
             for issue in issues {
-                checkpoint_entries.push(CheckPointEntry::from_issue(issue));
+                checkpoint_entries.push(CheckPointEntry::from_issue(issue, &file_path));
             }
         }
 

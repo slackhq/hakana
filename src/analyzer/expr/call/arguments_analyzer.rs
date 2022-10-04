@@ -15,10 +15,10 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -438,7 +438,7 @@ pub(crate) fn check_arguments_match(
         if function_param.is_inout {
             // First inout param for HH\Shapes::removeKey is already handled
             if if let FunctionLikeIdentifier::Method(classname, method_name) = functionlike_id {
-                **classname != "HH\\Shapes" || method_name != "removeKey"
+                codebase.interner.lookup(*classname) != "HH\\Shapes" || method_name != "removeKey"
             } else {
                 true
             } {
@@ -611,11 +611,11 @@ fn handle_closure_arg(
     replaced_type =
         inferred_type_replacer::replace(&replaced_type, &replace_template_result, codebase);
 
-    let closure_id = format!(
+    let closure_id = codebase.interner.get(&format!(
         "{}:{}",
         closure_expr.pos().filename(),
         closure_expr.pos().start_offset()
-    );
+    )).unwrap();
 
     let mut closure_storage =
         if let Some(lambda_storage) = codebase.functionlike_infos.get(&closure_id) {
@@ -657,41 +657,44 @@ fn handle_closure_arg(
 
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
-                if (**function_name == "HH\\Lib\\Vec\\map"
-                    || **function_name == "HH\\Lib\\Dict\\map"
-                    || **function_name == "HH\\Lib\\Keyset\\map"
-                    || **function_name == "HH\\Lib\\Vec\\filter"
-                    || **function_name == "HH\\Lib\\Dict\\filter"
-                    || **function_name == "HH\\Lib\\Keyset\\filter")
-                    && param_offset == 0
-                {
-                    if let Some(ref mut signature_type) = param_storage.signature_type {
-                        add_array_fetch_dataflow(
-                            statements_analyzer,
-                            &args[0].1,
-                            tast_info,
-                            None,
-                            signature_type,
-                            &mut get_arraykey(false),
-                        );
+                match codebase.interner.lookup(*function_name) {
+                    "HH\\Lib\\Vec\\map"
+                    | "HH\\Lib\\Dict\\map"
+                    | "HH\\Lib\\Keyset\\map"
+                    | "HH\\Lib\\Vec\\filter"
+                    | "HH\\Lib\\Dict\\filter"
+                    | "HH\\Lib\\Keyset\\filter" => {
+                        if param_offset == 0 {
+                            if let Some(ref mut signature_type) = param_storage.signature_type {
+                                add_array_fetch_dataflow(
+                                    statements_analyzer,
+                                    &args[0].1,
+                                    tast_info,
+                                    None,
+                                    signature_type,
+                                    &mut get_arraykey(false),
+                                );
+                            }
+                        }
                     }
-                }
-                if (**function_name == "HH\\Lib\\Vec\\map_with_key"
-                    || **function_name == "HH\\Lib\\Dict\\map_with_key"
-                    || **function_name == "HH\\Lib\\Keyset\\map_with_key"
-                    || **function_name == "HH\\Lib\\Dict\\map_with_key_async")
-                    && param_offset == 1
-                {
-                    if let Some(ref mut signature_type) = param_storage.signature_type {
-                        add_array_fetch_dataflow(
-                            statements_analyzer,
-                            &args[0].1,
-                            tast_info,
-                            None,
-                            signature_type,
-                            &mut get_arraykey(false),
-                        );
+                    "HH\\Lib\\Vec\\map_with_key"
+                    | "HH\\Lib\\Dict\\map_with_key"
+                    | "HH\\Lib\\Keyset\\map_with_key"
+                    | "HH\\Lib\\Dict\\map_with_key_async" => {
+                        if param_offset == 1 {
+                            if let Some(ref mut signature_type) = param_storage.signature_type {
+                                add_array_fetch_dataflow(
+                                    statements_analyzer,
+                                    &args[0].1,
+                                    tast_info,
+                                    None,
+                                    signature_type,
+                                    &mut get_arraykey(false),
+                                );
+                            }
+                        }
                     }
+                    _ => {}
                 }
             }
         }
@@ -869,11 +872,8 @@ fn handle_possibly_matching_inout_param(
         );
 
         if !template_result.lower_bounds.is_empty() {
-            inout_type = inferred_type_replacer::replace(
-                &original_inout_type,
-                template_result,
-                codebase,
-            );
+            inout_type =
+                inferred_type_replacer::replace(&original_inout_type, template_result, codebase);
         }
     }
 
@@ -912,7 +912,7 @@ fn handle_possibly_matching_inout_param(
 
     if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         let out_node = DataFlowNode::get_for_method_argument_out(
-            functionlike_id.to_string(),
+            functionlike_id.to_string(&codebase.interner),
             argument_offset,
             functionlike_param.location.clone(),
             Some(statements_analyzer.get_hpos(function_call_pos)),

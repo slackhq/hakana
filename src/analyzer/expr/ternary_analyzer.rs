@@ -425,7 +425,7 @@ pub(crate) fn analyze(
             if stmt_cond_type.is_always_falsy() {
                 tast_info.set_expr_type(&pos, stmt_else_type.clone());
                 false
-            } else if stmt_cond_type.is_always_truthy() {
+            } else if stmt_cond_type.is_always_truthy(&codebase.interner) {
                 tast_info.set_expr_type(&pos, lhs_type.clone());
                 false
             } else {

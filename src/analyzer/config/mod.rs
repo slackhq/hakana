@@ -103,7 +103,7 @@ impl Config {
         true
     }
 
-    pub fn allow_issue_kind_in_file(&self, issue_kind: &IssueKind, file: &String) -> bool {
+    pub fn allow_issue_kind_in_file(&self, issue_kind: &IssueKind, file: &str) -> bool {
         let str_issue = issue_kind.to_string();
         let file = format!("{}/{}", self.root_dir, file);
 
@@ -128,7 +128,7 @@ impl Config {
         true
     }
 
-    pub fn allow_sink_in_file(&self, taint_type: &SinkType, file: &String) -> bool {
+    pub fn allow_sink_in_file(&self, taint_type: &SinkType, file: &str) -> bool {
         let str_type = taint_type.to_string();
         let file = format!("{}/{}", self.root_dir, file);
 

@@ -5,12 +5,13 @@ use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_analyzer::file_analyzer;
-use hakana_file_info::FileSource;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
+use hakana_reflection_info::FileSource;
+use hakana_reflection_info::Interner;
 use indexmap::IndexMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast;
@@ -60,7 +61,7 @@ pub fn scan_and_analyze(
     threads: u8,
     debug: bool,
     header: &str,
-    starter_codebase: Option<CodebaseInfo>,
+    starter_data: Option<(CodebaseInfo, Interner)>,
 ) -> io::Result<AnalysisResult> {
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
@@ -69,7 +70,7 @@ pub fn scan_and_analyze(
 
     let mut files_to_analyze = vec![];
 
-    let (mut codebase, file_statuses) = scan_files(
+    let (mut codebase, interner, file_statuses) = scan_files(
         &all_scanned_dirs,
         include_core_libs,
         cache_dir,
@@ -78,7 +79,7 @@ pub fn scan_and_analyze(
         threads,
         debug,
         header,
-        starter_codebase,
+        starter_data,
     )?;
 
     if let Some(cache_dir) = cache_dir {
@@ -120,7 +121,9 @@ pub fn scan_and_analyze(
 
     println!("Calculating symbol inheritance");
 
-    populate_codebase(&mut codebase);
+    populate_codebase(&mut codebase, &interner);
+
+    codebase.interner = interner;
 
     let now = Instant::now();
 
@@ -149,31 +152,41 @@ pub fn scan_and_analyze(
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
 
+    let mut codebase = Arc::try_unwrap(arc_codebase).unwrap();
+
     if config.find_unused_definitions {
-        find_unused_definitions(
-            &mut analysis_result,
-            &config,
-            arc_codebase.clone(),
-            &ignored_paths,
-        );
+        find_unused_definitions(&mut analysis_result, &config, &codebase, &ignored_paths);
     }
 
-    std::thread::spawn(move || drop(arc_codebase));
+    let interner = codebase.interner;
+
+    std::thread::spawn(move || {
+        codebase.classlike_infos.clear();
+        codebase.functionlike_infos.clear();
+        codebase.constant_infos.clear();
+        codebase.type_definitions.clear();
+    });
 
     if let GraphKind::WholeProgram(whole_program_kind) = config.graph_kind {
         let issues = match whole_program_kind {
-            WholeProgramKind::Taint => {
-                find_tainted_data(&analysis_result.program_dataflow_graph, &config, debug)
-            }
-            WholeProgramKind::Query => {
-                find_connections(&analysis_result.program_dataflow_graph, &config, debug)
-            }
+            WholeProgramKind::Taint => find_tainted_data(
+                &analysis_result.program_dataflow_graph,
+                &config,
+                debug,
+                &interner,
+            ),
+            WholeProgramKind::Query => find_connections(
+                &analysis_result.program_dataflow_graph,
+                &config,
+                debug,
+                &interner,
+            ),
         };
 
         for issue in issues {
             analysis_result
                 .emitted_issues
-                .entry((*issue.pos.file_path).clone())
+                .entry(interner.lookup(issue.pos.file_path).to_string())
                 .or_insert_with(Vec::new)
                 .push(issue);
         }
@@ -185,7 +198,7 @@ pub fn scan_and_analyze(
 fn find_unused_definitions(
     analysis_result: &mut AnalysisResult,
     config: &Arc<Config>,
-    arc_codebase: Arc<CodebaseInfo>,
+    codebase: &CodebaseInfo,
     ignored_paths: &Option<FxHashSet<String>>,
 ) {
     let referenced_symbols = analysis_result.symbol_references.get_referenced_symbols();
@@ -196,16 +209,17 @@ fn find_unused_definitions(
         .symbol_references
         .get_referenced_overridden_class_members();
 
-    'outer1: for (function_name, functionlike_info) in &arc_codebase.functionlike_infos {
+    'outer1: for (function_name, functionlike_info) in &codebase.functionlike_infos {
         if functionlike_info.user_defined
             && !functionlike_info.dynamically_callable
             && !functionlike_info.generated
         {
             let pos = functionlike_info.name_location.as_ref().unwrap();
+            let file_path = codebase.interner.lookup(pos.file_path);
 
             if let Some(ignored_paths) = ignored_paths {
                 for ignored_path in ignored_paths {
-                    if pos.file_path.matches(ignored_path.as_str()).count() > 0 {
+                    if file_path.matches(ignored_path.as_str()).count() > 0 {
                         continue 'outer1;
                     }
                 }
@@ -218,18 +232,18 @@ fn find_unused_definitions(
                     }
                 }
 
-                if !config.allow_issue_kind_in_file(&IssueKind::UnusedFunction, &pos.file_path) {
+                if !config.allow_issue_kind_in_file(&IssueKind::UnusedFunction, &file_path) {
                     continue;
                 }
 
-                if config
-                    .migration_symbols
-                    .contains(&("unused_symbol".to_string(), (**function_name).clone()))
-                {
+                if config.migration_symbols.contains(&(
+                    "unused_symbol".to_string(),
+                    codebase.interner.lookup(*function_name).to_string(),
+                )) {
                     if let Some(def_pos) = &functionlike_info.def_location {
                         analysis_result
                             .replacements
-                            .entry((*pos.file_path).clone())
+                            .entry(codebase.interner.lookup(pos.file_path).to_string())
                             .or_insert_with(BTreeMap::new)
                             .insert((def_pos.start_offset, def_pos.end_offset), "".to_string());
                     }
@@ -237,14 +251,17 @@ fn find_unused_definitions(
 
                 let issue = Issue::new(
                     IssueKind::UnusedFunction,
-                    format!("Unused function {}", function_name),
+                    format!(
+                        "Unused function {}",
+                        codebase.interner.lookup(*function_name)
+                    ),
                     pos.clone(),
                 );
 
                 if config.can_add_issue(&issue) {
                     analysis_result
                         .emitted_issues
-                        .entry((*pos.file_path).clone())
+                        .entry(file_path.to_string())
                         .or_insert_with(Vec::new)
                         .push(issue);
                 }
@@ -252,25 +269,25 @@ fn find_unused_definitions(
         }
     }
 
-    'outer2: for (classlike_name, classlike_info) in &arc_codebase.classlike_infos {
+    'outer2: for (classlike_name, classlike_info) in &codebase.classlike_infos {
         if classlike_info.user_defined && !classlike_info.generated {
             let pos = classlike_info.name_location.as_ref().unwrap();
+            let file_path = codebase.interner.lookup(pos.file_path);
 
             if let Some(ignored_paths) = ignored_paths {
                 for ignored_path in ignored_paths {
-                    if pos.file_path.matches(ignored_path.as_str()).count() > 0 {
+                    if file_path.matches(ignored_path.as_str()).count() > 0 {
                         continue 'outer2;
                     }
                 }
             }
 
-            if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, &pos.file_path) {
+            if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, &file_path) {
                 continue;
             }
 
             for parent_class in &classlike_info.all_parent_classes {
-                if let Some(parent_classlike_info) = arc_codebase.classlike_infos.get(parent_class)
-                {
+                if let Some(parent_classlike_info) = codebase.classlike_infos.get(parent_class) {
                     if !parent_classlike_info.user_defined {
                         continue 'outer2;
                     }
@@ -280,14 +297,17 @@ fn find_unused_definitions(
             if !referenced_symbols.contains(classlike_name) {
                 let issue = Issue::new(
                     IssueKind::UnusedClass,
-                    format!("Unused class, interface or enum {}", classlike_name),
+                    format!(
+                        "Unused class, interface or enum {}",
+                        codebase.interner.lookup(*classlike_name)
+                    ),
                     pos.clone(),
                 );
 
                 if config.can_add_issue(&issue) {
                     analysis_result
                         .emitted_issues
-                        .entry((*pos.file_path).clone())
+                        .entry(file_path.to_string())
                         .or_insert_with(Vec::new)
                         .push(issue);
                 }
@@ -341,7 +361,11 @@ fn find_unused_definitions(
                             if matches!(method_storage.visibility, MemberVisibility::Private) {
                                 Issue::new(
                                     IssueKind::UnusedPrivateMethod,
-                                    format!("Unused method {}::{}", classlike_name, method_name),
+                                    format!(
+                                        "Unused method {}::{}",
+                                        codebase.interner.lookup(*classlike_name),
+                                        method_name
+                                    ),
                                     functionlike_storage.name_location.clone().unwrap(),
                                 )
                             } else {
@@ -349,20 +373,23 @@ fn find_unused_definitions(
                                     IssueKind::UnusedPublicOrProtectedMethod,
                                     format!(
                                         "Possibly-unused method {}::{}",
-                                        classlike_name, method_name
+                                        codebase.interner.lookup(*classlike_name),
+                                        method_name
                                     ),
                                     functionlike_storage.name_location.clone().unwrap(),
                                 )
                             };
 
-                        if !config.allow_issue_kind_in_file(&issue.kind, &pos.file_path) {
+                        let file_path = codebase.interner.lookup(pos.file_path);
+
+                        if !config.allow_issue_kind_in_file(&issue.kind, &file_path) {
                             continue;
                         }
 
                         if config.can_add_issue(&issue) {
                             analysis_result
                                 .emitted_issues
-                                .entry((*pos.file_path).clone())
+                                .entry(file_path.to_string())
                                 .or_insert_with(Vec::new)
                                 .push(issue);
                         }
@@ -389,9 +416,20 @@ pub fn scan_and_analyze_single_file(
         GraphKind::FunctionBody
     };
 
-    scan_single_file(codebase, file_name.clone(), file_contents.clone())?;
+    let interner = Arc::new(Mutex::new(codebase.interner.clone()));
 
-    populate_codebase(codebase);
+    scan_single_file(
+        codebase,
+        interner.clone(),
+        file_name.clone(),
+        file_contents.clone(),
+    )?;
+
+    let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
+
+    populate_codebase(codebase, &interner);
+
+    codebase.interner = interner;
 
     let mut analysis_result = analyze_single_file(
         file_name.clone(),
@@ -405,12 +443,14 @@ pub fn scan_and_analyze_single_file(
             &analysis_result.program_dataflow_graph,
             &analysis_config,
             false,
+            &codebase.interner,
         );
 
         for issue in issues {
+            let file_path = codebase.interner.lookup(issue.pos.file_path);
             analysis_result
                 .emitted_issues
-                .entry((*issue.pos.file_path).clone())
+                .entry(file_path.to_string())
                 .or_insert_with(Vec::new)
                 .push(issue);
         }
@@ -428,8 +468,8 @@ pub fn scan_files(
     threads: u8,
     debug: bool,
     build_checksum: &str,
-    starter_codebase: Option<CodebaseInfo>,
-) -> io::Result<(CodebaseInfo, IndexMap<String, FileStatus>)> {
+    starter_data: Option<(CodebaseInfo, Interner)>,
+) -> io::Result<(CodebaseInfo, Interner, IndexMap<String, FileStatus>)> {
     if debug {
         println!("{:#?}", scan_dirs);
     }
@@ -442,7 +482,14 @@ pub fn scan_files(
         None
     };
 
-    let mut codebase = starter_codebase.unwrap_or(CodebaseInfo::new());
+    let symbols_path = if let Some(cache_dir) = cache_dir {
+        Some(format!("{}/symbols", cache_dir))
+    } else {
+        None
+    };
+
+    let (mut codebase, mut interner) =
+        starter_data.unwrap_or((CodebaseInfo::new(), Interner::new()));
 
     if include_core_libs {
         // add HHVM libs
@@ -510,6 +557,10 @@ pub fn scan_files(
         );
     }
 
+    if let Some(symbols_path) = &symbols_path {
+        load_cached_symbols(symbols_path, use_codebase_cache, &mut interner);
+    }
+
     let mut files_to_scan = vec![];
 
     for (target_file, status) in &file_statuses {
@@ -517,6 +568,8 @@ pub fn scan_files(
             files_to_scan.push(target_file);
         }
     }
+
+    let interner = Arc::new(Mutex::new(interner));
 
     if files_to_scan.len() > 0 {
         let bar = if debug {
@@ -562,6 +615,7 @@ pub fn scan_files(
                     str_path,
                     &config.root_dir,
                     &mut new_codebase,
+                    interner.clone(),
                     analyze_map.contains(*str_path),
                     debug,
                 );
@@ -592,6 +646,7 @@ pub fn scan_files(
                     .clone()
                     .into_iter()
                     .collect::<FxHashSet<_>>();
+                let interner = interner.clone();
 
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
@@ -601,6 +656,7 @@ pub fn scan_files(
                             str_path,
                             &root_dir_c,
                             &mut new_codebase,
+                            interner.clone(),
                             analyze_map.contains(str_path),
                             debug,
                         );
@@ -638,9 +694,19 @@ pub fn scan_files(
             let serialized_codebase = bincode::serialize(&codebase).unwrap();
             codebase_file.write_all(&serialized_codebase)?;
         }
+
+        if let Some(symbols_path) = symbols_path {
+            let mut symbols_file = fs::File::create(&symbols_path).unwrap();
+            let serialized_symbols = bincode::serialize(&interner).unwrap();
+            symbols_file.write_all(&serialized_symbols)?;
+        }
     }
 
-    Ok((codebase, file_statuses))
+    Ok((
+        codebase,
+        Arc::try_unwrap(interner).unwrap().into_inner().unwrap(),
+        file_statuses,
+    ))
 }
 
 fn load_cached_codebase(
@@ -709,6 +775,17 @@ fn load_cached_codebase(
             codebase
                 .classlike_infos
                 .retain(|k, _| !classlikes_to_remove.contains(k));
+        }
+    }
+}
+
+fn load_cached_symbols(symbols_path: &String, use_codebase_cache: bool, interner: &mut Interner) {
+    if Path::new(symbols_path).exists() && use_codebase_cache {
+        println!("Deserializing stored symbol cache");
+        let serialized = fs::read(&symbols_path)
+            .unwrap_or_else(|_| panic!("Could not read file {}", &symbols_path));
+        if let Ok(d) = bincode::deserialize::<Interner>(&serialized) {
+            *interner = d;
         }
     }
 }
@@ -827,6 +904,7 @@ fn scan_file(
     target_file: &String,
     root_dir: &String,
     codebase: &mut CodebaseInfo,
+    interner: Arc<Mutex<Interner>>,
     user_defined: bool,
     debug: bool,
 ) {
@@ -848,24 +926,33 @@ fn scan_file(
         target_file.clone()
     };
 
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0);
+    let interned_file_path = interner.lock().unwrap().intern(target_name.clone());
+
+    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner.clone());
 
     hakana_reflector::collect_info_for_aast(
         &aast.0,
-        resolved_names,
+        &resolved_names,
+        interner,
         codebase,
         FileSource {
-            file_path: Arc::new(target_name),
+            file_path_actual: target_name.clone(),
+            file_path: interned_file_path,
             hh_fixmes: aast.1.fixmes,
             comments: aast.1.comments,
         },
         user_defined,
     );
+
+    codebase
+        .resolved_names
+        .insert(target_name.clone(), resolved_names);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn get_single_file_codebase(additional_files: Vec<&str>) -> CodebaseInfo {
+pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, Interner) {
     let mut codebase = CodebaseInfo::new();
+    let interner = Arc::new(Mutex::new(Interner::new()));
 
     // add HHVM libs
     for file in HhiAsset::iter() {
@@ -873,6 +960,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> CodebaseInfo {
             &file.to_string(),
             &"".to_string(),
             &mut codebase,
+            interner.clone(),
             false,
             false,
         );
@@ -884,6 +972,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> CodebaseInfo {
             &file.to_string(),
             &"".to_string(),
             &mut codebase,
+            interner.clone(),
             false,
             false,
         );
@@ -894,14 +983,19 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> CodebaseInfo {
             &str_path.to_string(),
             &"".to_string(),
             &mut codebase,
+            interner.clone(),
             false,
             false,
         );
     }
 
-    populate_codebase(&mut codebase);
+    codebase.resolved_names.clear();
 
-    codebase
+    let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
+
+    populate_codebase(&mut codebase, &interner);
+
+    (codebase, interner)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -925,6 +1019,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> CodebaseInfo {
 
 pub fn scan_single_file(
     codebase: &mut CodebaseInfo,
+    interner: Arc<Mutex<Interner>>,
     path: String,
     file_contents: String,
 ) -> std::result::Result<(), String> {
@@ -933,19 +1028,25 @@ pub fn scan_single_file(
         Err(err) => return std::result::Result::Err(format!("Unable to parse AAST\n{}", err)),
     };
 
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0);
+    let file_path = interner.lock().unwrap().intern(path.clone());
+
+    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner.clone());
 
     hakana_reflector::collect_info_for_aast(
         &aast.0,
-        resolved_names.clone(),
+        &resolved_names,
+        interner,
         codebase,
         FileSource {
-            file_path: Arc::new(path.clone()),
+            file_path_actual: path.clone(),
+            file_path,
             hh_fixmes: aast.1.fixmes,
             comments: aast.1.comments,
         },
         true,
     );
+
+    codebase.resolved_names.insert(path.clone(), resolved_names);
 
     Ok(())
 }
@@ -1107,7 +1208,6 @@ fn analyze_file(
             return;
         }
     };
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0);
 
     let target_name = if str_path.contains(&config.root_dir) {
         str_path[(config.root_dir.len() + 1)..].to_string()
@@ -1115,8 +1215,13 @@ fn analyze_file(
         str_path.clone()
     };
 
+    let resolved_names = codebase.resolved_names.get(&target_name).unwrap();
+
+    let file_path = codebase.interner.get(target_name.as_str()).unwrap();
+
     let file_source = FileSource {
-        file_path: Arc::new(target_name),
+        file_path_actual: target_name,
+        file_path,
         hh_fixmes: aast.1.fixmes,
         comments: aast.1.comments,
     };
@@ -1140,12 +1245,15 @@ pub fn analyze_single_file(
         }
     };
 
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0);
+    let resolved_names = codebase.resolved_names.get(&path).unwrap();
 
     let mut analysis_result = AnalysisResult::new(analysis_config.graph_kind);
 
+    let file_path = codebase.interner.get(path.as_str()).unwrap();
+
     let file_source = FileSource {
-        file_path: Arc::new(path.clone()),
+        file_path_actual: path.clone(),
+        file_path,
         hh_fixmes: aast.1.fixmes,
         comments: aast.1.comments,
     };

@@ -75,18 +75,4 @@ impl FunctionLikeParameter {
             removed_taints_when_returning_true: None,
         }
     }
-
-    pub fn get_id(&self) -> String {
-        let mut str = String::new();
-
-        if let Some(t) = &self.signature_type {
-            str += t.get_id().as_str();
-        } else {
-            str += "mixed";
-        }
-
-        str += if self.is_variadic { "..." } else { "" };
-        str += if self.is_optional { "=" } else { "" };
-        return str;
-    }
 }

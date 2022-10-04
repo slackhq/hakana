@@ -1,7 +1,7 @@
+use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::expr::call::arguments_analyzer;
 use crate::expr::call_analyzer::check_template_result;
@@ -42,6 +42,8 @@ pub(crate) fn analyze(
 
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
+    let codebase = statements_analyzer.get_codebase();
+
     // we special-case this because exit is used in
     // `as` ternaries where the positions may be fake
     if name == "exit" || name == "die" {
@@ -64,17 +66,21 @@ pub(crate) fn analyze(
         }
     }
 
+    if name == "echo" {
+        return echo_analyzer::analyze(statements_analyzer, expr.2, pos, tast_info, context);
+    }
+
     let name = if name == "\\in_array" {
-         Arc::new("in_array".to_string())
-    } else if let Some(fq_name) = resolved_names.get(&expr.0.0.start_offset()) {
+        statements_analyzer
+            .get_codebase()
+            .interner
+            .get("in_array")
+            .unwrap()
+    } else if let Some(fq_name) = resolved_names.get(&expr.0 .0.start_offset()) {
         fq_name.clone()
     } else {
         panic!()
     };
-
-    if *name == "echo" {
-        return echo_analyzer::analyze(statements_analyzer, expr.2, pos, tast_info, context);
-    }
 
     let function_storage = if let Some(function_storage) =
         get_named_function_info(statements_analyzer, &name, expr.0 .0)
@@ -84,10 +90,11 @@ pub(crate) fn analyze(
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentFunction,
-                format!("Function {} is not defined", name),
+                format!("Function {} is not defined", codebase.interner.lookup(name)),
                 statements_analyzer.get_hpos(&expr.0 .0),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
 
         return false;
@@ -202,176 +209,199 @@ pub(crate) fn analyze(
         context.has_returned = true;
     }
 
-    if *name == "HH\\invariant" {
-        if let Some((_, first_arg)) = &expr.2.get(0) {
-            process_function_effects(first_arg, context, statements_analyzer, tast_info);
-        }
-    } else if *name == "HH\\Lib\\C\\contains_key"
-        || *name == "HH\\Lib\\Dict\\contains_key"
-        || *name == "HH\\Lib\\C\\contains"
-        || *name == "HH\\Lib\\Dict\\contains"
-    {
-        if *name == "HH\\Lib\\C\\contains_key" || *name == "HH\\Lib\\Dict\\contains_key" {
-            let expr_var_id = expression_identifier::get_var_id(
-                &expr.2[0].1,
-                context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().get_file_source(),
-                resolved_names,
-                Some(statements_analyzer.get_codebase()),
-            );
+    let real_name = codebase.interner.lookup(name);
 
-            let dim_var_id = expression_identifier::get_dim_id(
-                &expr.2[1].1,
-                Some(statements_analyzer.get_codebase()),
-                resolved_names,
-            );
-
-            if let Some(expr_var_id) = expr_var_id {
-                if let Some(mut dim_var_id) = dim_var_id {
-                    if dim_var_id.starts_with("'") {
-                        dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
-                        tast_info.if_true_assertions.insert(
-                            (pos.start_offset(), pos.end_offset()),
-                            FxHashMap::from_iter([(
-                                format!("{}", expr_var_id),
-                                vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
-                            )]),
-                        );
-                    } else if let aast::Expr_::Int(boxed) = &expr.2[1].1 .2 {
-                        tast_info.if_true_assertions.insert(
-                            (pos.start_offset(), pos.end_offset()),
-                            FxHashMap::from_iter([(
-                                expr_var_id,
-                                vec![Assertion::HasArrayKey(DictKey::Int(
-                                    boxed.parse::<u32>().unwrap(),
-                                ))],
-                            )]),
-                        );
-                    } else {
-                        tast_info.if_true_assertions.insert(
-                            (pos.start_offset(), pos.end_offset()),
-                            FxHashMap::from_iter([(
-                                format!("{}[{}]", expr_var_id, dim_var_id),
-                                vec![Assertion::ArrayKeyExists],
-                            )]),
-                        );
-                    }
-                }
+    match real_name {
+        "HH\\invariant" => {
+            if let Some((_, first_arg)) = &expr.2.get(0) {
+                process_function_effects(first_arg, context, statements_analyzer, tast_info);
             }
         }
-
-        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-            let second_arg_var_id = expression_identifier::get_var_id(
-                &expr.2[1].1,
-                context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().get_file_source(),
-                resolved_names,
-                Some(statements_analyzer.get_codebase()),
-            );
-
-            if let Some(expr_var_id) = second_arg_var_id {
-                tast_info.if_true_assertions.insert(
-                    (pos.start_offset(), pos.end_offset()),
-                    FxHashMap::from_iter([(
-                        "hakana taints".to_string(),
-                        vec![Assertion::RemoveTaints(
-                            expr_var_id.clone(),
-                            SinkType::user_controllable_taints(),
-                        )],
-                    )]),
+        "HH\\Lib\\C\\contains_key"
+        | "HH\\Lib\\Dict\\contains_key"
+        | "HH\\Lib\\C\\contains"
+        | "HH\\Lib\\Dict\\contains" => {
+            if real_name == "HH\\Lib\\C\\contains_key" || real_name == "HH\\Lib\\Dict\\contains_key"
+            {
+                let expr_var_id = expression_identifier::get_var_id(
+                    &expr.2[0].1,
+                    context.function_context.calling_class.as_ref(),
+                    statements_analyzer.get_file_analyzer().get_file_source(),
+                    resolved_names,
+                    Some(statements_analyzer.get_codebase()),
                 );
-            }
-        }
-    } else if *name == "HH\\Lib\\Str\\starts_with" && expr.2.len() == 2 {
-        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-            let expr_var_id = expression_identifier::get_var_id(
-                &expr.2[0].1,
-                context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().get_file_source(),
-                resolved_names,
-                Some(statements_analyzer.get_codebase()),
-            );
 
-            let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
+                let dim_var_id = expression_identifier::get_dim_id(
+                    &expr.2[1].1,
+                    Some(statements_analyzer.get_codebase()),
+                    resolved_names,
+                );
 
-            // if we have a HH\Lib\Str\starts_with($foo, "/something") check
-            // we can remove url-specific taints
-            if let (Some(expr_var_id), Some(second_arg_type)) = (expr_var_id, second_arg_type) {
-                if let Some(str) = second_arg_type.get_single_literal_string_value() {
-                    if str.len() > 1 && str != "http://" && str != "https://" {
-                        tast_info.if_true_assertions.insert(
-                            (pos.start_offset(), pos.end_offset()),
-                            FxHashMap::from_iter([(
-                                "hakana taints".to_string(),
-                                vec![Assertion::RemoveTaints(
-                                    expr_var_id.clone(),
-                                    FxHashSet::from_iter([
-                                        SinkType::HtmlAttributeUri,
-                                        SinkType::CurlUri,
-                                        SinkType::RedirectUri,
-                                    ]),
-                                )],
-                            )]),
-                        );
+                if let Some(expr_var_id) = expr_var_id {
+                    if let Some(mut dim_var_id) = dim_var_id {
+                        if dim_var_id.starts_with("'") {
+                            dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
+                            tast_info.if_true_assertions.insert(
+                                (pos.start_offset(), pos.end_offset()),
+                                FxHashMap::from_iter([(
+                                    format!("{}", expr_var_id),
+                                    vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
+                                )]),
+                            );
+                        } else if let aast::Expr_::Int(boxed) = &expr.2[1].1 .2 {
+                            tast_info.if_true_assertions.insert(
+                                (pos.start_offset(), pos.end_offset()),
+                                FxHashMap::from_iter([(
+                                    expr_var_id,
+                                    vec![Assertion::HasArrayKey(DictKey::Int(
+                                        boxed.parse::<u32>().unwrap(),
+                                    ))],
+                                )]),
+                            );
+                        } else {
+                            tast_info.if_true_assertions.insert(
+                                (pos.start_offset(), pos.end_offset()),
+                                FxHashMap::from_iter([(
+                                    format!("{}[{}]", expr_var_id, dim_var_id),
+                                    vec![Assertion::ArrayKeyExists],
+                                )]),
+                            );
+                        }
                     }
                 }
             }
+
+            if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                let second_arg_var_id = expression_identifier::get_var_id(
+                    &expr.2[1].1,
+                    context.function_context.calling_class.as_ref(),
+                    statements_analyzer.get_file_analyzer().get_file_source(),
+                    resolved_names,
+                    Some(statements_analyzer.get_codebase()),
+                );
+
+                if let Some(expr_var_id) = second_arg_var_id {
+                    tast_info.if_true_assertions.insert(
+                        (pos.start_offset(), pos.end_offset()),
+                        FxHashMap::from_iter([(
+                            "hakana taints".to_string(),
+                            vec![Assertion::RemoveTaints(
+                                expr_var_id.clone(),
+                                SinkType::user_controllable_taints(),
+                            )],
+                        )]),
+                    );
+                }
+            }
         }
-    } else if *name == "HH\\Lib\\Regex\\matches" && expr.2.len() == 2 {
-        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-            let expr_var_id = expression_identifier::get_var_id(
-                &expr.2[0].1,
-                context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().get_file_source(),
-                resolved_names,
-                Some(statements_analyzer.get_codebase()),
-            );
+        "HH\\Lib\\Str\\starts_with" => {
+            if expr.2.len() == 2 {
+                if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                    let expr_var_id = expression_identifier::get_var_id(
+                        &expr.2[0].1,
+                        context.function_context.calling_class.as_ref(),
+                        statements_analyzer.get_file_analyzer().get_file_source(),
+                        resolved_names,
+                        Some(statements_analyzer.get_codebase()),
+                    );
 
-            let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
+                    let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
 
-            // if we have a HH\Lib\Str\starts_with($foo, "/something") check
-            // we can remove url-specific taints
-            if let (Some(expr_var_id), Some(second_arg_type)) = (expr_var_id, second_arg_type) {
-                if let Some(str) = second_arg_type.get_single_literal_string_value() {
-                    let mut hashes_to_remove = FxHashSet::default();
-
-                    if str.starts_with("^") {
-                        if str != "^http:\\/\\/"
-                            && str != "^https:\\/\\/"
-                            && str != "^https?:\\/\\/"
-                        {
-                            hashes_to_remove.extend([
-                                SinkType::HtmlAttributeUri,
-                                SinkType::CurlUri,
-                                SinkType::RedirectUri,
-                            ]);
-
-                            if str.ends_with("$") && !str.contains(".*") && !str.contains(".+") {
-                                hashes_to_remove.extend([
-                                    SinkType::HtmlTag,
-                                    SinkType::CurlHeader,
-                                    SinkType::CurlUri,
-                                    SinkType::HtmlAttribute,
-                                ]);
+                    // if we have a HH\Lib\Str\starts_with($foo, "/something") check
+                    // we can remove url-specific taints
+                    if let (Some(expr_var_id), Some(second_arg_type)) =
+                        (expr_var_id, second_arg_type)
+                    {
+                        if let Some(str) = second_arg_type.get_single_literal_string_value(
+                            &statements_analyzer.get_codebase().interner,
+                        ) {
+                            if str.len() > 1 && str != "http://" && str != "https://" {
+                                tast_info.if_true_assertions.insert(
+                                    (pos.start_offset(), pos.end_offset()),
+                                    FxHashMap::from_iter([(
+                                        "hakana taints".to_string(),
+                                        vec![Assertion::RemoveTaints(
+                                            expr_var_id.clone(),
+                                            FxHashSet::from_iter([
+                                                SinkType::HtmlAttributeUri,
+                                                SinkType::CurlUri,
+                                                SinkType::RedirectUri,
+                                            ]),
+                                        )],
+                                    )]),
+                                );
                             }
                         }
                     }
+                }
+            }
+        }
+        "HH\\Lib\\Regex\\matches" => {
+            if expr.2.len() == 2 {
+                if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                    let expr_var_id = expression_identifier::get_var_id(
+                        &expr.2[0].1,
+                        context.function_context.calling_class.as_ref(),
+                        statements_analyzer.get_file_analyzer().get_file_source(),
+                        resolved_names,
+                        Some(statements_analyzer.get_codebase()),
+                    );
 
-                    if !hashes_to_remove.is_empty() {
-                        tast_info.if_true_assertions.insert(
-                            (pos.start_offset(), pos.end_offset()),
-                            FxHashMap::from_iter([(
-                                "hakana taints".to_string(),
-                                vec![Assertion::RemoveTaints(
-                                    expr_var_id.clone(),
-                                    hashes_to_remove,
-                                )],
-                            )]),
-                        );
+                    let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
+
+                    // if we have a HH\Lib\Str\starts_with($foo, "/something") check
+                    // we can remove url-specific taints
+                    if let (Some(expr_var_id), Some(second_arg_type)) =
+                        (expr_var_id, second_arg_type)
+                    {
+                        if let Some(str) = second_arg_type.get_single_literal_string_value(
+                            &statements_analyzer.get_codebase().interner,
+                        ) {
+                            let mut hashes_to_remove = FxHashSet::default();
+
+                            if str.starts_with("^") {
+                                if str != "^http:\\/\\/"
+                                    && str != "^https:\\/\\/"
+                                    && str != "^https?:\\/\\/"
+                                {
+                                    hashes_to_remove.extend([
+                                        SinkType::HtmlAttributeUri,
+                                        SinkType::CurlUri,
+                                        SinkType::RedirectUri,
+                                    ]);
+
+                                    if str.ends_with("$")
+                                        && !str.contains(".*")
+                                        && !str.contains(".+")
+                                    {
+                                        hashes_to_remove.extend([
+                                            SinkType::HtmlTag,
+                                            SinkType::CurlHeader,
+                                            SinkType::CurlUri,
+                                            SinkType::HtmlAttribute,
+                                        ]);
+                                    }
+                                }
+                            }
+
+                            if !hashes_to_remove.is_empty() {
+                                tast_info.if_true_assertions.insert(
+                                    (pos.start_offset(), pos.end_offset()),
+                                    FxHashMap::from_iter([(
+                                        "hakana taints".to_string(),
+                                        vec![Assertion::RemoveTaints(
+                                            expr_var_id.clone(),
+                                            hashes_to_remove,
+                                        )],
+                                    )]),
+                                );
+                            }
+                        }
                     }
                 }
             }
         }
+        _ => {}
     }
 
     true
@@ -444,7 +474,7 @@ fn process_function_effects(
 
 fn get_named_function_info<'a>(
     statements_analyzer: &'a StatementsAnalyzer,
-    name: &String,
+    name: &Symbol,
     _pos: &Pos,
 ) -> Option<&'a FunctionLikeInfo> {
     let codebase = statements_analyzer.get_codebase();

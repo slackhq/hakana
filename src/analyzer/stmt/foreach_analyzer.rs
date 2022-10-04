@@ -186,6 +186,7 @@ fn check_iterator_type(
                 statements_analyzer.get_hpos(&expr.pos()),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
 
         return (true, None, None, false);
@@ -199,6 +200,7 @@ fn check_iterator_type(
                 statements_analyzer.get_hpos(&expr.pos()),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
 
         return (true, None, None, false);
@@ -348,8 +350,10 @@ fn check_iterator_type(
                                             .get_codebase()
                                             .get_classconst_literal_value(&enum_name, &member_name)
                                         {
-                                            if let Some(value) =
-                                                literal_value.get_single_literal_string_value()
+                                            if let Some(value) = literal_value
+                                                .get_single_literal_string_value(
+                                                    &statements_analyzer.get_codebase().interner,
+                                                )
                                             {
                                                 key_param = add_union_type(
                                                     key_param,
@@ -467,35 +471,8 @@ fn check_iterator_type(
             ..
         } = iterator_atomic_type
         {
-            if *name == "HH\\KeyedContainer" || *name == "HH\\KeyedIterator" {
-                has_valid_iterator = true;
-                key_type = Some(combine_optional_union_types(
-                    key_type.as_ref(),
-                    Some(type_params.get(0).unwrap()),
-                    codebase,
-                ));
-                value_type = Some(combine_optional_union_types(
-                    value_type.as_ref(),
-                    Some(type_params.get(1).unwrap()),
-                    codebase,
-                ));
-            } else if *name == "HH\\Container"
-                || *name == "HH\\Iterator"
-                || *name == "HH\\Traversable"
-            {
-                has_valid_iterator = true;
-                key_type = Some(combine_optional_union_types(
-                    key_type.as_ref(),
-                    Some(&get_arraykey(true)),
-                    codebase,
-                ));
-                value_type = Some(combine_optional_union_types(
-                    value_type.as_ref(),
-                    Some(type_params.get(0).unwrap()),
-                    codebase,
-                ));
-            } else if is_async {
-                if *name == "HH\\AsyncKeyedIterator" {
+            match codebase.interner.lookup(name) {
+                "HH\\KeyedContainer" | "HH\\KeyedIterator" => {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
@@ -507,7 +484,8 @@ fn check_iterator_type(
                         Some(type_params.get(1).unwrap()),
                         codebase,
                     ));
-                } else if *name == "HH\\AsyncIterator" {
+                }
+                "HH\\Container" | "HH\\Iterator" | "HH\\Traversable" => {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
@@ -520,8 +498,37 @@ fn check_iterator_type(
                         codebase,
                     ));
                 }
-            } else {
-                // big todo: support Hack Iterators
+                "HH\\AsyncKeyedIterator" => {
+                    if is_async {
+                        has_valid_iterator = true;
+                        key_type = Some(combine_optional_union_types(
+                            key_type.as_ref(),
+                            Some(type_params.get(0).unwrap()),
+                            codebase,
+                        ));
+                        value_type = Some(combine_optional_union_types(
+                            value_type.as_ref(),
+                            Some(type_params.get(1).unwrap()),
+                            codebase,
+                        ));
+                    }
+                }
+                "HH\\AsyncIterator" => {
+                    if is_async {
+                        has_valid_iterator = true;
+                        key_type = Some(combine_optional_union_types(
+                            key_type.as_ref(),
+                            Some(&get_arraykey(true)),
+                            codebase,
+                        ));
+                        value_type = Some(combine_optional_union_types(
+                            value_type.as_ref(),
+                            Some(type_params.get(0).unwrap()),
+                            codebase,
+                        ));
+                    }
+                }
+                _ => {}
             }
 
             if !context.function_context.pure {

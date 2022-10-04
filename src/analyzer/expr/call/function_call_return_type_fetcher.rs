@@ -7,6 +7,7 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
+use hakana_reflection_info::Interner;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
@@ -50,7 +51,7 @@ pub(crate) fn fetch(
         FunctionLikeIdentifier::Function(name) => {
             if let Some(t) = handle_special_functions(
                 statements_analyzer,
-                name,
+                codebase.interner.lookup(*name),
                 expr.2,
                 pos,
                 codebase,
@@ -69,16 +70,24 @@ pub(crate) fn fetch(
     } else {
         if let Some(function_return_type) = &function_storage.return_type {
             if !function_storage.template_types.is_empty() {
-                let fn_id = Arc::new(format!("fn-{}", functionlike_id.to_string()));
-                for (template_name, _) in &function_storage.template_types {
-                    if let None = template_result.lower_bounds.get(template_name) {
-                        template_result.lower_bounds.insert(
-                            template_name.clone(),
-                            FxHashMap::from_iter([(
-                                fn_id.clone(),
-                                vec![TemplateBound::new(get_nothing(), 1, None, None)],
-                            )]),
-                        );
+                if !function_storage.template_types.is_empty() {
+                    let fn_id = codebase
+                        .interner
+                        .get(
+                            format!("fn-{}", functionlike_id.to_string(&codebase.interner))
+                                .as_str(),
+                        )
+                        .unwrap();
+                    for (template_name, _) in &function_storage.template_types {
+                        if let None = template_result.lower_bounds.get(template_name) {
+                            template_result.lower_bounds.insert(
+                                template_name.clone(),
+                                FxHashMap::from_iter([(
+                                    fn_id.clone(),
+                                    vec![TemplateBound::new(get_nothing(), 1, None, None)],
+                                )]),
+                            );
+                        }
                     }
                 }
             }
@@ -145,17 +154,19 @@ pub(crate) fn fetch(
 
 fn handle_special_functions(
     statements_analyzer: &StatementsAnalyzer,
-    name: &String,
+    name: &str,
     args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
     pos: &Pos,
     codebase: &CodebaseInfo,
     tast_info: &mut TastInfo,
 ) -> Option<TUnion> {
-    match name.as_str() {
+    match name {
         "HH\\global_get" => {
             if let Some((_, arg_expr)) = args.get(0) {
                 if let Some(expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
-                    if let Some(value) = expr_type.get_single_literal_string_value() {
+                    if let Some(value) =
+                        expr_type.get_single_literal_string_value(&codebase.interner)
+                    {
                         Some(variable_fetch_analyzer::get_type_for_superglobal(
                             statements_analyzer,
                             value,
@@ -367,7 +378,7 @@ fn handle_special_functions(
         "microtime" => {
             if let Some((_, arg_expr)) = args.get(0) {
                 if let Some(expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
-                    if expr_type.is_always_truthy() {
+                    if expr_type.is_always_truthy(&codebase.interner) {
                         Some(get_float())
                     } else if expr_type.is_always_falsy() {
                         Some(get_string())
@@ -472,7 +483,7 @@ fn add_dataflow(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> TUnion {
-    let _codebase = statements_analyzer.get_codebase();
+    let codebase = statements_analyzer.get_codebase();
 
     // todo dispatch AddRemoveTaintsEvent
 
@@ -488,7 +499,7 @@ fn add_dataflow(
     }
 
     let function_call_node = DataFlowNode::get_for_method_return(
-        functionlike_id.to_string(),
+        functionlike_id.to_string(&codebase.interner),
         if let Some(return_pos) = &functionlike_storage.return_type_location {
             Some(return_pos.clone())
         } else {
@@ -511,12 +522,17 @@ fn add_dataflow(
             // and also handle simple preg_replace calls
         }
 
-        let (param_offsets, _variadic_path) = get_special_argument_nodes(functionlike_id);
-        let added_removed_taints = get_special_added_removed_taints(functionlike_id);
+        let (param_offsets, _variadic_path) =
+            get_special_argument_nodes(functionlike_id, &codebase.interner);
+        let added_removed_taints =
+            get_special_added_removed_taints(functionlike_id, &codebase.interner);
 
         for (param_offset, path_kind) in param_offsets {
             let argument_node = DataFlowNode::get_for_method_argument(
-                (*functionlike_storage.name).clone(),
+                codebase
+                    .interner
+                    .lookup(functionlike_storage.name)
+                    .to_string(),
                 param_offset,
                 if let Some(arg) = expr.2.get(param_offset) {
                     Some(statements_analyzer.get_hpos(arg.1.pos()))
@@ -579,9 +595,10 @@ fn add_dataflow(
 
 fn get_special_argument_nodes(
     functionlike_id: &FunctionLikeIdentifier,
+    interner: &Interner,
 ) -> (Vec<(usize, PathKind)>, Option<PathKind>) {
     match functionlike_id {
-        FunctionLikeIdentifier::Function(function_name) => match function_name.as_str() {
+        FunctionLikeIdentifier::Function(function_name) => match interner.lookup(*function_name) {
             "var_export"
             | "print_r"
             | "highlight_string"
@@ -768,9 +785,10 @@ fn get_special_argument_nodes(
 
 fn get_special_added_removed_taints(
     functionlike_id: &FunctionLikeIdentifier,
+    interner: &Interner,
 ) -> FxHashMap<usize, (FxHashSet<SinkType>, FxHashSet<SinkType>)> {
     match functionlike_id {
-        FunctionLikeIdentifier::Function(function_name) => match function_name.as_str() {
+        FunctionLikeIdentifier::Function(function_name) => match interner.lookup(*function_name) {
             "html_entity_decode" | "htmlspecialchars_decode" => FxHashMap::from_iter([(
                 0,
                 (

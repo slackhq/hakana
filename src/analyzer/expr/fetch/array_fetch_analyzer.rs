@@ -298,6 +298,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 statements_analyzer.get_hpos(&stmt.2),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
     }
 
@@ -312,6 +313,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 statements_analyzer.get_hpos(&stmt.2),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
     }
 
@@ -342,12 +344,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 );
 
                 if let Some(existing_type) = stmt_type {
-                    stmt_type = Some(add_union_type(
-                        existing_type,
-                        &new_type,
-                        codebase,
-                        false,
-                    ));
+                    stmt_type = Some(add_union_type(existing_type, &new_type, codebase, false));
                 } else {
                     stmt_type = Some(new_type);
                 }
@@ -367,12 +364,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 );
 
                 if let Some(existing_type) = stmt_type {
-                    stmt_type = Some(add_union_type(
-                        existing_type,
-                        &new_type,
-                        codebase,
-                        false,
-                    ));
+                    stmt_type = Some(add_union_type(existing_type, &new_type, codebase, false));
                 } else {
                     stmt_type = Some(new_type);
                 }
@@ -387,12 +379,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 );
 
                 if let Some(existing_type) = stmt_type {
-                    stmt_type = Some(add_union_type(
-                        existing_type,
-                        &new_type,
-                        codebase,
-                        false,
-                    ));
+                    stmt_type = Some(add_union_type(existing_type, &new_type, codebase, false));
                 } else {
                     stmt_type = Some(new_type);
                 }
@@ -414,12 +401,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 );
 
                 if let Some(existing_type) = stmt_type {
-                    stmt_type = Some(add_union_type(
-                        existing_type,
-                        &new_type,
-                        codebase,
-                        false,
-                    ));
+                    stmt_type = Some(add_union_type(existing_type, &new_type, codebase, false));
                 } else {
                     stmt_type = Some(new_type);
                 }
@@ -437,6 +419,7 @@ pub(crate) fn get_array_access_type_given_offset(
                                 statements_analyzer.get_hpos(&stmt.0.pos()),
                             ),
                             statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual()
                         );
                     }
 
@@ -453,8 +436,8 @@ pub(crate) fn get_array_access_type_given_offset(
                 name,
                 type_params: Some(type_params),
                 ..
-            } => {
-                if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
+            } => match codebase.interner.lookup(*name) {
+                "HH\\KeyedContainer" | "HH\\AnyArray" => {
                     if let Some(existing_type) = stmt_type {
                         stmt_type = Some(add_union_type(
                             existing_type,
@@ -467,7 +450,8 @@ pub(crate) fn get_array_access_type_given_offset(
                     }
 
                     has_valid_expected_offset = true;
-                } else if **name == "HH\\Container" {
+                }
+                "HH\\Container" => {
                     if let Some(existing_type) = stmt_type {
                         stmt_type = Some(add_union_type(
                             existing_type,
@@ -481,7 +465,8 @@ pub(crate) fn get_array_access_type_given_offset(
 
                     has_valid_expected_offset = true;
                 }
-            }
+                _ => {}
+            },
             _ => {
                 has_valid_expected_offset = true;
             }
@@ -504,12 +489,13 @@ pub(crate) fn get_array_access_type_given_offset(
                     },
                     format!(
                         "Invalid array fetch on {} using offset {}",
-                        array_type.get_id(),
-                        offset_type.get_id()
+                        array_type.get_id(Some(&codebase.interner)),
+                        offset_type.get_id(Some(&codebase.interner))
                     ),
                     statements_analyzer.get_hpos(&stmt.2),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         } else {
             tast_info.maybe_add_issue(
@@ -517,12 +503,13 @@ pub(crate) fn get_array_access_type_given_offset(
                     IssueKind::InvalidArrayOffset,
                     format!(
                         "Invalid array fetch on {} using offset {}",
-                        array_type.get_id(),
-                        offset_type.get_id()
+                        array_type.get_id(Some(&codebase.interner)),
+                        offset_type.get_id(Some(&codebase.interner))
                     ),
                     statements_analyzer.get_hpos(&stmt.2),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         }
     }
@@ -592,12 +579,13 @@ pub(crate) fn handle_array_access_on_vec(
                             IssueKind::PossiblyUndefinedIntArrayOffset,
                             format!(
                                 "Fetch on {} using possibly-undefined key {}",
-                                vec.get_id(),
+                                vec.get_id(Some(&codebase.interner)),
                                 val
                             ),
                             statements_analyzer.get_hpos(&pos),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual()
                     );
                 }
 
@@ -611,12 +599,13 @@ pub(crate) fn handle_array_access_on_vec(
                             IssueKind::UndefinedIntArrayOffset,
                             format!(
                                 "Invalid vec fetch on {} using offset {}",
-                                vec.get_id(),
+                                vec.get_id(Some(&codebase.interner)),
                                 index.to_string()
                             ),
                             statements_analyzer.get_hpos(&pos),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual()
                     );
                 }
 
@@ -706,12 +695,13 @@ pub(crate) fn handle_array_access_on_dict(
                                 IssueKind::PossiblyUndefinedStringArrayOffset,
                                 format!(
                                     "Fetch on {} using possibly-undefined key '{}'",
-                                    dict.get_id(),
-                                    dict_key.to_string()
+                                    dict.get_id(Some(&codebase.interner)),
+                                    dict_key.to_string(Some(&codebase.interner))
                                 ),
                                 statements_analyzer.get_hpos(&pos),
                             ),
                             statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual()
                         );
                     } else {
                         *has_possibly_undefined = true;
@@ -732,12 +722,13 @@ pub(crate) fn handle_array_access_on_dict(
                         IssueKind::UndefinedStringArrayOffset,
                         format!(
                             "Invalid dict fetch on {} using key {}",
-                            dict.get_id(),
-                            dict_key.to_string()
+                            dict.get_id(Some(&codebase.interner)),
+                            dict_key.to_string(Some(&codebase.interner))
                         ),
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
 
                 // since we're emitting a very specific error
@@ -837,7 +828,7 @@ pub(crate) fn handle_array_access_on_string(
         false,
         &mut TypeComparisonResult::new(),
     ) {
-        expected_offset_types.push(valid_offset_type.get_id());
+        expected_offset_types.push(valid_offset_type.get_id(Some(&codebase.interner)));
         let mut result = get_string();
         result.add_type(TAtomic::TNull);
         return result;
@@ -873,11 +864,12 @@ pub(crate) fn handle_array_access_on_mixed(
                     },
                     format!(
                         "Unsafe array assignment on value with type {}",
-                        mixed.get_id()
+                        mixed.get_id(Some(&statements_analyzer.get_codebase().interner))
                     ),
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         } else {
             // oh no!
@@ -888,10 +880,14 @@ pub(crate) fn handle_array_access_on_mixed(
                     } else {
                         IssueKind::MixedArrayAccess
                     },
-                    format!("Unsafe array access on value with type {}", mixed.get_id()),
+                    format!(
+                        "Unsafe array access on value with type {}",
+                        mixed.get_id(None)
+                    ),
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         }
     }

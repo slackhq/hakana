@@ -2,6 +2,7 @@ use crate::{
     codebase_info::Symbols,
     data_flow::node::DataFlowNode,
     t_atomic::{populate_atomic_type, DictKey, TAtomic},
+    Interner,
 };
 use core::panic;
 use itertools::Itertools;
@@ -413,10 +414,10 @@ impl TUnion {
         return true;
     }
 
-    pub fn is_generator(&self) -> bool {
+    pub fn is_generator(&self, interner: &Interner) -> bool {
         for (_, atomic) in &self.types {
             if let &TAtomic::TNamedObject { name, .. } = &atomic {
-                if **name == "Generator" {
+                if name == &interner.get("Generator").unwrap() {
                     continue;
                 }
             }
@@ -477,9 +478,9 @@ impl TUnion {
         return false;
     }
 
-    pub fn is_always_truthy(&self) -> bool {
+    pub fn is_always_truthy(&self, interner: &Interner) -> bool {
         for (_, atomic) in &self.types {
-            if atomic.is_truthy() {
+            if atomic.is_truthy(interner) {
                 continue;
             }
 
@@ -587,8 +588,10 @@ impl TUnion {
         tatomic_strings.join("|")
     }
 
-    pub fn get_id(&self) -> String {
-        let mut tatomic_strings = (&self.types).into_iter().map(|(_, atomic)| atomic.get_id());
+    pub fn get_id(&self, interner: Option<&Interner>) -> String {
+        let mut tatomic_strings = (&self.types)
+            .into_iter()
+            .map(|(_, atomic)| atomic.get_id(interner));
         tatomic_strings.join("|")
     }
 
@@ -648,7 +651,7 @@ impl TUnion {
         }
     }
 
-    pub fn get_single_literal_string_value(&self) -> Option<String> {
+    pub fn get_single_literal_string_value(&self, interner: &Interner) -> Option<String> {
         if self.is_single() {
             match self.get_single() {
                 TAtomic::TLiteralString { value, .. } => Some(value.clone()),
@@ -657,7 +660,7 @@ impl TUnion {
                     as_type: Some(as_type),
                     type_params: Some(_),
                 } => {
-                    if **name == "HH\\Lib\\Regex\\Pattern" {
+                    if name == &interner.get("HH\\Lib\\Regex\\Pattern").unwrap() {
                         if let TAtomic::TLiteralString { value, .. } = &**as_type {
                             Some(value.clone())
                         } else {

@@ -342,7 +342,11 @@ pub(crate) fn analyze(
             let issues = analysis_result.emitted_issues.into_iter().next();
             if let Some(issues) = issues {
                 for issue in issues.1 {
-                    tast_info.maybe_add_issue(issue, statements_analyzer.get_config());
+                    tast_info.maybe_add_issue(
+                        issue,
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
                 }
             }
             let replacements = analysis_result.replacements.into_iter().next();
@@ -350,17 +354,17 @@ pub(crate) fn analyze(
                 tast_info.replacements.extend(replacements);
             }
 
-            let mut closure_type = wrap_atomic(TAtomic::TClosure {
-                params: lambda_storage.params,
-                return_type: lambda_storage.return_type,
-                effects: lambda_storage.effects.to_u8(),
-            });
-
             let closure_id = format!(
                 "{}:{}",
                 boxed.0.name.pos().filename(),
                 boxed.0.name.pos().start_offset()
             );
+
+            let mut closure_type = wrap_atomic(TAtomic::TClosure {
+                params: lambda_storage.params,
+                return_type: lambda_storage.return_type,
+                effects: lambda_storage.effects.to_u8(),
+            });
 
             if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
                 let application_node = DataFlowNode::get_for_method_reference(
@@ -549,7 +553,9 @@ pub(crate) fn analyze(
                     ..
                 } = atomic_type
                 {
-                    if *name == "HH\\Awaitable" && type_params.len() == 1 {
+                    if statements_analyzer.get_codebase().interner.lookup(name) == "HH\\Awaitable"
+                        && type_params.len() == 1
+                    {
                         let mut inside_type = type_params.get(0).unwrap().clone();
                         inside_type.parent_nodes = awaited_stmt_type.parent_nodes.clone();
 
@@ -634,6 +640,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&expr.1),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
             );
             return false;
         }

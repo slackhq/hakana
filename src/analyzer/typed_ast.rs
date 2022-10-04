@@ -1,5 +1,5 @@
 use crate::{config::Config, scope_context::CaseScope};
-use hakana_file_info::FileSource;
+use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind},
@@ -95,12 +95,12 @@ impl TastInfo {
         }
     }
 
-    pub fn maybe_add_issue(&mut self, issue: Issue, config: &Config) {
+    pub fn maybe_add_issue(&mut self, issue: Issue, config: &Config, file_path: &str) {
         if config.ignore_mixed_issues && issue.kind.is_mixed_issue() {
             return;
         }
 
-        if !config.allow_issue_kind_in_file(&issue.kind, &issue.pos.file_path) {
+        if !config.allow_issue_kind_in_file(&issue.kind, file_path) {
             return;
         }
 

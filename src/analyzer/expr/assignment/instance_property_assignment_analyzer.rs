@@ -1,4 +1,4 @@
-use std::{rc::Rc};
+use std::rc::Rc;
 
 use hakana_reflection_info::{
     codebase_info::{symbols::Symbol, CodebaseInfo},
@@ -113,12 +113,13 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
-                                class_property_type.get_id(),
-                                assignment_type.get_id(),
+                                class_property_type.get_id(Some(&codebase.interner)),
+                                assignment_type.get_id(Some(&codebase.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual()
                     );
                 } else {
                     tast_info.maybe_add_issue(
@@ -127,12 +128,13 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
-                                class_property_type.get_id(),
-                                assignment_type.get_id(),
+                                class_property_type.get_id(Some(&codebase.interner)),
+                                assignment_type.get_id(Some(&codebase.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual()
                     );
                 }
             }
@@ -149,8 +151,10 @@ pub(crate) fn analyze(
                 // ) {
                 //     has_valid_assignment_value_type = true;
                 // }
-                invalid_assignment_value_types
-                    .insert(&assigned_property.1 .1, class_property_type.get_id());
+                invalid_assignment_value_types.insert(
+                    &assigned_property.1 .1,
+                    class_property_type.get_id(Some(&codebase.interner)),
+                );
             } else {
                 // has_valid_assignment_value_type = true;
             }
@@ -164,11 +168,12 @@ pub(crate) fn analyze(
                         "{} with declared type {}, cannot be assigned type {}",
                         property_id,
                         invalid_class_property_type,
-                        assignment_type.get_id(),
+                        assignment_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&stmt_var.1),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
 
             return false;
@@ -241,6 +246,7 @@ pub(crate) fn analyze_regular_assignment(
                         statements_analyzer.get_hpos(&expr.1 .1),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
             } else {
                 tast_info.maybe_add_issue(
@@ -251,6 +257,7 @@ pub(crate) fn analyze_regular_assignment(
                         statements_analyzer.get_hpos(&expr.1 .1),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
             }
 
@@ -264,6 +271,7 @@ pub(crate) fn analyze_regular_assignment(
                     statements_analyzer.get_hpos(&expr.1 .1),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
             return assigned_properties;
         } else if lhs_type.is_nullable() {
@@ -275,6 +283,7 @@ pub(crate) fn analyze_regular_assignment(
                     statements_analyzer.get_hpos(&expr.1 .1),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         }
 
@@ -428,10 +437,15 @@ pub(crate) fn analyze_atomic_assignment(
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentProperty,
-                format!("Undefined property {}::${}", property_id.0, property_id.1,),
+                format!(
+                    "Undefined property {}::${}",
+                    codebase.interner.lookup(property_id.0),
+                    property_id.1,
+                ),
                 statements_analyzer.get_hpos(&expr.1.pos()),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
     }
 
@@ -541,7 +555,11 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     prop_name: &String,
 ) {
     let localized_property_node = DataFlowNode::get_for_assignment(
-        format!("{}::${}", property_id.0, property_id.1),
+        format!(
+            "{}::${}",
+            codebase.interner.lookup(property_id.0),
+            property_id.1
+        ),
         statements_analyzer.get_hpos(stmt_name_pos),
     );
 
@@ -551,7 +569,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
 
     let property_id_str = format!(
         "{}::${}",
-        property_id.0.to_owned(),
+        codebase.interner.lookup(property_id.0),
         &property_id.1.to_owned()
     );
 
@@ -592,7 +610,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     if let Some(declaring_property_class) = declaring_property_class {
         if declaring_property_class != fq_class_name {
             let declaring_property_id_str =
-                format!("{}::${}", declaring_property_class, property_id.1);
+                format!("{}::${}", codebase.interner.lookup(*declaring_property_class), property_id.1);
 
             let declaring_property_node = DataFlowNode::new(
                 declaring_property_id_str.clone(),

@@ -365,19 +365,27 @@ pub(crate) fn handle_paradoxical_condition(
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::ImpossibleTypeComparison,
-                format!("Type {} is always falsy", expr_type.get_id()),
+                format!(
+                    "Type {} is always falsy",
+                    expr_type.get_id(Some(&statements_analyzer.get_codebase().interner))
+                ),
                 statements_analyzer.get_hpos(&pos),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
-    } else if expr_type.is_always_truthy() {
+    } else if expr_type.is_always_truthy(&statements_analyzer.get_codebase().interner) {
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::RedundantTypeComparison,
-                format!("Type {} is always truthy", expr_type.get_id()),
+                format!(
+                    "Type {} is always truthy",
+                    expr_type.get_id(Some(&statements_analyzer.get_codebase().interner))
+                ),
                 statements_analyzer.get_hpos(&pos),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
     }
 }

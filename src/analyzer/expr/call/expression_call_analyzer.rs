@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::expr::call::arguments_analyzer;
 
 use crate::expression_analyzer;
@@ -10,6 +8,7 @@ use crate::typed_ast::TastInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_reflection_info::StrId;
 use hakana_type::get_mixed_any;
 use hakana_type::template::TemplateResult;
 use indexmap::IndexMap;
@@ -60,18 +59,12 @@ pub(crate) fn analyze(
         {
             let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
 
-            let closure_id = Arc::new(format!(
-                "{}:{}",
-                expr.0.pos().filename().to_string(),
-                expr.0.pos()
-            ));
-
-            let mut lambda_storage = FunctionLikeInfo::new(closure_id.clone());
+            let mut lambda_storage = FunctionLikeInfo::new(StrId::anonymous_fn());
             lambda_storage.params = closure_params.clone();
             lambda_storage.return_type = closure_return_type.clone();
             lambda_storage.effects = FnEffect::from_u8(effects);
 
-            let functionlike_id = FunctionLikeIdentifier::Function(closure_id);
+            let functionlike_id = FunctionLikeIdentifier::Function(StrId::anonymous_fn());
 
             arguments_analyzer::check_arguments_match(
                 statements_analyzer,

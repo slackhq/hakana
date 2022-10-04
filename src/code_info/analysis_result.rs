@@ -7,6 +7,7 @@ use crate::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     issue::Issue,
     symbol_references::SymbolReferences,
+    Interner,
 };
 
 #[derive(Clone, Debug)]
@@ -54,11 +55,11 @@ pub struct CheckPointEntry {
 }
 
 impl CheckPointEntry {
-    pub fn from_issue(issue: &Issue) -> Self {
+    pub fn from_issue(issue: &Issue, path: &String) -> Self {
         Self {
             output: issue.description.clone(),
             level: "failure".to_string(),
-            filename: (*issue.pos.file_path).clone(),
+            filename: path.clone(),
             line: issue.pos.start_line,
             case: issue.kind.to_string(),
         }

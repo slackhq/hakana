@@ -1,8 +1,7 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use hakana_file_info::FileSource;
 use hakana_reflection_info::{
     class_constant_info::ConstantInfo,
     classlike_info::{ClassLikeInfo, Variance},
@@ -15,6 +14,7 @@ use hakana_reflection_info::{
     property_info::PropertyInfo,
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
+    FileSource, Interner,
 };
 use hakana_type::{get_mixed_any, wrap_atomic};
 use indexmap::IndexMap;
@@ -28,7 +28,8 @@ use crate::typehint_resolver::get_type_from_hint;
 
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
-    resolved_names: &FxHashMap<usize, Arc<String>>,
+    interner: &Arc<Mutex<Interner>>,
+    resolved_names: &FxHashMap<usize, Symbol>,
     class_name: &Symbol,
     classlike_node: &aast::Class_<(), ()>,
     file_source: &FileSource,
@@ -42,8 +43,8 @@ pub(crate) fn scan(
 
     storage.user_defined = user_defined;
 
-    storage.name_location = Some(HPos::new(classlike_node.name.pos(), &file_source.file_path));
-    storage.def_location = Some(HPos::new(&classlike_node.span, &file_source.file_path));
+    storage.name_location = Some(HPos::new(classlike_node.name.pos(), file_source.file_path));
+    storage.def_location = Some(HPos::new(&classlike_node.span, file_source.file_path));
 
     if !classlike_node.tparams.is_empty() {
         let mut type_context = TypeResolutionContext {
@@ -90,7 +91,7 @@ pub(crate) fn scan(
                 ast_defs::Variance::Invariant => {
                     // default, do nothing
 
-                    if **class_name == "HH\\Vector" {
+                    if class_name == &interner.lock().unwrap().intern("HH\\Vector".to_string()) {
                         // cheat here for vectors
                         storage.generic_variance.insert(i, Variance::Covariant);
                     } else {
@@ -108,7 +109,7 @@ pub(crate) fn scan(
 
             codebase
                 .symbols
-                .add_class_name(&class_name, Some(&file_source.file_path));
+                .add_class_name(&class_name, Some(file_source.file_path));
 
             if let Some(parent_class) = classlike_node.extends.first() {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_class.1 {
@@ -175,7 +176,7 @@ pub(crate) fn scan(
 
             codebase
                 .symbols
-                .add_enum_class_name(&class_name, Some(&file_source.file_path));
+                .add_enum_class_name(&class_name, Some(file_source.file_path));
 
             if let Some(enum_node) = &classlike_node.enum_ {
                 storage.enum_type = Some(
@@ -194,10 +195,13 @@ pub(crate) fn scan(
             }
 
             // We inherit from this class so methods like `coerce` works
-            let enum_class = Arc::new("HH\\BuiltinEnumClass".to_string());
+            let enum_class = interner
+                .lock()
+                .unwrap()
+                .intern("HH\\BuiltinEnumClass".to_string());
 
-            storage.direct_parent_class = Some(enum_class.clone());
-            storage.all_parent_classes.insert(enum_class.clone());
+            storage.direct_parent_class = Some(enum_class);
+            storage.all_parent_classes.insert(enum_class);
 
             let mut params = Vec::new();
 
@@ -209,7 +213,7 @@ pub(crate) fn scan(
             storage.kind = SymbolKind::Interface;
             codebase
                 .symbols
-                .add_interface_name(&class_name, Some(&file_source.file_path));
+                .add_interface_name(&class_name, Some(file_source.file_path));
 
             handle_reqs(classlike_node, resolved_names, &mut storage, class_name);
 
@@ -245,7 +249,7 @@ pub(crate) fn scan(
 
             codebase
                 .symbols
-                .add_trait_name(&class_name, Some(&file_source.file_path));
+                .add_trait_name(&class_name, Some(file_source.file_path));
 
             handle_reqs(classlike_node, resolved_names, &mut storage, class_name);
 
@@ -283,7 +287,10 @@ pub(crate) fn scan(
             storage.kind = SymbolKind::Enum;
 
             // We inherit from this class so methods like `coerce` works
-            let enum_class = Arc::new("HH\\BuiltinEnum".to_string());
+            let enum_class = interner
+                .lock()
+                .unwrap()
+                .intern("HH\\BuiltinEnum".to_string());
 
             storage.direct_parent_class = Some(enum_class.clone());
             storage.all_parent_classes.insert(enum_class.clone());
@@ -332,7 +339,7 @@ pub(crate) fn scan(
 
             codebase
                 .symbols
-                .add_enum_name(&class_name, Some(&file_source.file_path));
+                .add_enum_name(&class_name, Some(file_source.file_path));
         }
     }
 
@@ -373,6 +380,9 @@ pub(crate) fn scan(
         }
     }
 
+    let codegen_id = interner.lock().unwrap().intern("Codegen".to_string());
+    let sealed_id = interner.lock().unwrap().intern("__Sealed".to_string());
+
     for user_attribute in &classlike_node.user_attributes {
         let name = resolved_names
             .get(&user_attribute.name.0.start_offset())
@@ -381,11 +391,11 @@ pub(crate) fn scan(
 
         storage.specialize_instance = true;
 
-        if *name == "Codegen" {
+        if name == codegen_id {
             storage.generated = true;
         }
 
-        if *name == "__Sealed" {
+        if name == sealed_id {
             let mut child_classlikes = FxHashSet::default();
 
             for attribute_param_expr in &user_attribute.params {
@@ -440,14 +450,7 @@ fn handle_reqs(
 ) {
     for req in &classlike_node.reqs {
         if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
-            let require_name = Arc::new(
-                if let Some(resolved_name) = resolved_names.get(&name.0.start_offset()) {
-                    resolved_name
-                } else {
-                    &name.1
-                }
-                .clone(),
-            );
+            let require_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
 
             match &req.1 {
                 aast::RequireKind::RequireExtends => {
@@ -492,7 +495,7 @@ fn visit_xhp_attribute(
 ) {
     let mut attribute_type_location = None;
     let mut attribute_type = if let Some(hint) = &xhp_attribute.0 .1 {
-        attribute_type_location = Some(HPos::new(&hint.0, &file_source.file_path));
+        attribute_type_location = Some(HPos::new(&hint.0, file_source.file_path));
         get_type_from_hint(
             &hint.1,
             None,
@@ -519,8 +522,8 @@ fn visit_xhp_attribute(
     let property_storage = PropertyInfo {
         is_static: false,
         visibility: MemberVisibility::Protected,
-        pos: Some(HPos::new(xhp_attribute.1.id.pos(), &file_source.file_path)),
-        stmt_pos: Some(HPos::new(&xhp_attribute.1.span, &file_source.file_path)),
+        pos: Some(HPos::new(xhp_attribute.1.id.pos(), file_source.file_path)),
+        stmt_pos: Some(HPos::new(&xhp_attribute.1.span, file_source.file_path)),
         type_pos: attribute_type_location,
         type_: attribute_type,
         has_default: xhp_attribute.1.expr.is_some(),
@@ -565,11 +568,11 @@ fn visit_class_const_declaration(
             resolved_names,
         ));
 
-        supplied_type_location = Some(HPos::new(&supplied_type_hint.0, &file_source.file_path));
+        supplied_type_location = Some(HPos::new(&supplied_type_hint.0, file_source.file_path));
     }
 
     let const_storage = ConstantInfo {
-        pos: Some(HPos::new(const_node.id.pos(), &file_source.file_path)),
+        pos: Some(HPos::new(const_node.id.pos(), file_source.file_path)),
         type_pos: supplied_type_location,
         provided_type,
         inferred_type: if let ClassConstKind::CCAbstract(Some(const_expr))
@@ -639,7 +642,7 @@ fn visit_property_declaration(
             resolved_names,
         ));
 
-        property_type_location = Some(HPos::new(&property_type_hint.0, &file_source.file_path));
+        property_type_location = Some(HPos::new(&property_type_hint.0, file_source.file_path));
     }
 
     let property_storage = PropertyInfo {
@@ -651,8 +654,8 @@ fn visit_property_declaration(
             }
             ast_defs::Visibility::Protected => MemberVisibility::Protected,
         },
-        pos: Some(HPos::new(property_node.id.pos(), &file_source.file_path)),
-        stmt_pos: Some(HPos::new(&property_node.span, &file_source.file_path)),
+        pos: Some(HPos::new(property_node.id.pos(), file_source.file_path)),
+        stmt_pos: Some(HPos::new(&property_node.span, file_source.file_path)),
         type_pos: property_type_location,
         type_: property_type.unwrap_or(get_mixed_any()),
         has_default: property_node.expr.is_some(),
@@ -704,7 +707,7 @@ fn get_classlike_storage(
         }
     } else {
         storage = ClassLikeInfo::new(class_name.clone());
-        storage.name_location = Some(HPos::new(class.name.pos(), &file_source.file_path));
+        storage.name_location = Some(HPos::new(class.name.pos(), file_source.file_path));
     }
     storage.is_user_defined = !codebase.register_stub_files;
     storage.is_stubbed = codebase.register_stub_files;

@@ -1,4 +1,5 @@
 use crate::functionlike_identifier::FunctionLikeIdentifier;
+use crate::Interner;
 use crate::{
     classlike_info::Variance,
     codebase_info::{
@@ -21,11 +22,17 @@ pub enum DictKey {
 }
 
 impl DictKey {
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&self, interner: Option<&Interner>) -> String {
         match &self {
             DictKey::Int(i) => i.to_string(),
             DictKey::String(k) => "'".to_string() + k.as_str() + "'",
-            DictKey::Enum(c, m) => (**c).clone() + "::" + m,
+            DictKey::Enum(c, m) => {
+                if let Some(interner) = interner {
+                    interner.lookup(*c).to_string() + "::" + m
+                } else {
+                    c.0.to_string() + "::" + m
+                }
+            }
         }
     }
 }
@@ -43,7 +50,7 @@ pub enum TAtomic {
         known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
         params: Option<(TUnion, TUnion)>,
         non_empty: bool,
-        shape_name: Option<Symbol>,
+        shape_name: Option<String>,
     },
     TEnum {
         name: Symbol,
@@ -144,14 +151,14 @@ pub enum TAtomic {
 }
 
 impl TAtomic {
-    pub fn get_id(&self) -> String {
+    pub fn get_id(&self, interner: Option<&Interner>) -> String {
         match self {
             TAtomic::TArraykey { .. } => "arraykey".to_string(),
             TAtomic::TBool { .. } => "bool".to_string(),
             TAtomic::TClassname { as_type, .. } => {
                 let mut str = String::new();
                 str += "classname<";
-                str += (&*as_type).get_id().as_str();
+                str += (&*as_type).get_id(interner).as_str();
                 str += ">";
                 return str;
             }
@@ -176,8 +183,8 @@ impl TAtomic {
                             format!(
                                 "{}{} => {}",
                                 if *u { "?" } else { "" },
-                                property.to_string(),
-                                property_type.get_id()
+                                property.to_string(interner),
+                                property_type.get_id(interner)
                             )
                         })
                         .join(", ")
@@ -185,9 +192,9 @@ impl TAtomic {
 
                     if let Some(params) = params {
                         str += ", ...dict<";
-                        str += params.0.get_id().as_str();
+                        str += params.0.get_id(interner).as_str();
                         str += ",";
-                        str += params.1.get_id().as_str();
+                        str += params.1.get_id(interner).as_str();
                         str += ">";
                     }
 
@@ -197,16 +204,22 @@ impl TAtomic {
 
                 if let Some(params) = params {
                     str += "dict<";
-                    str += params.0.get_id().as_str();
+                    str += params.0.get_id(interner).as_str();
                     str += ",";
-                    str += params.1.get_id().as_str();
+                    str += params.1.get_id(interner).as_str();
                     str += ">";
                     str
                 } else {
                     "dict<nothing, nothing>".to_string()
                 }
             }
-            TAtomic::TEnum { name } => (**name).clone(),
+            TAtomic::TEnum { name } => {
+                if let Some(interner) = interner {
+                    interner.lookup(*name).to_string()
+                } else {
+                    name.0.to_string()
+                }
+            }
             TAtomic::TFalsyMixed { .. } => "falsy-mixed".to_string(),
             TAtomic::TFalse { .. } => "false".to_string(),
             TAtomic::TFloat { .. } => "float".to_string(),
@@ -224,7 +237,7 @@ impl TAtomic {
                         format!(
                             "{}{}",
                             if let Some(param_type) = &param.signature_type {
-                                param_type.get_id()
+                                param_type.get_id(interner)
                             } else {
                                 "mixed".to_string()
                             },
@@ -236,7 +249,7 @@ impl TAtomic {
 
                 str += "): ";
                 if let Some(return_type) = return_type {
-                    str += return_type.get_id().as_str();
+                    str += return_type.get_id(interner).as_str();
                 } else {
                     str += "mixed";
                 }
@@ -246,7 +259,14 @@ impl TAtomic {
                 str
             }
             TAtomic::TClosureAlias { id } => {
-                format!("{}<>", id.to_string())
+                let mut str = String::new();
+                if let Some(interner) = interner {
+                    str += id.to_string(interner).as_str();
+                } else {
+                    str += id.to_hash().as_str();
+                }
+                str += "<>";
+                str
             }
             TAtomic::TInt { .. } => "int".to_string(),
             TAtomic::TObject => "object".to_string(),
@@ -254,13 +274,17 @@ impl TAtomic {
             TAtomic::TKeyset { type_param, .. } => {
                 let mut str = String::new();
                 str += "keyset<";
-                str += type_param.get_id().as_str();
+                str += type_param.get_id(interner).as_str();
                 str += ">";
                 return str;
             }
             TAtomic::TLiteralClassname { name } => {
                 let mut str = String::new();
-                str += name.as_str();
+                if let Some(interner) = interner {
+                    str += interner.lookup(*name);
+                } else {
+                    str += name.0.to_string().as_str();
+                }
                 str += "::class";
                 return str;
             }
@@ -269,7 +293,15 @@ impl TAtomic {
                 member_name,
                 ..
             } => {
-                format!("{}::{}", enum_name, member_name)
+                let mut str = String::new();
+                if let Some(interner) = interner {
+                    str += interner.lookup(*enum_name);
+                } else {
+                    str += enum_name.0.to_string().as_str();
+                }
+                str += "::";
+                str += member_name.as_str();
+                str
             }
             TAtomic::TLiteralInt { value } => {
                 let mut str = String::new();
@@ -293,17 +325,29 @@ impl TAtomic {
                 is_this,
                 ..
             } => match type_params {
-                None => format!("{}{}", name, if *is_this { "&static" } else { "" }),
+                None => format!(
+                    "{}{}",
+                    if let Some(interner) = interner {
+                        interner.lookup(*name).to_string()
+                    } else {
+                        name.0.to_string()
+                    },
+                    if *is_this { "&static" } else { "" }
+                ),
                 Some(type_params) => {
                     let mut str = String::new();
-                    str += name.as_str();
+                    if let Some(interner) = interner {
+                        str += interner.lookup(*name);
+                    } else {
+                        str += name.0.to_string().as_str();
+                    }
                     if *is_this {
                         str += "&static";
                     }
                     str += "<";
                     str += type_params
                         .into_iter()
-                        .map(|tunion| tunion.get_id())
+                        .map(|tunion| tunion.get_id(interner))
                         .join(", ")
                         .as_str();
                     str += ">";
@@ -313,15 +357,28 @@ impl TAtomic {
             TAtomic::TTypeAlias {
                 name, type_params, ..
             } => match type_params {
-                None => "type-alias(".to_string() + &name + ")",
+                None => {
+                    let mut str = "type-alias(".to_string();
+                    if let Some(interner) = interner {
+                        str += interner.lookup(*name);
+                    } else {
+                        str += name.0.to_string().as_str();
+                    }
+                    str += ")";
+                    str
+                }
                 Some(type_params) => {
                     let mut str = String::new();
                     str += "type-alias(";
-                    str += &name;
+                    if let Some(interner) = interner {
+                        str += interner.lookup(*name);
+                    } else {
+                        str += name.0.to_string().as_str();
+                    }
                     str += "<";
                     str += type_params
                         .into_iter()
-                        .map(|tunion| tunion.get_id())
+                        .map(|tunion| tunion.get_id(interner))
                         .join(", ")
                         .as_str();
                     str += ">)";
@@ -357,7 +414,11 @@ impl TAtomic {
                 let mut str = String::new();
                 str += param_name.as_str();
                 str += ":";
-                str += defining_entity.as_str();
+                if let Some(interner) = interner {
+                    str += interner.lookup(*defining_entity);
+                } else {
+                    str += defining_entity.0.to_string().as_str();
+                }
                 return str;
             }
             TAtomic::TTemplateParamClass {
@@ -369,7 +430,11 @@ impl TAtomic {
                 str += "classname<";
                 str += param_name.as_str();
                 str += ":";
-                str += defining_entity.as_str();
+                if let Some(interner) = interner {
+                    str += interner.lookup(*defining_entity);
+                } else {
+                    str += defining_entity.0.to_string().as_str();
+                }
                 str += ">";
                 return str;
             }
@@ -382,7 +447,11 @@ impl TAtomic {
                 str += "typename<";
                 str += param_name.as_str();
                 str += ":";
-                str += defining_entity.as_str();
+                if let Some(interner) = interner {
+                    str += interner.lookup(*defining_entity);
+                } else {
+                    str += defining_entity.0.to_string().as_str();
+                }
                 str += ">";
                 return str;
             }
@@ -398,13 +467,13 @@ impl TAtomic {
                     str += "tuple(";
                     str += known_items
                         .into_iter()
-                        .map(|(_, (_, tunion))| tunion.get_id())
+                        .map(|(_, (_, tunion))| tunion.get_id(interner))
                         .join(", ")
                         .as_str();
 
                     if !type_param.is_nothing() {
                         str += ", ...vec<";
-                        str += type_param.get_id().as_str();
+                        str += type_param.get_id(interner).as_str();
                         str += ">";
                     }
 
@@ -413,7 +482,7 @@ impl TAtomic {
                 }
                 let mut str = String::new();
                 str += if *non_empty { "non-empty-vec<" } else { "vec<" };
-                str += type_param.get_id().as_str();
+                str += type_param.get_id(interner).as_str();
                 str += ">";
                 return str;
             }
@@ -421,7 +490,11 @@ impl TAtomic {
             TAtomic::TReference { name, .. } => {
                 let mut str = String::new();
                 str += "unknown-ref(";
-                str += name.as_str();
+                if let Some(interner) = interner {
+                    str += interner.lookup(*name);
+                } else {
+                    str += name.0.to_string().as_str();
+                }
                 str += ")";
                 return str;
             }
@@ -431,14 +504,18 @@ impl TAtomic {
                 member_name,
                 ..
             } => {
-                format!("{}::{}", class_type.get_id(), member_name)
+                format!("{}::{}", class_type.get_id(interner), member_name)
             }
             TAtomic::TEnumClassLabel {
                 class_name,
                 member_name,
             } => {
                 if let Some(class_name) = class_name {
-                    format!("#{}::{}", class_name, member_name)
+                    if let Some(interner) = interner {
+                        format!("#{}::{}", interner.lookup(*class_name), member_name)
+                    } else {
+                        format!("#{}::{}", class_name.0, member_name)
+                    }
                 } else {
                     format!("#{}", member_name)
                 }
@@ -451,8 +528,6 @@ impl TAtomic {
             TAtomic::TDict { .. } => "dict".to_string(),
             TAtomic::TVec { .. } => "vec".to_string(),
             TAtomic::TKeyset { .. } => "keyset".to_string(),
-            TAtomic::TArraykey { .. } => self.get_id(),
-            TAtomic::TBool { .. } => self.get_id(),
             TAtomic::TClassname { as_type, .. } => {
                 let mut str = String::new();
                 str += "classname<";
@@ -485,17 +560,19 @@ impl TAtomic {
             | TAtomic::TObject
             | TAtomic::TScalar
             | TAtomic::TReference { .. }
-            | TAtomic::TEnumClassLabel { .. } => self.get_id(),
+            | TAtomic::TArraykey { .. }
+            | TAtomic::TBool { .. }
+            | TAtomic::TEnumClassLabel { .. } => self.get_id(None),
 
             TAtomic::TStringWithFlags(..) => "string".to_string(),
 
             TAtomic::TNamedObject {
                 name, type_params, ..
             } => match type_params {
-                None => (**name).clone(),
+                None => name.0.to_string(),
                 Some(type_params) => {
                     let mut str = String::new();
-                    str += name.as_str();
+                    str += name.0.to_string().as_str();
                     str += "<";
                     str += type_params
                         .into_iter()
@@ -510,11 +587,11 @@ impl TAtomic {
             TAtomic::TTypeAlias {
                 name, type_params, ..
             } => match type_params {
-                None => "type-alias(".to_string() + &name + ")",
+                None => "type-alias(".to_string() + name.0.to_string().as_str() + ")",
                 Some(type_params) => {
                     let mut str = String::new();
                     str += "type-alias(";
-                    str += &name;
+                    str += name.0.to_string().as_str();
                     str += "<";
                     str += type_params
                         .into_iter()
@@ -534,7 +611,7 @@ impl TAtomic {
                 let mut str = String::new();
                 str += param_name.as_str();
                 str += ":";
-                str += defining_entity.as_str();
+                str += defining_entity.0.to_string().as_str();
                 return str;
             }
             TAtomic::TTemplateParamClass {
@@ -546,7 +623,7 @@ impl TAtomic {
                 str += "classname<";
                 str += param_name.as_str();
                 str += ":";
-                str += defining_entity.as_str();
+                str += defining_entity.0.to_string().as_str();
                 str += ">";
                 return str;
             }
@@ -559,7 +636,7 @@ impl TAtomic {
                 str += "typename<";
                 str += param_name.as_str();
                 str += ":";
-                str += defining_entity.as_str();
+                str += defining_entity.0.to_string().as_str();
                 str += ">";
                 return str;
             }
@@ -573,7 +650,7 @@ impl TAtomic {
             TAtomic::TNamedObject {
                 name, type_params, ..
             } => match type_params {
-                None => (**name).clone(),
+                None => codebase.interner.lookup(*name).to_string(),
                 Some(type_params) => {
                     let covariants =
                         if let Some(classlike_storage) = codebase.classlike_infos.get(name) {
@@ -583,7 +660,7 @@ impl TAtomic {
                         };
 
                     let mut str = String::new();
-                    str += name.as_str();
+                    str += codebase.interner.lookup(*name);
                     str += "<";
                     str += type_params
                         .into_iter()
@@ -710,7 +787,7 @@ impl TAtomic {
         }
     }
 
-    pub fn get_shape_name(&self) -> Option<&Symbol> {
+    pub fn get_shape_name(&self) -> Option<&String> {
         match self {
             TAtomic::TDict { shape_name, .. } => shape_name.as_ref(),
             _ => None,
@@ -886,7 +963,7 @@ impl TAtomic {
         panic!()
     }
 
-    pub fn is_truthy(&self) -> bool {
+    pub fn is_truthy(&self, interner: &Interner) -> bool {
         match &self {
             &TAtomic::TTrue { .. }
             | &TAtomic::TTruthyMixed { .. }
@@ -895,11 +972,10 @@ impl TAtomic {
             | &TAtomic::TClosure { .. }
             | &TAtomic::TLiteralClassname { .. }
             | &TAtomic::TClassname { .. } => true,
-            &TAtomic::TNamedObject { name, .. } => {
-                **name != "HH\\Container"
-                    && **name != "HH\\KeyedContainer"
-                    && **name != "HH\\AnyArray"
-            }
+            &TAtomic::TNamedObject { name, .. } => match interner.lookup(*name) {
+                "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" => false,
+                _ => true,
+            },
             &TAtomic::TLiteralInt { value, .. } => {
                 if *value != 0 {
                     return true;
@@ -1008,24 +1084,24 @@ impl TAtomic {
         }
     }
 
-    pub fn is_array_accessible_with_string_key(&self) -> bool {
+    pub fn is_array_accessible_with_string_key(&self, interner: &Interner) -> bool {
         match self {
             TAtomic::TDict { .. } | TAtomic::TKeyset { .. } => true,
-            TAtomic::TNamedObject { name, .. } => {
-                **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray"
-            }
+            TAtomic::TNamedObject { name, .. } => match interner.lookup(*name) {
+                "HH\\KeyedContainer" | "HH\\AnyArray" => true,
+                _ => false,
+            },
             _ => false,
         }
     }
 
-    pub fn is_array_accessible_with_int_or_string_key(&self) -> bool {
+    pub fn is_array_accessible_with_int_or_string_key(&self, interner: &Interner) -> bool {
         match self {
             TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => true,
-            TAtomic::TNamedObject { name, .. } => {
-                **name == "HH\\KeyedContainer"
-                    || **name == "HH\\Container"
-                    || **name == "HH\\AnyArray"
-            }
+            TAtomic::TNamedObject { name, .. } => match interner.lookup(*name) {
+                "HH\\KeyedContainer" | "HH\\Container" | "HH\\AnyArray" => true,
+                _ => false,
+            },
             _ => false,
         }
     }
@@ -1138,7 +1214,7 @@ impl TAtomic {
         };
     }
 
-    pub fn remove_placeholders(&mut self) {
+    pub fn remove_placeholders(&mut self, interner: &Interner) {
         match self {
             TAtomic::TDict {
                 params: Some(ref mut params),
@@ -1167,7 +1243,8 @@ impl TAtomic {
                 ..
             } => {
                 if let Some(type_params) = type_params {
-                    if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
+                    let name = interner.lookup(*name);
+                    if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
                         if let Some(key_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = key_param.get_single() {
                                 *key_param =
@@ -1180,7 +1257,7 @@ impl TAtomic {
                                 *value_param = TUnion::new(vec![TAtomic::TMixedAny]);
                             }
                         }
-                    } else if **name == "HH\\Container" {
+                    } else if name == "HH\\Container" {
                         if let Some(value_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = value_param.get_single() {
                                 *value_param = TUnion::new(vec![TAtomic::TMixedAny]);

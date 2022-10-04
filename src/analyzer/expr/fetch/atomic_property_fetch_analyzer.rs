@@ -3,6 +3,7 @@ use crate::{expr::call::arguments_analyzer::get_template_types_for_call, typed_a
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
+use hakana_reflection_info::Interner;
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
@@ -49,13 +50,6 @@ pub(crate) fn analyze(
     //if lhs_type_part.is_object_type()
 
     let codebase = statements_analyzer.get_codebase();
-    if !codebase.class_exists(&lhs_type_part.get_id())
-        && !codebase.symbols.all.contains_key(&lhs_type_part.get_id())
-    {
-        // TODO handleNonExistentClass
-    } else {
-        // class_exists = true;
-    }
 
     // TODO handle enums
 
@@ -141,11 +135,7 @@ pub(crate) fn analyze(
 
     tast_info.set_expr_type(
         &pos,
-        add_optional_union_type(
-            class_property_type,
-            tast_info.get_expr_type(pos),
-            codebase,
-        ),
+        add_optional_union_type(class_property_type, tast_info.get_expr_type(pos), codebase),
     );
 
     true
@@ -155,7 +145,7 @@ fn get_class_property_type(
     statements_analyzer: &StatementsAnalyzer,
     classlike_name: &Symbol,
     property_name: &String,
-    declaring_property_class: &String,
+    declaring_property_class: &Symbol,
     mut lhs_type_part: TAtomic,
     tast_info: &mut TastInfo,
 ) -> TUnion {
@@ -401,6 +391,7 @@ fn add_property_dataflow(
             tast_info,
             in_assignment,
             stmt_type,
+            &statements_analyzer.get_codebase().interner,
         );
 
         return stmt_type;
@@ -414,12 +405,13 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
     tast_info: &mut TastInfo,
     in_assignment: bool,
     stmt_type: TUnion,
+    interner: &Interner,
 ) -> TUnion {
     let localized_property_node = DataFlowNode::get_for_assignment(
         if let Some(expr_id) = expr_id {
             expr_id.clone()
         } else {
-            format!("{}::${}", property_id.0, property_id.1)
+            format!("{}::${}", interner.lookup(property_id.0), property_id.1)
         },
         pos,
     );
@@ -429,8 +421,8 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         .add_node(localized_property_node.clone());
 
     let property_node = DataFlowNode::new(
-        format!("{}::${}", property_id.0, property_id.1),
-        format!("{}::${}", property_id.0, property_id.1),
+        format!("{}::${}", interner.lookup(property_id.0), property_id.1),
+        format!("{}::${}", interner.lookup(property_id.0), property_id.1),
         None,
         None,
     );

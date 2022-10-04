@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use std::num::Wrapping;
 
+use hakana_reflection_info::Interner;
 use hakana_reflection_info::assertion::Assertion;
 use rustc_hash::FxHashSet;
 use xxhash_rust;
@@ -182,7 +183,7 @@ impl Clause {
         impossibilities
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&self, interner: &Interner) -> String {
         let mut clause_strings = vec![];
 
         if self.possibilities.len() == 0 {
@@ -220,7 +221,7 @@ impl Clause {
                             .push(var_id.to_string() + " is not " + value.get_key().as_str());
                     }
                     _ => {
-                        clause_string_parts.push(value.to_string());
+                        clause_string_parts.push(value.to_string(Some(interner)));
                     }
                 }
             }

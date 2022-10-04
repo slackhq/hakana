@@ -56,15 +56,15 @@ pub(crate) fn analyze(
         .symbol_references
         .add_reference_to_symbol(&context.function_context, classlike_name.clone());
 
-    if *classlike_name == "static" {
+    let codebase = statements_analyzer.get_codebase();
+
+    if codebase.interner.lookup(classlike_name) == "static" {
         classlike_name = context.function_context.calling_class.clone().unwrap();
     }
 
     let method_id = MethodIdentifier(classlike_name.clone(), method_name.clone());
 
-    result.existent_method_ids.insert(method_id.to_string());
-
-    let codebase = statements_analyzer.get_codebase();
+    result.existent_method_ids.insert(method_id.to_string(&codebase.interner));
 
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
@@ -95,20 +95,21 @@ pub(crate) fn analyze(
         }
     }
 
-    let class_template_params = if *classlike_name != "HH\\Vector" || method_name != "fromItems" {
-        class_template_param_collector::collect(
-            codebase,
-            codebase
-                .classlike_infos
-                .get(&declaring_method_id.0)
-                .unwrap(),
-            classlike_storage,
-            Some(lhs_type_part),
-            lhs_var_id.unwrap_or(&"".to_string()) == "$this",
-        )
-    } else {
-        None
-    };
+    let class_template_params =
+        if codebase.interner.lookup(classlike_name) != "HH\\Vector" || method_name != "fromItems" {
+            class_template_param_collector::collect(
+                codebase,
+                codebase
+                    .classlike_infos
+                    .get(&declaring_method_id.0)
+                    .unwrap(),
+                classlike_storage,
+                Some(lhs_type_part),
+                lhs_var_id.unwrap_or(&"".to_string()) == "$this",
+            )
+        } else {
+            None
+        };
 
     let functionlike_storage = codebase.get_method(&declaring_method_id).unwrap();
 
@@ -145,7 +146,7 @@ pub(crate) fn analyze(
         );
     }
 
-    if *method_id.0 == "HH\\Shapes" {
+    if codebase.interner.lookup(method_id.0) == "HH\\Shapes" {
         if let Some(value) = handle_shapes_static_method(
             &method_id,
             call_expr,

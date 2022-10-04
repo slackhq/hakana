@@ -743,6 +743,7 @@ fn handle_non_returning_case(
                         statements_analyzer.get_hpos(&case_pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
 
                 return false;

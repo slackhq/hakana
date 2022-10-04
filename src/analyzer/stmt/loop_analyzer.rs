@@ -251,7 +251,7 @@ pub(crate) fn analyze<'a>(
                             Rc::new(combine_union_types(
                                 &continue_context_type,
                                 parent_context_type,
-                                codebase,
+                                &statements_analyzer.get_codebase(),
                                 false,
                             )),
                         );

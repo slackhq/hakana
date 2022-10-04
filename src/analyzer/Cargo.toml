@@ -12,7 +12,6 @@ hakana-type = { path = "../ttype" }
 hakana-algebra = { path = "../algebra" }
 hakana-reflection-info = { path = "../code_info" }
 hakana-reflector = { path = "../code_info_builder" }
-hakana-file-info = { path = "../file_info" }
 parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
 oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
 ocamlrep = { path = "../../third-party/hhvm/hphp/hack/src/ocamlrep" }

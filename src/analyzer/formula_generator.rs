@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use rustc_hash::FxHashMap;
 
 use hakana_algebra::Clause;
-use hakana_file_info::FileSource;
+use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     assertion::Assertion,
     codebase_info::{symbols::Symbol, CodebaseInfo},
@@ -86,7 +86,7 @@ pub(crate) fn get_formula(
                             var_id.clone(),
                             orred_types
                                 .into_iter()
-                                .map(|a| (a.to_string(), a))
+                                .map(|a| (a.to_string(None), a))
                                 .collect::<BTreeMap<_, _>>(),
                         );
                         map
@@ -117,7 +117,7 @@ pub(crate) fn get_formula(
             let mut map = BTreeMap::new();
             map.insert(
                 conditional_ref,
-                BTreeMap::from([(Assertion::Truthy.to_string(), Assertion::Truthy)]),
+                BTreeMap::from([(Assertion::Truthy.to_string(None), Assertion::Truthy)]),
             );
             map
         },

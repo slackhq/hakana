@@ -12,6 +12,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
+use hakana_reflection_info::StrId;
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
@@ -45,18 +46,7 @@ impl<'a> StatementsAnalyzer<'a> {
         loop_scope: &mut Option<LoopScope>,
     ) -> bool {
         for stmt in stmts {
-            if context.has_returned
-                && !self
-                    .file_analyzer
-                    .get_file_source()
-                    .file_path
-                    .contains("tests")
-                && !self
-                    .file_analyzer
-                    .get_file_source()
-                    .file_path
-                    .ends_with(".test.hack")
-            {
+            if context.has_returned {
                 if self.get_config().find_unused_expressions {
                     tast_info.maybe_add_issue(
                         Issue::new(
@@ -65,6 +55,7 @@ impl<'a> StatementsAnalyzer<'a> {
                             self.get_hpos(&stmt.0),
                         ),
                         self.get_config(),
+                        self.get_file_path_actual()
                     );
                 }
             } else {
@@ -93,7 +84,7 @@ impl<'a> StatementsAnalyzer<'a> {
 
     #[inline]
     pub fn get_hpos(&self, pos: &Pos) -> HPos {
-        HPos::new(pos, &self.file_analyzer.get_file_source().file_path)
+        HPos::new(pos, self.file_analyzer.get_file_source().file_path)
     }
 
     #[inline]
@@ -110,12 +101,12 @@ impl<'a> StatementsAnalyzer<'a> {
         }
     }
 
-    pub fn get_file_path(&self) -> &String {
-        &self
-            .get_file_analyzer()
-            .get_file_analyzer()
-            .get_file_source()
-            .file_path
+    pub fn get_file_path(&self) -> &StrId {
+        &self.get_file_analyzer().get_file_source().file_path
+    }
+
+    pub fn get_file_path_actual(&self) -> &str {
+        &self.get_file_analyzer().get_file_source().file_path_actual
     }
 }
 

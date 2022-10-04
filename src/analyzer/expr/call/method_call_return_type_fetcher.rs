@@ -1,14 +1,14 @@
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
 use rustc_hash::FxHashMap;
 
-use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
+use hakana_reflection_info::{classlike_info::ClassLikeInfo, Interner};
 use hakana_type::{
     get_mixed_any, get_nothing, get_string, template,
     type_expander::{self, TypeExpansionOptions},
@@ -36,7 +36,8 @@ pub(crate) fn fetch(
     template_result: &TemplateResult,
     call_pos: &Pos,
 ) -> TUnion {
-    let mut return_type_candidate = if let Some(return_type) = get_special_method_return(method_id)
+    let mut return_type_candidate = if let Some(return_type) =
+        get_special_method_return(method_id, &statements_analyzer.get_codebase().interner)
     {
         return_type
     } else {
@@ -57,7 +58,8 @@ pub(crate) fn fetch(
     let mut template_result = template_result.clone();
 
     if !functionlike_storage.template_types.is_empty() {
-        let fn_id = Arc::new(format!("fn-{}", method_id.to_string()));
+        let fn_id = format!("fn-{}", declaring_method_id.to_string(&codebase.interner));
+        let fn_id = codebase.interner.get(fn_id.as_str()).unwrap();
         for (template_name, _) in &functionlike_storage.template_types {
             template_result
                 .lower_bounds
@@ -132,37 +134,41 @@ pub(crate) fn fetch(
     )
 }
 
-fn get_special_method_return(method_id: &MethodIdentifier) -> Option<TUnion> {
-    if (*method_id.0 == "DateTime" || *method_id.0 == "DateTimeImmutable")
-        && method_id.1 == "createFromFormat"
-    {
-        let mut false_or_datetime = TUnion::new(vec![
-            TAtomic::TNamedObject {
-                name: method_id.0.clone(),
-                type_params: None,
-                is_this: false,
-                extra_types: None,
-                remapped_params: false,
-            },
-            TAtomic::TFalse,
-        ]);
-        false_or_datetime.ignore_falsable_issues = true;
-        return Some(false_or_datetime);
-    }
-
-    if *method_id.0 == "DOMDocument" && method_id.1 == "createElement" {
-        let mut false_or_domelement = TUnion::new(vec![
-            TAtomic::TNamedObject {
-                name: Arc::new("DOMElement".to_string()),
-                type_params: None,
-                is_this: false,
-                extra_types: None,
-                remapped_params: false,
-            },
-            TAtomic::TFalse,
-        ]);
-        false_or_domelement.ignore_falsable_issues = true;
-        return Some(false_or_domelement);
+fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) -> Option<TUnion> {
+    match interner.lookup(method_id.0) {
+        "DateTime" | "DateTimeImmutable" => {
+            if method_id.1 == "createFromFormat" {
+                let mut false_or_datetime = TUnion::new(vec![
+                    TAtomic::TNamedObject {
+                        name: method_id.0.clone(),
+                        type_params: None,
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    },
+                    TAtomic::TFalse,
+                ]);
+                false_or_datetime.ignore_falsable_issues = true;
+                return Some(false_or_datetime);
+            }
+        }
+        "DOMDocument" => {
+            if method_id.1 == "createElement" {
+                let mut false_or_domelement = TUnion::new(vec![
+                    TAtomic::TNamedObject {
+                        name: interner.get("DOMElement").unwrap(),
+                        type_params: None,
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    },
+                    TAtomic::TFalse,
+                ]);
+                false_or_domelement.ignore_falsable_issues = true;
+                return Some(false_or_domelement);
+            }
+        }
+        _ => {}
     }
 
     None
@@ -193,12 +199,14 @@ fn add_dataflow(
         }
     }
 
+    let codebase = statements_analyzer.get_codebase();
+
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         let method_call_node;
 
         if method_id != declaring_method_id {
             method_call_node = DataFlowNode::get_for_method_return(
-                method_id.to_string(),
+                method_id.to_string(&codebase.interner),
                 None,
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
@@ -208,7 +216,7 @@ fn add_dataflow(
             );
 
             let declaring_method_call_node = DataFlowNode::get_for_method_return(
-                declaring_method_id.to_string(),
+                declaring_method_id.to_string(&codebase.interner),
                 functionlike_storage.return_type_location.clone(),
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
@@ -227,7 +235,7 @@ fn add_dataflow(
             );
         } else {
             method_call_node = DataFlowNode::get_for_method_return(
-                method_id.to_string(),
+                method_id.to_string(&codebase.interner),
                 functionlike_storage.return_type_location.clone(),
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))

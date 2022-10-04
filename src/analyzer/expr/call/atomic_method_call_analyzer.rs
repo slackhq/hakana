@@ -108,10 +108,14 @@ pub(crate) fn analyze(
             tast_info.maybe_add_issue(
                 Issue::new(
                     IssueKind::NonExistentClass,
-                    format!("Class or interface {} does not exist", classlike_name),
+                    format!(
+                        "Class or interface {} does not exist",
+                        codebase.interner.lookup(*classlike_name)
+                    ),
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
 
             return;
@@ -124,10 +128,15 @@ pub(crate) fn analyze(
                 tast_info.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentMethod,
-                        format!("Method {}::{} does not exist", classlike_name, method_name),
+                        format!(
+                            "Method {}::{} does not exist",
+                            codebase.interner.lookup(*classlike_name),
+                            method_name
+                        ),
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
 
                 return;
@@ -179,14 +188,18 @@ pub(crate) fn analyze(
                         format!(
                             "Cannot call method on {} with type {}",
                             lhs_var_id,
-                            lhs_type_part.get_id()
+                            lhs_type_part.get_id(Some(&codebase.interner))
                         )
                     } else {
-                        format!("Cannot call method on type {}", lhs_type_part.get_id())
+                        format!(
+                            "Cannot call method on type {}",
+                            lhs_type_part.get_id(Some(&codebase.interner))
+                        )
                     },
                     statements_analyzer.get_hpos(&expr.0 .1),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
             // todo handle invalid class invocation
             return;
@@ -202,14 +215,18 @@ pub(crate) fn analyze(
                         format!(
                             "Cannot call method on {} with type {}",
                             lhs_var_id,
-                            lhs_type_part.get_id()
+                            lhs_type_part.get_id(Some(&codebase.interner))
                         )
                     } else {
-                        format!("Cannot call method on type {}", lhs_type_part.get_id())
+                        format!(
+                            "Cannot call method on type {}",
+                            lhs_type_part.get_id(Some(&codebase.interner))
+                        )
                     },
                     statements_analyzer.get_hpos(&expr.0 .1),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
             // todo handle invalid class invocation
             return;

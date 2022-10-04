@@ -10,6 +10,7 @@ use hakana_reflection_info::{
     functionlike_info::FunctionLikeInfo,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    StrId,
 };
 use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
@@ -30,7 +31,7 @@ pub struct TypeExpansionOptions<'a> {
     pub self_class: Option<&'a Symbol>,
     pub static_class_type: StaticClassType<'a, 'a>,
     pub parent_class: Option<&'a Symbol>,
-    pub file_path: Option<&'a String>,
+    pub file_path: Option<&'a StrId>,
 
     pub evaluate_class_constants: bool,
     pub evaluate_conditional_types: bool,
@@ -179,9 +180,9 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        if **name == "this" {
+        if codebase.interner.lookup(*name) == "this" {
             *name = match options.static_class_type {
-                StaticClassType::None => Arc::new("this".to_string()),
+                StaticClassType::None => codebase.interner.get("this").unwrap(),
                 StaticClassType::Name(this_name) => this_name.clone().clone(),
                 StaticClassType::Object(obj) => {
                     skipped_keys.push(key.clone());
@@ -222,9 +223,15 @@ fn expand_atomic(
     }
 
     if let TAtomic::TTemplateParam {
-        ref mut as_type, ..
+        ref mut from_class,
+        ref defining_entity,
+        ref mut as_type,
+        ..
     } = return_type_part
     {
+        let defining_entity_name = codebase.interner.lookup(*defining_entity);
+        *from_class = !defining_entity_name.starts_with("fn-")
+            && !defining_entity_name.starts_with("typedef-");
         expand_union(codebase, as_type, options, data_flow_graph);
 
         return;
@@ -285,7 +292,7 @@ fn expand_atomic(
 
         let can_expand_type = if let Some(type_file_path) = &type_definition.newtype_file {
             if let Some(expanding_file_path) = options.file_path {
-                expanding_file_path == &**type_file_path
+                expanding_file_path == type_file_path
             } else {
                 false
             }
@@ -340,14 +347,18 @@ fn expand_atomic(
                     {
                         if let Some(shape_field_taints) = &type_definition.shape_field_taints {
                             let shape_node = DataFlowNode::new(
-                                (**type_name).clone(),
-                                (**type_name).clone(),
+                                codebase.interner.lookup(*type_name).to_string(),
+                                codebase.interner.lookup(*type_name).to_string(),
                                 None,
                                 None,
                             );
 
                             for (field_name, taints) in shape_field_taints {
-                                let label = format!("{}[{}]", type_name, field_name.to_string());
+                                let label = format!(
+                                    "{}[{}]",
+                                    codebase.interner.lookup(*type_name),
+                                    field_name.to_string(Some(&codebase.interner))
+                                );
                                 let field_node = DataFlowNode::TaintSource {
                                     id: label.clone(),
                                     label,
@@ -377,7 +388,7 @@ fn expand_atomic(
 
                             data_flow_graph.add_node(shape_node);
                         }
-                        *shape_name = Some(type_name.clone());
+                        *shape_name = Some(codebase.interner.lookup(*type_name).to_string());
                     };
                 }
                 v
@@ -481,7 +492,11 @@ fn expand_atomic(
                         ..
                     } = v
                     {
-                        *shape_name = Some(Arc::new(format!("{}::{}", class_name, member_name)));
+                        *shape_name = Some(format!(
+                            "{}::{}",
+                            codebase.interner.lookup(*class_name),
+                            member_name
+                        ));
                     };
                     v
                 }));
@@ -510,7 +525,7 @@ pub fn get_closure_from_id(
 ) -> Option<TAtomic> {
     match id {
         FunctionLikeIdentifier::Function(name) => {
-            if let Some(functionlike_info) = codebase.functionlike_infos.get(&**name) {
+            if let Some(functionlike_info) = codebase.functionlike_infos.get(&name) {
                 return Some(get_expanded_closure(
                     functionlike_info,
                     codebase,

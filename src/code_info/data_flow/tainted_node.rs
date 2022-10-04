@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     code_location::HPos,
-    taint::{self, SinkType, SourceType},
+    taint::{self, SinkType, SourceType}, Interner,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,14 +26,14 @@ pub struct TaintedNode {
 }
 
 impl TaintedNode {
-    pub fn get_trace(&self) -> String {
+    pub fn get_trace(&self, interner: &Interner) -> String {
         let mut source_descriptor = format!(
             "{}{}",
             self.label,
             if let Some(pos) = &self.pos {
                 format!(
                     " ({}:{}:{})",
-                    pos.file_path, pos.start_line, pos.start_column
+                    interner.lookup(pos.file_path), pos.start_line, pos.start_column
                 )
             } else {
                 "".to_string()
@@ -44,7 +44,7 @@ impl TaintedNode {
             let path = self.path_types.iter().last();
             source_descriptor = format!(
                 "{} {} {}",
-                previous_source.get_trace(),
+                previous_source.get_trace(interner),
                 if let Some(path) = path {
                     format!("--{:?}-->", path)
                 } else {

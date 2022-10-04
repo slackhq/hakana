@@ -34,10 +34,9 @@ pub(crate) fn analyze(
             get_mixed_any()
         }
     } else {
-        if **name == "__FILE__" || **name == "__DIR__" {
-            get_string()
-        } else {
-            get_mixed_any()
+        match codebase.interner.lookup(*name) {
+            "__FILE__" | "__DIR__" => get_string(),
+            _ => get_mixed_any(),
         }
     };
 

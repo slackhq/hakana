@@ -2,22 +2,23 @@ pub mod symbols;
 
 pub use self::symbols::Symbols;
 use self::symbols::{Symbol, SymbolKind};
-use crate::class_constant_info::ConstantInfo;
 use crate::classlike_info::ClassLikeInfo;
-use crate::method_identifier::MethodIdentifier;
 use crate::functionlike_info::FunctionLikeInfo;
+use crate::method_identifier::MethodIdentifier;
 use crate::t_atomic::TAtomic;
 use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
+use crate::{class_constant_info::ConstantInfo, Interner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct CodebaseInfo {
     pub classlike_infos: FxHashMap<Symbol, ClassLikeInfo>,
     pub functionlike_infos: FxHashMap<Symbol, FunctionLikeInfo>,
     pub type_definitions: FxHashMap<Symbol, TypeDefinitionInfo>,
     pub symbols: Symbols,
+    pub interner: Interner,
     pub infer_types_from_usage: bool,
     pub register_stub_files: bool,
     pub constant_infos: FxHashMap<Symbol, ConstantInfo>,
@@ -26,6 +27,7 @@ pub struct CodebaseInfo {
     pub functions_in_files: FxHashMap<String, FxHashSet<Symbol>>,
     pub const_files: FxHashMap<String, FxHashSet<Symbol>>,
     pub classlike_descendents: FxHashMap<Symbol, FxHashSet<Symbol>>,
+    pub resolved_names: FxHashMap<String, FxHashMap<usize, Symbol>>,
 }
 
 impl CodebaseInfo {
@@ -43,17 +45,19 @@ impl CodebaseInfo {
             functions_in_files: FxHashMap::default(),
             const_files: FxHashMap::default(),
             classlike_descendents: FxHashMap::default(),
+            interner: Interner::default(),
+            resolved_names: FxHashMap::default(),
         }
     }
 
-    pub fn class_or_interface_exists(&self, fq_class_name: &String) -> bool {
+    pub fn class_or_interface_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Class | SymbolKind::EnumClass | SymbolKind::Interface) => true,
             _ => false,
         }
     }
 
-    pub fn class_or_interface_or_enum_exists(&self, fq_class_name: &String) -> bool {
+    pub fn class_or_interface_or_enum_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(
                 SymbolKind::Class
@@ -65,7 +69,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn class_or_interface_or_enum_or_trait_exists(&self, fq_class_name: &String) -> bool {
+    pub fn class_or_interface_or_enum_or_trait_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(
                 SymbolKind::Class
@@ -78,47 +82,47 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn class_exists(&self, fq_class_name: &String) -> bool {
+    pub fn class_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Class | SymbolKind::EnumClass) => true,
             _ => false,
         }
     }
 
-    pub fn interface_exists(&self, fq_class_name: &String) -> bool {
+    pub fn interface_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Interface) => true,
             _ => false,
         }
     }
 
-    pub fn enum_exists(&self, fq_class_name: &String) -> bool {
+    pub fn enum_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Enum) => true,
             _ => false,
         }
     }
 
-    pub fn typedef_exists(&self, fq_alias_name: &String) -> bool {
+    pub fn typedef_exists(&self, fq_alias_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_alias_name) {
             Some(SymbolKind::TypeDefinition) => true,
             _ => false,
         }
     }
 
-    pub fn class_extends(&self, child_class: &String, parent_class: &String) -> bool {
+    pub fn class_extends(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage.all_parent_classes.contains(parent_class);
         }
         false
     }
 
-    pub fn class_extends_or_implements(&self, child_class: &String, parent_class: &String) -> bool {
+    pub fn class_extends_or_implements(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
         self.class_extends(child_class, parent_class)
             || self.class_implements(child_class, parent_class)
     }
 
-    pub fn interface_extends(&self, child_class: &String, parent_class: &String) -> bool {
+    pub fn interface_extends(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage
                 .all_parent_interfaces
@@ -128,7 +132,7 @@ impl CodebaseInfo {
         false
     }
 
-    pub fn class_implements(&self, child_class: &String, parent_class: &String) -> bool {
+    pub fn class_implements(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage
                 .all_class_interfaces
@@ -139,7 +143,7 @@ impl CodebaseInfo {
 
     pub fn get_class_constant_type(
         &self,
-        fq_class_name: &String,
+        fq_class_name: &Symbol,
         const_name: &String,
         _visited_constant_ids: FxHashSet<String>,
     ) -> Option<TUnion> {
@@ -339,5 +343,6 @@ impl CodebaseInfo {
         self.typedefs_in_files.extend(other.typedefs_in_files);
         self.functions_in_files.extend(other.functions_in_files);
         self.const_files.extend(other.const_files);
+        self.resolved_names.extend(other.resolved_names);
     }
 }

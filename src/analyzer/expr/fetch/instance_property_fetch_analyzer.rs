@@ -123,6 +123,7 @@ pub(crate) fn analyze(
                             statements_analyzer.get_hpos(&expr.0.pos()),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual()
                     );
                 }
             }

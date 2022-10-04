@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::classlike_analyzer::ClassLikeAnalyzer;
 use crate::functionlike_analyzer::FunctionLikeAnalyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -46,7 +44,14 @@ pub(crate) fn analyze(
         }
         aast::Def::Constant(boxed) => {
             let mut context = ScopeContext::new(FunctionContext::new());
-            context.function_context.calling_class = Some(Arc::new(boxed.name.1.clone()));
+
+            context.function_context.calling_class = Some(
+                *statements_analyzer
+                    .get_file_analyzer()
+                    .resolved_names
+                    .get(&boxed.name.pos().start_offset())
+                    .unwrap(),
+            );
             expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed.value,
@@ -72,6 +77,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&boxed.span),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         } //aast::Def::SetModule(_) => panic!(),
     }

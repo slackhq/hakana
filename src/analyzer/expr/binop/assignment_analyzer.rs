@@ -302,6 +302,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         }
     };
@@ -328,6 +329,7 @@ fn check_variable_or_property_assignment(
                 statements_analyzer.get_hpos(&assign_var_pos),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
     }
     let ref mut data_flow_graph = tast_info.data_flow_graph;
@@ -394,6 +396,7 @@ fn analyze_list_assignment(
                                     statements_analyzer.get_hpos(&assign_var_item.1),
                                 ),
                                 statements_analyzer.get_config(),
+                                statements_analyzer.get_file_path_actual()
                             );
                         }
 
@@ -410,7 +413,7 @@ fn analyze_list_assignment(
                 ..
             } = assign_value_atomic_type
             {
-                if **name == "HH\\Vector" {
+                if codebase.interner.lookup(*name) == "HH\\Vector" {
                     type_params[0].clone()
                 } else {
                     get_nothing()
@@ -544,7 +547,7 @@ fn analyze_assignment_to_variable(
         &context,
     );
 
-    if assign_value_type.get_id() == "bool" {
+    if assign_value_type.get_id(Some(&statements_analyzer.get_codebase().interner)) == "bool" {
         if let Some(source_expr) = source_expr {
             if matches!(source_expr.2, aast::Expr_::Binop(..)) {
                 // todo support $a = !($b || $c)
@@ -579,7 +582,7 @@ fn analyze_assignment_to_variable(
                     let mut possibilities = BTreeMap::new();
                     possibilities.insert(
                         var_id.clone(),
-                        BTreeMap::from([(Assertion::Falsy.to_string(), Assertion::Falsy)]),
+                        BTreeMap::from([(Assertion::Falsy.to_string(None), Assertion::Falsy)]),
                     );
 
                     let assignment_clauses = if let Ok(assignment_clauses) =

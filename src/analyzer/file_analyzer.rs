@@ -5,7 +5,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use hakana_file_info::FileSource;
+use hakana_reflection_info::FileSource;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -96,10 +96,12 @@ impl<'a> FileAnalyzer<'a> {
         update_analysis_result_with_tast(
             tast_info,
             analysis_result,
-            &statements_analyzer
-                .get_file_analyzer()
-                .get_file_source()
-                .file_path,
+            self.get_codebase().interner.lookup(
+                statements_analyzer
+                    .get_file_analyzer()
+                    .get_file_source()
+                    .file_path,
+            ),
             false,
         );
     }

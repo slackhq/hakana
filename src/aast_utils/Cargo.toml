@@ -12,6 +12,7 @@ oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
 naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/naming" }
 aast_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/aast_parser" }
 ocamlrep = { path = "../../third-party/hhvm/hphp/hack/src/ocamlrep" }
+hakana-reflection-info = { path = "../code_info" }
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3.3"
 xxhash-rust = { version = "0.8.3", features = ["xxh3", "xxh32"] }

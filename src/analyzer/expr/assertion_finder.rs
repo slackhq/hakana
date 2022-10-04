@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::expression_identifier::{get_dim_id, get_var_id};
 use crate::{formula_generator::AssertionContext, typed_ast::TastInfo};
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
@@ -49,14 +47,16 @@ pub(crate) fn scrape_assertions(
             let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
 
             if let Some(FunctionLikeIdentifier::Function(name)) = functionlike_id {
-                return scrape_function_assertions(
-                    &name,
-                    &call.2,
-                    &conditional.1,
-                    assertion_context,
-                    tast_info,
-                    inside_negation,
-                );
+                if let Some(codebase) = assertion_context.codebase {
+                    return scrape_function_assertions(
+                        &codebase.interner.lookup(name),
+                        &call.2,
+                        &conditional.1,
+                        assertion_context,
+                        tast_info,
+                        inside_negation,
+                    );
+                }
             }
 
             if_types.extend(process_custom_assertions(conditional.pos(), tast_info));
@@ -256,30 +256,33 @@ fn scrape_shapes_isset(
             let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
 
             if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
-                if *class_name == "HH\\Shapes" && member_name == "idx" {
-                    let shape_name = get_var_id(
-                        &call.2[0].1,
-                        assertion_context.this_class_name,
-                        assertion_context.file_source,
-                        assertion_context.resolved_names,
-                        assertion_context.codebase,
-                    );
-
-                    let dim_id = get_dim_id(
-                        &call.2[1].1,
-                        assertion_context.codebase,
-                        assertion_context.resolved_names,
-                    );
-
-                    if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
-                        if_types.insert(
-                            format!("{}[{}]", shape_name, dim_id),
-                            vec![vec![if negated {
-                                Assertion::IsNotIsset
-                            } else {
-                                Assertion::IsIsset
-                            }]],
+                if let Some(codebase) = assertion_context.codebase {
+                    if codebase.interner.lookup(class_name) == "HH\\Shapes" && member_name == "idx"
+                    {
+                        let shape_name = get_var_id(
+                            &call.2[0].1,
+                            assertion_context.this_class_name,
+                            assertion_context.file_source,
+                            assertion_context.resolved_names,
+                            assertion_context.codebase,
                         );
+
+                        let dim_id = get_dim_id(
+                            &call.2[1].1,
+                            assertion_context.codebase,
+                            assertion_context.resolved_names,
+                        );
+
+                        if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
+                            if_types.insert(
+                                format!("{}[{}]", shape_name, dim_id),
+                                vec![vec![if negated {
+                                    Assertion::IsNotIsset
+                                } else {
+                                    Assertion::IsIsset
+                                }]],
+                            );
+                        }
                     }
                 }
             }
@@ -299,19 +302,23 @@ fn get_functionlike_id_from_call(
 ) -> Option<FunctionLikeIdentifier> {
     match &call.0 .2 {
         aast::Expr_::Id(boxed_id) => {
-            let name = if boxed_id.1 == "isset" {
-                Arc::new("isset".to_string())
-            } else if boxed_id.1 == "\\in_array" {
-                Arc::new("in_array".to_string())
-            } else {
-                assertion_context
-                    .resolved_names
-                    .get(&boxed_id.0.start_offset())
-                    .unwrap()
-                    .clone()
-            };
+            if let Some(codebase) = assertion_context.codebase {
+                let name = if boxed_id.1 == "isset" {
+                    codebase.interner.get("isset").unwrap()
+                } else if boxed_id.1 == "\\in_array" {
+                    codebase.interner.get("in_array").unwrap()
+                } else {
+                    assertion_context
+                        .resolved_names
+                        .get(&boxed_id.0.start_offset())
+                        .unwrap()
+                        .clone()
+                };
 
-            Some(FunctionLikeIdentifier::Function(name))
+                Some(FunctionLikeIdentifier::Function(name))
+            } else {
+                None
+            }
         }
         aast::Expr_::ClassConst(boxed) => {
             let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
@@ -439,7 +446,7 @@ fn scrape_inequality_assertions(
 // }
 
 fn scrape_function_assertions(
-    function_name: &String,
+    function_name: &str,
     args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
     pos: &Pos,
     assertion_context: &AssertionContext,

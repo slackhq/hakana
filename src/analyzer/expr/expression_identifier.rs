@@ -1,7 +1,7 @@
 use hakana_reflection_info::codebase_info::{symbols::Symbol, CodebaseInfo};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use hakana_file_info::FileSource;
+use hakana_reflection_info::FileSource;
 use oxidized::{aast, ast_defs};
 
 use super::fetch::class_constant_fetch_analyzer::get_id_name;
@@ -54,13 +54,17 @@ pub fn get_var_id(
 
                 if let Some(class_name) = class_name {
                     return match &boxed.1 {
-                        aast::ClassGetExpr::CGstring(str) => {
-                            Some(format!("{}::{}", class_name, str.1))
-                        }
+                        aast::ClassGetExpr::CGstring(str) => Some(format!(
+                            "{}::{}",
+                            codebase.unwrap().interner.lookup(class_name),
+                            str.1
+                        )),
                         aast::ClassGetExpr::CGexpr(rhs_expr) => match &rhs_expr.2 {
-                            aast::Expr_::Lvar(rhs_var_expr) => {
-                                Some(format!("{}::${}", class_name, rhs_var_expr.1 .1))
-                            }
+                            aast::Expr_::Lvar(rhs_var_expr) => Some(format!(
+                                "{}::${}",
+                                codebase.unwrap().interner.lookup(class_name),
+                                rhs_var_expr.1 .1
+                            )),
                             _ => None,
                         },
                     };
@@ -142,8 +146,8 @@ pub(crate) fn get_dim_id(
                             );
 
                             if let Some(constant_type) = constant_type {
-                                if let Some(constant_type_string) =
-                                    constant_type.get_single_literal_string_value()
+                                if let Some(constant_type_string) = constant_type
+                                    .get_single_literal_string_value(&codebase.interner)
                                 {
                                     return Some(format!("'{}'", constant_type_string));
                                 }

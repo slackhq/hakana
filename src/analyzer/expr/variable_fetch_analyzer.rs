@@ -44,6 +44,7 @@ pub(crate) fn analyze(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
 
                 Rc::new(get_mixed_any())
@@ -83,7 +84,7 @@ pub(crate) fn get_type_for_superglobal(
             let taint_source = DataFlowNode::TaintSource {
                 id: format!(
                     "${}:{}:{}",
-                    name, taint_pos.file_path, taint_pos.start_offset
+                    name, taint_pos.file_path.0, taint_pos.start_offset
                 ),
                 label: format!("${}", name.clone()),
                 pos: None,

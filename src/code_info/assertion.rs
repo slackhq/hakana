@@ -7,6 +7,7 @@ use crate::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
     taint::SinkType,
+    Interner,
 };
 use core::hash::Hash;
 
@@ -42,20 +43,20 @@ pub enum Assertion {
 
 impl Hash for Assertion {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.to_string().hash(state);
+        self.to_string(None).hash(state)
     }
 }
 
 impl Assertion {
-    pub fn to_string(&self) -> String {
+    pub fn to_string(&self, interner: Option<&Interner>) -> String {
         match self {
             Assertion::Any => "any".to_string(),
             Assertion::Falsy => "falsy".to_string(),
             Assertion::Truthy => "!falsy".to_string(),
-            Assertion::IsType(atomic) => (&atomic).get_id(),
-            Assertion::IsNotType(atomic) => "!".to_string() + &atomic.get_id(),
-            Assertion::IsEqual(atomic) => "=".to_string() + &atomic.get_id(),
-            Assertion::IsNotEqual(atomic) => "!=".to_string() + &atomic.get_id(),
+            Assertion::IsType(atomic) => (&atomic).get_id(interner),
+            Assertion::IsNotType(atomic) => "!".to_string() + &atomic.get_id(interner),
+            Assertion::IsEqual(atomic) => "=".to_string() + &atomic.get_id(interner),
+            Assertion::IsNotEqual(atomic) => "!=".to_string() + &atomic.get_id(interner),
             Assertion::IsEqualIsset => "=isset".to_string(),
             Assertion::IsIsset => "isset".to_string(),
             Assertion::IsNotIsset => "!isset".to_string(),
@@ -63,12 +64,14 @@ impl Assertion {
             Assertion::HasIntOrStringArrayAccess => "=int-or-string-array-access".to_string(),
             Assertion::ArrayKeyExists => "array-key-exists".to_string(),
             Assertion::ArrayKeyDoesNotExist => "!array-key-exists".to_string(),
-            Assertion::HasArrayKey(key) => "=has-array-key-".to_string() + key.to_string().as_str(),
-            Assertion::DoesNotHaveArrayKey(key) => {
-                "!=has-array-key-".to_string() + key.to_string().as_str()
+            Assertion::HasArrayKey(key) => {
+                "=has-array-key-".to_string() + key.to_string(interner).as_str()
             }
-            Assertion::InArray(union) => "=in-array-".to_string() + &union.get_id(),
-            Assertion::NotInArray(union) => "!=in-array-".to_string() + &union.get_id(),
+            Assertion::DoesNotHaveArrayKey(key) => {
+                "!=has-array-key-".to_string() + key.to_string(interner).as_str()
+            }
+            Assertion::InArray(union) => "=in-array-".to_string() + &union.get_id(interner),
+            Assertion::NotInArray(union) => "!=in-array-".to_string() + &union.get_id(interner),
             Assertion::NonEmptyCountable(negatable) => {
                 if *negatable {
                     "non-empty-countable".to_string()

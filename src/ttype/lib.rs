@@ -2,7 +2,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
     codebase_info::{symbols::Symbol, CodebaseInfo},
-    functionlike_parameter::FunctionLikeParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
@@ -149,31 +148,6 @@ pub fn get_dict(key_param: TUnion, value_param: TUnion) -> TUnion {
 
 pub fn get_keyset(type_param: TUnion) -> TUnion {
     wrap_atomic(TAtomic::TKeyset { type_param })
-}
-
-pub fn get_mixed_closure() -> TUnion {
-    wrap_atomic(TAtomic::TClosure {
-        params: vec![FunctionLikeParameter {
-            name: "variadic".to_string(),
-            is_inout: false,
-            signature_type: None,
-            is_optional: false,
-            is_nullable: false,
-            default_type: None,
-            location: None,
-            signature_type_location: None,
-            is_variadic: true,
-            taint_sinks: None,
-            assert_untainted: false,
-            type_inferred: false,
-            expect_variable: false,
-            promoted_property: false,
-            attributes: Vec::new(),
-            removed_taints_when_returning_true: None,
-        }],
-        return_type: None,
-        effects: None,
-    })
 }
 
 pub fn get_mixed_vec() -> TUnion {
@@ -398,8 +372,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
                     key_types.push(TAtomic::TLiteralInt {
                         value: key.clone() as i64,
                     });
-                    type_param =
-                        combine_union_types(property_type, &type_param, codebase, false);
+                    type_param = combine_union_types(property_type, &type_param, codebase, false);
                 }
             }
 
@@ -418,21 +391,16 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             name,
             type_params: Some(type_params),
             ..
-        } => {
-            if **name == "HH\\KeyedContainer"
-                || **name == "HH\\KeyedTraversable"
-                || **name == "HH\\AnyArray"
-            {
-                Some((
-                    type_params.get(0).unwrap().clone(),
-                    type_params.get(1).unwrap().clone(),
-                ))
-            } else if **name == "HH\\Container" || **name == "HH\\Traversable" {
+        } => match codebase.interner.lookup(*name) {
+            "HH\\KeyedContainer" | "HH\\KeyedTraversable" | "HH\\AnyArray" => Some((
+                type_params.get(0).unwrap().clone(),
+                type_params.get(1).unwrap().clone(),
+            )),
+            "HH\\Container" | "HH\\Traversable" => {
                 Some((get_arraykey(true), type_params.get(0).unwrap().clone()))
-            } else {
-                None
             }
-        }
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -454,8 +422,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
 
             if let Some(known_items) = known_items {
                 for (_, (_, property_type)) in known_items {
-                    value_param =
-                        combine_union_types(property_type, &value_param, codebase, false);
+                    value_param = combine_union_types(property_type, &value_param, codebase, false);
                 }
             }
 
@@ -470,8 +437,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
 
             if let Some(known_items) = known_items {
                 for (_, (_, property_type)) in known_items {
-                    type_param =
-                        combine_union_types(property_type, &type_param, codebase, false);
+                    type_param = combine_union_types(property_type, &type_param, codebase, false);
                 }
             }
 
@@ -481,18 +447,13 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             name,
             type_params: Some(type_params),
             ..
-        } => {
-            if **name == "HH\\KeyedContainer"
-                || **name == "HH\\KeyedTraversable"
-                || **name == "HH\\AnyArray"
-            {
+        } => match codebase.interner.lookup(*name) {
+            "HH\\KeyedContainer" | "HH\\KeyedTraversable" | "HH\\AnyArray" => {
                 Some(type_params.get(1).unwrap().clone())
-            } else if **name == "HH\\Container" || **name == "HH\\Traversable" {
-                Some(type_params.get(0).unwrap().clone())
-            } else {
-                None
             }
-        }
+            "HH\\Container" | "HH\\Traversable" => Some(type_params.get(0).unwrap().clone()),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -550,7 +511,7 @@ pub fn get_union_syntax_type(
     if t_atomic_strings.len() != 1 && t_atomic_strings.len() == t_object_parents.len() {
         let flattened_parents = t_object_parents
             .into_iter()
-            .map(|(_, v)| (*v).clone())
+            .map(|(_, v)| codebase.interner.lookup(v).to_string())
             .collect::<FxHashSet<_>>();
 
         if flattened_parents.len() == 1 {
@@ -598,7 +559,7 @@ pub fn get_atomic_syntax_type(
             ..
         } => {
             if let Some(shape_name) = shape_name {
-                return (**shape_name).clone();
+                return shape_name.clone();
             }
 
             if let Some(known_items) = known_items {
@@ -618,7 +579,7 @@ pub fn get_atomic_syntax_type(
                             format!(
                                 "{}'{}' => {}",
                                 if *pu { "?".to_string() } else { "".to_string() },
-                                property.to_string(),
+                                property.to_string(Some(&codebase.interner)),
                                 property_type_string
                             )
                         })
@@ -642,7 +603,7 @@ pub fn get_atomic_syntax_type(
                 "dict<nothing, nothing>".to_string()
             };
         }
-        TAtomic::TEnum { name } => (**name).clone(),
+        TAtomic::TEnum { name } => codebase.interner.lookup(*name).to_string(),
         TAtomic::TFalsyMixed { .. } => "mixed".to_string(),
         TAtomic::TFalse { .. } => "bool".to_string(),
         TAtomic::TFloat { .. } => "float".to_string(),
@@ -670,28 +631,34 @@ pub fn get_atomic_syntax_type(
             *is_valid = false;
             "_".to_string()
         }
-        TAtomic::TEnumLiteralCase { enum_name, .. } => (**enum_name).clone(),
+        TAtomic::TEnumLiteralCase { enum_name, .. } => {
+            codebase.interner.lookup(*enum_name).to_string()
+        }
         TAtomic::TLiteralInt { .. } => "int".to_string(),
         TAtomic::TLiteralString { .. } | TAtomic::TStringWithFlags(..) => "string".to_string(),
         TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => "mixed".to_string(),
         TAtomic::TNamedObject {
             name, type_params, ..
         } => match type_params {
-            None => (**name).clone(),
+            None => codebase.interner.lookup(*name).to_string(),
             Some(type_params) => {
                 let mut param_strings = vec![];
                 for param in type_params {
                     param_strings.push(get_union_syntax_type(param, codebase, is_valid));
                 }
 
-                format!("{}<{}>", name, param_strings.join(", "))
+                format!(
+                    "{}<{}>",
+                    codebase.interner.lookup(*name),
+                    param_strings.join(", ")
+                )
             }
         },
         TAtomic::TTypeAlias {
             name, type_params, ..
         } => {
             if let None = type_params {
-                (**name).clone()
+                codebase.interner.lookup(*name).to_string()
             } else {
                 *is_valid = false;
                 "_".to_string()
@@ -714,12 +681,20 @@ pub fn get_atomic_syntax_type(
             param_name,
             defining_entity,
             ..
-        } => format!("classname<{}:{}>", param_name, defining_entity),
+        } => format!(
+            "classname<{}:{}>",
+            param_name,
+            codebase.interner.lookup(*defining_entity)
+        ),
         TAtomic::TTemplateParamType {
             param_name,
             defining_entity,
             ..
-        } => format!("typename<{}:{}>", param_name, defining_entity),
+        } => format!(
+            "typename<{}:{}>",
+            param_name,
+            codebase.interner.lookup(*defining_entity)
+        ),
         TAtomic::TTrue { .. } => "bool".to_string(),
         TAtomic::TVec {
             type_param,

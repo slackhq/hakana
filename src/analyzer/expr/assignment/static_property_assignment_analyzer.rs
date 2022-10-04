@@ -203,14 +203,15 @@ pub(crate) fn analyze(
                         IssueKind::InvalidPropertyAssignmentValue,
                         format!(
                             "{}::${} with declared type {}, cannot be assigned type {}",
-                            declaring_property_class,
+                            codebase.interner.lookup(*declaring_property_class),
                             property_id.1,
-                            class_property_type.get_id(),
-                            assign_value_type.get_id(),
+                            class_property_type.get_id(Some(&codebase.interner)),
+                            assign_value_type.get_id(Some(&codebase.interner)),
                         ),
                         statements_analyzer.get_hpos(&stmt_class.1),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
             }
 
@@ -225,12 +226,13 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("This property".to_string()),
-                                class_property_type.get_id(),
-                                assign_value_type.get_id(),
+                                class_property_type.get_id(Some(&codebase.interner)),
+                                assign_value_type.get_id(Some(&codebase.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_class.1),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual()
                     );
                 } else {
                     tast_info.maybe_add_issue(
@@ -239,12 +241,13 @@ pub(crate) fn analyze(
                             format!(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("This property".to_string()),
-                                class_property_type.get_id(),
-                                assign_value_type.get_id(),
+                                class_property_type.get_id(Some(&codebase.interner)),
+                                assign_value_type.get_id(Some(&codebase.interner)),
                             ),
                             statements_analyzer.get_hpos(&stmt_class.1),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual()
                     );
                 }
             }

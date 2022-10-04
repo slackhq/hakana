@@ -148,7 +148,8 @@ impl NameContext {
         }
 
         match name.as_str() {
-            "__AcceptDisposable"
+            "this"
+            | "__AcceptDisposable"
             | "__ConsistentConstruct"
             | "__Deprecated"
             | "__DynamicallyCallable"

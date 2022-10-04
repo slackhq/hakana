@@ -169,6 +169,7 @@ fn analyze_atomic(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
 
                 return;
@@ -202,6 +203,7 @@ fn analyze_atomic(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
             }
 

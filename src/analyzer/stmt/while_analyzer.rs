@@ -54,7 +54,7 @@ pub(crate) fn analyze(
         true
     } else {
         if let Some(stmt_cond_type) = tast_info.get_expr_type(stmt.0.pos()) {
-            stmt_cond_type.is_always_truthy()
+            stmt_cond_type.is_always_truthy(&codebase.interner)
         } else {
             false
         }

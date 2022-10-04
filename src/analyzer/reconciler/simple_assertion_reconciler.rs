@@ -1,7 +1,10 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use super::reconciler::{trigger_issue_for_impossible, ReconciliationStatus};
-use crate::{intersect_simple, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
+use crate::{
+    intersect_simple, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    typed_ast::TastInfo,
+};
 use hakana_reflection_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
@@ -10,9 +13,8 @@ use hakana_reflection_info::{
 };
 use hakana_type::{
     get_arraykey, get_bool, get_dict, get_false, get_float, get_int, get_keyset, get_mixed_any,
-    get_mixed_closure, get_mixed_dict, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing,
-    get_null, get_num, get_object, get_scalar, get_string, get_true, get_vec,
-    intersect_union_types,
+    get_mixed_dict, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing, get_null, get_num,
+    get_object, get_scalar, get_string, get_true, get_vec, intersect_union_types,
     type_comparator::{atomic_type_comparator, type_comparison_result::TypeComparisonResult},
 };
 use oxidized::ast_defs::Pos;
@@ -41,27 +43,6 @@ pub(crate) fn reconcile(
         }
 
         match assertion_type {
-            TAtomic::TClosure { .. } => {
-                return intersect_simple!(
-                    TAtomic::TClosure { .. },
-                    TAtomic::TMixedAny
-                        | TAtomic::TMixed
-                        | TAtomic::TTruthyMixed
-                        | TAtomic::TNonnullMixed
-                        | TAtomic::TMixedFromLoopIsset,
-                    get_mixed_closure(),
-                    assertion,
-                    existing_var_type,
-                    key,
-                    negated,
-                    tast_info,
-                    statements_analyzer,
-                    pos,
-                    failed_reconciliation,
-                    assertion.has_equality(),
-                    suppressed_issues,
-                );
-            }
             TAtomic::TScalar { .. } => {
                 return intersect_simple!(
                     TAtomic::TLiteralClassname { .. }
@@ -450,7 +431,8 @@ fn intersect_null(
         return get_null();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut nullable_types = Vec::new();
     let mut did_remove_type = false;
@@ -490,14 +472,15 @@ fn intersect_null(
                 name,
                 type_params: None,
                 ..
-            } => {
-                if **name == "XHPChild" {
+            } => match statements_analyzer.get_codebase().interner.lookup(*name) {
+                "XHPChild" => {
                     nullable_types.push(TAtomic::TNull);
                     did_remove_type = true;
-                } else {
+                }
+                _ => {
                     did_remove_type = true;
                 }
-            }
+            },
             _ => {
                 did_remove_type = true;
             }
@@ -547,7 +530,8 @@ fn intersect_object(
         return get_object();
     }
 
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut object_types = Vec::new();
     let mut did_remove_type = false;
@@ -639,12 +623,14 @@ fn intersect_vec(
                 ..
             } = atomic
             {
-                if **name == "HH\\Container" {
-                    return get_vec(typed_params.get(0).unwrap().clone());
-                }
-
-                if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
-                    return get_vec(typed_params.get(1).unwrap().clone());
+                match statements_analyzer.get_codebase().interner.lookup(*name) {
+                    "HH\\Container" => {
+                        return get_vec(typed_params.get(0).unwrap().clone());
+                    }
+                    "HH\\KeyedContainer" | "HH\\AnyArray" => {
+                        return get_vec(typed_params.get(1).unwrap().clone());
+                    }
+                    _ => {}
                 }
             }
 
@@ -658,7 +644,7 @@ fn intersect_vec(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -708,12 +694,14 @@ fn intersect_keyset(
                 ..
             } = atomic
             {
-                if **name == "HH\\Container" {
-                    return get_keyset(get_arraykey(true));
-                }
-
-                if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
-                    return get_keyset(typed_params.get(0).unwrap().clone());
+                match statements_analyzer.get_codebase().interner.lookup(*name) {
+                    "HH\\Container" => {
+                        return get_keyset(get_arraykey(true));
+                    }
+                    "HH\\KeyedContainer" | "HH\\AnyArray" => {
+                        return get_keyset(typed_params.get(0).unwrap().clone());
+                    }
+                    _ => {}
                 }
             }
 
@@ -727,7 +715,7 @@ fn intersect_keyset(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -804,15 +792,20 @@ fn intersect_dict(
                     ..
                 } = atomic
                 {
-                    if **name == "HH\\Container" {
-                        return get_dict(get_arraykey(true), typed_params.get(0).unwrap().clone());
-                    }
-
-                    if **name == "HH\\KeyedContainer" || **name == "HH\\AnyArray" {
-                        return get_dict(
-                            typed_params.get(0).unwrap().clone(),
-                            typed_params.get(1).unwrap().clone(),
-                        );
+                    match statements_analyzer.get_codebase().interner.lookup(*name) {
+                        "HH\\Container" => {
+                            return get_dict(
+                                get_arraykey(true),
+                                typed_params.get(0).unwrap().clone(),
+                            );
+                        }
+                        "HH\\KeyedContainer" | "HH\\AnyArray" => {
+                            return get_dict(
+                                typed_params.get(0).unwrap().clone(),
+                                typed_params.get(1).unwrap().clone(),
+                            );
+                        }
+                        _ => {}
                     }
                 }
 
@@ -827,7 +820,7 @@ fn intersect_dict(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -883,7 +876,7 @@ fn intersect_arraykey(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -939,7 +932,7 @@ fn intersect_num(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -1043,12 +1036,13 @@ fn intersect_string(
                 name,
                 type_params: None,
                 ..
-            } => {
-                if **name == "XHPChild" {
+            } => match statements_analyzer.get_codebase().interner.lookup(*name) {
+                "XHPChild" => {
                     acceptable_types.push(TAtomic::TString);
                     did_remove_type = true;
                 }
-            }
+                _ => {}
+            },
             _ => {
                 if atomic_type_comparator::is_contained_by(
                     codebase,
@@ -1071,7 +1065,7 @@ fn intersect_string(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -1170,7 +1164,7 @@ fn intersect_int(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -1203,7 +1197,8 @@ fn reconcile_truthy(
     suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = existing_var_type.possibly_undefined_from_try;
 
@@ -1226,7 +1221,9 @@ fn reconcile_truthy(
         if atomic.is_falsy() {
             did_remove_type = true;
             existing_var_type.types.remove(type_key);
-        } else if !atomic.is_truthy() || existing_var_type.possibly_undefined_from_try {
+        } else if !atomic.is_truthy(&statements_analyzer.get_codebase().interner)
+            || existing_var_type.possibly_undefined_from_try
+        {
             did_remove_type = true;
 
             if let TAtomic::TTemplateParam { as_type, .. } = atomic {
@@ -1329,7 +1326,8 @@ fn reconcile_isset(
     suppressed_issues: &FxHashMap<String, usize>,
     inside_loop: bool,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = possibly_undefined || existing_var_type.possibly_undefined_from_try;
 
@@ -1410,7 +1408,8 @@ fn reconcile_non_empty_countable(
     suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -1510,7 +1509,8 @@ fn reconcile_exactly_countable(
     recursive_check: bool,
     count: &usize,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let mut did_remove_type = false;
 
@@ -1615,7 +1615,8 @@ fn reconcile_array_access(
     suppressed_issues: &FxHashMap<String, usize>,
     allow_int_key: bool,
 ) -> TUnion {
-    let old_var_type_string = existing_var_type.get_id();
+    let old_var_type_string =
+        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
     let existing_var_types = &existing_var_type.types;
     let mut existing_var_type = existing_var_type.clone();
@@ -1627,8 +1628,14 @@ fn reconcile_array_access(
     }
 
     for (type_key, atomic) in existing_var_types {
-        if (allow_int_key && atomic.is_array_accessible_with_int_or_string_key())
-            || (!allow_int_key && atomic.is_array_accessible_with_string_key())
+        if (allow_int_key
+            && atomic.is_array_accessible_with_int_or_string_key(
+                &statements_analyzer.get_codebase().interner,
+            ))
+            || (!allow_int_key
+                && atomic.is_array_accessible_with_string_key(
+                    &statements_analyzer.get_codebase().interner,
+                ))
         {
             // do nothing
         } else {
@@ -1689,7 +1696,7 @@ fn reconcile_in_array(
             trigger_issue_for_impossible(
                 tast_info,
                 statements_analyzer,
-                &existing_var_type.get_id(),
+                &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
                 &key,
                 assertion,
                 true,

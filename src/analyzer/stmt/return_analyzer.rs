@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::scope_context::ScopeContext;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
@@ -35,6 +33,8 @@ pub(crate) fn analyze(
 ) {
     let return_expr = stmt.1.as_return().unwrap();
 
+    let interner = &statements_analyzer.get_codebase().interner;
+
     let mut inferred_return_type = if let Some(return_expr) = return_expr {
         context.inside_return = true;
         expression_analyzer::analyze(
@@ -48,12 +48,15 @@ pub(crate) fn analyze(
 
         if let Some(mut inferred_return_type) = tast_info.get_expr_type(&return_expr.1).cloned() {
             if inferred_return_type.is_nothing() {
-                tast_info.maybe_add_issue(Issue::new(
-                    IssueKind::NothingReturn,
-                    "This function call evaluates to nothing — likely calling a noreturn function"
-                        .to_string(),
-                    statements_analyzer.get_hpos(&return_expr.1),
-                ), statements_analyzer.get_config());
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::NothingReturn,
+                        "This function call evaluates to nothing — likely calling a noreturn function"
+                            .to_string(),
+                        statements_analyzer.get_hpos(&return_expr.1),
+                    ),
+                    statements_analyzer.get_config(), statements_analyzer.get_file_path_actual()
+                );
             }
 
             if inferred_return_type.is_void() {
@@ -81,7 +84,13 @@ pub(crate) fn analyze(
         return;
     };
 
-    handle_inout_at_return(functionlike_storage, context, tast_info, Some(&stmt.0));
+    handle_inout_at_return(
+        functionlike_storage,
+        statements_analyzer,
+        context,
+        tast_info,
+        Some(&stmt.0),
+    );
 
     // todo maybe check inout params here, though that's covered by Hack's typechecker
     // examineParamTypes in Psalm's source code
@@ -110,7 +119,11 @@ pub(crate) fn analyze(
     if functionlike_storage.is_async {
         let parent_nodes = inferred_return_type.parent_nodes.clone();
         inferred_return_type = wrap_atomic(TAtomic::TNamedObject {
-            name: Arc::new("HH\\Awaitable".to_string()),
+            name: statements_analyzer
+                .get_codebase()
+                .interner
+                .get("HH\\Awaitable")
+                .unwrap(),
             type_params: Some(vec![inferred_return_type]),
             is_this: false,
             extra_types: None,
@@ -174,7 +187,7 @@ pub(crate) fn analyze(
         );
 
         if !expected_return_type.is_mixed() {
-            if expected_return_type.is_generator() && functionlike_storage.has_yield {
+            if expected_return_type.is_generator(interner) && functionlike_storage.has_yield {
                 return;
             }
 
@@ -196,11 +209,12 @@ pub(crate) fn analyze(
                                     .calling_functionlike_id
                                     .as_ref()
                                     .unwrap()
-                                    .to_string()
+                                    .to_string(interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
                     );
 
                     return;
@@ -221,11 +235,12 @@ pub(crate) fn analyze(
                         },
                         format!(
                             "Could not infer a proper return type — saw {}",
-                            inferred_return_type.get_id()
+                            inferred_return_type.get_id(Some(interner))
                         ),
                         statements_analyzer.get_hpos(&return_expr.1),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
                 );
 
                 return;
@@ -244,11 +259,12 @@ pub(crate) fn analyze(
                                 .calling_functionlike_id
                                 .as_ref()
                                 .unwrap()
-                                .to_string()
+                                .to_string(interner)
                         ),
                         statements_analyzer.get_hpos(&return_expr.1),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
                 );
 
                 return;
@@ -272,16 +288,19 @@ pub(crate) fn analyze(
                         .type_coerced_from_nested_any
                         .unwrap_or(false)
                     {
-                        tast_info.maybe_add_issue(Issue::new(
+                        tast_info.maybe_add_issue(
+                            Issue::new(
                             IssueKind::LessSpecificNestedAnyReturnStatement,
                             format!(
                                 "The type {} is more general than the declared return type {} for {}",
-                                inferred_return_type.get_id(),
-                                expected_return_type.get_id(),
-                                context.function_context.calling_functionlike_id.as_ref().unwrap().to_string()
+                                inferred_return_type.get_id(Some(interner)),
+                                expected_return_type.get_id(Some(interner)),
+                                context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
-                        ), statements_analyzer.get_config());
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual());
                     } else if union_comparison_result
                         .type_coerced_from_nested_mixed
                         .unwrap_or(false)
@@ -290,16 +309,20 @@ pub(crate) fn analyze(
                             .type_coerced_from_as_mixed
                             .unwrap_or(false)
                         {
-                            tast_info.maybe_add_issue(Issue::new(
-                                IssueKind::LessSpecificNestedReturnStatement,
-                                format!(
-                                    "The type {} is more general than the declared return type {} for {}",
-                                    inferred_return_type.get_id(),
-                                    expected_return_type.get_id(),
-                                    context.function_context.calling_functionlike_id.as_ref().unwrap().to_string()
+                            tast_info.maybe_add_issue(
+                                Issue::new(
+                                    IssueKind::LessSpecificNestedReturnStatement,
+                                    format!(
+                                        "The type {} is more general than the declared return type {} for {}",
+                                        inferred_return_type.get_id(Some(interner)),
+                                        expected_return_type.get_id(Some(interner)),
+                                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
+                                    ),
+                                    statements_analyzer.get_hpos(&return_expr.1),
                                 ),
-                                statements_analyzer.get_hpos(&return_expr.1),
-                            ), statements_analyzer.get_config());
+                                statements_analyzer.get_config(),
+                                statements_analyzer.get_file_path_actual()
+                            );
                         }
                     } else {
                         if !union_comparison_result
@@ -310,12 +333,15 @@ pub(crate) fn analyze(
                                 IssueKind::LessSpecificReturnStatement,
                                 format!(
                                     "The type {} is more general than the declared return type {} for {}",
-                                    inferred_return_type.get_id(),
-                                    expected_return_type.get_id(),
-                                    context.function_context.calling_functionlike_id.as_ref().unwrap().to_string()
+                                    inferred_return_type.get_id(Some(interner)),
+                                    expected_return_type.get_id(Some(interner)),
+                                    context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
                                 ),
                                 statements_analyzer.get_hpos(&return_expr.1),
-                            ), statements_analyzer.get_config());
+                            ),
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual()
+                        );
                         }
                     }
                 } else {
@@ -324,18 +350,19 @@ pub(crate) fn analyze(
                             IssueKind::InvalidReturnStatement,
                             format!(
                                 "The type {} does not match the declared return type {} for {}",
-                                inferred_return_type.get_id(),
-                                expected_return_type.get_id(),
+                                inferred_return_type.get_id(Some(interner)),
+                                expected_return_type.get_id(Some(interner)),
                                 context
                                     .function_context
                                     .calling_functionlike_id
                                     .as_ref()
                                     .unwrap()
-                                    .to_string()
+                                    .to_string(interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
                     );
                 }
             }
@@ -348,12 +375,14 @@ pub(crate) fn analyze(
                     IssueKind::NullableReturnStatement,
                     format!(
                         "The declared return type {} for {} is not nullable, but the function returns {}",
-                        expected_return_type.get_id(),
-                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(),
-                        inferred_return_type.get_id(),
+                        expected_return_type.get_id(Some(interner)),
+                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner),
+                        inferred_return_type.get_id(Some(interner)),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
-                ), statements_analyzer.get_config());
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual());
             }
 
             // todo at some point in the future all notions of falsability can be removed
@@ -366,18 +395,24 @@ pub(crate) fn analyze(
                     IssueKind::FalsableReturnStatement,
                     format!(
                         "The declared return type {} for {} is not falsable, but the function returns {}",
-                        expected_return_type.get_id(),
-                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(),
-                        inferred_return_type.get_id(),
+                        expected_return_type.get_id(Some(interner)),
+                        context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner),
+                        inferred_return_type.get_id(Some(interner)),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
-                ), statements_analyzer.get_config());
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual());
             }
         }
     } else if !expected_return_type.is_void()
         && !functionlike_storage.has_yield
         && !functionlike_storage.is_async
-        && *functionlike_storage.name != "__construct"
+        && statements_analyzer
+            .get_codebase()
+            .interner
+            .lookup(functionlike_storage.name)
+            != "__construct"
     {
         tast_info.maybe_add_issue(
             Issue::new(
@@ -389,17 +424,19 @@ pub(crate) fn analyze(
                         .calling_functionlike_id
                         .as_ref()
                         .unwrap()
-                        .to_string()
+                        .to_string(interner)
                 ),
                 statements_analyzer.get_hpos(&stmt.0),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
         );
     }
 }
 
 pub(crate) fn handle_inout_at_return(
     functionlike_storage: &FunctionLikeInfo,
+    statements_analyzer: &StatementsAnalyzer,
     context: &mut ScopeContext,
     tast_info: &mut TastInfo,
     _return_pos: Option<&Pos>,
@@ -416,7 +453,7 @@ pub(crate) fn handle_inout_at_return(
                                 .calling_functionlike_id
                                 .clone()
                                 .unwrap()
-                                .to_string(),
+                                .to_string(&statements_analyzer.get_codebase().interner),
                             i,
                             Some(param.location.clone().unwrap()),
                             None,
@@ -453,6 +490,8 @@ fn handle_dataflow(
     method_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
+    let interner = &statements_analyzer.get_codebase().interner;
+
     if data_flow_graph.kind == GraphKind::FunctionBody {
         let return_node = DataFlowNode::get_for_variable_sink(
             "return".to_string(),
@@ -476,7 +515,10 @@ fn handle_dataflow(
 
         for (_, at) in &inferred_type.types {
             if let Some(shape_name) = at.get_shape_name() {
-                if let Some(t) = codebase.type_definitions.get(shape_name) {
+                if let Some(t) = codebase
+                    .type_definitions
+                    .get(&interner.get(shape_name).unwrap())
+                {
                     if t.shape_field_taints.is_some() {
                         return;
                     }
@@ -485,7 +527,7 @@ fn handle_dataflow(
         }
 
         let method_node = DataFlowNode::get_for_method_return(
-            method_id.as_ref().unwrap().to_string(),
+            method_id.as_ref().unwrap().to_string(&codebase.interner),
             functionlike_storage.return_type_location.clone(),
             None,
         );

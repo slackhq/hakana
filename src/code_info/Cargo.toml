@@ -8,7 +8,6 @@ path = "lib.rs"
 
 [dependencies]
 oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
-hakana-file-info = { path = "../file_info" }
 itertools = "0.10.1"
 indexmap = "1.8.0"
 strum = "0.23"

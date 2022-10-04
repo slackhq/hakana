@@ -1,6 +1,5 @@
-use std::sync::Arc;
-
 use crate::expression_analyzer;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
@@ -30,7 +29,13 @@ pub(crate) fn analyze(
             statements_analyzer,
             &arg_type.unwrap_or(get_mixed_any()),
             &get_arraykey(false),
-            &FunctionLikeIdentifier::Function(Arc::new("echo".to_string())),
+            &FunctionLikeIdentifier::Function(
+                statements_analyzer
+                    .get_codebase()
+                    .interner
+                    .get("echo")
+                    .unwrap(),
+            ),
             i,
             arg_expr,
             context,

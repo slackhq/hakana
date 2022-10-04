@@ -114,9 +114,9 @@ fn handle_atomic_standin(
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
     let normalized_key = if let TAtomic::TNamedObject { name, .. } = atomic_type {
-        (**name).clone()
+        codebase.interner.lookup(*name).to_string()
     } else if let TAtomic::TTypeAlias { name, .. } = atomic_type {
-        (**name).clone()
+        codebase.interner.lookup(*name).to_string()
     } else {
         key.clone()
     };
@@ -481,18 +481,17 @@ fn replace_atomic(
                             | TAtomic::TKeyset { .. } => {
                                 let (key_param, value_param) =
                                     get_arrayish_params(&input_inner, codebase).unwrap();
-                                if **name == "HH\\KeyedContainer"
-                                    || **name == "HH\\KeyedTraversable"
-                                {
-                                    if offset == 0 {
-                                        Some(key_param)
-                                    } else {
-                                        Some(value_param)
+
+                                match codebase.interner.lookup(*name) {
+                                    "HH\\KeyedContainer" | "HH\\KeyedTraversable" => {
+                                        if offset == 0 {
+                                            Some(key_param)
+                                        } else {
+                                            Some(value_param)
+                                        }
                                     }
-                                } else if **name == "HH\\Container" || **name == "HH\\Traversable" {
-                                    Some(value_param)
-                                } else {
-                                    None
+                                    "HH\\Container" | "HH\\Traversable" => Some(value_param),
+                                    _ => None,
                                 }
                             }
                             TAtomic::TMixedFromLoopIsset => Some(get_mixed_maybe_from_loop(true)),
@@ -706,7 +705,7 @@ fn handle_template_param_standin(
         }
     }
 
-    if &template_type.get_id() == normalized_key {
+    if &template_type.get_id(Some(&codebase.interner)) == normalized_key {
         return template_type
             .clone()
             .types
@@ -809,8 +808,11 @@ fn handle_template_param_standin(
                     if (calling_class.is_none()
                         || replacement_defining_entity != calling_class.unwrap())
                         && (calling_function.is_none()
-                            || **replacement_defining_entity
-                                != format!("fn-{}", calling_function.unwrap().to_string()))
+                            || codebase.interner.lookup(*replacement_defining_entity)
+                                != format!(
+                                    "fn-{}",
+                                    calling_function.unwrap().to_string(&codebase.interner)
+                                ))
                     {
                         for (_, nested_type_atomic) in &replacement_as_type.types {
                             replacements_found = true;
@@ -908,7 +910,7 @@ fn handle_template_param_standin(
 
                         if existing_depth == &depth
                             && &input_arg_offset == existing_arg_offset
-                            && existing_lower_bound.bound_type.get_id() == generic_param.get_id()
+                            && existing_lower_bound.bound_type == generic_param
                             && existing_lower_bound.equality_bound_classlike.as_ref()
                                 == bound_equality_classlike
                         {
@@ -1365,7 +1367,7 @@ fn handle_template_param_type_standin(
 fn template_types_contains<'a>(
     template_types: &'a IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
     param_name: &String,
-    defining_entity: &String,
+    defining_entity: &Symbol,
 ) -> Option<&'a Arc<TUnion>> {
     if let Some(mapped_classes) = template_types.get(param_name) {
         return mapped_classes.get(defining_entity);
@@ -1392,9 +1394,9 @@ fn find_matching_atomic_types_for_template(
 
     for (input_key, atomic_input_type) in &input_type.types {
         let input_key = &if let TAtomic::TNamedObject { name, .. } = atomic_input_type {
-            (**name).clone()
+            codebase.interner.lookup(*name).to_string()
         } else if let TAtomic::TTypeAlias { name, .. } = atomic_input_type {
-            (**name).clone()
+            codebase.interner.lookup(*name).to_string()
         } else {
             input_key.clone()
         };
@@ -1469,7 +1471,10 @@ fn find_matching_atomic_types_for_template(
                     let classlike_info = if let Some(c) = codebase.classlike_infos.get(input_name) {
                         c
                     } else {
-                        println!("Cannot locate class {}", input_name);
+                        println!(
+                            "Cannot locate class {}",
+                            codebase.interner.lookup(*input_name)
+                        );
                         matching_atomic_types.push(TAtomic::TObject);
                         continue;
                     };
@@ -1530,7 +1535,7 @@ fn find_matching_atomic_types_for_template(
                     ..
                 } = base_type
                 {
-                    if **base_name == "HH\\EnumClass\\Label" {
+                    if base_name == &codebase.interner.get("HH\\EnumClass\\Label").unwrap() {
                         let enum_type = if let Some(class_name) = class_name {
                             TAtomic::TNamedObject {
                                 name: class_name.clone(),
@@ -1751,7 +1756,7 @@ pub fn get_extended_templated_types<'a>(
 pub(crate) fn get_root_template_type(
     lower_bounds: &IndexMap<String, FxHashMap<Symbol, Vec<TemplateBound>>>,
     param_name: &String,
-    defining_entity: &String,
+    defining_entity: &Symbol,
     mut visited_entities: FxHashSet<Symbol>,
     codebase: &CodebaseInfo,
 ) -> Option<TUnion> {

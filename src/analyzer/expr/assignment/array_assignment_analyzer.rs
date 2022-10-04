@@ -393,6 +393,8 @@ fn add_array_assignment_dataflow(
         );
     }
 
+    let codebase = statements_analyzer.get_codebase();
+
     for (_, child_parent_node) in &child_expr_type.parent_nodes {
         if !key_values.is_empty() {
             for key_value in key_values {
@@ -408,22 +410,24 @@ fn add_array_assignment_dataflow(
                             .get_codebase()
                             .get_classconst_literal_value(enum_name, member_name)
                         {
-                            if let Some(value) = literal_value.get_single_literal_string_value() {
+                            if let Some(value) =
+                                literal_value.get_single_literal_string_value(&codebase.interner)
+                            {
                                 value
                             } else if let Some(value) = literal_value.get_single_literal_int_value()
                             {
                                 value.to_string()
                             } else {
-                                println!("{},", key_value.get_id());
+                                println!("{},", key_value.get_id(Some(&codebase.interner)));
                                 panic!()
                             }
                         } else {
-                            println!("{},", key_value.get_id());
+                            println!("{},", key_value.get_id(Some(&codebase.interner)));
                             panic!();
                         }
                     }
                     _ => {
-                        println!("{},", key_value.get_id());
+                        println!("{},", key_value.get_id(Some(&codebase.interner)));
                         panic!()
                     }
                 };

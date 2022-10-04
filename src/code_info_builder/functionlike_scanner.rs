@@ -1,10 +1,10 @@
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use super::Context;
 use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
-use hakana_file_info::FileSource;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
@@ -22,6 +22,8 @@ use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::taint::string_to_sink_types;
 use hakana_reflection_info::taint::string_to_source_types;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
+use hakana_reflection_info::FileSource;
+use hakana_reflection_info::Interner;
 use hakana_type::get_mixed_any;
 use hakana_type::wrap_atomic;
 use oxidized::aast;
@@ -35,6 +37,7 @@ use rustc_hash::FxHashSet;
 
 pub(crate) fn scan_method(
     codebase: &mut CodebaseInfo,
+    interner: &Arc<Mutex<Interner>>,
     resolved_names: &FxHashMap<usize, Symbol>,
     m: &aast::Method_<(), ()>,
     c: &mut Context,
@@ -56,9 +59,14 @@ pub(crate) fn scan_method(
         template_supers: FxHashMap::default(),
     };
 
+    let name = interner.lock().unwrap().intern(method_name.clone());
+
+    let functionlike_id = method_id.to_string(&interner.lock().unwrap());
+
     let mut functionlike_info = get_functionlike(
         &codebase,
-        Arc::new(method_name.clone()),
+        interner,
+        name,
         &m.span,
         &m.name.0,
         &m.tparams,
@@ -70,7 +78,7 @@ pub(crate) fn scan_method(
         &mut type_resolution_context,
         Some(&classlike_name),
         resolved_names,
-        &method_id.to_string(),
+        &functionlike_id,
         comments,
         file_source,
         false,
@@ -134,7 +142,7 @@ fn add_promoted_param_property(
     file_source: &FileSource,
 ) {
     let signature_type_location = if let Some(param_type) = &param_node.type_hint.1 {
-        Some(HPos::new(&param_type.0, &file_source.file_path))
+        Some(HPos::new(&param_type.0, file_source.file_path))
     } else {
         None
     };
@@ -147,8 +155,8 @@ fn add_promoted_param_property(
             }
             ast_defs::Visibility::Protected => MemberVisibility::Protected,
         },
-        pos: Some(HPos::new(&param_node.pos, &file_source.file_path)),
-        stmt_pos: Some(HPos::new(&param_node.pos, &file_source.file_path)),
+        pos: Some(HPos::new(&param_node.pos, file_source.file_path)),
+        stmt_pos: Some(HPos::new(&param_node.pos, file_source.file_path)),
         type_pos: signature_type_location,
         type_: get_type_from_optional_hint(
             &param_node.type_hint.1,
@@ -188,6 +196,7 @@ fn add_promoted_param_property(
 
 pub(crate) fn get_functionlike(
     codebase: &CodebaseInfo,
+    interner: &Arc<Mutex<Interner>>,
     name: Symbol,
     def_pos: &Pos,
     name_pos: &Pos,
@@ -210,7 +219,8 @@ pub(crate) fn get_functionlike(
     let mut template_supers = FxHashMap::default();
 
     if !tparams.is_empty() {
-        let fn_id = Arc::new("fn-".to_string() + functionlike_id.as_str());
+        let fn_id = "fn-".to_string() + functionlike_id.as_str();
+        let fn_id = interner.lock().unwrap().intern(fn_id);
 
         for type_param_node in tparams.iter() {
             type_context.template_type_map.insert(
@@ -269,7 +279,7 @@ pub(crate) fn get_functionlike(
                     )])
                 });
         }
-        if *name == "HH\\idx" {
+        if functionlike_id == "HH\\idx" {
             functionlike_info.template_types.insert("Td".to_string(), {
                 FxHashMap::from_iter([(fn_id.clone(), Arc::new(get_mixed_any()))])
             });
@@ -280,15 +290,21 @@ pub(crate) fn get_functionlike(
         .template_type_map
         .extend(functionlike_info.template_types.clone());
 
-    functionlike_info.params =
-        convert_param_nodes(codebase, params, resolved_names, &type_context, file_source);
+    functionlike_info.params = convert_param_nodes(
+        codebase,
+        interner,
+        params,
+        resolved_names,
+        &type_context,
+        file_source,
+    );
     type_context.template_supers = template_supers;
     functionlike_info.return_type = if let Some(t) =
         get_type_from_optional_hint(ret.get_hint(), None, &type_context, resolved_names)
     {
         Some(t)
     } else {
-        if *name == "HH\\idx" {
+        if functionlike_id == "HH\\idx" {
             if let Some(defining_entities) = type_context.template_type_map.get(&"Td".to_string()) {
                 let as_type = defining_entities.values().next().unwrap().clone();
                 let defining_entity = defining_entities.keys().next().unwrap().clone();
@@ -328,67 +344,80 @@ pub(crate) fn get_functionlike(
             .unwrap()
             .clone();
 
-        if *name == "Hakana\\SecurityAnalysis\\Source" {
-            let mut source_types = FxHashSet::default();
+        match interner.lock().unwrap().lookup(name) {
+            "Hakana\\SecurityAnalysis\\Source" => {
+                let mut source_types = FxHashSet::default();
 
-            for attribute_param_expr in &user_attribute.params {
-                let attribute_param_type = simple_type_inferer::infer(
-                    codebase,
-                    &mut FxHashMap::default(),
-                    attribute_param_expr,
-                    resolved_names,
-                );
+                for attribute_param_expr in &user_attribute.params {
+                    let attribute_param_type = simple_type_inferer::infer(
+                        codebase,
+                        &mut FxHashMap::default(),
+                        attribute_param_expr,
+                        resolved_names,
+                    );
 
-                if let Some(attribute_param_type) = attribute_param_type {
-                    if let Some(str) = attribute_param_type.get_single_literal_string_value() {
-                        source_types.extend(string_to_source_types(str));
+                    if let Some(attribute_param_type) = attribute_param_type {
+                        if let Some(str) =
+                            attribute_param_type.get_single_literal_string_value(&codebase.interner)
+                        {
+                            source_types.extend(string_to_source_types(str));
+                        }
                     }
                 }
+
+                functionlike_info.taint_source_types = source_types;
             }
+            "Hakana\\SecurityAnalysis\\SpecializeCall" => {
+                functionlike_info.specialize_call = true;
+            }
+            "Hakana\\SecurityAnalysis\\IgnorePath" => {
+                functionlike_info.ignore_taint_path = true;
+            }
+            "Hakana\\SecurityAnalysis\\IgnorePathIfTrue" => {
+                functionlike_info.ignore_taints_if_true = true;
+            }
+            "Hakana\\SecurityAnalysis\\Sanitize" => {
+                let mut removed_types = FxHashSet::default();
 
-            functionlike_info.taint_source_types = source_types;
-        } else if *name == "Hakana\\SecurityAnalysis\\SpecializeCall" {
-            functionlike_info.specialize_call = true;
-        } else if *name == "Hakana\\SecurityAnalysis\\IgnorePath" || *name == "__EntryPoint" {
-            functionlike_info.ignore_taint_path = true;
-        } else if *name == "Hakana\\SecurityAnalysis\\IgnorePathIfTrue" {
-            functionlike_info.ignore_taints_if_true = true;
-        } else if *name == "Hakana\\SecurityAnalysis\\Sanitize" {
-            let mut removed_types = FxHashSet::default();
+                for attribute_param_expr in &user_attribute.params {
+                    let attribute_param_type = simple_type_inferer::infer(
+                        codebase,
+                        &mut FxHashMap::default(),
+                        attribute_param_expr,
+                        resolved_names,
+                    );
 
-            for attribute_param_expr in &user_attribute.params {
-                let attribute_param_type = simple_type_inferer::infer(
-                    codebase,
-                    &mut FxHashMap::default(),
-                    attribute_param_expr,
-                    resolved_names,
-                );
-
-                if let Some(attribute_param_type) = attribute_param_type {
-                    if let Some(str) = attribute_param_type.get_single_literal_string_value() {
-                        removed_types.extend(string_to_sink_types(str));
+                    if let Some(attribute_param_type) = attribute_param_type {
+                        if let Some(str) =
+                            attribute_param_type.get_single_literal_string_value(&codebase.interner)
+                        {
+                            removed_types.extend(string_to_sink_types(str));
+                        }
                     }
                 }
+
+                functionlike_info.removed_taints = Some(removed_types);
             }
-
-            functionlike_info.removed_taints = Some(removed_types);
-        }
-
-        if *name == "__EntryPoint" || *name == "__DynamicallyCallable" {
-            functionlike_info.dynamically_callable = true;
-        }
-
-        if *name == "Codegen" {
-            functionlike_info.generated = true;
+            "__EntryPoint" => {
+                functionlike_info.dynamically_callable = true;
+                functionlike_info.ignore_taint_path = true;
+            }
+            "__DynamicallyCallable" => {
+                functionlike_info.dynamically_callable = true;
+            }
+            "Codegen" => {
+                functionlike_info.generated = true;
+            }
+            _ => {}
         }
     }
 
     if let Some(ret) = &ret.1 {
-        functionlike_info.return_type_location = Some(HPos::new(&ret.0, &file_source.file_path));
+        functionlike_info.return_type_location = Some(HPos::new(&ret.0, file_source.file_path));
     }
 
-    functionlike_info.name_location = Some(HPos::new(name_pos, &file_source.file_path));
-    let mut definition_location = HPos::new(def_pos, &file_source.file_path);
+    functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path));
+    let mut definition_location = HPos::new(def_pos, file_source.file_path);
 
     let mut suppressed_issues = FxHashMap::default();
 
@@ -411,7 +440,7 @@ pub(crate) fn get_functionlike(
                     };
 
                     if let Some(issue_kind) = get_issue_from_comment(trimmed_text) {
-                        let comment_pos = HPos::new(comment_pos, &file_source.file_path);
+                        let comment_pos = HPos::new(comment_pos, file_source.file_path);
                         suppressed_issues.insert(issue_kind, comment_pos);
                     }
 
@@ -470,6 +499,7 @@ pub(crate) fn get_functionlike(
 
 fn convert_param_nodes(
     codebase: &CodebaseInfo,
+    interner: &Arc<Mutex<Interner>>,
     param_nodes: &Vec<aast::FunParam<(), ()>>,
     resolved_names: &FxHashMap<usize, Symbol>,
     type_context: &TypeResolutionContext,
@@ -493,7 +523,7 @@ fn convert_param_nodes(
             };
             param.is_inout = matches!(param_node.callconv, ast_defs::ParamKind::Pinout(_));
             param.signature_type_location = if let Some(param_type) = &param_node.type_hint.1 {
-                Some(HPos::new(&param_type.0, &file_source.file_path))
+                Some(HPos::new(&param_type.0, file_source.file_path))
             } else {
                 None
             };
@@ -502,53 +532,57 @@ fn convert_param_nodes(
                     .get(&user_attribute.name.0.start_offset())
                     .unwrap();
 
-                if **name == "Hakana\\SecurityAnalysis\\Sink" {
-                    let mut sink_types = FxHashSet::default();
+                match interner.lock().unwrap().lookup(*name) {
+                    "Hakana\\SecurityAnalysis\\Sink" => {
+                        let mut sink_types = FxHashSet::default();
 
-                    for attribute_param_expr in &user_attribute.params {
-                        let attribute_param_type = simple_type_inferer::infer(
-                            codebase,
-                            &mut FxHashMap::default(),
-                            attribute_param_expr,
-                            resolved_names,
-                        );
+                        for attribute_param_expr in &user_attribute.params {
+                            let attribute_param_type = simple_type_inferer::infer(
+                                codebase,
+                                &mut FxHashMap::default(),
+                                attribute_param_expr,
+                                resolved_names,
+                            );
 
-                        if let Some(attribute_param_type) = attribute_param_type {
-                            if let Some(str) =
-                                attribute_param_type.get_single_literal_string_value()
-                            {
-                                sink_types.extend(string_to_sink_types(str));
+                            if let Some(attribute_param_type) = attribute_param_type {
+                                if let Some(str) = attribute_param_type
+                                    .get_single_literal_string_value(&codebase.interner)
+                                {
+                                    sink_types.extend(string_to_sink_types(str));
+                                }
                             }
                         }
+
+                        param.taint_sinks = Some(sink_types);
                     }
+                    "Hakana\\SecurityAnalysis\\RemoveTaintsWhenReturningTrue" => {
+                        let mut removed_taints = FxHashSet::default();
 
-                    param.taint_sinks = Some(sink_types);
-                } else if **name == "Hakana\\SecurityAnalysis\\RemoveTaintsWhenReturningTrue" {
-                    let mut removed_taints = FxHashSet::default();
+                        for attribute_param_expr in &user_attribute.params {
+                            let attribute_param_type = simple_type_inferer::infer(
+                                codebase,
+                                &mut FxHashMap::default(),
+                                attribute_param_expr,
+                                resolved_names,
+                            );
 
-                    for attribute_param_expr in &user_attribute.params {
-                        let attribute_param_type = simple_type_inferer::infer(
-                            codebase,
-                            &mut FxHashMap::default(),
-                            attribute_param_expr,
-                            resolved_names,
-                        );
-
-                        if let Some(attribute_param_type) = attribute_param_type {
-                            if let Some(str) =
-                                attribute_param_type.get_single_literal_string_value()
-                            {
-                                removed_taints.extend(string_to_sink_types(str));
+                            if let Some(attribute_param_type) = attribute_param_type {
+                                if let Some(str) = attribute_param_type
+                                    .get_single_literal_string_value(&codebase.interner)
+                                {
+                                    removed_taints.extend(string_to_sink_types(str));
+                                }
                             }
                         }
-                    }
 
-                    param.removed_taints_when_returning_true = Some(removed_taints);
+                        param.removed_taints_when_returning_true = Some(removed_taints);
+                    }
+                    _ => {}
                 }
             }
             param.promoted_property = param_node.visibility.is_some();
             param.is_optional = param_node.expr.is_some();
-            param.location = Some(HPos::new(&param_node.pos, &file_source.file_path));
+            param.location = Some(HPos::new(&param_node.pos, file_source.file_path));
             param
         })
         .collect()

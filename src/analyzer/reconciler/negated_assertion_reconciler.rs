@@ -199,14 +199,7 @@ fn subtract_complex_type(
                     }
                 }
             }
-            (
-                TAtomic::TDict {
-                    ..
-                },
-                TAtomic::TDict {
-                    ..
-                },
-            ) => {
+            (TAtomic::TDict { .. }, TAtomic::TDict { .. }) => {
                 // todo subtract assertion dict from existing
             }
             _ => (),
@@ -323,7 +316,7 @@ fn handle_literal_negated_equality(
                     for (cname, const_info) in &enum_storage.constants {
                         if let Some(inferred_type) = &const_info.inferred_type {
                             if let Some(inferred_value) =
-                                inferred_type.get_single_literal_string_value()
+                                inferred_type.get_single_literal_string_value(&codebase.interner)
                             {
                                 if &inferred_value != value {
                                     if let Some(constant_type) = codebase.get_class_constant_type(
@@ -370,7 +363,7 @@ fn handle_literal_negated_equality(
                     for (cname, const_info) in &enum_storage.constants {
                         if let Some(inferred_type) = &const_info.inferred_type {
                             if let Some(inferred_value) =
-                                inferred_type.get_single_literal_string_value()
+                                inferred_type.get_single_literal_string_value(&codebase.interner)
                             {
                                 if &inferred_value != value {
                                     if let Some(constant_type) = codebase.get_class_constant_type(

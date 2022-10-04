@@ -1,7 +1,7 @@
-use std::sync::Arc;
-
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+
+use crate::StrId;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SymbolKind {
@@ -14,12 +14,12 @@ pub enum SymbolKind {
     Function,
 }
 
-pub type Symbol = Arc<String>;
+pub type Symbol = StrId;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Symbols {
     pub all: FxHashMap<Symbol, SymbolKind>,
-    pub classlike_files: FxHashMap<Symbol, Arc<String>>,
+    pub classlike_files: FxHashMap<Symbol, StrId>,
 }
 
 impl Symbols {
@@ -30,50 +30,50 @@ impl Symbols {
         }
     }
 
-    pub fn add_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
+    pub fn add_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
         self.all.insert(fq_class_name.clone(), SymbolKind::Class);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path.clone());
+                .insert(fq_class_name.clone(), file_path);
         }
     }
 
-    pub fn add_enum_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
+    pub fn add_enum_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
         self.all
             .insert(fq_class_name.clone(), SymbolKind::EnumClass);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path.clone());
+                .insert(fq_class_name.clone(), file_path);
         }
     }
 
-    pub fn add_interface_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
+    pub fn add_interface_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
         self.all
             .insert(fq_class_name.clone(), SymbolKind::Interface);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path.clone());
+                .insert(fq_class_name.clone(), file_path);
         }
     }
 
-    pub fn add_trait_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
+    pub fn add_trait_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
         self.all.insert(fq_class_name.clone(), SymbolKind::Trait);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path.clone());
+                .insert(fq_class_name.clone(), file_path);
         }
     }
 
-    pub fn add_enum_name(&mut self, fq_class_name: &Symbol, file_path: Option<&Arc<String>>) {
+    pub fn add_enum_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
         self.all.insert(fq_class_name.clone(), SymbolKind::Enum);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path.clone());
+                .insert(fq_class_name.clone(), file_path);
         }
     }
 

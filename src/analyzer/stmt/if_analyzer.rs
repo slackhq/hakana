@@ -274,12 +274,7 @@ pub(crate) fn update_if_scope(
             if let Some(existing_type) = if_scope.possibly_redefined_vars.get(&var_id) {
                 new_scoped_possibly_redefined_vars.insert(
                     var_id.clone(),
-                    add_union_type(
-                        possibly_redefined_type,
-                        &existing_type,
-                        codebase,
-                        false,
-                    ),
+                    add_union_type(possibly_redefined_type, &existing_type, codebase, false),
                 );
             } else {
                 new_scoped_possibly_redefined_vars.insert(var_id, possibly_redefined_type);

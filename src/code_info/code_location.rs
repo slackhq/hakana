@@ -1,11 +1,11 @@
-use std::sync::Arc;
-
 use oxidized::ast::Pos;
 use serde::{Deserialize, Serialize};
 
+use crate::codebase_info::symbols::Symbol;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HPos {
-    pub file_path: Arc<String>,
+    pub file_path: Symbol,
 
     pub start_offset: usize,
     pub end_offset: usize,
@@ -18,7 +18,7 @@ pub struct HPos {
 }
 
 impl HPos {
-    pub fn new(pos: &Pos, file_path: &Arc<String>) -> HPos {
+    pub fn new(pos: &Pos, file_path: Symbol) -> HPos {
         let (start, end) = pos.to_start_and_end_lnum_bol_offset();
         let (start_line, line_start_beginning_offset, start_offset) = start;
         let (end_line, line_end_beginning_offset, end_offset) = end;

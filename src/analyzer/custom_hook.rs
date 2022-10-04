@@ -29,6 +29,7 @@ pub struct FunctionLikeParamData<'a> {
     pub config: &'a config::Config,
     pub param_type: &'a TUnion,
     pub param_node: &'a aast::FunParam<(), ()>,
+    pub codebase: &'a CodebaseInfo,
 }
 
 pub struct AfterArgAnalysisData<'a> {

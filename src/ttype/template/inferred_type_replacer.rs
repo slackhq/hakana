@@ -177,7 +177,7 @@ pub fn replace(
 fn replace_template_param(
     inferred_lower_bounds: &IndexMap<String, FxHashMap<Symbol, Vec<TemplateBound>>>,
     param_name: &String,
-    defining_entity: &String,
+    defining_entity: &Symbol,
     codebase: &CodebaseInfo,
     as_type: &TUnion,
     extra_types: &Option<FxHashMap<String, TAtomic>>,
@@ -213,9 +213,8 @@ fn replace_template_param(
     } else {
         for (_, template_type_map) in inferred_lower_bounds {
             for (map_defining_entity, _) in template_type_map {
-                if map_defining_entity.starts_with("fn-")
-                    || map_defining_entity.starts_with("typedef-")
-                {
+                let resolved_symbol = codebase.interner.lookup(*map_defining_entity);
+                if resolved_symbol.starts_with("fn-") || resolved_symbol.starts_with("typedef-") {
                     continue;
                 }
 
@@ -233,12 +232,13 @@ fn replace_template_param(
                             panic!()
                         };
                         if let Some(bounds_map) = inferred_lower_bounds.get(template_name) {
-                            if let Some(bounds) = bounds_map.get(template_name) {
-                                template_type =
-                                    Some(standin_type_replacer::get_most_specific_type_from_bounds(
-                                        bounds, codebase,
-                                    ))
-                            }
+                            // if let Some(bounds) = bounds_map.get(template_name) {
+                            //     template_type =
+                            //         Some(standin_type_replacer::get_most_specific_type_from_bounds(
+                            //             bounds,
+                            //             Some(codebase),
+                            //         ))
+                            // }
                         }
                     }
                 }

@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::typehint_resolver::get_type_from_hint;
-use hakana_file_info::FileSource;
+use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     class_constant_info::ConstantInfo,
     classlike_info::Variance,
@@ -11,6 +11,7 @@ use hakana_reflection_info::{
     taint::string_to_source_types,
     type_definition_info::TypeDefinitionInfo,
     type_resolution::TypeResolutionContext,
+    Interner,
 };
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
@@ -35,8 +36,9 @@ struct Context {
 
 struct Scanner<'a> {
     codebase: &'a mut CodebaseInfo,
+    interner: Arc<Mutex<Interner>>,
     file_source: FileSource,
-    resolved_names: FxHashMap<usize, Arc<String>>,
+    resolved_names: &'a FxHashMap<usize, Symbol>,
     user_defined: bool,
 }
 
@@ -56,12 +58,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.codebase
             .classlikes_in_files
-            .entry((*self.file_source.file_path).clone())
+            .entry((self.file_source.file_path_actual).clone())
             .or_insert_with(FxHashSet::default)
             .insert(class_name.clone());
 
         classlike_scanner::scan(
             self.codebase,
+            &self.interner,
             &self.resolved_names,
             &class_name,
             class,
@@ -88,16 +91,16 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.codebase
             .const_files
-            .entry((*self.file_source.file_path).clone())
+            .entry((self.file_source.file_path_actual).clone())
             .or_insert_with(FxHashSet::default)
             .insert(name.clone());
 
         self.codebase.constant_infos.insert(
             name,
             ConstantInfo {
-                pos: Some(HPos::new(&gc.name.0, &self.file_source.file_path)),
+                pos: Some(HPos::new(&gc.name.0, self.file_source.file_path)),
                 type_pos: if let Some(t) = &gc.type_ {
-                    Some(HPos::new(&t.0, &self.file_source.file_path))
+                    Some(HPos::new(&t.0, self.file_source.file_path))
                 } else {
                     None
                 },
@@ -126,7 +129,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_func_body(&mut self, c: &mut Context, p: &aast::FuncBody<(), ()>) -> Result<(), ()> {
-        if self.file_source.file_path.starts_with("hsl_embedded_") {
+        if !self.user_defined {
             Result::Ok(())
         } else {
             p.recurse(c, self)
@@ -146,7 +149,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.codebase
             .typedefs_in_files
-            .entry((*self.file_source.file_path).clone())
+            .entry((self.file_source.file_path_actual).clone())
             .or_insert_with(FxHashSet::default)
             .insert(type_name.clone());
 
@@ -169,8 +172,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             };
 
             let mut h = FxHashMap::default();
+            let type_name_str = self.interner.lock().unwrap().lookup(type_name).to_string();
             h.insert(
-                Arc::new("typedef-".to_string() + &type_name),
+                self.interner
+                    .lock()
+                    .unwrap()
+                    .intern("typedef-".to_string() + &type_name_str),
                 Arc::new(constraint_type.clone()),
             );
 
@@ -191,7 +198,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let mut type_definition = TypeDefinitionInfo {
             newtype_file: if typedef.vis.is_opaque() {
-                Some(self.file_source.file_path.clone())
+                Some(self.file_source.file_path)
             } else {
                 None
             },
@@ -221,11 +228,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             generic_variance,
             shape_field_taints: None,
             is_literal_string: typedef.user_attributes.iter().any(|user_attribute| {
-                **self
-                    .resolved_names
-                    .get(&user_attribute.name.0.start_offset())
-                    .unwrap()
-                    == "Hakana\\SpecialTypes\\LiteralString"
+                self.interner.lock().unwrap().lookup(
+                    *self
+                        .resolved_names
+                        .get(&user_attribute.name.0.start_offset())
+                        .unwrap(),
+                ) == "Hakana\\SpecialTypes\\LiteralString"
             }),
         };
 
@@ -233,11 +241,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .user_attributes
             .iter()
             .filter(|user_attribute| {
-                **self
-                    .resolved_names
-                    .get(&user_attribute.name.0.start_offset())
-                    .unwrap()
-                    == "Hakana\\SecurityAnalysis\\ShapeSource"
+                self.interner.lock().unwrap().lookup(
+                    *self
+                        .resolved_names
+                        .get(&user_attribute.name.0.start_offset())
+                        .unwrap(),
+                ) == "Hakana\\SecurityAnalysis\\ShapeSource"
             })
             .next();
 
@@ -264,7 +273,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     for (name, (_, item_type)) in attribute_known_items {
                         let mut sink_types = FxHashSet::default();
 
-                        if let Some(str) = item_type.get_single_literal_string_value() {
+                        if let Some(str) =
+                            item_type.get_single_literal_string_value(&self.codebase.interner)
+                        {
                             sink_types.extend(string_to_source_types(str));
                         }
 
@@ -287,6 +298,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_method_(&mut self, c: &mut Context, m: &aast::Method_<(), ()>) -> Result<(), ()> {
         let (method_name, mut functionlike_storage) = functionlike_scanner::scan_method(
             self.codebase,
+            &self.interner,
             &self.resolved_names,
             m,
             c,
@@ -319,14 +331,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .unwrap()
             .clone();
 
-        let is_anonymous = name.contains(";");
+        let is_anonymous = f.name.1.contains(";");
 
         if is_anonymous {
-            name = Arc::new(format!(
-                "{}:{}",
-                f.name.0.filename(),
-                f.name.0.start_offset()
-            ));
+            let function_id = format!("{}:{}", f.name.0.filename(), f.name.0.start_offset());
+
+            name = self.interner.lock().unwrap().intern(function_id);
         }
 
         let parent_function_storage = if let Some(parent_function_id) = &c.function_name {
@@ -357,8 +367,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             template_supers: FxHashMap::default(),
         };
 
+        let functionlike_id = self.interner.lock().unwrap().lookup(name).to_string();
+
         let mut functionlike_storage = functionlike_scanner::get_functionlike(
             &self.codebase,
+            &self.interner,
             name.clone(),
             &f.span,
             &f.name.0,
@@ -371,7 +384,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             &mut type_resolution_context,
             None,
             &self.resolved_names,
-            &name.clone(),
+            &functionlike_id,
             &self.file_source.comments,
             &self.file_source,
             is_anonymous,
@@ -387,7 +400,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.codebase
             .functions_in_files
-            .entry((*self.file_source.file_path).clone())
+            .entry((self.file_source.file_path_actual).clone())
             .or_insert_with(FxHashSet::default)
             .insert(name.clone());
 
@@ -422,13 +435,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
 pub fn collect_info_for_aast(
     program: &aast::Program<(), ()>,
-    resolved_names: FxHashMap<usize, Arc<String>>,
+    resolved_names: &FxHashMap<usize, Symbol>,
+    interner: Arc<Mutex<Interner>>,
     codebase: &mut CodebaseInfo,
     file_source: FileSource,
     user_defined: bool,
 ) {
     let mut checker = Scanner {
         codebase,
+        interner,
         file_source,
         resolved_names,
         user_defined,

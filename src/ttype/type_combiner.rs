@@ -171,13 +171,13 @@ pub fn combine(
     for enum_name in combination.enum_types {
         combination
             .value_types
-            .insert((*enum_name).clone(), TAtomic::TEnum { name: enum_name });
+            .insert(enum_name.0.to_string(), TAtomic::TEnum { name: enum_name });
     }
 
     for (enum_name, values) in combination.enum_value_types {
         for value in values {
             combination.value_types.insert(
-                format!("{}::{}", enum_name, value.0),
+                format!("{}::{}", enum_name.0, value.0),
                 TAtomic::TEnumLiteralCase {
                     enum_name: enum_name.clone(),
                     member_name: value.0,
@@ -581,80 +581,82 @@ fn scrape_type_properties(
         ..
     } = atomic
     {
-        if **fq_class_name == "HH\\Container" {
-            // dict<string, Foo>|Container<Bar> => Container<Foo|Bar>
-            if let Some(ref dict_types) = combination.dict_type_params {
-                let container_value_type = if let Some((_, container_types)) =
-                    combination.object_type_params.get("HH\\Container")
+        match codebase.interner.lookup(*fq_class_name) {
+            "HH\\Container" => {
+                // dict<string, Foo>|Container<Bar> => Container<Foo|Bar>
+                if let Some(ref dict_types) = combination.dict_type_params {
+                    let container_value_type = if let Some((_, container_types)) =
+                        combination.object_type_params.get("HH\\Container")
+                    {
+                        combine_union_types(
+                            container_types.get(0).unwrap(),
+                            &dict_types.1,
+                            codebase,
+                            false,
+                        )
+                    } else {
+                        dict_types.1.clone()
+                    };
+                    combination.object_type_params.insert(
+                        "HH\\Container".to_string(),
+                        (fq_class_name.clone(), vec![container_value_type]),
+                    );
+
+                    combination.dict_type_params = None;
+                    combination.has_dict = false;
+                }
+
+                // vec<Foo>|Container<Bar> => Container<Foo|Bar>
+                if let Some(ref value_param) = combination.vec_type_param {
+                    let container_value_type = if let Some((_, container_types)) =
+                        combination.object_type_params.get("HH\\Container")
+                    {
+                        combine_union_types(
+                            container_types.get(0).unwrap(),
+                            value_param,
+                            codebase,
+                            false,
+                        )
+                    } else {
+                        value_param.clone()
+                    };
+                    combination.object_type_params.insert(
+                        "HH\\Container".to_string(),
+                        (fq_class_name.clone(), vec![container_value_type]),
+                    );
+
+                    combination.vec_type_param = None;
+                }
+
+                // KeyedContainer<string, Foo>|Container<Bar> = Container<Foo|Bar>
+                if let Some((_, keyed_container_types)) =
+                    combination.object_type_params.get("HH\\KeyedContainer")
                 {
-                    combine_union_types(
-                        container_types.get(0).unwrap(),
-                        &dict_types.1,
-                        codebase,
-                        false,
-                    )
-                } else {
-                    dict_types.1.clone()
-                };
-                combination.object_type_params.insert(
-                    "HH\\Container".to_string(),
-                    (fq_class_name.clone(), vec![container_value_type]),
-                );
+                    let container_value_type = if let Some((_, container_types)) =
+                        combination.object_type_params.get("HH\\Container")
+                    {
+                        combine_union_types(
+                            container_types.get(0).unwrap(),
+                            keyed_container_types.get(1).unwrap(),
+                            codebase,
+                            false,
+                        )
+                    } else {
+                        keyed_container_types.get(1).unwrap().clone()
+                    };
+                    combination.object_type_params.insert(
+                        "HH\\Container".to_string(),
+                        (fq_class_name.clone(), vec![container_value_type]),
+                    );
 
-                combination.dict_type_params = None;
-                combination.has_dict = false;
+                    combination.object_type_params.remove("HH\\KeyedContainer");
+                }
             }
-
-            // vec<Foo>|Container<Bar> => Container<Foo|Bar>
-            if let Some(ref value_param) = combination.vec_type_param {
-                let container_value_type = if let Some((_, container_types)) =
-                    combination.object_type_params.get("HH\\Container")
-                {
-                    combine_union_types(
-                        container_types.get(0).unwrap(),
-                        value_param,
-                        codebase,
-                        false,
-                    )
-                } else {
-                    value_param.clone()
-                };
-                combination.object_type_params.insert(
-                    "HH\\Container".to_string(),
-                    (fq_class_name.clone(), vec![container_value_type]),
-                );
-
-                combination.vec_type_param = None;
+            "HH\\KeyedContainer" | "HH\\AnyArray" => {
+                merge_array_subtype(combination, fq_class_name, codebase);
             }
-
-            // KeyedContainer<string, Foo>|Container<Bar> = Container<Foo|Bar>
-            if let Some((_, keyed_container_types)) =
-                combination.object_type_params.get("HH\\KeyedContainer")
-            {
-                let container_value_type = if let Some((_, container_types)) =
-                    combination.object_type_params.get("HH\\Container")
-                {
-                    combine_union_types(
-                        container_types.get(0).unwrap(),
-                        keyed_container_types.get(1).unwrap(),
-                        codebase,
-                        false,
-                    )
-                } else {
-                    keyed_container_types.get(1).unwrap().clone()
-                };
-                combination.object_type_params.insert(
-                    "HH\\Container".to_string(),
-                    (fq_class_name.clone(), vec![container_value_type]),
-                );
-
-                combination.object_type_params.remove("HH\\KeyedContainer");
-            }
-        }
-
-        if **fq_class_name == "HH\\KeyedContainer" || **fq_class_name == "HH\\AnyArray" {
-            merge_array_subtype(combination, fq_class_name, codebase);
-        }
+            _ => {}
+        };
 
         if let Some((_, ref existing_type_params)) = combination.object_type_params.get(&type_key) {
             let mut new_type_params = Vec::new();
@@ -727,13 +729,13 @@ fn scrape_type_properties(
             return None;
         }
 
-        if !codebase.class_or_interface_or_enum_exists(&type_key) {
+        if !codebase.class_or_interface_or_enum_exists(&fq_class_name) {
             combination.value_types.insert(type_key, atomic);
 
             return None;
         }
 
-        let is_class = codebase.class_exists(&type_key);
+        let is_class = codebase.class_exists(&fq_class_name);
 
         let mut types_to_remove = Vec::new();
         for (key, named_object) in combination.value_types.iter() {
@@ -757,7 +759,7 @@ fn scrape_type_properties(
                     }
                 } else {
                     if codebase.interface_extends(existing_name, fq_class_name) {
-                        types_to_remove.push((**existing_name).clone());
+                        types_to_remove.push(codebase.interner.lookup(*existing_name).to_string());
                         continue;
                     }
 
@@ -983,7 +985,8 @@ fn merge_array_subtype(
     fq_class_name: &Symbol,
     codebase: &CodebaseInfo,
 ) {
-    let keyed_container_types = combination.object_type_params.get(&**fq_class_name);
+    let fq_class_name_key = codebase.interner.lookup(*fq_class_name).to_string();
+    let keyed_container_types = combination.object_type_params.get(&fq_class_name_key);
     // dict<string, Foo>|KeyedContainer<int, Bar> => KeyedContainer<string|int, Foo|Bar>
     if let Some(ref dict_types) = combination.dict_type_params {
         let container_key_type = if let Some((_, keyed_container_types)) = keyed_container_types {
@@ -1007,7 +1010,7 @@ fn merge_array_subtype(
             dict_types.1.clone()
         };
         combination.object_type_params.insert(
-            (**fq_class_name).clone(),
+            fq_class_name_key.clone(),
             (
                 fq_class_name.clone(),
                 vec![container_key_type, container_value_type],
@@ -1019,7 +1022,7 @@ fn merge_array_subtype(
     }
     // vec<Foo>|KeyedContainer<string, Bar> => Container<int|string, Foo|Bar>
     if let Some(ref value_param) = combination.vec_type_param {
-        let keyed_container_types = combination.object_type_params.get(&**fq_class_name);
+        let keyed_container_types = combination.object_type_params.get(&fq_class_name_key);
         let container_key_type = if let Some((_, keyed_container_types)) = keyed_container_types {
             combine_union_types(
                 keyed_container_types.get(0).unwrap(),
@@ -1042,7 +1045,7 @@ fn merge_array_subtype(
             value_param.clone()
         };
         combination.object_type_params.insert(
-            (**fq_class_name).clone(),
+            fq_class_name_key.clone(),
             (
                 fq_class_name.clone(),
                 vec![container_key_type, container_value_type],

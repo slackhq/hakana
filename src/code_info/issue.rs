@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
-use crate::{code_location::HPos, taint::SinkType};
+use crate::{code_location::HPos, taint::SinkType, Interner};
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
 pub enum IssueKind {
@@ -260,11 +260,11 @@ impl Issue {
         }
     }
 
-    pub fn format(&self) -> String {
+    pub fn format(&self, path: &String) -> String {
         format!(
             "ERROR: {} - {}:{}:{} - {}\n",
             self.kind.to_string(),
-            self.pos.file_path,
+            path,
             self.pos.start_line,
             self.pos.start_column,
             self.description

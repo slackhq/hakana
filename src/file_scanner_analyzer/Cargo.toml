@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 hakana-reflector = { path = "../code_info_builder" }
 hakana-reflection-info = { path = "../code_info" }
-hakana-file-info = { path = "../file_info" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-aast-helper = { path = "../aast_utils" }
 aast_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/aast_parser" }

@@ -44,12 +44,13 @@ pub(crate) fn check_for_paradox(
                     IssueKind::RedundantTypeComparison,
                     format!(
                         "{} {}",
-                        formula_2_clause.to_string(),
+                        formula_2_clause.to_string(&statements_analyzer.get_codebase().interner),
                         "has already been asserted"
                     ),
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
+                &statements_analyzer.get_file_analyzer().get_file_source().file_path_actual
             );
         }
 
@@ -98,21 +99,29 @@ pub(crate) fn check_for_paradox(
                             paradox_message += "(";
                             paradox_message += mini_formula_2
                                 .iter()
-                                .map(|c| c.to_string())
+                                .map(|c| c.to_string(&statements_analyzer.get_codebase().interner))
                                 .collect::<Vec<String>>()
                                 .join(") && (")
                                 .as_str();
                             paradox_message += ")"
                         } else {
-                            paradox_message += mini_formula_2.get(0).unwrap().to_string().as_str();
+                            paradox_message += mini_formula_2
+                                .get(0)
+                                .unwrap()
+                                .to_string(&statements_analyzer.get_codebase().interner)
+                                .as_str();
                         }
                     } else {
                         paradox_message += "Condition not (";
-                        paradox_message += negated_clause_2.to_string().as_str();
+                        paradox_message += negated_clause_2
+                            .to_string(&statements_analyzer.get_codebase().interner)
+                            .as_str();
                     }
 
                     paradox_message += ") contradicts a previously-established condition (";
-                    paradox_message += clause_1.to_string().as_str();
+                    paradox_message += clause_1
+                        .to_string(&statements_analyzer.get_codebase().interner)
+                        .as_str();
                     paradox_message += ")";
 
                     tast_info.maybe_add_issue(
@@ -122,6 +131,7 @@ pub(crate) fn check_for_paradox(
                             statements_analyzer.get_hpos(&pos),
                         ),
                         statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual()
                     );
 
                     return;

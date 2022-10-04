@@ -15,6 +15,7 @@ use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::{string_to_sink_types, SinkType};
+use hakana_reflection_info::Interner;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing};
@@ -132,11 +133,12 @@ fn get_unpacked_type(
                         IssueKind::MixedAnyArgument,
                         format!(
                             "Unpacking requires a collection type, {} provided",
-                            atomic_type.get_id()
+                            atomic_type.get_id(Some(&statements_analyzer.get_codebase().interner))
                         ),
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
 
                 get_mixed_any()
@@ -151,11 +153,12 @@ fn get_unpacked_type(
                         IssueKind::MixedArgument,
                         format!(
                             "Unpacking requires a collection type, {} provided",
-                            atomic_type.get_id()
+                            atomic_type.get_id(Some(&statements_analyzer.get_codebase().interner))
                         ),
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
 
                 get_mixed()
@@ -167,11 +170,13 @@ fn get_unpacked_type(
                         IssueKind::InvalidArgument,
                         format!(
                             "Unpacking requires a collection type, {} provided",
-                            arg_value_type.get_id()
+                            arg_value_type
+                                .get_id(Some(&statements_analyzer.get_codebase().interner))
                         ),
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual()
                 );
 
                 get_mixed()
@@ -254,13 +259,14 @@ pub(crate) fn verify_type(
                 format!(
                     "Argument {} of {} expects {}, {} provided",
                     (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
-                    input_type.get_id(),
+                    functionlike_id.to_string(&codebase.interner),
+                    param_type.get_id(Some(&codebase.interner)),
+                    input_type.get_id(Some(&codebase.interner)),
                 ),
                 statements_analyzer.get_hpos(&input_expr.pos()),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
 
         // todo handle mixed values, including coercing when passed into functions
@@ -292,12 +298,13 @@ pub(crate) fn verify_type(
                 format!(
                     "Argument {} of {} expects {}, nothing type provided",
                     (argument_offset + 1).to_string(),
-                    functionlike_id.to_string(),
-                    param_type.get_id(),
+                    functionlike_id.to_string(&codebase.interner),
+                    param_type.get_id(Some(&codebase.interner)),
                 ),
                 statements_analyzer.get_hpos(&input_expr.pos()),
             ),
             statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual()
         );
 
         return true;
@@ -355,13 +362,14 @@ pub(crate) fn verify_type(
                     format!(
                         "Argument {} of {} expects {}, parent type {} provided",
                         (argument_offset + 1).to_string(),
-                        functionlike_id.to_string(),
-                        param_type.get_id(),
-                        input_type.get_id(),
+                        functionlike_id.to_string(&codebase.interner),
+                        param_type.get_id(Some(&codebase.interner)),
+                        input_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         } else if union_comparison_result
             .type_coerced_from_nested_mixed
@@ -373,13 +381,14 @@ pub(crate) fn verify_type(
                     format!(
                         "Argument {} of {} expects {}, parent type {} provided",
                         (argument_offset + 1).to_string(),
-                        functionlike_id.to_string(),
-                        param_type.get_id(),
-                        input_type.get_id(),
+                        functionlike_id.to_string(&codebase.interner),
+                        param_type.get_id(Some(&codebase.interner)),
+                        input_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         } else {
             tast_info.maybe_add_issue(
@@ -388,13 +397,14 @@ pub(crate) fn verify_type(
                     format!(
                         "Argument {} of {} expects {}, parent type {} provided",
                         (argument_offset + 1).to_string(),
-                        functionlike_id.to_string(),
-                        param_type.get_id(),
-                        input_type.get_id(),
+                        functionlike_id.to_string(&codebase.interner),
+                        param_type.get_id(Some(&codebase.interner)),
+                        input_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         }
     }
@@ -414,13 +424,14 @@ pub(crate) fn verify_type(
                     format!(
                         "Argument {} of {} expects {}, possibly different type {} provided",
                         (argument_offset + 1).to_string(),
-                        functionlike_id.to_string(),
-                        param_type.get_id(),
-                        input_type.get_id(),
+                        functionlike_id.to_string(&codebase.interner),
+                        param_type.get_id(Some(&codebase.interner)),
+                        input_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         } else {
             tast_info.maybe_add_issue(
@@ -429,13 +440,14 @@ pub(crate) fn verify_type(
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
                         (argument_offset + 1).to_string(),
-                        functionlike_id.to_string(),
-                        param_type.get_id(),
-                        input_type.get_id(),
+                        functionlike_id.to_string(&codebase.interner),
+                        param_type.get_id(Some(&codebase.interner)),
+                        input_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         }
 
@@ -445,7 +457,14 @@ pub(crate) fn verify_type(
     if !param_type.is_nullable()
         && (match functionlike_id {
             FunctionLikeIdentifier::Function(function_id) => {
-                **function_id != "echo" && **function_id != "print"
+                match statements_analyzer
+                    .get_codebase()
+                    .interner
+                    .lookup(*function_id)
+                {
+                    "echo" | "print" => false,
+                    _ => true,
+                }
             }
             FunctionLikeIdentifier::Method(_, _) => true,
         })
@@ -457,13 +476,14 @@ pub(crate) fn verify_type(
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
                         (argument_offset + 1).to_string(),
-                        functionlike_id.to_string(),
-                        param_type.get_id(),
-                        input_type.get_id(),
+                        functionlike_id.to_string(&codebase.interner),
+                        param_type.get_id(Some(&codebase.interner)),
+                        input_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
 
             return true;
@@ -476,13 +496,14 @@ pub(crate) fn verify_type(
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
                         (argument_offset + 1).to_string(),
-                        functionlike_id.to_string(),
-                        param_type.get_id(),
-                        input_type.get_id(),
+                        functionlike_id.to_string(&codebase.interner),
+                        param_type.get_id(Some(&codebase.interner)),
+                        input_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         }
     }
@@ -492,7 +513,14 @@ pub(crate) fn verify_type(
         && !param_type.has_scalar()
         && (match functionlike_id {
             FunctionLikeIdentifier::Function(function_id) => {
-                **function_id != "echo" && **function_id != "print"
+                match statements_analyzer
+                    .get_codebase()
+                    .interner
+                    .lookup(*function_id)
+                {
+                    "echo" | "print" => false,
+                    _ => true,
+                }
             }
             FunctionLikeIdentifier::Method(_, _) => true,
         })
@@ -504,13 +532,14 @@ pub(crate) fn verify_type(
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
                         (argument_offset + 1).to_string(),
-                        functionlike_id.to_string(),
-                        param_type.get_id(),
-                        input_type.get_id(),
+                        functionlike_id.to_string(&codebase.interner),
+                        param_type.get_id(Some(&codebase.interner)),
+                        input_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
             return true;
         }
@@ -522,13 +551,14 @@ pub(crate) fn verify_type(
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
                         (argument_offset + 1).to_string(),
-                        functionlike_id.to_string(),
-                        param_type.get_id(),
-                        input_type.get_id(),
+                        functionlike_id.to_string(&codebase.interner),
+                        param_type.get_id(Some(&codebase.interner)),
+                        input_type.get_id(Some(&codebase.interner)),
                     ),
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual()
             );
         }
     }
@@ -566,7 +596,10 @@ fn add_dataflow(
 
         for (_, at) in &param_type.types {
             if let Some(shape_name) = at.get_shape_name() {
-                if let Some(t) = codebase.type_definitions.get(shape_name) {
+                if let Some(t) = codebase
+                    .type_definitions
+                    .get(&codebase.interner.get(shape_name).unwrap())
+                {
                     if t.shape_field_taints.is_some() {
                         return;
                     }
@@ -576,7 +609,7 @@ fn add_dataflow(
     }
 
     let method_node = DataFlowNode::get_for_method_argument(
-        functionlike_id.to_string(),
+        functionlike_id.to_string(&codebase.interner),
         argument_offset,
         if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
             function_param.location.clone()
@@ -602,7 +635,9 @@ fn add_dataflow(
                             if codebase.declaring_method_exists(&dependent_classlike, &method_name)
                             {
                                 let new_sink = DataFlowNode::get_for_method_argument(
-                                    (**dependent_classlike).clone() + "::" + method_name,
+                                    codebase.interner.lookup(*dependent_classlike).to_string()
+                                        + "::"
+                                        + method_name,
                                     argument_offset,
                                     None,
                                     None,
@@ -632,7 +667,7 @@ fn add_dataflow(
             if let Some(method_id) = functionlike_id.as_method_identifier() {
                 if declaring_method_id != &method_id {
                     let new_sink = DataFlowNode::get_for_method_argument(
-                        declaring_method_id.to_string(),
+                        declaring_method_id.to_string(&codebase.interner),
                         argument_offset,
                         Some(statements_analyzer.get_hpos(input_expr.pos())),
                         None,
@@ -664,12 +699,12 @@ fn add_dataflow(
 
     let argument_value_node = if data_flow_graph.kind == GraphKind::FunctionBody {
         DataFlowNode::VariableUseSink {
-            id: "call to ".to_string() + functionlike_id.to_string().as_str(),
+            id: "call to ".to_string() + functionlike_id.to_string(&codebase.interner).as_str(),
             pos: statements_analyzer.get_hpos(input_expr.pos()),
         }
     } else {
         DataFlowNode::get_for_assignment(
-            "call to ".to_string() + functionlike_id.to_string().as_str(),
+            "call to ".to_string() + functionlike_id.to_string(&codebase.interner).as_str(),
             statements_analyzer.get_hpos(input_expr.pos()),
         )
     };
@@ -691,7 +726,7 @@ fn add_dataflow(
     if data_flow_graph.kind == GraphKind::FunctionBody {
         data_flow_graph.add_node(argument_value_node);
     } else {
-        let mut taints = get_argument_taints(functionlike_id, argument_offset);
+        let mut taints = get_argument_taints(functionlike_id, argument_offset, &codebase.interner);
 
         if let Some(sinks) = &function_param.taint_sinks {
             taints.extend(sinks.clone());
@@ -761,9 +796,13 @@ pub(crate) fn get_removed_taints_in_comments(
     removed_taints
 }
 
-fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) -> Vec<SinkType> {
+fn get_argument_taints(
+    function_id: &FunctionLikeIdentifier,
+    arg_offset: usize,
+    interner: &Interner,
+) -> Vec<SinkType> {
     match function_id {
-        FunctionLikeIdentifier::Function(id) => match id.as_str() {
+        FunctionLikeIdentifier::Function(id) => match interner.lookup(*id) {
             "echo" | "print" | "var_dump" => {
                 return vec![SinkType::HtmlTag];
             }
@@ -822,7 +861,7 @@ fn get_argument_taints(function_id: &FunctionLikeIdentifier, arg_offset: usize) 
             _ => {}
         },
         FunctionLikeIdentifier::Method(fq_class, method_name) => {
-            match (fq_class.as_str(), method_name.as_str()) {
+            match (interner.lookup(*fq_class), method_name.as_str()) {
                 ("AsyncMysqlConnection", "query") => {
                     if arg_offset == 0 {
                         return vec![SinkType::Sql];

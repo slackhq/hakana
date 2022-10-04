@@ -5,7 +5,7 @@ use crate::{
 };
 use hakana_reflection_info::{
     classlike_info::Variance,
-    codebase_info::CodebaseInfo,
+    codebase_info::{symbols::Symbol, CodebaseInfo},
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
@@ -39,12 +39,18 @@ pub(crate) fn is_contained_by(
     };
 
     if !codebase.class_or_interface_or_enum_or_trait_exists(input_name) {
-        println!("Classlike {} does not exist", input_name);
+        println!(
+            "Classlike {} does not exist",
+            codebase.interner.lookup(*input_name)
+        );
         return false;
     }
 
     if !codebase.class_or_interface_or_enum_or_trait_exists(container_name) {
-        println!("Classlike {} does not exist", container_name);
+        println!(
+            "Classlike {} does not exist",
+            codebase.interner.lookup(*container_name)
+        );
         return false;
     }
 
@@ -131,7 +137,9 @@ pub(crate) fn is_contained_by(
         _ => panic!(),
     };
 
-    if **input_name == "HH\\Awaitable" && **container_name == "HH\\Awaitable" {
+    let awaitable_id = codebase.interner.get("HH\\Awaitable").unwrap();
+
+    if input_name == &awaitable_id && container_name == &awaitable_id {
         if let (Some(input_param), Some(container_param)) =
             (input_type_params.get(0), container_type_params.get(0))
         {
@@ -171,9 +179,9 @@ pub(crate) fn is_contained_by(
 pub(crate) fn compare_generic_params(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
-    input_name: &String,
+    input_name: &Symbol,
     input_param: &TUnion,
-    container_name: &String,
+    container_name: &Symbol,
     container_param: &TUnion,
     param_offset: usize,
     allow_interface_equality: bool,
@@ -238,7 +246,8 @@ pub(crate) fn compare_generic_params(
             }
         }
 
-        if input_name == "HH\\KeyedContainer" && param_offset == 0 {
+        if input_name == &codebase.interner.get("HH\\KeyedContainer").unwrap() && param_offset == 0
+        {
             param_comparison_result.type_coerced_from_nested_mixed = Some(true);
         }
 

@@ -35,7 +35,7 @@ macro_rules! intersect_simple {
                         trigger_issue_for_impossible(
                             $tast_info,
                             $statements_analyzer,
-                            &$existing_var_type.get_id(),
+                            &$existing_var_type.get_id(Some(&$statements_analyzer.get_codebase().interner)),
                             &k,
                             $assertion,
                             !did_remove_type,

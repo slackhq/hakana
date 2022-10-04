@@ -1,4 +1,5 @@
 use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::Interner;
 use rustc_hash::FxHashSet;
 use std::sync::Arc;
 use std::time::Instant;
@@ -12,7 +13,12 @@ use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::taint::SinkType;
 
-pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) -> Vec<Issue> {
+pub fn find_tainted_data(
+    graph: &DataFlowGraph,
+    config: &Config,
+    debug: bool,
+    interner: &Interner,
+) -> Vec<Issue> {
     let mut new_issues = vec![];
 
     let sources = graph
@@ -32,12 +38,25 @@ pub fn find_tainted_data(graph: &DataFlowGraph, config: &Config, debug: bool) ->
     //     }
     // }
 
-    find_paths_to_sinks(sources, graph, config, debug, &mut new_issues, true);
+    find_paths_to_sinks(
+        sources,
+        graph,
+        config,
+        debug,
+        &mut new_issues,
+        true,
+        interner,
+    );
 
     new_issues
 }
 
-pub fn find_connections(graph: &DataFlowGraph, config: &Config, debug: bool) -> Vec<Issue> {
+pub fn find_connections(
+    graph: &DataFlowGraph,
+    config: &Config,
+    debug: bool,
+    interner: &Interner,
+) -> Vec<Issue> {
     let mut new_issues = vec![];
 
     let sources = graph
@@ -55,7 +74,15 @@ pub fn find_connections(graph: &DataFlowGraph, config: &Config, debug: bool) -> 
     //     }
     // }
 
-    find_paths_to_sinks(sources, graph, config, debug, &mut new_issues, false);
+    find_paths_to_sinks(
+        sources,
+        graph,
+        config,
+        debug,
+        &mut new_issues,
+        false,
+        interner,
+    );
 
     new_issues
 }
@@ -68,6 +95,7 @@ fn find_paths_to_sinks(
     debug: bool,
     new_issues: &mut Vec<Issue>,
     match_sinks: bool,
+    interner: &Interner,
 ) {
     let mut seen_sources = FxHashSet::default();
 
@@ -100,6 +128,7 @@ fn find_paths_to_sinks(
                             new_issues,
                             i == config.security_config.max_depth - 1,
                             match_sinks,
+                            interner,
                         ))
                     }
 
@@ -200,6 +229,7 @@ fn get_child_nodes(
     new_issues: &mut Vec<Issue>,
     is_last: bool,
     match_sinks: bool,
+    interner: &Interner,
 ) -> Vec<Arc<TaintedNode>> {
     let mut new_child_nodes = Vec::new();
 
@@ -211,7 +241,7 @@ fn get_child_nodes(
                         let message = format!(
                             "Data found its way to {} using path {}",
                             target_id,
-                            generated_source.get_trace()
+                            generated_source.get_trace(interner)
                         );
                         new_issues.push(Issue::new(
                             IssueKind::TaintedData(t.clone()),
@@ -279,7 +309,7 @@ fn get_child_nodes(
                             let message = format!(
                                 "Data found its way to {} using path {}",
                                 target_id,
-                                generated_source.get_trace()
+                                generated_source.get_trace(interner)
                             );
                             new_issues.push(Issue::new(
                                 IssueKind::TaintedData(t.clone()),
@@ -330,7 +360,7 @@ fn get_child_nodes(
                                             if let Some(pos) = &new_destination.pos {
                                                 if !config.allow_sink_in_file(
                                                     &matching_taint,
-                                                    &pos.file_path,
+                                                    interner.lookup(pos.file_path),
                                                 ) {
                                                     continue;
                                                 }
@@ -342,7 +372,7 @@ fn get_child_nodes(
                                                 "Data from {} found its way to {} using path {}",
                                                 taint_source.get_error_message(),
                                                 matching_taint.get_error_message(),
-                                                new_destination.get_trace()
+                                                new_destination.get_trace(interner)
                                             );
                                             new_issues.push(Issue::new(
                                                 IssueKind::TaintedData(matching_taint.clone()),

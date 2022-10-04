@@ -160,7 +160,7 @@ pub(crate) fn get_control_actions(
                         let stmt = stmt.1.as_while().unwrap();
 
                         if let Some(expr_type) = types.get_expr_type(&stmt.0 .1) {
-                            if expr_type.is_always_truthy() {
+                            if expr_type.is_always_truthy(&codebase.interner) {
                                 //infinite while loop that only return don't have an exit path
                                 let loop_only_ends = control_actions
                                     .iter()
@@ -184,7 +184,7 @@ pub(crate) fn get_control_actions(
 
                         if let Some(for_cond) = stmt.1 {
                             if let Some(expr_type) = types.get_expr_type(&for_cond.1) {
-                                if !expr_type.is_always_truthy() {
+                                if !expr_type.is_always_truthy(&codebase.interner) {
                                     is_infinite_loop = false
                                 }
                             } else {

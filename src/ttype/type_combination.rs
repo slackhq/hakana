@@ -36,7 +36,7 @@ pub(crate) struct TypeCombination {
     pub vec_type_param: Option<TUnion>,
     pub keyset_type_param: Option<TUnion>,
 
-    pub dict_alias_name: Option<Option<Symbol>>,
+    pub dict_alias_name: Option<Option<String>>,
 
     pub falsy_mixed: bool,
     pub truthy_mixed: bool,
