@@ -46,7 +46,12 @@ impl<'a> StatementsAnalyzer<'a> {
         loop_scope: &mut Option<LoopScope>,
     ) -> bool {
         for stmt in stmts {
-            if context.has_returned {
+            if context.has_returned
+                && self.get_config().allow_issue_kind_in_file(
+                    &IssueKind::UnevaluatedCode,
+                    self.get_file_path_actual(),
+                )
+            {
                 if self.get_config().find_unused_expressions {
                     tast_info.maybe_add_issue(
                         Issue::new(
@@ -55,7 +60,7 @@ impl<'a> StatementsAnalyzer<'a> {
                             self.get_hpos(&stmt.0),
                         ),
                         self.get_config(),
-                        self.get_file_path_actual()
+                        self.get_file_path_actual(),
                     );
                 }
             } else {
