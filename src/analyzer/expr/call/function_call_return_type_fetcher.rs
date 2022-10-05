@@ -612,6 +612,7 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Str\\trim"
             | "HH\\Lib\\Str\\trim_left"
             | "HH\\Lib\\Str\\trim_right"
+            | "HH\\Asio\\join"
             | "strip_tags"
             | "stripslashes"
             | "stripcslashes"
