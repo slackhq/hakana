@@ -180,7 +180,7 @@ pub(crate) fn reconcile(
                 return Some(subtract_null(
                     assertion,
                     existing_var_type,
-                    key,
+                    &key,
                     negated,
                     tast_info,
                     statements_analyzer,
@@ -1301,10 +1301,10 @@ fn subtract_bool(
     existing_var_type
 }
 
-fn subtract_null(
+pub(crate) fn subtract_null(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: &Option<String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -1329,7 +1329,7 @@ fn subtract_null(
                     let atomic = atomic.replace_template_extends(subtract_null(
                         assertion,
                         as_type,
-                        None,
+                        &None,
                         false,
                         tast_info,
                         statements_analyzer,

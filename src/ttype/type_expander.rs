@@ -594,5 +594,6 @@ fn get_expanded_closure(
             None
         },
         effects: functionlike_info.effects.to_u8(),
+        closure_id: functionlike_info.name,
     }
 }

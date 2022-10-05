@@ -1034,21 +1034,28 @@ pub(crate) fn trigger_issue_for_impossible(
             assertion_string = "truthy".to_string();
         }
 
-        let description = format!(
-            "Type {} is {} {}",
-            old_var_type_string,
-            (if not_operator { "never" } else { "always" }),
-            &assertion_string
-        );
-
         tast_info.maybe_add_issue(
-            Issue::new(
-                IssueKind::RedundantTypeComparison,
-                description,
-                statements_analyzer.get_hpos(&pos),
-            ),
+            if not_operator {
+                Issue::new(
+                    IssueKind::ImpossibleTypeComparison,
+                    format!(
+                        "Type {} is never {}",
+                        old_var_type_string, &assertion_string
+                    ),
+                    statements_analyzer.get_hpos(&pos),
+                )
+            } else {
+                Issue::new(
+                    IssueKind::RedundantTypeComparison,
+                    format!(
+                        "Type {} is always {}",
+                        old_var_type_string, &assertion_string
+                    ),
+                    statements_analyzer.get_hpos(&pos),
+                )
+            },
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
     } else {
         if !not_operator && assertion_string == "falsy" {
@@ -1056,21 +1063,28 @@ pub(crate) fn trigger_issue_for_impossible(
             assertion_string = "truthy".to_string();
         }
 
-        let description = format!(
-            "Type {} is {} {}",
-            old_var_type_string,
-            (if not_operator { "always" } else { "never" }),
-            &assertion_string
-        );
-
         tast_info.maybe_add_issue(
-            Issue::new(
-                IssueKind::ImpossibleTypeComparison,
-                description,
-                statements_analyzer.get_hpos(&pos),
-            ),
+            if not_operator {
+                Issue::new(
+                    IssueKind::RedundantTypeComparison,
+                    format!(
+                        "Type {} is always {}",
+                        old_var_type_string, &assertion_string
+                    ),
+                    statements_analyzer.get_hpos(&pos),
+                )
+            } else {
+                Issue::new(
+                    IssueKind::ImpossibleTypeComparison,
+                    format!(
+                        "Type {} is never {}",
+                        old_var_type_string, &assertion_string
+                    ),
+                    statements_analyzer.get_hpos(&pos),
+                )
+            },
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
     }
 }

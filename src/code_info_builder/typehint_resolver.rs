@@ -268,6 +268,7 @@ fn get_function_type_from_hints(
             resolved_names,
         )),
         effects: None,
+        closure_id: StrId::anonymous_fn(),
     }
 }
 

@@ -364,6 +364,11 @@ pub(crate) fn analyze(
                 params: lambda_storage.params,
                 return_type: lambda_storage.return_type,
                 effects: lambda_storage.effects.to_u8(),
+                closure_id: statements_analyzer
+                    .get_codebase()
+                    .interner
+                    .get(&closure_id)
+                    .unwrap(),
             });
 
             if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {

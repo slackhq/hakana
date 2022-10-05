@@ -1,5 +1,5 @@
 use crate::functionlike_identifier::FunctionLikeIdentifier;
-use crate::Interner;
+use crate::{Interner, StrId};
 use crate::{
     classlike_info::Variance,
     codebase_info::{
@@ -62,6 +62,7 @@ pub enum TAtomic {
         params: Vec<FunctionLikeParameter>,
         return_type: Option<TUnion>,
         effects: Option<u8>,
+        closure_id: StrId,
     },
     TClosureAlias {
         id: FunctionLikeIdentifier,

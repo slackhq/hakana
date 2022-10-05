@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use super::reconciler::{trigger_issue_for_impossible, ReconciliationStatus};
+use super::{reconciler::{trigger_issue_for_impossible, ReconciliationStatus}, simple_negated_assertion_reconciler::subtract_null};
 use crate::{
     intersect_simple, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
     typed_ast::TastInfo,
@@ -15,7 +15,7 @@ use hakana_type::{
     get_arraykey, get_bool, get_dict, get_false, get_float, get_int, get_keyset, get_mixed_any,
     get_mixed_dict, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing, get_null, get_num,
     get_object, get_scalar, get_string, get_true, get_vec, intersect_union_types,
-    type_comparator::{atomic_type_comparator, type_comparison_result::TypeComparisonResult},
+    type_comparator::{atomic_type_comparator, type_comparison_result::TypeComparisonResult}, wrap_atomic,
 };
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
@@ -180,6 +180,20 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     failed_reconciliation,
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TNonnullMixed { .. } => {
+                return Some(subtract_null(
+                    assertion,
+                    existing_var_type,
+                    key,
+                    !negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
+                    false,
                     suppressed_issues,
                 ));
             }

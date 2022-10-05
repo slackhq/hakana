@@ -221,13 +221,7 @@ fn get_is_assertions(
             vec![is_type
                 .types
                 .into_iter()
-                .map(|(_, t)| {
-                    if let TAtomic::TNonnullMixed { .. } = t {
-                        Assertion::IsNotType(TAtomic::TNull)
-                    } else {
-                        Assertion::IsType(t)
-                    }
-                })
+                .map(|(_, t)| Assertion::IsType(t))
                 .collect::<Vec<Assertion>>()],
         );
     } else {
