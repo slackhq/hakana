@@ -290,7 +290,7 @@ fn get_reference_type(
         let class_name = if let Some(classlike_name) = classlike_name {
             *classlike_name
         } else {
-            *resolved_names.get(&applied_type.0.start_offset()).unwrap()
+            StrId::this()
         };
 
         return TAtomic::TNamedObject {

@@ -48,6 +48,9 @@ impl StrId {
     pub fn anonymous_fn() -> Self {
         StrId(0)
     }
+    pub fn this() -> Self {
+        StrId(1)
+    }
     pub fn member_of() -> Self {
         StrId(4)
     }
@@ -70,10 +73,11 @@ impl Interner {
     pub fn new() -> Self {
         let mut interner = Interner::default();
         interner.intern("<anonymous function>".to_string());
-        interner.intern("echo".to_string());
+        interner.intern("this".to_string());
         interner.intern("isset".to_string());
         interner.intern("unset".to_string());
         interner.intern("HH\\MemberOf".to_string());
+        interner.intern("echo".to_string());
         interner
     }
 

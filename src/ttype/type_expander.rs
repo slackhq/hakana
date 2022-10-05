@@ -180,9 +180,9 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        if codebase.interner.lookup(*name) == "this" {
+        if *name == StrId::this() {
             *name = match options.static_class_type {
-                StaticClassType::None => codebase.interner.get("this").unwrap(),
+                StaticClassType::None => StrId::this(),
                 StaticClassType::Name(this_name) => this_name.clone().clone(),
                 StaticClassType::Object(obj) => {
                     skipped_keys.push(key.clone());
