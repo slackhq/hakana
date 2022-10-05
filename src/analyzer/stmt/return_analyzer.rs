@@ -19,6 +19,7 @@ use hakana_type::{
 };
 use hakana_type::{type_comparator::union_type_comparator, type_expander::StaticClassType};
 use oxidized::{aast, aast::Pos};
+use rustc_hash::FxHashSet;
 
 use crate::{
     expression_analyzer, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
@@ -490,8 +491,6 @@ fn handle_dataflow(
     method_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    let interner = &statements_analyzer.get_codebase().interner;
-
     if data_flow_graph.kind == GraphKind::FunctionBody {
         let return_node = DataFlowNode::get_for_variable_sink(
             "return".to_string(),
@@ -522,10 +521,7 @@ fn handle_dataflow(
                     break;
                 };
 
-                if let Some(t) = codebase
-                    .type_definitions
-                    .get(&shape_name_id)
-                {
+                if let Some(t) = codebase.type_definitions.get(&shape_name_id) {
                     if t.shape_field_taints.is_some() {
                         return;
                     }
@@ -547,6 +543,40 @@ fn handle_dataflow(
                 functionlike_storage.added_taints.clone(),
                 functionlike_storage.removed_taints.clone(),
             );
+        }
+
+        if let Some(FunctionLikeIdentifier::Method(classlike_name, method_name)) = method_id {
+            if let Some(classlike_info) = codebase.classlike_infos.get(&classlike_name) {
+                if method_name != "__construct" {
+                    let mut all_parents = classlike_info
+                        .all_parent_classes
+                        .iter()
+                        .collect::<FxHashSet<_>>();
+                    all_parents.extend(classlike_info.all_parent_interfaces.iter());
+
+                    for parent_classlike in all_parents {
+                        if codebase.declaring_method_exists(&parent_classlike, &method_name) {
+                            let new_sink = DataFlowNode::get_for_method_return(
+                                codebase.interner.lookup(*parent_classlike).to_string()
+                                    + "::"
+                                    + method_name,
+                                None,
+                                None,
+                            );
+
+                            data_flow_graph.add_node(new_sink.clone());
+
+                            data_flow_graph.add_path(
+                                &method_node,
+                                &new_sink,
+                                PathKind::Default,
+                                None,
+                                None,
+                            );
+                        }
+                    }
+                }
+            }
         }
 
         data_flow_graph.add_node(method_node);
