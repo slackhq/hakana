@@ -191,10 +191,12 @@ fn get_specialized_sources(
             if source.specialized_calls.is_empty()
                 || source.specialized_calls.contains_key(specialization)
             {
-                let mut new_source = (*source).clone();
-                new_source.id = format!("{}-{}", source.id, specialization);
+                let new_id = format!("{}-{}", source.id, specialization);
 
-                if graph.forward_edges.contains_key(&new_source.id) {
+                if graph.forward_edges.contains_key(&new_id) {
+                    let mut new_source = (*source).clone();
+                    new_source.id = new_id;
+
                     new_source.unspecialized_id = Some(source.id.clone());
                     new_source.specialized_calls.remove(specialization);
 

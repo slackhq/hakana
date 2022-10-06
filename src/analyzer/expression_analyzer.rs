@@ -562,7 +562,7 @@ pub(crate) fn analyze(
                         && type_params.len() == 1
                     {
                         let mut inside_type = type_params.get(0).unwrap().clone();
-                        inside_type.parent_nodes = awaited_stmt_type.parent_nodes.clone();
+                        inside_type.parent_nodes.extend(awaited_stmt_type.parent_nodes.clone());
 
                         tast_info.expr_types.insert(
                             (expr.1.start_offset(), expr.1.end_offset()),

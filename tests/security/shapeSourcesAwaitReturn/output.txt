@@ -1,0 +1,1 @@
+ERROR: TaintedData - input.hack:12:10 - Data from a user secret found its way to an HTML tag
