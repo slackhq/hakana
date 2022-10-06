@@ -245,6 +245,47 @@ fn add_dataflow(
             );
         }
 
+        if method_id.1 == "__construct" {
+            if let Some(var_type) = context.vars_in_scope.get_mut("$this") {
+                let before_construct_node = DataFlowNode::get_for_this_before_method(
+                    method_id,
+                    functionlike_storage.return_type_location.clone(),
+                    Some(statements_analyzer.get_hpos(call_pos)),
+                    &statements_analyzer.get_codebase().interner,
+                );
+
+                for (_, this_parent_node) in &var_type.parent_nodes {
+                    data_flow_graph.add_path(
+                        this_parent_node,
+                        &before_construct_node,
+                        PathKind::Default,
+                        None,
+                        None,
+                    )
+                }
+
+                data_flow_graph.add_node(before_construct_node);
+
+                let after_construct_node = DataFlowNode::get_for_this_after_method(
+                    method_id,
+                    functionlike_storage.return_type_location.clone(),
+                    Some(statements_analyzer.get_hpos(call_pos)),
+                    &statements_analyzer.get_codebase().interner,
+                );
+
+                let mut var_type_inner = (**var_type).clone();
+
+                var_type_inner.parent_nodes = FxHashMap::from_iter([(
+                    after_construct_node.get_id().clone(),
+                    after_construct_node.clone(),
+                )]);
+
+                data_flow_graph.add_node(after_construct_node);
+
+                *var_type = Rc::new(var_type_inner);
+            }
+        }
+
         if let (Some(lhs_var_id), Some(lhs_var_pos)) = (lhs_var_id, lhs_var_pos) {
             if functionlike_storage.specialize_call {
                 if let Some(context_type) = context.vars_in_scope.get_mut(lhs_var_id) {
@@ -257,6 +298,7 @@ fn add_dataflow(
                         &declaring_method_id,
                         functionlike_storage.name_location.clone(),
                         Some(statements_analyzer.get_hpos(call_pos)),
+                        &codebase.interner,
                     );
 
                     for (_, parent_node) in &context_type.parent_nodes {
@@ -281,6 +323,7 @@ fn add_dataflow(
                         &declaring_method_id,
                         functionlike_storage.name_location.clone(),
                         Some(statements_analyzer.get_hpos(call_pos)),
+                        &codebase.interner,
                     );
 
                     data_flow_graph.add_path(

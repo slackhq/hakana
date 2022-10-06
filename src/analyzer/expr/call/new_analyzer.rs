@@ -169,7 +169,7 @@ fn analyze_atomic(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
 
                 return;
@@ -203,7 +203,7 @@ fn analyze_atomic(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
             }
 
@@ -374,8 +374,7 @@ fn analyze_named_constructor(
                                         (
                                             map_key.clone(),
                                             Arc::new(get_most_specific_type_from_bounds(
-                                                bounds,
-                                                codebase,
+                                                bounds, codebase,
                                             )),
                                         )
                                     })
@@ -466,7 +465,7 @@ fn analyze_named_constructor(
             statements_analyzer,
             result_type,
             context,
-            &method_id,
+            &declaring_method_id,
             codebase.get_method(&declaring_method_id),
             storage.specialize_instance,
             tast_info,
@@ -513,6 +512,7 @@ fn add_dataflow<'a>(
         } else {
             None
         },
+        &statements_analyzer.get_codebase().interner,
     );
 
     data_flow_graph.add_node(new_call_node.clone());

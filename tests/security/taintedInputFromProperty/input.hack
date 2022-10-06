@@ -1,8 +1,8 @@
 class A {
     public string $userId;
 
-    public function __construct() {
-        $this->userId = (string) $_GET["user_id"];
+    public function __construct(string $key) {
+        $this->userId = (string) $_GET[$key];
     }
 
     public function getAppendedUserId() : string {
@@ -17,4 +17,9 @@ class A {
     public function deleteUser(AsyncMysqlConnection $conn, string $userId) : void {
         $conn->query("delete from users where user_id = " . $userId);
     }
+}
+
+function foo(AsyncMysqlConnection $conn): void {
+    $a = new A("foo");
+    $a->doDelete($conn);
 }

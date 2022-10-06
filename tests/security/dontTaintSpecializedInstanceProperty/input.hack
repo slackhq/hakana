@@ -1,4 +1,4 @@
-<<\Hakana\SecurityAnalysis\SpecializeInstance()>>
+<<aas()>>
 class StringHolder {
     public $x;
 

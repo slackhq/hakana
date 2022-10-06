@@ -1,4 +1,3 @@
-<<\Hakana\SecurityAnalysis\SpecializeInstance()>>
 class A {
     private string $taint = "";
     private static string $stub = "";

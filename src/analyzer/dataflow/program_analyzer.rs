@@ -162,22 +162,22 @@ fn get_specialized_sources(
     graph: &DataFlowGraph,
     source: Arc<TaintedNode>,
 ) -> Vec<Arc<TaintedNode>> {
-    if graph.forward_edges.contains_key(&source.id) {
-        return vec![source.clone()];
-    }
-
     let mut generated_sources = vec![];
+
+    if graph.forward_edges.contains_key(&source.id) {
+        generated_sources.push(source.clone());
+    }
 
     if let (Some(specialization_key), Some(unspecialized_id)) =
         (&source.specialization_key, &source.unspecialized_id)
     {
-        let mut new_source = (*source).clone();
+        if graph.forward_edges.contains_key(unspecialized_id) {
+            let mut new_source = (*source).clone();
 
-        new_source.id = unspecialized_id.clone();
-        new_source.unspecialized_id = None;
-        new_source.specialization_key = None;
+            new_source.id = unspecialized_id.clone();
+            new_source.unspecialized_id = None;
+            new_source.specialization_key = None;
 
-        if graph.forward_edges.contains_key(&new_source.id) {
             new_source
                 .specialized_calls
                 .entry(specialization_key.clone())

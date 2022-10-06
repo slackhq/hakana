@@ -380,6 +380,8 @@ pub(crate) fn scan(
         }
     }
 
+    storage.specialize_instance = true;
+
     let codegen_id = interner.lock().unwrap().intern("Codegen".to_string());
     let sealed_id = interner.lock().unwrap().intern("__Sealed".to_string());
 
@@ -388,8 +390,6 @@ pub(crate) fn scan(
             .get(&user_attribute.name.0.start_offset())
             .unwrap()
             .clone();
-
-        storage.specialize_instance = true;
 
         if name == codegen_id {
             storage.generated = true;

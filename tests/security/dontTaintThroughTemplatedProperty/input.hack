@@ -1,4 +1,3 @@
-<<Hakana\SecurityAnalysis\SpecializeInstance()>>
 abstract class Result<+T> {
 	public function getOrNull(): ?T {
 		if ($this is ResultSuccess<_>) {
@@ -10,7 +9,6 @@ abstract class Result<+T> {
 	abstract public function get(): T;
 }
 
-<<Hakana\SecurityAnalysis\SpecializeInstance()>>
 final class ResultSuccess<+T> extends Result<T> {
 	public function __construct(private T $t) {}
 

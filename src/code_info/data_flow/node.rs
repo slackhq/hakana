@@ -1,6 +1,7 @@
 use core::panic;
 
 use crate::method_identifier::MethodIdentifier;
+use crate::Interner;
 use crate::{
     code_location::HPos,
     taint::{SinkType, SourceType},
@@ -121,8 +122,13 @@ impl DataFlowNode {
         method_id: &MethodIdentifier,
         method_location: Option<HPos>,
         pos: Option<HPos>,
+        interner: &Interner,
     ) -> Self {
-        let label = format!("$this in {} before {}", method_id.0 .0, method_id.1);
+        let label = format!(
+            "$this in {} before {}",
+            interner.lookup(method_id.0),
+            method_id.1
+        );
 
         let mut specialization_key = None;
 
@@ -137,8 +143,13 @@ impl DataFlowNode {
         method_id: &MethodIdentifier,
         method_location: Option<HPos>,
         pos: Option<HPos>,
+        interner: &Interner,
     ) -> Self {
-        let label = format!("$this in {} after {}", method_id.0 .0, method_id.1);
+        let label = format!(
+            "$this in {} after {}",
+            interner.lookup(method_id.0),
+            method_id.1
+        );
 
         let mut specialization_key = None;
 

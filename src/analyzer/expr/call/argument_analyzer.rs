@@ -138,7 +138,7 @@ fn get_unpacked_type(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
 
                 get_mixed_any()
@@ -158,7 +158,7 @@ fn get_unpacked_type(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
 
                 get_mixed()
@@ -176,7 +176,7 @@ fn get_unpacked_type(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
 
                 get_mixed()
@@ -266,7 +266,7 @@ pub(crate) fn verify_type(
                 statements_analyzer.get_hpos(&input_expr.pos()),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
 
         // todo handle mixed values, including coercing when passed into functions
@@ -304,7 +304,7 @@ pub(crate) fn verify_type(
                 statements_analyzer.get_hpos(&input_expr.pos()),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
 
         return true;
@@ -369,7 +369,7 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         } else if union_comparison_result
             .type_coerced_from_nested_mixed
@@ -388,7 +388,7 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         } else {
             tast_info.maybe_add_issue(
@@ -404,7 +404,7 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         }
     }
@@ -431,7 +431,7 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         } else {
             tast_info.maybe_add_issue(
@@ -447,7 +447,7 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         }
 
@@ -483,7 +483,7 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
 
             return true;
@@ -503,7 +503,7 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         }
     }
@@ -539,7 +539,7 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
             return true;
         }
@@ -558,7 +558,7 @@ pub(crate) fn verify_type(
                     statements_analyzer.get_hpos(&input_expr.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         }
     }
@@ -602,10 +602,7 @@ fn add_dataflow(
                     // this happens with class constant types
                     break;
                 };
-                if let Some(t) = codebase
-                    .type_definitions
-                    .get(&shape_name_id)
-                {
+                if let Some(t) = codebase.type_definitions.get(&shape_name_id) {
                     if t.shape_field_taints.is_some() {
                         return;
                     }
@@ -646,7 +643,11 @@ fn add_dataflow(
                                         + method_name,
                                     argument_offset,
                                     None,
-                                    None,
+                                    if specialize_taint {
+                                        Some(statements_analyzer.get_hpos(function_call_pos))
+                                    } else {
+                                        None
+                                    },
                                 );
 
                                 data_flow_graph.add_node(new_sink.clone());

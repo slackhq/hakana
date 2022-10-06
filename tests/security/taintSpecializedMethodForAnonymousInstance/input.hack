@@ -1,4 +1,3 @@
-<<\Hakana\SecurityAnalysis\SpecializeInstance()>>
 class Unsafe {
     public function isUnsafe() {
         return $_GET["unsafe"];

@@ -19,3 +19,5 @@ class V1 extends V {
         echo U::shorten($o->s);
     }
 }
+
+(new V1)->foo(new O1());

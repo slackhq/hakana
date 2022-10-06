@@ -225,6 +225,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     &MethodIdentifier(classlike_storage.name.clone(), method_name.clone()),
                     functionlike_storage.return_type_location.clone(),
                     None,
+                    &statements_analyzer.get_codebase().interner,
                 );
 
                 this_type.parent_nodes =
@@ -403,6 +404,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             ),
                             functionlike_storage.name_location.clone(),
                             None,
+                            &statements_analyzer.get_codebase().interner,
                         );
 
                         for (_, parent_node) in &this_type.parent_nodes {

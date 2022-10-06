@@ -1,4 +1,3 @@
-<<\Hakana\SecurityAnalysis\SpecializeInstance()>>
 class User {
     public string $id;
 

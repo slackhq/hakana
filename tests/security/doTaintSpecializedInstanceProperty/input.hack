@@ -1,4 +1,3 @@
-<<\Hakana\SecurityAnalysis\SpecializeInstance()>>
 class StringHolder {
     public $x;
 

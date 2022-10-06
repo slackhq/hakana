@@ -14,8 +14,10 @@ class B extends A {}
 
 class C extends B {}
 
-$c = new C($_GET["bar"]);
-
 function foo(A $a) {
     echo $a->getTaint();
 }
+
+$c = new C($_GET["bar"]);
+
+foo($c);

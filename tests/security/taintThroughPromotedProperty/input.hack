@@ -1,4 +1,3 @@
-<<\Hakana\SecurityAnalysis\SpecializeInstance()>>
 class User {
     public function __construct(public string $userId) {}
 }

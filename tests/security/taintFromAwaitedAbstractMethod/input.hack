@@ -29,9 +29,7 @@ abstract class InputHandler<TArgs> {
 
 type my_args_t = shape('a' => string);
 
-abstract class AHandler extends InputHandler<my_args_t> {}
 abstract class BHandler extends InputHandler<my_args_t> {}
-abstract class CHandler extends InputHandler<my_args_t> {}
 
 class MyHandler extends BHandler {
     async public function getResult(my_args_t $args): Awaitable<string> {
