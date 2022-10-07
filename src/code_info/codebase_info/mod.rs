@@ -27,7 +27,6 @@ pub struct CodebaseInfo {
     pub functions_in_files: FxHashMap<String, FxHashSet<Symbol>>,
     pub const_files: FxHashMap<String, FxHashSet<Symbol>>,
     pub classlike_descendents: FxHashMap<Symbol, FxHashSet<Symbol>>,
-    pub resolved_names: FxHashMap<String, FxHashMap<usize, Symbol>>,
 }
 
 impl CodebaseInfo {
@@ -46,7 +45,6 @@ impl CodebaseInfo {
             const_files: FxHashMap::default(),
             classlike_descendents: FxHashMap::default(),
             interner: Interner::default(),
-            resolved_names: FxHashMap::default(),
         }
     }
 
@@ -343,6 +341,5 @@ impl CodebaseInfo {
         self.typedefs_in_files.extend(other.typedefs_in_files);
         self.functions_in_files.extend(other.functions_in_files);
         self.const_files.extend(other.const_files);
-        self.resolved_names.extend(other.resolved_names);
     }
 }

@@ -193,6 +193,21 @@ impl<'ast> Visitor<'ast> for Scanner {
         t.recurse(nc, self)
     }
 
+    fn visit_shape_field_info(
+        &mut self,
+        nc: &mut NameContext,
+        p: &oxidized::tast::ShapeFieldInfo,
+    ) -> Result<(), ()> {
+        match &p.name {
+            oxidized::nast::ShapeFieldName::SFclassConst(_, member_name) => {
+                let p = self.interner.lock().unwrap().intern(member_name.1.clone());
+                self.resolved_names.insert(member_name.0.start_offset(), p);
+            }
+            _ => {}
+        }
+        p.recurse(nc, self)
+    }
+
     fn visit_class_id_(
         &mut self,
         nc: &mut NameContext,
@@ -210,14 +225,43 @@ impl<'ast> Visitor<'ast> for Scanner {
     }
 
     fn visit_expr_(&mut self, nc: &mut NameContext, e: &aast::Expr_<(), ()>) -> Result<(), ()> {
-        if let aast::Expr_::Xml(_) = e {
-            nc.in_xhp_id = true;
+        match e {
+            aast::Expr_::Xml(_) => {
+                nc.in_xhp_id = true;
+            }
+            aast::Expr_::Id(_) => {
+                nc.in_constant_id = true;
+            }
+            aast::Expr_::EnumClassLabel(boxed) => {
+                if boxed.0.is_some() {
+                    nc.in_class_id = true;
+                }
+            }
+            aast::Expr_::Call(boxed) => match boxed.0 .2 {
+                aast::Expr_::Id(_) => {
+                    nc.in_function_id = true;
+                }
+                _ => {}
+            },
+            _ => (),
         }
 
         let result = e.recurse(nc, self);
 
-        if let aast::Expr_::Xml(_) = e {
-            nc.in_xhp_id = false;
+        match e {
+            aast::Expr_::Xml(_) => {
+                nc.in_xhp_id = false;
+            }
+            aast::Expr_::Id(_) => {
+                nc.in_constant_id = false;
+            }
+            aast::Expr_::Call(boxed) => match boxed.0 .2 {
+                aast::Expr_::Id(_) => {
+                    nc.in_function_id = false;
+                }
+                _ => {}
+            },
+            _ => (),
         }
 
         result
@@ -251,28 +295,45 @@ impl<'ast> Visitor<'ast> for Scanner {
         catch.recurse(nc, self)
     }
 
+    fn visit_function_ptr_id(
+        &mut self,
+        nc: &mut NameContext,
+        p: &aast::FunctionPtrId<(), ()>,
+    ) -> Result<(), ()> {
+        nc.in_function_id = true;
+        p.recurse(nc, self)
+    }
+
     fn visit_id(&mut self, nc: &mut NameContext, id: &ast_defs::Id) -> Result<(), ()> {
-        if !self.resolved_names.contains_key(&id.0.start_offset()) {
-            let resolved_name = if nc.in_xhp_id {
-                nc.get_resolved_name(&id.1[1..].to_string(), aast::NsKind::NSClassAndNamespace)
-            } else {
-                nc.get_resolved_name(
-                    &id.1,
-                    if nc.in_class_id || nc.in_nonfunction_id {
-                        aast::NsKind::NSClassAndNamespace
-                    } else {
-                        aast::NsKind::NSFun
-                    },
-                )
-            };
-
-            let p = self.interner.lock().unwrap().intern(resolved_name);
-
-            self.resolved_names.insert(id.0.start_offset(), p);
+        if nc.in_function_id {
+            nc.in_constant_id = false;
         }
 
-        nc.in_class_id = false;
-        nc.in_xhp_id = false;
+        if nc.in_class_id || nc.in_function_id || nc.in_xhp_id || nc.in_constant_id {
+            if !self.resolved_names.contains_key(&id.0.start_offset()) {
+                let resolved_name = if nc.in_xhp_id {
+                    nc.get_resolved_name(&id.1[1..].to_string(), aast::NsKind::NSClassAndNamespace)
+                } else {
+                    nc.get_resolved_name(
+                        &id.1,
+                        if nc.in_class_id || nc.in_constant_id {
+                            aast::NsKind::NSClassAndNamespace
+                        } else {
+                            aast::NsKind::NSFun
+                        },
+                    )
+                };
+
+                let p = self.interner.lock().unwrap().intern(resolved_name);
+
+                self.resolved_names.insert(id.0.start_offset(), p);
+            }
+
+            nc.in_class_id = false;
+            nc.in_xhp_id = false;
+            nc.in_function_id = false;
+            nc.in_constant_id = false;
+        }
 
         id.recurse(nc, self)
     }
@@ -292,6 +353,30 @@ impl<'ast> Visitor<'ast> for Scanner {
         f.recurse(nc, self)
     }
 
+    fn visit_user_attribute(
+        &mut self,
+        nc: &mut NameContext,
+        c: &aast::UserAttribute<(), ()>,
+    ) -> Result<(), ()> {
+        nc.in_class_id = true;
+        c.recurse(nc, self)
+    }
+
+    fn visit_gconst(&mut self, nc: &mut NameContext, c: &aast::Gconst<(), ()>) -> Result<(), ()> {
+        let namespace_name = nc.get_namespace_name();
+
+        let p = if let Some(namespace_name) = namespace_name {
+            let str = namespace_name.clone() + "\\" + c.name.1.as_str();
+            self.interner.lock().unwrap().intern(str)
+        } else {
+            self.interner.lock().unwrap().intern(c.name.1.clone())
+        };
+
+        self.resolved_names.insert(c.name.0.start_offset(), p);
+
+        c.recurse(nc, self)
+    }
+
     fn visit_hint_(&mut self, nc: &mut NameContext, p: &aast::Hint_) -> Result<(), ()> {
         let happly = p.as_happly();
 
@@ -306,13 +391,13 @@ impl<'ast> Visitor<'ast> for Scanner {
             }
         }
 
-        let was_in_nonfunction_id = nc.in_nonfunction_id;
+        let was_in_namespaced_symbol_id = nc.in_function_id;
 
-        nc.in_nonfunction_id = true;
+        nc.in_function_id = false;
 
         let result = p.recurse(nc, self);
 
-        nc.in_nonfunction_id = was_in_nonfunction_id;
+        nc.in_function_id = was_in_namespaced_symbol_id;
 
         result
     }

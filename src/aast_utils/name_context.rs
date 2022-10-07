@@ -2,7 +2,7 @@ use rustc_hash::FxHashMap;
 
 use oxidized::aast::NsKind;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct NameResolutionContext {
     namespace_name: String,
     type_aliases: FxHashMap<String, String>,
@@ -23,12 +23,13 @@ impl NameResolutionContext {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct NameContext {
     name_resolution_contexts: Vec<NameResolutionContext>,
     namespace_name: Option<String>,
     pub in_class_id: bool,
-    pub in_nonfunction_id: bool,
+    pub in_function_id: bool,
+    pub in_constant_id: bool,
     pub in_xhp_id: bool,
 }
 
@@ -38,8 +39,9 @@ impl NameContext {
             name_resolution_contexts: vec![NameResolutionContext::new()],
             namespace_name: None,
             in_class_id: false,
-            in_nonfunction_id: false,
+            in_function_id: false,
             in_xhp_id: false,
+            in_constant_id: false,
         }
     }
 

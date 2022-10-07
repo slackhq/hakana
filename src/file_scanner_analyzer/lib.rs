@@ -10,8 +10,8 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
-use hakana_reflection_info::FileSource;
 use hakana_reflection_info::Interner;
+use hakana_reflection_info::{FileSource, StrId};
 use indexmap::IndexMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast;
@@ -69,7 +69,7 @@ pub fn scan_and_analyze(
 
     let mut files_to_analyze = vec![];
 
-    let (mut codebase, interner, file_statuses) = scan_files(
+    let (mut codebase, interner, file_statuses, resolved_names) = scan_files(
         &all_scanned_dirs,
         include_core_libs,
         cache_dir,
@@ -133,6 +133,7 @@ pub fn scan_and_analyze(
     analyze_files(
         files_to_analyze,
         arc_codebase.clone(),
+        &resolved_names,
         config.clone(),
         &analysis_result,
         filter,
@@ -417,7 +418,7 @@ pub fn scan_and_analyze_single_file(
 
     let interner = Arc::new(Mutex::new(codebase.interner.clone()));
 
-    scan_single_file(
+    let resolved_names = scan_single_file(
         codebase,
         interner.clone(),
         file_name.clone(),
@@ -434,6 +435,7 @@ pub fn scan_and_analyze_single_file(
         file_name.clone(),
         file_contents.clone(),
         &codebase,
+        &resolved_names,
         &analysis_config,
     )?;
 
@@ -468,7 +470,12 @@ pub fn scan_files(
     debug: bool,
     build_checksum: &str,
     starter_data: Option<(CodebaseInfo, Interner)>,
-) -> io::Result<(CodebaseInfo, Interner, IndexMap<String, FileStatus>)> {
+) -> io::Result<(
+    CodebaseInfo,
+    Interner,
+    IndexMap<String, FileStatus>,
+    FxHashMap<String, FxHashMap<usize, StrId>>,
+)> {
     if debug {
         println!("{:#?}", scan_dirs);
     }
@@ -483,6 +490,12 @@ pub fn scan_files(
 
     let symbols_path = if let Some(cache_dir) = cache_dir {
         Some(format!("{}/symbols", cache_dir))
+    } else {
+        None
+    };
+
+    let aast_names_path = if let Some(cache_dir) = cache_dir {
+        Some(format!("{}/aast_names", cache_dir))
     } else {
         None
     };
@@ -560,6 +573,12 @@ pub fn scan_files(
         load_cached_symbols(symbols_path, use_codebase_cache, &mut interner);
     }
 
+    let mut resolved_names = FxHashMap::default();
+
+    if let Some(aast_names_path) = &aast_names_path {
+        load_cached_aast_names(aast_names_path, use_codebase_cache, &mut resolved_names);
+    }
+
     let mut files_to_scan = vec![];
 
     for (target_file, status) in &file_statuses {
@@ -569,6 +588,9 @@ pub fn scan_files(
     }
 
     let interner = Arc::new(Mutex::new(interner));
+    let resolved_names = Arc::new(Mutex::new(resolved_names));
+    
+    let has_new_files = files_to_scan.len() > 0;
 
     if files_to_scan.len() > 0 {
         let bar = if debug {
@@ -610,13 +632,16 @@ pub fn scan_files(
                 .collect::<FxHashSet<_>>();
 
             for (i, str_path) in path_groups[&0].iter().enumerate() {
-                scan_file(
-                    str_path,
-                    &config.root_dir,
-                    &mut new_codebase,
-                    interner.clone(),
-                    analyze_map.contains(*str_path),
-                    debug,
+                resolved_names.lock().unwrap().insert(
+                    (**str_path).clone(),
+                    scan_file(
+                        str_path,
+                        &config.root_dir,
+                        &mut new_codebase,
+                        interner.clone(),
+                        analyze_map.contains(*str_path),
+                        debug,
+                    ),
                 );
 
                 update_progressbar(i as u64, bar.clone());
@@ -646,18 +671,22 @@ pub fn scan_files(
                     .into_iter()
                     .collect::<FxHashSet<_>>();
                 let interner = interner.clone();
+                let resolved_names = resolved_names.clone();
 
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
 
                     for str_path in &pgc {
-                        scan_file(
-                            str_path,
-                            &root_dir_c,
-                            &mut new_codebase,
-                            interner.clone(),
-                            analyze_map.contains(str_path),
-                            debug,
+                        resolved_names.lock().unwrap().insert(
+                            (*str_path).clone(),
+                            scan_file(
+                                str_path,
+                                &root_dir_c,
+                                &mut new_codebase,
+                                interner.clone(),
+                                analyze_map.contains(str_path),
+                                debug,
+                            ),
                         );
 
                         let mut tally = files_processed.lock().unwrap();
@@ -687,7 +716,15 @@ pub fn scan_files(
         if let Some(bar) = &bar {
             bar.finish_and_clear();
         }
+    }
 
+    let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
+    let resolved_names = Arc::try_unwrap(resolved_names)
+        .unwrap()
+        .into_inner()
+        .unwrap();
+
+    if has_new_files {
         if let Some(codebase_path) = codebase_path {
             let mut codebase_file = fs::File::create(&codebase_path).unwrap();
             let serialized_codebase = bincode::serialize(&codebase).unwrap();
@@ -699,13 +736,15 @@ pub fn scan_files(
             let serialized_symbols = bincode::serialize(&interner).unwrap();
             symbols_file.write_all(&serialized_symbols)?;
         }
+
+        if let Some(aast_names_path) = aast_names_path {
+            let mut symbols_file = fs::File::create(&aast_names_path).unwrap();
+            let serialized_symbols = bincode::serialize(&resolved_names).unwrap();
+            symbols_file.write_all(&serialized_symbols)?;
+        }
     }
 
-    Ok((
-        codebase,
-        Arc::try_unwrap(interner).unwrap().into_inner().unwrap(),
-        file_statuses,
-    ))
+    Ok((codebase, interner, file_statuses, resolved_names))
 }
 
 fn load_cached_codebase(
@@ -785,6 +824,23 @@ fn load_cached_symbols(symbols_path: &String, use_codebase_cache: bool, interner
             .unwrap_or_else(|_| panic!("Could not read file {}", &symbols_path));
         if let Ok(d) = bincode::deserialize::<Interner>(&serialized) {
             *interner = d;
+        }
+    }
+}
+
+fn load_cached_aast_names(
+    aast_names_path: &String,
+    use_codebase_cache: bool,
+    resolved_names: &mut FxHashMap<String, FxHashMap<usize, StrId>>,
+) {
+    if Path::new(aast_names_path).exists() && use_codebase_cache {
+        println!("Deserializing aast names cache");
+        let serialized = fs::read(&aast_names_path)
+            .unwrap_or_else(|_| panic!("Could not read file {}", &aast_names_path));
+        if let Ok(d) =
+            bincode::deserialize::<FxHashMap<String, FxHashMap<usize, StrId>>>(&serialized)
+        {
+            *resolved_names = d;
         }
     }
 }
@@ -906,7 +962,7 @@ fn scan_file(
     interner: Arc<Mutex<Interner>>,
     user_defined: bool,
     debug: bool,
-) {
+) -> FxHashMap<usize, StrId> {
     if debug {
         println!("scanning {}", &target_file);
     }
@@ -916,7 +972,7 @@ fn scan_file(
     let aast = if let Ok(aast) = aast {
         aast
     } else {
-        return;
+        return FxHashMap::default();
     };
 
     let target_name = if target_file.contains(root_dir) {
@@ -943,9 +999,7 @@ fn scan_file(
         user_defined,
     );
 
-    codebase
-        .resolved_names
-        .insert(target_name.clone(), resolved_names);
+    resolved_names
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -987,8 +1041,6 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             false,
         );
     }
-
-    codebase.resolved_names.clear();
 
     let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
 
@@ -1033,7 +1085,7 @@ pub fn scan_single_file(
     interner: Arc<Mutex<Interner>>,
     path: String,
     file_contents: String,
-) -> std::result::Result<(), String> {
+) -> std::result::Result<FxHashMap<usize, StrId>, String> {
     let aast = match get_aast_for_path_and_contents(path.clone(), file_contents, None, true) {
         Ok(aast) => aast,
         Err(err) => return std::result::Result::Err(format!("Unable to parse AAST\n{}", err)),
@@ -1057,14 +1109,13 @@ pub fn scan_single_file(
         true,
     );
 
-    codebase.resolved_names.insert(path.clone(), resolved_names);
-
-    Ok(())
+    Ok(resolved_names)
 }
 
 pub fn analyze_files(
     mut paths: Vec<String>,
     codebase: Arc<CodebaseInfo>,
+    resolved_names: &FxHashMap<String, FxHashMap<usize, StrId>>,
     config: Arc<Config>,
     analysis_result: &Arc<Mutex<AnalysisResult>>,
     filter: Option<String>,
@@ -1124,6 +1175,7 @@ pub fn analyze_files(
                 &codebase,
                 &config,
                 &mut new_analysis_result,
+                resolved_names.get(*str_path).unwrap(),
                 debug,
             );
 
@@ -1154,6 +1206,8 @@ pub fn analyze_files(
             let files_processed = files_processed.clone();
             let bar = bar.clone();
 
+            let resolved_names = resolved_names.clone();
+
             let handle = std::thread::spawn(move || {
                 let mut new_analysis_result = AnalysisResult::new(analysis_config.graph_kind);
 
@@ -1165,6 +1219,7 @@ pub fn analyze_files(
                         &codebase,
                         &analysis_config,
                         &mut new_analysis_result,
+                        resolved_names.get(str_path).unwrap(),
                         debug,
                     );
 
@@ -1206,6 +1261,7 @@ fn analyze_file(
     codebase: &Arc<CodebaseInfo>,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
+    resolved_names: &FxHashMap<usize, StrId>,
     debug: bool,
 ) {
     if debug {
@@ -1226,8 +1282,6 @@ fn analyze_file(
         str_path.clone()
     };
 
-    let resolved_names = codebase.resolved_names.get(&target_name).unwrap();
-
     let file_path = codebase.interner.get(target_name.as_str()).unwrap();
 
     let file_source = FileSource {
@@ -1245,6 +1299,7 @@ pub fn analyze_single_file(
     path: String,
     file_contents: String,
     codebase: &CodebaseInfo,
+    resolved_names: &FxHashMap<usize, StrId>,
     analysis_config: &Config,
 ) -> std::result::Result<AnalysisResult, String> {
     let aast_result = get_aast_for_path_and_contents(path.clone(), file_contents, None, true);
@@ -1255,8 +1310,6 @@ pub fn analyze_single_file(
             return std::result::Result::Err(error);
         }
     };
-
-    let resolved_names = codebase.resolved_names.get(&path).unwrap();
 
     let mut analysis_result = AnalysisResult::new(analysis_config.graph_kind);
 
