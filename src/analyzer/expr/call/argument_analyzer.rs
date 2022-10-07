@@ -811,7 +811,7 @@ fn get_argument_taints(
     match function_id {
         FunctionLikeIdentifier::Function(id) => match interner.lookup(*id) {
             "echo" | "print" | "var_dump" => {
-                return vec![SinkType::HtmlTag];
+                return vec![SinkType::HtmlTag, SinkType::Output];
             }
             "exec" | "passthru" | "pcntl_exec" | "shell_exec" | "system" | "popen"
             | "proc_open" => {

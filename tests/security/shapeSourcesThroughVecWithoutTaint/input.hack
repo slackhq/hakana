@@ -1,5 +1,5 @@
 <<\Hakana\SecurityAnalysis\ShapeSource(
-	dict['email' => 'UserSecret'],
+	dict['email' => 'UserPassword'],
 )>>
 type user_t = shape(
     'id' => string,

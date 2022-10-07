@@ -38,7 +38,7 @@ impl SecurityConfig {
         Self {
             ignore_files: Vec::new(),
             ignore_sink_files: FxHashMap::default(),
-            max_depth: 20,
+            max_depth: 40,
         }
     }
 }

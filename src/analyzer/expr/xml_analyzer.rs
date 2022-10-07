@@ -28,10 +28,7 @@ pub(crate) fn analyze(
     expr: &aast::Expr<(), ()>,
 ) {
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
-    let name_string = resolved_names
-        .get(&boxed.0 .0.start_offset())
-        .unwrap()
-        .clone();
+    let name_string = resolved_names.get(&boxed.0 .0.start_offset()).unwrap();
 
     tast_info
         .symbol_references
@@ -70,12 +67,31 @@ pub(crate) fn analyze(
             context,
             if_body_context,
         );
+
+        let element_name = statements_analyzer
+            .get_codebase()
+            .interner
+            .lookup(*name_string);
+
+        if match element_name {
+            "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p" => true,
+            _ => false,
+        } {
+            let xml_attribute_taint = DataFlowNode::TaintSink {
+                id: element_name.to_string(),
+                label: element_name.to_string(),
+                pos: None,
+                types: FxHashSet::from_iter([SinkType::Output]),
+            };
+
+            tast_info.data_flow_graph.add_node(xml_attribute_taint);
+        }
     }
     context.inside_general_use = was_inside_general_use;
 
     tast_info.expr_types.insert(
         (expr.1.start_offset(), expr.1.end_offset()),
-        Rc::new(get_named_object(name_string)),
+        Rc::new(get_named_object(*name_string)),
     );
 }
 
@@ -130,7 +146,7 @@ fn analyze_xhp_attribute_assignment(
                         property_id.1
                     );
 
-                    let mut taints = FxHashSet::from_iter([SinkType::Logging]);
+                    let mut taints = FxHashSet::from_iter([SinkType::Output]);
 
                     if classlike_storage
                         .appearing_property_ids
