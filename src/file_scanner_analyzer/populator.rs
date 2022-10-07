@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::Interner;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::symbols::{Symbol, SymbolKind};
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
@@ -8,6 +7,7 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::t_atomic::{populate_atomic_type, TAtomic};
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
+use hakana_reflection_info::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -462,7 +462,7 @@ fn inherit_methods_from_parent(
     }
 
     for (method_name, declaring_class) in &parent_storage.inheritable_method_ids {
-        if method_name != "__construct" || parent_storage.preserve_constructor_signature {
+        if *method_name != StrId::construct() || parent_storage.preserve_constructor_signature {
             if matches!(parent_storage.kind, SymbolKind::Trait) {
                 let declaring_class_storage =
                     codebase.classlike_infos.get(declaring_class).unwrap();

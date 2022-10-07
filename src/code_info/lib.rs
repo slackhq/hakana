@@ -54,6 +54,15 @@ impl StrId {
     pub fn member_of() -> Self {
         StrId(4)
     }
+    pub fn construct() -> Self {
+        StrId(6)
+    }
+    pub fn data_attribute() -> Self {
+        StrId(7)
+    }
+    pub fn aria_attribute() -> Self {
+        StrId(8)
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -78,6 +87,9 @@ impl Interner {
         interner.intern("unset".to_string());
         interner.intern("HH\\MemberOf".to_string());
         interner.intern("echo".to_string());
+        interner.intern("__construct".to_string());
+        interner.intern("<data attribute>".to_string());
+        interner.intern("<aria attribute>".to_string());
         interner
     }
 

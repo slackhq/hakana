@@ -7,14 +7,13 @@ use hakana_reflection_info::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-#[derive(Debug)]
 pub(crate) struct TypeCombination {
     pub value_types: FxHashMap<String, TAtomic>,
 
     pub has_object_top_type: bool,
 
     pub enum_types: FxHashSet<Symbol>,
-    pub enum_value_types: FxHashMap<Symbol, FxHashMap<String, Option<Box<TAtomic>>>>,
+    pub enum_value_types: FxHashMap<Symbol, FxHashMap<Symbol, Option<Box<TAtomic>>>>,
 
     pub object_type_params: FxHashMap<String, (Symbol, Vec<TUnion>)>,
 

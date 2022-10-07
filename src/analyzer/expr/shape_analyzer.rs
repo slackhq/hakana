@@ -44,8 +44,11 @@ pub(crate) fn analyze(
                     .get(&lhs.0.start_offset())
                     .unwrap();
 
-                let constant_type =
-                    codebase.get_class_constant_type(&lhs_name, &name.1, FxHashSet::default());
+                let constant_type = codebase.get_class_constant_type(
+                    &lhs_name,
+                    &codebase.interner.get(&name.1).unwrap(),
+                    FxHashSet::default(),
+                );
 
                 if let Some(constant_type) = constant_type {
                     if constant_type.is_single() {
@@ -113,7 +116,7 @@ pub(crate) fn analyze(
                     DictKey::Enum(class_name, member_name) => {
                         codebase.interner.lookup(*class_name).to_string()
                             + "::"
-                            + member_name.as_str()
+                            + codebase.interner.lookup(*member_name)
                     }
                 },
                 value_expr,

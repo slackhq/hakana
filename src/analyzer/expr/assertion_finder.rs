@@ -251,7 +251,8 @@ fn scrape_shapes_isset(
 
             if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
                 if let Some(codebase) = assertion_context.codebase {
-                    if codebase.interner.lookup(class_name) == "HH\\Shapes" && member_name == "idx"
+                    if codebase.interner.lookup(class_name) == "HH\\Shapes"
+                        && codebase.interner.lookup(member_name) == "idx"
                     {
                         let shape_name = get_var_id(
                             &call.2[0].1,
@@ -315,24 +316,26 @@ fn get_functionlike_id_from_call(
             }
         }
         aast::Expr_::ClassConst(boxed) => {
-            let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
+            if let Some(codebase) = assertion_context.codebase {
+                let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
 
-            match &class_id.2 {
-                aast::ClassId_::CIexpr(lhs_expr) => {
-                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                        let resolved_names = assertion_context.resolved_names;
+                match &class_id.2 {
+                    aast::ClassId_::CIexpr(lhs_expr) => {
+                        if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                            let resolved_names = assertion_context.resolved_names;
 
-                        let name_string = resolved_names.get(&id.0.start_offset()).unwrap().clone();
-
-                        Some(FunctionLikeIdentifier::Method(
-                            name_string,
-                            rhs_expr.1.clone(),
-                        ))
-                    } else {
-                        None
+                            Some(FunctionLikeIdentifier::Method(
+                                resolved_names.get(&id.0.start_offset()).unwrap().clone(),
+                                codebase.interner.get(&rhs_expr.1).unwrap(),
+                            ))
+                        } else {
+                            None
+                        }
                     }
+                    _ => None,
                 }
-                _ => None,
+            } else {
+                None
             }
         }
         _ => None,

@@ -1,4 +1,4 @@
-use super::reconciler::ReconciliationStatus;
+use super::{reconciler::ReconciliationStatus, simple_assertion_reconciler::intersect_null};
 use crate::{
     reconciler::reconciler::trigger_issue_for_impossible, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
@@ -186,7 +186,19 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     failed_reconciliation,
-                    assertion.has_equality(),
+                    suppressed_issues,
+                ));
+            }
+            TAtomic::TNonnullMixed { .. } => {
+                return Some(intersect_null(
+                    assertion,
+                    existing_var_type,
+                    &key,
+                    negated,
+                    tast_info,
+                    statements_analyzer,
+                    pos,
+                    failed_reconciliation,
                     suppressed_issues,
                 ));
             }
@@ -1310,7 +1322,6 @@ pub(crate) fn subtract_null(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
-    is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let old_var_type_string =
@@ -1324,7 +1335,7 @@ pub(crate) fn subtract_null(
     for (type_key, atomic) in existing_var_types {
         match atomic {
             TAtomic::TTemplateParam { as_type, .. } => {
-                if !is_equality && !as_type.is_mixed() {
+                if !as_type.is_mixed() {
                     let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                     let atomic = atomic.replace_template_extends(subtract_null(
                         assertion,
@@ -1335,7 +1346,6 @@ pub(crate) fn subtract_null(
                         statements_analyzer,
                         None,
                         &mut template_failed_reconciliation,
-                        is_equality,
                         suppressed_issues,
                     ));
 

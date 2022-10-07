@@ -123,7 +123,7 @@ pub(crate) fn analyze(
                             statements_analyzer.get_hpos(&expr.0.pos()),
                         ),
                         statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual()
+                        statements_analyzer.get_file_path_actual(),
                     );
                 }
             }
@@ -137,7 +137,7 @@ pub(crate) fn analyze(
                 context,
                 in_assignment,
                 lhs_type_part.clone(),
-                &prop_name,
+                &statements_analyzer.get_codebase().interner.get(&prop_name),
                 &var_id,
                 &stmt_var_id,
             );

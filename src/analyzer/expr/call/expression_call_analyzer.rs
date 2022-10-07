@@ -8,7 +8,6 @@ use crate::typed_ast::TastInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::StrId;
 use hakana_type::get_mixed_any;
 use hakana_type::template::TemplateResult;
 use indexmap::IndexMap;

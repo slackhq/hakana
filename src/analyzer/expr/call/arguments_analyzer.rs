@@ -312,7 +312,7 @@ pub(crate) fn check_arguments_match(
                         if !context.function_context.is_static {
                             if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id
                             {
-                                if *method_name == "__construct" {
+                                if codebase.interner.lookup(*method_name) == "__construct" {
                                     None
                                 } else {
                                     Some(&calling_class)
@@ -438,7 +438,8 @@ pub(crate) fn check_arguments_match(
         if function_param.is_inout {
             // First inout param for HH\Shapes::removeKey is already handled
             if if let FunctionLikeIdentifier::Method(classname, method_name) = functionlike_id {
-                codebase.interner.lookup(*classname) != "HH\\Shapes" || method_name != "removeKey"
+                codebase.interner.lookup(*classname) != "HH\\Shapes"
+                    || codebase.interner.lookup(*method_name) != "removeKey"
             } else {
                 true
             } {
@@ -611,11 +612,14 @@ fn handle_closure_arg(
     replaced_type =
         inferred_type_replacer::replace(&replaced_type, &replace_template_result, codebase);
 
-    let closure_id = codebase.interner.get(&format!(
-        "{}:{}",
-        closure_expr.pos().filename(),
-        closure_expr.pos().start_offset()
-    )).unwrap();
+    let closure_id = codebase
+        .interner
+        .get(&format!(
+            "{}:{}",
+            closure_expr.pos().filename(),
+            closure_expr.pos().start_offset()
+        ))
+        .unwrap();
 
     let mut closure_storage =
         if let Some(lambda_storage) = codebase.functionlike_infos.get(&closure_id) {

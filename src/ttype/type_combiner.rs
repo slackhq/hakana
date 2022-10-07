@@ -177,7 +177,7 @@ pub fn combine(
     for (enum_name, values) in combination.enum_value_types {
         for value in values {
             combination.value_types.insert(
-                format!("{}::{}", enum_name.0, value.0),
+                format!("{}::{}", enum_name.0, value.0.0),
                 TAtomic::TEnumLiteralCase {
                     enum_name: enum_name.clone(),
                     member_name: value.0,

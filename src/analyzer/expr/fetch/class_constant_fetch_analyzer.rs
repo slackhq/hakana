@@ -159,7 +159,10 @@ fn analyse_known_class_constant(
 
     tast_info.symbol_references.add_reference_to_class_member(
         &context.function_context,
-        (classlike_name.clone(), const_name.clone()),
+        (
+            classlike_name.clone(),
+            codebase.interner.get(&const_name).unwrap(),
+        ),
     );
 
     if const_name == "class" {
@@ -183,8 +186,11 @@ fn analyse_known_class_constant(
         return Some(wrap_atomic(inner_object));
     }
 
-    let mut class_constant_type =
-        codebase.get_class_constant_type(&classlike_name, &const_name, FxHashSet::default());
+    let mut class_constant_type = codebase.get_class_constant_type(
+        &classlike_name,
+        &codebase.interner.get(&const_name).unwrap(),
+        FxHashSet::default(),
+    );
 
     if let Some(ref mut class_constant_type) = class_constant_type {
         type_expander::expand_union(

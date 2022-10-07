@@ -312,24 +312,27 @@ fn find_unused_definitions(
                         .push(issue);
                 }
             } else {
-                'inner: for (method_name, functionlike_storage) in &classlike_info.methods {
-                    if method_name.starts_with("__") && method_name != "__construct" {
-                        continue;
+                'inner: for (method_name_ptr, functionlike_storage) in &classlike_info.methods {
+                    if *method_name_ptr != StrId::construct() {
+                        let method_name = codebase.interner.lookup(*method_name_ptr);
+
+                        if method_name.starts_with("__") {
+                            continue;
+                        }
                     }
 
-                    let pair = (classlike_name.clone(), format!("{}()", method_name));
+                    let pair = (classlike_name.clone(), *method_name_ptr);
 
                     if !referenced_class_members.contains(&pair)
                         && !referenced_overridden_class_members.contains(&pair)
                     {
                         if let Some(parent_elements) =
-                            classlike_info.overridden_method_ids.get(method_name)
+                            classlike_info.overridden_method_ids.get(method_name_ptr)
                         {
                             for parent_element in parent_elements {
-                                if referenced_class_members.contains(&(
-                                    (*parent_element).clone(),
-                                    format!("{}()", method_name),
-                                )) {
+                                if referenced_class_members
+                                    .contains(&(*parent_element, *method_name_ptr))
+                                {
                                     continue 'inner;
                                 }
                             }
@@ -344,7 +347,7 @@ fn find_unused_definitions(
                         }
 
                         // allow one-liner private construct statements that prevent instantiation
-                        if method_name == "__construct"
+                        if *method_name_ptr == StrId::construct()
                             && matches!(method_storage.visibility, MemberVisibility::Private)
                         {
                             if let (Some(stmt_pos), Some(name_pos)) = (
@@ -364,7 +367,7 @@ fn find_unused_definitions(
                                     format!(
                                         "Unused method {}::{}",
                                         codebase.interner.lookup(*classlike_name),
-                                        method_name
+                                        codebase.interner.lookup(*method_name_ptr)
                                     ),
                                     functionlike_storage.name_location.clone().unwrap(),
                                 )
@@ -374,7 +377,7 @@ fn find_unused_definitions(
                                     format!(
                                         "Possibly-unused method {}::{}",
                                         codebase.interner.lookup(*classlike_name),
-                                        method_name
+                                        codebase.interner.lookup(*method_name_ptr)
                                     ),
                                     functionlike_storage.name_location.clone().unwrap(),
                                 )
@@ -1074,8 +1077,6 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             }
         }
     }
-
-    populate_codebase(&mut codebase, &mut interner);
 
     (codebase, interner)
 }

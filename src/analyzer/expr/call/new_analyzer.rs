@@ -270,14 +270,14 @@ fn analyze_named_constructor(
 
     let mut generic_type_params = None;
 
-    let method_name = "__construct".to_string();
+    let method_name = codebase.interner.get("__construct").unwrap();
     let method_id = MethodIdentifier(classlike_name.clone(), method_name);
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
     if codebase.method_exists(&method_id.0, &method_id.1) {
         tast_info.symbol_references.add_reference_to_class_member(
             &context.function_context,
-            (classlike_name.clone(), format!("{}()", method_id.1)),
+            (classlike_name.clone(), method_id.1),
         );
 
         let mut template_result = TemplateResult::new(

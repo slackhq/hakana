@@ -7,7 +7,6 @@ use crate::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     issue::Issue,
     symbol_references::SymbolReferences,
-    Interner,
 };
 
 #[derive(Clone, Debug)]

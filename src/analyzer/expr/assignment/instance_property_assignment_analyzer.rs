@@ -10,6 +10,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
+    StrId,
 };
 use hakana_type::{
     add_optional_union_type, get_mixed_any,
@@ -46,9 +47,13 @@ pub(crate) fn analyze(
     let stmt_name = expr.1;
 
     let prop_name = if let aast::Expr_::Id(id) = &stmt_name.2 {
-        Some(id.1.clone())
-    } else if let aast::Expr_::Lvar(id) = &stmt_name.2 {
-        Some(id.1 .1[1..].to_string())
+        Some(
+            statements_analyzer
+                .get_file_analyzer()
+                .resolved_names
+                .get(&id.0.start_offset())
+                .unwrap(),
+        )
     } else {
         None
     };
@@ -166,7 +171,7 @@ pub(crate) fn analyze(
                     IssueKind::InvalidPropertyAssignmentValue,
                     format!(
                         "{} with declared type {}, cannot be assigned type {}",
-                        property_id,
+                        codebase.interner.lookup(*property_id),
                         invalid_class_property_type,
                         assignment_type.get_id(Some(&codebase.interner)),
                     ),
@@ -190,8 +195,8 @@ pub(crate) fn analyze_regular_assignment(
     assign_value_type: &TUnion,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
-    prop_name: &String,
-) -> Vec<(TUnion, (Symbol, String), TUnion)> {
+    prop_name: &StrId,
+) -> Vec<(TUnion, (Symbol, StrId), TUnion)> {
     let stmt_var = expr.0;
 
     let mut assigned_properties = Vec::new();
@@ -334,8 +339,8 @@ pub(crate) fn analyze_atomic_assignment(
     lhs_type_part: &TAtomic,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
-    prop_name: &String,
-) -> Option<(TUnion, (Symbol, String), TUnion)> {
+    prop_name: &StrId,
+) -> Option<(TUnion, (Symbol, StrId), TUnion)> {
     let codebase = statements_analyzer.get_codebase();
     let fq_class_name = if let TAtomic::TNamedObject { name, .. } = lhs_type_part {
         name.clone()
@@ -440,7 +445,7 @@ pub(crate) fn analyze_atomic_assignment(
                 format!(
                     "Undefined property {}::${}",
                     codebase.interner.lookup(property_id.0),
-                    property_id.1,
+                    codebase.interner.lookup(property_id.1),
                 ),
                 statements_analyzer.get_hpos(&expr.1.pos()),
             ),
@@ -460,9 +465,9 @@ fn add_instance_property_dataflow(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     assignment_value_type: &TUnion,
-    prop_name: &String,
+    prop_name: &StrId,
     fq_class_name: &Symbol,
-    property_id: &(Symbol, String),
+    property_id: &(Symbol, StrId),
 ) -> () {
     let codebase = statements_analyzer.get_codebase();
 
@@ -490,7 +495,7 @@ fn add_instance_property_dataflow(
                 assignment_value_type,
                 codebase,
                 fq_class_name,
-                prop_name,
+                *prop_name,
             );
         }
     }
@@ -502,24 +507,28 @@ fn add_instance_property_assignment_dataflow(
     lhs_var_id: String,
     var_pos: &Pos,
     name_pos: &Pos,
-    property_id: &(Symbol, String),
+    property_id: &(Symbol, StrId),
     assignment_value_type: &TUnion,
     context: &mut ScopeContext,
 ) {
+    let interner = &statements_analyzer.get_codebase().interner;
     let var_node = DataFlowNode::get_for_assignment(
         lhs_var_id.to_owned(),
         statements_analyzer.get_hpos(var_pos),
     );
     tast_info.data_flow_graph.add_node(var_node.clone());
     let property_node = DataFlowNode::get_for_assignment(
-        format!("{}->{}", lhs_var_id, property_id.1),
+        format!("{}->{}", lhs_var_id, interner.lookup(property_id.1)),
         statements_analyzer.get_hpos(name_pos),
     );
     tast_info.data_flow_graph.add_node(property_node.clone());
     tast_info.data_flow_graph.add_path(
         &property_node,
         &var_node,
-        PathKind::ExpressionAssignment(PathExpressionKind::Property, property_id.1.to_string()),
+        PathKind::ExpressionAssignment(
+            PathExpressionKind::Property,
+            interner.lookup(property_id.1).to_owned(),
+        ),
         None,
         None,
     );
@@ -546,20 +555,20 @@ fn add_instance_property_assignment_dataflow(
 
 pub(crate) fn add_unspecialized_property_assignment_dataflow(
     statements_analyzer: &StatementsAnalyzer,
-    property_id: &(Symbol, String),
+    property_id: &(Symbol, Symbol),
     stmt_name_pos: &Pos,
     var_pos: Option<&Pos>,
     tast_info: &mut TastInfo,
     assignment_value_type: &TUnion,
     codebase: &CodebaseInfo,
     fq_class_name: &Symbol,
-    prop_name: &String,
+    prop_name: Symbol,
 ) {
     let localized_property_node = DataFlowNode::get_for_assignment(
         format!(
             "{}::${}",
             codebase.interner.lookup(property_id.0),
-            property_id.1
+            codebase.interner.lookup(property_id.1)
         ),
         statements_analyzer.get_hpos(stmt_name_pos),
     );
@@ -571,7 +580,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     let property_id_str = format!(
         "{}::${}",
         codebase.interner.lookup(property_id.0),
-        &property_id.1.to_owned()
+        codebase.interner.lookup(property_id.1)
     );
 
     let removed_taints = if let Some(var_pos) = var_pos {
@@ -586,7 +595,10 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     tast_info.data_flow_graph.add_path(
         &localized_property_node,
         &property_node,
-        PathKind::ExpressionAssignment(PathExpressionKind::Property, property_id.1.to_string()),
+        PathKind::ExpressionAssignment(
+            PathExpressionKind::Property,
+            codebase.interner.lookup(property_id.1).to_string(),
+        ),
         None,
         if removed_taints.is_empty() {
             None
@@ -606,14 +618,14 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     }
 
     let declaring_property_class =
-        codebase.get_declaring_class_for_property(fq_class_name, prop_name);
+        codebase.get_declaring_class_for_property(fq_class_name, &prop_name);
 
     if let Some(declaring_property_class) = declaring_property_class {
         if declaring_property_class != fq_class_name {
             let declaring_property_id_str = format!(
                 "{}::${}",
                 codebase.interner.lookup(*declaring_property_class),
-                property_id.1
+                codebase.interner.lookup(property_id.1)
             );
 
             let declaring_property_node = DataFlowNode::new(
@@ -628,7 +640,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
                 &declaring_property_node,
                 PathKind::ExpressionAssignment(
                     PathExpressionKind::Property,
-                    property_id.1.to_string(),
+                    codebase.interner.lookup(property_id.1).to_string(),
                 ),
                 None,
                 None,

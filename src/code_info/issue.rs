@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
-use crate::{code_location::HPos, taint::SinkType, Interner};
+use crate::{code_location::HPos, taint::SinkType};
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
 pub enum IssueKind {

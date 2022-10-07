@@ -5,7 +5,7 @@ use crate::{codebase_info::symbols::Symbol, method_identifier::MethodIdentifier,
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FunctionLikeIdentifier {
     Function(Symbol),
-    Method(Symbol, String),
+    Method(Symbol, Symbol),
 }
 
 impl FunctionLikeIdentifier {
@@ -13,7 +13,7 @@ impl FunctionLikeIdentifier {
         if let FunctionLikeIdentifier::Method(fq_classlike_name, method_name) = &self {
             Some(MethodIdentifier(
                 fq_classlike_name.clone(),
-                method_name.to_string(),
+                method_name.clone(),
             ))
         } else {
             None
@@ -24,7 +24,11 @@ impl FunctionLikeIdentifier {
         match self {
             FunctionLikeIdentifier::Function(fn_name) => interner.lookup(*fn_name).to_string(),
             FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => {
-                format!("{}::{}", interner.lookup(*fq_classlike_name), method_name)
+                format!(
+                    "{}::{}",
+                    interner.lookup(*fq_classlike_name),
+                    interner.lookup(*method_name)
+                )
             }
         }
     }
@@ -33,7 +37,7 @@ impl FunctionLikeIdentifier {
         match self {
             FunctionLikeIdentifier::Function(fn_name) => fn_name.0.to_string(),
             FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => {
-                format!("{}::{}", fq_classlike_name.0, method_name)
+                format!("{}::{}", fq_classlike_name.0, method_name.0)
             }
         }
     }

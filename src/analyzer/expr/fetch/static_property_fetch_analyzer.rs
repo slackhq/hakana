@@ -117,7 +117,10 @@ pub(crate) fn analyze(
         ));
     }
 
-    let property_id = (classlike_name.clone(), prop_name.unwrap());
+    let property_id = (
+        classlike_name.clone(),
+        codebase.interner.get(&prop_name.unwrap()).unwrap(),
+    );
 
     // TODO mutation handling
 
@@ -153,7 +156,7 @@ pub(crate) fn analyze(
 
     tast_info.symbol_references.add_reference_to_class_member(
         &context.function_context,
-        (property_id.0.clone(), format!("${}", property_id.1)),
+        (property_id.0.clone(), property_id.1),
     );
 
     // TODO AtomicPropertyFetchAnalyzer::checkPropertyDeprecation

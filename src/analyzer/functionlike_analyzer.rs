@@ -15,7 +15,7 @@ use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, VariableSourceKind};
-use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
+use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -170,7 +170,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if stmt.abstract_ {
             return;
         }
-        let method_name = stmt.name.1.clone();
+        let method_name = self.get_codebase().interner.get(&stmt.name.1).unwrap();
 
         let functionlike_storage = &classlike_storage.methods.get(&method_name).unwrap();
 
@@ -283,7 +283,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 let expr_id = format!(
                     "{}::${}",
                     interner.lookup(classlike_storage.name),
-                    property_name
+                    interner.lookup(*property_name),
                 );
 
                 if let Some(property_pos) = &property_storage.pos {
@@ -398,16 +398,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         }
                         let new_call_node = DataFlowNode::get_for_this_after_method(
                             &MethodIdentifier(
-                                context
-                                    .function_context
-                                    .calling_class
-                                    .clone()
-                                    .unwrap()
-                                    .clone(),
-                                self.get_codebase()
-                                    .interner
-                                    .lookup(functionlike_storage.name)
-                                    .to_string(),
+                                context.function_context.calling_class.unwrap().clone(),
+                                functionlike_storage.name,
                             ),
                             functionlike_storage.name_location.clone(),
                             None,

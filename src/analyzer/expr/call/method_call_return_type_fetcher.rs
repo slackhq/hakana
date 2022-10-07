@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use hakana_reflection_info::StrId;
 use rustc_hash::FxHashMap;
 
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -36,22 +37,21 @@ pub(crate) fn fetch(
     template_result: &TemplateResult,
     call_pos: &Pos,
 ) -> TUnion {
+    let codebase = statements_analyzer.get_codebase();
+
     let mut return_type_candidate = if let Some(return_type) =
         get_special_method_return(method_id, &statements_analyzer.get_codebase().interner)
     {
         return_type
     } else {
-        functionlike_storage
-            .return_type
-            .clone()
-            .unwrap_or(if method_id.1 == "__toString" {
+        functionlike_storage.return_type.clone().unwrap_or(
+            if method_id.1 == codebase.interner.get("__toString").unwrap() {
                 get_string()
             } else {
                 get_mixed_any()
-            })
+            },
+        )
     };
-
-    let codebase = statements_analyzer.get_codebase();
 
     let method_storage = &functionlike_storage.method_info.as_ref().unwrap();
 
@@ -137,7 +137,7 @@ pub(crate) fn fetch(
 fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) -> Option<TUnion> {
     match interner.lookup(method_id.0) {
         "DateTime" | "DateTimeImmutable" => {
-            if method_id.1 == "createFromFormat" {
+            if interner.lookup(method_id.1) == "createFromFormat" {
                 let mut false_or_datetime = TUnion::new(vec![
                     TAtomic::TNamedObject {
                         name: method_id.0.clone(),
@@ -153,7 +153,7 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
             }
         }
         "DOMDocument" => {
-            if method_id.1 == "createElement" {
+            if interner.lookup(method_id.1) == "createElement" {
                 let mut false_or_domelement = TUnion::new(vec![
                     TAtomic::TNamedObject {
                         name: interner.get("DOMElement").unwrap(),
@@ -245,7 +245,7 @@ fn add_dataflow(
             );
         }
 
-        if method_id.1 == "__construct" {
+        if method_id.1 == StrId::construct() {
             if let Some(var_type) = context.vars_in_scope.get_mut("$this") {
                 let before_construct_node = DataFlowNode::get_for_this_before_method(
                     method_id,

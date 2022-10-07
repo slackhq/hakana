@@ -70,9 +70,15 @@ pub(crate) fn analyze(
         None
     };
 
-    if let None = prop_name {
+    let prop_name = if let Some(prop_name) = prop_name {
+        if let Some(prop_name_id) = codebase.interner.get(&prop_name) {
+            prop_name_id
+        } else {
+            return false;
+        }
+    } else {
         return false;
-    }
+    };
 
     let mut fq_class_names = Vec::new();
 
@@ -109,7 +115,9 @@ pub(crate) fn analyze(
 
                     if let Some(lhs_type) = lhs_type {
                         for (_, lhs_atomic_type) in lhs_type.types.clone() {
-                            //fq_class_names.push(lhs_atomic_type.get_id());
+                            if let TAtomic::TNamedObject { name, type_params: None, .. } = lhs_atomic_type {
+                                fq_class_names.push(name);
+                            }
                         }
                     }
                 }
@@ -125,7 +133,7 @@ pub(crate) fn analyze(
     for fq_class_name in fq_class_names {
         // TODO if (!$prop_name instanceof PhpParser\Node\Identifier) {
 
-        let property_id = (fq_class_name.clone(), prop_name.to_owned().unwrap());
+        let property_id = (fq_class_name.clone(), prop_name.to_owned());
 
         // TODO if (ClassLikeAnalyzer::checkPropertyVisibility(
 
@@ -141,19 +149,17 @@ pub(crate) fn analyze(
                 get_mixed_any()
             };
 
-            if let Some(prop_name) = &prop_name {
-                add_unspecialized_property_assignment_dataflow(
-                    statements_analyzer,
-                    &property_id,
-                    stmt_name_pos,
-                    assign_value_pos,
-                    tast_info,
-                    assign_value_type,
-                    codebase,
-                    &fq_class_name,
-                    prop_name,
-                );
-            }
+            add_unspecialized_property_assignment_dataflow(
+                statements_analyzer,
+                &property_id,
+                stmt_name_pos,
+                assign_value_pos,
+                tast_info,
+                assign_value_type,
+                codebase,
+                &fq_class_name,
+                prop_name,
+            );
 
             let declaring_class_storage = codebase.classlike_infos.get(&fq_class_name);
 
@@ -204,7 +210,7 @@ pub(crate) fn analyze(
                         format!(
                             "{}::${} with declared type {}, cannot be assigned type {}",
                             codebase.interner.lookup(*declaring_property_class),
-                            property_id.1,
+                            codebase.interner.lookup(property_id.1),
                             class_property_type.get_id(Some(&codebase.interner)),
                             assign_value_type.get_id(Some(&codebase.interner)),
                         ),

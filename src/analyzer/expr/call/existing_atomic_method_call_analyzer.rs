@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use hakana_reflection_info::method_identifier::MethodIdentifier;
+use hakana_reflection_info::StrId;
 use hakana_reflection_info::{
     assertion::Assertion,
     codebase_info::symbols::Symbol,
@@ -37,7 +38,7 @@ use super::{
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     mut classlike_name: Symbol,
-    method_name: &String,
+    method_name: &StrId,
     call_expr: (
         &Vec<aast::Targ<()>>,
         &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
@@ -64,7 +65,9 @@ pub(crate) fn analyze(
 
     let method_id = MethodIdentifier(classlike_name.clone(), method_name.clone());
 
-    result.existent_method_ids.insert(method_id.to_string(&codebase.interner));
+    result
+        .existent_method_ids
+        .insert(method_id.to_string(&codebase.interner));
 
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
@@ -72,10 +75,7 @@ pub(crate) fn analyze(
 
     tast_info.symbol_references.add_reference_to_class_member(
         &context.function_context,
-        (
-            declaring_method_id.0.clone(),
-            format!("{}()", declaring_method_id.1),
-        ),
+        (declaring_method_id.0, declaring_method_id.1),
     );
 
     if let Some(overridden_classlikes) = classlike_storage
@@ -87,29 +87,27 @@ pub(crate) fn analyze(
                 .symbol_references
                 .add_reference_to_overridden_class_member(
                     &context.function_context,
-                    (
-                        overridden_classlike.clone(),
-                        format!("{}()", declaring_method_id.1),
-                    ),
+                    (overridden_classlike.clone(), declaring_method_id.1),
                 );
         }
     }
 
-    let class_template_params =
-        if codebase.interner.lookup(classlike_name) != "HH\\Vector" || method_name != "fromItems" {
-            class_template_param_collector::collect(
-                codebase,
-                codebase
-                    .classlike_infos
-                    .get(&declaring_method_id.0)
-                    .unwrap(),
-                classlike_storage,
-                Some(lhs_type_part),
-                lhs_var_id.unwrap_or(&"".to_string()) == "$this",
-            )
-        } else {
-            None
-        };
+    let class_template_params = if codebase.interner.lookup(classlike_name) != "HH\\Vector"
+        || codebase.interner.lookup(*method_name) != "fromItems"
+    {
+        class_template_param_collector::collect(
+            codebase,
+            codebase
+                .classlike_infos
+                .get(&declaring_method_id.0)
+                .unwrap(),
+            classlike_storage,
+            Some(lhs_type_part),
+            lhs_var_id.unwrap_or(&"".to_string()) == "$this",
+        )
+    } else {
+        None
+    };
 
     let functionlike_storage = codebase.get_method(&declaring_method_id).unwrap();
 
@@ -201,155 +199,172 @@ fn handle_shapes_static_method(
     pos: &Pos,
     codebase: &hakana_reflection_info::codebase_info::CodebaseInfo,
 ) -> Option<TUnion> {
-    if method_id.1 == "keyExists" && call_expr.1.len() == 2 {
-        let expr_var_id = expression_identifier::get_var_id(
-            &call_expr.1[0].1,
-            context.function_context.calling_class.as_ref(),
-            statements_analyzer.get_file_analyzer().get_file_source(),
-            statements_analyzer.get_file_analyzer().resolved_names,
-            Some(statements_analyzer.get_codebase()),
-        );
-
-        let dim_var_id =
-            expression_identifier::get_dim_id(&call_expr.1[1].1, None, &FxHashMap::default());
-
-        if let Some(expr_var_id) = expr_var_id {
-            if let Some(mut dim_var_id) = dim_var_id {
-                if dim_var_id.starts_with("'") {
-                    dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
-                    tast_info.if_true_assertions.insert(
-                        (pos.start_offset(), pos.end_offset()),
-                        FxHashMap::from_iter([(
-                            expr_var_id,
-                            vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
-                        )]),
-                    );
-                } else {
-                    tast_info.if_true_assertions.insert(
-                        (pos.start_offset(), pos.end_offset()),
-                        FxHashMap::from_iter([(
-                            format!("{}[{}]", expr_var_id, dim_var_id),
-                            vec![Assertion::ArrayKeyExists],
-                        )]),
-                    );
-                }
-            }
-        }
-    }
-    if method_id.1 == "removeKey" && call_expr.1.len() == 2 {
-        let expr_var_id = expression_identifier::get_var_id(
-            &call_expr.1[0].1,
-            context.function_context.calling_class.as_ref(),
-            statements_analyzer.get_file_analyzer().get_file_source(),
-            statements_analyzer.get_file_analyzer().resolved_names,
-            Some(statements_analyzer.get_codebase()),
-        );
-        let dim_var_id =
-            expression_identifier::get_dim_id(&call_expr.1[1].1, None, &FxHashMap::default());
-
-        if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
-            if let Some(expr_type) = context.vars_in_scope.get(&expr_var_id) {
-                let mut new_type = (**expr_type).clone();
-
-                let dim_var_id = dim_var_id[1..dim_var_id.len() - 1].to_string();
-
-                for (_, atomic_type) in new_type.types.iter_mut() {
-                    if let TAtomic::TDict {
-                        known_items: Some(ref mut known_items),
-                        ..
-                    } = atomic_type
-                    {
-                        known_items.remove(&DictKey::String(dim_var_id.clone()));
-                    }
-                }
-
-                let assignment_node = DataFlowNode::get_for_assignment(
-                    expr_var_id.clone(),
-                    statements_analyzer.get_hpos(&call_expr.1[0].1.pos()),
+    match codebase.interner.lookup(method_id.1) {
+        "keyExists" => {
+            if call_expr.1.len() == 2 {
+                let expr_var_id = expression_identifier::get_var_id(
+                    &call_expr.1[0].1,
+                    context.function_context.calling_class.as_ref(),
+                    statements_analyzer.get_file_analyzer().get_file_source(),
+                    statements_analyzer.get_file_analyzer().resolved_names,
+                    Some(statements_analyzer.get_codebase()),
                 );
 
-                for (_, parent_node) in &expr_type.parent_nodes {
-                    tast_info.data_flow_graph.add_path(
-                        parent_node,
-                        &assignment_node,
-                        PathKind::RemoveDictKey(dim_var_id.clone()),
-                        None,
-                        None,
-                    );
+                let dim_var_id = expression_identifier::get_dim_id(
+                    &call_expr.1[1].1,
+                    None,
+                    &FxHashMap::default(),
+                );
+
+                if let Some(expr_var_id) = expr_var_id {
+                    if let Some(mut dim_var_id) = dim_var_id {
+                        if dim_var_id.starts_with("'") {
+                            dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
+                            tast_info.if_true_assertions.insert(
+                                (pos.start_offset(), pos.end_offset()),
+                                FxHashMap::from_iter([(
+                                    expr_var_id,
+                                    vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
+                                )]),
+                            );
+                        } else {
+                            tast_info.if_true_assertions.insert(
+                                (pos.start_offset(), pos.end_offset()),
+                                FxHashMap::from_iter([(
+                                    format!("{}[{}]", expr_var_id, dim_var_id),
+                                    vec![Assertion::ArrayKeyExists],
+                                )]),
+                            );
+                        }
+                    }
                 }
-
-                new_type.parent_nodes = FxHashMap::from_iter([(
-                    assignment_node.get_id().clone(),
-                    assignment_node.clone(),
-                )]);
-
-                tast_info.data_flow_graph.add_node(assignment_node);
-
-                context.vars_in_scope.insert(expr_var_id, Rc::new(new_type));
             }
         }
-    }
-    if method_id.1 == "idx" && call_expr.1.len() >= 2 {
-        let dict_type = tast_info.get_rc_expr_type(call_expr.1[0].1.pos()).cloned();
-        let dim_type = tast_info.get_rc_expr_type(call_expr.1[1].1.pos()).cloned();
 
-        let mut expr_type = None;
+        "removeKey" => {
+            if call_expr.1.len() == 2 {
+                let expr_var_id = expression_identifier::get_var_id(
+                    &call_expr.1[0].1,
+                    context.function_context.calling_class.as_ref(),
+                    statements_analyzer.get_file_analyzer().get_file_source(),
+                    statements_analyzer.get_file_analyzer().resolved_names,
+                    Some(statements_analyzer.get_codebase()),
+                );
+                let dim_var_id = expression_identifier::get_dim_id(
+                    &call_expr.1[1].1,
+                    None,
+                    &FxHashMap::default(),
+                );
 
-        if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
-            let mut has_valid_expected_offset = false;
+                if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
+                    if let Some(expr_type) = context.vars_in_scope.get(&expr_var_id) {
+                        let mut new_type = (**expr_type).clone();
 
-            for (_, atomic_type) in &dict_type.types {
-                if let TAtomic::TDict { .. } = atomic_type {
-                    let mut has_possibly_undefined = false;
-                    let mut expr_type_inner = handle_array_access_on_dict(
-                        statements_analyzer,
-                        pos,
-                        tast_info,
-                        context,
-                        atomic_type,
-                        &*dim_type,
-                        false,
-                        &mut has_valid_expected_offset,
-                        true,
-                        &mut has_possibly_undefined,
-                    );
+                        let dim_var_id = dim_var_id[1..dim_var_id.len() - 1].to_string();
 
-                    if has_possibly_undefined && call_expr.1.len() == 2 {
-                        expr_type_inner.add_type(TAtomic::TNull);
+                        for (_, atomic_type) in new_type.types.iter_mut() {
+                            if let TAtomic::TDict {
+                                known_items: Some(ref mut known_items),
+                                ..
+                            } = atomic_type
+                            {
+                                known_items.remove(&DictKey::String(dim_var_id.clone()));
+                            }
+                        }
+
+                        let assignment_node = DataFlowNode::get_for_assignment(
+                            expr_var_id.clone(),
+                            statements_analyzer.get_hpos(&call_expr.1[0].1.pos()),
+                        );
+
+                        for (_, parent_node) in &expr_type.parent_nodes {
+                            tast_info.data_flow_graph.add_path(
+                                parent_node,
+                                &assignment_node,
+                                PathKind::RemoveDictKey(dim_var_id.clone()),
+                                None,
+                                None,
+                            );
+                        }
+
+                        new_type.parent_nodes = FxHashMap::from_iter([(
+                            assignment_node.get_id().clone(),
+                            assignment_node.clone(),
+                        )]);
+
+                        tast_info.data_flow_graph.add_node(assignment_node);
+
+                        context.vars_in_scope.insert(expr_var_id, Rc::new(new_type));
+                    }
+                }
+            }
+        }
+        "idx" => {
+            if call_expr.1.len() >= 2 {
+                let dict_type = tast_info.get_rc_expr_type(call_expr.1[0].1.pos()).cloned();
+                let dim_type = tast_info.get_rc_expr_type(call_expr.1[1].1.pos()).cloned();
+
+                let mut expr_type = None;
+
+                if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
+                    let mut has_valid_expected_offset = false;
+
+                    for (_, atomic_type) in &dict_type.types {
+                        if let TAtomic::TDict { .. } = atomic_type {
+                            let mut has_possibly_undefined = false;
+                            let mut expr_type_inner = handle_array_access_on_dict(
+                                statements_analyzer,
+                                pos,
+                                tast_info,
+                                context,
+                                atomic_type,
+                                &*dim_type,
+                                false,
+                                &mut has_valid_expected_offset,
+                                true,
+                                &mut has_possibly_undefined,
+                            );
+
+                            if has_possibly_undefined && call_expr.1.len() == 2 {
+                                expr_type_inner.add_type(TAtomic::TNull);
+                            }
+
+                            expr_type = Some(expr_type_inner);
+                        }
                     }
 
-                    expr_type = Some(expr_type_inner);
+                    if !has_valid_expected_offset && call_expr.1.len() > 2 {
+                        let default_type = tast_info.get_expr_type(call_expr.1[2].1.pos());
+                        expr_type = if let Some(expr_type) = expr_type {
+                            Some(if let Some(default_type) = default_type {
+                                add_union_type(expr_type, default_type, codebase, false)
+                            } else {
+                                get_mixed_any()
+                            })
+                        } else {
+                            None
+                        };
+                    }
                 }
-            }
 
-            if !has_valid_expected_offset && call_expr.1.len() > 2 {
-                let default_type = tast_info.get_expr_type(call_expr.1[2].1.pos());
-                expr_type = if let Some(expr_type) = expr_type {
-                    Some(if let Some(default_type) = default_type {
-                        add_union_type(expr_type, default_type, codebase, false)
-                    } else {
-                        get_mixed_any()
-                    })
-                } else {
-                    None
-                };
+                return Some(expr_type.unwrap_or(get_mixed_any()));
             }
         }
+        "toDict" | "toArray" => {
+            let arg_type = tast_info.get_expr_type(call_expr.1[0].1.pos()).cloned();
 
-        return Some(expr_type.unwrap_or(get_mixed_any()));
-    }
-    if method_id.1 == "toDict" || method_id.1 == "toArray" {
-        let arg_type = tast_info.get_expr_type(call_expr.1[0].1.pos()).cloned();
-
-        return Some(if let Some(arg_type) = arg_type {
-            if arg_type.is_mixed() {
-                get_dict(get_arraykey(true), get_mixed_any())
+            return Some(if let Some(arg_type) = arg_type {
+                if arg_type.is_mixed() {
+                    get_dict(get_arraykey(true), get_mixed_any())
+                } else {
+                    arg_type
+                }
             } else {
-                arg_type
-            }
-        } else {
-            get_mixed_any()
-        });
+                get_mixed_any()
+            });
+        }
+        _ => {}
     }
+
     None
 }

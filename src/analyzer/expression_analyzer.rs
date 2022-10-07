@@ -562,7 +562,9 @@ pub(crate) fn analyze(
                         && type_params.len() == 1
                     {
                         let mut inside_type = type_params.get(0).unwrap().clone();
-                        inside_type.parent_nodes.extend(awaited_stmt_type.parent_nodes.clone());
+                        inside_type
+                            .parent_nodes
+                            .extend(awaited_stmt_type.parent_nodes.clone());
 
                         tast_info.expr_types.insert(
                             (expr.1.start_offset(), expr.1.end_offset()),
@@ -615,7 +617,11 @@ pub(crate) fn analyze(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(wrap_atomic(TAtomic::TEnumClassLabel {
                     class_name,
-                    member_name: boxed.1.clone(),
+                    member_name: statements_analyzer
+                        .get_codebase()
+                        .interner
+                        .get(&boxed.1)
+                        .unwrap(),
                 })),
             );
         }
@@ -695,7 +701,10 @@ fn analyze_function_pointer(
             }
             .unwrap();
 
-            FunctionLikeIdentifier::Method(class_name, method_name.1.clone())
+            FunctionLikeIdentifier::Method(
+                class_name,
+                codebase.interner.get(&method_name.1).unwrap(),
+            )
         }
     };
 
@@ -708,7 +717,7 @@ fn analyze_function_pointer(
         FunctionLikeIdentifier::Method(class_name, method_name) => {
             tast_info.symbol_references.add_reference_to_class_member(
                 &context.function_context,
-                (class_name.clone(), format!("{}()", method_name)),
+                (class_name.clone(), *method_name),
             );
 
             if let Some(classlike_storage) = codebase.classlike_infos.get(class_name) {
@@ -726,10 +735,7 @@ fn analyze_function_pointer(
                             .symbol_references
                             .add_reference_to_overridden_class_member(
                                 &context.function_context,
-                                (
-                                    overridden_classlike.clone(),
-                                    format!("{}()", declaring_method_id.1),
-                                ),
+                                (overridden_classlike.clone(), declaring_method_id.1),
                             );
                     }
                 }

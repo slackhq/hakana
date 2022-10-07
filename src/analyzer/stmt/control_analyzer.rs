@@ -479,8 +479,9 @@ fn handle_call(
                                 if let Some(classlike_storage) =
                                     codebase.classlike_infos.get(name_string)
                                 {
-                                    if let Some(functionlike_storage) =
-                                        classlike_storage.methods.get(&boxed.1 .1)
+                                    if let Some(functionlike_storage) = classlike_storage
+                                        .methods
+                                        .get(&codebase.interner.get(&boxed.1 .1).unwrap())
                                     {
                                         if let Some(return_type) = &functionlike_storage.return_type
                                         {

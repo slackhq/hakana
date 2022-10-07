@@ -232,13 +232,12 @@ fn replace_template_param(
                             panic!()
                         };
                         if let Some(bounds_map) = inferred_lower_bounds.get(template_name) {
-                            // if let Some(bounds) = bounds_map.get(template_name) {
-                            //     template_type =
-                            //         Some(standin_type_replacer::get_most_specific_type_from_bounds(
-                            //             bounds,
-                            //             Some(codebase),
-                            //         ))
-                            // }
+                            if let Some(bounds) = bounds_map.get(map_defining_entity) {
+                                template_type =
+                                    Some(standin_type_replacer::get_most_specific_type_from_bounds(
+                                        bounds, codebase,
+                                    ))
+                            }
                         }
                     }
                 }

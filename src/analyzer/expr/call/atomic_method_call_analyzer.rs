@@ -115,14 +115,14 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
 
             return;
         }
 
         if let aast::Expr_::Id(boxed) = &expr.1 .2 {
-            let (_, method_name) = (&boxed.0, &boxed.1);
+            let method_name = codebase.interner.get(&boxed.1).unwrap();
 
             if !codebase.method_exists(&classlike_name, &method_name) {
                 tast_info.maybe_add_issue(
@@ -131,12 +131,12 @@ pub(crate) fn analyze(
                         format!(
                             "Method {}::{} does not exist",
                             codebase.interner.lookup(*classlike_name),
-                            method_name
+                            codebase.interner.lookup(method_name)
                         ),
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
 
                 return;
@@ -145,7 +145,7 @@ pub(crate) fn analyze(
             let return_type_candidate = existing_atomic_method_call_analyzer::analyze(
                 statements_analyzer,
                 classlike_name.clone(),
-                method_name,
+                &method_name,
                 (expr.2, expr.3, expr.4),
                 &lhs_type_part,
                 pos,
@@ -199,7 +199,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&expr.0 .1),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
             // todo handle invalid class invocation
             return;
@@ -226,7 +226,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&expr.0 .1),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
             // todo handle invalid class invocation
             return;

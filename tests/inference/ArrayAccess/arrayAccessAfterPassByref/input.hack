@@ -1,10 +1,10 @@
 class Arr {
-    public static function pull(inout vec_or_dict $a, string $b, mixed $c = null): mixed {
+    public static function pull(inout dict<string, mixed> $a, string $b, mixed $c = null): mixed {
         return $a[$b] ?? $c;
     }
 }
 
-function _renderButton(vec_or_dict $settings): void {
+function _renderButton(dict<string, mixed> $settings): void {
     Arr::pull($settings, "a", true);
 
     if (isset($settings["b"])) {

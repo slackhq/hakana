@@ -7,14 +7,14 @@ use crate::{
     codebase_info::symbols::{Symbol, SymbolKind},
     functionlike_info::FunctionLikeInfo,
     t_atomic::TAtomic,
-    t_union::TUnion,
+    t_union::TUnion, StrId,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     aliases::Aliases, attribute_info::AttributeInfo, class_constant_info::ConstantInfo,
-    class_type_alias::ClassTypeAlias, enum_case_info::EnumCaseInfo, property_info::PropertyInfo,
+    enum_case_info::EnumCaseInfo, property_info::PropertyInfo,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ pub enum Variance {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClassLikeInfo {
-    pub constants: FxHashMap<String, ConstantInfo>,
+    pub constants: FxHashMap<StrId, ConstantInfo>,
 
     /**
      * Aliases to help Hakana understand constant refs
@@ -93,32 +93,32 @@ pub struct ClassLikeInfo {
 
     pub specialize_instance: bool,
 
-    pub methods: FxHashMap<String, FunctionLikeInfo>,
+    pub methods: FxHashMap<Symbol, FunctionLikeInfo>,
 
-    pub declaring_method_ids: FxHashMap<String, Symbol>,
+    pub declaring_method_ids: FxHashMap<Symbol, Symbol>,
 
-    pub appearing_method_ids: FxHashMap<String, Symbol>,
+    pub appearing_method_ids: FxHashMap<Symbol, Symbol>,
 
     /**
      * Map from lowercase method name to list of declarations in order from parent, to grandparent, to
      * great-grandparent, etc **including traits and interfaces**. Ancestors that don't have their own declaration are
      * skipped.
      */
-    pub overridden_method_ids: FxHashMap<String, FxHashSet<Symbol>>,
+    pub overridden_method_ids: FxHashMap<Symbol, FxHashSet<Symbol>>,
 
-    pub inheritable_method_ids: FxHashMap<String, Symbol>,
+    pub inheritable_method_ids: FxHashMap<Symbol, Symbol>,
 
-    pub potential_declaring_method_ids: FxHashMap<String, FxHashSet<Symbol>>,
+    pub potential_declaring_method_ids: FxHashMap<Symbol, FxHashSet<Symbol>>,
 
-    pub properties: FxHashMap<String, PropertyInfo>,
+    pub properties: FxHashMap<Symbol, PropertyInfo>,
 
-    pub appearing_property_ids: FxHashMap<String, Symbol>,
+    pub appearing_property_ids: FxHashMap<Symbol, Symbol>,
 
-    pub declaring_property_ids: FxHashMap<String, Symbol>,
+    pub declaring_property_ids: FxHashMap<Symbol, Symbol>,
 
-    pub inheritable_property_ids: FxHashMap<String, Symbol>,
+    pub inheritable_property_ids: FxHashMap<Symbol, Symbol>,
 
-    pub overridden_property_ids: FxHashMap<String, Vec<Symbol>>,
+    pub overridden_property_ids: FxHashMap<Symbol, Vec<Symbol>>,
 
     /**
      * An array holding the class template "as" types.
@@ -162,7 +162,7 @@ pub struct ClassLikeInfo {
 
     pub template_type_uses_count: FxHashMap<String, u32>,
 
-    pub initialized_properties: FxHashSet<String>,
+    pub initialized_properties: FxHashSet<Symbol>,
 
     pub invalid_dependencies: Vec<Symbol>,
 
@@ -172,8 +172,6 @@ pub struct ClassLikeInfo {
     pub hash: Option<String>,
 
     pub has_visitor_issues: bool,
-
-    pub type_aliases: FxHashMap<String, ClassTypeAlias>,
 
     pub preserve_constructor_signature: bool,
 
@@ -189,8 +187,6 @@ pub struct ClassLikeInfo {
 
     pub enum_type: Option<TAtomic>,
     pub enum_constraint: Option<Box<TAtomic>>,
-
-    pub description: Option<String>,
 
     pub type_constants: FxHashMap<String, TUnion>,
 
@@ -229,7 +225,6 @@ impl ClassLikeInfo {
             appearing_property_ids: FxHashMap::default(),
             declaring_property_ids: FxHashMap::default(),
             direct_parent_class: None,
-            description: None,
             direct_parent_interfaces: FxHashSet::default(),
             inheritable_method_ids: FxHashMap::default(),
             enum_cases: None,
@@ -257,7 +252,6 @@ impl ClassLikeInfo {
             template_type_implements_count: FxHashMap::default(),
             template_type_uses_count: FxHashMap::default(),
             template_types: IndexMap::new(),
-            type_aliases: FxHashMap::default(),
             used_traits: FxHashSet::default(),
             name,
             type_constants: FxHashMap::default(),

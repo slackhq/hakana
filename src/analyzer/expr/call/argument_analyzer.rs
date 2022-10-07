@@ -633,14 +633,14 @@ fn add_dataflow(
                     .classlike_descendents
                     .get(&method_call_info.classlike_storage.name)
                 {
-                    if method_name != "__construct" {
+                    if method_name != &codebase.interner.get("__construct").unwrap() {
                         for dependent_classlike in dependent_classlikes {
                             if codebase.declaring_method_exists(&dependent_classlike, &method_name)
                             {
                                 let new_sink = DataFlowNode::get_for_method_argument(
                                     codebase.interner.lookup(*dependent_classlike).to_string()
                                         + "::"
-                                        + method_name,
+                                        + codebase.interner.lookup(*method_name),
                                     argument_offset,
                                     None,
                                     if specialize_taint {
@@ -868,7 +868,7 @@ fn get_argument_taints(
             _ => {}
         },
         FunctionLikeIdentifier::Method(fq_class, method_name) => {
-            match (interner.lookup(*fq_class), method_name.as_str()) {
+            match (interner.lookup(*fq_class), interner.lookup(*method_name)) {
                 ("AsyncMysqlConnection", "query") => {
                     if arg_offset == 0 {
                         return vec![SinkType::Sql];

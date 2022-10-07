@@ -193,8 +193,9 @@ fn get_shape_type_from_hints(
             }
             ast_defs::ShapeFieldName::SFclassConst(lhs, name) => {
                 let lhs_name = resolved_names.get(&lhs.0.start_offset()).unwrap();
+                let rhs_name = resolved_names.get(&name.0.start_offset()).unwrap();
                 known_items.insert(
-                    DictKey::Enum(lhs_name.clone(), name.1.clone()),
+                    DictKey::Enum(*lhs_name, *rhs_name),
                     (field.optional, Arc::new(field_type)),
                 );
             }
@@ -253,8 +254,12 @@ fn get_function_type_from_hints(
         let mut param = FunctionLikeParameter::new("".to_string());
 
         param.is_variadic = true;
-        param.signature_type = None;
-        param.signature_type_location = None;
+        param.signature_type = Some(get_type_from_hint(
+            &variadic_type.1,
+            classlike_name,
+            type_context,
+            resolved_names,
+        ));
 
         params.push(param);
     }

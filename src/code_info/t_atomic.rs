@@ -1,5 +1,4 @@
 use crate::functionlike_identifier::FunctionLikeIdentifier;
-use crate::{Interner, StrId};
 use crate::{
     classlike_info::Variance,
     codebase_info::{
@@ -9,6 +8,7 @@ use crate::{
     functionlike_parameter::FunctionLikeParameter,
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };
+use crate::{Interner, StrId};
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ use std::{collections::BTreeMap, sync::Arc};
 pub enum DictKey {
     Int(u32),
     String(String),
-    Enum(Symbol, String),
+    Enum(Symbol, Symbol),
 }
 
 impl DictKey {
@@ -28,9 +28,9 @@ impl DictKey {
             DictKey::String(k) => "'".to_string() + k.as_str() + "'",
             DictKey::Enum(c, m) => {
                 if let Some(interner) = interner {
-                    interner.lookup(*c).to_string() + "::" + m
+                    interner.lookup(*c).to_string() + "::" + interner.lookup(*m)
                 } else {
-                    c.0.to_string() + "::" + m
+                    c.0.to_string() + "::" + m.0.to_string().as_str()
                 }
             }
         }
@@ -76,7 +76,7 @@ pub enum TAtomic {
     },
     TEnumLiteralCase {
         enum_name: Symbol,
-        member_name: String,
+        member_name: Symbol,
         constraint_type: Option<Box<TAtomic>>,
     },
     TLiteralInt {
@@ -147,7 +147,7 @@ pub enum TAtomic {
     },
     TEnumClassLabel {
         class_name: Option<Symbol>,
-        member_name: String,
+        member_name: Symbol,
     },
 }
 
@@ -301,7 +301,11 @@ impl TAtomic {
                     str += enum_name.0.to_string().as_str();
                 }
                 str += "::";
-                str += member_name.as_str();
+                if let Some(interner) = interner {
+                    str += interner.lookup(*member_name);
+                } else {
+                    str += member_name.0.to_string().as_str();
+                }
                 str
             }
             TAtomic::TLiteralInt { value } => {
@@ -513,12 +517,20 @@ impl TAtomic {
             } => {
                 if let Some(class_name) = class_name {
                     if let Some(interner) = interner {
-                        format!("#{}::{}", interner.lookup(*class_name), member_name)
+                        format!(
+                            "#{}::{}",
+                            interner.lookup(*class_name),
+                            interner.lookup(*member_name)
+                        )
                     } else {
-                        format!("#{}::{}", class_name.0, member_name)
+                        format!("#{}::{}", class_name.0, member_name.0)
                     }
                 } else {
-                    format!("#{}", member_name)
+                    if let Some(interner) = interner {
+                        format!("#{}", interner.lookup(*member_name))
+                    } else {
+                        format!("#{}", member_name.0)
+                    }
                 }
             }
         }

@@ -5,6 +5,7 @@ use super::Context;
 use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
+use hakana_reflection_info::StrId;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
@@ -43,11 +44,11 @@ pub(crate) fn scan_method(
     c: &mut Context,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
-) -> (String, FunctionLikeInfo) {
+) -> (StrId, FunctionLikeInfo) {
     let classlike_name = c.classlike_name.clone().unwrap();
-    let method_name = m.name.1.clone();
+    let method_name = interner.lock().unwrap().intern(m.name.1.clone());
 
-    let method_id = MethodIdentifier(classlike_name.clone(), method_name.clone());
+    let method_id = MethodIdentifier(classlike_name, method_name);
 
     let mut type_resolution_context = TypeResolutionContext {
         template_type_map: codebase
@@ -59,14 +60,12 @@ pub(crate) fn scan_method(
         template_supers: FxHashMap::default(),
     };
 
-    let name = interner.lock().unwrap().intern(method_name.clone());
-
     let functionlike_id = method_id.to_string(&interner.lock().unwrap());
 
     let mut functionlike_info = get_functionlike(
         &codebase,
         interner,
-        name,
+        method_name,
         &m.span,
         &m.name.0,
         &m.tparams,
@@ -106,7 +105,7 @@ pub(crate) fn scan_method(
         .insert(method_name.clone(), classlike_name.clone());
 
     if !matches!(m.visibility, ast_defs::Visibility::Private)
-        || method_name != "__construct"
+        || method_name != interner.lock().unwrap().get("__construct").unwrap()
         || matches!(classlike_storage.kind, SymbolKind::Trait)
     {
         classlike_storage
@@ -130,7 +129,7 @@ pub(crate) fn scan_method(
     functionlike_info.type_resolution_context = Some(type_resolution_context);
     functionlike_info.method_info = Some(method_info);
 
-    (m.name.1.clone(), functionlike_info)
+    (method_name, functionlike_info)
 }
 
 fn add_promoted_param_property(
@@ -174,24 +173,29 @@ fn add_promoted_param_property(
         is_internal: matches!(param_visibility, ast_defs::Visibility::Internal),
     };
 
+    let param_node_id = resolved_names
+        .get(&param_node.pos.start_offset())
+        .unwrap()
+        .clone();
+
     if !matches!(param_visibility, ast_defs::Visibility::Private) {
         classlike_storage
             .inheritable_property_ids
-            .insert(param_node.name.clone(), classlike_name.clone());
+            .insert(param_node_id, classlike_name.clone());
     };
 
     classlike_storage
         .declaring_property_ids
-        .insert(param_node.name.clone(), classlike_name.clone());
+        .insert(param_node_id, classlike_name.clone());
     classlike_storage
         .appearing_property_ids
-        .insert(param_node.name.clone(), classlike_name.clone());
+        .insert(param_node_id, classlike_name.clone());
     classlike_storage
         .initialized_properties
-        .insert(param_node.name.clone());
+        .insert(param_node_id);
     classlike_storage
         .properties
-        .insert(param_node.name.clone(), property_storage);
+        .insert(param_node_id, property_storage);
 }
 
 pub(crate) fn get_functionlike(

@@ -127,7 +127,7 @@ impl DataFlowNode {
         let label = format!(
             "$this in {} before {}",
             interner.lookup(method_id.0),
-            method_id.1
+            interner.lookup(method_id.1)
         );
 
         let mut specialization_key = None;
@@ -148,7 +148,7 @@ impl DataFlowNode {
         let label = format!(
             "$this in {} after {}",
             interner.lookup(method_id.0),
-            method_id.1
+            interner.lookup(method_id.1)
         );
 
         let mut specialization_key = None;

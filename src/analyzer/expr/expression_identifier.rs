@@ -141,7 +141,7 @@ pub(crate) fn get_dim_id(
 
                             let constant_type = codebase.get_class_constant_type(
                                 &classlike_name,
-                                &boxed.1 .1,
+                                &codebase.interner.get(&boxed.1 .1).unwrap(),
                                 FxHashSet::default(),
                             );
 

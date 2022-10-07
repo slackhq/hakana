@@ -82,7 +82,7 @@ pub(crate) fn analyze(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
             }
 
@@ -92,7 +92,9 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.get_codebase();
 
-    if !codebase.method_exists(&classlike_name, &expr.1 .1) {
+    let method_name = codebase.interner.get(&expr.1 .1).unwrap();
+
+    if !codebase.method_exists(&classlike_name, &method_name) {
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentMethod,
@@ -104,7 +106,7 @@ pub(crate) fn analyze(
                 statements_analyzer.get_hpos(&pos),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
 
         tast_info.expr_effects.insert(
@@ -118,7 +120,7 @@ pub(crate) fn analyze(
     result.return_type = Some(existing_atomic_method_call_analyzer::analyze(
         statements_analyzer,
         classlike_name,
-        &expr.1 .1,
+        &method_name,
         (expr.2, expr.3, expr.4),
         lhs_type_part,
         pos,

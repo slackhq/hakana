@@ -3,7 +3,6 @@ use crate::{expr::call::arguments_analyzer::get_template_types_for_call, typed_a
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
-use hakana_reflection_info::Interner;
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
@@ -14,6 +13,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_reflection_info::{Interner, StrId};
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     add_optional_union_type, get_mixed_any,
@@ -32,7 +32,7 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     in_assignment: bool,
     lhs_type_part: TAtomic,
-    prop_name: &String,
+    prop_name: &Option<StrId>,
     var_id: &Option<String>,
     lhs_var_id: &Option<String>,
 ) -> bool {
@@ -60,14 +60,22 @@ pub(crate) fn analyze(
         }
     };
 
-    if !codebase.property_exists(&classlike_name, &prop_name) {
+    let prop_name = if let Some(prop_name) = prop_name {
+        prop_name
+    } else {
+        // todo handle SimpleXML prop
+        // todo emit issue
+        return true;
+    };
+
+    if !codebase.property_exists(&classlike_name, prop_name) {
         // todo emit issue
         return true;
     }
 
     tast_info.symbol_references.add_reference_to_class_member(
         &context.function_context,
-        (classlike_name.clone(), format!("${}", prop_name)),
+        (classlike_name.clone(), *prop_name),
     );
 
     let declaring_property_class =
@@ -144,7 +152,7 @@ pub(crate) fn analyze(
 fn get_class_property_type(
     statements_analyzer: &StatementsAnalyzer,
     classlike_name: &Symbol,
-    property_name: &String,
+    property_name: &StrId,
     declaring_property_class: &Symbol,
     mut lhs_type_part: TAtomic,
     tast_info: &mut TastInfo,
@@ -329,10 +337,12 @@ fn add_property_dataflow(
     classlike_storage: &ClassLikeInfo,
     stmt_type: TUnion,
     in_assignment: bool,
-    property_id: &(Symbol, String),
+    property_id: &(Symbol, StrId),
     lhs_var_id: &Option<String>,
     expr_id: &Option<String>,
 ) -> TUnion {
+    let interner = &statements_analyzer.get_codebase().interner;
+
     if classlike_storage.specialize_instance {
         if let Some(lhs_var_id) = lhs_var_id {
             let var_type = tast_info
@@ -358,7 +368,10 @@ fn add_property_dataflow(
             tast_info.data_flow_graph.add_path(
                 &var_node,
                 &property_node,
-                PathKind::ExpressionFetch(PathExpressionKind::Property, property_id.1.clone()),
+                PathKind::ExpressionFetch(
+                    PathExpressionKind::Property,
+                    interner.lookup(property_id.1).to_string(),
+                ),
                 None,
                 None,
             );
@@ -400,7 +413,7 @@ fn add_property_dataflow(
 
 pub(crate) fn add_unspecialized_property_fetch_dataflow(
     expr_id: &Option<String>,
-    property_id: &(Symbol, String),
+    property_id: &(Symbol, StrId),
     pos: HPos,
     tast_info: &mut TastInfo,
     in_assignment: bool,
@@ -411,7 +424,11 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         if let Some(expr_id) = expr_id {
             expr_id.clone()
         } else {
-            format!("{}::${}", interner.lookup(property_id.0), property_id.1)
+            format!(
+                "{}::${}",
+                interner.lookup(property_id.0),
+                interner.lookup(property_id.1)
+            )
         },
         pos,
     );
@@ -420,18 +437,22 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         .data_flow_graph
         .add_node(localized_property_node.clone());
 
-    let property_node = DataFlowNode::new(
-        format!("{}::${}", interner.lookup(property_id.0), property_id.1),
-        format!("{}::${}", interner.lookup(property_id.0), property_id.1),
-        None,
-        None,
+    let label = format!(
+        "{}::${}",
+        interner.lookup(property_id.0),
+        interner.lookup(property_id.1)
     );
+
+    let property_node = DataFlowNode::new(label.clone(), label, None, None);
 
     if in_assignment {
         tast_info.data_flow_graph.add_path(
             &property_node,
             &localized_property_node,
-            PathKind::ExpressionAssignment(PathExpressionKind::Property, property_id.1.clone()),
+            PathKind::ExpressionAssignment(
+                PathExpressionKind::Property,
+                interner.lookup(property_id.1).to_string(),
+            ),
             None,
             None,
         );
@@ -439,7 +460,10 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         tast_info.data_flow_graph.add_path(
             &property_node,
             &localized_property_node,
-            PathKind::ExpressionFetch(PathExpressionKind::Property, property_id.1.clone()),
+            PathKind::ExpressionFetch(
+                PathExpressionKind::Property,
+                interner.lookup(property_id.1).to_string(),
+            ),
             None,
             None,
         );

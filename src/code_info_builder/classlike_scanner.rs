@@ -371,6 +371,7 @@ pub(crate) fn scan(
             &mut storage,
             file_source,
             &codebase,
+            &interner,
         );
     }
 
@@ -430,11 +431,12 @@ pub(crate) fn scan(
             resolved_names,
             &mut storage,
             file_source,
+            interner,
         );
     }
 
     for xhp_attribute in &classlike_node.xhp_attrs {
-        visit_xhp_attribute(xhp_attribute, resolved_names, &mut storage, &file_source);
+        visit_xhp_attribute(xhp_attribute, resolved_names, &mut storage, &file_source, interner,);
     }
 
     codebase.classlike_infos.insert(class_name.clone(), storage);
@@ -492,6 +494,7 @@ fn visit_xhp_attribute(
     resolved_names: &FxHashMap<usize, Symbol>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
+    interner: &Arc<Mutex<Interner>>,
 ) {
     let mut attribute_type_location = None;
     let mut attribute_type = if let Some(hint) = &xhp_attribute.0 .1 {
@@ -532,18 +535,20 @@ fn visit_xhp_attribute(
         is_internal: false,
     };
 
+    let attribute_id = interner.lock().unwrap().intern(xhp_attribute.1.id.1.clone());
+
     classlike_storage
         .declaring_property_ids
-        .insert(xhp_attribute.1.id.1.clone(), classlike_storage.name.clone());
+        .insert(attribute_id, classlike_storage.name.clone());
     classlike_storage
         .appearing_property_ids
-        .insert(xhp_attribute.1.id.1.clone(), classlike_storage.name.clone());
+        .insert(attribute_id, classlike_storage.name.clone());
     classlike_storage
         .inheritable_property_ids
-        .insert(xhp_attribute.1.id.1.clone(), classlike_storage.name.clone());
+        .insert(attribute_id, classlike_storage.name.clone());
     classlike_storage
         .properties
-        .insert(xhp_attribute.1.id.1.clone(), property_storage);
+        .insert(attribute_id, property_storage);
 }
 
 fn visit_class_const_declaration(
@@ -552,6 +557,7 @@ fn visit_class_const_declaration(
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     codebase: &CodebaseInfo,
+    interner: &Arc<Mutex<Interner>>,
 ) {
     let mut provided_type = None;
 
@@ -591,9 +597,10 @@ fn visit_class_const_declaration(
         is_abstract: matches!(const_node.kind, ClassConstKind::CCAbstract(..)),
     };
 
-    classlike_storage
-        .constants
-        .insert(const_node.id.1.clone(), const_storage);
+    classlike_storage.constants.insert(
+        interner.lock().unwrap().intern(const_node.id.1.clone()),
+        const_storage,
+    );
 }
 
 fn visit_class_typeconst_declaration(
@@ -626,6 +633,7 @@ fn visit_property_declaration(
     resolved_names: &FxHashMap<usize, Symbol>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
+    interner: &Arc<Mutex<Interner>>,
 ) {
     let mut property_type = None;
 
@@ -664,23 +672,25 @@ fn visit_property_declaration(
         is_internal: matches!(property_node.visibility, ast_defs::Visibility::Internal),
     };
 
+    let property_ref_id = interner.lock().unwrap().intern(property_node.id.1.clone());
+
     classlike_storage
         .declaring_property_ids
-        .insert(property_node.id.1.clone(), classlike_storage.name.clone());
+        .insert(property_ref_id, classlike_storage.name.clone());
 
     classlike_storage
         .appearing_property_ids
-        .insert(property_node.id.1.clone(), classlike_storage.name.clone());
+        .insert(property_ref_id, classlike_storage.name.clone());
 
     if !matches!(property_node.visibility, ast_defs::Visibility::Private) {
         classlike_storage
             .inheritable_property_ids
-            .insert(property_node.id.1.clone(), classlike_storage.name.clone());
+            .insert(property_ref_id, classlike_storage.name.clone());
     }
 
     classlike_storage
         .properties
-        .insert(property_node.id.1.clone(), property_storage);
+        .insert(property_ref_id, property_storage);
 }
 
 fn get_classlike_storage(

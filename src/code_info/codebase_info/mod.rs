@@ -8,6 +8,7 @@ use crate::method_identifier::MethodIdentifier;
 use crate::t_atomic::TAtomic;
 use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
+use crate::StrId;
 use crate::{class_constant_info::ConstantInfo, Interner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -142,14 +143,14 @@ impl CodebaseInfo {
     pub fn get_class_constant_type(
         &self,
         fq_class_name: &Symbol,
-        const_name: &String,
+        const_name: &StrId,
         _visited_constant_ids: FxHashSet<String>,
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             if matches!(classlike_storage.kind, SymbolKind::Enum) {
                 return Some(TUnion::new(vec![TAtomic::TEnumLiteralCase {
-                    enum_name: classlike_storage.name.clone(),
-                    member_name: const_name.clone(),
+                    enum_name: classlike_storage.name,
+                    member_name: *const_name,
                     constraint_type: classlike_storage.enum_constraint.clone(),
                 }]));
             } else {
@@ -193,7 +194,7 @@ impl CodebaseInfo {
     pub fn get_classconst_literal_value(
         &self,
         fq_class_name: &Symbol,
-        const_name: &String,
+        const_name: &StrId,
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
@@ -210,7 +211,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn property_exists(&self, classlike_name: &Symbol, property_name: &String) -> bool {
+    pub fn property_exists(&self, classlike_name: &Symbol, property_name: &Symbol) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             classlike_info
                 .declaring_property_ids
@@ -220,7 +221,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn method_exists(&self, classlike_name: &Symbol, method_name: &String) -> bool {
+    pub fn method_exists(&self, classlike_name: &Symbol, method_name: &Symbol) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             classlike_info
                 .declaring_method_ids
@@ -230,7 +231,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn declaring_method_exists(&self, classlike_name: &Symbol, method_name: &String) -> bool {
+    pub fn declaring_method_exists(&self, classlike_name: &Symbol, method_name: &Symbol) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             if let Some(declaring_class) = classlike_info.declaring_method_ids.get(method_name) {
                 declaring_class == classlike_name
@@ -245,7 +246,7 @@ impl CodebaseInfo {
     pub fn get_declaring_class_for_property(
         &self,
         fq_class_name: &Symbol,
-        property_name: &String,
+        property_name: &Symbol,
     ) -> Option<&Symbol> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             return classlike_storage.declaring_property_ids.get(property_name);
@@ -257,7 +258,7 @@ impl CodebaseInfo {
     pub fn get_property_type(
         &self,
         fq_class_name: &Symbol,
-        property_name: &String,
+        property_name: &Symbol,
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             let declaring_property_class =

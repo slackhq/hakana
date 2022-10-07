@@ -1,5 +1,6 @@
 use crate::scope_context::ScopeContext;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::StrId;
 use hakana_reflection_info::{
     data_flow::{
         graph::{DataFlowGraph, GraphKind},
@@ -547,7 +548,7 @@ fn handle_dataflow(
 
         if let Some(FunctionLikeIdentifier::Method(classlike_name, method_name)) = method_id {
             if let Some(classlike_info) = codebase.classlike_infos.get(&classlike_name) {
-                if method_name != "__construct" {
+                if *method_name != StrId::construct() {
                     let mut all_parents = classlike_info
                         .all_parent_classes
                         .iter()
@@ -559,7 +560,7 @@ fn handle_dataflow(
                             let new_sink = DataFlowNode::get_for_method_return(
                                 codebase.interner.lookup(*parent_classlike).to_string()
                                     + "::"
-                                    + method_name,
+                                    + codebase.interner.lookup(*method_name),
                                 None,
                                 None,
                             );

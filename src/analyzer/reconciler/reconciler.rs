@@ -11,6 +11,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    StrId,
 };
 use hakana_type::{
     add_union_type, get_mixed_any, get_null, get_value_param,
@@ -681,8 +682,15 @@ fn get_value_for_key(
                 return None;
             }
 
-            let class_constant =
-                codebase.get_class_constant_type(fq_class_name, &const_name, FxHashSet::default());
+            let class_constant = if let Some(const_name) = codebase.interner.get(&const_name) {
+                codebase.get_class_constant_type(
+                    fq_class_name,
+                    &const_name,
+                    FxHashSet::default(),
+                )
+            } else {
+                None
+            };
 
             if let Some(class_constant) = class_constant {
                 context
@@ -917,7 +925,7 @@ fn get_value_for_key(
                                 let maybe_class_property_type = get_property_type(
                                     &codebase,
                                     &fq_class_name,
-                                    &property_name,
+                                    &codebase.interner.get(&property_name).unwrap(),
                                     tast_info,
                                 );
 
@@ -966,7 +974,7 @@ fn get_value_for_key(
 fn get_property_type(
     codebase: &CodebaseInfo,
     classlike_name: &Symbol,
-    property_name: &String,
+    property_name: &StrId,
     tast_info: &mut TastInfo,
 ) -> Option<TUnion> {
     if !codebase.property_exists(classlike_name, property_name) {
