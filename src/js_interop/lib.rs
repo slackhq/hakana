@@ -1,4 +1,5 @@
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::Interner;
 use hakana_workhorse::{get_single_file_codebase, scan_and_analyze_single_file};
 use serde_json::json;
 use wasm_bindgen::prelude::*;
@@ -15,9 +16,11 @@ impl ScannerAndAnalyzer {
     pub fn new() -> Self {
         console_error_panic_hook::set_once();
 
-        Self {
-            codebase: get_single_file_codebase(vec![]),
-        }
+        let (mut codebase, interner) = get_single_file_codebase(vec![]);
+
+        codebase.interner = interner;
+
+        Self { codebase }
     }
 
     pub fn get_results(&mut self, file_contents: String) -> String {
