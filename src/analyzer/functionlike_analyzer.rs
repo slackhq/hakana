@@ -389,6 +389,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let Some(method_storage) = &functionlike_storage.method_info {
                 if !method_storage.is_static {
                     if let Some(this_type) = context.vars_in_scope.get("$this") {
+                        if this_type.parent_nodes.len() == 1
+                            && this_type
+                                .parent_nodes
+                                .contains_key(&"$this-11057:82-88".to_string())
+                        {
+                            //panic!();
+                        }
                         let new_call_node = DataFlowNode::get_for_this_after_method(
                             &MethodIdentifier(
                                 context
@@ -690,46 +697,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 if !param.promoted_property {
                     if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
                         tast_info.data_flow_graph.add_node(new_parent_node.clone());
-                    }
-                } else if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-                    let var_node =
-                        DataFlowNode::get_for_assignment("$this".to_string(), param_pos.clone());
-
-                    tast_info.data_flow_graph.add_node(var_node.clone());
-
-                    let property_node = DataFlowNode::get_for_assignment(
-                        format!("$this->{}", param.name[1..].to_string()),
-                        param_pos.clone(),
-                    );
-
-                    tast_info.data_flow_graph.add_node(property_node.clone());
-                    tast_info.data_flow_graph.add_path(
-                        &property_node,
-                        &var_node,
-                        PathKind::ExpressionAssignment(
-                            PathExpressionKind::Property,
-                            param.name.clone(),
-                        ),
-                        None,
-                        None,
-                    );
-
-                    tast_info.data_flow_graph.add_path(
-                        &new_parent_node,
-                        &property_node,
-                        PathKind::Default,
-                        None,
-                        None,
-                    );
-
-                    let stmt_var_type = context.vars_in_scope.get_mut(&"$this".to_string());
-                    if let Some(stmt_var_type) = stmt_var_type {
-                        let mut stmt_type_inner = (**stmt_var_type).clone();
-
-                        stmt_type_inner.parent_nodes =
-                            FxHashMap::from_iter([(var_node.get_id().clone(), var_node.clone())]);
-
-                        *stmt_var_type = Rc::new(stmt_type_inner);
                     }
                 }
 

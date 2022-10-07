@@ -119,7 +119,7 @@ pub(crate) fn analyze(
                             statements_analyzer.get_hpos(&stmt_var.1),
                         ),
                         statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual()
+                        statements_analyzer.get_file_path_actual(),
                     );
                 } else {
                     tast_info.maybe_add_issue(
@@ -134,7 +134,7 @@ pub(crate) fn analyze(
                             statements_analyzer.get_hpos(&stmt_var.1),
                         ),
                         statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual()
+                        statements_analyzer.get_file_path_actual(),
                     );
                 }
             }
@@ -173,7 +173,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&stmt_var.1),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
 
             return false;
@@ -246,7 +246,7 @@ pub(crate) fn analyze_regular_assignment(
                         statements_analyzer.get_hpos(&expr.1 .1),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
             } else {
                 tast_info.maybe_add_issue(
@@ -257,7 +257,7 @@ pub(crate) fn analyze_regular_assignment(
                         statements_analyzer.get_hpos(&expr.1 .1),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
             }
 
@@ -271,7 +271,7 @@ pub(crate) fn analyze_regular_assignment(
                     statements_analyzer.get_hpos(&expr.1 .1),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
             return assigned_properties;
         } else if lhs_type.is_nullable() {
@@ -283,7 +283,7 @@ pub(crate) fn analyze_regular_assignment(
                     statements_analyzer.get_hpos(&expr.1 .1),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         }
 
@@ -445,7 +445,7 @@ pub(crate) fn analyze_atomic_assignment(
                 statements_analyzer.get_hpos(&expr.1.pos()),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
     }
 
@@ -536,8 +536,9 @@ fn add_instance_property_assignment_dataflow(
     if let Some(stmt_var_type) = stmt_var_type {
         let mut stmt_type_inner = (**stmt_var_type).clone();
 
-        stmt_type_inner.parent_nodes =
-            FxHashMap::from_iter([(var_node.get_id().clone(), var_node.clone())]);
+        stmt_type_inner
+            .parent_nodes
+            .insert(var_node.get_id().clone(), var_node.clone());
 
         *stmt_var_type = Rc::new(stmt_type_inner);
     }
@@ -609,8 +610,11 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
 
     if let Some(declaring_property_class) = declaring_property_class {
         if declaring_property_class != fq_class_name {
-            let declaring_property_id_str =
-                format!("{}::${}", codebase.interner.lookup(*declaring_property_class), property_id.1);
+            let declaring_property_id_str = format!(
+                "{}::${}",
+                codebase.interner.lookup(*declaring_property_class),
+                property_id.1
+            );
 
             let declaring_property_node = DataFlowNode::new(
                 declaring_property_id_str.clone(),
