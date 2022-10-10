@@ -48,6 +48,7 @@ struct HslAsset;
 #[derive(RustEmbed)]
 #[folder = "$CARGO_MANIFEST_DIR/../../tests/security/taintedCurlInit/.hakana_cache"]
 #[prefix = "cached_codebase_"]
+#[exclude = "*aast_names"]
 struct CachedCodebase;
 
 pub fn scan_and_analyze(
@@ -1077,6 +1078,8 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             }
         }
     }
+
+    populate_codebase(&mut codebase, &mut interner);
 
     (codebase, interner)
 }
