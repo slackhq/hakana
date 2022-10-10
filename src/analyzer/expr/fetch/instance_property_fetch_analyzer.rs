@@ -108,7 +108,7 @@ pub(crate) fn analyze(
 
     if let Some(prop_name) = prop_name {
         let var_atomic_types = &stmt_var_type.types;
-        for (_, lhs_type_part) in var_atomic_types {
+        for lhs_type_part in var_atomic_types {
             if let TAtomic::TNull = lhs_type_part {
                 if nullsafe {
                     has_nullsafe_null = true;

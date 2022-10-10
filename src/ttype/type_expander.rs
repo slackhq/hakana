@@ -16,6 +16,7 @@ use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
 };
 use indexmap::IndexMap;
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
 use crate::{template, type_combiner, wrap_atomic};
@@ -64,49 +65,42 @@ pub fn expand_union(
 ) {
     let mut new_return_type_parts = vec![];
 
-    let mut had_split_values = false;
+    let mut extra_data_flow_nodes = vec![];
 
     let mut skipped_keys = vec![];
 
-    let mut extra_data_flow_nodes = vec![];
-
-    for (key, return_type_part) in return_type.types.iter_mut() {
+    for (i, return_type_part) in return_type.types.iter_mut().enumerate() {
+        let mut skip_key = false;
         expand_atomic(
             return_type_part,
             codebase,
             &options,
             data_flow_graph,
-            &mut skipped_keys,
-            key,
+            &mut skip_key,
             &mut new_return_type_parts,
-            &mut had_split_values,
             &mut extra_data_flow_nodes,
         );
+
+        if skip_key {
+            skipped_keys.push(i);
+        }
     }
 
     if !skipped_keys.is_empty() {
-        return_type.types.retain(|k, _| !skipped_keys.contains(k));
+        let mut i = 0;
+        return_type.types.retain(|_| {
+            let to_retain = !skipped_keys.contains(&i);
+            i += 1;
+            to_retain
+        });
 
-        let keys = return_type
-            .types
-            .iter()
-            .map(|(k, _)| k.clone())
-            .collect::<Vec<_>>();
+        new_return_type_parts.extend(return_type.types.drain(..).collect_vec());
 
-        for key in keys {
-            new_return_type_parts.push(return_type.types.remove(&key).unwrap());
-        }
-
-        let expanded_types = if had_split_values {
-            type_combiner::combine(new_return_type_parts, codebase, false)
+        if new_return_type_parts.len() > 1 {
+            return_type.types = type_combiner::combine(new_return_type_parts, codebase, false)
         } else {
-            new_return_type_parts
-        };
-
-        return_type.types = expanded_types
-            .into_iter()
-            .map(|v| (v.get_key(), v))
-            .collect();
+            return_type.types = new_return_type_parts;
+        }
     }
 
     return_type.parent_nodes.extend(
@@ -121,10 +115,8 @@ fn expand_atomic(
     codebase: &CodebaseInfo,
     options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
-    skipped_keys: &mut Vec<String>,
-    key: &String,
+    skip_key: &mut bool,
     new_return_type_parts: &mut Vec<TAtomic>,
-    had_split_values: &mut bool,
     extra_data_flow_nodes: &mut Vec<DataFlowNode>,
 ) {
     if let TAtomic::TDict {
@@ -145,9 +137,7 @@ fn expand_atomic(
         }
 
         return;
-    }
-
-    if let TAtomic::TVec {
+    } else if let TAtomic::TVec {
         ref mut known_items,
         ref mut type_param,
         ..
@@ -162,18 +152,14 @@ fn expand_atomic(
         }
 
         return;
-    }
-
-    if let TAtomic::TKeyset {
+    } else if let TAtomic::TKeyset {
         ref mut type_param, ..
     } = return_type_part
     {
         expand_union(codebase, type_param, options, data_flow_graph);
 
         return;
-    }
-
-    if let TAtomic::TNamedObject {
+    } else if let TAtomic::TNamedObject {
         ref mut name,
         ref mut type_params,
         ref mut is_this,
@@ -185,7 +171,7 @@ fn expand_atomic(
                 StaticClassType::None => StrId::this(),
                 StaticClassType::Name(this_name) => this_name.clone().clone(),
                 StaticClassType::Object(obj) => {
-                    skipped_keys.push(key.clone());
+                    *skip_key = true;
                     new_return_type_parts.push(obj.clone().clone());
                     return;
                 }
@@ -203,9 +189,7 @@ fn expand_atomic(
         }
 
         return;
-    }
-
-    if let TAtomic::TClosure {
+    } else if let TAtomic::TClosure {
         params,
         return_type,
         ..
@@ -220,9 +204,7 @@ fn expand_atomic(
                 expand_union(codebase, param_type, options, data_flow_graph);
             }
         }
-    }
-
-    if let TAtomic::TTemplateParam {
+    } else if let TAtomic::TTemplateParam {
         ref mut from_class,
         ref defining_entity,
         ref mut as_type,
@@ -235,9 +217,7 @@ fn expand_atomic(
         expand_union(codebase, as_type, options, data_flow_graph);
 
         return;
-    }
-
-    if let TAtomic::TClassname {
+    } else if let TAtomic::TClassname {
         ref mut as_type, ..
     } = return_type_part
     {
@@ -247,10 +227,8 @@ fn expand_atomic(
             codebase,
             options,
             data_flow_graph,
-            &mut Vec::new(),
-            key,
-            &mut atomic_return_type_parts,
             &mut false,
+            &mut atomic_return_type_parts,
             extra_data_flow_nodes,
         );
 
@@ -259,9 +237,7 @@ fn expand_atomic(
         }
 
         return;
-    }
-
-    if let TAtomic::TEnumLiteralCase {
+    } else if let TAtomic::TEnumLiteralCase {
         ref mut constraint_type,
         ..
     } = return_type_part
@@ -273,9 +249,7 @@ fn expand_atomic(
         }
 
         return;
-    }
-
-    if let TAtomic::TTypeAlias {
+    } else if let TAtomic::TTypeAlias {
         name: type_name,
         type_params,
         as_type,
@@ -284,8 +258,7 @@ fn expand_atomic(
         let type_definition = if let Some(t) = codebase.type_definitions.get(type_name) {
             t
         } else {
-            skipped_keys.push(key.clone());
-
+            *skip_key = true;
             new_return_type_parts.push(TAtomic::TMixedAny);
             return;
         };
@@ -301,15 +274,13 @@ fn expand_atomic(
         };
 
         if type_definition.is_literal_string {
-            skipped_keys.push(key.clone());
-            *had_split_values = true;
+            *skip_key = true;
             new_return_type_parts.push(TAtomic::TStringWithFlags(false, false, true));
             return;
         }
 
         if can_expand_type {
-            skipped_keys.push(key.clone());
-            *had_split_values = true;
+            *skip_key = true;
 
             let mut untemplated_type = if let Some(type_params) = type_params {
                 let mut new_template_types = IndexMap::new();
@@ -337,62 +308,68 @@ fn expand_atomic(
 
             expand_union(codebase, &mut untemplated_type, options, data_flow_graph);
 
-            new_return_type_parts.extend(untemplated_type.types.into_iter().map(|(_, mut v)| {
-                if let None = type_params {
-                    if let TAtomic::TDict {
-                        known_items: Some(_),
-                        ref mut shape_name,
-                        ..
-                    } = v
-                    {
-                        if let Some(shape_field_taints) = &type_definition.shape_field_taints {
-                            let shape_node = DataFlowNode::new(
-                                codebase.interner.lookup(*type_name).to_string(),
-                                codebase.interner.lookup(*type_name).to_string(),
-                                None,
-                                None,
-                            );
-
-                            for (field_name, taints) in shape_field_taints {
-                                let label = format!(
-                                    "{}[{}]",
-                                    codebase.interner.lookup(*type_name),
-                                    field_name.to_string(Some(&codebase.interner))
-                                );
-                                let field_node = DataFlowNode::TaintSource {
-                                    id: label.clone(),
-                                    label,
-                                    pos: None,
-                                    types: taints.clone(),
-                                };
-
-                                data_flow_graph.add_path(
-                                    &field_node,
-                                    &shape_node,
-                                    PathKind::ExpressionAssignment(
-                                        PathExpressionKind::ArrayValue,
-                                        match field_name {
-                                            DictKey::Int(i) => i.to_string(),
-                                            DictKey::String(k) => k.clone(),
-                                            DictKey::Enum(_, _) => todo!(),
-                                        },
-                                    ),
+            let expanded_types = untemplated_type
+                .types
+                .into_iter()
+                .map(|mut v| {
+                    if let None = type_params {
+                        if let TAtomic::TDict {
+                            known_items: Some(_),
+                            ref mut shape_name,
+                            ..
+                        } = v
+                        {
+                            if let Some(shape_field_taints) = &type_definition.shape_field_taints {
+                                let shape_node = DataFlowNode::new(
+                                    codebase.interner.lookup(*type_name).to_string(),
+                                    codebase.interner.lookup(*type_name).to_string(),
                                     None,
                                     None,
                                 );
 
-                                data_flow_graph.add_node(field_node);
+                                for (field_name, taints) in shape_field_taints {
+                                    let label = format!(
+                                        "{}[{}]",
+                                        codebase.interner.lookup(*type_name),
+                                        field_name.to_string(Some(&codebase.interner))
+                                    );
+                                    let field_node = DataFlowNode::TaintSource {
+                                        id: label.clone(),
+                                        label,
+                                        pos: None,
+                                        types: taints.clone(),
+                                    };
+
+                                    data_flow_graph.add_path(
+                                        &field_node,
+                                        &shape_node,
+                                        PathKind::ExpressionAssignment(
+                                            PathExpressionKind::ArrayValue,
+                                            match field_name {
+                                                DictKey::Int(i) => i.to_string(),
+                                                DictKey::String(k) => k.clone(),
+                                                DictKey::Enum(_, _) => todo!(),
+                                            },
+                                        ),
+                                        None,
+                                        None,
+                                    );
+
+                                    data_flow_graph.add_node(field_node);
+                                }
+
+                                extra_data_flow_nodes.push(shape_node.clone());
+
+                                data_flow_graph.add_node(shape_node);
                             }
+                            *shape_name = Some(codebase.interner.lookup(*type_name).to_string());
+                        };
+                    }
+                    v
+                })
+                .collect::<Vec<_>>();
 
-                            extra_data_flow_nodes.push(shape_node.clone());
-
-                            data_flow_graph.add_node(shape_node);
-                        }
-                        *shape_name = Some(codebase.interner.lookup(*type_name).to_string());
-                    };
-                }
-                v
-            }));
+            new_return_type_parts.extend(expanded_types);
         } else {
             if let Some(definition_as_type) = &type_definition.as_type {
                 let mut definition_as_type = if let Some(type_params) = type_params {
@@ -434,9 +411,7 @@ fn expand_atomic(
         }
 
         return;
-    }
-
-    if let TAtomic::TClassTypeConstant {
+    } else if let TAtomic::TClassTypeConstant {
         class_type,
         member_name,
     } = return_type_part
@@ -447,10 +422,8 @@ fn expand_atomic(
             codebase,
             options,
             data_flow_graph,
-            &mut Vec::new(),
-            key,
-            &mut atomic_return_type_parts,
             &mut false,
+            &mut atomic_return_type_parts,
             extra_data_flow_nodes,
         );
 
@@ -465,8 +438,7 @@ fn expand_atomic(
                 let classlike_storage = if let Some(c) = codebase.classlike_infos.get(class_name) {
                     c
                 } else {
-                    skipped_keys.push(key.clone());
-
+                    *skip_key = true;
                     new_return_type_parts.push(TAtomic::TMixedAny);
                     return;
                 };
@@ -474,18 +446,15 @@ fn expand_atomic(
                 let mut type_ = if let Some(t) = classlike_storage.type_constants.get(member_name) {
                     t.clone()
                 } else {
-                    skipped_keys.push(key.clone());
-
+                    *skip_key = true;
                     new_return_type_parts.push(TAtomic::TMixedAny);
                     return;
                 };
 
                 expand_union(codebase, &mut type_, options, data_flow_graph);
 
-                skipped_keys.push(key.clone());
-                *had_split_values = true;
-
-                new_return_type_parts.extend(type_.types.into_iter().map(|(_, mut v)| {
+                *skip_key = true;
+                new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
                     if let TAtomic::TDict {
                         known_items: Some(_),
                         ref mut shape_name,
@@ -502,16 +471,14 @@ fn expand_atomic(
                 }));
             }
             _ => {
-                skipped_keys.push(key.clone());
-
+                *skip_key = true;
                 new_return_type_parts.push(TAtomic::TMixedAny);
                 return;
             }
         };
-    }
-
-    if let TAtomic::TClosureAlias { id, .. } = &return_type_part {
+    } else if let TAtomic::TClosureAlias { id, .. } = &return_type_part {
         if let Some(value) = get_closure_from_id(id, codebase, data_flow_graph) {
+            *skip_key = true;
             new_return_type_parts.push(value);
             return;
         }

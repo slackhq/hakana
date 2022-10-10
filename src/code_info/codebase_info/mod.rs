@@ -166,7 +166,7 @@ impl CodebaseInfo {
                             if provided_type
                                 .types
                                 .iter()
-                                .all(|(_, v)| v.is_boring_scalar())
+                                .all(|v| v.is_boring_scalar())
                             {
                                 if let Some(inferred_type) = &constant_storage.inferred_type {
                                     Some(inferred_type.clone())

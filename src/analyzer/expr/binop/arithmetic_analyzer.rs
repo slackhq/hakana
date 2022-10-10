@@ -67,14 +67,14 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
 
     let mut results = vec![];
 
-    for (_, mut e1_type_atomic) in &e1_type.types {
+    for mut e1_type_atomic in &e1_type.types {
         if let TAtomic::TFalse = e1_type_atomic {
             if e1_type.ignore_falsable_issues {
                 continue;
             }
             e1_type_atomic = &zero;
         }
-        for (_, mut e2_type_atomic) in &e2_type.types {
+        for mut e2_type_atomic in &e2_type.types {
             if let TAtomic::TFalse = e2_type_atomic {
                 if e2_type.ignore_falsable_issues {
                     continue;

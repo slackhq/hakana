@@ -145,7 +145,7 @@ pub(crate) fn analyze(
                     .expr_types
                     .get(&(arg_expr.pos().start_offset(), arg_expr.pos().end_offset()))
                 {
-                    for (_, arg_atomic_type) in &arg_type.types {
+                    for arg_atomic_type in &arg_type.types {
                         if let TAtomic::TClosure { effects, .. } = arg_atomic_type {
                             if let Some(evaluated_effects) = effects {
                                 tast_info.expr_effects.insert(

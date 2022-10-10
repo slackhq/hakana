@@ -379,7 +379,7 @@ fn analyze_list_assignment(
 
         let mut value_type = get_nothing();
 
-        for (_, assign_value_atomic_type) in &assign_value_type.types {
+        for assign_value_atomic_type in &assign_value_type.types {
             let atomic_value_type = if let TAtomic::TVec {
                 known_items,
                 type_param,

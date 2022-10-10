@@ -61,7 +61,7 @@ pub(crate) fn analyze(
                 let mut stmt_type = None;
 
                 if let Some(lhs_type) = tast_info.get_expr_type(lhs_expr.pos()).cloned() {
-                    for (_, atomic_type) in &lhs_type.types {
+                    for atomic_type in &lhs_type.types {
                         if let TAtomic::TNamedObject { name, is_this, .. } = atomic_type {
                             stmt_type = Some(add_optional_union_type(
                                 analyse_known_class_constant(

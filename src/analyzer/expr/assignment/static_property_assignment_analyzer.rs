@@ -114,7 +114,7 @@ pub(crate) fn analyze(
                     let lhs_type = tast_info.get_expr_type(&expr.1.clone());
 
                     if let Some(lhs_type) = lhs_type {
-                        for (_, lhs_atomic_type) in lhs_type.types.clone() {
+                        for lhs_atomic_type in lhs_type.types.clone() {
                             if let TAtomic::TNamedObject { name, type_params: None, .. } = lhs_atomic_type {
                                 fq_class_names.push(name);
                             }

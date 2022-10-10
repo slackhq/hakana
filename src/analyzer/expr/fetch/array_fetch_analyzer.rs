@@ -321,7 +321,7 @@ pub(crate) fn get_array_access_type_given_offset(
 
     let mut stmt_type = None;
 
-    for (_, mut atomic_var_type) in array_atomic_types {
+    for mut atomic_var_type in array_atomic_types {
         if let TAtomic::TTypeAlias {
             as_type: Some(as_type),
             ..

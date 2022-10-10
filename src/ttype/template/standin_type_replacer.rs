@@ -34,7 +34,7 @@ pub fn replace(
 ) -> TUnion {
     let mut atomic_types = Vec::new();
 
-    let original_atomic_types = union_type.clone().types;
+    let original_atomic_types = union_type.types.clone();
 
     let mut input_type = input_type.clone();
 
@@ -43,8 +43,8 @@ pub fn replace(
             // here we want to subtract atomic types from the input type
             // when they're also in the union type, so those shared atomic
             // types will never be inferred as part of the generic type
-            for (key, _) in &original_atomic_types {
-                input_type_inner.types.remove(key);
+            for original_atomic_type in &original_atomic_types {
+                input_type_inner.remove_type(original_atomic_type);
             }
 
             if input_type_inner.types.is_empty() {
@@ -55,10 +55,9 @@ pub fn replace(
 
     let mut had_template = false;
 
-    for (key, atomic_type) in original_atomic_types.iter() {
+    for atomic_type in original_atomic_types.iter() {
         atomic_types.extend(handle_atomic_standin(
             atomic_type,
-            key,
             template_result,
             codebase,
             &input_type,
@@ -99,7 +98,6 @@ pub fn replace(
 
 fn handle_atomic_standin(
     atomic_type: &TAtomic,
-    key: &String,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
@@ -118,7 +116,7 @@ fn handle_atomic_standin(
     } else if let TAtomic::TTypeAlias { name, .. } = atomic_type {
         codebase.interner.lookup(*name).to_string()
     } else {
-        key.clone()
+        atomic_type.get_key()
     };
 
     if let TAtomic::TTemplateParam {
@@ -706,12 +704,7 @@ fn handle_template_param_standin(
     }
 
     if &template_type.get_id(Some(&codebase.interner)) == normalized_key {
-        return template_type
-            .clone()
-            .types
-            .into_iter()
-            .map(|(_, v)| v)
-            .collect();
+        return template_type.clone().types;
     }
 
     let mut replacement_type = template_type.clone();
@@ -754,7 +747,7 @@ fn handle_template_param_standin(
         let mut atomic_types = Vec::new();
 
         if replacement_type.is_mixed() && !as_type.is_mixed() {
-            for (_, as_atomic_type) in &as_type.types {
+            for as_atomic_type in &as_type.types {
                 if let TAtomic::TArraykey { from_any: false } = as_atomic_type {
                     atomic_types.push(TAtomic::TArraykey { from_any: true });
                 } else {
@@ -796,7 +789,7 @@ fn handle_template_param_standin(
                 );
             }
 
-            for (_, replacement_atomic_type) in &replacement_type.types {
+            for replacement_atomic_type in &replacement_type.types {
                 let mut replacements_found = false;
 
                 if let TAtomic::TTemplateParam {
@@ -814,7 +807,7 @@ fn handle_template_param_standin(
                                     calling_function.unwrap().to_string(&codebase.interner)
                                 ))
                     {
-                        for (_, nested_type_atomic) in &replacement_as_type.types {
+                        for nested_type_atomic in &replacement_as_type.types {
                             replacements_found = true;
                             atomic_types.push(nested_type_atomic.clone());
                         }
@@ -880,15 +873,15 @@ fn handle_template_param_standin(
                 let mut generic_param = input_type.clone();
 
                 if !matching_input_keys.is_empty() {
-                    for (atomic_key, _) in &generic_param.clone().types {
-                        if !matching_input_keys.contains(atomic_key) {
-                            generic_param.types.remove(atomic_key);
+                    for atomic in &generic_param.clone().types {
+                        if !matching_input_keys.contains(&atomic.get_key()) {
+                            generic_param.remove_type(atomic);
                         }
                     }
                 }
 
                 if add_lower_bound {
-                    return generic_param.types.into_iter().map(|(_, v)| v).collect();
+                    return generic_param.types.clone();
                 }
 
                 if let Some(existing_lower_bounds) =
@@ -989,9 +982,9 @@ fn handle_template_param_standin(
                 let mut generic_param = input_type.clone();
 
                 if !matching_input_keys.is_empty() {
-                    for (atomic_key, _) in &generic_param.clone().types {
-                        if !matching_input_keys.contains(atomic_key) {
-                            generic_param.types.remove(atomic_key);
+                    for atomic in &generic_param.clone().types {
+                        if !matching_input_keys.contains(&atomic.get_key()) {
+                            generic_param.remove_type(atomic);
                         }
                     }
                 }
@@ -1102,7 +1095,7 @@ fn handle_template_param_class_standin(
         } {
             let mut valid_input_atomic_types = vec![];
 
-            for (_, input_atomic_type) in &input_type.types {
+            for input_atomic_type in &input_type.types {
                 if let TAtomic::TLiteralClassname { name } = input_atomic_type {
                     valid_input_atomic_types.push(TAtomic::TNamedObject {
                         name: name.clone(),
@@ -1203,7 +1196,7 @@ fn handle_template_param_class_standin(
                 .get(defining_entity)
                 .unwrap();
 
-            for (_, template_atomic_type) in &template_type.types {
+            for template_atomic_type in &template_type.types {
                 if let TAtomic::TNamedObject { .. } | TAtomic::TObject = &template_atomic_type {
                     atomic_types.push(TAtomic::TClassname {
                         as_type: Box::new(template_atomic_type.clone()),
@@ -1272,7 +1265,7 @@ fn handle_template_param_type_standin(
         } {
             let mut valid_input_atomic_types = vec![];
 
-            for (_, input_atomic_type) in &input_type.types {
+            for input_atomic_type in &input_type.types {
                 if let TAtomic::TLiteralClassname { name } = input_atomic_type {
                     valid_input_atomic_types.push(TAtomic::TTypeAlias {
                         name: name.clone(),
@@ -1345,7 +1338,7 @@ fn handle_template_param_type_standin(
                 .get(defining_entity)
                 .unwrap();
 
-            for (_, template_atomic_type) in &template_type.types {
+            for template_atomic_type in &template_type.types {
                 if let TAtomic::TNamedObject { .. } | TAtomic::TObject = &template_atomic_type {
                     atomic_types.push(TAtomic::TClassname {
                         as_type: Box::new(template_atomic_type.clone()),
@@ -1392,13 +1385,13 @@ fn find_matching_atomic_types_for_template(
 ) -> Vec<TAtomic> {
     let mut matching_atomic_types = Vec::new();
 
-    for (input_key, atomic_input_type) in &input_type.types {
+    for atomic_input_type in &input_type.types {
         let input_key = &if let TAtomic::TNamedObject { name, .. } = atomic_input_type {
             codebase.interner.lookup(*name).to_string()
         } else if let TAtomic::TTypeAlias { name, .. } = atomic_input_type {
             codebase.interner.lookup(*name).to_string()
         } else {
-            input_key.clone()
+            atomic_input_type.get_key()
         };
 
         if input_key == normalized_key {
@@ -1646,7 +1639,7 @@ pub(crate) fn get_mapped_generic_type_params(
         for (_, extended_input_param) in params {
             let mut new_input_param = None;
 
-            for (_, et) in &extended_input_param.types {
+            for et in &extended_input_param.types {
                 let ets = get_extended_templated_types(&et, template_extends);
 
                 let mut candidate_param_type: Option<TUnion> = None;
@@ -1734,7 +1727,7 @@ pub fn get_extended_templated_types<'a>(
     {
         if let Some(defining_params) = extends.get(defining_entity) {
             if let Some(extended_param) = defining_params.get(param_name) {
-                for (_, extended_atomic_type) in &extended_param.types {
+                for extended_atomic_type in &extended_param.types {
                     if let TAtomic::TTemplateParam { .. } = extended_atomic_type {
                         extra_added_types
                             .extend(get_extended_templated_types(&extended_atomic_type, extends));

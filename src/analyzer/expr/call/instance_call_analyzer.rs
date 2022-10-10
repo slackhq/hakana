@@ -101,7 +101,7 @@ pub(crate) fn analyze(
             }
         }
 
-        for (_, lhs_atomic_type) in &class_type.types {
+        for lhs_atomic_type in &class_type.types {
             if let TAtomic::TNull = lhs_atomic_type {
                 continue; // handled above
             }

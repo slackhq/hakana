@@ -8,11 +8,10 @@ use core::panic;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct TUnion {
-    pub types: BTreeMap<String, TAtomic>,
+    pub types: Vec<TAtomic>,
     pub parent_nodes: FxHashMap<String, DataFlowNode>,
     pub had_template: bool,
 
@@ -55,15 +54,8 @@ pub trait HasTypeNodes {
 
 impl TUnion {
     pub fn new(types: Vec<TAtomic>) -> TUnion {
-        let mut keyed_types = BTreeMap::new();
-
-        for ttype in types.into_iter() {
-            let key = ttype.get_key();
-            keyed_types.insert(key, ttype);
-        }
-
         TUnion {
-            types: keyed_types,
+            types: types,
             parent_nodes: FxHashMap::default(),
             had_template: false,
             reference_free: false,
@@ -76,11 +68,15 @@ impl TUnion {
     }
 
     pub fn add_type(&mut self, new_type: TAtomic) {
-        self.types.insert(new_type.get_key(), new_type);
+        self.types.push(new_type);
+    }
+
+    pub fn remove_type(&mut self, bad_type: &TAtomic) {
+        self.types.retain(|t| t != bad_type);
     }
 
     pub fn is_int(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             let no_int = match atomic {
                 TAtomic::TInt { .. } | TAtomic::TLiteralInt { .. } => false,
                 _ => true,
@@ -95,7 +91,7 @@ impl TUnion {
     }
 
     pub fn has_int(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             match atomic {
                 TAtomic::TInt { .. } | TAtomic::TLiteralInt { .. } => {
                     return true;
@@ -108,7 +104,7 @@ impl TUnion {
     }
 
     pub fn has_float(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             match atomic {
                 TAtomic::TFloat { .. } => {
                     return true;
@@ -121,7 +117,7 @@ impl TUnion {
     }
 
     pub fn is_arraykey(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if match atomic {
                 TAtomic::TArraykey { .. } => false,
                 _ => true,
@@ -134,7 +130,7 @@ impl TUnion {
     }
 
     pub fn has_string(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             match atomic {
                 TAtomic::TString { .. }
                 | TAtomic::TLiteralString { .. }
@@ -149,7 +145,7 @@ impl TUnion {
     }
 
     pub fn is_float(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             let no_int = match atomic {
                 TAtomic::TFloat { .. } => false,
                 _ => true,
@@ -164,7 +160,7 @@ impl TUnion {
     }
 
     pub fn is_nothing(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if let &TAtomic::TNothing = atomic {
                 return true;
             }
@@ -176,7 +172,7 @@ impl TUnion {
     }
 
     pub fn is_placeholder(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if let &TAtomic::TPlaceholder = atomic {
                 return true;
             }
@@ -188,7 +184,7 @@ impl TUnion {
     }
 
     pub fn is_true(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if let &TAtomic::TTrue { .. } = atomic {
                 return true;
             }
@@ -204,7 +200,7 @@ impl TUnion {
             return false;
         }
 
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             return match atomic {
                 &TAtomic::TMixed
                 | &TAtomic::TMixedAny
@@ -224,7 +220,7 @@ impl TUnion {
             return false;
         }
 
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             return match atomic {
                 &TAtomic::TMixedAny => {
                     *has_any = true;
@@ -246,7 +242,7 @@ impl TUnion {
         if self.types.len() != 1 {
             return false;
         }
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if let &TAtomic::TMixed
             | &TAtomic::TMixedAny
             | &TAtomic::TMixedFromLoopIsset
@@ -265,7 +261,7 @@ impl TUnion {
         if self.types.len() != 1 {
             return false;
         }
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if let &TAtomic::TFalsyMixed { .. } = atomic {
                 continue;
             }
@@ -281,7 +277,7 @@ impl TUnion {
             return false;
         }
 
-        if let Some(mixed) = self.types.get("mixed") {
+        if let Some(mixed) = self.types.get(0) {
             if matches!(mixed, TAtomic::TMixed) {
                 return true;
             }
@@ -291,7 +287,7 @@ impl TUnion {
     }
 
     pub fn has_template_or_static(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if let TAtomic::TTemplateParam { .. } = atomic {
                 return true;
             }
@@ -320,7 +316,7 @@ impl TUnion {
     }
 
     pub fn has_template(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if let TAtomic::TTemplateParam { .. } = atomic {
                 return true;
             }
@@ -400,7 +396,7 @@ impl TUnion {
     }
 
     pub fn is_objecty(&self) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if let &TAtomic::TObject { .. }
             | TAtomic::TNamedObject { .. }
             | TAtomic::TClosure { .. } = atomic
@@ -415,7 +411,7 @@ impl TUnion {
     }
 
     pub fn is_generator(&self, interner: &Interner) -> bool {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             if let &TAtomic::TNamedObject { name, .. } = &atomic {
                 if name == &interner.get("Generator").unwrap() {
                     continue;
@@ -429,83 +425,55 @@ impl TUnion {
     }
 
     pub fn is_null(&self) -> bool {
-        self.types.len() == 1 && self.types.contains_key("null")
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TNull)
     }
 
     pub fn is_nullable(&self) -> bool {
-        self.types.len() >= 2 && self.types.contains_key("null")
+        self.types.len() >= 2 && self.types.iter().any(|t| matches!(t, TAtomic::TNull))
     }
 
     pub fn is_void(&self) -> bool {
-        self.types.len() == 1 && self.types.contains_key("void")
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TVoid)
     }
 
     pub fn is_vec(&self) -> bool {
-        self.types.len() == 1 && self.types.contains_key("vec")
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TVec { .. })
     }
 
     pub fn is_false(&self) -> bool {
-        self.types.len() == 1 && self.types.contains_key("false")
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TFalse)
     }
 
     pub fn is_falsable(&self) -> bool {
-        self.types.len() >= 2 && self.types.contains_key("false")
+        self.types.len() >= 2 && self.types.iter().any(|t| matches!(t, TAtomic::TFalse))
     }
 
     pub fn has_bool(&self) -> bool {
-        for (_, atomic) in &self.types {
-            match atomic {
-                TAtomic::TBool { .. } | TAtomic::TFalse { .. } | TAtomic::TTrue { .. } => {
-                    return true;
-                }
-                _ => {}
-            };
-        }
-
-        return false;
+        self.types.iter().any(|atomic| match atomic {
+            TAtomic::TBool { .. } | TAtomic::TFalse { .. } | TAtomic::TTrue { .. } => true,
+            _ => false,
+        })
     }
 
     pub fn has_scalar(&self) -> bool {
-        for (_, atomic) in &self.types {
-            match atomic {
-                TAtomic::TScalar { .. } => {
-                    return true;
-                }
-                _ => {}
-            };
-        }
-
-        return false;
+        self.types.iter().any(|atomic| match atomic {
+            TAtomic::TScalar { .. } => true,
+            _ => false,
+        })
     }
 
     pub fn is_always_truthy(&self, interner: &Interner) -> bool {
-        for (_, atomic) in &self.types {
-            if atomic.is_truthy(interner) {
-                continue;
-            }
-
-            return false;
-        }
-
-        return true;
+        self.types.iter().all(|atomic| atomic.is_truthy(interner))
     }
 
     pub fn is_always_falsy(&self) -> bool {
-        for (_, atomic) in &self.types {
-            if atomic.is_falsy() {
-                continue;
-            }
-
-            return false;
-        }
-
-        return true;
+        self.types.iter().all(|atomic| atomic.is_falsy())
     }
 
     pub fn is_literal_of(&self, other: &TUnion) -> bool {
-        for (_, other_atomic_type) in &other.types {
+        for other_atomic_type in &other.types {
             if let TAtomic::TString = other_atomic_type {
-                for (_, self_atomic_type) in &self.types {
+                for self_atomic_type in &self.types {
                     if self_atomic_type.is_string_subtype() {
                         continue;
                     }
@@ -515,7 +483,7 @@ impl TUnion {
 
                 return true;
             } else if let TAtomic::TInt = other_atomic_type {
-                for (_, self_atomic_type) in &self.types {
+                for self_atomic_type in &self.types {
                     if let TAtomic::TLiteralInt { .. } = self_atomic_type {
                         continue;
                     }
@@ -533,65 +501,44 @@ impl TUnion {
     }
 
     pub fn all_literals(&self) -> bool {
-        for (_, atomic) in &self.types {
-            match atomic {
-                TAtomic::TLiteralString { .. }
-                | TAtomic::TLiteralInt { .. }
-                | TAtomic::TStringWithFlags(_, _, true)
-                | TAtomic::TEnumLiteralCase { .. }
-                | TAtomic::TEnum { .. } => {
-                    continue;
-                }
-                _ => {
-                    return false;
-                }
-            };
-        }
-
-        return true;
+        self.types.iter().all(|atomic| match atomic {
+            TAtomic::TLiteralString { .. }
+            | TAtomic::TLiteralInt { .. }
+            | TAtomic::TStringWithFlags(_, _, true)
+            | TAtomic::TEnumLiteralCase { .. }
+            | TAtomic::TEnum { .. } => true,
+            _ => false,
+        })
     }
 
     pub fn has_static_object(&self) -> bool {
-        for (_, atomic) in &self.types {
-            if let TAtomic::TNamedObject { is_this: true, .. } = atomic {
-                return true;
-            }
-        }
-
-        false
+        self.types.iter().any(|atomic| match atomic {
+            TAtomic::TNamedObject { is_this: true, .. } => true,
+            _ => false,
+        })
     }
 
     pub fn has_typealias(&self) -> bool {
-        for (_, atomic) in &self.types {
-            if let TAtomic::TTypeAlias { .. } = atomic {
-                return true;
-            }
-        }
-
-        false
+        self.types.iter().any(|atomic| match atomic {
+            TAtomic::TTypeAlias { .. } => true,
+            _ => false,
+        })
     }
 
     pub fn is_static_object(&self) -> bool {
-        for (_, atomic) in &self.types {
-            if let TAtomic::TNamedObject { is_this: true, .. } = atomic {
-                continue;
-            }
-
-            return false;
-        }
-
-        true
+        self.types.iter().all(|atomic| match atomic {
+            TAtomic::TNamedObject { is_this: true, .. } => true,
+            _ => false,
+        })
     }
 
     pub fn get_key(&self) -> String {
-        let mut tatomic_strings = (&self.types).into_iter().map(|(key, _)| key);
+        let mut tatomic_strings = self.types.iter().map(|atomic| atomic.get_key());
         tatomic_strings.join("|")
     }
 
     pub fn get_id(&self, interner: Option<&Interner>) -> String {
-        let mut tatomic_strings = (&self.types)
-            .into_iter()
-            .map(|(_, atomic)| atomic.get_id(interner));
+        let mut tatomic_strings = self.types.iter().map(|atomic| atomic.get_id(interner));
         tatomic_strings.join("|")
     }
 
@@ -602,7 +549,7 @@ impl TUnion {
 
     #[inline]
     pub fn get_single(&self) -> &TAtomic {
-        for (_, atomic) in &self.types {
+        for atomic in &self.types {
             return atomic;
         }
 
@@ -611,33 +558,28 @@ impl TUnion {
 
     #[inline]
     pub fn get_single_owned(self) -> TAtomic {
-        for (_, atomic) in self.types.into_iter() {
-            return atomic;
-        }
-
-        panic!()
+        self.types[0].to_owned()
     }
 
     #[inline]
     pub fn has_named_object(&self) -> bool {
-        for (_, atomic) in &self.types {
-            if let TAtomic::TNamedObject { .. } = atomic {
-                return true;
-            }
-        }
+        self.types
+            .iter()
+            .any(|t| matches!(t, TAtomic::TNamedObject { .. }))
+    }
 
-        false
+    #[inline]
+    pub fn has_object(&self) -> bool {
+        self.types
+            .iter()
+            .any(|t| matches!(t, TAtomic::TObject { .. }))
     }
 
     #[inline]
     pub fn has_object_type(&self) -> bool {
-        for (_, atomic) in &self.types {
-            if let TAtomic::TNamedObject { .. } | TAtomic::TObject { .. } = atomic {
-                return true;
-            }
-        }
-
-        false
+        self.types
+            .iter()
+            .any(|t| matches!(t, TAtomic::TObject | TAtomic::TNamedObject { .. }))
     }
 
     pub fn get_single_literal_int_value(&self) -> Option<i64> {
@@ -694,40 +636,35 @@ impl TUnion {
         }
     }
 
-    pub fn get_literal_ints(&self) -> FxHashMap<&String, &TAtomic> {
+    pub fn get_literal_ints(&self) -> Vec<&TAtomic> {
         self.types
             .iter()
-            .filter(|(_, a)| matches!(a, TAtomic::TLiteralInt { .. }))
+            .filter(|a| matches!(a, TAtomic::TLiteralInt { .. }))
             .collect()
     }
 
-    pub fn get_literal_strings(&self) -> FxHashMap<&String, &TAtomic> {
+    pub fn get_literal_strings(&self) -> Vec<&TAtomic> {
         self.types
             .iter()
-            .filter(|(_, a)| matches!(a, TAtomic::TLiteralString { .. }))
+            .filter(|a| matches!(a, TAtomic::TLiteralString { .. }))
             .collect()
     }
 
     pub fn has_literal_value(&self) -> bool {
-        for (_, atomic) in &self.types {
-            if let TAtomic::TLiteralInt { .. }
+        self.types.iter().any(|atomic| match atomic {
+            TAtomic::TLiteralInt { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TTrue { .. }
             | TAtomic::TFalse { .. }
-            | TAtomic::TLiteralClassname { .. } = atomic
-            {
-                return true;
-            }
-        }
-
-        false
+            | TAtomic::TLiteralClassname { .. } => true,
+            _ => false,
+        })
     }
 
     pub fn has_taintable_value(&self) -> bool {
-        let mut any_taintable = false;
-
-        for (_, assignment_atomic_type) in &self.types {
-            match assignment_atomic_type {
+        self.types
+            .iter()
+            .any(|assignment_atomic_type| match assignment_atomic_type {
                 TAtomic::TInt
                 | TAtomic::TFloat
                 | TAtomic::TNull
@@ -740,38 +677,40 @@ impl TUnion {
                 | TAtomic::TTrue
                 | TAtomic::TEnum { .. }
                 | TAtomic::TEnumLiteralCase { .. }
-                | TAtomic::TNum => {
-                    // do nothing
-                }
-                _ => {
-                    any_taintable = true;
-                }
-            }
-        }
-
-        any_taintable
+                | TAtomic::TNum => false,
+                _ => true,
+            })
     }
 
     pub fn needs_population(&self) -> bool {
-        !self.populated && self.types.iter().any(|(_, v)| v.needs_population())
+        !self.populated && self.types.iter().any(|v| v.needs_population())
     }
 }
 
 impl PartialEq for TUnion {
     fn eq(&self, other: &TUnion) -> bool {
-        if self.types.len() != other.types.len()
-            || !self.types.keys().all(|k| other.types.contains_key(k))
-        {
+        let len = self.types.len();
+
+        if len != other.types.len() {
             return false;
         }
 
-        for (k, v) in &self.types {
-            if let Some(other_type) = other.types.get(k) {
-                if v != other_type {
+        if len == 0 {
+            if &self.types[0] != &other.types[0] {
+                return false;
+            }
+        } else {
+            for i in 0..len {
+                let mut has_match = false;
+                for j in 0..len {
+                    if &self.types[i] == &other.types[j] {
+                        has_match = true;
+                        break;
+                    }
+                }
+                if !has_match {
                     return false;
                 }
-            } else {
-                return false;
             }
         }
 
@@ -790,10 +729,7 @@ impl PartialEq for TUnion {
 
 impl HasTypeNodes for TUnion {
     fn get_child_nodes(&self) -> Vec<TypeNode> {
-        self.types
-            .iter()
-            .map(|(_, t)| TypeNode::Atomic(t))
-            .collect()
+        self.types.iter().map(|t| TypeNode::Atomic(t)).collect()
     }
 }
 
@@ -806,9 +742,7 @@ pub fn populate_union_type(t_union: &mut self::TUnion, codebase_symbols: &Symbol
 
     let ref mut types = t_union.types;
 
-    let mut swapped_keys = vec![];
-
-    for (key, atomic) in types.iter_mut() {
+    for atomic in types.iter_mut() {
         if let TAtomic::TClassname { ref mut as_type }
         | TAtomic::TTemplateParamClass {
             ref mut as_type, ..
@@ -820,16 +754,5 @@ pub fn populate_union_type(t_union: &mut self::TUnion, codebase_symbols: &Symbol
         } else {
             populate_atomic_type(atomic, codebase_symbols);
         }
-
-        let new_key = atomic.get_key();
-
-        if &new_key != key {
-            swapped_keys.push((key.clone(), new_key));
-        }
-    }
-
-    for (old_key, new_key) in swapped_keys {
-        let atomic = types.remove(&old_key).unwrap();
-        types.insert(new_key, atomic);
     }
 }

@@ -675,12 +675,7 @@ fn extend_type(
 
     let mut extended_types = Vec::new();
 
-    let mut cloned = type_
-        .types
-        .clone()
-        .into_iter()
-        .map(|(_, v)| v)
-        .collect::<Vec<_>>();
+    let mut cloned = type_.types.clone();
 
     while let Some(atomic_type) = cloned.pop() {
         if let TAtomic::TTemplateParam {
@@ -691,8 +686,7 @@ fn extend_type(
         {
             if let Some(ex) = template_extended_params.get(defining_entity) {
                 if let Some(referenced_type) = ex.get(param_name) {
-                    extended_types
-                        .extend(referenced_type.types.clone().into_iter().map(|(_, v)| v));
+                    extended_types.extend(referenced_type.types.clone());
                     continue;
                 }
             }

@@ -473,7 +473,7 @@ pub fn get_type_from_hint(
 
             let mut last = None;
 
-            for (_, atomic_type) in union.types.into_iter() {
+            for atomic_type in union.types.into_iter() {
                 if let None = last {
                     last = Some(atomic_type);
                 } else {

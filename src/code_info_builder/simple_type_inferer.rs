@@ -255,7 +255,7 @@ pub fn infer(
 
                 if let Some(number_type) = number_type {
                     if number_type.is_single() {
-                        let first = number_type.types.values().next().unwrap();
+                        let first = &number_type.types[0];
 
                         if let TAtomic::TLiteralInt { value, .. } = first {
                             Some(get_literal_int(-value))

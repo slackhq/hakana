@@ -297,7 +297,7 @@ pub(crate) fn localize_property_type(
                 .unwrap_or(&IndexMap::new())
                 .get(&type_name)
             {
-                for (_, mapped_type_atomic) in &mapped_type.types {
+                for mapped_type_atomic in &mapped_type.types {
                     if let TAtomic::TTemplateParam { param_name, .. } = &mapped_type_atomic {
                         let position = property_class_storage
                             .template_types

@@ -125,7 +125,7 @@ pub(crate) fn resolve_template_param(
 ) -> Option<TUnion> {
     let mut output_type_extends = None;
 
-    for (_, type_extends_atomic) in &input_type_extends.types {
+    for type_extends_atomic in &input_type_extends.types {
         if let TAtomic::TTemplateParam {
             param_name,
             defining_entity,
@@ -191,7 +191,7 @@ fn expand_type(
 ) -> Vec<TAtomic> {
     let mut output_type_extends = Vec::new();
 
-    for (_, type_extends_atomic) in &input_type_extends.types {
+    for type_extends_atomic in &input_type_extends.types {
         if let Some(extended_type) = if let TAtomic::TTemplateParam {
             param_name,
             defining_entity,

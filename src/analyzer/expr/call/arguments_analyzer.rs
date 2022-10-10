@@ -631,7 +631,7 @@ fn handle_closure_arg(
     for (param_offset, param_storage) in closure_storage.params.iter_mut().enumerate() {
         if let None = param_storage.signature_type {
             let mut newly_inferred_type = None;
-            for (_, replaced_type_part) in &replaced_type.types {
+            for replaced_type_part in &replaced_type.types {
                 if let TAtomic::TClosure {
                     params: replaced_params,
                     ..
@@ -1010,7 +1010,7 @@ pub(crate) fn get_template_types_for_call(
                     if class_name == &declaring_classlike_storage.name {
                         let output_type = if type_.has_template() {
                             let mut output_type = None;
-                            for (_, atomic_type) in &type_.types {
+                            for atomic_type in &type_.types {
                                 let output_type_candidate = if let TAtomic::TTemplateParam {
                                     defining_entity,
                                     param_name,

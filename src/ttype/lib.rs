@@ -202,20 +202,8 @@ pub fn combine_union_types(
     if type_1.is_vanilla_mixed() && type_2.is_vanilla_mixed() {
         combined_type = get_mixed();
     } else {
-        let mut all_atomic_types = type_1
-            .types
-            .clone()
-            .into_iter()
-            .map(|(_, v)| v)
-            .collect::<Vec<_>>();
-        all_atomic_types.extend(
-            type_2
-                .types
-                .clone()
-                .into_iter()
-                .map(|(_, v)| v)
-                .collect::<Vec<_>>(),
-        );
+        let mut all_atomic_types = type_1.types.clone();
+        all_atomic_types.extend(type_2.types.clone());
 
         combined_type = TUnion::new(type_combiner::combine(
             all_atomic_types,
@@ -262,24 +250,10 @@ pub fn add_union_type(
     base_type.types = if base_type.is_vanilla_mixed() && other_type.is_vanilla_mixed() {
         base_type.types
     } else {
-        let mut all_atomic_types = base_type
-            .types
-            .into_iter()
-            .map(|(_, v)| v)
-            .collect::<Vec<_>>();
-        all_atomic_types.extend(
-            other_type
-                .types
-                .clone()
-                .into_iter()
-                .map(|(_, v)| v)
-                .collect::<Vec<_>>(),
-        );
+        let mut all_atomic_types = base_type.types.clone();
+        all_atomic_types.extend(other_type.types.clone());
 
         type_combiner::combine(all_atomic_types, codebase, overwrite_empty_array)
-            .into_iter()
-            .map(|v| (v.get_key(), v))
-            .collect()
     };
 
     if !other_type.had_template {
@@ -326,15 +300,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             let mut value_param;
 
             if let Some(params) = params {
-                key_types.extend(
-                    params
-                        .0
-                        .types
-                        .clone()
-                        .into_iter()
-                        .map(|(_, v)| v)
-                        .collect::<Vec<_>>(),
-                );
+                key_types.extend(params.0.types.clone());
                 value_param = params.1.clone();
             } else {
                 key_types.push(TAtomic::TNothing);
@@ -477,7 +443,7 @@ pub fn get_union_syntax_type(
 
     let is_nullable = union.is_nullable() && !union.is_mixed();
 
-    for (_, atomic) in &union.types {
+    for atomic in &union.types {
         if let TAtomic::TNull { .. } = atomic {
             continue;
         }

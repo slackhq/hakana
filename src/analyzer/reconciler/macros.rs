@@ -19,7 +19,7 @@ macro_rules! intersect_simple {
             let mut acceptable_types = Vec::new();
             let mut did_remove_type = false;
 
-            for (_, atomic) in &$existing_var_type.types {
+            for atomic in &$existing_var_type.types {
                 if matches!(atomic, $( $subtype_pattern )|+ $( if $subtype_guard )?) {
                     acceptable_types.push(atomic.clone());
                 } else if matches!(atomic, $( $supertype_pattern )|+ $( if $supertype_guard )?) {

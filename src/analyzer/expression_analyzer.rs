@@ -551,7 +551,7 @@ pub(crate) fn analyze(
                 .expr_effects
                 .insert((expr.1.start_offset(), expr.1.end_offset()), 7);
 
-            for (_, atomic_type) in awaited_stmt_type.types {
+            for atomic_type in awaited_stmt_type.types {
                 if let TAtomic::TNamedObject {
                     name,
                     type_params: Some(type_params),

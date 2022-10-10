@@ -115,7 +115,7 @@ pub(crate) fn analyze(
 
     let mut result = AtomicMethodCallAnalysisResult::new();
 
-    for (_, lhs_type_part) in &lhs_type.types {
+    for lhs_type_part in &lhs_type.types {
         atomic_static_call_analyzer::analyze(
             statements_analyzer,
             expr,

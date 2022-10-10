@@ -257,7 +257,7 @@ fn analyze_variable_static_property_fetch(
     let mut fake_stmt_type = None;
 
     if let Some(stmt_class_type) = stmt_class_type {
-        for (_, class_atomic_type) in &stmt_class_type.types {
+        for class_atomic_type in &stmt_class_type.types {
             let fake_var_name = "__fake_var_".to_string() + &pos.line().to_string();
             context.vars_in_scope.insert(
                 fake_var_name.to_owned(),

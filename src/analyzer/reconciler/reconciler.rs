@@ -205,9 +205,7 @@ pub(crate) fn reconcile_keyed_types(
                 );
 
                 if result_type_candidate.types.is_empty() {
-                    result_type_candidate
-                        .types
-                        .insert("nothing".to_string(), TAtomic::TNothing);
+                    result_type_candidate.types.push(TAtomic::TNothing);
                 }
 
                 orred_type = if let Some(orred_type) = orred_type {
@@ -293,6 +291,7 @@ pub(crate) fn reconcile_keyed_types(
                 if !has_inverted_isset && !is_equality {
                     let key_parts = break_up_path_into_parts(key);
 
+
                     adjust_array_type(
                         key_parts,
                         context,
@@ -371,13 +370,13 @@ fn adjust_array_type(
         return;
     };
 
-    for (_, mut base_atomic_type) in existing_type.clone().types {
+    for base_atomic_type in existing_type.types.iter_mut() {
         if let TAtomic::TTypeAlias {
             as_type: Some(as_type),
             ..
         } = base_atomic_type
         {
-            base_atomic_type = (*as_type).clone();
+            *base_atomic_type = (**as_type).clone();
         }
 
         match base_atomic_type {
@@ -425,8 +424,6 @@ fn adjust_array_type(
             }
         }
 
-        existing_type.add_type(base_atomic_type.clone());
-
         changed_var_ids.insert(format!("{}[{}]", base_key, array_key.clone()));
 
         if let Some(last_part) = key_parts.last() {
@@ -436,7 +433,7 @@ fn adjust_array_type(
                     context,
                     added_var_ids,
                     changed_var_ids,
-                    &wrap_atomic(base_atomic_type),
+                    &wrap_atomic(base_atomic_type.clone()),
                 );
             }
         }
@@ -683,11 +680,7 @@ fn get_value_for_key(
             }
 
             let class_constant = if let Some(const_name) = codebase.interner.get(&const_name) {
-                codebase.get_class_constant_type(
-                    fq_class_name,
-                    &const_name,
-                    FxHashSet::default(),
-                )
+                codebase.get_class_constant_type(fq_class_name, &const_name, FxHashSet::default())
             } else {
                 None
             };
@@ -716,16 +709,13 @@ fn get_value_for_key(
 
                 let mut atomic_types = (*context.vars_in_scope.get(&base_key).unwrap())
                     .types
-                    .values()
-                    .cloned()
-                    .collect::<Vec<TAtomic>>();
+                    .clone();
 
                 atomic_types.reverse();
 
                 while let Some(mut existing_key_type_part) = atomic_types.pop() {
                     if let TAtomic::TTemplateParam { as_type, .. } = existing_key_type_part {
-                        atomic_types
-                            .extend(as_type.types.values().cloned().collect::<Vec<TAtomic>>());
+                        atomic_types.extend(as_type.types.clone());
                         continue;
                     }
 
@@ -886,12 +876,11 @@ fn get_value_for_key(
 
                 let base_type = context.vars_in_scope.get(&base_key).unwrap();
 
-                let mut atomic_types = base_type.types.values().cloned().collect::<Vec<TAtomic>>();
+                let mut atomic_types = base_type.types.clone();
 
                 while let Some(existing_key_type_part) = atomic_types.pop() {
                     if let TAtomic::TTemplateParam { as_type, .. } = existing_key_type_part {
-                        atomic_types
-                            .extend(as_type.types.values().cloned().collect::<Vec<TAtomic>>());
+                        atomic_types.extend(as_type.types.clone());
                         continue;
                     }
 

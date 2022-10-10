@@ -49,7 +49,7 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.get_codebase();
 
-    for (_, lhs_type_part) in &lhs_type.types {
+    for lhs_type_part in &lhs_type.types {
         if let TAtomic::TClosure {
             params: closure_params,
             return_type: closure_return_type,

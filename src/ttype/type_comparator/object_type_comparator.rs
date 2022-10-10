@@ -94,7 +94,7 @@ fn is_intersection_shallowly_contained_by(
                         return true;
                     }
 
-                    for (_, input_as_atomic) in &input_extends.types {
+                    for input_as_atomic in &input_extends.types {
                         // todo use type equality
                         if input_as_atomic == intersection_container_type {
                             return true;

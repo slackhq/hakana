@@ -186,7 +186,7 @@ fn check_iterator_type(
                 statements_analyzer.get_hpos(&expr.pos()),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
 
         return (true, None, None, false);
@@ -200,7 +200,7 @@ fn check_iterator_type(
                 statements_analyzer.get_hpos(&expr.pos()),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
 
         return (true, None, None, false);
@@ -210,12 +210,7 @@ fn check_iterator_type(
     //let mut invalid_iterator_types = vec![];
     //let mut raw_object_types = vec![];
 
-    let mut iterator_atomic_types = iterator_type
-        .types
-        .clone()
-        .into_iter()
-        .map(|(_, v)| v)
-        .collect::<Vec<_>>();
+    let mut iterator_atomic_types = iterator_type.types.clone();
 
     let mut key_type = None;
     let mut value_type = None;
@@ -224,13 +219,7 @@ fn check_iterator_type(
 
     while let Some(mut iterator_atomic_type) = iterator_atomic_types.pop() {
         if let TAtomic::TTemplateParam { as_type, .. } = iterator_atomic_type {
-            iterator_atomic_types.extend(
-                as_type
-                    .types
-                    .into_iter()
-                    .map(|(_, v)| v)
-                    .collect::<Vec<_>>(),
-            );
+            iterator_atomic_types.extend(as_type.types);
             continue;
         }
 

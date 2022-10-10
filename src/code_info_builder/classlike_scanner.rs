@@ -186,11 +186,7 @@ pub(crate) fn scan(
                         &TypeResolutionContext::new(),
                         resolved_names,
                     )
-                    .types
-                    .into_iter()
-                    .next()
-                    .unwrap()
-                    .1,
+                    .get_single_owned(),
                 );
             }
 
@@ -309,11 +305,7 @@ pub(crate) fn scan(
                         &TypeResolutionContext::new(),
                         resolved_names,
                     )
-                    .types
-                    .into_iter()
-                    .next()
-                    .unwrap()
-                    .1,
+                    .get_single_owned(),
                 );
 
                 if let Some(constraint) = &enum_node.constraint {
@@ -324,11 +316,7 @@ pub(crate) fn scan(
                             &TypeResolutionContext::new(),
                             resolved_names,
                         )
-                        .types
-                        .into_iter()
-                        .next()
-                        .unwrap()
-                        .1,
+                        .get_single_owned(),
                     ));
                 }
             }
@@ -353,11 +341,7 @@ pub(crate) fn scan(
             },
             resolved_names,
         )
-        .types
-        .into_iter()
-        .next()
-        .unwrap()
-        .1;
+        .get_single_owned();
 
         if let TAtomic::TReference { name, .. } = trait_type {
             storage.used_traits.insert(name.clone());
@@ -409,7 +393,7 @@ pub(crate) fn scan(
 
                 if let Some(attribute_param_type) = attribute_param_type {
                     for atomic in attribute_param_type.types.into_iter() {
-                        match atomic.1 {
+                        match atomic {
                             TAtomic::TLiteralClassname { name: value } => {
                                 child_classlikes.insert(value);
                             }
@@ -436,7 +420,13 @@ pub(crate) fn scan(
     }
 
     for xhp_attribute in &classlike_node.xhp_attrs {
-        visit_xhp_attribute(xhp_attribute, resolved_names, &mut storage, &file_source, interner,);
+        visit_xhp_attribute(
+            xhp_attribute,
+            resolved_names,
+            &mut storage,
+            &file_source,
+            interner,
+        );
     }
 
     codebase.classlike_infos.insert(class_name.clone(), storage);
@@ -535,7 +525,10 @@ fn visit_xhp_attribute(
         is_internal: false,
     };
 
-    let attribute_id = interner.lock().unwrap().intern(xhp_attribute.1.id.1.clone());
+    let attribute_id = interner
+        .lock()
+        .unwrap()
+        .intern(xhp_attribute.1.id.1.clone());
 
     classlike_storage
         .declaring_property_ids

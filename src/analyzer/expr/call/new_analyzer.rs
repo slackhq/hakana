@@ -114,7 +114,7 @@ pub(crate) fn analyze(
 
     let mut result = AtomicMethodCallAnalysisResult::new();
 
-    for (_, lhs_type_part) in &lhs_type.types {
+    for lhs_type_part in &lhs_type.types {
         analyze_atomic(
             statements_analyzer,
             expr,
@@ -178,7 +178,7 @@ fn analyze_atomic(
         TAtomic::TLiteralClassname { name } => name.clone(),
         TAtomic::TTemplateParam { as_type, .. } => {
             let mut classlike_name = None;
-            for (_, generic_param_type) in &as_type.types {
+            for generic_param_type in &as_type.types {
                 if let TAtomic::TNamedObject { name, .. } = generic_param_type {
                     classlike_name = Some(name.clone());
                     break;

@@ -7,10 +7,13 @@ use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyz
 use hakana_reflection_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
 };
-use hakana_type::type_comparator::{
-    atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
-};
 use hakana_type::{get_nothing, wrap_atomic};
+use hakana_type::{
+    type_combiner,
+    type_comparator::{
+        atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
+    },
+};
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
@@ -65,7 +68,6 @@ pub(crate) fn reconcile(
         return simple_negated_type;
     }
 
-    let existing_atomic_types = &existing_var_type.types;
     let mut existing_var_type = existing_var_type.clone();
 
     let codebase = statements_analyzer.get_codebase();
@@ -74,7 +76,6 @@ pub(crate) fn reconcile(
         if let Some(assertion_type) = assertion.get_type() {
             subtract_complex_type(
                 assertion_type,
-                existing_atomic_types,
                 codebase,
                 &mut existing_var_type,
             );
@@ -137,33 +138,40 @@ pub(crate) fn reconcile(
 
 fn subtract_complex_type(
     assertion_type: &TAtomic,
-    existing_atomic_types: &std::collections::BTreeMap<String, TAtomic>,
     codebase: &CodebaseInfo,
     existing_var_type: &mut TUnion,
 ) {
-    for (type_key, existing_atomic) in existing_atomic_types {
+    let mut acceptable_types = vec![];
+
+    let existing_atomic_types = existing_var_type.types.drain(..).collect::<Vec<_>>();
+
+    for existing_atomic in existing_atomic_types {
         if atomic_type_comparator::is_contained_by(
             codebase,
-            existing_atomic,
+            &existing_atomic,
             assertion_type,
             false,
             &mut TypeComparisonResult::new(),
         ) {
-            existing_var_type.types.remove(type_key);
-        } else if atomic_type_comparator::is_contained_by(
+            // don't add as acceptable
+            continue;
+        }
+
+        if atomic_type_comparator::is_contained_by(
             codebase,
             assertion_type,
-            existing_atomic,
+            &existing_atomic,
             false,
             &mut TypeComparisonResult::new(),
         ) {
             // todo set is_different property
         }
 
-        match (existing_atomic, assertion_type) {
+        match (&existing_atomic, assertion_type) {
             (
                 TAtomic::TNamedObject {
                     name: existing_classlike_name,
+                    type_params: existing_type_params,
                     ..
                 },
                 TAtomic::TNamedObject {
@@ -177,20 +185,35 @@ fn subtract_complex_type(
                     // handle __Sealed classes, negating where possible
                     if let Some(child_classlikes) = &classlike_storage.child_classlikes {
                         if child_classlikes.contains(assertion_classlike_name) {
-                            existing_var_type.types.remove(type_key);
-
                             for child_classlike in child_classlikes {
                                 if child_classlike != assertion_classlike_name {
-                                    let result_error = TAtomic::TNamedObject {
+                                    let alternate_class = TAtomic::TNamedObject {
                                         name: child_classlike.clone(),
-                                        type_params: None,
+                                        type_params: if let Some(existing_type_params) =
+                                            existing_type_params
+                                        {
+                                            if let Some(child_classlike_info) =
+                                                codebase.classlike_infos.get(child_classlike)
+                                            {
+                                                // this is hack — ideally we'd map between the two
+                                                if child_classlike_info.template_types.len()
+                                                    == existing_type_params.len()
+                                                {
+                                                    Some(existing_type_params.clone())
+                                                } else {
+                                                    None
+                                                }
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        },
                                         extra_types: None,
                                         is_this: false,
                                         remapped_params: false,
                                     };
-                                    existing_var_type
-                                        .types
-                                        .insert(result_error.get_key(), result_error);
+                                    acceptable_types.push(alternate_class);
                                 }
                             }
 
@@ -198,13 +221,24 @@ fn subtract_complex_type(
                         }
                     }
                 }
+
+                acceptable_types.push(existing_atomic);
             }
             (TAtomic::TDict { .. }, TAtomic::TDict { .. }) => {
                 // todo subtract assertion dict from existing
+                acceptable_types.push(existing_atomic);
             }
-            _ => (),
+            _ => {
+                acceptable_types.push(existing_atomic);
+            }
         }
     }
+
+    if acceptable_types.len() > 1 {
+        acceptable_types = type_combiner::combine(acceptable_types, codebase, false);
+    }
+
+    existing_var_type.types = acceptable_types;
 }
 
 fn handle_literal_negated_equality(
@@ -229,7 +263,7 @@ fn handle_literal_negated_equality(
 
     let codebase = statements_analyzer.get_codebase();
 
-    for (k, existing_atomic_type) in &existing_var_type.types.clone() {
+    for existing_atomic_type in &existing_var_type.types.clone() {
         match existing_atomic_type {
             TAtomic::TInt { .. } => {
                 if let TAtomic::TLiteralInt { .. } = assertion_type {
@@ -244,7 +278,7 @@ fn handle_literal_negated_equality(
                     did_match_literal_type = true;
                     if value == existing_value {
                         did_remove_type = true;
-                        existing_var_type.types.remove(k);
+                        existing_var_type.remove_type(existing_atomic_type);
                     }
                 }
             }
@@ -253,7 +287,7 @@ fn handle_literal_negated_equality(
 
                 if let TAtomic::TLiteralString { value, .. } = assertion_type {
                     if value == "" {
-                        existing_var_type.types.remove(k);
+                        existing_var_type.remove_type(existing_atomic_type);
                         existing_var_type.add_type(TAtomic::TStringWithFlags(false, true, false));
                     }
                 }
@@ -263,7 +297,7 @@ fn handle_literal_negated_equality(
 
                 if let TAtomic::TLiteralString { value, .. } = assertion_type {
                     if value == "" {
-                        existing_var_type.types.remove(k);
+                        existing_var_type.remove_type(existing_atomic_type);
                         existing_var_type.add_type(TAtomic::TStringWithFlags(
                             false,
                             true,
@@ -280,7 +314,7 @@ fn handle_literal_negated_equality(
                     did_match_literal_type = true;
                     if value == existing_value {
                         did_remove_type = true;
-                        existing_var_type.types.remove(k);
+                        existing_var_type.remove_type(existing_atomic_type);
                     }
                 }
             }
@@ -299,7 +333,7 @@ fn handle_literal_negated_equality(
 
                         did_remove_type = true;
 
-                        existing_var_type.types.remove(k);
+                        existing_var_type.remove_type(existing_atomic_type);
 
                         for (cname, _) in &enum_storage.constants {
                             if cname != member_name {
@@ -332,7 +366,7 @@ fn handle_literal_negated_equality(
 
                                     did_remove_type = true;
 
-                                    existing_var_type.types.remove(k);
+                                    existing_var_type.remove_type(existing_atomic_type);
                                 }
                             }
                         }
@@ -354,7 +388,7 @@ fn handle_literal_negated_equality(
 
                     if enum_name == existing_name && member_name == existing_member_name {
                         did_remove_type = true;
-                        existing_var_type.types.remove(k);
+                        existing_var_type.remove_type(existing_atomic_type);
                     }
                 } else if let TAtomic::TLiteralString { value, .. } = assertion_type {
                     let enum_storage = codebase.classlike_infos.get(existing_name).unwrap();
@@ -377,7 +411,7 @@ fn handle_literal_negated_equality(
 
                                     did_remove_type = true;
 
-                                    existing_var_type.types.remove(k);
+                                    existing_var_type.remove_type(existing_atomic_type);
                                 }
                             }
                         }

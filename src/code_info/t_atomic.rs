@@ -1196,7 +1196,7 @@ impl TAtomic {
             }
             _ => {
                 if let TAtomic::TTemplateParam { as_type, .. } = self {
-                    for (_, as_atomic) in &as_type.types {
+                    for as_atomic in &as_type.types {
                         // T1 as T2 as object becomes (T1 as object) & (T2 as object)
                         if let TAtomic::TTemplateParam {
                             as_type: extends_as_type,

@@ -263,7 +263,8 @@ pub(crate) fn analyze(
                     name: statements_analyzer
                         .get_codebase()
                         .interner
-                        .get("HH\\Vector").unwrap(),
+                        .get("HH\\Vector")
+                        .unwrap(),
                     type_params: Some(vec![get_mixed_any()]),
                     is_this: false,
                     extra_types: None,
@@ -353,24 +354,19 @@ fn analyze_array_item(
         && ((key_item_type.has_string() && matches!(container_type, TContainerType::Dict))
             || (key_item_type.has_int() && matches!(container_type, TContainerType::Vec)))
     {
-        array_creation_info.known_items.push((
-            key_item_type.types.into_iter().next().unwrap().1,
-            value_item_type,
-        ));
+        array_creation_info
+            .known_items
+            .push((key_item_type.get_single_owned(), value_item_type));
     } else {
-        let key_type_values = key_item_type.types.values().cloned();
+        let key_type_values = key_item_type.types.clone();
         // This is a lot simpler than the PHP mess, the type here can be
         // either int or string, and no other weird behavior.
         array_creation_info
             .item_key_atomic_types
             .extend(key_type_values);
-        array_creation_info.item_value_atomic_types.extend(
-            value_item_type
-                .types
-                .into_iter()
-                .map(|(_, v)| v)
-                .collect::<Vec<_>>(),
-        );
+        array_creation_info
+            .item_value_atomic_types
+            .extend(value_item_type.types);
     }
 
     true

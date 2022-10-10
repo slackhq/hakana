@@ -292,7 +292,7 @@ pub(crate) fn analyze_regular_assignment(
             );
         }
 
-        for (_, lhs_type_part) in &lhs_type.types {
+        for lhs_type_part in &lhs_type.types {
             if let TAtomic::TNull { .. } = lhs_type_part {
                 continue;
             }

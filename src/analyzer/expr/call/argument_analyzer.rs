@@ -100,7 +100,7 @@ fn get_unpacked_type(
         .clone()
         .types
         .into_iter()
-        .map(|(_, atomic_type)| match atomic_type {
+        .map(|atomic_type| match atomic_type {
             TAtomic::TDict { .. } => handle_array_access_on_dict(
                 statements_analyzer,
                 pos,
@@ -594,7 +594,7 @@ fn add_dataflow(
             return;
         }
 
-        for (_, at) in &param_type.types {
+        for at in &param_type.types {
             if let Some(shape_name) = at.get_shape_name() {
                 let shape_name_id = if let Some(shape_name_id) = codebase.interner.get(shape_name) {
                     shape_name_id

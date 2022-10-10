@@ -363,7 +363,7 @@ pub fn is_contained_by(
             );
         }
 
-        for (_, container_extends_type_part) in container_type_extends.types.iter() {
+        for container_extends_type_part in container_type_extends.types.iter() {
             if allow_interface_equality
                 && is_contained_by(
                     codebase,
@@ -402,7 +402,7 @@ pub fn is_contained_by(
             }
         }
 
-        for (_, input_extends_type_part) in input_extends.types.iter() {
+        for input_extends_type_part in input_extends.types.iter() {
             if matches!(input_extends_type_part, TAtomic::TNull { .. })
                 && matches!(container_type_part, TAtomic::TNull { .. })
             {

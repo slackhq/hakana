@@ -341,7 +341,6 @@ pub(crate) fn reconcile(
             pos,
             failed_reconciliation,
             suppressed_issues,
-            false,
         )),
         Assertion::IsEqualIsset | Assertion::IsIsset => Some(reconcile_isset(
             assertion,
@@ -447,13 +446,10 @@ pub(crate) fn intersect_null(
         return get_null();
     }
 
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
-
     let mut nullable_types = Vec::new();
     let mut did_remove_type = false;
 
-    for (_, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         match atomic {
             TAtomic::TNull => {
                 nullable_types.push(TAtomic::TNull);
@@ -506,6 +502,9 @@ pub(crate) fn intersect_null(
     if nullable_types.is_empty() || !did_remove_type {
         if let Some(key) = key {
             if let Some(pos) = pos {
+                let old_var_type_string =
+                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
@@ -546,13 +545,10 @@ fn intersect_object(
         return get_object();
     }
 
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
-
     let mut object_types = Vec::new();
     let mut did_remove_type = false;
 
-    for (_, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         if atomic.is_object_type() {
             object_types.push(atomic.clone());
         } else if let TAtomic::TTemplateParam { as_type, .. } = atomic {
@@ -560,7 +556,7 @@ fn intersect_object(
                 let atomic = atomic.replace_template_extends(get_object());
 
                 object_types.push(atomic);
-            } else if as_type.types.contains_key("object") || as_type.is_mixed() {
+            } else if as_type.has_object_type() || as_type.is_mixed() {
                 let atomic = atomic.replace_template_extends(intersect_object(
                     assertion,
                     as_type,
@@ -586,6 +582,9 @@ fn intersect_object(
     if (object_types.is_empty() || !did_remove_type) && !is_equality {
         if let Some(key) = key {
             if let Some(pos) = pos {
+                let old_var_type_string =
+                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
@@ -629,7 +628,7 @@ fn intersect_vec(
     let mut acceptable_types = Vec::new();
     let mut did_remove_type = false;
 
-    for (_, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         if matches!(atomic, TAtomic::TVec { .. }) {
             acceptable_types.push(atomic.clone());
         } else {
@@ -700,7 +699,7 @@ fn intersect_keyset(
     let mut acceptable_types = Vec::new();
     let mut did_remove_type = false;
 
-    for (_, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         if matches!(atomic, TAtomic::TKeyset { .. }) {
             acceptable_types.push(atomic.clone());
         } else {
@@ -772,7 +771,7 @@ fn intersect_dict(
     let mut acceptable_types = Vec::new();
     let mut did_remove_type = false;
 
-    for (_, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         match atomic {
             TAtomic::TDict { .. } => {
                 acceptable_types.push(atomic.clone());
@@ -876,7 +875,7 @@ fn intersect_arraykey(
     let mut acceptable_types = Vec::new();
     let mut did_remove_type = false;
 
-    for (_, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         if atomic.is_int() || atomic.is_string() || matches!(atomic, TAtomic::TArraykey { .. }) {
             acceptable_types.push(atomic.clone());
         } else if matches!(atomic, TAtomic::TNum { .. }) {
@@ -932,7 +931,7 @@ fn intersect_num(
     let mut acceptable_types = Vec::new();
     let mut did_remove_type = false;
 
-    for (_, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         if atomic.is_int() || matches!(atomic, TAtomic::TFloat { .. }) {
             acceptable_types.push(atomic.clone());
         } else if matches!(atomic, TAtomic::TArraykey { .. }) {
@@ -985,7 +984,7 @@ fn intersect_string(
     let mut acceptable_types = Vec::new();
     let mut did_remove_type = false;
 
-    for (_, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         match atomic {
             TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralString { .. }
@@ -1118,7 +1117,7 @@ fn intersect_int(
     let mut acceptable_types = Vec::new();
     let mut did_remove_type = false;
 
-    for (_, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         match atomic {
             TAtomic::TLiteralInt { .. } | TAtomic::TInt => {
                 acceptable_types.push(atomic.clone());
@@ -1211,43 +1210,39 @@ fn reconcile_truthy(
     pos: Option<&Pos>,
     failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
-    recursive_check: bool,
 ) -> TUnion {
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
-
     let mut did_remove_type = existing_var_type.possibly_undefined_from_try;
 
-    let existing_var_types = &existing_var_type.types;
-    let mut existing_var_type = existing_var_type.clone();
+    let mut new_var_type = existing_var_type.clone();
 
-    existing_var_type.possibly_undefined_from_try = false;
+    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
 
-    for (type_key, mut atomic) in existing_var_types {
+    let mut acceptable_types = vec![];
+
+    for mut atomic in existing_var_types {
         if let TAtomic::TTypeAlias {
             as_type: Some(as_type),
             ..
         } = atomic
         {
-            atomic = &as_type;
+            atomic = (*as_type).clone();
         }
 
         // if any atomic in the union is either always falsy, we remove it.
         // If not always truthy, we mark the check as not redundant.
         if atomic.is_falsy() {
             did_remove_type = true;
-            existing_var_type.types.remove(type_key);
         } else if !atomic.is_truthy(&statements_analyzer.get_codebase().interner)
-            || existing_var_type.possibly_undefined_from_try
+            || new_var_type.possibly_undefined_from_try
         {
             did_remove_type = true;
 
-            if let TAtomic::TTemplateParam { as_type, .. } = atomic {
+            if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
                 if !as_type.is_mixed() {
                     let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                     let atomic = atomic.replace_template_extends(reconcile_truthy(
                         assertion,
-                        as_type,
+                        &as_type,
                         &None,
                         false,
                         tast_info,
@@ -1255,78 +1250,54 @@ fn reconcile_truthy(
                         None,
                         &mut template_failed_reconciliation,
                         suppressed_issues,
-                        true,
                     ));
 
-                    if template_failed_reconciliation == ReconciliationStatus::Ok {
-                        existing_var_type.types.remove(type_key);
-                        existing_var_type.types.insert(atomic.get_key(), atomic);
-                    }
+                    acceptable_types.push(atomic);
+                } else {
+                    acceptable_types.push(atomic);
                 }
             } else if let TAtomic::TBool { .. } = atomic {
-                existing_var_type.types.remove("bool");
-                existing_var_type
-                    .types
-                    .insert("true".to_string(), TAtomic::TTrue);
+                acceptable_types.push(TAtomic::TTrue);
             } else if let TAtomic::TVec { .. } = atomic {
-                existing_var_type
-                    .types
-                    .insert("vec".to_string(), atomic.get_non_empty_vec(None));
+                acceptable_types.push(atomic.get_non_empty_vec(None));
             } else if let TAtomic::TDict { .. } = atomic {
-                existing_var_type
-                    .types
-                    .insert("dict".to_string(), atomic.clone().make_non_empty_dict());
+                acceptable_types.push(atomic.clone().make_non_empty_dict());
             } else if let TAtomic::TMixed | TAtomic::TMixedAny = atomic {
-                existing_var_type
-                    .types
-                    .insert("mixed".to_string(), TAtomic::TTruthyMixed);
+                acceptable_types.push(TAtomic::TTruthyMixed);
             } else if let TAtomic::TMixedFromLoopIsset = atomic {
-                existing_var_type
-                    .types
-                    .insert("mixed".to_string(), TAtomic::TTruthyMixed);
+                acceptable_types.push(TAtomic::TTruthyMixed);
             } else if let TAtomic::TString = atomic {
-                existing_var_type.types.insert(
-                    "string".to_string(),
-                    TAtomic::TStringWithFlags(true, false, false),
-                );
+                acceptable_types.push(TAtomic::TStringWithFlags(true, false, false));
             } else if let TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) = atomic {
-                existing_var_type.types.insert(
-                    "string".to_string(),
-                    TAtomic::TStringWithFlags(true, false, *is_nonspecific_literal),
-                );
+                acceptable_types.push(TAtomic::TStringWithFlags(
+                    true,
+                    false,
+                    is_nonspecific_literal,
+                ));
+            } else {
+                acceptable_types.push(atomic);
             }
+        } else {
+            acceptable_types.push(atomic);
         }
     }
 
-    if !did_remove_type || existing_var_type.types.is_empty() {
-        // every type was removed, this is an impossible assertion
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                if !recursive_check {
-                    trigger_issue_for_impossible(
-                        tast_info,
-                        statements_analyzer,
-                        &old_var_type_string,
-                        &key,
-                        assertion,
-                        !did_remove_type,
-                        negated,
-                        pos,
-                        suppressed_issues,
-                    );
-                }
-            }
-        }
+    new_var_type.possibly_undefined_from_try = false;
 
-        if existing_var_type.types.is_empty() {
-            *failed_reconciliation = ReconciliationStatus::Empty;
-            return get_nothing();
-        }
-
-        *failed_reconciliation = ReconciliationStatus::Redundant;
-    }
-
-    existing_var_type
+    get_acceptable_type(
+        acceptable_types,
+        did_remove_type,
+        None,
+        pos,
+        &existing_var_type,
+        statements_analyzer,
+        tast_info,
+        assertion,
+        negated,
+        suppressed_issues,
+        failed_reconciliation,
+        new_var_type,
+    )
 }
 
 fn reconcile_isset(
@@ -1342,9 +1313,6 @@ fn reconcile_isset(
     suppressed_issues: &FxHashMap<String, usize>,
     inside_loop: bool,
 ) -> TUnion {
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
-
     let mut did_remove_type = possibly_undefined || existing_var_type.possibly_undefined_from_try;
 
     if let Some(key) = key {
@@ -1353,28 +1321,30 @@ fn reconcile_isset(
         }
     }
 
-    let existing_var_types = &existing_var_type.types;
-    let mut existing_var_type = existing_var_type.clone();
+    let mut new_var_type = existing_var_type.clone();
 
-    for (type_key, atomic) in existing_var_types {
+    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    let mut acceptable_types = vec![];
+
+    for atomic in existing_var_types {
         if let TAtomic::TNull { .. } = atomic {
-            existing_var_type.types.remove(type_key);
             did_remove_type = true;
         } else if let TAtomic::TMixed | TAtomic::TMixedAny | TAtomic::TFalsyMixed = atomic {
-            existing_var_type.types.remove(type_key);
-            existing_var_type
-                .types
-                .insert("nonnull".to_string(), TAtomic::TNonnullMixed);
+            acceptable_types.push(TAtomic::TNonnullMixed);
             did_remove_type = true;
+        } else {
+            acceptable_types.push(atomic);
         }
     }
 
-    existing_var_type.possibly_undefined_from_try = false;
-
-    if !did_remove_type || existing_var_type.types.is_empty() {
+    if !did_remove_type || acceptable_types.is_empty() {
         // every type was removed, this is an impossible assertion
         if let Some(key) = key {
             if let Some(pos) = pos {
+                let old_var_type_string =
+                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
@@ -1389,7 +1359,7 @@ fn reconcile_isset(
             }
         }
 
-        if existing_var_type.types.is_empty() {
+        if acceptable_types.is_empty() {
             *failed_reconciliation = ReconciliationStatus::Empty;
             return get_nothing();
         }
@@ -1397,19 +1367,19 @@ fn reconcile_isset(
         *failed_reconciliation = ReconciliationStatus::Redundant;
     }
 
-    if existing_var_type.is_nothing() {
-        existing_var_type.types.remove("nothing");
-        existing_var_type.types.insert(
-            "mixed".to_string(),
-            if !inside_loop {
-                TAtomic::TMixed
-            } else {
-                TAtomic::TMixedFromLoopIsset
-            },
-        );
+    new_var_type.possibly_undefined_from_try = false;
+    new_var_type.types = acceptable_types;
+
+    if new_var_type.is_nothing() {
+        new_var_type.remove_type(&TAtomic::TNothing);
+        new_var_type.types.push(if !inside_loop {
+            TAtomic::TMixed
+        } else {
+            TAtomic::TMixedFromLoopIsset
+        });
     }
 
-    existing_var_type
+    new_var_type
 }
 
 fn reconcile_non_empty_countable(
@@ -1424,68 +1394,74 @@ fn reconcile_non_empty_countable(
     suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
 ) -> TUnion {
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
-
     let mut did_remove_type = false;
 
-    let existing_var_types = &existing_var_type.types;
-    let mut existing_var_type = existing_var_type.clone();
+    let mut new_var_type = existing_var_type.clone();
 
-    for (type_key, atomic) in existing_var_types {
+    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    let mut acceptable_types = vec![];
+
+    for atomic in existing_var_types {
         if let TAtomic::TVec {
             non_empty,
             type_param,
             ..
-        } = atomic
+        } = &atomic
         {
             if !non_empty {
-                if type_param.is_nothing() {
-                    existing_var_type.types.remove(type_key);
-                } else {
+                if !type_param.is_nothing() {
                     let non_empty_vec = atomic.get_non_empty_vec(None);
 
-                    existing_var_type
-                        .types
-                        .insert(non_empty_vec.get_key(), non_empty_vec);
+                    acceptable_types.push(non_empty_vec);
+                } else {
+                    acceptable_types.push(atomic);
                 }
 
                 did_remove_type = true;
+            } else {
+                acceptable_types.push(atomic);
             }
         } else if let TAtomic::TDict {
             non_empty,
             params,
             known_items,
             ..
-        } = atomic
+        } = &atomic
         {
             if !non_empty {
-                if params.is_none() {
-                    existing_var_type.types.remove(type_key);
-                } else {
+                did_remove_type = true;
+                if !params.is_none() {
                     let non_empty_dict = atomic.clone().make_non_empty_dict();
 
-                    existing_var_type
-                        .types
-                        .insert(non_empty_dict.get_key(), non_empty_dict);
+                    acceptable_types.push(non_empty_dict);
+                } else {
+                    acceptable_types.push(atomic);
                 }
-
-                did_remove_type = true;
-            } else if let Some(known_items) = known_items {
-                for (_, (u, _)) in known_items {
-                    if *u {
-                        did_remove_type = true;
+            } else {
+                if let Some(known_items) = known_items {
+                    for (_, (u, _)) in known_items {
+                        if *u {
+                            did_remove_type = true;
+                        }
                     }
                 }
+
+                acceptable_types.push(atomic);
             }
+        } else {
+            acceptable_types.push(atomic);
         }
     }
 
-    if !did_remove_type || existing_var_type.types.is_empty() {
+    if !did_remove_type || acceptable_types.is_empty() {
         // every type was removed, this is an impossible assertion
         if let Some(key) = key {
             if let Some(pos) = pos {
                 if !recursive_check {
+                    let old_var_type_string = existing_var_type
+                        .get_id(Some(&statements_analyzer.get_codebase().interner));
+
                     trigger_issue_for_impossible(
                         tast_info,
                         statements_analyzer,
@@ -1501,7 +1477,7 @@ fn reconcile_non_empty_countable(
             }
         }
 
-        if existing_var_type.types.is_empty() {
+        if acceptable_types.is_empty() {
             *failed_reconciliation = ReconciliationStatus::Empty;
             return get_nothing();
         }
@@ -1509,7 +1485,9 @@ fn reconcile_non_empty_countable(
         *failed_reconciliation = ReconciliationStatus::Redundant;
     }
 
-    existing_var_type
+    new_var_type.types = acceptable_types;
+
+    new_var_type
 }
 
 fn reconcile_exactly_countable(
@@ -1533,7 +1511,7 @@ fn reconcile_exactly_countable(
     let existing_var_types = &existing_var_type.types;
     let mut existing_var_type = existing_var_type.clone();
 
-    for (type_key, atomic) in existing_var_types {
+    for atomic in existing_var_types {
         if let TAtomic::TVec {
             non_empty,
             known_count,
@@ -1548,13 +1526,11 @@ fn reconcile_exactly_countable(
             };
             if !non_empty || min_under_count {
                 if type_param.is_nothing() {
-                    existing_var_type.types.remove(type_key);
+                    existing_var_type.remove_type(atomic);
                 } else {
                     let non_empty_vec = atomic.get_non_empty_vec(Some(*count));
 
-                    existing_var_type
-                        .types
-                        .insert(non_empty_vec.get_key(), non_empty_vec);
+                    existing_var_type.types.push(non_empty_vec);
                 }
 
                 did_remove_type = true;
@@ -1568,13 +1544,11 @@ fn reconcile_exactly_countable(
         {
             if !non_empty {
                 if params.is_none() {
-                    existing_var_type.types.remove(type_key);
+                    existing_var_type.remove_type(atomic);
                 } else {
                     let non_empty_dict = atomic.clone().make_non_empty_dict();
 
-                    existing_var_type
-                        .types
-                        .insert(non_empty_dict.get_key(), non_empty_dict);
+                    existing_var_type.types.push(non_empty_dict);
                 }
 
                 did_remove_type = true;
@@ -1631,20 +1605,16 @@ fn reconcile_array_access(
     suppressed_issues: &FxHashMap<String, usize>,
     allow_int_key: bool,
 ) -> TUnion {
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+    let mut new_var_type = existing_var_type.clone();
 
-    let existing_var_types = &existing_var_type.types;
-    let mut existing_var_type = existing_var_type.clone();
-
-    if existing_var_type.is_mixed() || existing_var_type.has_template() {
+    if new_var_type.is_mixed() || new_var_type.has_template() {
         // maybe return something more specific in the future
         // dict<arraykey, mixed>|keyset<arraykey>
-        return existing_var_type;
+        return new_var_type;
     }
 
-    for (type_key, atomic) in existing_var_types {
-        if (allow_int_key
+    new_var_type.types.retain(|atomic| {
+        (allow_int_key
             && atomic.is_array_accessible_with_int_or_string_key(
                 &statements_analyzer.get_codebase().interner,
             ))
@@ -1652,17 +1622,15 @@ fn reconcile_array_access(
                 && atomic.is_array_accessible_with_string_key(
                     &statements_analyzer.get_codebase().interner,
                 ))
-        {
-            // do nothing
-        } else {
-            existing_var_type.types.remove(type_key);
-        }
-    }
+    });
 
-    if existing_var_type.types.is_empty() {
+    if new_var_type.types.is_empty() {
         // every type was removed, this is an impossible assertion
         if let Some(key) = key {
             if let Some(pos) = pos {
+                let old_var_type_string =
+                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
@@ -1677,7 +1645,7 @@ fn reconcile_array_access(
             }
         }
 
-        if existing_var_type.types.is_empty() {
+        if new_var_type.types.is_empty() {
             *failed_reconciliation = ReconciliationStatus::Empty;
             return get_nothing();
         }
@@ -1685,7 +1653,7 @@ fn reconcile_array_access(
         *failed_reconciliation = ReconciliationStatus::Redundant;
     }
 
-    existing_var_type
+    new_var_type
 }
 
 fn reconcile_in_array(
@@ -1727,9 +1695,9 @@ fn reconcile_in_array(
 }
 
 fn reconcile_has_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TUnion {
-    let mut filtered_types = BTreeMap::new();
+    let mut filtered_types = vec![];
 
-    for (atomic_key, atomic) in &existing_var_type.types {
+    for atomic in &existing_var_type.types {
         let mut atomic = atomic.clone();
 
         match &mut atomic {
@@ -1785,7 +1753,7 @@ fn reconcile_has_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TU
             _ => (),
         }
 
-        filtered_types.insert(atomic_key.clone(), atomic);
+        filtered_types.push(atomic);
     }
 
     let existing_var_type = TUnion {
@@ -1794,4 +1762,52 @@ fn reconcile_has_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TU
     };
 
     existing_var_type
+}
+
+pub(crate) fn get_acceptable_type(
+    acceptable_types: Vec<TAtomic>,
+    did_remove_type: bool,
+    key: Option<String>,
+    pos: Option<&Pos>,
+    existing_var_type: &TUnion,
+    statements_analyzer: &StatementsAnalyzer,
+    tast_info: &mut TastInfo,
+    assertion: &Assertion,
+    negated: bool,
+    suppressed_issues: &FxHashMap<String, usize>,
+    failed_reconciliation: &mut ReconciliationStatus,
+    mut new_var_type: TUnion,
+) -> TUnion {
+    if acceptable_types.is_empty() || !did_remove_type {
+        if let Some(ref key) = key {
+            if let Some(pos) = pos {
+                let old_var_type_string =
+                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+
+                trigger_issue_for_impossible(
+                    tast_info,
+                    statements_analyzer,
+                    &old_var_type_string,
+                    &key,
+                    assertion,
+                    !did_remove_type,
+                    negated,
+                    pos,
+                    suppressed_issues,
+                );
+            }
+        }
+
+        if !did_remove_type {
+            *failed_reconciliation = ReconciliationStatus::Redundant;
+        }
+    }
+
+    if acceptable_types.is_empty() {
+        *failed_reconciliation = ReconciliationStatus::Empty;
+        return get_nothing();
+    }
+
+    new_var_type.types = acceptable_types;
+    new_var_type
 }

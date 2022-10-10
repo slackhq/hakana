@@ -32,15 +32,11 @@ pub fn is_contained_by(
 
     let container_has_template = container_type.has_template_or_static();
 
-    let mut input_atomic_types = input_type.types.iter().map(|(_, v)| v).collect::<Vec<_>>();
+    let mut input_atomic_types = input_type.types.iter().map(|v| v).collect::<Vec<_>>();
 
     input_atomic_types.reverse();
 
-    let mut container_atomic_types = container_type
-        .types
-        .iter()
-        .map(|(_, v)| v)
-        .collect::<Vec<_>>();
+    let mut container_atomic_types = container_type.types.iter().map(|v| v).collect::<Vec<_>>();
 
     container_atomic_types.reverse();
 
@@ -64,7 +60,7 @@ pub fn is_contained_by(
         } = &input_type_part
         {
             if !container_has_template {
-                input_atomic_types.extend(as_type.types.iter().map(|(_, a)| a).collect::<Vec<_>>());
+                input_atomic_types.extend(as_type.types.iter().map(|a| a).collect::<Vec<_>>());
                 continue;
             }
         }
@@ -142,9 +138,7 @@ pub fn is_contained_by(
                     if let Some(ref mut replacement_union_type) =
                         union_comparison_result.replacement_union_type
                     {
-                        replacement_union_type
-                            .types
-                            .remove(&input_type_part.get_key());
+                        replacement_union_type.remove_type(&input_type_part);
                         replacement_union_type.add_type(replacement_atomic_type);
                     } else {
                         union_comparison_result.replacement_union_type =
@@ -266,7 +260,7 @@ pub(crate) fn can_be_contained_by(
         return true;
     }
 
-    for (_, container_type_part) in &container_type.types {
+    for container_type_part in &container_type.types {
         if matches!(container_type_part, TAtomic::TNull { .. }) && ignore_null {
             continue;
         }
@@ -275,7 +269,7 @@ pub(crate) fn can_be_contained_by(
             continue;
         }
 
-        for (_, input_type_part) in &input_type.types {
+        for input_type_part in &input_type.types {
             let mut atomic_comparison_result = TypeComparisonResult::new();
 
             let is_atomic_contained_by = atomic_type_comparator::is_contained_by(
@@ -313,8 +307,8 @@ pub fn can_expression_types_be_identical(
         return true;
     }
 
-    for (_, type1_part) in &type1.types {
-        for (_, type2_part) in &type2.types {
+    for type1_part in &type1.types {
+        for type2_part in &type2.types {
             if atomic_type_comparator::can_be_identical(
                 codebase,
                 type1_part,

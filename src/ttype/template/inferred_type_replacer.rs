@@ -24,7 +24,7 @@ pub fn replace(
 
     let mut new_types = Vec::new();
 
-    for (key, atomic_type) in &union.types {
+    for atomic_type in &union.types {
         let mut atomic_type = atomic_type.clone();
         atomic_type = replace_atomic(atomic_type, template_result, codebase);
 
@@ -36,6 +36,8 @@ pub fn replace(
             ..
         } = &atomic_type
         {
+            let key = atomic_type.get_key();
+
             let template_type = replace_template_param(
                 &template_result.lower_bounds,
                 param_name,
@@ -43,13 +45,13 @@ pub fn replace(
                 codebase,
                 as_type,
                 extra_types,
-                key,
+                &key,
             );
 
             if let Some(template_type) = template_type {
                 keys_to_unset.insert(key);
 
-                for (_, template_type_part) in template_type.types {
+                for template_type_part in template_type.types {
                     new_types.push(template_type_part);
                 }
             } else {
@@ -71,7 +73,7 @@ pub fn replace(
 
                 let mut class_template_type = None;
 
-                for (_, template_type_part) in &template_type.types {
+                for template_type_part in &template_type.types {
                     if template_type_part.is_mixed()
                         || matches!(template_type_part, TAtomic::TObject)
                     {
@@ -100,6 +102,7 @@ pub fn replace(
                 }
 
                 if let Some(class_template_type) = class_template_type {
+                    let key = atomic_type.get_key();
                     keys_to_unset.insert(key);
                     new_types.push(class_template_type);
                 }
@@ -119,7 +122,7 @@ pub fn replace(
                 let template_type = get_most_specific_type_from_bounds(bounds, codebase);
                 let mut class_template_type = None;
 
-                for (_, template_type_part) in &template_type.types {
+                for template_type_part in &template_type.types {
                     if template_type_part.is_mixed() {
                         class_template_type = Some(TAtomic::TString);
                     } else if let TAtomic::TNamedObject { .. } = template_type_part {
@@ -151,6 +154,8 @@ pub fn replace(
                 }
 
                 if let Some(class_template_type) = class_template_type {
+                    let key = atomic_type.get_key();
+
                     keys_to_unset.insert(key);
                     new_types.push(class_template_type);
                 }
@@ -166,10 +171,7 @@ pub fn replace(
         return get_nothing();
     }
 
-    union.types = type_combiner::combine(new_types, codebase, false)
-        .into_iter()
-        .map(|v| (v.get_key(), v))
-        .collect();
+    union.types = type_combiner::combine(new_types, codebase, false);
 
     union
 }
@@ -204,7 +206,7 @@ fn replace_template_param(
         };
 
         if let Some(_extra_types) = extra_types {
-            for (_template_type_key, _atomic_template_type) in &template_type_inner.types {
+            for _atomic_template_type in &template_type_inner.types {
                 // todo handle extra types
             }
         }

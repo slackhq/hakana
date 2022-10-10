@@ -1,4 +1,4 @@
-ERROR: InvalidMethodCall - input.hack:1:34 - Cannot call method on $i with type int(1)
 ERROR: InvalidMethodCall - input.hack:1:34 - Cannot call method on $i with type int(2)
-ERROR: InvalidMethodCall - input.hack:1:34 - Cannot call method on $i with type int(3)
 ERROR: InvalidMethodCall - input.hack:1:34 - Cannot call method on $i with type int(4)
+ERROR: InvalidMethodCall - input.hack:1:34 - Cannot call method on $i with type int(3)
+ERROR: InvalidMethodCall - input.hack:1:34 - Cannot call method on $i with type int(1)

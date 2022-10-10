@@ -126,7 +126,7 @@ pub(crate) fn analyze(
     };
 
     if let Some(dim_type) = &dim_type {
-        for (_, key_atomic_type) in &dim_type.types {
+        for key_atomic_type in &dim_type.types {
             match key_atomic_type {
                 TAtomic::TLiteralString { .. }
                 | TAtomic::TLiteralInt { .. }
@@ -187,17 +187,14 @@ pub(crate) fn update_type_with_key_values(
     new_type.types = new_type
         .types
         .into_iter()
-        .map(|(key, atomic_type)| {
-            (
-                key,
-                update_atomic_given_key(
-                    atomic_type,
-                    key_values,
-                    key_type.clone(),
-                    &mut has_matching_item,
-                    &current_type,
-                    codebase,
-                ),
+        .map(|atomic_type| {
+            update_atomic_given_key(
+                atomic_type,
+                key_values,
+                key_type.clone(),
+                &mut has_matching_item,
+                &current_type,
+                codebase,
             )
         })
         .collect();
@@ -473,7 +470,7 @@ fn update_array_assignment_child_type(
             key_type.clone()
         };
 
-        for (_, original_type) in &root_type.types {
+        for original_type in &root_type.types {
             match original_type {
                 TAtomic::TVec { known_items, .. } => collection_types.push(TAtomic::TVec {
                     type_param: value_type.clone(),
@@ -513,7 +510,7 @@ fn update_array_assignment_child_type(
             }
         }
     } else {
-        for (_, original_type) in &root_type.types {
+        for original_type in &root_type.types {
             match original_type {
                 TAtomic::TVec {
                     known_items,
@@ -572,11 +569,8 @@ fn update_array_assignment_child_type(
         // todo update counts
     }
 
-    let array_assignment_type = TUnion::new(type_combiner::combine(
-        collection_types,
-        codebase,
-        false,
-    ));
+    let array_assignment_type =
+        TUnion::new(type_combiner::combine(collection_types, codebase, false));
 
     let new_child_type = if let Some(new_child_type) = new_child_type {
         new_child_type
@@ -879,7 +873,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 fn get_key_values_from_type(dim_type: Option<&TUnion>) -> Vec<TAtomic> {
     let mut key_values = Vec::new();
     if let Some(dim_type) = dim_type {
-        for (_, key_atomic_type) in &dim_type.types {
+        for key_atomic_type in &dim_type.types {
             if let TAtomic::TLiteralString { .. } = key_atomic_type {
                 key_values.push(key_atomic_type.clone());
             } else if let TAtomic::TLiteralInt { .. } = key_atomic_type {
@@ -894,7 +888,7 @@ fn get_key_values_from_type(dim_type: Option<&TUnion>) -> Vec<TAtomic> {
 
 fn get_array_assignment_offset_types(child_stmt_dim_type: &TUnion) -> Vec<TAtomic> {
     let mut valid_offset_types = vec![];
-    for (_, single_atomic) in &child_stmt_dim_type.types {
+    for single_atomic in &child_stmt_dim_type.types {
         match single_atomic {
             TAtomic::TLiteralString { .. }
             | TAtomic::TLiteralInt { .. }

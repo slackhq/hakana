@@ -262,7 +262,7 @@ fn handle_shapes_static_method(
 
                         let dim_var_id = dim_var_id[1..dim_var_id.len() - 1].to_string();
 
-                        for (_, atomic_type) in new_type.types.iter_mut() {
+                        for atomic_type in new_type.types.iter_mut() {
                             if let TAtomic::TDict {
                                 known_items: Some(ref mut known_items),
                                 ..
@@ -309,7 +309,7 @@ fn handle_shapes_static_method(
                 if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
                     let mut has_valid_expected_offset = false;
 
-                    for (_, atomic_type) in &dict_type.types {
+                    for atomic_type in &dict_type.types {
                         if let TAtomic::TDict { .. } = atomic_type {
                             let mut has_possibly_undefined = false;
                             let mut expr_type_inner = handle_array_access_on_dict(

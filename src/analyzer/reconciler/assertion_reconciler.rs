@@ -15,7 +15,7 @@ use hakana_type::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
     },
     type_expander::{self, TypeExpansionOptions},
-    wrap_atomic,
+    wrap_atomic, type_combiner,
 };
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
@@ -180,19 +180,22 @@ fn intersect_union_with_atomic(
     existing_var_type: &TUnion,
     new_type: &TAtomic,
 ) -> Option<TUnion> {
-    let mut matching_atomic_types = Vec::new();
+    let mut acceptable_types = Vec::new();
 
-    for (_, existing_atomic) in &existing_var_type.types {
+    for existing_atomic in &existing_var_type.types {
         let intersected_atomic_type =
             intersect_atomic_with_atomic(existing_atomic, new_type, codebase);
 
         if let Some(intersected_atomic_type) = intersected_atomic_type {
-            matching_atomic_types.push(intersected_atomic_type);
+            acceptable_types.push(intersected_atomic_type);
         }
     }
 
-    if !matching_atomic_types.is_empty() {
-        return Some(TUnion::new(matching_atomic_types));
+    if !acceptable_types.is_empty() {
+        if acceptable_types.len() > 1 {
+            acceptable_types = type_combiner::combine(acceptable_types, codebase, false);
+        }
+        return Some(TUnion::new(acceptable_types));
     }
 
     None

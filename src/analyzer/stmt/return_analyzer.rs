@@ -513,7 +513,7 @@ fn handle_dataflow(
 
         let codebase = statements_analyzer.get_codebase();
 
-        for (_, at) in &inferred_type.types {
+        for at in &inferred_type.types {
             if let Some(shape_name) = at.get_shape_name() {
                 let shape_name_id = if let Some(shape_name_id) = codebase.interner.get(shape_name) {
                     shape_name_id
