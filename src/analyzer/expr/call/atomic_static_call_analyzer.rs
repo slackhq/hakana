@@ -92,9 +92,9 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.get_codebase();
 
-    let method_name = codebase.interner.get(&expr.1 .1).unwrap();
+    let method_name = codebase.interner.get(&expr.1 .1);
 
-    if !codebase.method_exists(&classlike_name, &method_name) {
+    if method_name.is_none() || !codebase.method_exists(&classlike_name, &method_name.unwrap()) {
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentMethod,
@@ -120,7 +120,7 @@ pub(crate) fn analyze(
     result.return_type = Some(existing_atomic_method_call_analyzer::analyze(
         statements_analyzer,
         classlike_name,
-        &method_name,
+        &method_name.unwrap(),
         (expr.2, expr.3, expr.4),
         lhs_type_part,
         pos,

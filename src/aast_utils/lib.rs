@@ -225,44 +225,49 @@ impl<'ast> Visitor<'ast> for Scanner {
     }
 
     fn visit_expr_(&mut self, nc: &mut NameContext, e: &aast::Expr_<(), ()>) -> Result<(), ()> {
-        match e {
+        let in_xhp_id = nc.in_xhp_id;
+        let in_constant_id = nc.in_constant_id;
+        let in_member_id = nc.in_member_id;
+        let in_function_id = nc.in_function_id;
+        let in_class_id = nc.in_class_id;
+
+        let result = match e {
             aast::Expr_::Xml(_) => {
                 nc.in_xhp_id = true;
+                e.recurse(nc, self)
             }
-            aast::Expr_::Id(_) => {
+            aast::Expr_::Id(id) => {
                 nc.in_constant_id = true;
+                e.recurse(nc, self)
             }
             aast::Expr_::EnumClassLabel(boxed) => {
                 if boxed.0.is_some() {
                     nc.in_class_id = true;
                 }
+                e.recurse(nc, self)
             }
-            aast::Expr_::Call(boxed) => match boxed.0 .2 {
+            aast::Expr_::Call(boxed) => match &boxed.0 .2 {
                 aast::Expr_::Id(_) => {
                     nc.in_function_id = true;
+                    e.recurse(nc, self)
                 }
-                _ => {}
+                _ => e.recurse(nc, self),
             },
-            _ => (),
-        }
-
-        let result = e.recurse(nc, self);
-
-        match e {
-            aast::Expr_::Xml(_) => {
-                nc.in_xhp_id = false;
+            aast::Expr_::ObjGet(boxed) => {
+                boxed.0.recurse(nc, self).ok();
+                nc.in_member_id = true;
+                let result = boxed.1.recurse(nc, self);
+                nc.in_member_id = false;
+                result
             }
-            aast::Expr_::Id(_) => {
-                nc.in_constant_id = false;
-            }
-            aast::Expr_::Call(boxed) => match boxed.0 .2 {
-                aast::Expr_::Id(_) => {
-                    nc.in_function_id = false;
-                }
-                _ => {}
-            },
-            _ => (),
-        }
+            _ => e.recurse(nc, self),
+        };
+
+        nc.in_class_id = in_class_id;
+        nc.in_member_id = in_member_id;
+        nc.in_function_id = in_function_id;
+        nc.in_xhp_id = in_xhp_id;
+        nc.in_constant_id = in_constant_id;
 
         result
     }
@@ -308,6 +313,15 @@ impl<'ast> Visitor<'ast> for Scanner {
         if nc.in_function_id {
             nc.in_constant_id = false;
         }
+
+        if nc.in_member_id {
+            nc.in_constant_id = false;
+        }
+
+        // println!(
+        //     "{:#?} in_class_id:{} in_function_id:{} in_xhp_id:{} in_constant_id:{} in_member_id:{}",
+        //     id, nc.in_class_id, nc.in_function_id, nc.in_xhp_id, nc.in_constant_id, nc.in_member_id
+        // );
 
         if nc.in_class_id || nc.in_function_id || nc.in_xhp_id || nc.in_constant_id {
             if !self.resolved_names.contains_key(&id.0.start_offset()) {

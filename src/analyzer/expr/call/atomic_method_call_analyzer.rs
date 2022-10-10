@@ -122,16 +122,18 @@ pub(crate) fn analyze(
         }
 
         if let aast::Expr_::Id(boxed) = &expr.1 .2 {
-            let method_name = codebase.interner.get(&boxed.1).unwrap();
+            let method_name = codebase.interner.get(&boxed.1);
 
-            if !codebase.method_exists(&classlike_name, &method_name) {
+            if method_name.is_none()
+                || !codebase.method_exists(&classlike_name, &method_name.unwrap())
+            {
                 tast_info.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentMethod,
                         format!(
                             "Method {}::{} does not exist",
                             codebase.interner.lookup(*classlike_name),
-                            codebase.interner.lookup(method_name)
+                            &boxed.1
                         ),
                         statements_analyzer.get_hpos(&pos),
                     ),
@@ -141,6 +143,8 @@ pub(crate) fn analyze(
 
                 return;
             }
+
+            let method_name = method_name.unwrap();
 
             let return_type_candidate = existing_atomic_method_call_analyzer::analyze(
                 statements_analyzer,

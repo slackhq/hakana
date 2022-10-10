@@ -31,6 +31,7 @@ pub(crate) struct NameContext {
     pub in_function_id: bool,
     pub in_constant_id: bool,
     pub in_xhp_id: bool,
+    pub in_member_id: bool,
 }
 
 impl NameContext {
@@ -42,6 +43,7 @@ impl NameContext {
             in_function_id: false,
             in_xhp_id: false,
             in_constant_id: false,
+            in_member_id: false,
         }
     }
 

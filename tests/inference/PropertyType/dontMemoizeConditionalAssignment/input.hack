@@ -1,3 +1,5 @@
+namespace Foo;
+
 class A {}
 
 class B {
@@ -12,7 +14,7 @@ class B {
     }
 
     protected function mayBeSetA(): void {
-        if (mt_rand(0, 1)) {
+        if (\mt_rand(0, 1)) {
             $this->a = new A();
         }
     }

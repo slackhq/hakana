@@ -47,13 +47,20 @@ pub(crate) fn analyze(
     let stmt_name = expr.1;
 
     let prop_name = if let aast::Expr_::Id(id) = &stmt_name.2 {
-        Some(
-            statements_analyzer
-                .get_file_analyzer()
-                .resolved_names
-                .get(&id.0.start_offset())
-                .unwrap(),
-        )
+        if let Some(prop_name) = codebase.interner.get(&id.1) {
+            Some(prop_name)
+        } else {
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NonExistentProperty,
+                    format!("Undefined property ${}", &id.1),
+                    statements_analyzer.get_hpos(&expr.1.pos()),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+            return false;
+        }
     } else {
         None
     };

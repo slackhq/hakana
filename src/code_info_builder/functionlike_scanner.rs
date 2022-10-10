@@ -5,7 +5,6 @@ use super::Context;
 use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
-use hakana_reflection_info::StrId;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
@@ -25,6 +24,7 @@ use hakana_reflection_info::taint::string_to_source_types;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_reflection_info::FileSource;
 use hakana_reflection_info::Interner;
+use hakana_reflection_info::StrId;
 use hakana_type::get_mixed_any;
 use hakana_type::wrap_atomic;
 use oxidized::aast;
@@ -122,6 +122,7 @@ pub(crate) fn scan_method(
                 &classlike_name,
                 &mut classlike_storage,
                 file_source,
+                interner,
             );
         }
     }
@@ -139,6 +140,7 @@ fn add_promoted_param_property(
     classlike_name: &Symbol,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
+    interner: &Arc<Mutex<Interner>>,
 ) {
     let signature_type_location = if let Some(param_type) = &param_node.type_hint.1 {
         Some(HPos::new(&param_type.0, file_source.file_path))
@@ -173,10 +175,7 @@ fn add_promoted_param_property(
         is_internal: matches!(param_visibility, ast_defs::Visibility::Internal),
     };
 
-    let param_node_id = resolved_names
-        .get(&param_node.pos.start_offset())
-        .unwrap()
-        .clone();
+    let param_node_id = interner.lock().unwrap().intern(param_node.name.clone());
 
     if !matches!(param_visibility, ast_defs::Visibility::Private) {
         classlike_storage
