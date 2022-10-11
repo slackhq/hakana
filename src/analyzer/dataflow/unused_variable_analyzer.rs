@@ -22,7 +22,9 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> Vec<DataFlowNode> {
         .iter()
         .filter(|(_, source)| matches!(source, DataFlowNode::VariableUseSource { .. }))
         .map(|(_, value)| match value {
-            DataFlowNode::VariableUseSource { pos, .. } => (pos.start_offset, value),
+            DataFlowNode::VariableUseSource { pos, .. } => {
+                ((pos.start_offset, pos.end_offset), value)
+            }
             _ => {
                 panic!()
             }

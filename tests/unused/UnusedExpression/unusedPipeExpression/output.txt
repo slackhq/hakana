@@ -1,0 +1,2 @@
+ERROR: UnusedPipeVariable - input.hack:2:12 - The pipe data in this expression is not used anywhere
+ERROR: UnusedPipeVariable - input.hack:6:12 - The pipe data in this expression is not used anywhere

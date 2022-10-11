@@ -807,7 +807,14 @@ fn report_unused_expressions(
                                 );
 
                                 tast_info.maybe_add_issue(
-                                    if unused_closure_variable {
+                                    if name == "$$" {
+                                        Issue::new(
+                                            IssueKind::UnusedPipeVariable,
+                                            "The pipe data in this expression is not used anywhere"
+                                                .to_string(),
+                                            pos.clone(),
+                                        )
+                                    } else if unused_closure_variable {
                                         Issue::new(
                                             IssueKind::UnusedAssignmentInClosure,
                                             format!(
