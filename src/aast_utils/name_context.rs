@@ -153,6 +153,8 @@ impl NameContext {
 
         match name.as_str() {
             "this"
+            | "static"
+            | "_"
             | "__AcceptDisposable"
             | "__ConsistentConstruct"
             | "__Deprecated"
@@ -239,6 +241,7 @@ impl NameContext {
 
     pub fn is_reserved(name: &String) -> bool {
         let reserved_types = [
+            "mixed",
             "vec",
             "dict",
             "keyset",

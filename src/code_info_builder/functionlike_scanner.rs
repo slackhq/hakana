@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use super::Context;
 use crate::simple_type_inferer;
@@ -15,7 +14,6 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::issue::get_issue_from_comment;
 use hakana_reflection_info::member_visibility::MemberVisibility;
-use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::method_info::MethodInfo;
 use hakana_reflection_info::property_info::PropertyInfo;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -23,8 +21,8 @@ use hakana_reflection_info::taint::string_to_sink_types;
 use hakana_reflection_info::taint::string_to_source_types;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_reflection_info::FileSource;
-use hakana_reflection_info::Interner;
 use hakana_reflection_info::StrId;
+use hakana_reflection_info::ThreadedInterner;
 use hakana_type::get_mixed_any;
 use hakana_type::wrap_atomic;
 use oxidized::aast;
@@ -38,7 +36,7 @@ use rustc_hash::FxHashSet;
 
 pub(crate) fn scan_method(
     codebase: &mut CodebaseInfo,
-    interner: &Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
     resolved_names: &FxHashMap<usize, Symbol>,
     m: &aast::Method_<(), ()>,
     c: &mut Context,
@@ -46,9 +44,7 @@ pub(crate) fn scan_method(
     file_source: &FileSource,
 ) -> (StrId, FunctionLikeInfo) {
     let classlike_name = c.classlike_name.clone().unwrap();
-    let method_name = interner.lock().unwrap().intern(m.name.1.clone());
-
-    let method_id = MethodIdentifier(classlike_name, method_name);
+    let method_name = interner.intern(m.name.1.clone());
 
     let mut type_resolution_context = TypeResolutionContext {
         template_type_map: codebase
@@ -60,7 +56,7 @@ pub(crate) fn scan_method(
         template_supers: FxHashMap::default(),
     };
 
-    let functionlike_id = method_id.to_string(&interner.lock().unwrap());
+    let functionlike_id = format!("{}::{}", interner.lookup(classlike_name), m.name.1);
 
     let mut functionlike_info = get_functionlike(
         &codebase,
@@ -105,7 +101,7 @@ pub(crate) fn scan_method(
         .insert(method_name.clone(), classlike_name.clone());
 
     if !matches!(m.visibility, ast_defs::Visibility::Private)
-        || method_name != interner.lock().unwrap().get("__construct").unwrap()
+        || method_name != StrId::construct()
         || matches!(classlike_storage.kind, SymbolKind::Trait)
     {
         classlike_storage
@@ -140,7 +136,7 @@ fn add_promoted_param_property(
     classlike_name: &Symbol,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
-    interner: &Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
 ) {
     let signature_type_location = if let Some(param_type) = &param_node.type_hint.1 {
         Some(HPos::new(&param_type.0, file_source.file_path))
@@ -175,7 +171,7 @@ fn add_promoted_param_property(
         is_internal: matches!(param_visibility, ast_defs::Visibility::Internal),
     };
 
-    let param_node_id = interner.lock().unwrap().intern(param_node.name.clone());
+    let param_node_id = interner.intern(param_node.name.clone());
 
     if !matches!(param_visibility, ast_defs::Visibility::Private) {
         classlike_storage
@@ -199,7 +195,7 @@ fn add_promoted_param_property(
 
 pub(crate) fn get_functionlike(
     codebase: &CodebaseInfo,
-    interner: &Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
     name: Symbol,
     def_pos: &Pos,
     name_pos: &Pos,
@@ -223,7 +219,7 @@ pub(crate) fn get_functionlike(
 
     if !tparams.is_empty() {
         let fn_id = "fn-".to_string() + functionlike_id.as_str();
-        let fn_id = interner.lock().unwrap().intern(fn_id);
+        let fn_id = interner.intern(fn_id);
 
         for type_param_node in tparams.iter() {
             type_context.template_type_map.insert(
@@ -347,7 +343,7 @@ pub(crate) fn get_functionlike(
             .unwrap()
             .clone();
 
-        match interner.lock().unwrap().lookup(name) {
+        match interner.lookup(name) {
             "Hakana\\SecurityAnalysis\\Source" => {
                 let mut source_types = FxHashSet::default();
 
@@ -502,7 +498,7 @@ pub(crate) fn get_functionlike(
 
 fn convert_param_nodes(
     codebase: &CodebaseInfo,
-    interner: &Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
     param_nodes: &Vec<aast::FunParam<(), ()>>,
     resolved_names: &FxHashMap<usize, Symbol>,
     type_context: &TypeResolutionContext,
@@ -535,7 +531,7 @@ fn convert_param_nodes(
                     .get(&user_attribute.name.0.start_offset())
                     .unwrap();
 
-                match interner.lock().unwrap().lookup(*name) {
+                match interner.lookup(*name) {
                     "Hakana\\SecurityAnalysis\\Sink" => {
                         let mut sink_types = FxHashSet::default();
 

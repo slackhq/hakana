@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -14,7 +14,7 @@ use hakana_reflection_info::{
     property_info::PropertyInfo,
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
-    FileSource, Interner,
+    FileSource, ThreadedInterner,
 };
 use hakana_type::{get_mixed_any, wrap_atomic};
 use indexmap::IndexMap;
@@ -28,7 +28,7 @@ use crate::typehint_resolver::get_type_from_hint;
 
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
-    interner: &Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
     resolved_names: &FxHashMap<usize, Symbol>,
     class_name: &Symbol,
     classlike_node: &aast::Class_<(), ()>,
@@ -91,7 +91,7 @@ pub(crate) fn scan(
                 ast_defs::Variance::Invariant => {
                     // default, do nothing
 
-                    if class_name == &interner.lock().unwrap().intern("HH\\Vector".to_string()) {
+                    if class_name == &interner.intern("HH\\Vector".to_string()) {
                         // cheat here for vectors
                         storage.generic_variance.insert(i, Variance::Covariant);
                     } else {
@@ -191,10 +191,7 @@ pub(crate) fn scan(
             }
 
             // We inherit from this class so methods like `coerce` works
-            let enum_class = interner
-                .lock()
-                .unwrap()
-                .intern("HH\\BuiltinEnumClass".to_string());
+            let enum_class = interner.intern("HH\\BuiltinEnumClass".to_string());
 
             storage.direct_parent_class = Some(enum_class);
             storage.all_parent_classes.insert(enum_class);
@@ -283,10 +280,7 @@ pub(crate) fn scan(
             storage.kind = SymbolKind::Enum;
 
             // We inherit from this class so methods like `coerce` works
-            let enum_class = interner
-                .lock()
-                .unwrap()
-                .intern("HH\\BuiltinEnum".to_string());
+            let enum_class = interner.intern("HH\\BuiltinEnum".to_string());
 
             storage.direct_parent_class = Some(enum_class.clone());
             storage.all_parent_classes.insert(enum_class.clone());
@@ -355,7 +349,7 @@ pub(crate) fn scan(
             &mut storage,
             file_source,
             &codebase,
-            &interner,
+            interner,
         );
     }
 
@@ -367,8 +361,8 @@ pub(crate) fn scan(
 
     storage.specialize_instance = true;
 
-    let codegen_id = interner.lock().unwrap().intern("Codegen".to_string());
-    let sealed_id = interner.lock().unwrap().intern("__Sealed".to_string());
+    let codegen_id = interner.intern("Codegen".to_string());
+    let sealed_id = interner.intern("__Sealed".to_string());
 
     for user_attribute in &classlike_node.user_attributes {
         let name = resolved_names
@@ -484,7 +478,7 @@ fn visit_xhp_attribute(
     resolved_names: &FxHashMap<usize, Symbol>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
-    interner: &Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
 ) {
     let mut attribute_type_location = None;
     let mut attribute_type = if let Some(hint) = &xhp_attribute.0 .1 {
@@ -525,10 +519,7 @@ fn visit_xhp_attribute(
         is_internal: false,
     };
 
-    let attribute_id = interner
-        .lock()
-        .unwrap()
-        .intern(xhp_attribute.1.id.1.clone());
+    let attribute_id = interner.intern(xhp_attribute.1.id.1.clone());
 
     classlike_storage
         .declaring_property_ids
@@ -550,7 +541,7 @@ fn visit_class_const_declaration(
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     codebase: &CodebaseInfo,
-    interner: &Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
 ) {
     let mut provided_type = None;
 
@@ -590,10 +581,9 @@ fn visit_class_const_declaration(
         is_abstract: matches!(const_node.kind, ClassConstKind::CCAbstract(..)),
     };
 
-    classlike_storage.constants.insert(
-        interner.lock().unwrap().intern(const_node.id.1.clone()),
-        const_storage,
-    );
+    classlike_storage
+        .constants
+        .insert(interner.intern(const_node.id.1.clone()), const_storage);
 }
 
 fn visit_class_typeconst_declaration(
@@ -626,7 +616,7 @@ fn visit_property_declaration(
     resolved_names: &FxHashMap<usize, Symbol>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
-    interner: &Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
 ) {
     let mut property_type = None;
 
@@ -665,7 +655,7 @@ fn visit_property_declaration(
         is_internal: matches!(property_node.visibility, ast_defs::Visibility::Internal),
     };
 
-    let property_ref_id = interner.lock().unwrap().intern(property_node.id.1.clone());
+    let property_ref_id = interner.intern(property_node.id.1.clone());
 
     classlike_storage
         .declaring_property_ids

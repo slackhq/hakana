@@ -1,7 +1,6 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::typehint_resolver::get_type_from_hint;
-use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     class_constant_info::ConstantInfo,
     classlike_info::Variance,
@@ -11,8 +10,8 @@ use hakana_reflection_info::{
     taint::string_to_source_types,
     type_definition_info::TypeDefinitionInfo,
     type_resolution::TypeResolutionContext,
-    Interner,
 };
+use hakana_reflection_info::{FileSource, ThreadedInterner};
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
 use oxidized::{
@@ -36,7 +35,7 @@ struct Context {
 
 struct Scanner<'a> {
     codebase: &'a mut CodebaseInfo,
-    interner: Arc<Mutex<Interner>>,
+    interner: &'a mut ThreadedInterner,
     file_source: FileSource,
     resolved_names: &'a FxHashMap<usize, Symbol>,
     user_defined: bool,
@@ -64,7 +63,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         classlike_scanner::scan(
             self.codebase,
-            &self.interner,
+            self.interner,
             &self.resolved_names,
             &class_name,
             class,
@@ -172,11 +171,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             };
 
             let mut h = FxHashMap::default();
-            let type_name_str = self.interner.lock().unwrap().lookup(type_name).to_string();
+            let type_name_str = self.interner.lookup(type_name).to_string();
             h.insert(
                 self.interner
-                    .lock()
-                    .unwrap()
                     .intern("typedef-".to_string() + &type_name_str),
                 Arc::new(constraint_type.clone()),
             );
@@ -228,7 +225,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             generic_variance,
             shape_field_taints: None,
             is_literal_string: typedef.user_attributes.iter().any(|user_attribute| {
-                self.interner.lock().unwrap().lookup(
+                self.interner.lookup(
                     *self
                         .resolved_names
                         .get(&user_attribute.name.0.start_offset())
@@ -241,7 +238,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .user_attributes
             .iter()
             .filter(|user_attribute| {
-                self.interner.lock().unwrap().lookup(
+                self.interner.lookup(
                     *self
                         .resolved_names
                         .get(&user_attribute.name.0.start_offset())
@@ -298,7 +295,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_method_(&mut self, c: &mut Context, m: &aast::Method_<(), ()>) -> Result<(), ()> {
         let (method_name, mut functionlike_storage) = functionlike_scanner::scan_method(
             self.codebase,
-            &self.interner,
+            self.interner,
             &self.resolved_names,
             m,
             c,
@@ -336,7 +333,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         if is_anonymous {
             let function_id = format!("{}:{}", f.name.0.filename(), f.name.0.start_offset());
 
-            name = self.interner.lock().unwrap().intern(function_id);
+            name = self.interner.intern(function_id);
         }
 
         let parent_function_storage = if let Some(parent_function_id) = &c.function_name {
@@ -367,11 +364,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             template_supers: FxHashMap::default(),
         };
 
-        let functionlike_id = self.interner.lock().unwrap().lookup(name).to_string();
+        let functionlike_id = self.interner.lookup(name).to_string();
 
         let mut functionlike_storage = functionlike_scanner::get_functionlike(
             &self.codebase,
-            &self.interner,
+            self.interner,
             name.clone(),
             &f.span,
             &f.name.0,
@@ -436,7 +433,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 pub fn collect_info_for_aast(
     program: &aast::Program<(), ()>,
     resolved_names: &FxHashMap<usize, Symbol>,
-    interner: Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
     codebase: &mut CodebaseInfo,
     file_source: FileSource,
     user_defined: bool,

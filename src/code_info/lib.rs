@@ -26,11 +26,15 @@ pub mod taint;
 pub mod type_definition_info;
 pub mod type_resolution;
 
-use std::{collections::BTreeMap, hash::BuildHasherDefault};
+use std::{
+    collections::BTreeMap,
+    hash::BuildHasherDefault,
+    sync::{Arc, Mutex},
+};
 
 use indexmap::IndexSet;
 use oxidized::{prim_defs::Comment, tast::Pos};
-use rustc_hash::{self, FxHasher};
+use rustc_hash::{self, FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
@@ -117,5 +121,44 @@ impl Interner {
     /// Panics if `id` does not exists in `self`.
     pub fn lookup(&self, id: StrId) -> &str {
         self.map.get_index(id.0 as usize).unwrap()
+    }
+
+    pub fn get_map(&self) -> FxHashMap<String, StrId> {
+        self.map
+            .iter()
+            .enumerate()
+            .map(|(k, v)| (v.clone(), StrId(k as u32)))
+            .collect()
+    }
+}
+
+pub struct ThreadedInterner {
+    map: FxHashMap<String, StrId>,
+    pub parent: Arc<Mutex<Interner>>,
+}
+
+impl ThreadedInterner {
+    pub fn new(interner: Arc<Mutex<Interner>>) -> Self {
+        ThreadedInterner {
+            map: FxHashMap::default(),
+            parent: interner.clone(),
+        }
+    }
+
+    pub fn intern(&mut self, path: String) -> StrId {
+        if let Some(id) = self.map.get(&path) {
+            return *id;
+        }
+
+        let id;
+        {
+            id = self.parent.lock().unwrap().intern(path.clone());
+        }
+        self.map.insert(path, id);
+        id
+    }
+
+    pub fn lookup(&self, id: StrId) -> &str {
+        &self.map.iter().filter(|(_, t)| *t == &id).next().unwrap().0
     }
 }

@@ -10,8 +10,8 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
-use hakana_reflection_info::Interner;
 use hakana_reflection_info::{FileSource, StrId};
+use hakana_reflection_info::{Interner, ThreadedInterner};
 use indexmap::IndexMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast;
@@ -420,16 +420,19 @@ pub fn scan_and_analyze_single_file(
         GraphKind::FunctionBody
     };
 
-    let interner = Arc::new(Mutex::new(codebase.interner.clone()));
+    let mut interner = ThreadedInterner::new(Arc::new(Mutex::new(codebase.interner.clone())));
 
     let resolved_names = scan_single_file(
         codebase,
-        interner.clone(),
+        &mut interner,
         file_name.clone(),
         file_contents.clone(),
     )?;
 
-    let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
+    let interner = Arc::try_unwrap(interner.parent)
+        .unwrap()
+        .into_inner()
+        .unwrap();
 
     populate_codebase(codebase, &interner);
 
@@ -588,12 +591,17 @@ pub fn scan_files(
     for (target_file, status) in &file_statuses {
         if matches!(status, FileStatus::Added(..) | FileStatus::Modified(..)) {
             files_to_scan.push(target_file);
+            interner.intern(if target_file.contains(&config.root_dir) {
+                target_file[(&config.root_dir.len() + 1)..].to_string()
+            } else {
+                target_file.clone()
+            });
         }
     }
 
     let interner = Arc::new(Mutex::new(interner));
     let resolved_names = Arc::new(Mutex::new(resolved_names));
-    
+
     let has_new_files = files_to_scan.len() > 0;
 
     if files_to_scan.len() > 0 {
@@ -629,6 +637,7 @@ pub fn scan_files(
 
         if path_groups.len() == 1 {
             let mut new_codebase = CodebaseInfo::new();
+            let mut new_interner = ThreadedInterner::new(interner.clone());
 
             let analyze_map = files_to_analyze
                 .clone()
@@ -642,7 +651,7 @@ pub fn scan_files(
                         str_path,
                         &config.root_dir,
                         &mut new_codebase,
-                        interner.clone(),
+                        &mut new_interner,
                         analyze_map.contains(*str_path),
                         debug,
                     ),
@@ -674,20 +683,24 @@ pub fn scan_files(
                     .clone()
                     .into_iter()
                     .collect::<FxHashSet<_>>();
+
                 let interner = interner.clone();
+
                 let resolved_names = resolved_names.clone();
 
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
+                    let mut new_interner = ThreadedInterner::new(interner);
+                    let mut local_resolved_names = FxHashMap::default();
 
                     for str_path in &pgc {
-                        resolved_names.lock().unwrap().insert(
+                        local_resolved_names.insert(
                             (*str_path).clone(),
                             scan_file(
                                 str_path,
                                 &root_dir_c,
                                 &mut new_codebase,
-                                interner.clone(),
+                                &mut new_interner,
                                 analyze_map.contains(str_path),
                                 debug,
                             ),
@@ -698,6 +711,8 @@ pub fn scan_files(
 
                         update_progressbar(*tally, bar.clone());
                     }
+
+                    resolved_names.lock().unwrap().extend(local_resolved_names);
 
                     let mut codebases = codebases.lock().unwrap();
                     codebases.push(new_codebase);
@@ -963,7 +978,7 @@ fn scan_file(
     target_file: &String,
     root_dir: &String,
     codebase: &mut CodebaseInfo,
-    interner: Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
     user_defined: bool,
     debug: bool,
 ) -> FxHashMap<usize, StrId> {
@@ -985,9 +1000,9 @@ fn scan_file(
         target_file.clone()
     };
 
-    let interned_file_path = interner.lock().unwrap().intern(target_name.clone());
+    let interned_file_path = interner.intern(target_name.clone());
 
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner.clone());
+    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner);
 
     hakana_reflector::collect_info_for_aast(
         &aast.0,
@@ -1011,13 +1026,15 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
     let mut codebase = CodebaseInfo::new();
     let interner = Arc::new(Mutex::new(Interner::new()));
 
+    let mut threaded_interner = ThreadedInterner::new(interner.clone());
+
     // add HHVM libs
     for file in HhiAsset::iter() {
         scan_file(
             &file.to_string(),
             &"".to_string(),
             &mut codebase,
-            interner.clone(),
+            &mut threaded_interner,
             false,
             false,
         );
@@ -1029,7 +1046,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &file.to_string(),
             &"".to_string(),
             &mut codebase,
-            interner.clone(),
+            &mut threaded_interner,
             false,
             false,
         );
@@ -1040,13 +1057,30 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &str_path.to_string(),
             &"".to_string(),
             &mut codebase,
-            interner.clone(),
+            &mut threaded_interner,
             false,
             false,
         );
     }
 
-    let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
+    drop(threaded_interner);
+
+    let mutex = match Arc::try_unwrap(interner) {
+        Ok(mutex) => mutex,
+        Err(_) => {
+            panic!("There's a lock somewhere")
+        }
+    };
+
+    let interner = mutex.into_inner();
+
+    let interner = match interner {
+        Ok(interner) => interner,
+        Err(err) => {
+            println!("{}", err.to_string());
+            panic!()
+        }
+    };
 
     populate_codebase(&mut codebase, &interner);
 
@@ -1086,7 +1120,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
 
 pub fn scan_single_file(
     codebase: &mut CodebaseInfo,
-    interner: Arc<Mutex<Interner>>,
+    interner: &mut ThreadedInterner,
     path: String,
     file_contents: String,
 ) -> std::result::Result<FxHashMap<usize, StrId>, String> {
@@ -1095,9 +1129,9 @@ pub fn scan_single_file(
         Err(err) => return std::result::Result::Err(format!("Unable to parse AAST\n{}", err)),
     };
 
-    let file_path = interner.lock().unwrap().intern(path.clone());
+    let file_path = interner.intern(path.clone());
 
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner.clone());
+    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner);
 
     hakana_reflector::collect_info_for_aast(
         &aast.0,
@@ -1172,16 +1206,18 @@ pub fn analyze_files(
         let mut new_analysis_result = AnalysisResult::new(config.graph_kind);
 
         for (i, str_path) in path_groups[&0].iter().enumerate() {
-            analyze_file(
-                str_path,
-                cache_dir,
-                false,
-                &codebase,
-                &config,
-                &mut new_analysis_result,
-                resolved_names.get(*str_path).unwrap(),
-                debug,
-            );
+            if let Some(resolved_names) = resolved_names.get(*str_path) {
+                analyze_file(
+                    str_path,
+                    cache_dir,
+                    false,
+                    &codebase,
+                    &config,
+                    &mut new_analysis_result,
+                    resolved_names,
+                    debug,
+                );
+            }
 
             update_progressbar(i as u64, bar.clone());
         }
@@ -1216,16 +1252,18 @@ pub fn analyze_files(
                 let mut new_analysis_result = AnalysisResult::new(analysis_config.graph_kind);
 
                 for str_path in &pgc {
-                    analyze_file(
-                        str_path,
-                        cache_dir_c.as_ref(),
-                        false,
-                        &codebase,
-                        &analysis_config,
-                        &mut new_analysis_result,
-                        resolved_names.get(str_path).unwrap(),
-                        debug,
-                    );
+                    if let Some(resolved_names) = resolved_names.get(str_path) {
+                        analyze_file(
+                            str_path,
+                            cache_dir_c.as_ref(),
+                            false,
+                            &codebase,
+                            &analysis_config,
+                            &mut new_analysis_result,
+                            resolved_names,
+                            debug,
+                        );
+                    }
 
                     let mut tally = files_processed.lock().unwrap();
                     *tally += 1;
