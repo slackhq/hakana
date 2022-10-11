@@ -522,9 +522,11 @@ pub fn scan_files(
         }
     }
 
+    println!("Looking for Hack files");
+
     for scan_dir in scan_dirs {
         if debug {
-            println!("Looking for Hack files in {}", scan_dir);
+            println!(" - in {}", scan_dir);
         }
 
         files_to_scan.extend(find_files_in_dir(scan_dir, config, files_to_analyze));
@@ -871,17 +873,21 @@ fn find_files_in_dir(
 ) -> IndexMap<String, u64> {
     let mut files_to_scan = IndexMap::new();
 
+    let ignore_dirs = config
+        .ignore_files
+        .iter()
+        .filter(|file| file.ends_with("/**"))
+        .map(|file| file[0..(file.len() - 3)].to_string())
+        .collect::<FxHashSet<_>>();
+
     let mut walker_builder = ignore::WalkBuilder::new(scan_dir);
 
     walker_builder
         .sort_by_file_path(|a, b| a.file_name().cmp(&b.file_name()))
         .follow_links(true);
     walker_builder.git_ignore(false);
+    walker_builder.filter_entry(move |f| !ignore_dirs.contains(f.path().to_str().unwrap()));
     walker_builder.add_ignore(Path::new(".git"));
-
-    for ignore_path in &config.ignore_files {
-        walker_builder.add_ignore(Path::new(ignore_path));
-    }
 
     let walker = walker_builder.build().into_iter().filter_map(|e| e.ok());
 
