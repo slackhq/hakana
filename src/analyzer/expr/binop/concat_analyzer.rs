@@ -64,24 +64,22 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                 }
             }
 
-            if !expr_type.all_literals() {
-                for (_, old_parent_node) in &expr_type.parent_nodes {
-                    tast_info.data_flow_graph.add_path(
-                        old_parent_node,
-                        &decision_node,
-                        PathKind::Default,
-                        None,
-                        if i > 0 && (has_slash || has_query) {
-                            Some(FxHashSet::from_iter([
-                                SinkType::HtmlAttributeUri,
-                                SinkType::CurlUri,
-                                SinkType::RedirectUri,
-                            ]))
-                        } else {
-                            None
-                        },
-                    );
-                }
+            for (_, old_parent_node) in &expr_type.parent_nodes {
+                tast_info.data_flow_graph.add_path(
+                    old_parent_node,
+                    &decision_node,
+                    PathKind::Default,
+                    None,
+                    if i > 0 && (has_slash || has_query) {
+                        Some(FxHashSet::from_iter([
+                            SinkType::HtmlAttributeUri,
+                            SinkType::CurlUri,
+                            SinkType::RedirectUri,
+                        ]))
+                    } else {
+                        None
+                    },
+                );
             }
         } else {
             all_literals = false;
