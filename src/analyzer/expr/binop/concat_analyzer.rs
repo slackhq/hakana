@@ -1,7 +1,7 @@
-use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
+use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
@@ -33,6 +33,9 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         )
     };
 
+    let mut has_slash = false;
+    let mut has_query = false;
+
     for (i, concat_node) in concat_nodes.iter().enumerate() {
         expression_analyzer::analyze(
             statements_analyzer,
@@ -50,25 +53,35 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         if let Some(expr_type) = expr_type {
             all_literals = all_literals && expr_type.all_literals();
 
-            // if it's the last concat op in the chain we can remove some taints
-            let is_last = i == concat_nodes.len() - 1;
+            if let Some(str) = expr_type
+                .get_single_literal_string_value(&statements_analyzer.get_codebase().interner)
+            {
+                if str.contains("/") {
+                    has_slash = true;
+                }
+                if str.contains("?") {
+                    has_query = true;
+                }
+            }
 
-            for (_, old_parent_node) in &expr_type.parent_nodes {
-                tast_info.data_flow_graph.add_path(
-                    old_parent_node,
-                    &decision_node,
-                    PathKind::Default,
-                    None,
-                    if is_last {
-                        Some(FxHashSet::from_iter([
-                            SinkType::HtmlAttributeUri,
-                            SinkType::CurlUri,
-                            SinkType::RedirectUri,
-                        ]))
-                    } else {
-                        None
-                    },
-                );
+            if !expr_type.all_literals() {
+                for (_, old_parent_node) in &expr_type.parent_nodes {
+                    tast_info.data_flow_graph.add_path(
+                        old_parent_node,
+                        &decision_node,
+                        PathKind::Default,
+                        None,
+                        if i > 0 && (has_slash || has_query) {
+                            Some(FxHashSet::from_iter([
+                                SinkType::HtmlAttributeUri,
+                                SinkType::CurlUri,
+                                SinkType::RedirectUri,
+                            ]))
+                        } else {
+                            None
+                        },
+                    );
+                }
             }
         } else {
             all_literals = false;
