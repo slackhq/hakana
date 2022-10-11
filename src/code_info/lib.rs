@@ -32,7 +32,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use oxidized::{prim_defs::Comment, tast::Pos};
 use rustc_hash::{self, FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
@@ -133,14 +133,16 @@ impl Interner {
 }
 
 pub struct ThreadedInterner {
-    map: FxHashMap<String, StrId>,
+    map: IndexMap<String, StrId>,
+    reverse_map: BTreeMap<StrId, usize>,
     pub parent: Arc<Mutex<Interner>>,
 }
 
 impl ThreadedInterner {
     pub fn new(interner: Arc<Mutex<Interner>>) -> Self {
         ThreadedInterner {
-            map: FxHashMap::default(),
+            map: IndexMap::default(),
+            reverse_map: BTreeMap::new(),
             parent: interner.clone(),
         }
     }
@@ -154,11 +156,16 @@ impl ThreadedInterner {
         {
             id = self.parent.lock().unwrap().intern(path.clone());
         }
-        self.map.insert(path, id);
+        let index = self.map.insert_full(path, id).0;
+        self.reverse_map.insert(id, index);
+
         id
     }
 
     pub fn lookup(&self, id: StrId) -> &str {
-        &self.map.iter().filter(|(_, t)| *t == &id).next().unwrap().0
+        self.map
+            .get_index(*self.reverse_map.get(&id).unwrap())
+            .unwrap()
+            .0
     }
 }
