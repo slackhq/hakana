@@ -216,10 +216,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
     fn visit_expr_(&mut self, nc: &mut NameContext, e: &aast::Expr_<(), ()>) -> Result<(), ()> {
         let in_xhp_id = nc.in_xhp_id;
-        let in_constant_id = nc.in_constant_id;
-        let in_member_id = nc.in_member_id;
-        let in_function_id = nc.in_function_id;
-        let in_class_id = nc.in_class_id;
 
         let result = match e {
             aast::Expr_::Xml(_) => {
@@ -253,11 +249,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             _ => e.recurse(nc, self),
         };
 
-        nc.in_class_id = in_class_id;
-        nc.in_member_id = in_member_id;
-        nc.in_function_id = in_function_id;
+        nc.in_class_id = false;
+        nc.in_member_id = false;
+        nc.in_function_id = false;
         nc.in_xhp_id = in_xhp_id;
-        nc.in_constant_id = in_constant_id;
+        nc.in_constant_id = false;
 
         result
     }
