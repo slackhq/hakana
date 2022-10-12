@@ -1,10 +1,10 @@
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_reflection_info::Interner;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::issue::IssueKind;
+use hakana_reflection_info::Interner;
 use rustc_hash::FxHashSet;
 use std::env;
 use std::fs;
@@ -76,7 +76,7 @@ pub trait TestRunner {
         analysis_config.find_unused_definitions = dir.contains("/unused/UnusedCode/");
         analysis_config.graph_kind = if dir.contains("/security/") {
             GraphKind::WholeProgram(WholeProgramKind::Taint)
-        } else if dir.contains("/query/") {
+        } else if dir.contains("/find-paths/") {
             GraphKind::WholeProgram(WholeProgramKind::Query)
         } else {
             GraphKind::FunctionBody

@@ -2,7 +2,7 @@ use crate::{config::Config, scope_context::CaseScope};
 use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     assertion::Assertion,
-    data_flow::graph::{DataFlowGraph, GraphKind},
+    data_flow::graph::{DataFlowGraph, GraphKind, WholeProgramKind},
     functionlike_info::FunctionLikeInfo,
     issue::{get_issue_from_comment, Issue, IssueKind},
     symbol_references::SymbolReferences,
@@ -112,7 +112,10 @@ impl TastInfo {
     }
 
     pub fn can_add_issue(&mut self, issue: &Issue) -> bool {
-        if matches!(&self.data_flow_graph.kind, GraphKind::WholeProgram(_)) {
+        if matches!(
+            &self.data_flow_graph.kind,
+            GraphKind::WholeProgram(WholeProgramKind::Taint)
+        ) {
             return matches!(issue.kind, IssueKind::TaintedData(_));
         }
 
