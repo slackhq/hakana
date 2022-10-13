@@ -58,7 +58,6 @@ const PAIRS: [(SourceType, SinkType); 32] = [
     (SourceType::UriRequestHeader, SinkType::HtmlTag),
     (SourceType::UriRequestHeader, SinkType::RedirectUri),
     (SourceType::UriRequestHeader, SinkType::Cookie),
-
     // We don't want unescaped user data in any of those places either
     // Except we allow it in cookies
     (SourceType::RawUserData, SinkType::Sql),
@@ -71,7 +70,6 @@ const PAIRS: [(SourceType, SinkType); 32] = [
     (SourceType::RawUserData, SinkType::HtmlAttributeUri),
     (SourceType::RawUserData, SinkType::HtmlTag),
     (SourceType::RawUserData, SinkType::RedirectUri),
-
     // All the places we don't want POST data to go
     // For example we don't care about XSS in POST data
     (SourceType::NonUriRequestHeader, SinkType::Sql),
@@ -80,15 +78,12 @@ const PAIRS: [(SourceType, SinkType); 32] = [
     (SourceType::NonUriRequestHeader, SinkType::Unserialize),
     (SourceType::NonUriRequestHeader, SinkType::CurlHeader),
     (SourceType::NonUriRequestHeader, SinkType::CurlUri),
-
     // We don't want user PII to appear in logs, but it's
     // ok for it to appear everywhere else.
     (SourceType::UserPII, SinkType::Logging),
-
     // User passwords shouldn't appear in any user output or logs
     (SourceType::UserPassword, SinkType::Logging),
     (SourceType::UserPassword, SinkType::Output),
-
     // System secrets have the same prohibitions
     (SourceType::SystemSecret, SinkType::Logging),
     (SourceType::SystemSecret, SinkType::Output),
@@ -183,9 +178,6 @@ pub fn string_to_sink_types(str: String) -> FxHashSet<SinkType> {
         "Unserialize" => FxHashSet::from_iter([SinkType::Unserialize]),
         "Cookie" => FxHashSet::from_iter([SinkType::Cookie]),
         "Output" => FxHashSet::from_iter([SinkType::Output]),
-        _ => {
-            println!("Unrecognised annotation {}", str);
-            panic!()
-        }
+        str => FxHashSet::from_iter([SinkType::Custom(str.to_string())]),
     }
 }
