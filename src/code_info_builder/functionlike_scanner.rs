@@ -385,13 +385,15 @@ pub(crate) fn get_functionlike(
                         attribute_param_expr,
                         resolved_names,
                     );
-
                     if let Some(attribute_param_type) = attribute_param_type {
-                        if let Some(str) =
-                            attribute_param_type.get_single_literal_string_value(&codebase.interner)
-                        {
-                            removed_types.extend(string_to_sink_types(str));
-                        }
+                        attribute_param_type
+                            .get_literal_string_values(&codebase.interner)
+                            .into_iter()
+                            .for_each(|value| {
+                                if let Some(str) = value {
+                                    removed_types.extend(string_to_sink_types(str));
+                                }
+                            })
                     }
                 }
 

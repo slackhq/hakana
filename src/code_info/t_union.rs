@@ -650,6 +650,31 @@ impl TUnion {
             .collect()
     }
 
+    pub fn get_literal_string_values(&self, interner: &Interner) -> Vec<Option<String>> {
+        self.get_literal_strings()
+            .into_iter()
+            .map(|atom| match atom {
+                TAtomic::TLiteralString { value, .. } => Some(value.clone()),
+                TAtomic::TTypeAlias {
+                    name,
+                    as_type: Some(as_type),
+                    type_params: Some(_),
+                } => {
+                    if name == &interner.get("HH\\Lib\\Regex\\Pattern").unwrap() {
+                        if let TAtomic::TLiteralString { value, .. } = &**as_type {
+                            Some(value.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     pub fn has_literal_value(&self) -> bool {
         self.types.iter().any(|atomic| match atomic {
             TAtomic::TLiteralInt { .. }
