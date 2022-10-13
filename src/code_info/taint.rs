@@ -178,6 +178,13 @@ pub fn string_to_sink_types(str: String) -> FxHashSet<SinkType> {
         "Unserialize" => FxHashSet::from_iter([SinkType::Unserialize]),
         "Cookie" => FxHashSet::from_iter([SinkType::Cookie]),
         "Output" => FxHashSet::from_iter([SinkType::Output]),
-        str => FxHashSet::from_iter([SinkType::Custom(str.to_string())]),
+        str => {
+            if str.starts_with("Custom:") {
+                FxHashSet::from_iter([SinkType::Custom(str.get(7..).unwrap().to_string())])
+            } else {
+                println!("Unrecognised annotation {}", str);
+                panic!()
+            }
+        }
     }
 }
