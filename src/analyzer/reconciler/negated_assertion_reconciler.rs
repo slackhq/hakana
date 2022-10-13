@@ -74,11 +74,7 @@ pub(crate) fn reconcile(
 
     if !is_equality {
         if let Some(assertion_type) = assertion.get_type() {
-            subtract_complex_type(
-                assertion_type,
-                codebase,
-                &mut existing_var_type,
-            );
+            subtract_complex_type(assertion_type, codebase, &mut existing_var_type);
         }
     } else if let Some(assertion_type) = assertion.get_type() {
         // todo prevent complaining about $this assertions in traits
@@ -259,16 +255,22 @@ fn handle_literal_negated_equality(
     let mut did_remove_type = false;
     let mut did_match_literal_type = false;
 
-    let mut existing_var_type = existing_var_type.clone();
+    let mut new_var_type = existing_var_type.clone();
+
+    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    let mut acceptable_types = vec![];
 
     let codebase = statements_analyzer.get_codebase();
 
-    for existing_atomic_type in &existing_var_type.types.clone() {
+    for existing_atomic_type in existing_var_types {
         match existing_atomic_type {
             TAtomic::TInt { .. } => {
                 if let TAtomic::TLiteralInt { .. } = assertion_type {
                     did_remove_type = true;
                 }
+
+                acceptable_types.push(existing_atomic_type);
             }
             TAtomic::TLiteralInt {
                 value: existing_value,
@@ -276,9 +278,10 @@ fn handle_literal_negated_equality(
             } => {
                 if let TAtomic::TLiteralInt { value, .. } = assertion_type {
                     did_match_literal_type = true;
-                    if value == existing_value {
+                    if value == &existing_value {
                         did_remove_type = true;
-                        existing_var_type.remove_type(existing_atomic_type);
+                    } else {
+                        acceptable_types.push(existing_atomic_type);
                     }
                 }
             }
@@ -287,9 +290,12 @@ fn handle_literal_negated_equality(
 
                 if let TAtomic::TLiteralString { value, .. } = assertion_type {
                     if value == "" {
-                        existing_var_type.remove_type(existing_atomic_type);
-                        existing_var_type.add_type(TAtomic::TStringWithFlags(false, true, false));
+                        acceptable_types.push(TAtomic::TStringWithFlags(false, true, false));
+                    } else {
+                        acceptable_types.push(existing_atomic_type);
                     }
+                } else {
+                    acceptable_types.push(existing_atomic_type);
                 }
             }
             TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) => {
@@ -297,25 +303,31 @@ fn handle_literal_negated_equality(
 
                 if let TAtomic::TLiteralString { value, .. } = assertion_type {
                     if value == "" {
-                        existing_var_type.remove_type(existing_atomic_type);
-                        existing_var_type.add_type(TAtomic::TStringWithFlags(
+                        acceptable_types.push(TAtomic::TStringWithFlags(
                             false,
                             true,
-                            *is_nonspecific_literal,
+                            is_nonspecific_literal,
                         ));
+                    } else {
+                        acceptable_types.push(existing_atomic_type);
                     }
+                } else {
+                    acceptable_types.push(existing_atomic_type);
                 }
             }
             TAtomic::TLiteralString {
-                value: existing_value,
+                value: ref existing_value,
                 ..
             } => {
                 if let TAtomic::TLiteralString { value, .. } = assertion_type {
                     did_match_literal_type = true;
-                    if value == existing_value {
+                    if &value == &existing_value {
                         did_remove_type = true;
-                        existing_var_type.remove_type(existing_atomic_type);
+                    } else {
+                        acceptable_types.push(existing_atomic_type);
                     }
+                } else {
+                    acceptable_types.push(existing_atomic_type);
                 }
             }
             TAtomic::TEnum {
@@ -328,49 +340,65 @@ fn handle_literal_negated_equality(
                     constraint_type,
                 } = assertion_type
                 {
-                    if enum_name == existing_name {
+                    if enum_name == &existing_name {
                         let enum_storage = codebase.classlike_infos.get(enum_name).unwrap();
 
                         did_remove_type = true;
 
-                        existing_var_type.remove_type(existing_atomic_type);
-
                         for (cname, _) in &enum_storage.constants {
                             if cname != member_name {
-                                existing_var_type.add_type(TAtomic::TEnumLiteralCase {
+                                acceptable_types.push(TAtomic::TEnumLiteralCase {
                                     enum_name: enum_name.clone(),
                                     member_name: cname.clone(),
                                     constraint_type: constraint_type.clone(),
                                 });
                             }
                         }
+                    } else {
+                        acceptable_types.push(existing_atomic_type);
                     }
-                } else if let TAtomic::TLiteralString { value, .. } = assertion_type {
-                    let enum_storage = codebase.classlike_infos.get(existing_name).unwrap();
+                } else if let TAtomic::TLiteralString {
+                    value: assertion_value,
+                    ..
+                } = assertion_type
+                {
+                    let enum_storage = codebase.classlike_infos.get(&existing_name).unwrap();
+                    let mut matched_string = false;
+
+                    let mut member_enum_literals = vec![];
                     for (cname, const_info) in &enum_storage.constants {
                         if let Some(inferred_type) = &const_info.inferred_type {
-                            if let Some(inferred_value) =
+                            if let Some(const_inferred_value) =
                                 inferred_type.get_single_literal_string_value(&codebase.interner)
                             {
-                                if &inferred_value != value {
+                                if &const_inferred_value != assertion_value {
                                     if let Some(constant_type) = codebase.get_class_constant_type(
-                                        existing_name,
+                                        &existing_name,
                                         cname,
                                         FxHashSet::default(),
                                     ) {
-                                        existing_var_type
-                                            .add_type(constant_type.get_single_owned());
+                                        member_enum_literals.push(constant_type.get_single_owned());
+                                    } else {
+                                        panic!("unrecognised constant type");
                                     }
 
                                     did_match_literal_type = true;
 
                                     did_remove_type = true;
-
-                                    existing_var_type.remove_type(existing_atomic_type);
+                                } else {
+                                    matched_string = true;
                                 }
                             }
                         }
                     }
+
+                    if !matched_string {
+                        acceptable_types.push(existing_atomic_type);
+                    } else {
+                        acceptable_types.extend(member_enum_literals);
+                    }
+                } else {
+                    acceptable_types.push(existing_atomic_type);
                 }
             }
             TAtomic::TEnumLiteralCase {
@@ -386,39 +414,41 @@ fn handle_literal_negated_equality(
                 {
                     did_match_literal_type = true;
 
-                    if enum_name == existing_name && member_name == existing_member_name {
+                    if enum_name == &existing_name && member_name == &existing_member_name {
                         did_remove_type = true;
-                        existing_var_type.remove_type(existing_atomic_type);
+                    } else {
+                        acceptable_types.push(existing_atomic_type);
                     }
-                } else if let TAtomic::TLiteralString { value, .. } = assertion_type {
-                    let enum_storage = codebase.classlike_infos.get(existing_name).unwrap();
+                } else if let TAtomic::TLiteralString { value, .. } = &assertion_type {
+                    let enum_storage = codebase.classlike_infos.get(&existing_name).unwrap();
                     did_match_literal_type = true;
 
-                    for (cname, const_info) in &enum_storage.constants {
-                        if let Some(inferred_type) = &const_info.inferred_type {
-                            if let Some(inferred_value) =
-                                inferred_type.get_single_literal_string_value(&codebase.interner)
+                    let mut matched_string = false;
+
+                    if let Some(const_info) = enum_storage.constants.get(&existing_member_name) {
+                        if let Some(const_inferred_type) = &const_info.inferred_type {
+                            if let Some(const_inferred_value) = const_inferred_type
+                                .get_single_literal_string_value(&codebase.interner)
                             {
-                                if &inferred_value != value {
-                                    if let Some(constant_type) = codebase.get_class_constant_type(
-                                        existing_name,
-                                        cname,
-                                        FxHashSet::default(),
-                                    ) {
-                                        existing_var_type
-                                            .add_type(constant_type.get_single_owned());
-                                    }
-
-                                    did_remove_type = true;
-
-                                    existing_var_type.remove_type(existing_atomic_type);
+                                if &const_inferred_value == value {
+                                    matched_string = true;
                                 }
                             }
                         }
                     }
+
+                    if !matched_string {
+                        acceptable_types.push(existing_atomic_type);
+                    } else {
+                        did_remove_type = true;
+                    }
+                } else {
+                    acceptable_types.push(existing_atomic_type);
                 }
             }
-            _ => {}
+            _ => {
+                acceptable_types.push(existing_atomic_type);
+            }
         }
     }
 
@@ -440,5 +470,7 @@ fn handle_literal_negated_equality(
         }
     }
 
-    existing_var_type
+    new_var_type.types = acceptable_types;
+
+    new_var_type
 }
