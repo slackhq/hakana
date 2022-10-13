@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, collections::BTreeMap};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -26,7 +26,7 @@ pub enum Variance {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClassLikeInfo {
-    pub constants: FxHashMap<StrId, ConstantInfo>,
+    pub constants: BTreeMap<StrId, ConstantInfo>,
 
     /**
      * Aliases to help Hakana understand constant refs
@@ -200,7 +200,7 @@ pub struct ClassLikeInfo {
 impl ClassLikeInfo {
     pub fn new(name: Symbol) -> ClassLikeInfo {
         ClassLikeInfo {
-            constants: FxHashMap::default(),
+            constants: BTreeMap::default(),
             is_populated: false,
             is_stubbed: false,
             is_deprecated: false,
