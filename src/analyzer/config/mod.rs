@@ -24,6 +24,7 @@ pub struct Config {
     pub root_dir: String,
     pub hooks: Vec<Box<dyn CustomHook>>,
     pub ignore_mixed_issues: bool,
+    pub add_fixmes: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -58,6 +59,7 @@ impl Config {
             security_config: SecurityConfig::new(),
             issues_to_fix: FxHashSet::default(),
             hooks: vec![],
+            add_fixmes: false,
         }
     }
 

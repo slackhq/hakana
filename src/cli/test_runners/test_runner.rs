@@ -112,6 +112,14 @@ pub trait TestRunner {
             analysis_config
                 .issues_to_fix
                 .insert(IssueKind::from_str(&issue_name).unwrap());
+        } else if dir.contains("/add-fixmes/") {
+            let issue_name = dir_parts.get(1).unwrap().to_string();
+
+            analysis_config
+                .issues_to_fix
+                .insert(IssueKind::from_str(&issue_name).unwrap());
+
+            analysis_config.add_fixmes = true;
         }
         analysis_config
     }
@@ -163,7 +171,7 @@ pub trait TestRunner {
             starter_data,
         );
 
-        if dir.contains("/migrations/") || dir.contains("/fix/") {
+        if dir.contains("/migrations/") || dir.contains("/fix/") || dir.contains("/add-fixmes/") {
             let input_file = format!("{}/input.hack", dir);
             let output_file = format!("{}/output.txt", dir);
             let input_contents = fs::read_to_string(&input_file).unwrap();

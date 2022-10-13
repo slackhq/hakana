@@ -135,6 +135,39 @@ pub fn init(
                 ),
         )
         .subcommand(
+            Command::new("add-fixmes")
+                .about("Adds fixmes to suppress Hakana issues")
+                .arg(arg!(--"root" <PATH>).required(false).help(
+                    "The root directory that Hakana runs in. Defaults to the current directory",
+                ))
+                .arg(
+                    arg!(--"config" <PATH>)
+                        .required(false)
+                        .help("Hakana config path — defaults to ./hakana.json"),
+                )
+                .arg(
+                    arg!(--"issue" <PATH>)
+                        .required(true)
+                        .multiple(true)
+                        .help("The issue or issues to add fixmes for"),
+                )
+                .arg(
+                    arg!(--"filter" <PATH>)
+                        .required(false)
+                        .help("Filter the files that have added fixmes"),
+                )
+                .arg(
+                    arg!(--"threads" <PATH>)
+                        .required(false)
+                        .help("How many threads to use"),
+                )
+                .arg(
+                    arg!(--"debug")
+                        .required(false)
+                        .help("Add output for debugging"),
+                ),
+        )
+        .subcommand(
             Command::new("fix")
                 .about("Fixes issues in the codebase")
                 .arg(arg!(--"root" <PATH>).required(false).help(
@@ -522,6 +555,55 @@ pub fn init(
                 None,
                 None,
                 Arc::new(analysis_config),
+                None,
+                threads,
+                debug,
+                &header,
+                None,
+            );
+
+            if let Ok(analysis_result) = result {
+                update_files(analysis_result, &root_dir);
+            }
+        }
+        Some(("add-fixmes", sub_matches)) => {
+            let filter_issue_strings = sub_matches
+                .values_of("issue")
+                .map(|values| values.collect::<FxHashSet<_>>());
+
+            let mut issue_kinds_filter = FxHashSet::default();
+
+            if let Some(filter_issue_strings) = filter_issue_strings {
+                for filter_issue_string in filter_issue_strings {
+                    if let Ok(issue_kind) = IssueKind::from_str(filter_issue_string) {
+                        issue_kinds_filter.insert(issue_kind);
+                    } else {
+                        println!("Invalid issue type {}", filter_issue_string);
+                        exit(1);
+                    }
+                }
+            }
+
+            let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+
+            let mut config = config::Config::new(root_dir.clone());
+
+            config.issues_to_fix.extend(issue_kinds_filter);
+
+            let config_path = config_path.unwrap();
+
+            if config_path.exists() {
+                config.update_from_file(&cwd, config_path);
+            }
+
+            config.add_fixmes = true;
+
+            let result = hakana_workhorse::scan_and_analyze(
+                true,
+                Vec::new(),
+                filter,
+                None,
+                Arc::new(config),
                 None,
                 threads,
                 debug,

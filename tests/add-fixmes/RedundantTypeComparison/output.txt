@@ -1,0 +1,6 @@
+function foo(string $s) {
+    /* HAKANA_FIXME[RedundantTypeComparison] */
+    if ($s is nonnull) {
+        echo $s;
+    }
+}
