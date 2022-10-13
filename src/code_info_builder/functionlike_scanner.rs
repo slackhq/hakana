@@ -375,7 +375,7 @@ pub(crate) fn get_functionlike(
             "Hakana\\SecurityAnalysis\\IgnorePathIfTrue" => {
                 functionlike_info.ignore_taints_if_true = true;
             }
-            "Hakana\\SecurityAnalysis\\Sanitize" => {
+            "Hakana\\SecurityAnalysis\\Sanitize" | "Hakana\\FindPaths\\Sanitize" => {
                 let mut removed_types = FxHashSet::default();
 
                 for attribute_param_expr in &user_attribute.params {
