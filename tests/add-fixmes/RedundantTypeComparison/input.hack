@@ -1,5 +1,7 @@
 function foo(string $s) {
-    if ($s is nonnull) {
-        echo $s;
-    }
+    do {
+        $result = (bool) rand(0,1);
+    } while (!$result);
+
+    if ($result) {}
 }

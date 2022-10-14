@@ -1,6 +1,7 @@
 function foo(string $s) {
-    /* HAKANA_FIXME[RedundantTypeComparison] */
-    if ($s is nonnull) {
-        echo $s;
-    }
+    do {
+        $result = (bool) rand(0,1);
+    } while (!$result);
+
+    if (/* HANAKA_FIXME[RedundantTypeComparison] */$result) {}
 }

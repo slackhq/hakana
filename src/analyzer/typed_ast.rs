@@ -108,6 +108,13 @@ impl TastInfo {
             return;
         }
 
+        if config.add_fixmes {
+            self.replacements.insert(
+                (issue.pos.start_offset, issue.pos.start_offset),
+                format!("/* HANAKA_FIXME[{}] */", issue.kind.to_string()).to_string(),
+            );
+        }
+
         self.add_issue(issue);
     }
 
