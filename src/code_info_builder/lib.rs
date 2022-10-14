@@ -378,6 +378,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             &f.fun_kind,
             &f.user_attributes,
             &f.ctxs,
+            &f.where_constraints,
             &mut type_resolution_context,
             None,
             &self.resolved_names,

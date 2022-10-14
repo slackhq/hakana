@@ -133,6 +133,10 @@ fn populate_functionlike_storage(storage: &mut FunctionLikeInfo, codebase_symbol
             }
         }
     }
+
+    for (_, where_type) in storage.where_constraints.iter_mut() {
+        populate_union_type(where_type, &codebase_symbols);
+    }
 }
 
 fn populate_classlike_storage(

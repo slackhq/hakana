@@ -13,7 +13,13 @@ use std::sync::Arc;
 use walkdir::WalkDir;
 
 pub trait TestRunner {
-    fn run_test(&self, test_or_test_dir: String, had_error: &mut bool, build_checksum: &str) {
+    fn run_test(
+        &self,
+        test_or_test_dir: String,
+        use_cache: bool,
+        had_error: &mut bool,
+        build_checksum: &str,
+    ) {
         let test_folders = get_all_test_folders(test_or_test_dir);
 
         println!("Running tests\n");
@@ -41,7 +47,7 @@ pub trait TestRunner {
 
             test_results.push(self.run_test_in_dir(
                 test_folder,
-                Some(&cache_dir),
+                if use_cache { Some(&cache_dir) } else { None },
                 had_error,
                 &mut test_diagnostics,
                 build_checksum,

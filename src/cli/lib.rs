@@ -228,6 +228,11 @@ pub fn init(
         .subcommand(
             Command::new("test")
                 .about("Runs one or more Hakana tests")
+                .arg(
+                    arg!(--"no-cache")
+                        .required(false)
+                        .help("Whether to use cache"),
+                )
                 .arg(arg!(<TEST> "The test to run"))
                 .arg_required_else_help(true),
         )
@@ -565,6 +570,7 @@ pub fn init(
         Some(("test", sub_matches)) => {
             test_runner.run_test(
                 sub_matches.value_of("TEST").expect("required").to_string(),
+                !sub_matches.is_present("no-cache"),
                 &mut had_error,
                 header,
             );

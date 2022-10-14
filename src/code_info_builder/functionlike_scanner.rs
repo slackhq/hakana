@@ -31,6 +31,7 @@ use oxidized::ast_defs;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
 use oxidized::tast;
+use oxidized::tast::WhereConstraintHint;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
@@ -70,6 +71,7 @@ pub(crate) fn scan_method(
         &m.fun_kind,
         &m.user_attributes,
         &m.ctxs,
+        &m.where_constraints,
         &mut type_resolution_context,
         Some(&classlike_name),
         resolved_names,
@@ -205,6 +207,7 @@ pub(crate) fn get_functionlike(
     fun_kind: &ast_defs::FunKind,
     user_attributes: &Vec<UserAttribute>,
     contexts: &Option<tast::Contexts>,
+    where_constraints: &Vec<WhereConstraintHint>,
     type_context: &mut TypeResolutionContext,
     this_name: Option<&Symbol>,
     resolved_names: &FxHashMap<usize, Symbol>,
@@ -278,6 +281,28 @@ pub(crate) fn get_functionlike(
                     )])
                 });
         }
+
+        for where_hint in where_constraints {
+            let where_first =
+                get_type_from_hint(&where_hint.0 .1, this_name, type_context, resolved_names)
+                    .get_single_owned();
+
+            let where_second =
+                get_type_from_hint(&where_hint.2 .1, this_name, type_context, resolved_names);
+
+            match where_first {
+                TAtomic::TTemplateParam { param_name, .. } => match where_hint.1 {
+                    ast_defs::ConstraintKind::ConstraintEq => {
+                        functionlike_info
+                            .where_constraints
+                            .push((param_name, where_second));
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+
         if functionlike_id == "HH\\idx" {
             functionlike_info.template_types.insert("Td".to_string(), {
                 FxHashMap::from_iter([(fn_id.clone(), Arc::new(get_mixed_any()))])

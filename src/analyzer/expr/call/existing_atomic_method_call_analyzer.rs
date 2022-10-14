@@ -9,6 +9,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
+use hakana_type::template::standin_type_replacer;
 use hakana_type::{
     add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
 };
@@ -92,7 +93,7 @@ pub(crate) fn analyze(
         }
     }
 
-    let class_template_params = if codebase.interner.lookup(classlike_name) != "HH\\Vector"
+    let mut class_template_params = if codebase.interner.lookup(classlike_name) != "HH\\Vector"
         || codebase.interner.lookup(*method_name) != "fromItems"
     {
         class_template_param_collector::collect(
@@ -111,12 +112,36 @@ pub(crate) fn analyze(
 
     let functionlike_storage = codebase.get_method(&declaring_method_id).unwrap();
 
-    // todo support if_this_is_type template params
-
     let mut template_result = TemplateResult::new(
         functionlike_storage.template_types.clone(),
-        class_template_params.unwrap_or(IndexMap::new()),
+        class_template_params.clone().unwrap_or(IndexMap::new()),
     );
+
+    if !functionlike_storage.where_constraints.is_empty() {
+        if let Some(ref mut class_template_params) = class_template_params {
+            for (template_name, where_type) in &functionlike_storage.where_constraints {
+                let template_type = class_template_params
+                    .get(template_name)
+                    .unwrap()
+                    .get(&classlike_name)
+                    .unwrap();
+
+                standin_type_replacer::replace(
+                    &where_type,
+                    &mut template_result,
+                    statements_analyzer.get_codebase(),
+                    &Some(template_type.clone()),
+                    None,
+                    None,
+                    context.function_context.calling_functionlike_id.as_ref(),
+                    true,
+                    false,
+                    None,
+                    1,
+                );
+            }
+        }
+    }
 
     if !check_method_args(
         statements_analyzer,
