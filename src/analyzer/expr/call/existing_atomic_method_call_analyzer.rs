@@ -93,7 +93,7 @@ pub(crate) fn analyze(
         }
     }
 
-    let mut class_template_params = if codebase.interner.lookup(classlike_name) != "HH\\Vector"
+    let class_template_params = if codebase.interner.lookup(classlike_name) != "HH\\Vector"
         || codebase.interner.lookup(*method_name) != "fromItems"
     {
         class_template_param_collector::collect(
@@ -118,13 +118,12 @@ pub(crate) fn analyze(
     );
 
     if !functionlike_storage.where_constraints.is_empty() {
-        if let Some(ref mut class_template_params) = class_template_params {
+        if let Some(class_template_params) = &class_template_params {
             for (template_name, where_type) in &functionlike_storage.where_constraints {
-                println!("{}", pos.line());
                 let template_type = class_template_params
                     .get(template_name)
                     .unwrap()
-                    .get(&classlike_name)
+                    .get(&declaring_method_id.0)
                     .unwrap();
 
                 standin_type_replacer::replace(
