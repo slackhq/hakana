@@ -34,6 +34,8 @@ use hakana_type::{
     get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
     get_null, get_string, get_true, wrap_atomic,
 };
+use oxidized::aast::Afield;
+use oxidized::ast_defs::Id;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -177,7 +179,7 @@ pub(crate) fn analyze(
         aast::Expr_::Collection(boxed) => {
             if !collection_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, &boxed.1, &boxed.2),
+                (&boxed.0, &boxed.2),
                 &expr.1,
                 tast_info,
                 context,
@@ -625,9 +627,41 @@ pub(crate) fn analyze(
                 })),
             );
         }
-        aast::Expr_::Darray(_)
-        | aast::Expr_::Varray(_)
-        | aast::Expr_::ValCollection(_)
+        aast::Expr_::Darray(boxed) => {
+            let fields = boxed
+                .1
+                .iter()
+                .map(|(key_expr, value_expr)| {
+                    Afield::AFkvalue(key_expr.clone(), value_expr.clone())
+                })
+                .collect::<Vec<_>>();
+
+            if !collection_analyzer::analyze(
+                statements_analyzer,
+                (&Id(expr.pos().clone(), "dict".to_string()), &fields),
+                expr.pos(),
+                tast_info,
+                context,
+            ) {
+                return false;
+            }
+        }
+        aast::Expr_::Varray(boxed) => {
+            let fields = boxed
+                .1
+                .iter()
+                .map(|value_expr| Afield::AFvalue(value_expr.clone()))
+                .collect::<Vec<_>>();
+
+            collection_analyzer::analyze(
+                statements_analyzer,
+                (&Id(expr.pos().clone(), "vec".to_string()), &fields),
+                expr.pos(),
+                tast_info,
+                context,
+            );
+        }
+        aast::Expr_::ValCollection(_)
         | aast::Expr_::KeyValCollection(_)
         | aast::Expr_::This
         | aast::Expr_::Omitted

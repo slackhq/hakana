@@ -68,7 +68,7 @@ impl FromStr for TContainerType {
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&Id, &Option<CollectionTarg<()>>, &Vec<Afield<(), ()>>),
+    expr: (&Id, &Vec<Afield<(), ()>>),
     pos: &Pos,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
@@ -81,12 +81,12 @@ pub(crate) fn analyze(
     };
 
     // if the array is empty, this special type allows us to match any other array type against it
-    if !expr.2.is_empty() {
+    if !expr.1.is_empty() {
         let codebase = statements_analyzer.get_codebase();
         let mut array_creation_info = ArrayCreationInfo::new();
 
         // Iterate through all of the items in this collection
-        for (offset, item) in expr.2.iter().enumerate() {
+        for (offset, item) in expr.1.iter().enumerate() {
             // println!("item! {:?} ", item);
             analyze_array_item(
                 &statements_analyzer,
