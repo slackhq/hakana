@@ -120,6 +120,7 @@ pub(crate) fn analyze(
     if !functionlike_storage.where_constraints.is_empty() {
         if let Some(ref mut class_template_params) = class_template_params {
             for (template_name, where_type) in &functionlike_storage.where_constraints {
+                println!("{}", pos.line());
                 let template_type = class_template_params
                     .get(template_name)
                     .unwrap()

@@ -21,7 +21,7 @@ pub(crate) fn reconcile(
     assertion: &Assertion,
     existing_var_type: &TUnion,
     possibly_undefined: bool,
-    key: Option<String>,
+    key: Option<&String>,
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
     pos: Option<&Pos>,
@@ -183,7 +183,7 @@ pub(crate) fn reconcile(
                 return Some(subtract_null(
                     assertion,
                     existing_var_type,
-                    &key,
+                    key,
                     negated,
                     tast_info,
                     statements_analyzer,
@@ -196,7 +196,7 @@ pub(crate) fn reconcile(
                 return Some(intersect_null(
                     assertion,
                     existing_var_type,
-                    &key,
+                    key,
                     negated,
                     tast_info,
                     statements_analyzer,
@@ -306,7 +306,7 @@ pub(crate) fn reconcile(
 fn subtract_object(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -381,7 +381,7 @@ fn subtract_object(
 fn subtract_vec(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -455,7 +455,7 @@ fn subtract_vec(
 fn subtract_keyset(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -529,7 +529,7 @@ fn subtract_keyset(
 fn subtract_dict(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -603,7 +603,7 @@ fn subtract_dict(
 fn subtract_string(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -694,7 +694,7 @@ fn subtract_string(
 fn subtract_int(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -793,7 +793,7 @@ fn subtract_int(
 fn subtract_float(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -885,7 +885,7 @@ fn subtract_float(
 fn subtract_num(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -988,7 +988,7 @@ fn subtract_num(
 fn subtract_arraykey(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -1093,7 +1093,7 @@ fn subtract_arraykey(
 fn subtract_bool(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -1189,7 +1189,7 @@ fn subtract_bool(
 pub(crate) fn subtract_null(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: &Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -1212,7 +1212,7 @@ pub(crate) fn subtract_null(
                 let new_atomic = atomic.replace_template_extends(subtract_null(
                     assertion,
                     &as_type,
-                    &None,
+                    None,
                     false,
                     tast_info,
                     statements_analyzer,
@@ -1255,7 +1255,7 @@ pub(crate) fn subtract_null(
     get_acceptable_type(
         acceptable_types,
         did_remove_type,
-        None,
+        key,
         pos,
         &existing_var_type,
         statements_analyzer,
@@ -1271,7 +1271,7 @@ pub(crate) fn subtract_null(
 fn subtract_false(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -1360,7 +1360,7 @@ fn subtract_false(
 fn subtract_true(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -1449,7 +1449,7 @@ fn subtract_true(
 fn reconcile_falsy(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -1556,7 +1556,7 @@ fn reconcile_not_isset(
     existing_var_type: &TUnion,
     statements_analyzer: &StatementsAnalyzer,
     possibly_undefined: bool,
-    key: Option<String>,
+    key: Option<&String>,
     pos: Option<&Pos>,
     _suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1586,7 +1586,7 @@ fn reconcile_not_isset(
 fn reconcile_empty_countable(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -1657,7 +1657,7 @@ fn reconcile_empty_countable(
 fn reconcile_not_exactly_countable(
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
@@ -1715,7 +1715,7 @@ fn reconcile_not_in_array(
     codebase: &CodebaseInfo,
     assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<String>,
+    key: Option<&String>,
     negated: bool,
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
