@@ -524,12 +524,20 @@ pub fn scan_files(
 
     println!("Looking for Hack files");
 
+    let now = Instant::now();
+
     for scan_dir in scan_dirs {
         if debug {
             println!(" - in {}", scan_dir);
         }
 
         files_to_scan.extend(find_files_in_dir(scan_dir, config, files_to_analyze));
+    }
+
+    let elapsed = now.elapsed();
+
+    if debug {
+        println!("File discovery took {:.2?}", elapsed);
     }
 
     let mut use_codebase_cache = true;
@@ -569,6 +577,8 @@ pub fn scan_files(
 
     let file_statuses = file_cache_provider::get_file_diff(&files_to_scan, file_update_hashes);
 
+    let now = Instant::now();
+
     if let Some(codebase_path) = &codebase_path {
         load_cached_codebase(
             codebase_path,
@@ -586,6 +596,15 @@ pub fn scan_files(
 
     if let Some(aast_names_path) = &aast_names_path {
         load_cached_aast_names(aast_names_path, use_codebase_cache, &mut resolved_names);
+    }
+
+    let elapsed = now.elapsed();
+
+    if debug {
+        println!(
+            "Loading serialised codebase from cache took {:.2?}",
+            elapsed
+        );
     }
 
     let mut files_to_scan = vec![];
@@ -607,6 +626,8 @@ pub fn scan_files(
     let has_new_files = files_to_scan.len() > 0;
 
     if files_to_scan.len() > 0 {
+        let now = Instant::now();
+
         let bar = if debug {
             None
         } else {
@@ -736,6 +757,15 @@ pub fn scan_files(
 
         if let Some(bar) = &bar {
             bar.finish_and_clear();
+        }
+
+        let elapsed = now.elapsed();
+
+        if debug {
+            println!(
+                "Scanning files took {:.2?}",
+                elapsed
+            );
         }
     }
 
