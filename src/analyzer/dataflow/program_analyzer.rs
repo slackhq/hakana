@@ -155,7 +155,6 @@ fn find_paths_to_sinks(
             }
         }
     }
-    std::thread::spawn(move || drop(sources));
 }
 
 fn get_specialized_sources(
