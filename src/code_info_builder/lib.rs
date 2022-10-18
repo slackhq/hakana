@@ -17,6 +17,7 @@ use indexmap::IndexMap;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
+    ast::NsKind,
     ast_defs,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -31,6 +32,8 @@ struct Context {
     classlike_name: Option<Symbol>,
     function_name: Option<Symbol>,
     has_yield: bool,
+    uses_position: Option<(usize, usize)>,
+    namespace_position: Option<(usize, usize)>,
 }
 
 struct Scanner<'a> {
@@ -46,6 +49,39 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
     fn object(&mut self) -> &mut dyn Visitor<'ast, Params = Self::Params> {
         self
+    }
+
+    fn visit_def(&mut self, c: &mut Context, p: &aast::Def<(), ()>) -> Result<(), ()> {
+        match p {
+            aast::Def::Namespace(ns) => {
+                if !ns.0 .1.is_empty() {
+                    c.namespace_position =
+                        Some((ns.0 .0.start_offset() - 10, ns.0 .0.end_offset()));
+                }
+            }
+            aast::Def::NamespaceUse(uses) => {
+                for (_, name, alias_name) in uses {
+                    let adjusted_start = name.0.to_raw_span().start.beg_of_line() as usize;
+                    if let Some(ref mut uses_position) = c.uses_position {
+                        uses_position.0 = std::cmp::min(uses_position.0, adjusted_start);
+                        uses_position.1 =
+                            std::cmp::max(uses_position.1, alias_name.0.end_offset() + 1);
+                    } else {
+                        c.uses_position = Some((adjusted_start, alias_name.0.end_offset() + 1));
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        let result = p.recurse(c, self);
+
+        if let aast::Def::Namespace(_) = p {
+            c.namespace_position = None;
+            c.uses_position = None;
+        }
+
+        result
     }
 
     fn visit_class_(&mut self, c: &mut Context, class: &aast::Class_<(), ()>) -> Result<(), ()> {
@@ -69,6 +105,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             class,
             &self.file_source,
             self.user_defined,
+            &self.file_source.comments,
+            c.namespace_position,
+            c.uses_position,
         );
 
         class.recurse(
@@ -451,6 +490,8 @@ pub fn collect_info_for_aast(
         classlike_name: None,
         function_name: None,
         has_yield: false,
+        uses_position: None,
+        namespace_position: None,
     };
     visit(&mut checker, &mut context, program).unwrap();
 }

@@ -23,8 +23,8 @@ use oxidized::{
     ast_defs::{self, ClassishKind},
 };
 
-use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
+use crate::{functionlike_scanner::adjust_location_from_comments, simple_type_inferer};
 
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
@@ -34,6 +34,9 @@ pub(crate) fn scan(
     classlike_node: &aast::Class_<(), ()>,
     file_source: &FileSource,
     user_defined: bool,
+    comments: &Vec<(oxidized::tast::Pos, oxidized::prim_defs::Comment)>,
+    uses_position: Option<(usize, usize)>,
+    namespace_position: Option<(usize, usize)>,
 ) -> bool {
     let mut storage = match get_classlike_storage(codebase, class_name, classlike_node, file_source)
     {
@@ -44,7 +47,19 @@ pub(crate) fn scan(
     storage.user_defined = user_defined;
 
     storage.name_location = Some(HPos::new(classlike_node.name.pos(), file_source.file_path));
-    storage.def_location = Some(HPos::new(&classlike_node.span, file_source.file_path));
+
+    let mut definition_location = HPos::new(&classlike_node.span, file_source.file_path);
+
+    adjust_location_from_comments(
+        comments,
+        &mut definition_location,
+        file_source,
+        &mut FxHashMap::default(),
+    );
+
+    storage.def_location = Some(definition_location);
+    storage.uses_position = uses_position;
+    storage.namespace_position = namespace_position;
 
     if !classlike_node.tparams.is_empty() {
         let mut type_context = TypeResolutionContext {

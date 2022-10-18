@@ -196,6 +196,9 @@ pub struct ClassLikeInfo {
     pub generated: bool,
 
     pub child_classlikes: Option<FxHashSet<Symbol>>,
+
+    pub uses_position: Option<(usize, usize)>,
+    pub namespace_position: Option<(usize, usize)>,
 }
 
 impl ClassLikeInfo {
@@ -259,6 +262,8 @@ impl ClassLikeInfo {
             user_defined: false,
             generated: false,
             child_classlikes: None,
+            uses_position: None,
+            namespace_position: None,
         }
     }
 }

@@ -65,7 +65,7 @@ pub fn get_aast_for_path_and_contents(
     let mut parser_env = AastParserEnv::default();
     parser_env.keep_errors = true;
     parser_env.parser_options.po_disable_hh_ignore_error = false;
-    //parser_env.include_line_comments = true;
+    parser_env.include_line_comments = true;
 
     let mut parser_result = if let Ok(parser_result) =
         aast_parser::AastParser::from_text(&parser_env, &indexed_source_text, None)
@@ -102,6 +102,12 @@ pub fn get_aast_for_path_and_contents(
         }
     }
 
+    // reorder so single line and multiline comments are intermingled
+    parser_result
+        .scoured_comments
+        .comments
+        .sort_by(|(a, _), (b, _)| a.start_offset().cmp(&b.start_offset()));
+
     match aast {
         Ok(aast) => {
             if let Some(cache_path) = cache_path {
@@ -131,23 +137,24 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_def(&mut self, nc: &mut NameContext, p: &aast::Def<(), ()>) -> Result<(), ()> {
-        if p.is_namespace() {
-            let ns = p.as_namespace().unwrap();
-            if !ns.0 .1.is_empty() {
-                nc.start_namespace(ns.0 .1.clone());
+        match p {
+            aast::Def::Namespace(ns) => {
+                if !ns.0 .1.is_empty() {
+                    nc.start_namespace(ns.0 .1.clone());
+                }
             }
-        }
-
-        if p.is_namespace_use() {
-            for (ns_kind, name, alias_name) in p.as_namespace_use().unwrap() {
-                nc.add_alias(name.1.clone(), alias_name.1.clone(), ns_kind);
+            aast::Def::NamespaceUse(uses) => {
+                for (ns_kind, name, alias_name) in uses {
+                    nc.add_alias(name.1.clone(), alias_name.1.clone(), ns_kind);
+                }
             }
+            _ => {}
         }
 
         let result = p.recurse(nc, self);
 
-        if p.is_namespace() {
-            nc.end_namespace();
+        if let aast::Def::Namespace(_) = p {
+            nc.end_namespace()
         }
 
         result

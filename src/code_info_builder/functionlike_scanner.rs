@@ -13,6 +13,7 @@ use hakana_reflection_info::functionlike_info::FnEffect;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::issue::get_issue_from_comment;
+use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_info::MethodInfo;
 use hakana_reflection_info::property_info::PropertyInfo;
@@ -447,35 +448,12 @@ pub(crate) fn get_functionlike(
 
     let mut suppressed_issues = FxHashMap::default();
 
-    for (comment_pos, comment) in comments.iter().rev() {
-        let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
-        let (start_line, _, start_offset) = start;
-        let (end_line, _, _) = end;
-
-        if (end_line + 1) == definition_location.start_line {
-            match comment {
-                Comment::CmtLine(_) => {
-                    definition_location.start_line = start_line;
-                    definition_location.start_offset = start_offset;
-                }
-                Comment::CmtBlock(text) => {
-                    let trimmed_text = if text.starts_with("*") {
-                        text[1..].trim()
-                    } else {
-                        text.trim()
-                    };
-
-                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text) {
-                        let comment_pos = HPos::new(comment_pos, file_source.file_path);
-                        suppressed_issues.insert(issue_kind, comment_pos);
-                    }
-
-                    definition_location.start_line = start_line;
-                    definition_location.start_offset = start_offset;
-                }
-            }
-        }
-    }
+    adjust_location_from_comments(
+        comments,
+        &mut definition_location,
+        file_source,
+        &mut suppressed_issues,
+    );
 
     if !suppressed_issues.is_empty() {
         functionlike_info.suppressed_issues = Some(suppressed_issues);
@@ -521,6 +499,43 @@ pub(crate) fn get_functionlike(
     // todo light inference based on function body contents
 
     functionlike_info
+}
+
+pub(crate) fn adjust_location_from_comments(
+    comments: &Vec<(Pos, Comment)>,
+    definition_location: &mut HPos,
+    file_source: &FileSource,
+    suppressed_issues: &mut FxHashMap<IssueKind, HPos>,
+) {
+    for (comment_pos, comment) in comments.iter().rev() {
+        let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
+        let (start_line, _, start_offset) = start;
+        let (end_line, _, _) = end;
+
+        if (end_line + 1) == definition_location.start_line {
+            match comment {
+                Comment::CmtLine(_) => {
+                    definition_location.start_line = start_line;
+                    definition_location.start_offset = start_offset;
+                }
+                Comment::CmtBlock(text) => {
+                    let trimmed_text = if text.starts_with("*") {
+                        text[1..].trim()
+                    } else {
+                        text.trim()
+                    };
+
+                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text) {
+                        let comment_pos = HPos::new(comment_pos, file_source.file_path);
+                        suppressed_issues.insert(issue_kind, comment_pos);
+                    }
+
+                    definition_location.start_line = start_line;
+                    definition_location.start_offset = start_offset;
+                }
+            }
+        }
+    }
 }
 
 fn convert_param_nodes(
