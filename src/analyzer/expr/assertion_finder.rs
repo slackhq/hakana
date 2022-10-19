@@ -201,6 +201,7 @@ fn get_is_assertions(
             &mut is_type,
             &TypeExpansionOptions {
                 self_class: assertion_context.this_class_name,
+                expand_hakana_types: false,
                 ..Default::default()
             },
             &mut DataFlowGraph::new(GraphKind::FunctionBody),

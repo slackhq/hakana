@@ -39,6 +39,7 @@ pub struct TypeExpansionOptions<'a> {
     pub function_is_final: bool,
     pub expand_generic: bool,
     pub expand_templates: bool,
+    pub expand_hakana_types: bool,
 }
 
 impl Default for TypeExpansionOptions<'_> {
@@ -53,6 +54,7 @@ impl Default for TypeExpansionOptions<'_> {
             function_is_final: false,
             expand_generic: false,
             expand_templates: true,
+            expand_hakana_types: true,
         }
     }
 }
@@ -273,7 +275,7 @@ fn expand_atomic(
             true
         };
 
-        if type_definition.is_literal_string {
+        if type_definition.is_literal_string && options.expand_hakana_types {
             *skip_key = true;
             new_return_type_parts.push(TAtomic::TStringWithFlags(false, false, true));
             return;
