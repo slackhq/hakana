@@ -1,5 +1,6 @@
 use crate::{config::Config, scope_context::CaseScope};
 use hakana_reflection_info::FileSource;
+use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind, WholeProgramKind},
@@ -31,6 +32,7 @@ pub struct TastInfo {
     pub closures: FxHashMap<Pos, FunctionLikeInfo>,
     pub closure_spans: Vec<(usize, usize)>,
     pub replacements: BTreeMap<(usize, usize), String>,
+    pub current_stmt_offset: Option<Pos>,
     pub symbol_references: SymbolReferences,
     pub issue_filter: Option<FxHashSet<IssueKind>>,
     pub expr_effects: FxHashMap<(usize, usize), u8>,
@@ -81,6 +83,7 @@ impl TastInfo {
             if_true_assertions: FxHashMap::default(),
             if_false_assertions: FxHashMap::default(),
             replacements: BTreeMap::new(),
+            current_stmt_offset: None,
             hh_fixmes: file_source.hh_fixmes.clone(),
             symbol_references: SymbolReferences::new(),
             issue_filter: None,
@@ -109,9 +112,10 @@ impl TastInfo {
         }
 
         if config.add_fixmes {
+            let offset = HPos::new(self.current_stmt_offset.as_ref().unwrap(), issue.pos.file_path);
             self.replacements.insert(
-                (issue.pos.start_offset, issue.pos.start_offset),
-                format!("/* HANAKA_FIXME[{}] */", issue.kind.to_string()).to_string(),
+                (offset.start_offset, offset.start_offset),
+                format!("/* HANAKA_FIXME[{}] */\n{}", issue.kind.to_string(), "\t".repeat(offset.start_column - 1)).to_string(),
             );
         }
 

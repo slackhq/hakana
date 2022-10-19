@@ -1,3 +1,4 @@
+use hakana_reflection_info::code_location::HPos;
 use rustc_hash::FxHashMap;
 
 use crate::custom_hook::AfterStmtAnalysisData;
@@ -28,6 +29,8 @@ pub(crate) fn analyze(
         tast_info.expr_types = FxHashMap::default();
     }
 
+    tast_info.current_stmt_offset = Some(stmt.0.clone());
+    
     match &stmt.1 {
         aast::Stmt_::Expr(boxed) => {
             if !expression_analyzer::analyze(

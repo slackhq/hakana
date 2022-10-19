@@ -1,7 +1,8 @@
 function foo(string $s) {
-    do {
-        $result = (bool) rand(0,1);
-    } while (!$result);
+	do {
+		$result = (bool) rand(0,1);
+	} while (!$result);
 
-    if (/* HANAKA_FIXME[RedundantTypeComparison] */$result) {}
+	/* HANAKA_FIXME[RedundantTypeComparison] */
+	if ($result) {}
 }
