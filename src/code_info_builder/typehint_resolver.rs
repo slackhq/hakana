@@ -516,7 +516,7 @@ pub fn get_type_from_hint(
         Hint_::Hintersection(_) => TAtomic::TObject,
         Hint_::HfunContext(_) => panic!(),
         Hint_::Hvar(_) => panic!(),
-        //Hint_::Hrefinement(_, _) => panic!(),
+        Hint_::Hrefinement(_, _) => panic!(),
     };
 
     types.push(base);

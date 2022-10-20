@@ -68,7 +68,7 @@ pub fn get_aast_for_path_and_contents(
     parser_env.include_line_comments = true;
 
     let mut parser_result = if let Ok(parser_result) =
-        aast_parser::AastParser::from_text(&parser_env, &indexed_source_text, None)
+        aast_parser::AastParser::from_text(&parser_env, &indexed_source_text)
     {
         parser_result
     } else {

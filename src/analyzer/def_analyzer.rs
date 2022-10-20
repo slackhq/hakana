@@ -77,8 +77,19 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&boxed.span),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
-        } //aast::Def::SetModule(_) => panic!(),
+        }
+        aast::Def::SetModule(boxed) => {
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::UnrecognizedStatement,
+                    "Unrecognized statement".to_string(),
+                    statements_analyzer.get_hpos(boxed.pos()),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
     }
 }
