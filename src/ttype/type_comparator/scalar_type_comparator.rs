@@ -5,7 +5,7 @@ pub fn is_contained_by(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
-    allow_interface_equality: bool,
+    inside_assertion: bool,
     atomic_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
     // compare identical types
@@ -177,7 +177,7 @@ pub fn is_contained_by(
                         codebase,
                         enum_type,
                         &TAtomic::TString,
-                        allow_interface_equality,
+                        inside_assertion,
                         atomic_comparison_result,
                     );
                 }
@@ -186,7 +186,7 @@ pub fn is_contained_by(
                     codebase,
                     enum_type,
                     container_type_part,
-                    allow_interface_equality,
+                    inside_assertion,
                     atomic_comparison_result,
                 );
             }
@@ -210,7 +210,7 @@ pub fn is_contained_by(
                 &TAtomic::TArraykey { from_any: false }
             },
             container_type_part,
-            allow_interface_equality,
+            false,
             atomic_comparison_result,
         );
     }
@@ -372,7 +372,7 @@ pub fn is_contained_by(
                 codebase,
                 input_name,
                 container_name,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
         }
@@ -409,7 +409,7 @@ pub fn is_contained_by(
                 codebase,
                 &input_type,
                 container_name,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
         }
@@ -423,7 +423,7 @@ pub fn is_contained_by(
                 codebase,
                 &input_as_type,
                 container_name,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
         }
@@ -469,7 +469,7 @@ pub fn is_contained_by(
                     remapped_params: false,
                 },
                 input_name,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             ) {
                 atomic_comparison_result.type_coerced = Some(true);

@@ -49,6 +49,7 @@ impl CodebaseInfo {
         }
     }
 
+    #[inline]
     pub fn class_or_interface_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Class | SymbolKind::EnumClass | SymbolKind::Interface) => true,
@@ -56,6 +57,7 @@ impl CodebaseInfo {
         }
     }
 
+    #[inline]
     pub fn class_or_interface_or_enum_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(
@@ -68,6 +70,7 @@ impl CodebaseInfo {
         }
     }
 
+    #[inline]
     pub fn class_or_interface_or_enum_or_trait_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(
@@ -81,6 +84,7 @@ impl CodebaseInfo {
         }
     }
 
+    #[inline]
     pub fn class_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Class | SymbolKind::EnumClass) => true,
@@ -88,6 +92,15 @@ impl CodebaseInfo {
         }
     }
 
+    #[inline]
+    pub fn trait_exists(&self, fq_class_name: &Symbol) -> bool {
+        match self.symbols.all.get(fq_class_name) {
+            Some(SymbolKind::Trait) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
     pub fn interface_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Interface) => true,
@@ -95,6 +108,7 @@ impl CodebaseInfo {
         }
     }
 
+    #[inline]
     pub fn enum_exists(&self, fq_class_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Enum) => true,
@@ -102,6 +116,7 @@ impl CodebaseInfo {
         }
     }
 
+    #[inline]
     pub fn typedef_exists(&self, fq_alias_name: &Symbol) -> bool {
         match self.symbols.all.get(fq_alias_name) {
             Some(SymbolKind::TypeDefinition) => true,
@@ -109,7 +124,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn class_extends(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
+    pub fn class_or_trait_extends(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage.all_parent_classes.contains(parent_class);
         }
@@ -117,8 +132,34 @@ impl CodebaseInfo {
     }
 
     pub fn class_extends_or_implements(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
-        self.class_extends(child_class, parent_class)
-            || self.class_implements(child_class, parent_class)
+        if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
+            return classlike_storage.all_parent_classes.contains(parent_class)
+                || classlike_storage
+                    .all_class_interfaces
+                    .contains(parent_class);
+        }
+        false
+    }
+
+    pub fn class_or_interface_can_use_trait(
+        &self,
+        child_class: &Symbol,
+        parent_trait: &Symbol,
+    ) -> bool {
+        if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
+            if classlike_storage.used_traits.contains(parent_trait) {
+                return true;
+            }
+
+            if let Some(parent_trait_storage) = self.classlike_infos.get(parent_trait) {
+                for trait_parent_interface in &parent_trait_storage.direct_parent_interfaces {
+                    if self.interface_extends(child_class, trait_parent_interface) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     pub fn interface_extends(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
@@ -131,7 +172,7 @@ impl CodebaseInfo {
         false
     }
 
-    pub fn class_implements(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
+    pub fn class_or_trait_implements(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage
                 .all_class_interfaces
@@ -163,11 +204,7 @@ impl CodebaseInfo {
                         };
                     } else {
                         return if let Some(provided_type) = &constant_storage.provided_type {
-                            if provided_type
-                                .types
-                                .iter()
-                                .all(|v| v.is_boring_scalar())
-                            {
+                            if provided_type.types.iter().all(|v| v.is_boring_scalar()) {
                                 if let Some(inferred_type) = &constant_storage.inferred_type {
                                     Some(inferred_type.clone())
                                 } else {

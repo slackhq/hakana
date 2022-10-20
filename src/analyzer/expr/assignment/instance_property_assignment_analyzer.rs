@@ -103,7 +103,7 @@ pub(crate) fn analyze(
             class_property_type,
             true,
             assignment_type.ignore_falsable_issues,
-            true,
+            false,
             &mut union_comparison_result,
         );
 

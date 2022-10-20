@@ -7,7 +7,7 @@ pub(crate) fn is_contained_by(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
-    allow_interface_equality: bool,
+    inside_assertion: bool,
     atomic_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
     let mut all_types_contain = true;
@@ -36,7 +36,7 @@ pub(crate) fn is_contained_by(
                         container_property_type,
                         false,
                         input_property_type.ignore_falsable_issues,
-                        allow_interface_equality,
+                        inside_assertion,
                         atomic_comparison_result,
                     ) {
                         all_types_contain = false;
@@ -83,7 +83,7 @@ pub(crate) fn is_contained_by(
                 &container_params.0,
                 false,
                 input_params.0.ignore_falsable_issues,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             ) {
                 all_types_contain = false;
@@ -95,7 +95,7 @@ pub(crate) fn is_contained_by(
                 &container_params.1,
                 false,
                 input_params.1.ignore_falsable_issues,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             ) {
                 all_types_contain = false;

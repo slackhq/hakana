@@ -328,16 +328,27 @@ impl TAtomic {
                 name,
                 type_params,
                 is_this,
+                extra_types,
                 ..
             } => match type_params {
                 None => format!(
-                    "{}{}",
+                    "{}{}{}",
                     if let Some(interner) = interner {
                         interner.lookup(*name).to_string()
                     } else {
                         name.0.to_string()
                     },
-                    if *is_this { "&static" } else { "" }
+                    if *is_this { "&static" } else { "" },
+                    if let Some(extra_types) = extra_types {
+                        "&".to_string()
+                            + extra_types
+                                .iter()
+                                .map(|(_, atomic)| atomic.get_id(interner))
+                                .join("&")
+                                .as_str()
+                    } else {
+                        "".to_string()
+                    }
                 ),
                 Some(type_params) => {
                     let mut str = String::new();
@@ -1186,13 +1197,10 @@ impl TAtomic {
                 extra_types: Some(extra_types),
                 ..
             } => {
-                return (
-                    extra_types
-                        .iter()
-                        .map(|(k, v)| (k.clone(), v))
-                        .collect::<FxHashMap<_, _>>(),
-                    FxHashMap::default(),
-                )
+                let mut intersection_types = FxHashMap::default();
+                intersection_types.insert(self.get_key(), self);
+                intersection_types.extend(extra_types.iter().map(|(k, v)| (k.clone(), v)));
+                return (intersection_types, FxHashMap::default());
             }
             _ => {
                 if let TAtomic::TTemplateParam { as_type, .. } = self {

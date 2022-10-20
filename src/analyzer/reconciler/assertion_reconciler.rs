@@ -10,12 +10,12 @@ use hakana_reflection_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
 };
 use hakana_type::{
-    get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing,
+    get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
     type_comparator::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
     },
     type_expander::{self, TypeExpansionOptions},
-    wrap_atomic, type_combiner,
+    wrap_atomic,
 };
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
@@ -212,8 +212,7 @@ fn intersect_atomic_with_atomic(
         codebase,
         type_2_atomic,
         type_1_atomic,
-        !matches!(type_1_atomic, TAtomic::TNamedObject { .. })
-            && !matches!(type_2_atomic, TAtomic::TNamedObject { .. }),
+        true,
         &mut atomic_comparison_results,
     ) {
         if let TAtomic::TTypeAlias {
@@ -242,8 +241,7 @@ fn intersect_atomic_with_atomic(
         codebase,
         type_1_atomic,
         type_2_atomic,
-        !matches!(type_1_atomic, TAtomic::TNamedObject { .. })
-            && !matches!(type_2_atomic, TAtomic::TNamedObject { .. }),
+        false,
         &mut atomic_comparison_results,
     ) {
         let type_1_atomic =

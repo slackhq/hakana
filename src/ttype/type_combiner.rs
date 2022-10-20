@@ -753,7 +753,7 @@ fn scrape_type_properties(
 
                     if is_class {
                         // if covered by a parent class
-                        if codebase.class_extends(fq_class_name, existing_name) {
+                        if codebase.class_or_trait_extends(fq_class_name, existing_name) {
                             return None;
                         }
                     }
@@ -765,7 +765,7 @@ fn scrape_type_properties(
 
                     if is_class {
                         // skip if interface is implemented by fq_class_name
-                        if codebase.class_implements(fq_class_name, existing_name) {
+                        if codebase.class_or_trait_implements(fq_class_name, existing_name) {
                             return None;
                         }
                     } else {

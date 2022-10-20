@@ -280,7 +280,7 @@ pub(crate) fn analyze(
                 &expected_return_type,
                 true,
                 true,
-                true,
+                false,
                 &mut union_comparison_result,
             );
 

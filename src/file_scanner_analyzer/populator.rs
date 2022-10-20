@@ -365,6 +365,10 @@ fn populate_data_from_parent_classlike(
         storage.has_visitor_issues = true;
     }
 
+    storage
+        .used_traits
+        .extend(parent_storage.used_traits.clone());
+
     storage.constants.extend(
         parent_storage
             .constants

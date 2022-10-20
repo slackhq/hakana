@@ -13,7 +13,7 @@ pub fn is_contained_by(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
-    allow_interface_equality: bool,
+    inside_assertion: bool,
     atomic_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
     if input_type_part == container_type_part {
@@ -36,7 +36,7 @@ pub fn is_contained_by(
                 codebase,
                 input_type_part,
                 container_type_part,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
         }
@@ -91,7 +91,7 @@ pub fn is_contained_by(
             codebase,
             input_type_part,
             container_type_part,
-            allow_interface_equality,
+            inside_assertion,
             atomic_comparison_result,
         );
     }
@@ -120,7 +120,7 @@ pub fn is_contained_by(
                         &wrap_atomic(container_type_part.clone()),
                         false,
                         false,
-                        allow_interface_equality,
+                        inside_assertion,
                         atomic_comparison_result,
                     );
                 }
@@ -147,7 +147,7 @@ pub fn is_contained_by(
                         &type_params[0],
                         false,
                         false,
-                        allow_interface_equality,
+                        inside_assertion,
                         atomic_comparison_result,
                     ) && union_type_comparator::is_contained_by(
                         codebase,
@@ -155,7 +155,7 @@ pub fn is_contained_by(
                         &type_params[1],
                         false,
                         false,
-                        allow_interface_equality,
+                        inside_assertion,
                         atomic_comparison_result,
                     );
                 }
@@ -176,7 +176,7 @@ pub fn is_contained_by(
                 &TAtomic::TArraykey { from_any: false }
             },
             container_type_part,
-            allow_interface_equality,
+            inside_assertion,
             atomic_comparison_result,
         );
     }
@@ -211,7 +211,7 @@ pub fn is_contained_by(
                             non_empty: false,
                             shape_name: None,
                         },
-                        allow_interface_equality,
+                        inside_assertion,
                         atomic_comparison_result,
                     );
                 }
@@ -227,7 +227,7 @@ pub fn is_contained_by(
                             non_empty: false,
                             known_count: None,
                         },
-                        allow_interface_equality,
+                        inside_assertion,
                         atomic_comparison_result,
                     );
                 }
@@ -240,7 +240,7 @@ pub fn is_contained_by(
                         &TAtomic::TKeyset {
                             type_param: arrayish_params.0,
                         },
-                        allow_interface_equality,
+                        inside_assertion,
                         atomic_comparison_result,
                     );
                 }
@@ -258,7 +258,7 @@ pub fn is_contained_by(
                 codebase,
                 input_type_part,
                 container_type_part,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
         }
@@ -270,7 +270,7 @@ pub fn is_contained_by(
                 codebase,
                 input_type_part,
                 container_type_part,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
         }
@@ -290,9 +290,22 @@ pub fn is_contained_by(
                 container_type_param,
                 false,
                 input_type_param.ignore_falsable_issues,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
+        }
+    }
+
+    if let TAtomic::TObject { .. } = container_type_part {
+        if let TAtomic::TNamedObject { .. } = input_type_part {
+            return true;
+        }
+    }
+
+    if let TAtomic::TObject { .. } = input_type_part {
+        if let TAtomic::TNamedObject { .. } = container_type_part {
+            atomic_comparison_result.type_coerced = Some(true);
+            return false;
         }
     }
 
@@ -302,38 +315,34 @@ pub fn is_contained_by(
         || input_type_part.is_templated_as_object())
         && (matches!(container_type_part, TAtomic::TNamedObject { .. })
             || container_type_part.is_templated_as_object())
-        && object_type_comparator::is_shallowly_contained_by(
+    {
+        if object_type_comparator::is_shallowly_contained_by(
             codebase,
             input_type_part,
             container_type_part,
-            allow_interface_equality,
+            inside_assertion,
             atomic_comparison_result,
-        )
-    {
-        if matches!(
-            container_type_part,
-            TAtomic::TNamedObject {
-                type_params: Some(_),
-                ..
-            }
         ) {
-            return generic_type_comparator::is_contained_by(
-                codebase,
-                input_type_part,
+            if matches!(
                 container_type_part,
-                allow_interface_equality,
-                atomic_comparison_result,
-            );
-        }
-
-        if let TAtomic::TNamedObject { is_this: true, .. } = container_type_part {
-            if let TAtomic::TNamedObject { is_this: false, .. } = input_type_part {
-                atomic_comparison_result.type_coerced = Some(true);
-                return false;
+                TAtomic::TNamedObject {
+                    type_params: Some(_),
+                    ..
+                }
+            ) {
+                return generic_type_comparator::is_contained_by(
+                    codebase,
+                    input_type_part,
+                    container_type_part,
+                    inside_assertion,
+                    atomic_comparison_result,
+                );
             }
+
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     if let TAtomic::TObject { .. } = input_type_part {
@@ -358,18 +367,18 @@ pub fn is_contained_by(
                 container_type_extends,
                 false,
                 input_type_extends.ignore_falsable_issues,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
         }
 
         for container_extends_type_part in container_type_extends.types.iter() {
-            if allow_interface_equality
+            if inside_assertion
                 && is_contained_by(
                     codebase,
                     input_type_part,
                     container_extends_type_part,
-                    allow_interface_equality,
+                    inside_assertion,
                     atomic_comparison_result,
                 )
             {
@@ -394,7 +403,7 @@ pub fn is_contained_by(
                     codebase,
                     input_extra_type,
                     container_type_part,
-                    allow_interface_equality,
+                    inside_assertion,
                     atomic_comparison_result,
                 ) {
                     return true;
@@ -413,7 +422,7 @@ pub fn is_contained_by(
                 codebase,
                 input_extends_type_part,
                 container_type_part,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             ) {
                 return true;
@@ -468,7 +477,7 @@ pub fn is_contained_by(
                             container_value_param,
                             false,
                             input_type_params.1.ignore_falsable_issues,
-                            allow_interface_equality,
+                            inside_assertion,
                             &mut array_comparison_result,
                         ) && !array_comparison_result
                             .type_coerced_to_literal
@@ -493,7 +502,7 @@ pub fn is_contained_by(
                             container_key_param,
                             false,
                             input_type_params.0.ignore_falsable_issues,
-                            allow_interface_equality,
+                            inside_assertion,
                             &mut array_comparison_result,
                         ) && !array_comparison_result
                             .type_coerced_to_literal
@@ -520,7 +529,7 @@ pub fn is_contained_by(
                             container_value_param,
                             false,
                             input_type_params.1.ignore_falsable_issues,
-                            allow_interface_equality,
+                            inside_assertion,
                             &mut array_comparison_result,
                         ) && !array_comparison_result
                             .type_coerced_to_literal
@@ -574,7 +583,7 @@ pub fn is_contained_by(
                             &container_arrayish_params.1,
                             false,
                             input_value_param.ignore_falsable_issues,
-                            allow_interface_equality,
+                            inside_assertion,
                             atomic_comparison_result,
                         );
                     }
@@ -586,7 +595,7 @@ pub fn is_contained_by(
                             &container_arrayish_params.0,
                             false,
                             input_key_param.ignore_falsable_issues,
-                            allow_interface_equality,
+                            inside_assertion,
                             atomic_comparison_result,
                         );
                     }
@@ -600,7 +609,7 @@ pub fn is_contained_by(
                             &container_arrayish_params.1,
                             false,
                             input_value_param.ignore_falsable_issues,
-                            allow_interface_equality,
+                            inside_assertion,
                             &mut array_comparison_result,
                         );
                     }
@@ -625,58 +634,6 @@ pub fn is_contained_by(
             | TAtomic::TNum = input_type_part
             {
                 return true;
-            }
-        }
-    }
-
-    if let TAtomic::TObject { .. } = container_type_part {
-        if let TAtomic::TNamedObject { .. } = input_type_part {
-            return true;
-        }
-    }
-
-    // not sure if this will ever get hit. Maybe it belongs inside ObjectComparator
-    if let TAtomic::TNamedObject {
-        is_this: input_was_static,
-        ..
-    } = input_type_part
-    {
-        if let TAtomic::TNamedObject {
-            is_this: container_was_static,
-            ..
-        } = container_type_part
-        {
-            if *container_was_static && !input_was_static {
-                atomic_comparison_result.type_coerced = Some(true);
-                return false;
-            }
-        }
-    }
-
-    if let TAtomic::TObject { .. } = input_type_part {
-        if let TAtomic::TNamedObject { .. } = container_type_part {
-            atomic_comparison_result.type_coerced = Some(true);
-            return false;
-        }
-    }
-
-    if let TAtomic::TNamedObject {
-        name: container_name,
-        ..
-    } = container_type_part
-    {
-        if let TAtomic::TNamedObject {
-            name: input_name, ..
-        } = input_type_part
-        {
-            if (codebase.class_exists(container_name)
-                && codebase.class_extends_or_implements(container_name, input_name))
-                || (codebase.interface_exists(container_name)
-                    && codebase.interface_extends(container_name, input_name))
-            {
-                atomic_comparison_result.type_coerced = Some(true);
-
-                return false;
             }
         }
     }
@@ -710,7 +667,7 @@ pub fn is_contained_by(
                                     container_name,
                                     container_param,
                                     i,
-                                    allow_interface_equality,
+                                    inside_assertion,
                                     &mut all_types_contain,
                                     atomic_comparison_result,
                                 );
@@ -789,7 +746,7 @@ pub fn is_contained_by(
                 codebase,
                 as_type,
                 container_type_part,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
         }
@@ -802,7 +759,7 @@ pub(crate) fn can_be_identical(
     codebase: &CodebaseInfo,
     type1_part: &TAtomic,
     type2_part: &TAtomic,
-    allow_interface_equality: bool,
+    inside_assertion: bool,
 ) -> bool {
     if (type1_part.is_vec() && type2_part.is_non_empty_vec())
         || (type2_part.is_vec() && type1_part.is_non_empty_vec())
@@ -811,7 +768,7 @@ pub(crate) fn can_be_identical(
             codebase,
             type1_part.get_vec_param().unwrap(),
             type2_part.get_vec_param().unwrap(),
-            allow_interface_equality,
+            inside_assertion,
         );
     }
 
@@ -834,12 +791,12 @@ pub(crate) fn can_be_identical(
                         codebase,
                         &type_1_dict_params.0,
                         &type_2_dict_params.0,
-                        allow_interface_equality,
+                        inside_assertion,
                     ) && union_type_comparator::can_expression_types_be_identical(
                         codebase,
                         &type_1_dict_params.1,
                         &type_2_dict_params.1,
-                        allow_interface_equality,
+                        inside_assertion,
                     )
                 }
             };
@@ -853,13 +810,13 @@ pub(crate) fn can_be_identical(
         codebase,
         type1_part,
         type2_part,
-        allow_interface_equality,
+        inside_assertion,
         &mut first_comparison_result,
     ) || is_contained_by(
         codebase,
         type2_part,
         type1_part,
-        allow_interface_equality,
+        inside_assertion,
         &mut second_comparison_result,
     ) || (first_comparison_result.type_coerced.unwrap_or(false)
         && second_comparison_result.type_coerced.unwrap_or(false));

@@ -15,7 +15,7 @@ pub(crate) fn is_contained_by(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
     container_type_part: &TAtomic,
-    allow_interface_equality: bool,
+    inside_assertion: bool,
     atomic_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
     let mut all_types_contain = true;
@@ -114,7 +114,7 @@ pub(crate) fn is_contained_by(
                 codebase,
                 &input_type_part,
                 container_type_part,
-                allow_interface_equality,
+                inside_assertion,
                 atomic_comparison_result,
             );
         }
@@ -160,7 +160,7 @@ pub(crate) fn is_contained_by(
                 container_name,
                 container_param,
                 i,
-                allow_interface_equality,
+                inside_assertion,
                 &mut all_types_contain,
                 atomic_comparison_result,
             );
@@ -184,7 +184,7 @@ pub(crate) fn compare_generic_params(
     container_name: &Symbol,
     container_param: &TUnion,
     param_offset: usize,
-    allow_interface_equality: bool,
+    inside_assertion: bool,
     all_types_contain: &mut bool,
     atomic_comparison_result: &mut TypeComparisonResult,
 ) {
@@ -229,7 +229,7 @@ pub(crate) fn compare_generic_params(
         container_param,
         false,
         input_param.ignore_falsable_issues,
-        allow_interface_equality,
+        inside_assertion,
         &mut param_comparison_result,
     ) {
         if let Some(Variance::Contravariant) = container_type_param_variance {
@@ -239,7 +239,7 @@ pub(crate) fn compare_generic_params(
                 input_param,
                 false,
                 container_param.ignore_falsable_issues,
-                allow_interface_equality,
+                inside_assertion,
                 &mut param_comparison_result,
             ) {
                 return;
@@ -277,7 +277,7 @@ pub(crate) fn compare_generic_params(
                     input_param,
                     false,
                     input_param.ignore_falsable_issues,
-                    allow_interface_equality,
+                    inside_assertion,
                     &mut param_comparison_result,
                 ) || param_comparison_result.type_coerced.unwrap_or(false)
                 {

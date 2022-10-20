@@ -191,7 +191,7 @@ pub(crate) fn analyze(
                 &class_property_type,
                 false,
                 assign_value_type.ignore_falsable_issues,
-                true,
+                false,
                 &mut union_comparison_result,
             );
 

@@ -9,7 +9,7 @@ pub fn is_contained_by(
     container_type: &TUnion,
     ignore_null: bool,
     ignore_false: bool,
-    allow_interface_equality: bool,
+    inside_assertion: bool,
     union_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
     if input_type == container_type {
@@ -111,7 +111,7 @@ pub fn is_contained_by(
                 codebase,
                 &input_type_part,
                 &container_type_part,
-                allow_interface_equality,
+                inside_assertion,
                 &mut atomic_comparison_result,
             );
 
@@ -297,7 +297,7 @@ pub fn can_expression_types_be_identical(
     codebase: &CodebaseInfo,
     type1: &TUnion,
     type2: &TUnion,
-    allow_interface_equality: bool,
+    inside_assertion: bool,
 ) -> bool {
     if type1.is_mixed() || type2.is_mixed() {
         return true;
@@ -313,7 +313,7 @@ pub fn can_expression_types_be_identical(
                 codebase,
                 type1_part,
                 type2_part,
-                allow_interface_equality,
+                inside_assertion,
             ) {
                 return true;
             }
