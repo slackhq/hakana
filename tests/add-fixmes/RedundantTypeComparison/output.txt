@@ -3,6 +3,6 @@ function foo(string $s) {
 		$result = (bool) rand(0,1);
 	} while (!$result);
 
-	/* HANAKA_FIXME[RedundantTypeComparison] */
+	/* HAKANA_FIXME[RedundantTypeComparison] */
 	if ($result) {}
 }
