@@ -1024,10 +1024,11 @@ fn scan_file(
 
     let aast = get_aast_for_path(&target_file, root_dir, None, true);
 
-    let aast = if let Ok(aast) = aast {
-        aast
-    } else {
-        return FxHashMap::default();
+    let aast = match aast {
+        Ok(aast) => aast,
+        Err(err) => {
+            panic!("Parser error {}", err);
+        }
     };
 
     let target_name = if target_file.contains(root_dir) {
