@@ -1,4 +1,3 @@
-use hakana_reflection_info::code_location::HPos;
 use rustc_hash::FxHashMap;
 
 use crate::custom_hook::AfterStmtAnalysisData;
@@ -29,8 +28,8 @@ pub(crate) fn analyze(
         tast_info.expr_types = FxHashMap::default();
     }
 
-    tast_info.current_stmt_offset = Some(stmt.0.clone());
-    
+    tast_info.current_stmt_offset = Some((stmt.0.start_offset(), stmt.0.to_raw_span().start.column()));
+
     match &stmt.1 {
         aast::Stmt_::Expr(boxed) => {
             if !expression_analyzer::analyze(
@@ -207,7 +206,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&stmt.0),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
             return false;
         }
