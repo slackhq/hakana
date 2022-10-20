@@ -1,6 +1,6 @@
 use crate::{config::Config, scope_context::CaseScope};
-use hakana_reflection_info::FileSource;
 use hakana_reflection_info::code_location::HPos;
+use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind, WholeProgramKind},
@@ -111,12 +111,19 @@ impl TastInfo {
             return;
         }
 
-        if config.add_fixmes {
-            let offset = HPos::new(self.current_stmt_offset.as_ref().unwrap(), issue.pos.file_path);
-            self.replacements.insert(
-                (offset.start_offset, offset.start_offset),
-                format!("/* HANAKA_FIXME[{}] */\n{}", issue.kind.to_string(), "\t".repeat(offset.start_column - 1)).to_string(),
-            );
+        if config.add_fixmes && config.issues_to_fix.contains(&issue.kind) {
+            if let Some(current_stmt_offset) = &self.current_stmt_offset {
+                let offset = HPos::new(&current_stmt_offset, issue.pos.file_path);
+                self.replacements.insert(
+                    (offset.start_offset, offset.start_offset),
+                    format!(
+                        "/* HAKANA_FIXME[{}] */\n{}",
+                        issue.kind.to_string(),
+                        "\t".repeat(offset.start_column - 1)
+                    )
+                    .to_string(),
+                );
+            }
         }
 
         self.add_issue(issue);
