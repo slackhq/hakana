@@ -123,6 +123,10 @@ fn get_unpacked_type(
                 false,
                 &mut has_valid_expected_offset,
             ),
+            TAtomic::TKeyset { type_param } => {
+                has_valid_expected_offset = true;
+                type_param
+            }
             TAtomic::TMixedAny => {
                 for (_, origin) in &arg_value_type.parent_nodes {
                     tast_info.data_flow_graph.add_mixed_data(origin, pos);

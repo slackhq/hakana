@@ -168,16 +168,20 @@ pub fn combine(
         new_types.push(TAtomic::TScalar {});
     }
 
-    for enum_name in combination.enum_types {
-        combination
-            .value_types
-            .insert(enum_name.0.to_string(), TAtomic::TEnum { name: enum_name });
+    for (enum_name, base_type) in combination.enum_types {
+        combination.value_types.insert(
+            enum_name.0.to_string(),
+            TAtomic::TEnum {
+                name: enum_name,
+                base_type,
+            },
+        );
     }
 
     for (enum_name, values) in combination.enum_value_types {
         for value in values {
             combination.value_types.insert(
-                format!("{}::{}", enum_name.0, value.0.0),
+                format!("{}::{}", enum_name.0, value.0 .0),
                 TAtomic::TEnumLiteralCase {
                     enum_name: enum_name.clone(),
                     member_name: value.0,
@@ -695,7 +699,7 @@ fn scrape_type_properties(
         constraint_type,
     } = atomic
     {
-        if combination.enum_types.contains(&enum_name) {
+        if combination.enum_types.contains_key(&enum_name) {
             return None;
         }
 
@@ -708,9 +712,9 @@ fn scrape_type_properties(
         return None;
     }
 
-    if let TAtomic::TEnum { name, .. } = atomic {
+    if let TAtomic::TEnum { name, base_type, .. } = atomic {
         combination.enum_value_types.remove(&name);
-        combination.enum_types.insert(name);
+        combination.enum_types.insert(name, base_type);
 
         return None;
     }

@@ -12,7 +12,7 @@ pub(crate) struct TypeCombination {
 
     pub has_object_top_type: bool,
 
-    pub enum_types: FxHashSet<Symbol>,
+    pub enum_types: FxHashMap<Symbol, Option<Box<TAtomic>>>,
     pub enum_value_types: FxHashMap<Symbol, FxHashMap<Symbol, Option<Box<TAtomic>>>>,
 
     pub object_type_params: FxHashMap<String, (Symbol, Vec<TUnion>)>,
@@ -82,7 +82,7 @@ impl TypeCombination {
             literal_ints: FxHashMap::default(),
             class_string_types: FxHashMap::default(),
             extra_types: None,
-            enum_types: FxHashSet::default(),
+            enum_types: FxHashMap::default(),
             enum_value_types: FxHashMap::default(),
         }
     }

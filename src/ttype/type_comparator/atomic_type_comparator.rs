@@ -550,8 +550,6 @@ pub fn is_contained_by(
 
                 return all_types_contain;
             }
-
-            return false;
         }
     }
 

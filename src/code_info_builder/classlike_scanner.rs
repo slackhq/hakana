@@ -213,8 +213,12 @@ pub(crate) fn scan(
 
             let mut params = Vec::new();
 
-            params.push(Arc::new(wrap_atomic(TAtomic::TEnum {
+            params.push(Arc::new(wrap_atomic(TAtomic::TNamedObject {
                 name: class_name.clone(),
+                type_params: None,
+                is_this: false,
+                extra_types: None,
+                remapped_params: false,
             })));
         }
         ClassishKind::Cinterface => {
@@ -304,6 +308,7 @@ pub(crate) fn scan(
 
             params.push(Arc::new(wrap_atomic(TAtomic::TEnum {
                 name: class_name.clone(),
+                base_type: None,
             })));
 
             if let Some(enum_node) = &classlike_node.enum_ {

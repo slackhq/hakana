@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
@@ -89,7 +90,7 @@ pub(crate) fn check_arguments_match(
 
     let last_param = functionlike_params.last();
 
-    let mut param_types = FxHashMap::default();
+    let mut param_types = BTreeMap::new();
 
     let codebase = statements_analyzer.get_codebase();
 
@@ -196,54 +197,14 @@ pub(crate) fn check_arguments_match(
             }
         }
 
-        let mut param_type = if let Some(param) = param {
-            if let Some(param_type) = &param.signature_type {
-                let mut param_type = param_type.clone();
-
-                type_expander::expand_union(
-                    codebase,
-                    &mut param_type,
-                    &TypeExpansionOptions {
-                        self_class: if let Some(classlike_storage) = class_storage {
-                            Some(&classlike_storage.name)
-                        } else {
-                            None
-                        },
-                        static_class_type: if let Some(calling_class_storage) =
-                            calling_classlike_storage
-                        {
-                            StaticClassType::Name(&calling_class_storage.name)
-                        } else {
-                            StaticClassType::None
-                        },
-                        parent_class: None,
-                        function_is_final: if let Some(calling_class_storage) =
-                            calling_classlike_storage
-                        {
-                            calling_class_storage.is_final
-                        } else {
-                            false
-                        },
-                        file_path: Some(
-                            &statements_analyzer
-                                .get_file_analyzer()
-                                .get_file_source()
-                                .file_path,
-                        ),
-                        ..Default::default()
-                    },
-                    &mut tast_info.data_flow_graph,
-                );
-
-                param_type
-            } else {
-                get_mixed_any()
-            }
-        } else {
-            get_mixed_any()
-        };
-
-        let bindable_template_params = param_type.get_template_types();
+        let mut param_type = get_param_type(
+            param,
+            codebase,
+            class_storage,
+            calling_classlike_storage,
+            statements_analyzer,
+            tast_info,
+        );
 
         let was_inside_call = context.inside_general_use;
 
@@ -286,98 +247,62 @@ pub(crate) fn check_arguments_match(
                 .unwrap_or(get_mixed_any());
         }
 
-        if !class_generic_params.is_empty() {
-            map_class_generic_params(
-                &class_generic_params,
-                &mut param_type,
-                codebase,
-                &mut arg_value_type,
-                argument_offset,
-                context,
-                template_result,
-            );
-        }
-
-        if !template_result.template_types.is_empty() {
-            let param_has_templates = param_type.has_template_types();
-
-            if param_has_templates {
-                param_type = standin_type_replacer::replace(
-                    &param_type,
-                    template_result,
-                    statements_analyzer.get_codebase(),
-                    &Some(arg_value_type),
-                    Some(argument_offset),
-                    if let Some(calling_class) = &context.function_context.calling_class {
-                        if !context.function_context.is_static {
-                            if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id
-                            {
-                                if codebase.interner.lookup(*method_name) == "__construct" {
-                                    None
-                                } else {
-                                    Some(&calling_class)
-                                }
-                            } else {
-                                Some(&calling_class)
-                            }
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    },
-                    context.function_context.calling_functionlike_id.as_ref(),
-                    true,
-                    false,
-                    None,
-                    1,
-                );
-            }
-
-            for template_type in &bindable_template_params {
-                if let TAtomic::TTemplateParam {
-                    param_name,
-                    defining_entity,
-                    as_type,
-                    ..
-                } = template_type
-                {
-                    if let None = if let Some(bounds_by_param) =
-                        template_result.lower_bounds.get(param_name)
-                    {
-                        bounds_by_param.get(defining_entity)
-                    } else {
-                        None
-                    } {
-                        let bound_type = if let Some(bounds_by_param) =
-                            template_result.upper_bounds.get(param_name)
-                        {
-                            if let Some(upper_bound) = bounds_by_param.get(defining_entity) {
-                                upper_bound.bound_type.clone()
-                            } else {
-                                as_type.clone()
-                            }
-                        } else {
-                            as_type.clone()
-                        };
-
-                        template_result
-                            .lower_bounds
-                            .entry(param_name.clone())
-                            .or_insert_with(FxHashMap::default)
-                            .insert(
-                                defining_entity.clone(),
-                                vec![TemplateBound::new(bound_type, 0, None, None)],
-                            );
-                    }
-                }
-            }
-        }
+        adjust_param_type(
+            &class_generic_params,
+            &mut param_type,
+            codebase,
+            arg_value_type,
+            argument_offset,
+            context,
+            template_result,
+            statements_analyzer,
+            functionlike_id,
+        );
 
         param_types.insert(argument_offset, param_type);
     }
 
+    let mut last_param_type = None;
+
     if let Some(unpacked_arg) = unpacked_arg {
+        let param = functionlike_params.last();
+
+        let mut param_type = get_param_type(
+            param,
+            codebase,
+            class_storage,
+            calling_classlike_storage,
+            statements_analyzer,
+            tast_info,
+        );
+
+        let was_inside_call = context.inside_general_use;
+
+        context.inside_general_use = true;
+
+        if !was_inside_call {
+            context.inside_general_use = false;
+        }
+
+        let arg_value_type = tast_info
+            .get_expr_type(unpacked_arg.pos())
+            .cloned()
+            .unwrap_or(get_mixed_any());
+
+        adjust_param_type(
+            &class_generic_params,
+            &mut param_type,
+            codebase,
+            arg_value_type,
+            reordered_args.len(),
+            context,
+            template_result,
+            statements_analyzer,
+            functionlike_id,
+        );
+
+        last_param_type = Some(param_type.clone());
+
         if !expression_analyzer::analyze(
             statements_analyzer,
             unpacked_arg,
@@ -538,7 +463,7 @@ pub(crate) fn check_arguments_match(
                     functionlike_id,
                     &method_call_info,
                     last_param,
-                    last_param.signature_type.clone().unwrap_or(get_mixed_any()),
+                    last_param_type.unwrap().clone(),
                     args.len(),
                     (&ParamKind::Pnormal, unpacked_arg),
                     true,
@@ -556,6 +481,162 @@ pub(crate) fn check_arguments_match(
     }
 
     true
+}
+
+fn adjust_param_type(
+    class_generic_params: &IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
+    param_type: &mut TUnion,
+    codebase: &CodebaseInfo,
+    mut arg_value_type: TUnion,
+    argument_offset: usize,
+    context: &mut ScopeContext,
+    template_result: &mut TemplateResult,
+    statements_analyzer: &StatementsAnalyzer,
+    functionlike_id: &FunctionLikeIdentifier,
+) {
+    let bindable_template_params = param_type.get_template_types();
+
+    if !class_generic_params.is_empty() {
+        map_class_generic_params(
+            class_generic_params,
+            param_type,
+            codebase,
+            &mut arg_value_type,
+            argument_offset,
+            context,
+            template_result,
+        );
+    }
+    if !template_result.template_types.is_empty() {
+        let param_has_templates = param_type.has_template_types();
+
+        if param_has_templates {
+            *param_type = standin_type_replacer::replace(
+                &*param_type,
+                template_result,
+                statements_analyzer.get_codebase(),
+                &Some(arg_value_type),
+                Some(argument_offset),
+                if let Some(calling_class) = &context.function_context.calling_class {
+                    if !context.function_context.is_static {
+                        if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id {
+                            if codebase.interner.lookup(*method_name) == "__construct" {
+                                None
+                            } else {
+                                Some(&calling_class)
+                            }
+                        } else {
+                            Some(&calling_class)
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                },
+                context.function_context.calling_functionlike_id.as_ref(),
+                true,
+                false,
+                None,
+                1,
+            );
+        }
+
+        for template_type in &bindable_template_params {
+            if let TAtomic::TTemplateParam {
+                param_name,
+                defining_entity,
+                as_type,
+                ..
+            } = template_type
+            {
+                if let None =
+                    if let Some(bounds_by_param) = template_result.lower_bounds.get(param_name) {
+                        bounds_by_param.get(defining_entity)
+                    } else {
+                        None
+                    }
+                {
+                    let bound_type = if let Some(bounds_by_param) =
+                        template_result.upper_bounds.get(param_name)
+                    {
+                        if let Some(upper_bound) = bounds_by_param.get(defining_entity) {
+                            upper_bound.bound_type.clone()
+                        } else {
+                            as_type.clone()
+                        }
+                    } else {
+                        as_type.clone()
+                    };
+
+                    template_result
+                        .lower_bounds
+                        .entry(param_name.clone())
+                        .or_insert_with(FxHashMap::default)
+                        .insert(
+                            defining_entity.clone(),
+                            vec![TemplateBound::new(bound_type, 0, None, None)],
+                        );
+                }
+            }
+        }
+    }
+}
+
+fn get_param_type(
+    param: Option<&FunctionLikeParameter>,
+    codebase: &CodebaseInfo,
+    class_storage: Option<&ClassLikeInfo>,
+    calling_classlike_storage: Option<&ClassLikeInfo>,
+    statements_analyzer: &StatementsAnalyzer,
+    tast_info: &mut TastInfo,
+) -> TUnion {
+    if let Some(param) = param {
+        if let Some(param_type) = &param.signature_type {
+            let mut param_type = param_type.clone();
+
+            type_expander::expand_union(
+                codebase,
+                &mut param_type,
+                &TypeExpansionOptions {
+                    self_class: if let Some(classlike_storage) = class_storage {
+                        Some(&classlike_storage.name)
+                    } else {
+                        None
+                    },
+                    static_class_type: if let Some(calling_class_storage) =
+                        calling_classlike_storage
+                    {
+                        StaticClassType::Name(&calling_class_storage.name)
+                    } else {
+                        StaticClassType::None
+                    },
+                    parent_class: None,
+                    function_is_final: if let Some(calling_class_storage) =
+                        calling_classlike_storage
+                    {
+                        calling_class_storage.is_final
+                    } else {
+                        false
+                    },
+                    file_path: Some(
+                        &statements_analyzer
+                            .get_file_analyzer()
+                            .get_file_source()
+                            .file_path,
+                    ),
+                    ..Default::default()
+                },
+                &mut tast_info.data_flow_graph,
+            );
+
+            param_type
+        } else {
+            get_mixed_any()
+        }
+    } else {
+        get_mixed_any()
+    }
 }
 
 fn handle_closure_arg(

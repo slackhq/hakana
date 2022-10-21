@@ -251,6 +251,23 @@ fn expand_atomic(
         }
 
         return;
+    } else if let TAtomic::TEnum {
+        ref name,
+        ref mut base_type,
+        ..
+    } = return_type_part
+    {
+        if let Some(enum_storage) = codebase.classlike_infos.get(name) {
+            if let Some(storage_type) = &enum_storage.enum_type {
+                let mut constraint_union = wrap_atomic((*storage_type).clone());
+                expand_union(codebase, &mut constraint_union, options, data_flow_graph);
+                *base_type = Some(Box::new(constraint_union.get_single_owned()));
+            } else {
+                *base_type = Some(Box::new(TAtomic::TArraykey { from_any: true }));
+            }
+        }
+
+        return;
     } else if let TAtomic::TTypeAlias {
         name: type_name,
         type_params,

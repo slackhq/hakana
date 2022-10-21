@@ -135,9 +135,13 @@ pub fn is_contained_by(
 
     if let TAtomic::TEnum {
         name: container_name,
+        ..
     } = container_type_part
     {
-        if let TAtomic::TEnum { name: input_name } = input_type_part {
+        if let TAtomic::TEnum {
+            name: input_name, ..
+        } = input_type_part
+        {
             return container_name == input_name;
         }
 
@@ -169,27 +173,29 @@ pub fn is_contained_by(
         return false;
     }
 
-    if let TAtomic::TEnum { name: input_name } = input_type_part {
-        if let Some(c) = codebase.classlike_infos.get(input_name) {
-            if let Some(enum_type) = &c.enum_type {
-                if let TAtomic::TStringWithFlags(..) = container_type_part {
-                    return is_contained_by(
-                        codebase,
-                        enum_type,
-                        &TAtomic::TString,
-                        inside_assertion,
-                        atomic_comparison_result,
-                    );
-                }
-
+    if let TAtomic::TEnum {
+        base_type: input_base_type,
+        ..
+    } = input_type_part
+    {
+        if let Some(input_base_type) = input_base_type {
+            if let TAtomic::TStringWithFlags(..) = container_type_part {
                 return is_contained_by(
                     codebase,
-                    enum_type,
-                    container_type_part,
+                    input_base_type,
+                    &TAtomic::TString,
                     inside_assertion,
                     atomic_comparison_result,
                 );
             }
+
+            return atomic_type_comparator::is_contained_by(
+                codebase,
+                input_base_type,
+                container_type_part,
+                inside_assertion,
+                atomic_comparison_result,
+            );
         }
     }
 
@@ -395,6 +401,7 @@ pub fn is_contained_by(
             let input_type = if codebase.enum_exists(input_name) {
                 TAtomic::TEnum {
                     name: input_name.clone(),
+                    base_type: None,
                 }
             } else {
                 TAtomic::TNamedObject {

@@ -54,6 +54,7 @@ pub enum TAtomic {
     },
     TEnum {
         name: Symbol,
+        base_type: Option<Box<TAtomic>>,
     },
     TFalsyMixed,
     TFalse,
@@ -214,7 +215,7 @@ impl TAtomic {
                     "dict<nothing, nothing>".to_string()
                 }
             }
-            TAtomic::TEnum { name } => {
+            TAtomic::TEnum { name, .. } => {
                 if let Some(interner) = interner {
                     interner.lookup(*name).to_string()
                 } else {
@@ -1491,7 +1492,7 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
             if let Some(symbol_kind) = codebase_symbols.all.get(name) {
                 match symbol_kind {
                     SymbolKind::Enum => {
-                        *t_atomic = TAtomic::TEnum { name: name.clone() };
+                        *t_atomic = TAtomic::TEnum { name: name.clone(), base_type: None, };
                         return;
                     }
                     SymbolKind::TypeDefinition => {

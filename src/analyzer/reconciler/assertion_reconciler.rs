@@ -260,7 +260,14 @@ fn intersect_atomic_with_atomic(
     }
 
     match (type_1_atomic, type_2_atomic) {
-        (TAtomic::TEnum { name: type_1_name }, TAtomic::TEnum { name: type_2_name }) => {
+        (
+            TAtomic::TEnum {
+                name: type_1_name, ..
+            },
+            TAtomic::TEnum {
+                name: type_2_name, ..
+            },
+        ) => {
             if let (Some(storage_1), Some(storage_2)) = (
                 codebase.classlike_infos.get(type_1_name),
                 codebase.classlike_infos.get(type_2_name),
@@ -286,7 +293,9 @@ fn intersect_atomic_with_atomic(
                 member_name,
                 ..
             },
-            TAtomic::TEnum { name: type_2_name },
+            TAtomic::TEnum {
+                name: type_2_name, ..
+            },
         ) => {
             if let (Some(storage_1), Some(storage_2)) = (
                 codebase.classlike_infos.get(type_1_name),

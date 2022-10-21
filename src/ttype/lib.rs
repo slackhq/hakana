@@ -569,7 +569,7 @@ pub fn get_atomic_syntax_type(
                 "dict<nothing, nothing>".to_string()
             };
         }
-        TAtomic::TEnum { name } => codebase.interner.lookup(*name).to_string(),
+        TAtomic::TEnum { name, .. } => codebase.interner.lookup(*name).to_string(),
         TAtomic::TFalsyMixed { .. } => "mixed".to_string(),
         TAtomic::TFalse { .. } => "bool".to_string(),
         TAtomic::TFloat { .. } => "float".to_string(),
