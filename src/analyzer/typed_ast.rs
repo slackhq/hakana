@@ -1,5 +1,4 @@
 use crate::{config::Config, scope_context::CaseScope};
-use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     assertion::Assertion,

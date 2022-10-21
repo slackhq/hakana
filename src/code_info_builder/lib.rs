@@ -17,7 +17,6 @@ use indexmap::IndexMap;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
-    ast::NsKind,
     ast_defs,
 };
 use rustc_hash::{FxHashMap, FxHashSet};

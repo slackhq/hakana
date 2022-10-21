@@ -14,7 +14,7 @@ use hakana_type::{
     wrap_atomic,
 };
 use oxidized::{
-    aast::{self, Afield, CollectionTarg},
+    aast::{self, Afield},
     ast_defs::{Id, Pos},
 };
 use rustc_hash::FxHashMap;

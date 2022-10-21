@@ -64,16 +64,14 @@ pub fn get_aast_for_path_and_contents(
 
     let mut parser_env = AastParserEnv::default();
     parser_env.keep_errors = true;
-    parser_env.parser_options.po_disable_hh_ignore_error = false;
+    parser_env.parser_options.po_disable_hh_ignore_error = 0;
     parser_env.include_line_comments = true;
 
-    let mut parser_result = if let Ok(parser_result) =
-        aast_parser::AastParser::from_text(&parser_env, &indexed_source_text)
-    {
-        parser_result
-    } else {
-        return Err("Not a valid Hack file".to_string());
-    };
+    let mut parser_result =
+        match aast_parser::AastParser::from_text(&parser_env, &indexed_source_text) {
+            Ok(parser_result) => parser_result,
+            Err(_) => return Err("Not a valid Hack file".to_string()),
+        };
 
     let aast = parser_result.aast;
 
@@ -108,20 +106,15 @@ pub fn get_aast_for_path_and_contents(
         .comments
         .sort_by(|(a, _), (b, _)| a.start_offset().cmp(&b.start_offset()));
 
-    match aast {
-        Ok(aast) => {
-            if let Some(cache_path) = cache_path {
-                let mut file = File::create(&cache_path).unwrap();
-                let serialized_aast =
-                    bincode::serialize(&(&aast, &parser_result.scoured_comments)).unwrap();
-                file.write_all(&serialized_aast)
-                    .unwrap_or_else(|_| panic!("Could not write file {}", &cache_path));
-            }
-
-            Ok((aast, parser_result.scoured_comments))
-        }
-        Err(string) => Err(string),
+    if let Some(cache_path) = cache_path {
+        let mut file = File::create(&cache_path).unwrap();
+        let serialized_aast =
+            bincode::serialize(&(&aast, &parser_result.scoured_comments)).unwrap();
+        file.write_all(&serialized_aast)
+            .unwrap_or_else(|_| panic!("Could not write file {}", &cache_path));
     }
+
+    Ok((aast, parser_result.scoured_comments))
 }
 
 struct Scanner<'a> {
