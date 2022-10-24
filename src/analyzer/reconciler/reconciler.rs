@@ -291,7 +291,6 @@ pub(crate) fn reconcile_keyed_types(
                 if !has_inverted_isset && !is_equality {
                     let key_parts = break_up_path_into_parts(key);
 
-
                     adjust_array_type(
                         key_parts,
                         context,
@@ -1034,7 +1033,11 @@ pub(crate) fn trigger_issue_for_impossible(
         tast_info.maybe_add_issue(
             if not_operator {
                 Issue::new(
-                    IssueKind::ImpossibleTypeComparison,
+                    if assertion_string == "null" {
+                        IssueKind::ImpossibleNullTypeComparison
+                    } else {
+                        IssueKind::ImpossibleTypeComparison
+                    },
                     format!(
                         "Type {} is never {}",
                         old_var_type_string, &assertion_string
@@ -1072,7 +1075,11 @@ pub(crate) fn trigger_issue_for_impossible(
                 )
             } else {
                 Issue::new(
-                    IssueKind::ImpossibleTypeComparison,
+                    if assertion_string == "null" {
+                        IssueKind::ImpossibleNullTypeComparison
+                    } else {
+                        IssueKind::ImpossibleTypeComparison
+                    },
                     format!(
                         "Type {} is never {}",
                         old_var_type_string, &assertion_string
