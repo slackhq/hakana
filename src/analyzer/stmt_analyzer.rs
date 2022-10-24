@@ -28,7 +28,10 @@ pub(crate) fn analyze(
         tast_info.expr_types = FxHashMap::default();
     }
 
-    tast_info.current_stmt_offset = Some((stmt.0.start_offset(), stmt.0.to_raw_span().start.column()));
+    tast_info.current_stmt_offset = Some((
+        stmt.0.start_offset(),
+        stmt.0.to_raw_span().start.column() as usize,
+    ));
 
     match &stmt.1 {
         aast::Stmt_::Expr(boxed) => {

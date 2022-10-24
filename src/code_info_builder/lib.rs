@@ -237,7 +237,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             } else {
                 None
             },
-            as_type: if let Some(as_hint) = &typedef.constraint {
+            as_type: if let Some(as_hint) = &typedef.as_constraint {
                 Some(get_type_from_hint(
                     &as_hint.1,
                     None,

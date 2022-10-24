@@ -5,7 +5,7 @@ use name_context::NameContext;
 use ocamlrep::rc::RcOc;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
-use oxidized::relative_path::{Prefix, RelativePath};
+use relative_path::{Prefix, RelativePath};
 use oxidized::scoured_comments::ScouredComments;
 use oxidized::{
     aast,
