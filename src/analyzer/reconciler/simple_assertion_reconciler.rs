@@ -1219,15 +1219,7 @@ fn reconcile_truthy(
 
     let mut acceptable_types = vec![];
 
-    for mut atomic in existing_var_types {
-        if let TAtomic::TTypeAlias {
-            as_type: Some(as_type),
-            ..
-        } = atomic
-        {
-            atomic = (*as_type).clone();
-        }
-
+    for atomic in existing_var_types {
         // if any atomic in the union is either always falsy, we remove it.
         // If not always truthy, we mark the check as not redundant.
         if atomic.is_falsy() {

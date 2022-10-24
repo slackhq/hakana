@@ -755,10 +755,26 @@ pub fn is_contained_by(
 
 pub(crate) fn can_be_identical(
     codebase: &CodebaseInfo,
-    type1_part: &TAtomic,
-    type2_part: &TAtomic,
+    mut type1_part: &TAtomic,
+    mut type2_part: &TAtomic,
     inside_assertion: bool,
 ) -> bool {
+    if let TAtomic::TTypeAlias {
+        as_type: Some(as_type),
+        ..
+    } = type1_part
+    {
+        type1_part = as_type;
+    }
+
+    if let TAtomic::TTypeAlias {
+        as_type: Some(as_type),
+        ..
+    } = type2_part
+    {
+        type2_part = as_type;
+    }
+
     if (type1_part.is_vec() && type2_part.is_non_empty_vec())
         || (type2_part.is_vec() && type1_part.is_non_empty_vec())
     {

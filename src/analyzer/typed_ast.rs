@@ -225,7 +225,8 @@ impl TastInfo {
                     // missing shape field or shape field unknown
                     4057 | 4138 => match &issue.kind {
                         IssueKind::LessSpecificArgument
-                        | IssueKind::LessSpecificReturnStatement => return false,
+                        | IssueKind::LessSpecificReturnStatement
+                        | IssueKind::InvalidReturnStatement => return false,
                         _ => {}
                     },
                     4062 => match &issue.kind {
