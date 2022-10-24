@@ -1046,7 +1046,11 @@ pub(crate) fn trigger_issue_for_impossible(
                 )
             } else {
                 Issue::new(
-                    IssueKind::RedundantTypeComparison,
+                    if assertion_string == "nonnull" {
+                        IssueKind::RedundantNonnullTypeComparison
+                    } else {
+                        IssueKind::RedundantTypeComparison
+                    },
                     format!(
                         "Type {} is always {}",
                         old_var_type_string, &assertion_string
@@ -1066,7 +1070,11 @@ pub(crate) fn trigger_issue_for_impossible(
         tast_info.maybe_add_issue(
             if not_operator {
                 Issue::new(
-                    IssueKind::RedundantTypeComparison,
+                    if assertion_string == "nonnull" {
+                        IssueKind::RedundantNonnullTypeComparison
+                    } else {
+                        IssueKind::RedundantTypeComparison
+                    },
                     format!(
                         "Type {} is always {}",
                         old_var_type_string, &assertion_string

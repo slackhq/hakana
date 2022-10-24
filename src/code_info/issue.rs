@@ -73,6 +73,7 @@ pub enum IssueKind {
     PossiblyUndefinedStringArrayOffset,
     PossiblyUnusedProperty,
     PropertyTypeCoercion,
+    RedundantNonnullTypeComparison,
     RedundantTypeComparison,
     TaintedData(SinkType),
     UndefinedIntArrayOffset,
@@ -169,6 +170,7 @@ impl IssueKind {
             }
             "PossiblyUnusedProperty" => Ok(IssueKind::PossiblyUnusedProperty),
             "PropertyTypeCoercion" => Ok(IssueKind::PropertyTypeCoercion),
+            "RedundantNonnullTypeComparison" => Ok(IssueKind::RedundantNonnullTypeComparison),
             "RedundantTypeComparison" => Ok(IssueKind::RedundantTypeComparison),
             "UndefinedIntArrayOffset" => Ok(IssueKind::UndefinedIntArrayOffset),
             "UndefinedStringArrayOffset" => Ok(IssueKind::UndefinedStringArrayOffset),
