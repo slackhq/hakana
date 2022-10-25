@@ -115,8 +115,9 @@ impl TastInfo {
                 self.replacements.insert(
                     (current_stmt_offset.0, current_stmt_offset.0),
                     format!(
-                        "/* HAKANA_FIXME[{}] */\n{}",
+                        "/* HAKANA_FIXME[{}] {} */\n{}",
                         issue.kind.to_string(),
+                        issue.description,
                         "\t".repeat(current_stmt_offset.1)
                     )
                     .to_string(),
