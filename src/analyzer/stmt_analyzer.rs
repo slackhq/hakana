@@ -29,6 +29,7 @@ pub(crate) fn analyze(
     }
 
     tast_info.current_stmt_offset = Some((
+        stmt.0.line(),
         stmt.0.start_offset(),
         stmt.0.to_raw_span().start.column() as usize,
     ));

@@ -31,7 +31,7 @@ pub struct TastInfo {
     pub closures: FxHashMap<Pos, FunctionLikeInfo>,
     pub closure_spans: Vec<(usize, usize)>,
     pub replacements: BTreeMap<(usize, usize), String>,
-    pub current_stmt_offset: Option<(usize, usize)>,
+    pub current_stmt_offset: Option<(usize, usize, usize)>,
     pub symbol_references: SymbolReferences,
     pub issue_filter: Option<FxHashSet<IssueKind>>,
     pub expr_effects: FxHashMap<(usize, usize), u8>,
@@ -113,12 +113,12 @@ impl TastInfo {
         if config.add_fixmes && config.issues_to_fix.contains(&issue.kind) {
             if let Some(current_stmt_offset) = &self.current_stmt_offset {
                 self.replacements.insert(
-                    (current_stmt_offset.0, current_stmt_offset.0),
+                    (current_stmt_offset.1, current_stmt_offset.1),
                     format!(
                         "/* HAKANA_FIXME[{}] {} */\n{}",
                         issue.kind.to_string(),
                         issue.description,
-                        "\t".repeat(current_stmt_offset.1)
+                        "\t".repeat(current_stmt_offset.2)
                     )
                     .to_string(),
                 );

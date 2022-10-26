@@ -47,6 +47,16 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
+    if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
+        if current_stmt_offset.0 != expr.1.line() {
+            tast_info.current_stmt_offset = Some((
+                expr.1.line(),
+                expr.1.start_offset(),
+                expr.1.to_raw_span().start.column() as usize,
+            ));
+        }
+    }
+
     match &expr.2 {
         aast::Expr_::Binop(x) => {
             let (binop, e1, e2) = (&x.0, &x.1, &x.2);
