@@ -15,6 +15,9 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
+    if let oxidized::ast_defs::Uop::Unot = expr.0 {
+        context.inside_negation = !context.inside_negation;
+    }
     expression_analyzer::analyze(
         statements_analyzer,
         expr.1,
@@ -22,6 +25,9 @@ pub(crate) fn analyze(
         context,
         if_body_context,
     );
+    if let oxidized::ast_defs::Uop::Unot = expr.0 {
+        context.inside_negation = !context.inside_negation;
+    }
 
     tast_info.expr_effects.insert(
         (pos.start_offset(), pos.end_offset()),
