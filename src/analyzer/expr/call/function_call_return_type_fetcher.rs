@@ -423,7 +423,11 @@ fn handle_special_functions(
                 None
             }
         }
-        "HH\\Lib\\Str\\format" => {
+        "HH\\Lib\\Str\\format"
+        | "HH\\Lib\\Str\\trim"
+        | "HH\\Lib\\Str\\strip_suffix"
+        | "HH\\Lib\\Str\\slice"
+        | "HH\\Lib\\Str\\replace" => {
             let mut all_literals = true;
             for (_, arg_expr) in args {
                 if let Some(arg_expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
@@ -438,10 +442,30 @@ fn handle_special_functions(
             }
 
             Some(wrap_atomic(TAtomic::TStringWithFlags(
-                true,
+                false,
                 false,
                 all_literals,
             )))
+        }
+        "HH\\Lib\\Str\\split" => {
+            let mut all_literals = true;
+            for (_, arg_expr) in args {
+                if let Some(arg_expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                    if !arg_expr_type.all_literals() {
+                        all_literals = false;
+                        break;
+                    }
+                } else {
+                    all_literals = false;
+                    break;
+                }
+            }
+
+            Some(get_vec(wrap_atomic(TAtomic::TStringWithFlags(
+                false,
+                false,
+                all_literals,
+            ))))
         }
         "range" => {
             let mut all_ints = true;
