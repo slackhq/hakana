@@ -416,12 +416,12 @@ fn intersect_atomic_with_atomic(
         }
         (
             TAtomic::TDict {
-                known_items: Some(type_1_known_items),
+                known_items: type_1_known_items,
                 params: type_1_params,
                 ..
             },
             TAtomic::TDict {
-                known_items: Some(type_2_known_items),
+                known_items: type_2_known_items,
                 params: type_2_params,
                 ..
             },
@@ -431,26 +431,55 @@ fn intersect_atomic_with_atomic(
                 _ => None,
             };
 
-            let mut type_2_known_items = type_2_known_items.clone();
+            match (type_1_known_items, type_2_known_items) {
+                (_, Some(type_2_known_items)) => {
+                    let mut type_2_known_items = type_2_known_items.clone();
 
-            for (type_2_key, type_2_value) in type_2_known_items.iter_mut() {
-                if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
-                    type_2_value.0 = type_2_value.0 && type_1_value.0;
-                    // todo check intersected type is valie
-                } else if let None = type_1_params {
-                    // if the type_2 key is always defined, the intersection is impossible
-                    if !type_2_value.0 {
-                        return None;
+                    for (type_2_key, type_2_value) in type_2_known_items.iter_mut() {
+                        if let Some(type_1_known_items) = type_1_known_items {
+                            if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
+                                type_2_value.0 = type_2_value.0 && type_1_value.0;
+                                // todo check intersected type is valie
+                            } else if let None = type_1_params {
+                                // if the type_2 key is always defined, the intersection is impossible
+                                if !type_2_value.0 {
+                                    return None;
+                                }
+                            }
+                        } else if let None = type_1_params {
+                            return None;
+                        }
                     }
-                }
-            }
 
-            return Some(TAtomic::TDict {
-                known_items: Some(type_2_known_items),
-                params,
-                non_empty: true,
-                shape_name: None,
-            });
+                    return Some(TAtomic::TDict {
+                        known_items: Some(type_2_known_items),
+                        params,
+                        non_empty: true,
+                        shape_name: None,
+                    });
+                }
+                (Some(type_1_known_items), None) => {
+                    let mut type_1_known_items = type_1_known_items.clone();
+
+                    for (_, type_1_value) in type_1_known_items.iter_mut() {
+                        if let None = type_1_params {
+                            // if the type_1 key is always defined, the intersection is impossible
+                            if !type_1_value.0 {
+                                return None;
+                            }
+                        }
+                    }
+
+                    return Some(TAtomic::TDict {
+                        known_items: Some(type_1_known_items),
+                        params,
+                        non_empty: true,
+                        shape_name: None,
+                    });
+                }
+
+                _ => {}
+            }
         }
         (
             TAtomic::TNamedObject {
