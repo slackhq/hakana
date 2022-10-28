@@ -1,3 +1,16 @@
+diff --git a/hphp/hack/src/arena_collections/Cargo.toml b/hphp/hack/src/arena_collections/Cargo.toml
+index 2049426e4b..13d1acc7a1 100644
+--- a/hphp/hack/src/arena_collections/Cargo.toml
++++ b/hphp/hack/src/arena_collections/Cargo.toml
+@@ -10,7 +10,7 @@ path = "lib.rs"
+ [dependencies]
+ arena_deserializer = { path = "../utils/arena_deserializer" }
+ arena_trait = { path = "../arena_trait" }
+-bumpalo = { version = "3.8", features = ["collections"] }
++bumpalo = { version = "= 3.11.0", features = ["collections"] }
+ ocamlrep = { path = "../ocamlrep" }
+ serde = { version = "1.0.136", features = ["derive", "rc"] }
+ 
 diff --git a/hphp/hack/src/deps/rust/file_info_lib.rs b/hphp/hack/src/deps/rust/file_info_lib.rs
 index 35e8c94e95..957dc58358 100644
 --- a/hphp/hack/src/deps/rust/file_info_lib.rs
@@ -362,6 +375,19 @@ index 6a3a4b822d..d141a7d8f5 100644
                  error_peak,
                  arena_bytes: arena.allocated_bytes() as u64,
                  ..Default::default()
+diff --git a/hphp/hack/src/parser/core/lexer.rs b/hphp/hack/src/parser/core/lexer.rs
+index a3a24d5845..d1c829ce6b 100644
+--- a/hphp/hack/src/parser/core/lexer.rs
++++ b/hphp/hack/src/parser/core/lexer.rs
+@@ -1979,7 +1979,7 @@ where
+                         acc.push(t);
+                         return acc;
+                     }
+-                    TriviaKind::FixMe | TriviaKind::IgnoreError => {
++                    TriviaKind::FixMe | TriviaKind::IgnoreError | TriviaKind::DelimitedComment => {
+                         return acc;
+                     }
+                     _ => {
 diff --git a/hphp/hack/src/parser/lowerer/scour_comment.rs b/hphp/hack/src/parser/lowerer/scour_comment.rs
 index 0674963089..ff83849e0b 100644
 --- a/hphp/hack/src/parser/lowerer/scour_comment.rs
