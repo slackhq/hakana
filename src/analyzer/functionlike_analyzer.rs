@@ -18,7 +18,7 @@ use hakana_reflection_info::data_flow::node::{DataFlowNode, VariableSourceKind};
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
-use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_reflection_info::issue::{get_issue_from_comment, Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -28,6 +28,7 @@ use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
+use oxidized::prim_defs::Comment;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -427,6 +428,55 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         if config.find_unused_expressions && parent_tast_info.is_none() {
             report_unused_expressions(&mut tast_info, config, fb_ast, statements_analyzer);
+        }
+
+        if config.add_fixmes {
+            for (comment_pos, comment) in self
+                .get_file_analyzer()
+                .get_file_source()
+                .comments
+                .iter()
+                .rev()
+            {
+                let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
+                let (start_line, _, start_offset) = start;
+                let (_, _, end_offset) = end;
+
+                match comment {
+                    Comment::CmtLine(_) => {}
+                    Comment::CmtBlock(text) => {
+                        let trimmed_text = if text.starts_with("*") {
+                            text[1..].trim()
+                        } else {
+                            text.trim()
+                        };
+
+                        if let Some(issue_kind) =
+                            get_issue_from_comment(trimmed_text, &config.all_custom_issues)
+                        {
+                            let mut found = false;
+
+                            for ignored_issues in &tast_info.all_issues {
+                                if ignored_issues.pos.start_line == start_line
+                                    || ignored_issues.pos.start_line == start_line + 1
+                                {
+                                    if ignored_issues.kind == issue_kind {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if !found {
+                                // remove this FIXME as it is unused
+                                tast_info
+                                    .replacements
+                                    .insert((start_offset, end_offset), format!("",).to_string());
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         let codebase = statements_analyzer.get_codebase();
