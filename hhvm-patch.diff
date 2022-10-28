@@ -1,5 +1,5 @@
 diff --git a/hphp/hack/src/deps/rust/file_info_lib.rs b/hphp/hack/src/deps/rust/file_info_lib.rs
-index 463777200e..0961b39e5d 100644
+index 35e8c94e95..957dc58358 100644
 --- a/hphp/hack/src/deps/rust/file_info_lib.rs
 +++ b/hphp/hack/src/deps/rust/file_info_lib.rs
 @@ -17,9 +17,13 @@ mod s_set {
@@ -24,7 +24,7 @@ index 463777200e..0961b39e5d 100644
  impl FromSql for NameType {
      fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
          match value {
-@@ -100,6 +105,7 @@ impl FromSql for NameType {
+@@ -102,6 +107,7 @@ impl FromSql for NameType {
      }
  }
  
@@ -66,7 +66,7 @@ index 91106097aa..964a5efae4 100644
  
  #[derive(Debug, Default)]
 diff --git a/hphp/hack/src/naming/names_rust/naming_sqlite.rs b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
-index 8df067aae8..625cd74a78 100644
+index deef8ad8df..430d769e24 100644
 --- a/hphp/hack/src/naming/names_rust/naming_sqlite.rs
 +++ b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
 @@ -12,8 +12,11 @@ use hh24_types::ToplevelCanonSymbolHash;
@@ -82,10 +82,10 @@ index 8df067aae8..625cd74a78 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/ocamlrep/impls.rs b/hphp/hack/src/ocamlrep/impls.rs
-index ff5e181a16..b6323bcfc4 100644
+index d7984bffd6..7340b653b5 100644
 --- a/hphp/hack/src/ocamlrep/impls.rs
 +++ b/hphp/hack/src/ocamlrep/impls.rs
-@@ -773,6 +773,11 @@ impl ToOcamlRep for OsStr {
+@@ -772,6 +772,11 @@ impl ToOcamlRep for OsStr {
          use std::os::unix::ffi::OsStrExt;
          alloc.add(self.as_bytes())
      }
@@ -97,7 +97,7 @@ index ff5e181a16..b6323bcfc4 100644
  }
  
  impl ToOcamlRep for &'_ OsStr {
-@@ -781,15 +786,26 @@ impl ToOcamlRep for &'_ OsStr {
+@@ -780,15 +785,26 @@ impl ToOcamlRep for &'_ OsStr {
          use std::os::unix::ffi::OsStrExt;
          alloc.add(self.as_bytes())
      }
@@ -124,7 +124,7 @@ index ff5e181a16..b6323bcfc4 100644
  }
  
  impl ToOcamlRep for OsString {
-@@ -806,6 +822,11 @@ impl FromOcamlRep for OsString {
+@@ -805,6 +821,11 @@ impl FromOcamlRep for OsString {
              bytes_from_ocamlrep(value)?,
          )))
      }
@@ -137,10 +137,10 @@ index ff5e181a16..b6323bcfc4 100644
  
  impl ToOcamlRep for Path {
 diff --git a/hphp/hack/src/ocamlrep/lib.rs b/hphp/hack/src/ocamlrep/lib.rs
-index a1ab7898c4..3e7b101643 100644
+index a78e158644..b9ad1445d5 100644
 --- a/hphp/hack/src/ocamlrep/lib.rs
 +++ b/hphp/hack/src/ocamlrep/lib.rs
-@@ -353,7 +353,7 @@ pub use value::Value;
+@@ -350,7 +350,7 @@ pub use value::Value;
  // TODO: find the right forever home for these constants
  
  // 'mlvalues.h'
@@ -389,7 +389,7 @@ index fff34e9c15..49ae1121f9 100644
 +    fn line_column_beg(&self) -> (u64, u64, u64);
  }
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos_large.rs b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
-index 0c847082be..536934a43f 100644
+index f59e0a024c..a1929b265f 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos_large.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
 @@ -15,13 +15,13 @@ use crate::file_pos_small::FilePosSmall;
@@ -503,7 +503,7 @@ index 0c847082be..536934a43f 100644
          (self.lnum, self.offset - self.bol, self.bol)
      }
  }
-@@ -169,7 +169,7 @@ impl FromOcamlRep for FilePosLarge {
+@@ -166,7 +166,7 @@ impl FromOcamlRep for FilePosLarge {
          Ok(Self {
              lnum,
              bol,
@@ -513,7 +513,7 @@ index 0c847082be..536934a43f 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos_small.rs b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
-index 3fa77c1063..7268a11ba6 100644
+index 386e01671e..66579bfcea 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos_small.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
 @@ -38,23 +38,23 @@ arena_deserializer::impl_deserialize_in_arena!(FilePosSmall);
@@ -859,7 +859,7 @@ index ce809c77e2..566d903956 100644
  
      #[test]
 diff --git a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
-index 6e7b89af9c..770a933ba6 100644
+index c931ab4804..f446104a9a 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
 @@ -130,83 +130,83 @@ impl PosSpanTiny {
