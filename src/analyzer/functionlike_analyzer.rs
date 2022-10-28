@@ -342,6 +342,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             statements_analyzer.get_file_analyzer().get_file_source(),
             &statements_analyzer.comments,
+            &self.get_config().all_custom_issues,
         );
 
         if let Some(issue_filter) = &statements_analyzer.get_config().issue_filter {

@@ -29,6 +29,7 @@ use crate::{functionlike_scanner::adjust_location_from_comments, simple_type_inf
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
+    all_custom_issues: &FxHashSet<String>,
     resolved_names: &FxHashMap<usize, Symbol>,
     class_name: &Symbol,
     classlike_node: &aast::Class_<(), ()>,
@@ -55,6 +56,7 @@ pub(crate) fn scan(
         &mut definition_location,
         file_source,
         &mut FxHashMap::default(),
+        all_custom_issues,
     );
 
     storage.def_location = Some(definition_location);

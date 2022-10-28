@@ -5,13 +5,13 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use hakana_reflection_info::FileSource;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::function_context::FunctionContext;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
+use hakana_reflection_info::FileSource;
 use oxidized::aast;
 use rustc_hash::FxHashMap;
 
@@ -50,6 +50,7 @@ impl<'a> FileAnalyzer<'a> {
             DataFlowGraph::new(self.analysis_config.graph_kind),
             &self.file_source,
             &Vec::from_iter(self.file_source.comments.iter()),
+            &self.get_config().all_custom_issues,
         );
 
         let unnamespaced_file_analyzer = self.clone();

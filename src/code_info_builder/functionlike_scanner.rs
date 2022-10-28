@@ -39,6 +39,7 @@ use rustc_hash::FxHashSet;
 pub(crate) fn scan_method(
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
+    all_custom_issues: &FxHashSet<String>,
     resolved_names: &FxHashMap<usize, Symbol>,
     m: &aast::Method_<(), ()>,
     c: &mut Context,
@@ -63,6 +64,7 @@ pub(crate) fn scan_method(
     let mut functionlike_info = get_functionlike(
         &codebase,
         interner,
+        all_custom_issues,
         method_name,
         &m.span,
         &m.name.0,
@@ -199,6 +201,7 @@ fn add_promoted_param_property(
 pub(crate) fn get_functionlike(
     codebase: &CodebaseInfo,
     interner: &mut ThreadedInterner,
+    all_custom_issues: &FxHashSet<String>,
     name: Symbol,
     def_pos: &Pos,
     name_pos: &Pos,
@@ -453,6 +456,7 @@ pub(crate) fn get_functionlike(
         &mut definition_location,
         file_source,
         &mut suppressed_issues,
+        all_custom_issues,
     );
 
     if !suppressed_issues.is_empty() {
@@ -506,6 +510,7 @@ pub(crate) fn adjust_location_from_comments(
     definition_location: &mut HPos,
     file_source: &FileSource,
     suppressed_issues: &mut FxHashMap<IssueKind, HPos>,
+    all_custom_issues: &FxHashSet<String>,
 ) {
     for (comment_pos, comment) in comments.iter().rev() {
         let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
@@ -525,7 +530,7 @@ pub(crate) fn adjust_location_from_comments(
                         text.trim()
                     };
 
-                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text) {
+                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text, all_custom_issues) {
                         let comment_pos = HPos::new(comment_pos, file_source.file_path);
                         suppressed_issues.insert(issue_kind, comment_pos);
                     }

@@ -95,6 +95,10 @@ pub trait InternalHook {
     ) -> bool {
         false
     }
+
+    fn get_custom_issue_names(&self) -> Vec<&str> {
+        vec![]
+    }
 }
 
 pub trait CustomHook: InternalHook + Send + Sync {}

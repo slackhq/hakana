@@ -25,6 +25,7 @@ pub struct Config {
     pub hooks: Vec<Box<dyn CustomHook>>,
     pub ignore_mixed_issues: bool,
     pub add_fixmes: bool,
+    pub all_custom_issues: FxHashSet<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -45,7 +46,7 @@ impl SecurityConfig {
 }
 
 impl Config {
-    pub fn new(root_dir: String) -> Self {
+    pub fn new(root_dir: String, all_custom_issues: FxHashSet<String>) -> Self {
         Self {
             root_dir,
             find_unused_expressions: false,
@@ -60,6 +61,7 @@ impl Config {
             issues_to_fix: FxHashSet::default(),
             hooks: vec![],
             add_fixmes: false,
+            all_custom_issues,
         }
     }
 

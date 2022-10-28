@@ -40,6 +40,7 @@ struct Scanner<'a> {
     interner: &'a mut ThreadedInterner,
     file_source: FileSource,
     resolved_names: &'a FxHashMap<usize, Symbol>,
+    all_custom_issues: &'a FxHashSet<String>,
     user_defined: bool,
 }
 
@@ -99,6 +100,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         classlike_scanner::scan(
             self.codebase,
             self.interner,
+            &self.all_custom_issues,
             &self.resolved_names,
             &class_name,
             class,
@@ -334,6 +336,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let (method_name, mut functionlike_storage) = functionlike_scanner::scan_method(
             self.codebase,
             self.interner,
+            self.all_custom_issues,
             &self.resolved_names,
             m,
             c,
@@ -407,6 +410,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let mut functionlike_storage = functionlike_scanner::get_functionlike(
             &self.codebase,
             self.interner,
+            self.all_custom_issues,
             name.clone(),
             &f.span,
             &f.name.0,
@@ -474,6 +478,7 @@ pub fn collect_info_for_aast(
     resolved_names: &FxHashMap<usize, Symbol>,
     interner: &mut ThreadedInterner,
     codebase: &mut CodebaseInfo,
+    all_custom_issues: &FxHashSet<String>,
     file_source: FileSource,
     user_defined: bool,
 ) {
@@ -483,6 +488,7 @@ pub fn collect_info_for_aast(
         file_source,
         resolved_names,
         user_defined,
+        all_custom_issues,
     };
 
     let mut context = Context {

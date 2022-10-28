@@ -63,6 +63,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
             DataFlowGraph::new(GraphKind::FunctionBody),
             statements_analyzer.get_file_analyzer().get_file_source(),
             &statements_analyzer.comments,
+            &statements_analyzer.get_config().all_custom_issues,
         );
 
         for constant in &stmt.consts {

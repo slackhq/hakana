@@ -46,6 +46,7 @@ impl TastInfo {
         data_flow_graph: DataFlowGraph,
         file_source: &FileSource,
         comments: &Vec<&(Pos, Comment)>,
+        all_custom_issues: &FxHashSet<String>,
     ) -> Self {
         let mut hakana_ignores = BTreeMap::new();
         for (pos, comment) in comments {
@@ -57,7 +58,7 @@ impl TastInfo {
                         text.trim()
                     };
 
-                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text) {
+                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text, all_custom_issues) {
                         hakana_ignores
                             .entry(pos.line())
                             .or_insert_with(Vec::new)

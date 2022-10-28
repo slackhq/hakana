@@ -23,6 +23,21 @@ pub fn init(
 ) {
     println!("{}\n", header);
 
+    let mut all_custom_issues = vec![];
+
+    for analysis_hook in &analysis_hooks {
+        all_custom_issues.extend(analysis_hook.get_custom_issue_names());
+    }
+
+    for migration_hook in &migration_hooks {
+        all_custom_issues.extend(migration_hook.get_custom_issue_names());
+    }
+
+    let all_custom_issues = all_custom_issues
+        .into_iter()
+        .map(|i| i.to_string())
+        .collect::<FxHashSet<_>>();
+
     let matches = Command::new("hakana")
         .about("Another static analysis tool for Hack")
         .subcommand_required(true)
@@ -348,7 +363,9 @@ pub fn init(
 
             if let Some(filter_issue_strings) = filter_issue_strings {
                 for filter_issue_string in filter_issue_strings {
-                    if let Ok(issue_kind) = IssueKind::from_str(filter_issue_string) {
+                    if let Ok(issue_kind) =
+                        IssueKind::from_str(filter_issue_string, &all_custom_issues)
+                    {
                         issue_kinds_filter.insert(issue_kind);
                     } else {
                         println!("Invalid issue type {}", filter_issue_string);
@@ -357,7 +374,7 @@ pub fn init(
                 }
             }
 
-            let mut analysis_config = config::Config::new(root_dir.clone());
+            let mut analysis_config = config::Config::new(root_dir.clone(), all_custom_issues);
             analysis_config.find_unused_expressions = find_unused_expressions;
             analysis_config.find_unused_definitions = find_unused_definitions;
             analysis_config.issue_filter = if !issue_kinds_filter.is_empty() {
@@ -426,7 +443,7 @@ pub fn init(
             }
         }
         Some(("security-check", sub_matches)) => {
-            let mut analysis_config = config::Config::new(cwd.clone());
+            let mut analysis_config = config::Config::new(cwd.clone(), all_custom_issues);
             analysis_config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Taint);
 
             let config_path = config_path.unwrap();
@@ -476,7 +493,7 @@ pub fn init(
             }
         }
         Some(("find-paths", sub_matches)) => {
-            let mut analysis_config = config::Config::new(cwd.clone());
+            let mut analysis_config = config::Config::new(cwd.clone(), all_custom_issues);
             analysis_config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Query);
 
             let config_path = config_path.unwrap();
@@ -523,7 +540,7 @@ pub fn init(
             let migration_name = sub_matches.value_of("migration").unwrap().to_string();
             let migration_source = sub_matches.value_of("symbols").unwrap().to_string();
 
-            let mut analysis_config = config::Config::new(root_dir.clone());
+            let mut analysis_config = config::Config::new(root_dir.clone(), all_custom_issues);
             analysis_config.hooks = migration_hooks;
 
             let config_path = config_path.unwrap();
@@ -575,7 +592,9 @@ pub fn init(
 
             if let Some(filter_issue_strings) = filter_issue_strings {
                 for filter_issue_string in filter_issue_strings {
-                    if let Ok(issue_kind) = IssueKind::from_str(filter_issue_string) {
+                    if let Ok(issue_kind) =
+                        IssueKind::from_str(filter_issue_string, &all_custom_issues)
+                    {
                         issue_kinds_filter.insert(issue_kind);
                     } else {
                         println!("Invalid issue type {}", filter_issue_string);
@@ -586,7 +605,7 @@ pub fn init(
 
             let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 
-            let mut config = config::Config::new(root_dir.clone());
+            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
 
             config.issues_to_fix.extend(issue_kinds_filter);
 
@@ -617,11 +636,11 @@ pub fn init(
         }
         Some(("fix", sub_matches)) => {
             let issue_name = sub_matches.value_of("issue").unwrap().to_string();
-            let issue_kind = IssueKind::from_str(&issue_name).unwrap();
+            let issue_kind = IssueKind::from_str(&issue_name, &all_custom_issues).unwrap();
 
             let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 
-            let mut config = config::Config::new(root_dir.clone());
+            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
             config.find_unused_expressions = issue_kind.is_unused_expression();
             config.find_unused_definitions = issue_kind.is_unused_definition();
             config.issues_to_fix.insert(issue_kind);

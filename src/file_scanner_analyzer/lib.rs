@@ -410,7 +410,7 @@ pub fn scan_and_analyze_single_file(
     file_contents: String,
     find_unused_expressions: bool,
 ) -> std::result::Result<AnalysisResult, String> {
-    let mut analysis_config = Config::new("".to_string());
+    let mut analysis_config = Config::new("".to_string(), FxHashSet::default());
     analysis_config.find_unused_expressions = find_unused_expressions;
     analysis_config.graph_kind = if file_contents.starts_with("// security-check")
         || file_contents.starts_with("//security-check")
@@ -472,7 +472,7 @@ pub fn scan_files(
     include_core_libs: bool,
     cache_dir: Option<&String>,
     files_to_analyze: &mut Vec<String>,
-    config: &Config,
+    config: &Arc<Config>,
     threads: u8,
     debug: bool,
     build_checksum: &str,
@@ -673,6 +673,7 @@ pub fn scan_files(
                     scan_file(
                         str_path,
                         &config.root_dir,
+                        &config.all_custom_issues,
                         &mut new_codebase,
                         &mut new_interner,
                         analyze_map.contains(*str_path),
@@ -711,6 +712,8 @@ pub fn scan_files(
 
                 let resolved_names = resolved_names.clone();
 
+                let config = config.clone();
+
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
                     let mut new_interner = ThreadedInterner::new(interner);
@@ -722,6 +725,7 @@ pub fn scan_files(
                             scan_file(
                                 str_path,
                                 &root_dir_c,
+                                &config.all_custom_issues,
                                 &mut new_codebase,
                                 &mut new_interner,
                                 analyze_map.contains(str_path),
@@ -762,10 +766,7 @@ pub fn scan_files(
         let elapsed = now.elapsed();
 
         if debug {
-            println!(
-                "Scanning files took {:.2?}",
-                elapsed
-            );
+            println!("Scanning files took {:.2?}", elapsed);
         }
     }
 
@@ -1013,6 +1014,7 @@ pub fn get_aast_for_path(
 fn scan_file(
     target_file: &String,
     root_dir: &String,
+    all_custom_issues: &FxHashSet<String>,
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
     user_defined: bool,
@@ -1046,6 +1048,7 @@ fn scan_file(
         &resolved_names,
         interner,
         codebase,
+        all_custom_issues,
         FileSource {
             file_path_actual: target_name.clone(),
             file_path: interned_file_path,
@@ -1070,6 +1073,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
         scan_file(
             &file.to_string(),
             &"".to_string(),
+            &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
             false,
@@ -1082,6 +1086,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
         scan_file(
             &file.to_string(),
             &"".to_string(),
+            &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
             false,
@@ -1093,6 +1098,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
         scan_file(
             &str_path.to_string(),
             &"".to_string(),
+            &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
             false,
@@ -1175,6 +1181,7 @@ pub fn scan_single_file(
         &resolved_names,
         interner,
         codebase,
+        &FxHashSet::default(),
         FileSource {
             file_path_actual: path.clone(),
             file_path,

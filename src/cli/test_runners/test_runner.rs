@@ -76,7 +76,7 @@ pub trait TestRunner {
     }
 
     fn get_config_for_test(&self, dir: &String) -> config::Config {
-        let mut analysis_config = config::Config::new(dir.clone());
+        let mut analysis_config = config::Config::new(dir.clone(), FxHashSet::default());
         analysis_config.find_unused_expressions =
             dir.contains("/unused/") || dir.contains("/fix/UnusedAssignment/");
         analysis_config.find_unused_definitions =
@@ -111,13 +111,13 @@ pub trait TestRunner {
 
             analysis_config
                 .issues_to_fix
-                .insert(IssueKind::from_str(&issue_name).unwrap());
+                .insert(IssueKind::from_str(&issue_name, &FxHashSet::default()).unwrap());
         } else if dir.contains("/add-fixmes/") {
             let issue_name = dir_parts.get(1).unwrap().to_string();
 
             analysis_config
                 .issues_to_fix
-                .insert(IssueKind::from_str(&issue_name).unwrap());
+                .insert(IssueKind::from_str(&issue_name, &FxHashSet::default()).unwrap());
 
             analysis_config.add_fixmes = true;
         }

@@ -1,3 +1,4 @@
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
@@ -98,7 +99,7 @@ pub enum IssueKind {
 }
 
 impl IssueKind {
-    pub fn from_str(str: &str) -> Result<IssueKind, String> {
+    pub fn from_str(str: &str, all_custom_issues: &FxHashSet<String>) -> Result<IssueKind, String> {
         match str {
             "CannotInferGenericParam" => Ok(IssueKind::CannotInferGenericParam),
             "EmptyBlock" => Ok(IssueKind::EmptyBlock),
@@ -191,7 +192,13 @@ impl IssueKind {
             "UnusedTrait" => Ok(IssueKind::UnusedTrait),
             "UnusedAssignment" => Ok(IssueKind::UnusedAssignment),
             "UnusedAssignmentInClosure" => Ok(IssueKind::UnusedAssignmentInClosure),
-            _ => Ok(IssueKind::CustomIssue(str.to_string())),
+            _ => {
+                if all_custom_issues.contains(str) {
+                    Ok(IssueKind::CustomIssue(str.to_string()))
+                } else {
+                    Err(format!("Unknown issue {}", str))
+                }
+            }
         }
     }
 
@@ -278,7 +285,10 @@ impl Issue {
     }
 }
 
-pub fn get_issue_from_comment(trimmed_text: &str) -> Option<IssueKind> {
+pub fn get_issue_from_comment(
+    trimmed_text: &str,
+    all_custom_issues: &FxHashSet<String>,
+) -> Option<IssueKind> {
     if trimmed_text.starts_with("HAKANA_") {
         if let Some(start_bracket_pos) = trimmed_text.find("[") {
             match &trimmed_text[7..start_bracket_pos] {
@@ -287,6 +297,7 @@ pub fn get_issue_from_comment(trimmed_text: &str) -> Option<IssueKind> {
                         return Some(
                             IssueKind::from_str(
                                 &trimmed_text[(start_bracket_pos + 1)..end_bracket_pos],
+                                all_custom_issues,
                             )
                             .unwrap(),
                         );
