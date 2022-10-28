@@ -16,7 +16,7 @@ use hakana_reflection_info::{
     type_resolution::TypeResolutionContext,
     FileSource, ThreadedInterner,
 };
-use hakana_type::{get_mixed_any, wrap_atomic};
+use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use indexmap::IndexMap;
 use oxidized::{
     aast::{self, ClassConstKind},
@@ -165,23 +165,32 @@ pub(crate) fn scan(
                         .insert(interface_name.clone());
                     storage.all_class_interfaces.insert(interface_name.clone());
 
-                    storage.template_extended_offsets.insert(
-                        interface_name.clone(),
-                        params
-                            .iter()
-                            .map(|param| {
-                                Arc::new(get_type_from_hint(
-                                    &param.1,
-                                    Some(&class_name),
-                                    &TypeResolutionContext {
-                                        template_type_map: storage.template_types.clone(),
-                                        template_supers: FxHashMap::default(),
-                                    },
-                                    resolved_names,
-                                ))
-                            })
-                            .collect(),
-                    );
+                    if interner.lookup(*class_name) == "SimpleXMLElement"
+                        && interner.lookup(interface_name) == "HH\\Traversable"
+                    {
+                        storage.template_extended_offsets.insert(
+                            interface_name,
+                            vec![Arc::new(get_named_object(*class_name))],
+                        );
+                    } else {
+                        storage.template_extended_offsets.insert(
+                            interface_name.clone(),
+                            params
+                                .iter()
+                                .map(|param| {
+                                    Arc::new(get_type_from_hint(
+                                        &param.1,
+                                        Some(&class_name),
+                                        &TypeResolutionContext {
+                                            template_type_map: storage.template_types.clone(),
+                                            template_supers: FxHashMap::default(),
+                                        },
+                                        resolved_names,
+                                    ))
+                                })
+                                .collect(),
+                        );
+                    }
                 }
             }
         }
