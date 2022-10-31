@@ -421,7 +421,7 @@ pub(crate) fn get_control_actions(
                 control_actions.extend(block_actions);
             }
             aast::Stmt_::Awaitall(boxed) => {
-                let block_actions = get_control_actions(
+                let mut block_actions = get_control_actions(
                     codebase,
                     resolved_names,
                     &boxed.1,
@@ -436,6 +436,8 @@ pub(crate) fn get_control_actions(
 
                     return control_actions;
                 }
+
+                block_actions.retain(|action| *action != ControlAction::None);
 
                 control_actions.extend(block_actions);
             }
