@@ -420,9 +420,27 @@ pub(crate) fn get_control_actions(
 
                 control_actions.extend(block_actions);
             }
+            aast::Stmt_::Awaitall(boxed) => {
+                let block_actions = get_control_actions(
+                    codebase,
+                    resolved_names,
+                    &boxed.1,
+                    tast_info,
+                    break_context.clone(),
+                    return_is_exit,
+                );
+
+                if !block_actions.contains(&ControlAction::None) {
+                    control_actions.retain(|action| *action != ControlAction::None);
+                    control_actions.extend(block_actions);
+
+                    return control_actions;
+                }
+
+                control_actions.extend(block_actions);
+            }
             aast::Stmt_::Fallthrough => {}
             aast::Stmt_::YieldBreak => {}
-            aast::Stmt_::Awaitall(_) => {}
             aast::Stmt_::Using(_) => {}
             aast::Stmt_::Noop => {}
             aast::Stmt_::Markup(_) => {}
