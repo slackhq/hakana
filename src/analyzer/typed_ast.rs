@@ -27,7 +27,7 @@ pub struct TastInfo {
     pub data_flow_graph: DataFlowGraph,
     pub case_scopes: Vec<CaseScope>,
     pub issues_to_emit: Vec<Issue>,
-    pub all_issues: Vec<Issue>,
+    pub all_issues: BTreeMap<usize, IssueKind>,
     pub inferred_return_types: Vec<TUnion>,
     pub fully_matched_switch_offsets: FxHashSet<usize>,
     pub closures: FxHashMap<Pos, FunctionLikeInfo>,
@@ -95,7 +95,7 @@ impl TastInfo {
             expr_effects: FxHashMap::default(),
             hakana_ignores,
             expr_fixme_positions: FxHashMap::default(),
-            all_issues: Vec::new(),
+            all_issues: BTreeMap::new(),
         }
     }
 
@@ -125,7 +125,8 @@ impl TastInfo {
 
         issue.can_fix = config.add_fixmes && config.issues_to_fix.contains(&issue.kind);
 
-        self.all_issues.push(issue.clone());
+        self.all_issues
+            .insert(issue.pos.start_line, issue.kind.clone());
 
         if !self.can_add_issue(&issue) {
             return;

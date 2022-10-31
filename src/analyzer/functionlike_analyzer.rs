@@ -456,15 +456,16 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         {
                             let mut found = false;
 
-                            for ignored_issues in &tast_info.all_issues {
-                                if ignored_issues.pos.start_line == start_line
-                                    || ignored_issues.pos.start_line == start_line + 1
-                                {
-                                    if ignored_issues.kind == issue_kind {
-                                        found = true;
-                                        break;
-                                    }
-                                }
+                            if tast_info.all_issues.contains_key(&start_line)
+                                && tast_info.all_issues[&start_line] == issue_kind
+                            {
+                                found = true;
+                            }
+
+                            if tast_info.all_issues.contains_key(&(start_line + 1))
+                                && tast_info.all_issues[&(start_line + 1)] == issue_kind
+                            {
+                                found = true;
                             }
 
                             if !found {
