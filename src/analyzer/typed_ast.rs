@@ -243,6 +243,7 @@ impl TastInfo {
         for ignored_issues in &self.hakana_ignores {
             if ignored_issues.0 == &issue.pos.start_line
                 || ignored_issues.0 == &(issue.pos.start_line - 1)
+                || ignored_issues.0 == &(issue.pos.end_line - 1)
             {
                 if ignored_issues.1.contains(&issue.kind) {
                     return false;
