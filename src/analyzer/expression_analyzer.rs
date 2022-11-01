@@ -50,11 +50,15 @@ pub(crate) fn analyze(
 ) -> bool {
     if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
         if current_stmt_offset.1 != expr.1.line() {
-            tast_info.current_stmt_offset = Some(StmtStart(
-                expr.1.start_offset(),
-                expr.1.line(),
-                expr.1.to_raw_span().start.column() as usize,
-            ));
+            if !matches!(expr.2, aast::Expr_::Xml(..)) {
+                *current_stmt_offset = StmtStart(
+                    expr.1.start_offset(),
+                    expr.1.line(),
+                    expr.1.to_raw_span().start.column() as usize,
+                );
+            } else {
+                current_stmt_offset.1 = expr.1.line();
+            }
         }
     }
 
