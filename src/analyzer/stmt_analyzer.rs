@@ -279,7 +279,7 @@ fn analyze_awaitall(
                         assignment_id.0.clone(),
                         aast::Expr_::Lvar(Box::new(assignment_id.clone())),
                     ),
-                    Some(expr),
+                    None,
                 ),
                 &stmt.0,
                 assignment_type.as_ref(),
