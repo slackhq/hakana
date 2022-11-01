@@ -137,9 +137,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         self.codebase.constant_infos.insert(
             name,
             ConstantInfo {
-                pos: Some(HPos::new(&gc.name.0, self.file_source.file_path)),
+                pos: Some(HPos::new(&gc.name.0, self.file_source.file_path, None)),
                 type_pos: if let Some(t) = &gc.type_ {
-                    Some(HPos::new(&t.0, self.file_source.file_path))
+                    Some(HPos::new(&t.0, self.file_source.file_path, None))
                 } else {
                     None
                 },

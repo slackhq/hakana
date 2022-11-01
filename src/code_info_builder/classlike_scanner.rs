@@ -47,9 +47,13 @@ pub(crate) fn scan(
 
     storage.user_defined = user_defined;
 
-    storage.name_location = Some(HPos::new(classlike_node.name.pos(), file_source.file_path));
+    storage.name_location = Some(HPos::new(
+        classlike_node.name.pos(),
+        file_source.file_path,
+        None,
+    ));
 
-    let mut definition_location = HPos::new(&classlike_node.span, file_source.file_path);
+    let mut definition_location = HPos::new(&classlike_node.span, file_source.file_path, None);
 
     adjust_location_from_comments(
         comments,
@@ -513,7 +517,7 @@ fn visit_xhp_attribute(
 ) {
     let mut attribute_type_location = None;
     let mut attribute_type = if let Some(hint) = &xhp_attribute.0 .1 {
-        attribute_type_location = Some(HPos::new(&hint.0, file_source.file_path));
+        attribute_type_location = Some(HPos::new(&hint.0, file_source.file_path, None));
         get_type_from_hint(
             &hint.1,
             None,
@@ -540,8 +544,16 @@ fn visit_xhp_attribute(
     let property_storage = PropertyInfo {
         is_static: false,
         visibility: MemberVisibility::Protected,
-        pos: Some(HPos::new(xhp_attribute.1.id.pos(), file_source.file_path)),
-        stmt_pos: Some(HPos::new(&xhp_attribute.1.span, file_source.file_path)),
+        pos: Some(HPos::new(
+            xhp_attribute.1.id.pos(),
+            file_source.file_path,
+            None,
+        )),
+        stmt_pos: Some(HPos::new(
+            &xhp_attribute.1.span,
+            file_source.file_path,
+            None,
+        )),
         type_pos: attribute_type_location,
         type_: attribute_type,
         has_default: xhp_attribute.1.expr.is_some(),
@@ -589,11 +601,15 @@ fn visit_class_const_declaration(
             resolved_names,
         ));
 
-        supplied_type_location = Some(HPos::new(&supplied_type_hint.0, file_source.file_path));
+        supplied_type_location = Some(HPos::new(
+            &supplied_type_hint.0,
+            file_source.file_path,
+            None,
+        ));
     }
 
     let const_storage = ConstantInfo {
-        pos: Some(HPos::new(const_node.id.pos(), file_source.file_path)),
+        pos: Some(HPos::new(const_node.id.pos(), file_source.file_path, None)),
         type_pos: supplied_type_location,
         provided_type,
         inferred_type: if let ClassConstKind::CCAbstract(Some(const_expr))
@@ -664,7 +680,11 @@ fn visit_property_declaration(
             resolved_names,
         ));
 
-        property_type_location = Some(HPos::new(&property_type_hint.0, file_source.file_path));
+        property_type_location = Some(HPos::new(
+            &property_type_hint.0,
+            file_source.file_path,
+            None,
+        ));
     }
 
     let property_storage = PropertyInfo {
@@ -676,8 +696,12 @@ fn visit_property_declaration(
             }
             ast_defs::Visibility::Protected => MemberVisibility::Protected,
         },
-        pos: Some(HPos::new(property_node.id.pos(), file_source.file_path)),
-        stmt_pos: Some(HPos::new(&property_node.span, file_source.file_path)),
+        pos: Some(HPos::new(
+            property_node.id.pos(),
+            file_source.file_path,
+            None,
+        )),
+        stmt_pos: Some(HPos::new(&property_node.span, file_source.file_path, None)),
         type_pos: property_type_location,
         type_: property_type.unwrap_or(get_mixed_any()),
         has_default: property_node.expr.is_some(),
@@ -731,7 +755,7 @@ fn get_classlike_storage(
         }
     } else {
         storage = ClassLikeInfo::new(class_name.clone());
-        storage.name_location = Some(HPos::new(class.name.pos(), file_source.file_path));
+        storage.name_location = Some(HPos::new(class.name.pos(), file_source.file_path, None));
     }
     storage.is_user_defined = !codebase.register_stub_files;
     storage.is_stubbed = codebase.register_stub_files;

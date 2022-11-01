@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::codebase_info::symbols::Symbol;
 
+// offset, start line, start column
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct StmtStart(pub usize, pub usize, pub usize);
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HPos {
     pub file_path: Symbol,
@@ -14,11 +18,13 @@ pub struct HPos {
     pub start_column: usize,
     pub end_column: usize,
 
+    pub stmt_start: Option<StmtStart>,
+
     single_line: bool,
 }
 
 impl HPos {
-    pub fn new(pos: &Pos, file_path: Symbol) -> HPos {
+    pub fn new(pos: &Pos, file_path: Symbol, stmt_start: Option<StmtStart>) -> HPos {
         let (start, end) = pos.to_start_and_end_lnum_bol_offset();
         let (start_line, line_start_beginning_offset, start_offset) = start;
         let (end_line, line_end_beginning_offset, end_offset) = end;
@@ -37,6 +43,7 @@ impl HPos {
             start_column,
             end_column,
             single_line: true,
+            stmt_start,
         };
     }
 }

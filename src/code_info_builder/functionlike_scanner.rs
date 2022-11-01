@@ -144,7 +144,7 @@ fn add_promoted_param_property(
     interner: &mut ThreadedInterner,
 ) {
     let signature_type_location = if let Some(param_type) = &param_node.type_hint.1 {
-        Some(HPos::new(&param_type.0, file_source.file_path))
+        Some(HPos::new(&param_type.0, file_source.file_path, None))
     } else {
         None
     };
@@ -157,8 +157,8 @@ fn add_promoted_param_property(
             }
             ast_defs::Visibility::Protected => MemberVisibility::Protected,
         },
-        pos: Some(HPos::new(&param_node.pos, file_source.file_path)),
-        stmt_pos: Some(HPos::new(&param_node.pos, file_source.file_path)),
+        pos: Some(HPos::new(&param_node.pos, file_source.file_path, None)),
+        stmt_pos: Some(HPos::new(&param_node.pos, file_source.file_path, None)),
         type_pos: signature_type_location,
         type_: get_type_from_optional_hint(
             &param_node.type_hint.1,
@@ -443,11 +443,12 @@ pub(crate) fn get_functionlike(
     }
 
     if let Some(ret) = &ret.1 {
-        functionlike_info.return_type_location = Some(HPos::new(&ret.0, file_source.file_path));
+        functionlike_info.return_type_location =
+            Some(HPos::new(&ret.0, file_source.file_path, None));
     }
 
-    functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path));
-    let mut definition_location = HPos::new(def_pos, file_source.file_path);
+    functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path, None));
+    let mut definition_location = HPos::new(def_pos, file_source.file_path, None);
 
     let mut suppressed_issues = FxHashMap::default();
 
@@ -530,8 +531,10 @@ pub(crate) fn adjust_location_from_comments(
                         text.trim()
                     };
 
-                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text, all_custom_issues) {
-                        let comment_pos = HPos::new(comment_pos, file_source.file_path);
+                    if let Some(issue_kind) =
+                        get_issue_from_comment(trimmed_text, all_custom_issues)
+                    {
+                        let comment_pos = HPos::new(comment_pos, file_source.file_path, None);
                         suppressed_issues.insert(issue_kind, comment_pos);
                     }
 
@@ -569,7 +572,7 @@ fn convert_param_nodes(
             };
             param.is_inout = matches!(param_node.callconv, ast_defs::ParamKind::Pinout(_));
             param.signature_type_location = if let Some(param_type) = &param_node.type_hint.1 {
-                Some(HPos::new(&param_type.0, file_source.file_path))
+                Some(HPos::new(&param_type.0, file_source.file_path, None))
             } else {
                 None
             };
@@ -628,7 +631,7 @@ fn convert_param_nodes(
             }
             param.promoted_property = param_node.visibility.is_some();
             param.is_optional = param_node.expr.is_some();
-            param.location = Some(HPos::new(&param_node.pos, file_source.file_path));
+            param.location = Some(HPos::new(&param_node.pos, file_source.file_path, None));
             param
         })
         .collect()
