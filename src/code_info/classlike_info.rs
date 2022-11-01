@@ -178,10 +178,6 @@ pub struct ClassLikeInfo {
 
     pub enforce_template_inheritance: bool,
 
-    pub extension_requirement: Option<String>,
-
-    pub implementation_requirements: Vec<String>,
-
     pub attributes: Vec<AttributeInfo>,
 
     pub enum_cases: Option<FxHashMap<String, EnumCaseInfo>>,
@@ -234,9 +230,7 @@ impl ClassLikeInfo {
             enum_cases: None,
             enum_type: None,
             enum_constraint: None,
-            extension_requirement: None,
             hash: None,
-            implementation_requirements: Vec::new(),
             inheritable_property_ids: FxHashMap::default(),
             initialized_properties: FxHashSet::default(),
             internal_to: None,

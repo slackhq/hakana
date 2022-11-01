@@ -534,9 +534,14 @@ fn inherit_methods_from_parent(
         storage
             .declaring_method_ids
             .insert(method_name.clone(), declaring_class.clone());
-        storage
-            .inheritable_method_ids
-            .insert(method_name.clone(), declaring_class.clone());
+
+        // traits can pass down methods from other traits,
+        // but not from their require extends/implements parents
+        if !matches!(storage.kind, SymbolKind::Trait) || matches!(parent_storage.kind, SymbolKind::Trait) {
+            storage
+                .inheritable_method_ids
+                .insert(method_name.clone(), declaring_class.clone());
+        }
     }
 }
 
