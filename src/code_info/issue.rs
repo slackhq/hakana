@@ -261,6 +261,7 @@ pub struct Issue {
     pub description: String,
     pub pos: HPos,
     pub functionlike_id: Option<String>,
+    pub can_fix: bool,
 }
 
 impl Issue {
@@ -270,6 +271,7 @@ impl Issue {
             description,
             pos,
             functionlike_id: None,
+            can_fix: false,
         }
     }
 

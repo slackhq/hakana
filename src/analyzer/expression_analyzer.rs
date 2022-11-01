@@ -20,6 +20,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -48,10 +49,10 @@ pub(crate) fn analyze(
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
     if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
-        if current_stmt_offset.0 != expr.1.line() {
-            tast_info.current_stmt_offset = Some((
-                expr.1.line(),
+        if current_stmt_offset.1 != expr.1.line() {
+            tast_info.current_stmt_offset = Some(StmtStart(
                 expr.1.start_offset(),
+                expr.1.line(),
                 expr.1.to_raw_span().start.column() as usize,
             ));
         }

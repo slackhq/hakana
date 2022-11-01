@@ -1,4 +1,5 @@
 use crate::{config::Config, scope_context::CaseScope};
+use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -31,7 +32,7 @@ pub struct TastInfo {
     pub closures: FxHashMap<Pos, FunctionLikeInfo>,
     pub closure_spans: Vec<(usize, usize)>,
     pub replacements: BTreeMap<(usize, usize), String>,
-    pub current_stmt_offset: Option<(usize, usize, usize)>,
+    pub current_stmt_offset: Option<StmtStart>,
     pub symbol_references: SymbolReferences,
     pub issue_filter: Option<FxHashSet<IssueKind>>,
     pub expr_effects: FxHashMap<(usize, usize), u8>,
@@ -58,7 +59,9 @@ impl TastInfo {
                         text.trim()
                     };
 
-                    if let Some(issue_kind) = get_issue_from_comment(trimmed_text, all_custom_issues) {
+                    if let Some(issue_kind) =
+                        get_issue_from_comment(trimmed_text, all_custom_issues)
+                    {
                         hakana_ignores
                             .entry(pos.line())
                             .or_insert_with(Vec::new)
@@ -98,7 +101,7 @@ impl TastInfo {
         }
     }
 
-    pub fn maybe_add_issue(&mut self, issue: Issue, config: &Config, file_path: &str) {
+    pub fn maybe_add_issue(&mut self, mut issue: Issue, config: &Config, file_path: &str) {
         if config.ignore_mixed_issues && issue.kind.is_mixed_issue() {
             return;
         }
@@ -107,26 +110,34 @@ impl TastInfo {
             return;
         }
 
+        issue.pos.insertion_start = self.current_stmt_offset;
+
+        issue.can_fix = config.add_fixmes && config.issues_to_fix.contains(&issue.kind);
+
         if !self.can_add_issue(&issue) {
             return;
         }
 
-        if config.add_fixmes && config.issues_to_fix.contains(&issue.kind) {
-            if let Some(current_stmt_offset) = &self.current_stmt_offset {
-                self.replacements.insert(
-                    (current_stmt_offset.1, current_stmt_offset.1),
-                    format!(
-                        "/* HAKANA_FIXME[{}] {} */\n{}",
-                        issue.kind.to_string(),
-                        issue.description,
-                        "\t".repeat(current_stmt_offset.2)
-                    )
-                    .to_string(),
-                );
-            }
+        if issue.can_fix {
+            self.fix_issue(&issue);
         }
 
         self.add_issue(issue);
+    }
+
+    fn fix_issue(&mut self, issue: &Issue) {
+        if let Some(insertion_start) = &issue.pos.insertion_start {
+            self.replacements.insert(
+                (insertion_start.0, insertion_start.0),
+                format!(
+                    "/* HAKANA_FIXME[{}] {} */\n{}",
+                    issue.kind.to_string(),
+                    issue.description,
+                    "\t".repeat(insertion_start.2)
+                )
+                .to_string(),
+            );
+        }
     }
 
     pub fn can_add_issue(&mut self, issue: &Issue) -> bool {
@@ -277,6 +288,10 @@ impl TastInfo {
 
     pub fn bubble_up_issue(&mut self, issue: Issue) {
         if self.recording_level == 0 {
+            if issue.can_fix {
+                self.fix_issue(&issue);
+            }
+
             self.add_issue(issue);
             return;
         }

@@ -1,3 +1,4 @@
+use hakana_reflection_info::code_location::StmtStart;
 use rustc_hash::FxHashMap;
 
 use crate::custom_hook::AfterStmtAnalysisData;
@@ -28,9 +29,9 @@ pub(crate) fn analyze(
         tast_info.expr_types = FxHashMap::default();
     }
 
-    tast_info.current_stmt_offset = Some((
-        stmt.0.line(),
+    tast_info.current_stmt_offset = Some(StmtStart(
         stmt.0.start_offset(),
+        stmt.0.line(),
         stmt.0.to_raw_span().start.column() as usize,
     ));
 

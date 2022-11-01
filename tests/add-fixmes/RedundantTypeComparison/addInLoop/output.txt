@@ -1,0 +1,10 @@
+function foo(string $s): void {
+	$a = 0:
+
+	while (rand(0, 1)) {
+		$a++;
+
+		/* HAKANA_FIXME[RedundantTypeComparison] Type string is always string */
+		if ($s is string) {}
+	}
+}

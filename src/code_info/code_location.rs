@@ -18,7 +18,7 @@ pub struct HPos {
     pub start_column: usize,
     pub end_column: usize,
 
-    pub stmt_start: Option<StmtStart>,
+    pub insertion_start: Option<StmtStart>,
 
     single_line: bool,
 }
@@ -43,7 +43,7 @@ impl HPos {
             start_column,
             end_column,
             single_line: true,
-            stmt_start,
+            insertion_start: stmt_start,
         };
     }
 }
