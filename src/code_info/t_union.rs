@@ -203,11 +203,8 @@ impl TUnion {
         for atomic in &self.types {
             return match atomic {
                 &TAtomic::TMixed
-                | &TAtomic::TMixedAny
-                | &TAtomic::TNonnullMixed
-                | &TAtomic::TMixedFromLoopIsset
-                | &TAtomic::TFalsyMixed
-                | &TAtomic::TTruthyMixed => true,
+                | &TAtomic::TMixedWithFlags(..)
+                | &TAtomic::TMixedFromLoopIsset => true,
                 _ => false,
             };
         }
@@ -222,15 +219,11 @@ impl TUnion {
 
         for atomic in &self.types {
             return match atomic {
-                &TAtomic::TMixedAny => {
-                    *has_any = true;
+                &TAtomic::TMixedWithFlags(is_any, ..) => {
+                    *has_any = is_any;
                     true
                 }
-                &TAtomic::TMixed
-                | &TAtomic::TNonnullMixed
-                | &TAtomic::TMixedFromLoopIsset
-                | &TAtomic::TFalsyMixed
-                | &TAtomic::TTruthyMixed => true,
+                &TAtomic::TMixed | &TAtomic::TMixedFromLoopIsset => true,
                 _ => false,
             };
         }
@@ -243,12 +236,16 @@ impl TUnion {
             return false;
         }
         for atomic in &self.types {
-            if let &TAtomic::TMixed
-            | &TAtomic::TMixedAny
-            | &TAtomic::TMixedFromLoopIsset
-            | &TAtomic::TFalsyMixed = atomic
-            {
-                continue;
+            match atomic {
+                &TAtomic::TMixed
+                | &TAtomic::TMixedFromLoopIsset
+                | &TAtomic::TMixedWithFlags(_, _, true, _) => continue,
+                TAtomic::TMixedWithFlags(is_any, _, is_falsy, _) => {
+                    if *is_any || *is_falsy {
+                        continue;
+                    }
+                }
+                _ => (),
             }
 
             return false;
@@ -262,7 +259,7 @@ impl TUnion {
             return false;
         }
         for atomic in &self.types {
-            if let &TAtomic::TFalsyMixed { .. } = atomic {
+            if let &TAtomic::TMixedWithFlags(_, _, true, _) = atomic {
                 continue;
             }
 
@@ -698,7 +695,7 @@ impl TUnion {
                 | TAtomic::TLiteralString { .. }
                 | TAtomic::TBool
                 | TAtomic::TFalse
-                | TAtomic::TFalsyMixed
+                | TAtomic::TMixedWithFlags(_, _, true, _)
                 | TAtomic::TTrue
                 | TAtomic::TEnum { .. }
                 | TAtomic::TEnumLiteralCase { .. }

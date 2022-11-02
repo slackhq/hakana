@@ -35,20 +35,21 @@ pub fn combine(
         return vec![TAtomic::TMixed];
     }
 
-    if combination.falsy_mixed {
-        if !combination.value_types.is_empty() {
+    if combination.falsy_mixed
+        || combination.nonnull_mixed
+        || combination.any_mixed
+        || combination.truthy_mixed
+    {
+        if combination.truthy_mixed && !combination.value_types.is_empty() {
             return vec![TAtomic::TMixed];
         }
-        return vec![TAtomic::TFalsyMixed];
-    } else if combination.truthy_mixed {
-        if !combination.value_types.is_empty() {
-            return vec![TAtomic::TMixed];
-        }
-        return vec![TAtomic::TTruthyMixed];
-    } else if combination.nonnull_mixed {
-        return vec![TAtomic::TNonnullMixed];
-    } else if combination.any_mixed {
-        return vec![TAtomic::TMixedAny];
+
+        return vec![TAtomic::TMixedWithFlags(
+            combination.any_mixed,
+            combination.truthy_mixed,
+            combination.falsy_mixed,
+            combination.nonnull_mixed,
+        )];
     } else if combination.vanilla_mixed {
         return vec![TAtomic::TMixed];
     }
@@ -233,13 +234,13 @@ fn scrape_type_properties(
     overwrite_empty_array: bool,
 ) -> Option<Vec<TAtomic>> {
     match atomic {
-        TAtomic::TMixed | TAtomic::TMixedAny => {
+        TAtomic::TMixed | TAtomic::TMixedWithFlags(true, ..) => {
             combination.falsy_mixed = false;
             combination.truthy_mixed = false;
             combination.mixed_from_loop_isset = Some(false);
             combination.vanilla_mixed = true;
 
-            if let TAtomic::TMixedAny = atomic {
+            if let TAtomic::TMixedWithFlags(true, ..) = atomic {
                 combination.any_mixed = true;
             }
 
@@ -257,42 +258,45 @@ fn scrape_type_properties(
             combination.value_types.insert("mixed".to_string(), atomic);
             return None;
         }
-        TAtomic::TTruthyMixed | TAtomic::TFalsyMixed => {
-            if combination.vanilla_mixed || combination.any_mixed {
+        TAtomic::TMixedWithFlags(_, truthy_mixed, falsy_mixed, nonnull_mixed) => {
+            if truthy_mixed || falsy_mixed {
+                if combination.vanilla_mixed || combination.any_mixed {
+                    return None;
+                }
+
+                combination.mixed_from_loop_isset = Some(false);
+
+                if matches!(atomic, TAtomic::TMixedWithFlags(_, true, _, _)) {
+                    combination.truthy_mixed = true;
+
+                    if combination.falsy_mixed {
+                        return Some(vec![TAtomic::TMixed]);
+                    }
+                } else if matches!(atomic, TAtomic::TMixedWithFlags(_, _, false, _)) {
+                    combination.falsy_mixed = true;
+
+                    if combination.truthy_mixed {
+                        return Some(vec![TAtomic::TMixed]);
+                    }
+                }
+
                 return None;
             }
 
-            combination.mixed_from_loop_isset = Some(false);
-
-            if matches!(atomic, TAtomic::TTruthyMixed) {
-                combination.truthy_mixed = true;
+            if nonnull_mixed {
+                if combination.vanilla_mixed || combination.any_mixed {
+                    return None;
+                }
 
                 if combination.falsy_mixed {
                     return Some(vec![TAtomic::TMixed]);
                 }
-            } else if matches!(atomic, TAtomic::TFalsyMixed) {
-                combination.falsy_mixed = true;
 
-                if combination.truthy_mixed {
-                    return Some(vec![TAtomic::TMixed]);
-                }
-            }
+                combination.mixed_from_loop_isset = Some(false);
+                combination.nonnull_mixed = true;
 
-            return None;
-        }
-        TAtomic::TNonnullMixed => {
-            if combination.vanilla_mixed || combination.any_mixed {
                 return None;
             }
-
-            if combination.falsy_mixed {
-                return Some(vec![TAtomic::TMixed]);
-            }
-
-            combination.mixed_from_loop_isset = Some(false);
-            combination.nonnull_mixed = true;
-
-            return None;
         }
         _ => (),
     }
@@ -712,7 +716,10 @@ fn scrape_type_properties(
         return None;
     }
 
-    if let TAtomic::TEnum { name, base_type, .. } = atomic {
+    if let TAtomic::TEnum {
+        name, base_type, ..
+    } = atomic
+    {
         combination.enum_value_types.remove(&name);
         combination.enum_types.insert(name, base_type);
 

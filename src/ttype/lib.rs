@@ -51,7 +51,7 @@ pub fn get_mixed() -> TUnion {
 
 #[inline]
 pub fn get_mixed_any() -> TUnion {
-    wrap_atomic(TAtomic::TMixedAny)
+    wrap_atomic(TAtomic::TMixedWithFlags(true, false, false, false))
 }
 
 pub fn get_mixed_maybe_from_loop(from_loop_isset: bool) -> TUnion {
@@ -570,7 +570,6 @@ pub fn get_atomic_syntax_type(
             };
         }
         TAtomic::TEnum { name, .. } => codebase.interner.lookup(*name).to_string(),
-        TAtomic::TFalsyMixed { .. } => "mixed".to_string(),
         TAtomic::TFalse { .. } => "bool".to_string(),
         TAtomic::TFloat { .. } => "float".to_string(),
         TAtomic::TClosure { .. } => {
@@ -588,7 +587,6 @@ pub fn get_atomic_syntax_type(
             *is_valid = false;
             "_".to_string()
         }
-        TAtomic::TNonnullMixed { .. } => "nonnull".to_string(),
         TAtomic::TKeyset { type_param, .. } => {
             let type_param = get_union_syntax_type(type_param, codebase, is_valid);
             format!("keyset<{}>", type_param)
@@ -630,7 +628,6 @@ pub fn get_atomic_syntax_type(
                 "_".to_string()
             }
         }
-        TAtomic::TTruthyMixed { .. } => "mixed".to_string(),
         TAtomic::TNothing => "nothing".to_string(),
         TAtomic::TNull { .. } => {
             *is_valid = false;
@@ -700,9 +697,13 @@ pub fn get_atomic_syntax_type(
             *is_valid = false;
             "_".to_string()
         }
-        TAtomic::TMixedAny => {
-            *is_valid = false;
-            "_".to_string()
+        TAtomic::TMixedWithFlags(is_any, ..) => {
+            if *is_any {
+                *is_valid = false;
+                "_".to_string()
+            } else {
+                "mixed".to_string()
+            }
         }
         TAtomic::TClassTypeConstant {
             class_type,

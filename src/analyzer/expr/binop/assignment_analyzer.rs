@@ -418,7 +418,7 @@ fn analyze_list_assignment(
                 } else {
                     get_nothing()
                 }
-            } else if let TAtomic::TMixedAny = assign_value_atomic_type {
+            } else if let TAtomic::TMixedWithFlags(true, ..) = assign_value_atomic_type {
                 get_mixed_any()
             } else if assign_value_atomic_type.is_mixed() {
                 get_mixed()

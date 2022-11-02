@@ -192,7 +192,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TNonnullMixed { .. } => {
+            TAtomic::TMixedWithFlags(_, _, _, true) => {
                 return Some(intersect_null(
                     assertion,
                     existing_var_type,
@@ -1263,9 +1263,12 @@ pub(crate) fn subtract_null(
             }
 
             did_remove_type = true;
-        } else if let TAtomic::TMixed | TAtomic::TMixedAny | TAtomic::TFalsyMixed { .. } = atomic {
+        } else if let TAtomic::TMixed = atomic {
             did_remove_type = true;
-            acceptable_types.push(TAtomic::TNonnullMixed);
+            acceptable_types.push(TAtomic::TMixedWithFlags(false, false, false, true));
+        } else if let TAtomic::TMixedWithFlags(is_any, false, _, false) = atomic {
+            did_remove_type = true;
+            acceptable_types.push(TAtomic::TMixedWithFlags(is_any, false, false, true));
         } else if let TAtomic::TNull = atomic {
             did_remove_type = true;
         } else if let TAtomic::TNamedObject {
@@ -1546,10 +1549,12 @@ fn reconcile_falsy(
                     shape_name: None,
                 };
                 acceptable_types.push(new_atomic);
-            } else if let TAtomic::TMixed | TAtomic::TMixedAny = atomic {
-                acceptable_types.push(TAtomic::TFalsyMixed);
+            } else if let TAtomic::TMixed = atomic {
+                acceptable_types.push(TAtomic::TMixedWithFlags(false, false, true, false));
+            } else if let TAtomic::TMixedWithFlags(is_any, false, false, _) = atomic {
+                acceptable_types.push(TAtomic::TMixedWithFlags(is_any, false, true, false));
             } else if let TAtomic::TMixedFromLoopIsset = atomic {
-                acceptable_types.push(TAtomic::TFalsyMixed);
+                acceptable_types.push(TAtomic::TMixedWithFlags(false, false, true, false));
             } else if let TAtomic::TString { .. } = atomic {
                 let empty_string = TAtomic::TLiteralString {
                     value: "".to_string(),

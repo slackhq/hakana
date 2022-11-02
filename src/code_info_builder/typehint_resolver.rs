@@ -393,14 +393,14 @@ pub fn get_type_from_hint(
                 "arraykey" => TAtomic::TArraykey { from_any: false },
                 "bool" => TAtomic::TBool,
                 "float" => TAtomic::TFloat,
-                "nonnull" => TAtomic::TNonnullMixed,
+                "nonnull" => TAtomic::TMixedWithFlags(false, false, false, true),
                 "null" => TAtomic::TNull,
                 "nothing" => TAtomic::TNothing,
                 "noreturn" => TAtomic::TNothing,
                 "void" => TAtomic::TVoid,
                 "num" => TAtomic::TNum,
                 "mixed" => TAtomic::TMixed,
-                "dynamic" => TAtomic::TMixedAny,
+                "dynamic" => TAtomic::TMixedWithFlags(true, false, false, false),
                 "vec" | "HH\\varray" | "varray" => {
                     if let Some(first) = extra_info.first() {
                         get_vec_type_from_hint(first, classlike_name, type_context, resolved_names)
@@ -441,13 +441,18 @@ pub fn get_type_from_hint(
                 "vec_or_dict" | "varray_or_darray" => {
                     types.push(TAtomic::TVec {
                         known_items: None,
-                        type_param: wrap_atomic(TAtomic::TMixedAny),
+                        type_param: wrap_atomic(TAtomic::TMixedWithFlags(
+                            true, false, false, false,
+                        )),
                         non_empty: false,
                         known_count: None,
                     });
                     TAtomic::TDict {
                         known_items: None,
-                        params: Some((get_arraykey(true), wrap_atomic(TAtomic::TMixedAny))),
+                        params: Some((
+                            get_arraykey(true),
+                            wrap_atomic(TAtomic::TMixedWithFlags(true, false, false, false)),
+                        )),
                         non_empty: false,
                         shape_name: None,
                     }
@@ -460,7 +465,7 @@ pub fn get_type_from_hint(
             }
         }
         Hint_::Hmixed => TAtomic::TMixed,
-        Hint_::Hany => TAtomic::TMixedAny,
+        Hint_::Hany => TAtomic::TMixedWithFlags(true, false, false, false),
         Hint_::Hshape(shape_info) => {
             get_shape_type_from_hints(shape_info, classlike_name, type_context, resolved_names)
         }
@@ -505,7 +510,7 @@ pub fn get_type_from_hint(
             return get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names);
         }
         Hint_::Herr => panic!(),
-        Hint_::Hnonnull => TAtomic::TNonnullMixed,
+        Hint_::Hnonnull => TAtomic::TMixedWithFlags(false, false, false, true),
         Hint_::Habstr(_, _) => panic!(),
         Hint_::HvecOrDict(_, _) => panic!(),
         Hint_::Hprim(_) => panic!(),

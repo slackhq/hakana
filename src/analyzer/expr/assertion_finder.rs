@@ -227,7 +227,7 @@ fn get_is_assertions(
         );
     } else {
         match is_type.get_single() {
-            TAtomic::TNonnullMixed => {
+            TAtomic::TMixedWithFlags(_, _, _, true) => {
                 scrape_shapes_isset(var_expr, assertion_context, &mut if_types, false);
             }
             TAtomic::TNull => {

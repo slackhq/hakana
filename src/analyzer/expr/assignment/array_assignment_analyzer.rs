@@ -506,7 +506,7 @@ fn update_array_assignment_child_type(
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
                     type_param: value_type.clone(),
                 }),
-                _ => collection_types.push(TAtomic::TMixedAny),
+                _ => collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false)),
             }
         }
     } else {
@@ -551,14 +551,11 @@ fn update_array_assignment_child_type(
                     type_param: value_type.clone(),
                 }),
                 TAtomic::TMixed
-                | TAtomic::TMixedAny
-                | TAtomic::TTruthyMixed
-                | TAtomic::TFalsyMixed
-                | TAtomic::TNonnullMixed => {
+                | TAtomic::TMixedWithFlags(..) => {
                     // todo handle illegal
-                    collection_types.push(TAtomic::TMixedAny)
+                    collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false))
                 }
-                _ => collection_types.push(TAtomic::TMixedAny),
+                _ => collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false)),
             }
         }
     }

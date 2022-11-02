@@ -493,10 +493,8 @@ fn replace_atomic(
                                 }
                             }
                             TAtomic::TMixedFromLoopIsset => Some(get_mixed_maybe_from_loop(true)),
-                            TAtomic::TMixed | TAtomic::TNonnullMixed | TAtomic::TTruthyMixed => {
-                                Some(get_mixed())
-                            }
-                            TAtomic::TMixedAny => Some(get_mixed_any()),
+                            TAtomic::TMixed => Some(get_mixed()),
+                            TAtomic::TMixedWithFlags(..) => Some(wrap_atomic(input_inner.clone())),
                             _ => None,
                         },
                         _ => None,

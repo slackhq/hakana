@@ -61,12 +61,7 @@ pub(crate) fn reconcile(
                         | TAtomic::TNum
                         | TAtomic::TString
                         | TAtomic::TTrue,
-                    TAtomic::TMixed
-                        | TAtomic::TFalsyMixed
-                        | TAtomic::TTruthyMixed
-                        | TAtomic::TNonnullMixed
-                        | TAtomic::TMixedAny
-                        | TAtomic::TMixedFromLoopIsset,
+                    TAtomic::TMixed | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset,
                     get_scalar(),
                     assertion,
                     existing_var_type,
@@ -84,10 +79,7 @@ pub(crate) fn reconcile(
                 return intersect_simple!(
                     TAtomic::TBool { .. } | TAtomic::TFalse | TAtomic::TTrue,
                     TAtomic::TMixed
-                        | TAtomic::TFalsyMixed
-                        | TAtomic::TTruthyMixed
-                        | TAtomic::TNonnullMixed
-                        | TAtomic::TMixedAny
+                        | TAtomic::TMixedWithFlags(..)
                         | TAtomic::TScalar
                         | TAtomic::TMixedFromLoopIsset,
                     get_bool(),
@@ -107,9 +99,7 @@ pub(crate) fn reconcile(
                 return intersect_simple!(
                     TAtomic::TFalse { .. },
                     TAtomic::TMixed
-                        | TAtomic::TFalsyMixed
-                        | TAtomic::TNonnullMixed
-                        | TAtomic::TMixedAny
+                        | TAtomic::TMixedWithFlags(_, false, _, _)
                         | TAtomic::TScalar
                         | TAtomic::TBool
                         | TAtomic::TMixedFromLoopIsset,
@@ -130,9 +120,7 @@ pub(crate) fn reconcile(
                 return intersect_simple!(
                     TAtomic::TTrue { .. },
                     TAtomic::TMixed
-                        | TAtomic::TTruthyMixed
-                        | TAtomic::TNonnullMixed
-                        | TAtomic::TMixedAny
+                        | TAtomic::TMixedWithFlags(_, _, false, _)
                         | TAtomic::TScalar
                         | TAtomic::TBool
                         | TAtomic::TMixedFromLoopIsset,
@@ -153,10 +141,7 @@ pub(crate) fn reconcile(
                 return intersect_simple!(
                     TAtomic::TFloat { .. },
                     TAtomic::TMixed
-                        | TAtomic::TFalsyMixed
-                        | TAtomic::TTruthyMixed
-                        | TAtomic::TNonnullMixed
-                        | TAtomic::TMixedAny
+                        | TAtomic::TMixedWithFlags(..)
                         | TAtomic::TScalar
                         | TAtomic::TNum
                         | TAtomic::TMixedFromLoopIsset,
@@ -186,7 +171,7 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            TAtomic::TNonnullMixed { .. } => {
+            TAtomic::TMixedWithFlags(_, _, _, true) => {
                 return Some(subtract_null(
                     assertion,
                     existing_var_type,
@@ -454,7 +439,7 @@ pub(crate) fn intersect_null(
             TAtomic::TNull => {
                 nullable_types.push(TAtomic::TNull);
             }
-            TAtomic::TMixed | TAtomic::TFalsyMixed | TAtomic::TMixedAny => {
+            TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false, _, false) => {
                 nullable_types.push(TAtomic::TNull);
                 did_remove_type = true;
             }
@@ -994,11 +979,8 @@ fn intersect_string(
                 acceptable_types.push(atomic.clone());
             }
             TAtomic::TMixed
-            | TAtomic::TFalsyMixed
-            | TAtomic::TTruthyMixed
-            | TAtomic::TNonnullMixed
+            | TAtomic::TMixedWithFlags(..)
             | TAtomic::TMixedFromLoopIsset
-            | TAtomic::TMixedAny
             | TAtomic::TScalar
             | TAtomic::TArraykey { .. } => {
                 return get_string();
@@ -1123,10 +1105,7 @@ fn intersect_int(
                 acceptable_types.push(atomic.clone());
             }
             TAtomic::TMixed
-            | TAtomic::TFalsyMixed
-            | TAtomic::TTruthyMixed
-            | TAtomic::TNonnullMixed
-            | TAtomic::TMixedAny
+            | TAtomic::TMixedWithFlags(..)
             | TAtomic::TScalar
             | TAtomic::TNum
             | TAtomic::TArraykey { .. }
@@ -1254,10 +1233,12 @@ fn reconcile_truthy(
                 acceptable_types.push(atomic.get_non_empty_vec(None));
             } else if let TAtomic::TDict { .. } = atomic {
                 acceptable_types.push(atomic.clone().make_non_empty_dict());
-            } else if let TAtomic::TMixed | TAtomic::TMixedAny = atomic {
-                acceptable_types.push(TAtomic::TTruthyMixed);
+            } else if let TAtomic::TMixed = atomic {
+                acceptable_types.push(TAtomic::TMixedWithFlags(false, true, false, false));
+            } else if let TAtomic::TMixedWithFlags(is_any, false, false, _) = atomic {
+                acceptable_types.push(TAtomic::TMixedWithFlags(is_any, true, false, false));
             } else if let TAtomic::TMixedFromLoopIsset = atomic {
-                acceptable_types.push(TAtomic::TTruthyMixed);
+                acceptable_types.push(TAtomic::TMixedWithFlags(false, true, false, true));
             } else if let TAtomic::TString = atomic {
                 acceptable_types.push(TAtomic::TStringWithFlags(true, false, false));
             } else if let TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) = atomic {
@@ -1322,8 +1303,8 @@ fn reconcile_isset(
     for atomic in existing_var_types {
         if let TAtomic::TNull { .. } = atomic {
             did_remove_type = true;
-        } else if let TAtomic::TMixed | TAtomic::TMixedAny | TAtomic::TFalsyMixed = atomic {
-            acceptable_types.push(TAtomic::TNonnullMixed);
+        } else if let TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false, _, false) = atomic {
+            acceptable_types.push(TAtomic::TMixedWithFlags(false, false, false, true));
             did_remove_type = true;
         } else {
             acceptable_types.push(atomic);

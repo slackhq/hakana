@@ -127,7 +127,7 @@ fn get_unpacked_type(
                 has_valid_expected_offset = true;
                 type_param
             }
-            TAtomic::TMixedAny => {
+            TAtomic::TMixedWithFlags(true, ..) => {
                 for (_, origin) in &arg_value_type.parent_nodes {
                     tast_info.data_flow_graph.add_mixed_data(origin, pos);
                 }
@@ -147,7 +147,9 @@ fn get_unpacked_type(
 
                 get_mixed_any()
             }
-            TAtomic::TNonnullMixed | TAtomic::TTruthyMixed | TAtomic::TMixed => {
+            TAtomic::TMixedWithFlags(_, true, _, _)
+            | TAtomic::TMixedWithFlags(_, _, _, true)
+            | TAtomic::TMixed => {
                 for (_, origin) in &arg_value_type.parent_nodes {
                     tast_info.data_flow_graph.add_mixed_data(origin, pos);
                 }
@@ -167,7 +169,7 @@ fn get_unpacked_type(
 
                 get_mixed()
             }
-            TAtomic::TFalsyMixed | TAtomic::TNothing => get_nothing(),
+            | TAtomic::TMixedWithFlags(_, _, true, _) | TAtomic::TNothing => get_nothing(),
             _ => {
                 tast_info.maybe_add_issue(
                     Issue::new(

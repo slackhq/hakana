@@ -278,7 +278,7 @@ fn expand_atomic(
             t
         } else {
             *skip_key = true;
-            new_return_type_parts.push(TAtomic::TMixedAny);
+            new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
             return;
         };
 
@@ -458,7 +458,7 @@ fn expand_atomic(
                     c
                 } else {
                     *skip_key = true;
-                    new_return_type_parts.push(TAtomic::TMixedAny);
+                    new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
                     return;
                 };
 
@@ -466,7 +466,7 @@ fn expand_atomic(
                     t.clone()
                 } else {
                     *skip_key = true;
-                    new_return_type_parts.push(TAtomic::TMixedAny);
+                    new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
                     return;
                 };
 
@@ -491,7 +491,7 @@ fn expand_atomic(
             }
             _ => {
                 *skip_key = true;
-                new_return_type_parts.push(TAtomic::TMixedAny);
+                new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
                 return;
             }
         };

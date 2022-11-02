@@ -1,0 +1,3 @@
+ERROR: MixedAnyArrayAccess - input.hack:2:12 - Unsafe array access on value with type any
+ERROR: MixedAnyArrayAccess - input.hack:7:16 - Unsafe array access on value with type truthy-from-any
+ERROR: MixedArrayAccess - input.hack:13:9 - Unsafe array access on value with type mixed

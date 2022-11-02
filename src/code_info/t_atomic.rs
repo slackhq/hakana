@@ -56,7 +56,6 @@ pub enum TAtomic {
         name: Symbol,
         base_type: Option<Box<TAtomic>>,
     },
-    TFalsyMixed,
     TFalse,
     TFloat,
     TClosure {
@@ -86,9 +85,13 @@ pub enum TAtomic {
     TLiteralString {
         value: String,
     },
-    TMixedAny,
     TMixed,
     TMixedFromLoopIsset,
+    // .0 => TMixedAny
+    // .1 => TTruthyMixed
+    // .2 => TFalsyMixed
+    // .3 => TNonnullMixed
+    TMixedWithFlags(bool, bool, bool, bool),
     TNamedObject {
         name: Symbol,
         type_params: Option<Vec<TUnion>>,
@@ -96,7 +99,6 @@ pub enum TAtomic {
         extra_types: Option<FxHashMap<String, TAtomic>>,
         remapped_params: bool,
     },
-    TNonnullMixed,
     TObject,
     TNothing,
     TNull,
@@ -128,7 +130,6 @@ pub enum TAtomic {
         defining_entity: Symbol,
     },
     TTrue,
-    TTruthyMixed,
     TTypeAlias {
         name: Symbol,
         type_params: Option<Vec<TUnion>>,
@@ -222,7 +223,6 @@ impl TAtomic {
                     name.0.to_string()
                 }
             }
-            TAtomic::TFalsyMixed { .. } => "falsy-mixed".to_string(),
             TAtomic::TFalse { .. } => "false".to_string(),
             TAtomic::TFloat { .. } => "float".to_string(),
             TAtomic::TClosure {
@@ -272,7 +272,6 @@ impl TAtomic {
             }
             TAtomic::TInt { .. } => "int".to_string(),
             TAtomic::TObject => "object".to_string(),
-            TAtomic::TNonnullMixed { .. } => "nonnull".to_string(),
             TAtomic::TKeyset { type_param, .. } => {
                 let mut str = String::new();
                 str += "keyset<";
@@ -323,8 +322,29 @@ impl TAtomic {
                 str += ")";
                 return str;
             }
-            TAtomic::TMixedAny => "any".to_string(),
             TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => "mixed".to_string(),
+            TAtomic::TMixedWithFlags(is_any, is_truthy, is_falsy, is_nonnull) => {
+                return if *is_any {
+                    if *is_truthy {
+                        "truthy-from-any"
+                    } else if *is_falsy {
+                        "falsy-from-any"
+                    } else if *is_nonnull {
+                        "nonnull-from-any"
+                    } else {
+                        "any"
+                    }
+                } else if *is_truthy {
+                    "truthy-mixed"
+                } else if *is_falsy {
+                    "falsy-mixed"
+                } else if *is_nonnull {
+                    "nonnull"
+                } else {
+                    "mixed"
+                }
+                .to_string()
+            }
             TAtomic::TNamedObject {
                 name,
                 type_params,
@@ -402,7 +422,6 @@ impl TAtomic {
                     return str;
                 }
             },
-            TAtomic::TTruthyMixed { .. } => "truthy-mixed".to_string(),
             TAtomic::TNothing => "nothing".to_string(),
             TAtomic::TNull { .. } => "null".to_string(),
             TAtomic::TNum { .. } => "num".to_string(),
@@ -560,13 +579,11 @@ impl TAtomic {
                 str += ">";
                 return str;
             }
-            TAtomic::TFalsyMixed { .. }
-            | TAtomic::TFalse { .. }
+            TAtomic::TFalse { .. }
             | TAtomic::TFloat { .. }
             | TAtomic::TClosure { .. }
             | TAtomic::TClosureAlias { .. }
             | TAtomic::TInt { .. }
-            | TAtomic::TTruthyMixed { .. }
             | TAtomic::TNothing
             | TAtomic::TNull { .. }
             | TAtomic::TNum { .. }
@@ -580,14 +597,14 @@ impl TAtomic {
             | TAtomic::TClassTypeConstant { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TVoid
-            | TAtomic::TNonnullMixed { .. }
             | TAtomic::TTrue { .. }
             | TAtomic::TObject
             | TAtomic::TScalar
             | TAtomic::TReference { .. }
             | TAtomic::TArraykey { .. }
             | TAtomic::TBool { .. }
-            | TAtomic::TEnumClassLabel { .. } => self.get_id(None),
+            | TAtomic::TEnumClassLabel { .. }
+            | TAtomic::TMixedWithFlags(..) => self.get_id(None),
 
             TAtomic::TStringWithFlags(..) => "string".to_string(),
 
@@ -666,7 +683,6 @@ impl TAtomic {
                 return str;
             }
             TAtomic::TPlaceholder => "_".to_string(),
-            TAtomic::TMixedAny => "mixed".to_string(),
         }
     }
 
@@ -709,27 +725,18 @@ impl TAtomic {
 
     pub fn is_mixed(&self) -> bool {
         match self {
-            TAtomic::TMixed
-            | TAtomic::TNonnullMixed
-            | TAtomic::TMixedFromLoopIsset
-            | TAtomic::TMixedAny
-            | TAtomic::TFalsyMixed
-            | TAtomic::TTruthyMixed => true,
+            TAtomic::TMixed | TAtomic::TMixedFromLoopIsset | TAtomic::TMixedWithFlags(..) => true,
             _ => false,
         }
     }
 
     pub fn is_mixed_with_any(&self, has_any: &mut bool) -> bool {
         match self {
-            TAtomic::TMixedAny => {
-                *has_any = true;
+            TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => true,
+            TAtomic::TMixedWithFlags(is_any, ..) => {
+                *has_any = *is_any;
                 true
             }
-            TAtomic::TMixed
-            | TAtomic::TNonnullMixed
-            | TAtomic::TMixedFromLoopIsset
-            | TAtomic::TFalsyMixed
-            | TAtomic::TTruthyMixed => true,
             _ => false,
         }
     }
@@ -991,7 +998,7 @@ impl TAtomic {
     pub fn is_truthy(&self, interner: &Interner) -> bool {
         match &self {
             &TAtomic::TTrue { .. }
-            | &TAtomic::TTruthyMixed { .. }
+            | &TAtomic::TMixedWithFlags(_, true, _, _)
             | &TAtomic::TStringWithFlags(true, _, _)
             | &TAtomic::TObject { .. }
             | &TAtomic::TClosure { .. }
@@ -1057,7 +1064,9 @@ impl TAtomic {
 
     pub fn is_falsy(&self) -> bool {
         match &self {
-            &TAtomic::TFalse { .. } | &TAtomic::TNull { .. } | &TAtomic::TFalsyMixed { .. } => true,
+            &TAtomic::TFalse { .. }
+            | &TAtomic::TNull { .. }
+            | &TAtomic::TMixedWithFlags(_, _, true, _) => true,
             &TAtomic::TLiteralInt { value, .. } => {
                 if *value == 0 {
                     return true;
@@ -1246,12 +1255,14 @@ impl TAtomic {
                     params.0 = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                 }
                 if let TAtomic::TPlaceholder = params.1.get_single() {
-                    params.1 = TUnion::new(vec![TAtomic::TMixedAny]);
+                    params.1 =
+                        TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
                 }
             }
             TAtomic::TVec { type_param, .. } => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
-                    *type_param = TUnion::new(vec![TAtomic::TMixedAny]);
+                    *type_param =
+                        TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
                 }
             }
             TAtomic::TKeyset { ref mut type_param } => {
@@ -1276,13 +1287,17 @@ impl TAtomic {
 
                         if let Some(value_param) = type_params.get_mut(1) {
                             if let TAtomic::TPlaceholder = value_param.get_single() {
-                                *value_param = TUnion::new(vec![TAtomic::TMixedAny]);
+                                *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
+                                    true, false, false, false,
+                                )]);
                             }
                         }
                     } else if name == "HH\\Container" {
                         if let Some(value_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = value_param.get_single() {
-                                *value_param = TUnion::new(vec![TAtomic::TMixedAny]);
+                                *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
+                                    true, false, false, false,
+                                )]);
                             }
                         }
                     }
@@ -1492,7 +1507,10 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
             if let Some(symbol_kind) = codebase_symbols.all.get(name) {
                 match symbol_kind {
                     SymbolKind::Enum => {
-                        *t_atomic = TAtomic::TEnum { name: name.clone(), base_type: None, };
+                        *t_atomic = TAtomic::TEnum {
+                            name: name.clone(),
+                            base_type: None,
+                        };
                         return;
                     }
                     SymbolKind::TypeDefinition => {

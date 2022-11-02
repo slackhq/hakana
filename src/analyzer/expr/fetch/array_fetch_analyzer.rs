@@ -298,7 +298,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 statements_analyzer.get_hpos(&stmt.2),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
     }
 
@@ -313,7 +313,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 statements_analyzer.get_hpos(&stmt.2),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
     }
 
@@ -386,10 +386,10 @@ pub(crate) fn get_array_access_type_given_offset(
             }
             TAtomic::TTemplateParam { .. }
             | TAtomic::TMixed
-            | TAtomic::TMixedAny
-            | TAtomic::TTruthyMixed
-            | TAtomic::TNothing
-            | TAtomic::TNonnullMixed => {
+            | TAtomic::TMixedWithFlags(true, ..)
+            | TAtomic::TMixedWithFlags(_, true, ..)
+            | TAtomic::TMixedWithFlags(_, _, _, true)
+            | TAtomic::TNothing => {
                 let new_type = handle_array_access_on_mixed(
                     statements_analyzer,
                     stmt.2,
@@ -419,7 +419,7 @@ pub(crate) fn get_array_access_type_given_offset(
                                 statements_analyzer.get_hpos(&stmt.0.pos()),
                             ),
                             statements_analyzer.get_config(),
-                            statements_analyzer.get_file_path_actual()
+                            statements_analyzer.get_file_path_actual(),
                         );
                     }
 
@@ -495,7 +495,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     statements_analyzer.get_hpos(&stmt.2),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         } else {
             tast_info.maybe_add_issue(
@@ -509,7 +509,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     statements_analyzer.get_hpos(&stmt.2),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         }
     }
@@ -585,7 +585,7 @@ pub(crate) fn handle_array_access_on_vec(
                             statements_analyzer.get_hpos(&pos),
                         ),
                         statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual()
+                        statements_analyzer.get_file_path_actual(),
                     );
                 }
 
@@ -605,7 +605,7 @@ pub(crate) fn handle_array_access_on_vec(
                             statements_analyzer.get_hpos(&pos),
                         ),
                         statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual()
+                        statements_analyzer.get_file_path_actual(),
                     );
                 }
 
@@ -701,7 +701,7 @@ pub(crate) fn handle_array_access_on_dict(
                                 statements_analyzer.get_hpos(&pos),
                             ),
                             statements_analyzer.get_config(),
-                            statements_analyzer.get_file_path_actual()
+                            statements_analyzer.get_file_path_actual(),
                         );
                     } else {
                         *has_possibly_undefined = true;
@@ -728,7 +728,7 @@ pub(crate) fn handle_array_access_on_dict(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
 
                 // since we're emitting a very specific error
@@ -857,7 +857,7 @@ pub(crate) fn handle_array_access_on_mixed(
             // oh no!
             tast_info.maybe_add_issue(
                 Issue::new(
-                    if let TAtomic::TMixedAny = mixed {
+                    if let TAtomic::TMixedWithFlags(true, ..) = mixed {
                         IssueKind::MixedAnyArrayAssignment
                     } else {
                         IssueKind::MixedArrayAssignment
@@ -869,13 +869,13 @@ pub(crate) fn handle_array_access_on_mixed(
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         } else {
             // oh no!
             tast_info.maybe_add_issue(
                 Issue::new(
-                    if let TAtomic::TMixedAny = mixed {
+                    if let TAtomic::TMixedWithFlags(true, ..) = mixed {
                         IssueKind::MixedAnyArrayAccess
                     } else {
                         IssueKind::MixedArrayAccess
@@ -887,7 +887,7 @@ pub(crate) fn handle_array_access_on_mixed(
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         }
     }

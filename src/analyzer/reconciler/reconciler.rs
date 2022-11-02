@@ -888,10 +888,7 @@ fn get_value_for_key(
                     if let TAtomic::TNull { .. } = existing_key_type_part {
                         class_property_type = get_null();
                     } else if let TAtomic::TMixed
-                    | TAtomic::TMixedAny
-                    | TAtomic::TTruthyMixed
-                    | TAtomic::TFalsyMixed
-                    | TAtomic::TNonnullMixed
+                    | TAtomic::TMixedWithFlags(..)
                     | TAtomic::TTemplateParam { .. }
                     | TAtomic::TObject { .. } = existing_key_type_part
                     {
@@ -1049,7 +1046,7 @@ pub(crate) fn trigger_issue_for_impossible(
                     )
                 }
             } else {
-                if assertion_string == "nonnull" {
+                if assertion_string == "nonnull" || assertion_string == "nonnull-from-any" {
                     Issue::new(
                         IssueKind::RedundantNonnullTypeComparison,
                         format!("{} is always nonnull", key),
@@ -1077,7 +1074,7 @@ pub(crate) fn trigger_issue_for_impossible(
 
         tast_info.maybe_add_issue(
             if not_operator {
-                if assertion_string == "nonnull" {
+                if assertion_string == "nonnull" || assertion_string == "nonnull-from-any" {
                     Issue::new(
                         IssueKind::RedundantNonnullTypeComparison,
                         format!("{} is always nonnull", key),
