@@ -41,10 +41,6 @@ pub(crate) fn reconcile(
     let assertion_type = assertion.get_type();
 
     if let Some(assertion_type) = assertion_type {
-        if assertion_type.is_mixed() && existing_var_type.is_mixed() {
-            return Some(existing_var_type.clone());
-        }
-
         match assertion_type {
             TAtomic::TScalar { .. } => {
                 return intersect_simple!(
@@ -311,7 +307,12 @@ pub(crate) fn reconcile(
                     suppressed_issues,
                 ));
             }
-            _ => (),
+            TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => {
+                if existing_var_type.is_mixed() {
+                    return Some(existing_var_type.clone());
+                }
+            }
+            _ => {},
         }
     }
 
@@ -1303,8 +1304,11 @@ fn reconcile_isset(
     for atomic in existing_var_types {
         if let TAtomic::TNull { .. } = atomic {
             did_remove_type = true;
-        } else if let TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false, _, false) = atomic {
+        } else if let TAtomic::TMixed = atomic {
             acceptable_types.push(TAtomic::TMixedWithFlags(false, false, false, true));
+            did_remove_type = true;
+        } else if let TAtomic::TMixedWithFlags(is_any, false, _, false) = atomic {
+            acceptable_types.push(TAtomic::TMixedWithFlags(is_any, false, false, true));
             did_remove_type = true;
         } else {
             acceptable_types.push(atomic);

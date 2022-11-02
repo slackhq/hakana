@@ -1,5 +1,5 @@
 use crate::{
-    add_union_type, combine_optional_union_types, get_arrayish_params, get_mixed, get_mixed_any,
+    add_union_type, combine_optional_union_types, get_arrayish_params, get_mixed_any,
     get_mixed_maybe_from_loop, get_value_param, intersect_union_types, is_array_container,
     type_combiner,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
@@ -493,8 +493,7 @@ fn replace_atomic(
                                 }
                             }
                             TAtomic::TMixedFromLoopIsset => Some(get_mixed_maybe_from_loop(true)),
-                            TAtomic::TMixed => Some(get_mixed()),
-                            TAtomic::TMixedWithFlags(..) => Some(wrap_atomic(input_inner.clone())),
+                            TAtomic::TMixed | TAtomic::TMixedWithFlags(..) => Some(get_mixed_any()),
                             _ => None,
                         },
                         _ => None,

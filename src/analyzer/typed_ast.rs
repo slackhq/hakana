@@ -173,7 +173,6 @@ impl TastInfo {
                         | IssueKind::MixedArgument
                         | IssueKind::MixedArrayAccess
                         | IssueKind::MixedArrayAssignment
-                        | IssueKind::MixedAnyAssignment
                         | IssueKind::MixedMethodCall
                         | IssueKind::MixedReturnStatement
                         | IssueKind::MixedPropertyAssignment
@@ -187,6 +186,29 @@ impl TastInfo {
                         | IssueKind::PossiblyFalseArgument
                         | IssueKind::PossiblyInvalidArgument
                         | IssueKind::PossiblyNullArgument => {
+                            return false;
+                        }
+                        _ => {}
+                    },
+                    // type inference failed
+                    4297 => match &issue.kind {
+                        IssueKind::MixedAnyArgument
+                        | IssueKind::MixedAnyArrayAccess
+                        | IssueKind::MixedAnyArrayAssignment
+                        | IssueKind::MixedAnyArrayOffset
+                        | IssueKind::MixedAnyAssignment
+                        | IssueKind::MixedAnyMethodCall
+                        | IssueKind::MixedAnyPropertyAssignment
+                        | IssueKind::MixedAnyPropertyTypeCoercion
+                        | IssueKind::MixedAnyReturnStatement
+                        | IssueKind::MixedArgument
+                        | IssueKind::MixedArrayAccess
+                        | IssueKind::MixedArrayAssignment
+                        | IssueKind::MixedArrayOffset
+                        | IssueKind::MixedMethodCall
+                        | IssueKind::MixedPropertyAssignment
+                        | IssueKind::MixedPropertyTypeCoercion
+                        | IssueKind::MixedReturnStatement => {
                             return false;
                         }
                         _ => {}

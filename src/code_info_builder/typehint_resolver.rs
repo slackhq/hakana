@@ -204,7 +204,7 @@ fn get_shape_type_from_hints(
 
     TAtomic::TDict {
         params: if shape_info.allows_unknown_fields {
-            Some((get_arraykey(true), get_mixed()))
+            Some((get_arraykey(true), get_mixed_any()))
         } else {
             None
         },

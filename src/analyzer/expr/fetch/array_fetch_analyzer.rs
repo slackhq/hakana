@@ -317,17 +317,20 @@ pub(crate) fn get_array_access_type_given_offset(
         );
     }
 
-    let array_atomic_types = &array_type.types;
+    let mut array_atomic_types = array_type.types.iter().collect::<Vec<_>>();
 
     let mut stmt_type = None;
 
-    for mut atomic_var_type in array_atomic_types {
+    while let Some(mut atomic_var_type) = array_atomic_types.pop() {
         if let TAtomic::TTypeAlias {
             as_type: Some(as_type),
             ..
         } = atomic_var_type
         {
             atomic_var_type = &as_type
+        } else if let TAtomic::TTemplateParam { as_type, .. } = atomic_var_type {
+            array_atomic_types.extend(&as_type.types);
+            continue;
         }
 
         match atomic_var_type {
@@ -384,8 +387,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     stmt_type = Some(new_type);
                 }
             }
-            TAtomic::TTemplateParam { .. }
-            | TAtomic::TMixed
+            TAtomic::TMixed
             | TAtomic::TMixedWithFlags(true, ..)
             | TAtomic::TMixedWithFlags(_, true, ..)
             | TAtomic::TMixedWithFlags(_, _, _, true)
