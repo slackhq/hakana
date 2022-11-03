@@ -1306,6 +1306,57 @@ impl TAtomic {
             _ => {}
         }
     }
+
+    pub(crate) fn is_json_compatible(&self) -> bool {
+        if self.is_some_scalar() {
+            return true;
+        }
+
+        match self {
+            TAtomic::TNull => true,
+            TAtomic::TDict {
+                known_items,
+                params,
+                ..
+            } => {
+                if let Some(params) = params {
+                    if !params.1.is_json_compatible() {
+                        return false;
+                    }
+                }
+
+                if let Some(known_items) = known_items {
+                    for (_, (_, item_type)) in known_items {
+                        if !item_type.is_json_compatible() {
+                            return false;
+                        }
+                    }
+                }
+
+                true
+            }
+            TAtomic::TVec {
+                known_items,
+                type_param,
+                ..
+            } => {
+                if !type_param.is_json_compatible() {
+                    return false;
+                }
+
+                if let Some(known_items) = known_items {
+                    for (_, (_, item_type)) in known_items {
+                        if !item_type.is_json_compatible() {
+                            return false;
+                        }
+                    }
+                }
+
+                true
+            }
+            _ => false,
+        }
+    }
 }
 
 impl HasTypeNodes for TAtomic {

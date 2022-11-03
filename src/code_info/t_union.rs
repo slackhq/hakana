@@ -707,6 +707,10 @@ impl TUnion {
     pub fn needs_population(&self) -> bool {
         !self.populated && self.types.iter().any(|v| v.needs_population())
     }
+
+    pub fn is_json_compatible(&self) -> bool {
+        self.types.iter().all(|t| t.is_json_compatible())
+    }
 }
 
 impl PartialEq for TUnion {
