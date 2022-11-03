@@ -584,6 +584,7 @@ pub fn scan_files(
             codebase_path,
             use_codebase_cache,
             &mut codebase,
+            &config.root_dir,
             &file_statuses,
         );
     }
@@ -803,6 +804,7 @@ fn load_cached_codebase(
     codebase_path: &String,
     use_codebase_cache: bool,
     codebase: &mut CodebaseInfo,
+    root_dir: &String,
     file_statuses: &IndexMap<String, FileStatus>,
 ) {
     if Path::new(codebase_path).exists() && use_codebase_cache {
@@ -815,13 +817,19 @@ fn load_cached_codebase(
             let changed_files = file_statuses
                 .iter()
                 .filter(|(_, v)| !matches!(v, FileStatus::Unchanged(..)))
-                .map(|(k, _)| k)
+                .map(|(k, _)| {
+                    if k.contains(root_dir) {
+                        k[(root_dir.len() + 1)..].to_string()
+                    } else {
+                        k.clone()
+                    }
+                })
                 .collect::<FxHashSet<_>>();
 
             let functions_to_remove = codebase
                 .functions_in_files
                 .iter()
-                .filter(|(k, _)| changed_files.contains(k))
+                .filter(|(k, _)| changed_files.contains(*k))
                 .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
                 .flatten()
                 .collect::<FxHashSet<_>>();
@@ -829,7 +837,7 @@ fn load_cached_codebase(
             let typedefs_to_remove = codebase
                 .typedefs_in_files
                 .iter()
-                .filter(|(k, _)| changed_files.contains(k))
+                .filter(|(k, _)| changed_files.contains(*k))
                 .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
                 .flatten()
                 .collect::<FxHashSet<_>>();
@@ -837,7 +845,7 @@ fn load_cached_codebase(
             let constants_to_remove = codebase
                 .const_files
                 .iter()
-                .filter(|(k, _)| changed_files.contains(k))
+                .filter(|(k, _)| changed_files.contains(*k))
                 .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
                 .flatten()
                 .collect::<FxHashSet<_>>();
@@ -845,7 +853,7 @@ fn load_cached_codebase(
             let classlikes_to_remove = codebase
                 .classlikes_in_files
                 .iter()
-                .filter(|(k, _)| changed_files.contains(k))
+                .filter(|(k, _)| changed_files.contains(*k))
                 .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
                 .flatten()
                 .collect::<FxHashSet<_>>();
@@ -1029,6 +1037,10 @@ fn scan_file(
     let aast = match aast {
         Ok(aast) => aast,
         Err(err) => {
+            if err == "Not a valid Hack file" {
+                return FxHashMap::default();
+            }
+
             panic!("Parser error {}", err);
         }
     };

@@ -185,7 +185,10 @@ impl TastInfo {
                         | IssueKind::NullableReturnValue
                         | IssueKind::PossiblyFalseArgument
                         | IssueKind::PossiblyInvalidArgument
-                        | IssueKind::PossiblyNullArgument => {
+                        | IssueKind::PossiblyNullArgument
+                        | IssueKind::InvalidPropertyAssignmentValue
+                        | IssueKind::LessSpecificNestedAnyReturnStatement
+                        | IssueKind::LessSpecificNestedAnyArgumentType => {
                             return false;
                         }
                         _ => {}
