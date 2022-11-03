@@ -1307,12 +1307,16 @@ impl TAtomic {
         }
     }
 
-    pub(crate) fn is_json_compatible(&self) -> bool {
+    pub(crate) fn is_json_compatible(&self, has_object: &mut bool) -> bool {
         if self.is_some_scalar() {
             return true;
         }
 
         match self {
+            TAtomic::TNamedObject { .. } => {
+                *has_object = true;
+                return false;
+            }
             TAtomic::TNull => true,
             TAtomic::TNothing => true,
             TAtomic::TDict {
@@ -1321,14 +1325,14 @@ impl TAtomic {
                 ..
             } => {
                 if let Some(params) = params {
-                    if !params.1.is_json_compatible() {
+                    if !params.1.is_json_compatible(has_object) {
                         return false;
                     }
                 }
 
                 if let Some(known_items) = known_items {
                     for (_, (_, item_type)) in known_items {
-                        if !item_type.is_json_compatible() {
+                        if !item_type.is_json_compatible(has_object) {
                             return false;
                         }
                     }
@@ -1336,19 +1340,19 @@ impl TAtomic {
 
                 true
             }
-            TAtomic::TKeyset { type_param } => type_param.is_json_compatible(),
+            TAtomic::TKeyset { type_param } => type_param.is_json_compatible(has_object),
             TAtomic::TVec {
                 known_items,
                 type_param,
                 ..
             } => {
-                if !type_param.is_json_compatible() {
+                if !type_param.is_json_compatible(has_object) {
                     return false;
                 }
 
                 if let Some(known_items) = known_items {
                     for (_, (_, item_type)) in known_items {
-                        if !item_type.is_json_compatible() {
+                        if !item_type.is_json_compatible(has_object) {
                             return false;
                         }
                     }
@@ -1359,7 +1363,8 @@ impl TAtomic {
             TAtomic::TTypeAlias {
                 as_type: Some(as_type),
                 ..
-            } => as_type.is_json_compatible(),
+            } => as_type.is_json_compatible(has_object),
+            TAtomic::TTemplateParam { as_type, .. } => as_type.is_json_compatible(has_object),
             _ => false,
         }
     }

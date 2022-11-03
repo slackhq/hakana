@@ -708,8 +708,8 @@ impl TUnion {
         !self.populated && self.types.iter().any(|v| v.needs_population())
     }
 
-    pub fn is_json_compatible(&self) -> bool {
-        self.types.iter().all(|t| t.is_json_compatible())
+    pub fn is_json_compatible(&self, has_object: &mut bool) -> bool {
+        self.types.iter().all(|t| t.is_json_compatible(has_object))
     }
 }
 
