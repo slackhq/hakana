@@ -302,7 +302,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             );
         }
     };
@@ -329,7 +329,7 @@ fn check_variable_or_property_assignment(
                 statements_analyzer.get_hpos(&assign_var_pos),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
     }
     let ref mut data_flow_graph = tast_info.data_flow_graph;
@@ -396,7 +396,7 @@ fn analyze_list_assignment(
                                     statements_analyzer.get_hpos(&assign_var_item.1),
                                 ),
                                 statements_analyzer.get_config(),
-                                statements_analyzer.get_file_path_actual()
+                                statements_analyzer.get_file_path_actual(),
                             );
                         }
 

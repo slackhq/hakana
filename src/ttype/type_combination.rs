@@ -37,11 +37,12 @@ pub(crate) struct TypeCombination {
 
     pub dict_alias_name: Option<Option<String>>,
 
-    pub falsy_mixed: bool,
-    pub truthy_mixed: bool,
-    pub nonnull_mixed: bool,
-    pub vanilla_mixed: bool,
+    pub falsy_mixed: Option<bool>,
+    pub truthy_mixed: Option<bool>,
+    pub nonnull_mixed: Option<bool>,
     pub any_mixed: bool,
+    pub vanilla_mixed: bool,
+    pub has_mixed: bool,
 
     pub mixed_from_loop_isset: Option<bool>,
 
@@ -72,10 +73,11 @@ impl TypeCombination {
             vec_type_param: None,
             keyset_type_param: None,
             dict_alias_name: None,
-            falsy_mixed: false,
-            truthy_mixed: false,
-            nonnull_mixed: false,
+            falsy_mixed: None,
+            truthy_mixed: None,
+            nonnull_mixed: None,
             vanilla_mixed: false,
+            has_mixed: false,
             any_mixed: false,
             mixed_from_loop_isset: None,
             literal_strings: FxHashMap::default(),
