@@ -1314,6 +1314,7 @@ impl TAtomic {
 
         match self {
             TAtomic::TNull => true,
+            TAtomic::TNothing => true,
             TAtomic::TDict {
                 known_items,
                 params,
@@ -1335,6 +1336,7 @@ impl TAtomic {
 
                 true
             }
+            TAtomic::TKeyset { type_param } => type_param.is_json_compatible(),
             TAtomic::TVec {
                 known_items,
                 type_param,
@@ -1354,6 +1356,10 @@ impl TAtomic {
 
                 true
             }
+            TAtomic::TTypeAlias {
+                as_type: Some(as_type),
+                ..
+            } => as_type.is_json_compatible(),
             _ => false,
         }
     }
