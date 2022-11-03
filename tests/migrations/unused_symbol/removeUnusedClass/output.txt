@@ -1,0 +1,8 @@
+
+
+class B {}
+
+<<__EntryPoint>>
+function foo(): void {
+    new B();
+}
