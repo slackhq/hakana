@@ -3,6 +3,7 @@ use crate::{
     statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
+    code_location::StmtStart,
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
@@ -34,6 +35,22 @@ pub(crate) fn analyze(
 
     let mut known_items = BTreeMap::new();
     for (name, value_expr) in shape_fields {
+        let start_pos = match name {
+            ShapeFieldName::SFlitInt(name) => &name.0,
+            ShapeFieldName::SFlitStr(name) => &name.0,
+            ShapeFieldName::SFclassConst(lhs, _) => &lhs.0,
+        };
+
+        if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
+            if current_stmt_offset.1 != start_pos.line() {
+                *current_stmt_offset = StmtStart(
+                    start_pos.start_offset(),
+                    start_pos.line(),
+                    start_pos.to_raw_span().start.column() as usize,
+                );
+            }
+        }
+
         let name = match name {
             ShapeFieldName::SFlitInt(name) => Some(DictKey::Int(name.1.parse::<u32>().unwrap())),
             ShapeFieldName::SFlitStr(name) => Some(DictKey::String(name.1.to_string())),

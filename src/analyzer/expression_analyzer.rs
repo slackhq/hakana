@@ -60,6 +60,11 @@ pub(crate) fn analyze(
                 current_stmt_offset.1 = expr.1.line();
             }
         }
+
+        tast_info.expr_fixme_positions.insert(
+            (expr.1.start_offset(), expr.1.end_offset()),
+            *current_stmt_offset,
+        );
     }
 
     match &expr.2 {
