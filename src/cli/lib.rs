@@ -608,6 +608,7 @@ pub fn init(
             let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
 
             config.issues_to_fix.extend(issue_kinds_filter);
+            config.hooks = analysis_hooks;
 
             let config_path = config_path.unwrap();
 
