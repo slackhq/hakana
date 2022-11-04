@@ -73,6 +73,7 @@ pub enum IssueKind {
     PossiblyUndefinedIntArrayOffset,
     PossiblyUndefinedStringArrayOffset,
     PossiblyUnusedProperty,
+    PreferShapeIndexingForNonnullField,
     PropertyTypeCoercion,
     RedundantNonnullTypeComparison,
     RedundantTypeComparison,
@@ -171,6 +172,7 @@ impl IssueKind {
             }
             "PossiblyUnusedProperty" => Ok(IssueKind::PossiblyUnusedProperty),
             "PropertyTypeCoercion" => Ok(IssueKind::PropertyTypeCoercion),
+            "PreferShapeIndexingForNonnullField" => Ok(IssueKind::PreferShapeIndexingForNonnullField),
             "RedundantNonnullTypeComparison" => Ok(IssueKind::RedundantNonnullTypeComparison),
             "RedundantTypeComparison" => Ok(IssueKind::RedundantTypeComparison),
             "UndefinedIntArrayOffset" => Ok(IssueKind::UndefinedIntArrayOffset),

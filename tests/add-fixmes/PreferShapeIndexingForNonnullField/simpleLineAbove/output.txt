@@ -1,0 +1,18 @@
+type shape_t = shape(
+	'a' => ?string,
+	'always' => string,
+	?'nullable' => string
+);
+function foo(shape_t $s) {
+	/* HAKANA_FIXME[PreferShapeIndexingForNonnullField] Shapes::idx($s, 'always') indexes a nonnull shape field, this can be done by indexing the shape directly with $s['always'] */
+	$type = Shapes::idx($s, 'always');
+	/* HAKANA_FIXME[PreferShapeIndexingForNonnullField] Shapes::idx($s, 'a') indexes a nonnull shape field, this can be done by indexing the shape directly with $s['a'] */
+	$type = Shapes::idx($s, 'a');
+	/* HAKANA_FIXME[PreferShapeIndexingForNonnullField] Shapes::idx($s, 'b') indexes a nonnull shape field, this can be done by indexing the shape directly with $s['b'] */
+	$type = Shapes::idx($s, 'b');
+	$type = Shapes::idx($s, 'nullable');
+
+	/* HAKANA_FIXME[PreferShapeIndexingForNonnullField] Shapes::idx($s, 'always') indexes a nonnull shape field, this can be done by indexing the shape directly with $s['always'] */
+	$type = Shapes::idx($s, 'always', "useless default");
+	$type = Shapes::idx($s, 'nullable', "default");
+}

@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use hakana_reflection_info::issue::{IssueKind, Issue};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::{
@@ -352,6 +353,37 @@ fn handle_shapes_static_method(
 
                             if has_possibly_undefined && call_expr.1.len() == 2 {
                                 expr_type_inner.add_type(TAtomic::TNull);
+                            }
+
+                            if !has_possibly_undefined && has_valid_expected_offset{
+                                let expr_var_id = expression_identifier::get_var_id(
+                                    &call_expr.1[0].1,
+                                    context.function_context.calling_class.as_ref(),
+                                    statements_analyzer.get_file_analyzer().get_file_source(),
+                                    statements_analyzer.get_file_analyzer().resolved_names,
+                                    Some(statements_analyzer.get_codebase()),
+                                );
+    
+                                let dim_var_id = expression_identifier::get_dim_id(
+                                    &call_expr.1[1].1,
+                                    None,
+                                    &FxHashMap::default(),
+                                );
+                                tast_info.maybe_add_issue(
+                                    Issue::new(
+                                        IssueKind::PreferShapeIndexingForNonnullField,
+                                        format!(
+                                            "Shapes::idx({}, {}) indexes a nonnull shape field, this can be done by indexing the shape directly with {}[{}]",
+                                            expr_var_id.as_ref().unwrap().as_str(),
+                                            dim_var_id.as_ref().unwrap().as_str(),
+                                            expr_var_id.as_ref().unwrap().as_str(),
+                                            dim_var_id.as_ref().unwrap().as_str(),
+                                        ),
+                                        statements_analyzer.get_hpos(&pos),
+                                    ),
+                                    statements_analyzer.get_config(),
+                                    &statements_analyzer.get_file_analyzer().get_file_source().file_path_actual
+                                );
                             }
 
                             expr_type = Some(expr_type_inner);
