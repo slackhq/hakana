@@ -23,20 +23,7 @@ pub fn combine(
     let mut combination = type_combination::TypeCombination::new();
 
     for atomic in types {
-        let result =
-            scrape_type_properties(atomic, &mut combination, codebase, overwrite_empty_array);
-
-        if let Some(result) = result {
-            return result;
-        }
-    }
-
-    if combination.nonnull_mixed.unwrap_or(false) && combination.value_types.contains_key("null") {
-        if combination.any_mixed {
-            return vec![TAtomic::TMixedWithFlags(true, false, false, false)];
-        }
-
-        return vec![TAtomic::TMixed];
+        scrape_type_properties(atomic, &mut combination, codebase, overwrite_empty_array);
     }
 
     if combination.falsy_mixed.unwrap_or(false)
@@ -232,7 +219,7 @@ fn scrape_type_properties(
     combination: &mut TypeCombination,
     codebase: &CodebaseInfo,
     overwrite_empty_array: bool,
-) -> Option<Vec<TAtomic>> {
+) {
     match atomic {
         TAtomic::TMixed => {
             combination.falsy_mixed = Some(false);
@@ -241,11 +228,11 @@ fn scrape_type_properties(
             combination.vanilla_mixed = true;
             combination.has_mixed = true;
 
-            return None;
+            return;
         }
         TAtomic::TMixedFromLoopIsset => {
             if combination.vanilla_mixed || combination.any_mixed {
-                return None;
+                return;
             }
 
             if let None = combination.mixed_from_loop_isset {
@@ -253,7 +240,7 @@ fn scrape_type_properties(
             }
 
             combination.value_types.insert("mixed".to_string(), atomic);
-            return None;
+            return;
         }
         TAtomic::TMixedWithFlags(any, truthy_mixed, falsy_mixed, nonnull_mixed) => {
             combination.has_mixed = true;
@@ -264,25 +251,26 @@ fn scrape_type_properties(
 
             if truthy_mixed {
                 if combination.vanilla_mixed {
-                    return None;
+                    return;
                 }
 
                 combination.mixed_from_loop_isset = Some(false);
 
+                if combination.falsy_mixed.unwrap_or(false) {
+                    combination.vanilla_mixed = true;
+                    combination.falsy_mixed = Some(false);
+                    return;
+                }
+
                 if combination.truthy_mixed.is_some() {
-                    return None;
+                    return;
                 }
 
                 for (_, existing_value_type) in &combination.value_types {
                     if !existing_value_type.is_truthy(&codebase.interner) {
-                        combination.truthy_mixed = Some(false);
                         combination.vanilla_mixed = true;
-                        return None;
+                        return;
                     }
-                }
-
-                if combination.falsy_mixed.unwrap_or(false) {
-                    return None;
                 }
 
                 combination.truthy_mixed = Some(true);
@@ -292,25 +280,26 @@ fn scrape_type_properties(
 
             if falsy_mixed {
                 if combination.vanilla_mixed {
-                    return None;
+                    return;
                 }
 
                 combination.mixed_from_loop_isset = Some(false);
 
+                if combination.truthy_mixed.unwrap_or(false) {
+                    combination.vanilla_mixed = true;
+                    combination.truthy_mixed = Some(false);
+                    return;
+                }
+
                 if combination.falsy_mixed.is_some() {
-                    return None;
+                    return;
                 }
 
                 for (_, existing_value_type) in &combination.value_types {
                     if !existing_value_type.is_falsy() {
-                        combination.falsy_mixed = Some(false);
                         combination.vanilla_mixed = true;
-                        return None;
+                        return;
                     }
-                }
-
-                if combination.truthy_mixed.unwrap_or(false) {
-                    return None;
                 }
 
                 combination.falsy_mixed = Some(true);
@@ -320,25 +309,24 @@ fn scrape_type_properties(
 
             if nonnull_mixed {
                 if combination.vanilla_mixed {
-                    return None;
+                    return;
                 }
 
                 combination.mixed_from_loop_isset = Some(false);
 
                 if combination.value_types.contains_key("null") {
                     combination.vanilla_mixed = true;
-                    return None;
-                }
-
-                if combination.nonnull_mixed.is_some() {
-                    return None;
+                    return;
                 }
 
                 if combination.falsy_mixed.unwrap_or(false) {
-                    if any {
-                        return Some(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
-                    }
-                    return Some(vec![TAtomic::TMixed]);
+                    combination.falsy_mixed = Some(false);
+                    combination.vanilla_mixed = true;
+                    return;
+                }
+
+                if combination.nonnull_mixed.is_some() {
+                    return;
                 }
 
                 combination.mixed_from_loop_isset = Some(false);
@@ -347,7 +335,7 @@ fn scrape_type_properties(
                 combination.nonnull_mixed = Some(false);
             }
 
-            return None;
+            return;
         }
         _ => (),
     }
@@ -358,29 +346,29 @@ fn scrape_type_properties(
             combination.vanilla_mixed = true;
         }
 
-        return None;
+        return;
     } else if combination.truthy_mixed.unwrap_or(false) {
         if !atomic.is_truthy(&codebase.interner) {
             combination.truthy_mixed = Some(false);
             combination.vanilla_mixed = true;
         }
 
-        return None;
+        return;
     } else if combination.nonnull_mixed.unwrap_or(false) {
         if let TAtomic::TNull = atomic {
             combination.nonnull_mixed = Some(false);
             combination.vanilla_mixed = true;
         }
 
-        return None;
+        return;
     } else if combination.has_mixed {
-        return None;
+        return;
     }
 
     // bool|false = bool
     if let TAtomic::TFalse { .. } | TAtomic::TTrue { .. } = atomic {
         if combination.value_types.contains_key("bool") {
-            return None;
+            return;
         }
     }
 
@@ -500,7 +488,7 @@ fn scrape_type_properties(
             }
         }
 
-        return None;
+        return;
     }
 
     if let TAtomic::TKeyset { ref type_param, .. } = atomic {
@@ -516,7 +504,7 @@ fn scrape_type_properties(
                 Some(type_param.clone())
             };
 
-        return None;
+        return;
     }
 
     if let TAtomic::TDict {
@@ -630,7 +618,7 @@ fn scrape_type_properties(
             }
         }
 
-        return None;
+        return;
     }
 
     // this probably won't ever happen, but the object top type
@@ -642,7 +630,7 @@ fn scrape_type_properties(
             .retain(|_, t| !matches!(t, TAtomic::TNamedObject { .. }));
         combination.value_types.insert(type_key, atomic);
 
-        return None;
+        return;
     }
 
     // TODO (maybe) add support for Vector, Map etc.
@@ -770,7 +758,7 @@ fn scrape_type_properties(
                 .insert(type_key, (fq_class_name.clone(), type_params));
         }
 
-        return None;
+        return;
     }
 
     if let TAtomic::TEnumLiteralCase {
@@ -780,7 +768,7 @@ fn scrape_type_properties(
     } = atomic
     {
         if combination.enum_types.contains_key(&enum_name) {
-            return None;
+            return;
         }
 
         combination
@@ -789,7 +777,7 @@ fn scrape_type_properties(
             .or_insert_with(FxHashMap::default)
             .insert(member_name, constraint_type);
 
-        return None;
+        return;
     }
 
     if let TAtomic::TEnum {
@@ -799,7 +787,7 @@ fn scrape_type_properties(
         combination.enum_value_types.remove(&name);
         combination.enum_types.insert(name, base_type);
 
-        return None;
+        return;
     }
 
     if let TAtomic::TNamedObject {
@@ -810,16 +798,16 @@ fn scrape_type_properties(
     {
         if !combination.has_object_top_type {
             if combination.value_types.contains_key(&type_key) {
-                return None;
+                return;
             }
         } else {
-            return None;
+            return;
         }
 
         if !codebase.class_or_interface_or_enum_exists(&fq_class_name) {
             combination.value_types.insert(type_key, atomic);
 
-            return None;
+            return;
         }
 
         let is_class = codebase.class_exists(&fq_class_name);
@@ -841,7 +829,7 @@ fn scrape_type_properties(
                     if is_class {
                         // if covered by a parent class
                         if codebase.class_or_trait_extends(fq_class_name, existing_name) {
-                            return None;
+                            return;
                         }
                     }
                 } else {
@@ -853,11 +841,11 @@ fn scrape_type_properties(
                     if is_class {
                         // skip if interface is implemented by fq_class_name
                         if codebase.class_or_trait_implements(fq_class_name, existing_name) {
-                            return None;
+                            return;
                         }
                     } else {
                         if codebase.interface_extends(fq_class_name, existing_name) {
-                            return None;
+                            return;
                         }
                     }
                 }
@@ -870,7 +858,7 @@ fn scrape_type_properties(
             combination.value_types.remove(&type_key);
         }
 
-        return None;
+        return;
     }
 
     if let TAtomic::TScalar { .. } = atomic {
@@ -888,12 +876,12 @@ fn scrape_type_properties(
         });
 
         combination.value_types.insert(type_key, atomic);
-        return None;
+        return;
     }
 
     if let TAtomic::TArraykey { .. } = atomic {
         if combination.value_types.contains_key("scalar") {
-            return None;
+            return;
         }
 
         combination.literal_strings = FxHashMap::default();
@@ -903,12 +891,12 @@ fn scrape_type_properties(
             .retain(|k, _| k != "string" && k != "int");
 
         combination.value_types.insert(type_key, atomic);
-        return None;
+        return;
     }
 
     if let TAtomic::TNum { .. } = atomic {
         if combination.value_types.contains_key("scalar") {
-            return None;
+            return;
         }
 
         combination.literal_ints = FxHashMap::default();
@@ -917,7 +905,7 @@ fn scrape_type_properties(
             .retain(|k, _| k != "float" && k != "int");
 
         combination.value_types.insert(type_key, atomic);
-        return None;
+        return;
     }
 
     if let TAtomic::TString { .. }
@@ -929,7 +917,7 @@ fn scrape_type_properties(
         if combination.value_types.contains_key("arraykey")
             || combination.value_types.contains_key("scalar")
         {
-            return None;
+            return;
         }
     }
 
@@ -937,14 +925,14 @@ fn scrape_type_properties(
         if combination.value_types.contains_key("num")
             || combination.value_types.contains_key("scalar")
         {
-            return None;
+            return;
         }
     }
 
     if let TAtomic::TString { .. } = atomic {
         combination.literal_strings = FxHashMap::default();
         combination.value_types.insert(type_key, atomic);
-        return None;
+        return;
     }
 
     if let TAtomic::TStringWithFlags(mut is_truthy, mut is_nonempty, is_nonspecific_literal) =
@@ -952,7 +940,7 @@ fn scrape_type_properties(
     {
         if let Some(existing_string_type) = combination.value_types.get_mut("string") {
             if let TAtomic::TString = existing_string_type {
-                return None;
+                return;
             }
 
             if let TAtomic::TStringWithFlags(
@@ -965,7 +953,7 @@ fn scrape_type_properties(
                     && *existing_is_non_empty == is_nonempty
                     && *existing_is_nonspecific == is_nonspecific_literal
                 {
-                    return None;
+                    return;
                 }
 
                 *existing_string_type = TAtomic::TStringWithFlags(
@@ -974,7 +962,7 @@ fn scrape_type_properties(
                     *existing_is_nonspecific && is_nonspecific_literal,
                 );
             }
-            return None;
+            return;
         }
 
         if is_truthy || is_nonempty {
@@ -1002,13 +990,13 @@ fn scrape_type_properties(
 
         combination.literal_strings = FxHashMap::default();
 
-        return None;
+        return;
     }
 
     if let TAtomic::TLiteralString { value, .. } = &atomic {
         if let Some(existing_string_type) = combination.value_types.get_mut("string") {
             match existing_string_type {
-                TAtomic::TString => return None,
+                TAtomic::TString => return,
                 TAtomic::TStringWithFlags(is_truthy, is_nonempty, is_nonspecific_literal) => {
                     if value == "" {
                         *is_truthy = false;
@@ -1021,7 +1009,7 @@ fn scrape_type_properties(
                         *existing_string_type = TAtomic::TString;
                     }
 
-                    return None;
+                    return;
                 }
 
                 _ => (),
@@ -1036,19 +1024,19 @@ fn scrape_type_properties(
             combination.literal_strings.insert(type_key, atomic);
         }
 
-        return None;
+        return;
     }
 
     if let TAtomic::TInt = atomic {
         combination.literal_ints = FxHashMap::default();
         combination.value_types.insert(type_key, atomic);
-        return None;
+        return;
     }
 
     if let TAtomic::TLiteralInt { .. } = atomic {
         if let Some(existing_int_type) = combination.value_types.get("int") {
             if let TAtomic::TInt = existing_int_type {
-                return None;
+                return;
             }
         } else if combination.literal_ints.len() > 20 {
             combination.literal_ints = FxHashMap::default();
@@ -1059,12 +1047,10 @@ fn scrape_type_properties(
             combination.literal_ints.insert(type_key, atomic);
         }
 
-        return None;
+        return;
     }
 
     combination.value_types.insert(type_key, atomic);
-
-    None
 }
 
 fn merge_array_subtype(

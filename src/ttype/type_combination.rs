@@ -7,6 +7,7 @@ use hakana_reflection_info::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
+#[derive(Debug)]
 pub(crate) struct TypeCombination {
     pub value_types: FxHashMap<String, TAtomic>,
 

@@ -7,3 +7,11 @@ function foo($a, arraykey $b): void {
 
     if ($a) {}
 }
+
+function bar($a): void {
+    if ($a) {
+        
+    }
+
+    if ($a) {}
+}
