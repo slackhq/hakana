@@ -67,6 +67,15 @@ impl StrId {
     pub fn aria_attribute() -> Self {
         StrId(8)
     }
+    pub fn any_array() -> Self {
+        StrId(9)
+    }
+    pub fn keyed_container() -> Self {
+        StrId(10)
+    }
+    pub fn container() -> Self {
+        StrId(11)
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -94,6 +103,9 @@ impl Interner {
         interner.intern("__construct".to_string());
         interner.intern("<data attribute>".to_string());
         interner.intern("<aria attribute>".to_string());
+        interner.intern("HH\\AnyArray".to_string());
+        interner.intern("HH\\KeyedContainer".to_string());
+        interner.intern("HH\\Container".to_string());
         interner
     }
 

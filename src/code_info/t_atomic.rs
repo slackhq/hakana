@@ -1307,14 +1307,23 @@ impl TAtomic {
         }
     }
 
-    pub(crate) fn is_json_compatible(&self, has_object: &mut bool) -> bool {
+    pub(crate) fn is_json_compatible(&self, banned_type_aliases: &Vec<&str>) -> bool {
         if self.is_some_scalar() {
             return true;
         }
 
         match self {
-            TAtomic::TNamedObject { .. } => {
-                *has_object = true;
+            TAtomic::TNamedObject {
+                name, type_params, ..
+            } => {
+                if let Some(type_params) = type_params {
+                    if name == &StrId::any_array() || name == &StrId::keyed_container() {
+                        return type_params[1].is_json_compatible(banned_type_aliases);
+                    } else if name == &StrId::container() {
+                        return type_params[0].is_json_compatible(banned_type_aliases);
+                    }
+                }
+
                 return false;
             }
             TAtomic::TNull => true,
@@ -1322,17 +1331,24 @@ impl TAtomic {
             TAtomic::TDict {
                 known_items,
                 params,
+                shape_name,
                 ..
             } => {
+                if let Some(shape_name) = shape_name {
+                    if banned_type_aliases.contains(&shape_name.as_str()) {
+                        return false;
+                    }
+                }
+
                 if let Some(params) = params {
-                    if !params.1.is_json_compatible(has_object) {
+                    if !params.1.is_json_compatible(banned_type_aliases) {
                         return false;
                     }
                 }
 
                 if let Some(known_items) = known_items {
                     for (_, (_, item_type)) in known_items {
-                        if !item_type.is_json_compatible(has_object) {
+                        if !item_type.is_json_compatible(banned_type_aliases) {
                             return false;
                         }
                     }
@@ -1340,19 +1356,19 @@ impl TAtomic {
 
                 true
             }
-            TAtomic::TKeyset { type_param } => type_param.is_json_compatible(has_object),
+            TAtomic::TKeyset { type_param } => type_param.is_json_compatible(banned_type_aliases),
             TAtomic::TVec {
                 known_items,
                 type_param,
                 ..
             } => {
-                if !type_param.is_json_compatible(has_object) {
+                if !type_param.is_json_compatible(banned_type_aliases) {
                     return false;
                 }
 
                 if let Some(known_items) = known_items {
                     for (_, (_, item_type)) in known_items {
-                        if !item_type.is_json_compatible(has_object) {
+                        if !item_type.is_json_compatible(banned_type_aliases) {
                             return false;
                         }
                     }
@@ -1363,8 +1379,10 @@ impl TAtomic {
             TAtomic::TTypeAlias {
                 as_type: Some(as_type),
                 ..
-            } => as_type.is_json_compatible(has_object),
-            TAtomic::TTemplateParam { as_type, .. } => as_type.is_json_compatible(has_object),
+            } => as_type.is_json_compatible(banned_type_aliases),
+            TAtomic::TTemplateParam { as_type, .. } => {
+                as_type.is_json_compatible(banned_type_aliases)
+            }
             _ => false,
         }
     }
