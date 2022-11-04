@@ -193,7 +193,8 @@ fn handle_special_functions(
             Some(get_string())
         }
         // falsable strings
-        "json_encode" | "file_get_contents" | "hex2bin" | "realpath" | "date" | "base64_decode" => {
+        "json_encode" | "file_get_contents" | "hex2bin" | "realpath" | "date" | "base64_decode"
+        | "date_format" => {
             let mut false_or_string = TUnion::new(vec![TAtomic::TString, TAtomic::TFalse]);
             false_or_string.ignore_falsable_issues = true;
             Some(false_or_string)

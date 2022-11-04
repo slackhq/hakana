@@ -1312,6 +1312,11 @@ impl TAtomic {
             return true;
         }
 
+        if self.is_mixed() {
+            // maybe in the future don't give up here
+            return true;
+        }
+
         match self {
             TAtomic::TNamedObject {
                 name, type_params, ..
