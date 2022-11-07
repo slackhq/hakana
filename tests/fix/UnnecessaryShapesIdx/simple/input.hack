@@ -12,3 +12,7 @@ function foo(shape_t $s) {
 	$type = Shapes::idx($s, 'always', "useless default");
 	$type = Shapes::idx($s, 'nullable', "default");
 }
+
+function bar(?shape_t $s) {
+	$type = Shapes::idx($s, 'always');
+}

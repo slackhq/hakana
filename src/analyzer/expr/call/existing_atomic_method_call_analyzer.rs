@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use hakana_reflection_info::issue::{IssueKind, Issue};
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::{
@@ -10,6 +10,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
+use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
 use hakana_type::{
     add_union_type, get_arraykey, get_dict, get_mixed_any, template::TemplateResult,
@@ -334,10 +335,12 @@ fn handle_shapes_static_method(
 
                 if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
                     let mut has_valid_expected_offset = false;
+                    let mut has_possibly_undefined = false;
+                    let mut has_matching_dict_key = false;
+                    let is_nullable = dict_type.is_nullable();
 
                     for atomic_type in &dict_type.types {
                         if let TAtomic::TDict { .. } = atomic_type {
-                            let mut has_possibly_undefined = false;
                             let mut expr_type_inner = handle_array_access_on_dict(
                                 statements_analyzer,
                                 pos,
@@ -349,48 +352,44 @@ fn handle_shapes_static_method(
                                 &mut has_valid_expected_offset,
                                 true,
                                 &mut has_possibly_undefined,
+                                &mut has_matching_dict_key,
                             );
 
-                            if has_possibly_undefined && call_expr.1.len() == 2 {
+                            if !is_nullable && has_matching_dict_key {
+                                if call_expr.1.len() == 2 {
+                                    if has_possibly_undefined {
+                                        expr_type_inner.add_type(TAtomic::TNull);
+                                    } else if !expr_type_inner.is_nothing() {
+                                        if has_valid_expected_offset {
+                                            handle_defined_shape_idx(
+                                                call_expr,
+                                                context,
+                                                statements_analyzer,
+                                                tast_info,
+                                                pos,
+                                            );
+                                        }
+                                    } else {
+                                        expr_type_inner = get_null();
+                                    }
+                                } else if !has_possibly_undefined && has_valid_expected_offset {
+                                    handle_defined_shape_idx(
+                                        call_expr,
+                                        context,
+                                        statements_analyzer,
+                                        tast_info,
+                                        pos,
+                                    );
+                                }
+                            } else if call_expr.1.len() == 2 && is_nullable {
                                 expr_type_inner.add_type(TAtomic::TNull);
-                            }
-
-                            if !has_possibly_undefined && has_valid_expected_offset{
-                                let expr_var_id = expression_identifier::get_var_id(
-                                    &call_expr.1[0].1,
-                                    context.function_context.calling_class.as_ref(),
-                                    statements_analyzer.get_file_analyzer().get_file_source(),
-                                    statements_analyzer.get_file_analyzer().resolved_names,
-                                    Some(statements_analyzer.get_codebase()),
-                                );
-    
-                                let dim_var_id = expression_identifier::get_dim_id(
-                                    &call_expr.1[1].1,
-                                    None,
-                                    &FxHashMap::default(),
-                                );
-                                tast_info.maybe_add_issue(
-                                    Issue::new(
-                                        IssueKind::PreferShapeIndexingForNonnullField,
-                                        format!(
-                                            "Shapes::idx({}, {}) indexes a nonnull shape field, this can be done by indexing the shape directly with {}[{}]",
-                                            expr_var_id.as_ref().unwrap().as_str(),
-                                            dim_var_id.as_ref().unwrap().as_str(),
-                                            expr_var_id.as_ref().unwrap().as_str(),
-                                            dim_var_id.as_ref().unwrap().as_str(),
-                                        ),
-                                        statements_analyzer.get_hpos(&pos),
-                                    ),
-                                    statements_analyzer.get_config(),
-                                    &statements_analyzer.get_file_analyzer().get_file_source().file_path_actual
-                                );
                             }
 
                             expr_type = Some(expr_type_inner);
                         }
                     }
 
-                    if !has_valid_expected_offset && call_expr.1.len() > 2 {
+                    if (is_nullable || has_possibly_undefined) && call_expr.1.len() > 2 {
                         let default_type = tast_info.get_expr_type(call_expr.1[2].1.pos());
                         expr_type = if let Some(expr_type) = expr_type {
                             Some(if let Some(default_type) = default_type {
@@ -424,4 +423,68 @@ fn handle_shapes_static_method(
     }
 
     None
+}
+
+fn handle_defined_shape_idx(
+    call_expr: (
+        &Vec<aast::Targ<()>>,
+        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Option<aast::Expr<(), ()>>,
+    ),
+    context: &mut ScopeContext,
+    statements_analyzer: &StatementsAnalyzer,
+    tast_info: &mut TastInfo,
+    pos: &Pos,
+) {
+    if statements_analyzer
+        .get_config()
+        .issues_to_fix
+        .contains(&IssueKind::UnnecessaryShapesIdx)
+        && !statements_analyzer.get_config().add_fixmes
+    {
+        tast_info.replacements.insert(
+            (pos.start_offset(), call_expr.1[0].1.pos().start_offset()),
+            "".to_string(),
+        );
+        tast_info.replacements.insert(
+            (
+                call_expr.1[0].1.pos().end_offset(),
+                call_expr.1[1].1.pos().start_offset(),
+            ),
+            "[".to_string(),
+        );
+        tast_info.replacements.insert(
+            (call_expr.1[1].1.pos().end_offset(), pos.end_offset()),
+            "]".to_string(),
+        );
+    }
+
+    let expr_var_id = expression_identifier::get_var_id(
+        &call_expr.1[0].1,
+        context.function_context.calling_class.as_ref(),
+        statements_analyzer.get_file_analyzer().get_file_source(),
+        statements_analyzer.get_file_analyzer().resolved_names,
+        Some(statements_analyzer.get_codebase()),
+    );
+
+    let dim_var_id =
+        expression_identifier::get_dim_id(&call_expr.1[1].1, None, &FxHashMap::default());
+
+    if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
+        tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::UnnecessaryShapesIdx,
+                    format!(
+                        "Shapes::idx({}, {}) indexes a nonnull shape field, this can be done by indexing the shape directly with {}[{}]",
+                        expr_var_id,
+                        dim_var_id,
+                        expr_var_id,
+                        dim_var_id,
+                    ),
+                    statements_analyzer.get_hpos(&pos),
+                ),
+                statements_analyzer.get_config(),
+                &statements_analyzer.get_file_analyzer().get_file_source().file_path_actual
+            );
+    }
 }

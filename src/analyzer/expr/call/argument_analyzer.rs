@@ -112,6 +112,7 @@ fn get_unpacked_type(
                 &mut has_valid_expected_offset,
                 context.inside_isset,
                 &mut false,
+                &mut false,
             ),
             TAtomic::TVec { .. } => handle_array_access_on_vec(
                 statements_analyzer,

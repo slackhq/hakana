@@ -364,6 +364,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     &mut has_valid_expected_offset,
                     context.inside_isset,
                     &mut false,
+                    &mut false
                 );
 
                 if let Some(existing_type) = stmt_type {
@@ -643,6 +644,7 @@ pub(crate) fn handle_array_access_on_dict(
     has_valid_expected_offset: &mut bool,
     allow_possibly_undefined: bool,
     has_possibly_undefined: &mut bool,
+    has_matching_dict_key: &mut bool,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
 
@@ -685,6 +687,7 @@ pub(crate) fn handle_array_access_on_dict(
             let possible_value = known_items.get(&dict_key).cloned();
             if let Some((actual_possibly_undefined, actual_value)) = possible_value {
                 *has_valid_expected_offset = true;
+                *has_matching_dict_key = true;
                 // we know exactly which item we are fetching
 
                 let expr_type = (*actual_value).clone();
