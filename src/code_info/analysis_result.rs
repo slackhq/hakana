@@ -10,9 +10,16 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
+pub enum Replacement {
+    Remove,
+    TrimPrecedingWhitespace(u64),
+    Substitute(String),
+}
+
+#[derive(Clone, Debug)]
 pub struct AnalysisResult {
     pub emitted_issues: BTreeMap<String, Vec<Issue>>,
-    pub replacements: FxHashMap<String, BTreeMap<(usize, usize), String>>,
+    pub replacements: FxHashMap<String, BTreeMap<(usize, usize), Replacement>>,
     pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,

@@ -1,4 +1,5 @@
 use crate::{config::Config, scope_context::CaseScope};
+use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
@@ -27,12 +28,11 @@ pub struct TastInfo {
     pub data_flow_graph: DataFlowGraph,
     pub case_scopes: Vec<CaseScope>,
     pub issues_to_emit: Vec<Issue>,
-    pub all_issues: BTreeMap<usize, IssueKind>,
     pub inferred_return_types: Vec<TUnion>,
     pub fully_matched_switch_offsets: FxHashSet<usize>,
     pub closures: FxHashMap<Pos, FunctionLikeInfo>,
     pub closure_spans: Vec<(usize, usize)>,
-    pub replacements: BTreeMap<(usize, usize), String>,
+    pub replacements: BTreeMap<(usize, usize), Replacement>,
     pub current_stmt_offset: Option<StmtStart>,
     pub expr_fixme_positions: FxHashMap<(usize, usize), StmtStart>,
     pub symbol_references: SymbolReferences,
@@ -41,7 +41,8 @@ pub struct TastInfo {
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
-    hakana_ignores: BTreeMap<usize, Vec<IssueKind>>,
+    hakana_fixme_or_ignores: BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64))>>,
+    pub matched_ignore_positions: FxHashSet<(usize, usize)>,
 }
 
 impl TastInfo {
@@ -51,7 +52,7 @@ impl TastInfo {
         comments: &Vec<&(Pos, Comment)>,
         all_custom_issues: &FxHashSet<String>,
     ) -> Self {
-        let mut hakana_ignores = BTreeMap::new();
+        let mut hakana_fixme_or_ignores = BTreeMap::new();
         for (pos, comment) in comments {
             match comment {
                 Comment::CmtBlock(text) => {
@@ -64,10 +65,17 @@ impl TastInfo {
                     if let Some(issue_kind) =
                         get_issue_from_comment(trimmed_text, all_custom_issues)
                     {
-                        hakana_ignores
+                        hakana_fixme_or_ignores
                             .entry(pos.line())
                             .or_insert_with(Vec::new)
-                            .push(issue_kind);
+                            .push((
+                                issue_kind,
+                                (
+                                    pos.start_offset(),
+                                    pos.end_offset(),
+                                    pos.to_raw_span().start.beg_of_line(),
+                                ),
+                            ));
                     }
                 }
                 _ => {}
@@ -93,9 +101,9 @@ impl TastInfo {
             symbol_references: SymbolReferences::new(),
             issue_filter: None,
             expr_effects: FxHashMap::default(),
-            hakana_ignores,
+            hakana_fixme_or_ignores,
             expr_fixme_positions: FxHashMap::default(),
-            all_issues: BTreeMap::new(),
+            matched_ignore_positions: FxHashSet::default(),
         }
     }
 
@@ -125,9 +133,6 @@ impl TastInfo {
 
         issue.can_fix = config.add_fixmes && config.issues_to_fix.contains(&issue.kind);
 
-        self.all_issues
-            .insert(issue.pos.start_line, issue.kind.clone());
-
         if !self.can_add_issue(&issue) {
             return;
         }
@@ -143,13 +148,15 @@ impl TastInfo {
         if let Some(insertion_start) = &issue.pos.insertion_start {
             self.replacements.insert(
                 (insertion_start.0, insertion_start.0),
-                format!(
-                    "/* HAKANA_FIXME[{}] {} */\n{}",
-                    issue.kind.to_string(),
-                    issue.description,
-                    "\t".repeat(insertion_start.2)
-                )
-                .to_string(),
+                Replacement::Substitute(
+                    format!(
+                        "/* HAKANA_FIXME[{}] {} */\n{}",
+                        issue.kind.to_string(),
+                        issue.description,
+                        "\t".repeat(insertion_start.2)
+                    )
+                    .to_string(),
+                ),
             );
         }
     }
@@ -290,13 +297,17 @@ impl TastInfo {
             }
         }
 
-        for ignored_issues in &self.hakana_ignores {
-            if ignored_issues.0 == &issue.pos.start_line
-                || ignored_issues.0 == &(issue.pos.start_line - 1)
-                || ignored_issues.0 == &(issue.pos.end_line - 1)
+        for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
+            if hakana_fixme_or_ignores.0 == &issue.pos.start_line
+                || hakana_fixme_or_ignores.0 == &(issue.pos.start_line - 1)
+                || hakana_fixme_or_ignores.0 == &(issue.pos.end_line - 1)
             {
-                if ignored_issues.1.contains(&issue.kind) {
-                    return false;
+                for line_issue in hakana_fixme_or_ignores.1 {
+                    if line_issue.0 == issue.kind {
+                        self.matched_ignore_positions
+                            .insert((line_issue.1 .0, line_issue.1 .1));
+                        return false;
+                    }
                 }
             }
         }
@@ -416,5 +427,22 @@ impl TastInfo {
         } else {
             None
         }
+    }
+
+    pub(crate) fn get_unused_hakana_fixme_positions(&self) -> Vec<(usize, usize, u64)> {
+        let mut unused_fixme_positions = vec![];
+
+        for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
+            for line_issue in hakana_fixme_or_ignores.1 {
+                if !self
+                    .matched_ignore_positions
+                    .contains(&(line_issue.1 .0, line_issue.1 .1))
+                {
+                    unused_fixme_positions.push(line_issue.1);
+                }
+            }
+        }
+
+        unused_fixme_positions
     }
 }

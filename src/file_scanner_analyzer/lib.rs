@@ -5,7 +5,7 @@ use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_analyzer::file_analyzer;
-use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -246,7 +246,12 @@ fn find_unused_definitions(
                             .replacements
                             .entry(codebase.interner.lookup(pos.file_path).to_string())
                             .or_insert_with(BTreeMap::new)
-                            .insert((def_pos.start_offset, def_pos.end_offset), "".to_string());
+                            .insert(
+                                (def_pos.start_offset, def_pos.end_offset),
+                                Replacement::TrimPrecedingWhitespace(
+                                    (def_pos.start_offset - (def_pos.start_column - 1)) as u64,
+                                ),
+                            );
                     }
                 }
 
@@ -304,6 +309,24 @@ fn find_unused_definitions(
                     ),
                     pos.clone(),
                 );
+
+                if config.migration_symbols.contains(&(
+                    "unused_symbol".to_string(),
+                    codebase.interner.lookup(*classlike_name).to_string(),
+                )) {
+                    if let Some(def_pos) = &classlike_info.def_location {
+                        analysis_result
+                            .replacements
+                            .entry(codebase.interner.lookup(pos.file_path).to_string())
+                            .or_insert_with(BTreeMap::new)
+                            .insert(
+                                (def_pos.start_offset, def_pos.end_offset),
+                                Replacement::TrimPrecedingWhitespace(
+                                    (def_pos.start_offset - (def_pos.start_column - 1)) as u64,
+                                ),
+                            );
+                    }
+                }
 
                 if config.can_add_issue(&issue) {
                     analysis_result

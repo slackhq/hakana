@@ -1,7 +1,7 @@
 use clap::{arg, Command};
 use hakana_analyzer::config;
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry};
+use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry, Replacement};
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::IssueKind;
 use rustc_hash::FxHashSet;
@@ -170,6 +170,28 @@ pub fn init(
                     arg!(--"filter" <PATH>)
                         .required(false)
                         .help("Filter the files that have added fixmes"),
+                )
+                .arg(
+                    arg!(--"threads" <PATH>)
+                        .required(false)
+                        .help("How many threads to use"),
+                )
+                .arg(
+                    arg!(--"debug")
+                        .required(false)
+                        .help("Add output for debugging"),
+                ),
+        )
+        .subcommand(
+            Command::new("remove-unused-fixmes")
+                .about("Removes all fixmes that are never used")
+                .arg(arg!(--"root" <PATH>).required(false).help(
+                    "The root directory that Hakana runs in. Defaults to the current directory",
+                ))
+                .arg(
+                    arg!(--"config" <PATH>)
+                        .required(false)
+                        .help("Hakana config path — defaults to ./hakana.json"),
                 )
                 .arg(
                     arg!(--"threads" <PATH>)
@@ -635,6 +657,38 @@ pub fn init(
                 update_files(analysis_result, &root_dir);
             }
         }
+        Some(("remove-unused-fixmes", sub_matches)) => {
+            let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+
+            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+
+            config.hooks = analysis_hooks;
+
+            let config_path = config_path.unwrap();
+
+            if config_path.exists() {
+                config.update_from_file(&cwd, config_path);
+            }
+
+            config.remove_fixmes = true;
+
+            let result = hakana_workhorse::scan_and_analyze(
+                true,
+                Vec::new(),
+                filter,
+                None,
+                Arc::new(config),
+                None,
+                threads,
+                debug,
+                &header,
+                None,
+            );
+
+            if let Ok(analysis_result) = result {
+                update_files(analysis_result, &root_dir);
+            }
+        }
         Some(("fix", sub_matches)) => {
             let issue_name = sub_matches.value_of("issue").unwrap().to_string();
             let issue_kind = IssueKind::from_str(&issue_name, &all_custom_issues).unwrap();
@@ -722,11 +776,36 @@ fn update_files(analysis_result: AnalysisResult, root_dir: &String) {
 
 fn replace_contents(
     mut file_contents: String,
-    replacements: &BTreeMap<(usize, usize), String>,
+    replacements: &BTreeMap<(usize, usize), Replacement>,
 ) -> String {
-    for ((start, end), replacement) in replacements.iter().rev() {
-        file_contents =
-            file_contents[..*start].to_string() + replacement + &*file_contents[*end..].to_string();
+    for ((mut start, end), replacement) in replacements.iter().rev() {
+        match replacement {
+            Replacement::Remove => {
+                file_contents =
+                    file_contents[..start].to_string() + &*file_contents[*end..].to_string();
+            }
+            Replacement::TrimPrecedingWhitespace(beg_of_line) => {
+                let potential_whitespace =
+                    file_contents[(*beg_of_line as usize)..start].to_string();
+                if potential_whitespace.trim() == "" {
+                    start = *beg_of_line as usize;
+
+                    if beg_of_line > &0
+                        && &file_contents[((*beg_of_line as usize) - 1)..start] == "\n"
+                    {
+                        start -= 1;
+                    }
+                }
+
+                file_contents =
+                    file_contents[..start].to_string() + &*file_contents[*end..].to_string();
+            }
+            Replacement::Substitute(string) => {
+                file_contents = file_contents[..start].to_string()
+                    + string
+                    + &*file_contents[*end..].to_string();
+            }
+        }
     }
 
     file_contents

@@ -11,6 +11,6 @@ enum E: string {
     B = 'b';
 }
 
-function getNullableShape(): ?shape(E::A => string) {
+function getNullableShape(): ?shape(E::A => string, ...) {
     return shape(E::A => 'cool');
 }

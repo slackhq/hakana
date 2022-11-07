@@ -120,6 +120,8 @@ pub trait TestRunner {
                 .insert(IssueKind::from_str(&issue_name, &FxHashSet::default()).unwrap());
 
             analysis_config.add_fixmes = true;
+        } else if dir.contains("/remove-unused-fixmes/") {
+            analysis_config.remove_fixmes = true;
         }
         analysis_config
     }
@@ -171,7 +173,11 @@ pub trait TestRunner {
             starter_data,
         );
 
-        if dir.contains("/migrations/") || dir.contains("/fix/") || dir.contains("/add-fixmes/") {
+        if dir.contains("/migrations/")
+            || dir.contains("/fix/")
+            || dir.contains("/add-fixmes/")
+            || dir.contains("/remove-unused-fixmes/")
+        {
             let input_file = format!("{}/input.hack", dir);
             let output_file = format!("{}/output.txt", dir);
             let input_contents = fs::read_to_string(&input_file).unwrap();

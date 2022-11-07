@@ -25,6 +25,7 @@ pub struct Config {
     pub hooks: Vec<Box<dyn CustomHook>>,
     pub ignore_mixed_issues: bool,
     pub add_fixmes: bool,
+    pub remove_fixmes: bool,
     pub all_custom_issues: FxHashSet<String>,
 }
 
@@ -61,6 +62,7 @@ impl Config {
             issues_to_fix: FxHashSet::default(),
             hooks: vec![],
             add_fixmes: false,
+            remove_fixmes: false,
             all_custom_issues,
         }
     }

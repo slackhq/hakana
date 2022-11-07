@@ -3,7 +3,7 @@ use crate::scope_context::{
     ScopeContext,
 };
 use hakana_algebra::Clause;
-use hakana_reflection_info::issue::IssueKind;
+use hakana_reflection_info::{analysis_result::Replacement, issue::IssueKind};
 use hakana_type::combine_union_types;
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -386,16 +386,16 @@ pub(crate) fn analyze(
                     stmt_pos.to_raw_span().start.beg_of_line() as usize,
                     stmt_pos.end_offset() + 1,
                 ),
-                "".to_string(),
+                Replacement::Remove,
             );
         } else {
             tast_info.replacements.insert(
                 (stmt_pos.start_offset() as usize, stmt.0 .1.start_offset()),
-                "".to_string(),
+                Replacement::Remove,
             );
             tast_info.replacements.insert(
                 (stmt.0 .1.end_offset() as usize, stmt_pos.end_offset()),
-                ";".to_string(),
+                Replacement::Substitute(";".to_string()),
             );
         }
     }

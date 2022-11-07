@@ -10,7 +10,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
-use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
@@ -18,7 +18,7 @@ use hakana_reflection_info::data_flow::node::{DataFlowNode, VariableSourceKind};
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
-use hakana_reflection_info::issue::{get_issue_from_comment, Issue, IssueKind};
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -28,7 +28,6 @@ use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
-use oxidized::prim_defs::Comment;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -430,53 +429,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             report_unused_expressions(&mut tast_info, config, fb_ast, statements_analyzer);
         }
 
-        if config.add_fixmes {
-            for (comment_pos, comment) in self
-                .get_file_analyzer()
-                .get_file_source()
-                .comments
-                .iter()
-                .rev()
-            {
-                let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
-                let (start_line, _, start_offset) = start;
-                let (_, _, end_offset) = end;
-
-                match comment {
-                    Comment::CmtLine(_) => {}
-                    Comment::CmtBlock(text) => {
-                        let trimmed_text = if text.starts_with("*") {
-                            text[1..].trim()
-                        } else {
-                            text.trim()
-                        };
-
-                        if let Some(issue_kind) =
-                            get_issue_from_comment(trimmed_text, &config.all_custom_issues)
-                        {
-                            let mut found = false;
-
-                            if tast_info.all_issues.contains_key(&start_line)
-                                && tast_info.all_issues[&start_line] == issue_kind
-                            {
-                                found = true;
-                            }
-
-                            if tast_info.all_issues.contains_key(&(start_line + 1))
-                                && tast_info.all_issues[&(start_line + 1)] == issue_kind
-                            {
-                                found = true;
-                            }
-
-                            if !found {
-                                // remove this FIXME as it is unused
-                                tast_info
-                                    .replacements
-                                    .insert((start_offset, end_offset), format!("",).to_string());
-                            }
-                        }
-                    }
-                }
+        if config.remove_fixmes && parent_tast_info.is_none() {
+            for unused_fixme_position in tast_info.get_unused_hakana_fixme_positions() {
+                tast_info.replacements.insert(
+                    (unused_fixme_position.0, unused_fixme_position.1),
+                    Replacement::TrimPrecedingWhitespace(unused_fixme_position.2),
+                );
             }
         }
 
@@ -618,6 +576,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             parent_tast_info
                 .closure_spans
                 .extend(tast_info.closure_spans);
+
+            parent_tast_info
+                .matched_ignore_positions
+                .extend(tast_info.matched_ignore_positions);
         } else {
             update_analysis_result_with_tast(
                 tast_info,

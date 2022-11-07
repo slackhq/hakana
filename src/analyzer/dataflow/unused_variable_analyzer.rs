@@ -1,3 +1,4 @@
+use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::data_flow::node::VariableSourceKind;
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -180,7 +181,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 if has_matching_node {
                     tast_info.replacements.insert(
                         (list_expr.1.start_offset(), list_expr.1.end_offset()),
-                        "$_".to_string(),
+                        Replacement::Substitute("$_".to_string()),
                     );
                 }
             }
@@ -231,13 +232,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                 let span = stmt.0.to_raw_span();
                                 tast_info.replacements.insert(
                                     ((span.start.beg_of_line() as usize) - 1, stmt.0.end_offset()),
-                                    "".to_string(),
+                                    Replacement::Remove,
                                 );
                             }
                         } else {
                             tast_info.replacements.insert(
                                 (stmt.0.start_offset(), boxed.2 .1.start_offset()),
-                                "".to_string(),
+                                Replacement::Remove,
                             );
 
                             // remove trailing array fetches
@@ -260,7 +261,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                                 array_offset_expr.pos().start_offset() - 1,
                                                 array_offset_expr.pos().end_offset() + 1,
                                             ),
-                                            "".to_string(),
+                                            Replacement::Remove,
                                         );
                                     }
                                 }
@@ -273,7 +274,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                             if block.trim() == "HHAST_FIXME[UnusedVariable]" {
                                                 tast_info.replacements.insert(
                                                     (pos.start_offset(), stmt.0.start_offset()),
-                                                    "".to_string(),
+                                                    Replacement::Remove,
                                                 );
                                             }
                                         }

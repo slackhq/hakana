@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::StrId;
@@ -444,18 +445,18 @@ fn handle_defined_shape_idx(
     {
         tast_info.replacements.insert(
             (pos.start_offset(), call_expr.1[0].1.pos().start_offset()),
-            "".to_string(),
+            Replacement::Remove,
         );
         tast_info.replacements.insert(
             (
                 call_expr.1[0].1.pos().end_offset(),
                 call_expr.1[1].1.pos().start_offset(),
             ),
-            "[".to_string(),
+            Replacement::Substitute("[".to_string()),
         );
         tast_info.replacements.insert(
             (call_expr.1[1].1.pos().end_offset(), pos.end_offset()),
-            "]".to_string(),
+            Replacement::Substitute("]".to_string()),
         );
     }
 
