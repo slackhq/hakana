@@ -4,6 +4,7 @@ use hakana_analyzer::custom_hook::CustomHook;
 use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry, Replacement};
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::IssueKind;
+use indexmap::IndexMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 use std::env;
@@ -110,6 +111,11 @@ pub fn init(
                     arg!(--"no-cache")
                         .required(false)
                         .help("Whether to use cache"),
+                )
+                .arg(
+                    arg!(--"show-issue-stats")
+                        .required(false)
+                        .help("Output a summary of issue counts"),
                 )
                 .arg(
                     arg!(--"output" <PATH>)
@@ -376,6 +382,7 @@ pub fn init(
             let show_mixed_function_counts = sub_matches.is_present("show-mixed-function-counts");
             let show_symbol_map = sub_matches.is_present("show-symbol-map");
             let ignore_mixed_issues = sub_matches.is_present("ignore-mixed-issues");
+            let show_issue_stats = sub_matches.is_present("show-issue-stats");
 
             let mut issue_kinds_filter = FxHashSet::default();
 
@@ -445,6 +452,20 @@ pub fn init(
 
                 if let Some(output_file) = output_file {
                     write_output_files(output_file, &cwd, &analysis_result);
+                }
+
+                if show_issue_stats {
+                    let mut issues_by_kind = IndexMap::new();
+                    for (_, issues) in &analysis_result.emitted_issues {
+                        for issue in issues {
+                            *issues_by_kind.entry(issue.kind.clone()).or_insert(0) += 1
+                        }
+                    }
+                    issues_by_kind.sort_by(|_, a, _, b| b.cmp(a));
+
+                    for (issue, count) in issues_by_kind {
+                        println!("{}\t{}", issue, count);
+                    }
                 }
 
                 if show_symbol_map {

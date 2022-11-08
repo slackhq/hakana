@@ -10,6 +10,7 @@ hakana-reflection-info = { path = "../code_info" }
 walkdir = "2"
 clap = { version = "3.2.6", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
+indexmap = "1.8.0"
 serde_json = "1.0"
 rustc-hash = "1.1.0"
 
