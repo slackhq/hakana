@@ -1243,24 +1243,20 @@ pub(crate) fn subtract_null(
 
     for atomic in existing_var_types {
         if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
-            if !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
-                let new_atomic = atomic.replace_template_extends(subtract_null(
-                    assertion,
-                    &as_type,
-                    None,
-                    false,
-                    tast_info,
-                    statements_analyzer,
-                    None,
-                    &mut template_failed_reconciliation,
-                    suppressed_issues,
-                ));
+            let mut template_failed_reconciliation = ReconciliationStatus::Ok;
+            let new_atomic = atomic.replace_template_extends(subtract_null(
+                assertion,
+                &as_type,
+                None,
+                false,
+                tast_info,
+                statements_analyzer,
+                None,
+                &mut template_failed_reconciliation,
+                suppressed_issues,
+            ));
 
-                acceptable_types.push(new_atomic);
-            } else {
-                acceptable_types.push(atomic);
-            }
+            acceptable_types.push(new_atomic);
 
             did_remove_type = true;
         } else if let TAtomic::TMixed = atomic {
