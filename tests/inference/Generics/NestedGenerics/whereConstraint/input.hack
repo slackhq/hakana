@@ -4,6 +4,7 @@ class A<T> {
     if ($this->t is null) {
       throw new \Exception('bad');
     }
+    /* HAKANA_FIXME[InvalidReturnStatement] todo fix this */
     return $this->t;
   }
 }

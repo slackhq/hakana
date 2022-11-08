@@ -139,6 +139,10 @@ pub trait TestRunner {
         build_checksum: &str,
         starter_data: Option<(CodebaseInfo, Interner)>,
     ) -> String {
+        if dir.contains("skipped-") {
+            return "S".to_string();
+        }
+
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
         let analysis_config = self.get_config_for_test(&dir);
