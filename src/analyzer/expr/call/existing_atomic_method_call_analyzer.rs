@@ -473,19 +473,19 @@ fn handle_defined_shape_idx(
 
     if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
         tast_info.maybe_add_issue(
-                Issue::new(
-                    IssueKind::UnnecessaryShapesIdx,
-                    format!(
-                        "Shapes::idx({}, {}) indexes a nonnull shape field, this can be done by indexing the shape directly with {}[{}]",
-                        expr_var_id,
-                        dim_var_id,
-                        expr_var_id,
-                        dim_var_id,
-                    ),
-                    statements_analyzer.get_hpos(&pos),
+            Issue::new(
+                IssueKind::UnnecessaryShapesIdx,
+                format!(
+                    "The field {} is always present on the shape -- consider using {}[{}] instead",
+                    dim_var_id, expr_var_id, dim_var_id
                 ),
-                statements_analyzer.get_config(),
-                &statements_analyzer.get_file_analyzer().get_file_source().file_path_actual
-            );
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+            &statements_analyzer
+                .get_file_analyzer()
+                .get_file_source()
+                .file_path_actual,
+        );
     }
 }
