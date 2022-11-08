@@ -26,6 +26,7 @@ use hakana_reflection_info::t_union::TUnion;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
+use itertools::Itertools;
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
@@ -889,7 +890,7 @@ pub(crate) fn update_analysis_result_with_tast(
         .emitted_issues
         .entry(file_path.to_string())
         .or_insert_with(Vec::new)
-        .extend(tast_info.issues_to_emit);
+        .extend(tast_info.issues_to_emit.into_iter().unique().collect::<Vec<_>>());
 
     if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         if !ignore_taint_path {

@@ -7,7 +7,7 @@ use crate::codebase_info::symbols::Symbol;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct StmtStart(pub usize, pub usize, pub usize);
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct HPos {
     pub file_path: Symbol,
 

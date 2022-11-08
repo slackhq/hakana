@@ -257,7 +257,7 @@ impl IssueKind {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Issue {
     pub kind: IssueKind,
     pub description: String,

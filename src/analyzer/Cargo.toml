@@ -8,6 +8,7 @@ regex = "1"
 lazy_static = "1"
 rand = "0.8.5"
 indexmap = "1.8.0"
+itertools = "0.10.1"
 hakana-type = { path = "../ttype" }
 hakana-algebra = { path = "../algebra" }
 hakana-reflection-info = { path = "../code_info" }
