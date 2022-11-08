@@ -8,39 +8,6 @@ use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 mod tests;
 
-pub fn negate_types(
-    all_types: BTreeMap<String, Vec<Vec<Assertion>>>,
-) -> BTreeMap<String, Vec<Vec<Assertion>>> {
-    let mut new_all_types: BTreeMap<String, Vec<Vec<Assertion>>> = BTreeMap::new();
-
-    'outer: for (var, anded_types) in all_types.iter() {
-        if anded_types.len() > 1 {
-            let mut new_anded_types: Vec<Assertion> = Vec::new();
-
-            for orred_types in anded_types.iter() {
-                if orred_types.len() > 1 {
-                    break 'outer;
-                }
-
-                new_anded_types.push(orred_types[0].get_negation());
-            }
-
-            new_all_types.insert(var.to_string(), vec![new_anded_types]);
-            break;
-        }
-
-        let mut new_orred_types: Vec<Vec<Assertion>> = Vec::new();
-
-        for orred_type in anded_types[0].iter() {
-            new_orred_types.push(vec![orred_type.get_negation()]);
-        }
-
-        new_all_types.insert(var.to_string(), new_orred_types);
-    }
-
-    return new_all_types;
-}
-
 fn keys_match<T: Eq + Ord, U, V>(map1: &BTreeMap<T, U>, map2: &BTreeMap<T, V>) -> bool {
     map1.len() == map2.len() && map1.keys().all(|k| map2.contains_key(k))
 }
