@@ -2,6 +2,7 @@ pub mod clause;
 
 pub use clause::Clause;
 use hakana_reflection_info::assertion::Assertion;
+use itertools::Itertools;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
@@ -45,10 +46,10 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
         }
     }
 
-    let mut unique_clauses = clauses.into_iter().collect::<FxHashSet<_>>();
+    let mut unique_clauses = clauses.into_iter().unique().collect::<Vec<_>>();
 
     let mut removed_clauses = FxHashSet::default();
-    let mut added_clauses = FxHashSet::default();
+    let mut added_clauses = vec![];
 
     // remove impossible types
     'outer: for clause_a in &unique_clauses {
@@ -107,7 +108,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
                             continue 'outer;
                         }
 
-                        added_clauses.insert(maybe_new_clause.unwrap());
+                        added_clauses.push(maybe_new_clause.unwrap());
                     }
                 }
             }
@@ -139,13 +140,13 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
                             let maybe_updated_clause = clause_b.remove_possibilities(&clause_var);
 
                             if let Some(x) = maybe_updated_clause {
-                                added_clauses.insert(x);
+                                added_clauses.push(x);
                             }
                         } else {
                             let updated_clause = clause_b
                                 .add_possibility(clause_var.clone(), clause_var_possibilities);
 
-                            added_clauses.insert(updated_clause);
+                            added_clauses.push(updated_clause);
                         }
                     }
                 }
@@ -158,10 +159,15 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
     let mut unique_clauses = unique_clauses
         .into_iter()
         .map(|c| c.clone())
-        .collect::<FxHashSet<_>>();
-    unique_clauses.extend(added_clauses);
+        .collect::<Vec<_>>();
 
-    let mut simplified_clauses = FxHashSet::default();
+    if !added_clauses.is_empty() {
+        unique_clauses.extend(added_clauses);
+        unique_clauses = unique_clauses.into_iter().unique().collect();
+    }
+    
+
+    let mut simplified_clauses = vec![];
 
     for clause_a in &unique_clauses {
         let mut is_redundant = false;
@@ -178,7 +184,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
         }
 
         if !is_redundant {
-            simplified_clauses.insert(clause_a.clone());
+            simplified_clauses.push(clause_a.clone());
         }
     }
 
