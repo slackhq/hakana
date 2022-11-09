@@ -2,12 +2,18 @@ pub mod clause;
 
 pub use clause::Clause;
 use hakana_reflection_info::assertion::Assertion;
+use indexmap::IndexMap;
 use itertools::Itertools;
 use rand::Rng;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
+use std::hash::Hash;
 mod tests;
+
+fn index_keys_match<T: Eq + Ord + Hash, U, V>(map1: &IndexMap<T, U>, map2: &IndexMap<T, V>) -> bool {
+    map1.len() == map2.len() && map1.keys().all(|k| map2.contains_key(k))
+}
 
 fn keys_match<T: Eq + Ord, U, V>(map1: &BTreeMap<T, U>, map2: &BTreeMap<T, V>) -> bool {
     map1.len() == map2.len() && map1.keys().all(|k| map2.contains_key(k))
@@ -80,7 +86,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
                     for (key, a_possibilities) in clause_a.possibilities.iter() {
                         let b_possibilities = &clause_b.possibilities[key];
-                        if keys_match(&a_possibilities, &b_possibilities) {
+                        if index_keys_match(&a_possibilities, &b_possibilities) {
                             continue;
                         }
 
@@ -165,7 +171,6 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
         unique_clauses.extend(added_clauses);
         unique_clauses = unique_clauses.into_iter().unique().collect();
     }
-    
 
     let mut simplified_clauses = vec![];
 
@@ -244,7 +249,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
                             new_possibilities
                                 .entry(var_id.clone())
-                                .or_insert_with(BTreeMap::new)
+                                .or_insert_with(IndexMap::new)
                                 .extend(possibilities.clone());
                         }
 
@@ -255,7 +260,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
                             new_possibilities
                                 .entry(var_id.clone())
-                                .or_insert_with(BTreeMap::new)
+                                .or_insert_with(IndexMap::new)
                                 .extend(possibilities.clone());
                         }
 
@@ -392,7 +397,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
                 let mut seed_clause_possibilities = BTreeMap::new();
                 seed_clause_possibilities.insert(
                     var.clone(),
-                    BTreeMap::from([(impossible_type.to_string(None), impossible_type.clone())]),
+                    IndexMap::from([(impossible_type.to_string(None), impossible_type.clone())]),
                 );
 
                 let seed_clause = Clause::new(
@@ -451,7 +456,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
 
                     new_clause_possibilities
                         .entry(var.clone())
-                        .or_insert_with(BTreeMap::new)
+                        .or_insert_with(IndexMap::new)
                         .insert(impossible_type.to_string(None), impossible_type);
 
                     new_clauses.push(Clause::new(
@@ -475,6 +480,8 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
 
         seed_clauses = new_clauses;
     }
+
+    seed_clauses.reverse();
 
     return Ok(seed_clauses);
 }
@@ -535,14 +542,14 @@ pub fn combine_ored_clauses(
             for (var, possible_types) in &left_clause.possibilities {
                 possibilities
                     .entry(var.clone())
-                    .or_insert_with(BTreeMap::new)
+                    .or_insert_with(IndexMap::new)
                     .extend(possible_types.clone());
             }
 
             for (var, possible_types) in &right_clause.possibilities {
                 possibilities
                     .entry(var.clone())
-                    .or_insert_with(BTreeMap::new)
+                    .or_insert_with(IndexMap::new)
                     .extend(possible_types.clone());
             }
 

@@ -1,4 +1,5 @@
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
+use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -582,7 +583,7 @@ fn analyze_assignment_to_variable(
                     let mut possibilities = BTreeMap::new();
                     possibilities.insert(
                         var_id.clone(),
-                        BTreeMap::from([(Assertion::Falsy.to_string(None), Assertion::Falsy)]),
+                        IndexMap::from([(Assertion::Falsy.to_string(None), Assertion::Falsy)]),
                     );
 
                     let assignment_clauses = if let Ok(assignment_clauses) =

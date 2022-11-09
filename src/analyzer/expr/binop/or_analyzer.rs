@@ -149,10 +149,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             .map(|v| &**v)
             .collect::<FxHashSet<_>>();
 
-        negated_left_clauses = negated_left_clauses
-            .into_iter()
-            .filter(|c| !left_reconciled_clauses_hashed.contains(c))
-            .collect::<Vec<_>>();
+        negated_left_clauses.retain(|c| !left_reconciled_clauses_hashed.contains(c));
 
         if negated_left_clauses.len() == 1 {
             let first = negated_left_clauses.get(0).unwrap();
@@ -320,12 +317,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             if let Some(if_type) = if_vars.get(&var_id) {
                 if_body_context.vars_in_scope.insert(
                     var_id,
-                    Rc::new(combine_union_types(
-                        &right_type,
-                        &if_type,
-                        codebase,
-                        false,
-                    )),
+                    Rc::new(combine_union_types(&right_type, &if_type, codebase, false)),
                 );
             } else if let Some(left_type) = left_vars.get(&var_id) {
                 if_body_context.vars_in_scope.insert(

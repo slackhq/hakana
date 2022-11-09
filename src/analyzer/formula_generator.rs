@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
 use hakana_algebra::Clause;
@@ -87,7 +88,7 @@ pub(crate) fn get_formula(
                             orred_types
                                 .into_iter()
                                 .map(|a| (a.to_string(None), a))
-                                .collect::<BTreeMap<_, _>>(),
+                                .collect::<IndexMap<_, _>>(),
                         );
                         map
                     },
@@ -117,7 +118,7 @@ pub(crate) fn get_formula(
             let mut map = BTreeMap::new();
             map.insert(
                 conditional_ref,
-                BTreeMap::from([(Assertion::Truthy.to_string(None), Assertion::Truthy)]),
+                IndexMap::from([(Assertion::Truthy.to_string(None), Assertion::Truthy)]),
             );
             map
         },

@@ -4,6 +4,7 @@ use std::num::Wrapping;
 
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::assertion::Assertion;
+use indexmap::IndexMap;
 use rustc_hash::FxHashSet;
 use xxhash_rust;
 
@@ -24,7 +25,7 @@ pub struct Clause {
     //
     // represents the formula
     // !$a || $b || $c !== null || is_string($d) || is_int($d)
-    pub possibilities: BTreeMap<String, BTreeMap<String, Assertion>>,
+    pub possibilities: BTreeMap<String, IndexMap<String, Assertion>>,
 
     pub wedge: bool,
     pub reconcilable: bool,
@@ -46,7 +47,7 @@ impl Hash for Clause {
 
 impl Clause {
     pub fn new(
-        possibilities: BTreeMap<String, BTreeMap<String, Assertion>>,
+        possibilities: BTreeMap<String, IndexMap<String, Assertion>>,
         creating_conditional_id: (usize, usize),
         creating_object_id: (usize, usize),
         wedge: Option<bool>,
@@ -112,7 +113,7 @@ impl Clause {
     pub fn add_possibility(
         &self,
         var_id: String,
-        new_possibility: BTreeMap<String, Assertion>,
+        new_possibility: IndexMap<String, Assertion>,
     ) -> Clause {
         let mut possibilities = self.possibilities.clone();
 
@@ -244,7 +245,7 @@ impl Clause {
 
 #[inline]
 fn get_hash(
-    possibilities: &BTreeMap<String, BTreeMap<String, Assertion>>,
+    possibilities: &BTreeMap<String, IndexMap<String, Assertion>>,
     creating_object_id: (usize, usize),
     wedge: bool,
     reconcilable: bool,
