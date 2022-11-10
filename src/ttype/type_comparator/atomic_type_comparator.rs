@@ -765,6 +765,8 @@ pub(crate) fn can_be_identical<'a>(
         } else if inside_assertion {
             let type_alias_info = codebase.type_definitions.get(name).unwrap();
             type1_part = type_alias_info.actual_type.get_single();
+        } else {
+            break;
         }
     }
 
@@ -774,6 +776,8 @@ pub(crate) fn can_be_identical<'a>(
         } else if inside_assertion {
             let type_alias_info = codebase.type_definitions.get(name).unwrap();
             type2_part = type_alias_info.actual_type.get_single();
+        } else {
+            break;
         }
     }
 
