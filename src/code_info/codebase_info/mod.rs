@@ -232,11 +232,11 @@ impl CodebaseInfo {
         &self,
         fq_class_name: &Symbol,
         const_name: &StrId,
-    ) -> Option<TUnion> {
+    ) -> Option<&TAtomic> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
                 if let Some(inferred_type) = &constant_storage.inferred_type {
-                    Some(inferred_type.clone())
+                    Some(inferred_type.get_single())
                 } else {
                     None
                 }

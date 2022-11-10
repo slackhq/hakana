@@ -1307,6 +1307,35 @@ impl TAtomic {
         }
     }
 
+    pub fn get_literal_string_value(&self, interner: &Interner) -> Option<String> {
+        match self {
+            TAtomic::TLiteralString { value, .. } => Some(value.clone()),
+            TAtomic::TTypeAlias {
+                name,
+                as_type: Some(as_type),
+                type_params: Some(_),
+            } => {
+                if name == &interner.get("HH\\Lib\\Regex\\Pattern").unwrap() {
+                    if let TAtomic::TLiteralString { value, .. } = &**as_type {
+                        Some(value.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn get_literal_int_value(&self) -> Option<i64> {
+        match self {
+            TAtomic::TLiteralInt { value, .. } => Some(*value),
+            _ => None,
+        }
+    }
+
     pub(crate) fn is_json_compatible(&self, banned_type_aliases: &Vec<&str>) -> bool {
         if self.is_some_scalar() {
             return true;

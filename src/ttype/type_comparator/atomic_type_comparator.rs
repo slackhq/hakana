@@ -753,10 +753,10 @@ pub fn is_contained_by(
     return input_type_part.get_key() == container_type_part.get_key();
 }
 
-pub(crate) fn can_be_identical(
-    codebase: &CodebaseInfo,
-    mut type1_part: &TAtomic,
-    mut type2_part: &TAtomic,
+pub(crate) fn can_be_identical<'a>(
+    codebase: &'a CodebaseInfo,
+    mut type1_part: &'a TAtomic,
+    mut type2_part: &'a TAtomic,
     inside_assertion: bool,
 ) -> bool {
     if let TAtomic::TTypeAlias {
@@ -773,6 +773,36 @@ pub(crate) fn can_be_identical(
     } = type2_part
     {
         type2_part = as_type;
+    }
+
+    if let TAtomic::TEnumLiteralCase {
+        enum_name,
+        member_name,
+        constraint_type: None,
+    } = type1_part
+    {
+        if !matches!(type2_part, TAtomic::TEnum { .. }) {
+            let class_const_type = codebase
+                .get_classconst_literal_value(enum_name, member_name)
+                .unwrap();
+
+            type1_part = class_const_type;
+        }
+    }
+
+    if let TAtomic::TEnumLiteralCase {
+        enum_name,
+        member_name,
+        constraint_type: None,
+    } = type2_part
+    {
+        if !matches!(type1_part, TAtomic::TEnum { .. }) {
+            let class_const_type = codebase
+                .get_classconst_literal_value(enum_name, member_name)
+                .unwrap();
+
+            type2_part = class_const_type;
+        }
     }
 
     if (type1_part.is_vec() && type2_part.is_non_empty_vec())

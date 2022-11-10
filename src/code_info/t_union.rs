@@ -581,10 +581,7 @@ impl TUnion {
 
     pub fn get_single_literal_int_value(&self) -> Option<i64> {
         if self.is_single() {
-            match self.get_single() {
-                TAtomic::TLiteralInt { value, .. } => Some(*value),
-                _ => None,
-            }
+            self.get_single().get_literal_int_value()
         } else {
             None
         }
@@ -592,25 +589,7 @@ impl TUnion {
 
     pub fn get_single_literal_string_value(&self, interner: &Interner) -> Option<String> {
         if self.is_single() {
-            match self.get_single() {
-                TAtomic::TLiteralString { value, .. } => Some(value.clone()),
-                TAtomic::TTypeAlias {
-                    name,
-                    as_type: Some(as_type),
-                    type_params: Some(_),
-                } => {
-                    if name == &interner.get("HH\\Lib\\Regex\\Pattern").unwrap() {
-                        if let TAtomic::TLiteralString { value, .. } = &**as_type {
-                            Some(value.clone())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            }
+            self.get_single().get_literal_string_value(interner)
         } else {
             None
         }

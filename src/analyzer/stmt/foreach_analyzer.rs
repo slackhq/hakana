@@ -340,7 +340,7 @@ fn check_iterator_type(
                                             .get_classconst_literal_value(&enum_name, &member_name)
                                         {
                                             if let Some(value) = literal_value
-                                                .get_single_literal_string_value(
+                                                .get_literal_string_value(
                                                     &statements_analyzer.get_codebase().interner,
                                                 )
                                             {
@@ -357,7 +357,7 @@ fn check_iterator_type(
                                                     false,
                                                 );
                                             } else if let Some(value) =
-                                                literal_value.get_single_literal_int_value()
+                                                literal_value.get_literal_int_value()
                                             {
                                                 key_param = add_union_type(
                                                     key_param,

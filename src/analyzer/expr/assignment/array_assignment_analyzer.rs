@@ -408,10 +408,10 @@ fn add_array_assignment_dataflow(
                             .get_classconst_literal_value(enum_name, member_name)
                         {
                             if let Some(value) =
-                                literal_value.get_single_literal_string_value(&codebase.interner)
+                                literal_value.get_literal_string_value(&codebase.interner)
                             {
                                 value
-                            } else if let Some(value) = literal_value.get_single_literal_int_value()
+                            } else if let Some(value) = literal_value.get_literal_int_value()
                             {
                                 value.to_string()
                             } else {
@@ -550,8 +550,7 @@ fn update_array_assignment_child_type(
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
                     type_param: value_type.clone(),
                 }),
-                TAtomic::TMixed
-                | TAtomic::TMixedWithFlags(..) => {
+                TAtomic::TMixed | TAtomic::TMixedWithFlags(..) => {
                     // todo handle illegal
                     collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false))
                 }
