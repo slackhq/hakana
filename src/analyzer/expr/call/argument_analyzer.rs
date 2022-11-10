@@ -421,7 +421,7 @@ pub(crate) fn verify_type(
             codebase,
             &input_type,
             &param_type,
-            true,
+            false,
         );
 
         if types_can_be_identical {

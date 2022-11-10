@@ -759,20 +759,22 @@ pub(crate) fn can_be_identical<'a>(
     mut type2_part: &'a TAtomic,
     inside_assertion: bool,
 ) -> bool {
-    if let TAtomic::TTypeAlias {
-        as_type: Some(as_type),
-        ..
-    } = type1_part
-    {
-        type1_part = as_type;
+    while let TAtomic::TTypeAlias { as_type, name, .. } = type1_part {
+        if let Some(as_type) = as_type {
+            type1_part = as_type;
+        } else if inside_assertion {
+            let type_alias_info = codebase.type_definitions.get(name).unwrap();
+            type1_part = type_alias_info.actual_type.get_single();
+        }
     }
 
-    if let TAtomic::TTypeAlias {
-        as_type: Some(as_type),
-        ..
-    } = type2_part
-    {
-        type2_part = as_type;
+    while let TAtomic::TTypeAlias { as_type, name, .. } = type2_part {
+        if let Some(as_type) = as_type {
+            type2_part = as_type;
+        } else if inside_assertion {
+            let type_alias_info = codebase.type_definitions.get(name).unwrap();
+            type2_part = type_alias_info.actual_type.get_single();
+        }
     }
 
     if let TAtomic::TEnumLiteralCase {
