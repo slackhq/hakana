@@ -3,7 +3,6 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::get_arrayish_params;
-use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
@@ -528,8 +527,7 @@ fn check_array_key_or_value_type(
     function_name: &String,
 ) {
     let mut has_valid_container_type = false;
-    let mut has_error = false;
-    let mut error_message = "".to_string();
+    let mut error_message = None;
 
     if let Some(container_type) = container_type {
         for atomic_type in &container_type.types {
@@ -549,32 +547,33 @@ fn check_array_key_or_value_type(
                     if offset_type_contained_by_expected {
                         has_valid_container_type = true;
                     } else {
-                        has_error = true;
                         let old_var_type_string = container_type
                             .get_id(Some(&statements_analyzer.get_codebase().interner));
 
-                        error_message = format!(
+                        error_message = Some(format!(
                             "{}() of {} expects type {}, and will always return false for type {}",
                             function_name,
                             old_var_type_string,
                             param.get_id(Some(&codebase.interner)),
                             arg_type.get_id(Some(&codebase.interner))
-                        );
+                        ));
                     }
                 };
             }
         }
 
-        if has_error && !has_valid_container_type {
-            tast_info.maybe_add_issue(
-                Issue::new(
-                    IssueKind::InvalidContainsCheck,
-                    error_message,
-                    statements_analyzer.get_hpos(&pos),
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
+        if let Some(error_message) = error_message {
+            if !has_valid_container_type {
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::InvalidContainsCheck,
+                        error_message,
+                        statements_analyzer.get_hpos(&pos),
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
         }
     }
 }
