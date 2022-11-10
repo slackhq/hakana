@@ -1,5 +1,10 @@
 use hakana_reflection_info::codebase_info::symbols::Symbol;
+use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
+use hakana_reflection_info::t_union::TUnion;
+use hakana_type::get_arrayish_params;
+use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
+use hakana_type::type_comparator::union_type_comparator;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
@@ -94,7 +99,7 @@ pub(crate) fn analyze(
                 statements_analyzer.get_hpos(&expr.0 .0),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
 
         return false;
@@ -221,15 +226,31 @@ pub(crate) fn analyze(
         | "HH\\Lib\\Dict\\contains_key"
         | "HH\\Lib\\C\\contains"
         | "HH\\Lib\\Dict\\contains" => {
-            if real_name == "HH\\Lib\\C\\contains_key" || real_name == "HH\\Lib\\Dict\\contains_key"
-            {
-                let expr_var_id = expression_identifier::get_var_id(
-                    &expr.2[0].1,
-                    context.function_context.calling_class.as_ref(),
-                    statements_analyzer.get_file_analyzer().get_file_source(),
-                    resolved_names,
-                    Some(statements_analyzer.get_codebase()),
+            let expr_var_id = expression_identifier::get_var_id(
+                &expr.2[0].1,
+                context.function_context.calling_class.as_ref(),
+                statements_analyzer.get_file_analyzer().get_file_source(),
+                resolved_names,
+                Some(statements_analyzer.get_codebase()),
+            );
+
+            if real_name == "HH\\Lib\\C\\contains" || real_name == "HH\\Lib\\Dict\\contains" {
+                let container_type = tast_info.get_expr_type(expr.2[0].1.pos()).cloned();
+                let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos()).cloned();
+                check_array_key_or_value_type(
+                    codebase,
+                    statements_analyzer,
+                    tast_info,
+                    container_type,
+                    second_arg_type,
+                    &pos,
+                    false,
+                    &real_name.to_string(),
                 );
+            } else if real_name == "HH\\Lib\\C\\contains_key"
+                || real_name == "HH\\Lib\\Dict\\contains_key"
+            {
+                let container_type = tast_info.get_expr_type(expr.2[0].1.pos()).cloned();
 
                 let dim_var_id = expression_identifier::get_dim_id(
                     &expr.2[1].1,
@@ -252,7 +273,7 @@ pub(crate) fn analyze(
                             tast_info.if_true_assertions.insert(
                                 (pos.start_offset(), pos.end_offset()),
                                 FxHashMap::from_iter([(
-                                    expr_var_id,
+                                    expr_var_id.clone(),
                                     vec![Assertion::HasArrayKey(DictKey::Int(
                                         boxed.parse::<u32>().unwrap(),
                                     ))],
@@ -265,6 +286,20 @@ pub(crate) fn analyze(
                                     format!("{}[{}]", expr_var_id, dim_var_id),
                                     vec![Assertion::ArrayKeyExists],
                                 )]),
+                            );
+                        }
+
+                        let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
+                        if let Some(second_arg_type) = second_arg_type {
+                            check_array_key_or_value_type(
+                                codebase,
+                                statements_analyzer,
+                                tast_info,
+                                container_type,
+                                Some(second_arg_type.clone()),
+                                &pos,
+                                true,
+                                &real_name.to_string(),
                             );
                         }
                     }
@@ -480,4 +515,66 @@ fn get_named_function_info<'a>(
     let codebase = statements_analyzer.get_codebase();
 
     codebase.functionlike_infos.get(name)
+}
+
+fn check_array_key_or_value_type(
+    codebase: &CodebaseInfo,
+    statements_analyzer: &StatementsAnalyzer,
+    tast_info: &mut TastInfo,
+    container_type: Option<TUnion>,
+    arg_type: Option<TUnion>,
+    pos: &Pos,
+    is_key: bool,
+    function_name: &String,
+) {
+    let mut has_valid_container_type = false;
+    let mut has_error = false;
+    let mut error_message = "".to_string();
+
+    if let Some(container_type) = container_type {
+        for atomic_type in &container_type.types {
+            let arrayish_params = get_arrayish_params(&atomic_type, codebase);
+            if let Some(ref arg_type) = arg_type {
+                if let Some((params_key, param_value)) = arrayish_params {
+                    let param = if is_key { params_key } else { param_value };
+
+                    let offset_type_contained_by_expected =
+                        union_type_comparator::can_expression_types_be_identical(
+                            codebase,
+                            &arg_type,
+                            &param.clone(),
+                            true,
+                        );
+
+                    if offset_type_contained_by_expected {
+                        has_valid_container_type = true;
+                    } else {
+                        has_error = true;
+                        let old_var_type_string = container_type
+                            .get_id(Some(&statements_analyzer.get_codebase().interner));
+
+                        error_message = format!(
+                            "{}() of {} expects type {}, and will always return false for type {}",
+                            function_name,
+                            old_var_type_string,
+                            param.get_id(Some(&codebase.interner)),
+                            arg_type.get_id(Some(&codebase.interner))
+                        );
+                    }
+                };
+            }
+        }
+
+        if has_error && !has_valid_container_type {
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::InvalidContainsCheck,
+                    error_message,
+                    statements_analyzer.get_hpos(&pos),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+    }
 }
