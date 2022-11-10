@@ -782,11 +782,11 @@ pub(crate) fn can_be_identical<'a>(
     } = type1_part
     {
         if !matches!(type2_part, TAtomic::TEnum { .. }) {
-            let class_const_type = codebase
-                .get_classconst_literal_value(enum_name, member_name)
-                .unwrap();
+            let class_const_type = codebase.get_classconst_literal_value(enum_name, member_name);
 
-            type1_part = class_const_type;
+            if let Some(class_const_type) = class_const_type {
+                type1_part = class_const_type;
+            }
         }
     }
 
@@ -797,11 +797,11 @@ pub(crate) fn can_be_identical<'a>(
     } = type2_part
     {
         if !matches!(type1_part, TAtomic::TEnum { .. }) {
-            let class_const_type = codebase
-                .get_classconst_literal_value(enum_name, member_name)
-                .unwrap();
+            let class_const_type = codebase.get_classconst_literal_value(enum_name, member_name);
 
-            type2_part = class_const_type;
+            if let Some(class_const_type) = class_const_type {
+                type2_part = class_const_type;
+            }
         }
     }
 
