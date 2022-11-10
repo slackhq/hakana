@@ -640,6 +640,27 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     },
                     &mut tast_info.data_flow_graph,
                 );
+
+                if param.is_inout {
+                    for atomic_type in &param_type.types {
+                        if matches!(atomic_type, TAtomic::TNamedObject { .. }) {
+                            tast_info.maybe_add_issue(
+                                Issue::new(
+                                    IssueKind::InvalidInoutArgument,
+                                    format!(
+                                        "Do not use inout with {}, which is an object",
+                                        param_type.get_id(Some(&interner))
+                                    )
+                                    .to_string(),
+                                    param.location.as_ref().unwrap().clone(),
+                                ),
+                                statements_analyzer.get_config(),
+                                statements_analyzer.get_file_path_actual(),
+                            );
+                        }
+                    }
+                }
+
                 param_type
             } else {
                 get_mixed_any()
@@ -890,7 +911,13 @@ pub(crate) fn update_analysis_result_with_tast(
         .emitted_issues
         .entry(file_path.to_string())
         .or_insert_with(Vec::new)
-        .extend(tast_info.issues_to_emit.into_iter().unique().collect::<Vec<_>>());
+        .extend(
+            tast_info
+                .issues_to_emit
+                .into_iter()
+                .unique()
+                .collect::<Vec<_>>(),
+        );
 
     if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         if !ignore_taint_path {
