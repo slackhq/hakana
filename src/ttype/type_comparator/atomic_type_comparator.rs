@@ -792,6 +792,12 @@ pub(crate) fn can_be_identical<'a>(
 
             if let Some(class_const_type) = class_const_type {
                 type1_part = class_const_type;
+            } else {
+                let enum_info = codebase.classlike_infos.get(enum_name).unwrap();
+
+                if let Some(enum_type) = &enum_info.enum_type {
+                    type1_part = enum_type;
+                }
             }
         }
     }
@@ -807,6 +813,46 @@ pub(crate) fn can_be_identical<'a>(
 
             if let Some(class_const_type) = class_const_type {
                 type2_part = class_const_type;
+            } else {
+                let enum_info = codebase.classlike_infos.get(enum_name).unwrap();
+
+                if let Some(enum_type) = &enum_info.enum_type {
+                    type2_part = enum_type;
+                }
+            }
+        }
+    }
+
+    if let TAtomic::TEnum {
+        name,
+        base_type: None,
+    } = type1_part
+    {
+        if !matches!(
+            type2_part,
+            TAtomic::TEnum { .. } | TAtomic::TEnumLiteralCase { .. }
+        ) {
+            let enum_info = codebase.classlike_infos.get(name).unwrap();
+
+            if let Some(enum_type) = &enum_info.enum_type {
+                type1_part = enum_type;
+            }
+        }
+    }
+
+    if let TAtomic::TEnum {
+        name,
+        base_type: None,
+    } = type2_part
+    {
+        if !matches!(
+            type1_part,
+            TAtomic::TEnum { .. } | TAtomic::TEnumLiteralCase { .. }
+        ) {
+            let enum_info = codebase.classlike_infos.get(name).unwrap();
+
+            if let Some(enum_type) = &enum_info.enum_type {
+                type2_part = enum_type;
             }
         }
     }
