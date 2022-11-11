@@ -547,13 +547,9 @@ fn check_array_key_or_value_type(
                     if offset_type_contained_by_expected {
                         has_valid_container_type = true;
                     } else {
-                        let old_var_type_string = container_type
-                            .get_id(Some(&statements_analyzer.get_codebase().interner));
-
                         error_message = Some(format!(
-                            "{}() of {} expects type {}, and will always return false for type {}",
+                            "Second arg of {} expects type {}, saw {}",
                             function_name,
-                            old_var_type_string,
                             param.get_id(Some(&codebase.interner)),
                             arg_type.get_id(Some(&codebase.interner))
                         ));
