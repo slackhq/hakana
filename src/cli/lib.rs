@@ -403,22 +403,22 @@ pub fn init(
                 }
             }
 
-            let mut analysis_config = config::Config::new(root_dir.clone(), all_custom_issues);
-            analysis_config.find_unused_expressions = find_unused_expressions;
-            analysis_config.find_unused_definitions = find_unused_definitions;
-            analysis_config.issue_filter = if !issue_kinds_filter.is_empty() {
-                Some(issue_kinds_filter)
-            } else {
-                None
-            };
-            analysis_config.ignore_mixed_issues = ignore_mixed_issues;
+            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+            config.find_unused_expressions = find_unused_expressions;
+            config.find_unused_definitions = find_unused_definitions;
+            config.ignore_mixed_issues = ignore_mixed_issues;
 
-            analysis_config.hooks = analysis_hooks;
+            config.hooks = analysis_hooks;
 
             let config_path = config_path.unwrap();
 
             if config_path.exists() {
-                analysis_config.update_from_file(&cwd, config_path);
+                config.update_from_file(&cwd, config_path);
+            }
+
+            // do this after we've loaded from file, as they can be overridden
+            if !issue_kinds_filter.is_empty() {
+                config.allowed_issues = Some(issue_kinds_filter);
             }
 
             let result = hakana_workhorse::scan_and_analyze(
@@ -426,7 +426,7 @@ pub fn init(
                 Vec::new(),
                 filter,
                 ignored,
-                Arc::new(analysis_config),
+                Arc::new(config),
                 if sub_matches.is_present("no-cache") {
                     None
                 } else {
@@ -486,32 +486,33 @@ pub fn init(
             }
         }
         Some(("security-check", sub_matches)) => {
-            let mut analysis_config = config::Config::new(cwd.clone(), all_custom_issues);
-            analysis_config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Taint);
+            let mut config = config::Config::new(cwd.clone(), all_custom_issues);
+            config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Taint);
 
             let config_path = config_path.unwrap();
 
             if config_path.exists() {
-                analysis_config.update_from_file(&cwd, config_path);
+                config.update_from_file(&cwd, config_path);
             }
+            config.allowed_issues = None;
 
             let output_file = sub_matches.value_of("output").map(|f| f.to_string());
 
-            analysis_config.security_config.max_depth =
+            config.security_config.max_depth =
                 if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
                     val.parse::<u8>().unwrap()
                 } else {
                     20
                 };
 
-            analysis_config.hooks = analysis_hooks;
+            config.hooks = analysis_hooks;
 
             let result = hakana_workhorse::scan_and_analyze(
                 true,
                 Vec::new(),
                 None,
                 None,
-                Arc::new(analysis_config),
+                Arc::new(config),
                 None,
                 threads,
                 debug,
@@ -536,30 +537,31 @@ pub fn init(
             }
         }
         Some(("find-paths", sub_matches)) => {
-            let mut analysis_config = config::Config::new(cwd.clone(), all_custom_issues);
-            analysis_config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Query);
+            let mut config = config::Config::new(cwd.clone(), all_custom_issues);
+            config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Query);
 
             let config_path = config_path.unwrap();
 
             if config_path.exists() {
-                analysis_config.update_from_file(&cwd, config_path);
+                config.update_from_file(&cwd, config_path);
             }
+            config.allowed_issues = None;
 
-            analysis_config.security_config.max_depth =
+            config.security_config.max_depth =
                 if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
                     val.parse::<u8>().unwrap()
                 } else {
                     20
                 };
 
-            analysis_config.hooks = analysis_hooks;
+            config.hooks = analysis_hooks;
 
             let result = hakana_workhorse::scan_and_analyze(
                 true,
                 Vec::new(),
                 None,
                 None,
-                Arc::new(analysis_config),
+                Arc::new(config),
                 None,
                 threads,
                 debug,
@@ -583,21 +585,22 @@ pub fn init(
             let migration_name = sub_matches.value_of("migration").unwrap().to_string();
             let migration_source = sub_matches.value_of("symbols").unwrap().to_string();
 
-            let mut analysis_config = config::Config::new(root_dir.clone(), all_custom_issues);
-            analysis_config.hooks = migration_hooks;
+            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+            config.hooks = migration_hooks;
 
             let config_path = config_path.unwrap();
 
             if config_path.exists() {
-                analysis_config.update_from_file(&cwd, config_path);
+                config.update_from_file(&cwd, config_path);
             }
+            config.allowed_issues = None;
 
             let file_path = format!("{}/{}", cwd, migration_source);
 
             let buf = fs::read_to_string(file_path.clone());
 
             if let Ok(contents) = buf {
-                analysis_config.migration_symbols = contents
+                config.migration_symbols = contents
                     .lines()
                     .map(|v| (migration_name.clone(), v.to_string()))
                     .collect();
@@ -614,7 +617,7 @@ pub fn init(
                 Vec::new(),
                 None,
                 None,
-                Arc::new(analysis_config),
+                Arc::new(config),
                 None,
                 threads,
                 debug,
@@ -658,6 +661,7 @@ pub fn init(
             if config_path.exists() {
                 config.update_from_file(&cwd, config_path);
             }
+            config.allowed_issues = None;
 
             config.add_fixmes = true;
 
@@ -690,6 +694,7 @@ pub fn init(
             if config_path.exists() {
                 config.update_from_file(&cwd, config_path);
             }
+            config.allowed_issues = None;
 
             config.remove_fixmes = true;
 
@@ -726,6 +731,8 @@ pub fn init(
             if config_path.exists() {
                 config.update_from_file(&cwd, config_path);
             }
+
+            config.allowed_issues = None;
 
             let result = hakana_workhorse::scan_and_analyze(
                 true,

@@ -15,11 +15,12 @@ pub struct Config {
     pub migration_symbols: FxHashSet<(String, String)>,
     pub find_unused_expressions: bool,
     pub find_unused_definitions: bool,
-    pub issue_filter: Option<FxHashSet<IssueKind>>,
+    pub allowed_issues: Option<FxHashSet<IssueKind>>,
+    pub allowable_issues: Option<FxHashSet<IssueKind>>,
     pub issues_to_fix: FxHashSet<IssueKind>,
     pub graph_kind: GraphKind,
     pub ignore_files: Vec<String>,
-    pub ignore_issue_files: FxHashMap<String, Vec<String>>,
+    pub ignore_issue_files: FxHashMap<IssueKind, Vec<String>>,
     pub security_config: SecurityConfig,
     pub root_dir: String,
     pub hooks: Vec<Box<dyn CustomHook>>,
@@ -53,7 +54,7 @@ impl Config {
             find_unused_expressions: false,
             find_unused_definitions: false,
             ignore_mixed_issues: false,
-            issue_filter: None,
+            allowed_issues: None,
             migration_symbols: FxHashSet::default(),
             graph_kind: GraphKind::FunctionBody,
             ignore_files: Vec::new(),
@@ -64,6 +65,7 @@ impl Config {
             add_fixmes: false,
             remove_fixmes: false,
             all_custom_issues,
+            allowable_issues: None,
         }
     }
 
@@ -82,8 +84,25 @@ impl Config {
         self.ignore_issue_files = json_config
             .ignore_issue_files
             .into_iter()
-            .map(|(k, v)| (k, v.into_iter().map(|v| format!("{}/{}", cwd, v)).collect()))
+            .map(|(k, v)| {
+                (
+                    IssueKind::from_str(k.as_str(), &self.all_custom_issues).unwrap(),
+                    v.into_iter().map(|v| format!("{}/{}", cwd, v)).collect(),
+                )
+            })
             .collect();
+
+        self.allowed_issues = if json_config.allowed_issues.is_empty() {
+            None
+        } else {
+            Some(
+                json_config
+                    .allowed_issues
+                    .into_iter()
+                    .map(|s| IssueKind::from_str(s.as_str(), &self.all_custom_issues).unwrap())
+                    .collect::<FxHashSet<_>>(),
+            )
+        };
 
         self.security_config.ignore_files = json_config
             .security_analysis
@@ -100,7 +119,7 @@ impl Config {
     }
 
     pub fn can_add_issue(&self, issue: &Issue) -> bool {
-        if let Some(issue_filter) = &self.issue_filter {
+        if let Some(issue_filter) = &self.allowed_issues {
             if !issue_filter.contains(&issue.kind) {
                 return false;
             }
@@ -110,10 +129,9 @@ impl Config {
     }
 
     pub fn allow_issue_kind_in_file(&self, issue_kind: &IssueKind, file: &str) -> bool {
-        let str_issue = issue_kind.to_string();
         let file = format!("{}/{}", self.root_dir, file);
 
-        if let Some(issue_entries) = self.ignore_issue_files.get(&str_issue) {
+        if let Some(issue_entries) = self.ignore_issue_files.get(&issue_kind) {
             for ignore_file_path in issue_entries {
                 if glob::Pattern::new(ignore_file_path).unwrap().matches(&file) {
                     return false;

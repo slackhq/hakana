@@ -4,13 +4,19 @@ use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct JsonConfig {
+    #[serde(default)]
     pub ignore_files: Vec<String>,
+    #[serde(default)]
     pub ignore_issue_files: FxHashMap<String, Vec<String>>,
+    #[serde(default)]
     pub security_analysis: JsonSecurityConfig,
+    #[serde(default)]
+    pub allowed_issues: Vec<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub struct JsonSecurityConfig {
     pub ignore_files: Vec<String>,
     pub ignore_sink_files: FxHashMap<String, Vec<String>>,
