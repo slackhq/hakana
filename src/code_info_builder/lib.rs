@@ -144,12 +144,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     None
                 },
                 provided_type: if let Some(t) = &gc.type_ {
-                    Some(get_type_from_hint(
+                    get_type_from_hint(
                         &*t.1,
                         None,
                         &TypeResolutionContext::new(),
                         &self.resolved_names,
-                    ))
+                    )
                 } else {
                     None
                 },
@@ -206,6 +206,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     &TypeResolutionContext::new(),
                     &self.resolved_names,
                 )
+                .unwrap()
             } else {
                 get_mixed_any()
             };
@@ -240,7 +241,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 None
             },
             as_type: if let Some(as_hint) = &typedef.as_constraint {
-                Some(get_type_from_hint(
+                get_type_from_hint(
                     &as_hint.1,
                     None,
                     &TypeResolutionContext {
@@ -248,7 +249,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         template_supers: FxHashMap::default(),
                     },
                     &self.resolved_names,
-                ))
+                )
             } else {
                 None
             },
@@ -260,7 +261,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     template_supers: FxHashMap::default(),
                 },
                 &self.resolved_names,
-            ),
+            )
+            .unwrap(),
             template_types: template_type_map,
             generic_variance,
             shape_field_taints: None,

@@ -324,7 +324,8 @@ fn analyze_named_constructor(
                     context.function_context.calling_class.as_ref(),
                     &statements_analyzer.get_type_resolution_context(),
                     statements_analyzer.get_file_analyzer().resolved_names,
-                );
+                )
+                .unwrap();
 
                 if param_type.is_placeholder() {
                     continue;
@@ -425,7 +426,8 @@ fn analyze_named_constructor(
                             context.function_context.calling_class.as_ref(),
                             &statements_analyzer.get_type_resolution_context(),
                             statements_analyzer.get_file_analyzer().resolved_names,
-                        );
+                        )
+                        .unwrap();
 
                         populate_union_type(
                             &mut param_type,

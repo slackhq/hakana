@@ -12,13 +12,15 @@ use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
-    get_arrayish_params, get_bool, get_float, get_int, get_mixed, get_mixed_any, get_mixed_vec,
-    get_nothing, get_object, get_string, get_vec, template, type_expander, wrap_atomic,
+    add_union_type, get_arrayish_params, get_bool, get_float, get_int, get_mixed, get_mixed_any,
+    get_mixed_vec, get_nothing, get_object, get_string, get_vec, template, type_expander,
+    wrap_atomic,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;
 use crate::expr::variable_fetch_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
@@ -56,6 +58,7 @@ pub(crate) fn fetch(
                 pos,
                 codebase,
                 tast_info,
+                context,
             ) {
                 stmt_type = Some(t);
             }
@@ -159,6 +162,7 @@ fn handle_special_functions(
     pos: &Pos,
     codebase: &CodebaseInfo,
     tast_info: &mut TastInfo,
+    context: &mut ScopeContext,
 ) -> Option<TUnion> {
     match name {
         "HH\\global_get" => {
@@ -484,6 +488,57 @@ fn handle_special_functions(
 
             if all_ints {
                 Some(get_vec(get_int()))
+            } else {
+                None
+            }
+        }
+        "HH\\idx" => {
+            if args.len() >= 2 {
+                let dict_type = tast_info.get_rc_expr_type(args[0].1.pos()).cloned();
+                let dim_type = tast_info.get_rc_expr_type(args[1].1.pos()).cloned();
+
+                let mut expr_type = None;
+
+                if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
+                    for atomic_type in &dict_type.types {
+                        if let TAtomic::TDict { .. } = atomic_type {
+                            let mut expr_type_inner = handle_array_access_on_dict(
+                                statements_analyzer,
+                                pos,
+                                tast_info,
+                                context,
+                                atomic_type,
+                                &*dim_type,
+                                false,
+                                &mut false,
+                                true,
+                                &mut false,
+                                &mut false,
+                            );
+
+                            if args.len() == 2 {
+                                expr_type_inner.add_type(TAtomic::TNull);
+                            }
+
+                            expr_type = Some(expr_type_inner);
+                        }
+                    }
+
+                    if args.len() > 2 {
+                        let default_type = tast_info.get_expr_type(args[2].1.pos());
+                        expr_type = if let Some(expr_type) = expr_type {
+                            Some(if let Some(default_type) = default_type {
+                                add_union_type(expr_type, default_type, codebase, false)
+                            } else {
+                                add_union_type(expr_type, &get_mixed_any(), codebase, false)
+                            })
+                        } else {
+                            None
+                        };
+                    }
+                }
+
+                Some(expr_type.unwrap_or(get_mixed_any()))
             } else {
                 None
             }

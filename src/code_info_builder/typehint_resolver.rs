@@ -24,7 +24,8 @@ fn get_vec_type_from_hint(
     resolved_names: &FxHashMap<usize, Symbol>,
 ) -> TAtomic {
     TAtomic::TVec {
-        type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names),
+        type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
+            .unwrap(),
         known_count: None,
         non_empty: false,
         known_items: None,
@@ -50,7 +51,8 @@ fn get_tuple_type_from_hints(
                     i,
                     (
                         false,
-                        get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names),
+                        get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
+                            .unwrap(),
                     ),
                 );
                 i += 1;
@@ -68,7 +70,8 @@ fn get_keyset_type_from_hint(
     resolved_names: &FxHashMap<usize, Symbol>,
 ) -> TAtomic {
     TAtomic::TKeyset {
-        type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names),
+        type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
+            .unwrap(),
     }
 }
 
@@ -150,12 +153,12 @@ fn get_dict_type_from_hints(
     TAtomic::TDict {
         params: Some((
             if let Some(k) = &key_hint {
-                get_type_from_hint(&k.1, classlike_name, type_context, resolved_names)
+                get_type_from_hint(&k.1, classlike_name, type_context, resolved_names).unwrap()
             } else {
                 get_arraykey(true)
             },
             if let Some(v) = &value_hint {
-                get_type_from_hint(&v.1, classlike_name, type_context, resolved_names)
+                get_type_from_hint(&v.1, classlike_name, type_context, resolved_names).unwrap()
             } else {
                 get_mixed_any()
             },
@@ -176,7 +179,8 @@ fn get_shape_type_from_hints(
 
     for field in &shape_info.field_map {
         let field_type =
-            get_type_from_hint(&field.hint.1, classlike_name, type_context, resolved_names);
+            get_type_from_hint(&field.hint.1, classlike_name, type_context, resolved_names)
+                .unwrap();
 
         match &field.name {
             ast_defs::ShapeFieldName::SFlitInt(int) => {
@@ -239,12 +243,8 @@ fn get_function_type_from_hints(
             } else {
                 false
             };
-            param.signature_type = Some(get_type_from_hint(
-                &param_type.1,
-                classlike_name,
-                type_context,
-                resolved_names,
-            ));
+            param.signature_type =
+                get_type_from_hint(&param_type.1, classlike_name, type_context, resolved_names);
 
             param
         })
@@ -254,24 +254,24 @@ fn get_function_type_from_hints(
         let mut param = FunctionLikeParameter::new("".to_string());
 
         param.is_variadic = true;
-        param.signature_type = Some(get_type_from_hint(
+        param.signature_type = get_type_from_hint(
             &variadic_type.1,
             classlike_name,
             type_context,
             resolved_names,
-        ));
+        );
 
         params.push(param);
     }
 
     TAtomic::TClosure {
         params,
-        return_type: Some(get_type_from_hint(
+        return_type: get_type_from_hint(
             &function_info.return_ty.1,
             classlike_name,
             type_context,
             resolved_names,
-        )),
+        ),
         effects: None,
         closure_id: StrId::anonymous_fn(),
     }
@@ -310,7 +310,9 @@ fn get_reference_type(
 
     let type_params: Vec<TUnion> = extra_info
         .into_iter()
-        .map(|hint| get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names))
+        .map(|hint| {
+            get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names).unwrap()
+        })
         .collect();
 
     if type_name == "Generator" {
@@ -376,7 +378,7 @@ pub fn get_type_from_hint(
     classlike_name: Option<&Symbol>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, Symbol>,
-) -> TUnion {
+) -> Option<TUnion> {
     let mut types = Vec::new();
 
     let base = match hint {
@@ -384,7 +386,7 @@ pub fn get_type_from_hint(
             let applied_type = &id.1;
 
             if let Some(type_name) = type_context.template_supers.get(applied_type) {
-                return type_name.clone();
+                return Some(type_name.clone());
             }
 
             match applied_type.as_str() {
@@ -459,6 +461,9 @@ pub fn get_type_from_hint(
                 }
                 "resource" => TAtomic::TMixed,
                 "_" => TAtomic::TPlaceholder,
+                "HH\\FIXME\\MISSING_RETURN_TYPE" | "\\HH\\FIXME\\MISSING_RETURN_TYPE" => {
+                    return None;
+                }
                 _ => {
                     get_reference_type(id, extra_info, classlike_name, type_context, resolved_names)
                 }
@@ -474,7 +479,8 @@ pub fn get_type_from_hint(
         }
         Hint_::Hoption(inner) => {
             types.push(TAtomic::TNull);
-            let union = get_type_from_hint(&inner.1, classlike_name, type_context, resolved_names);
+            let union =
+                get_type_from_hint(&inner.1, classlike_name, type_context, resolved_names).unwrap();
 
             let mut last = None;
 
@@ -495,6 +501,7 @@ pub fn get_type_from_hint(
         Hint_::Haccess(class, type_names) => {
             let mut inner_type =
                 get_type_from_hint(&class.1, classlike_name, type_context, resolved_names)
+                    .unwrap()
                     .get_single_owned();
 
             for type_id in type_names {
@@ -526,7 +533,7 @@ pub fn get_type_from_hint(
 
     types.push(base);
 
-    TUnion::new(types)
+    Some(TUnion::new(types))
 }
 
 pub fn get_type_from_optional_hint(
@@ -536,12 +543,7 @@ pub fn get_type_from_optional_hint(
     resolved_names: &FxHashMap<usize, Symbol>,
 ) -> Option<TUnion> {
     match hint {
-        Some(x) => Some(get_type_from_hint(
-            &x.1,
-            classlike_name,
-            type_context,
-            resolved_names,
-        )),
+        Some(x) => get_type_from_hint(&x.1, classlike_name, type_context, resolved_names),
         _ => None,
     }
 }

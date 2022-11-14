@@ -25,7 +25,6 @@ use hakana_reflection_info::FileSource;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::ThreadedInterner;
 use hakana_type::get_mixed_any;
-use hakana_type::wrap_atomic;
 use oxidized::aast;
 use oxidized::ast::UserAttribute;
 use oxidized::ast_defs;
@@ -242,12 +241,12 @@ pub(crate) fn get_functionlike(
                 if let ast_defs::ConstraintKind::ConstraintAs
                 | ast_defs::ConstraintKind::ConstraintEq = constraint_type
                 {
-                    template_as_type = Some(get_type_from_hint(
+                    template_as_type = get_type_from_hint(
                         &constraint_hint.1,
                         this_name,
                         type_context,
                         resolved_names,
-                    ));
+                    );
                 }
             }
 
@@ -258,7 +257,8 @@ pub(crate) fn get_functionlike(
                         this_name,
                         type_context,
                         resolved_names,
-                    );
+                    )
+                    .unwrap();
 
                     super_type.add_type(TAtomic::TTemplateParam {
                         param_name: type_param_node.name.1.clone(),
@@ -289,10 +289,12 @@ pub(crate) fn get_functionlike(
         for where_hint in where_constraints {
             let where_first =
                 get_type_from_hint(&where_hint.0 .1, this_name, type_context, resolved_names)
+                    .unwrap()
                     .get_single_owned();
 
             let where_second =
-                get_type_from_hint(&where_hint.2 .1, this_name, type_context, resolved_names);
+                get_type_from_hint(&where_hint.2 .1, this_name, type_context, resolved_names)
+                    .unwrap();
 
             match where_first {
                 TAtomic::TTemplateParam { param_name, .. } => match where_hint.1 {
@@ -305,12 +307,6 @@ pub(crate) fn get_functionlike(
                 },
                 _ => {}
             }
-        }
-
-        if functionlike_id == "HH\\idx" {
-            functionlike_info.template_types.insert("Td".to_string(), {
-                FxHashMap::from_iter([(fn_id.clone(), Arc::new(get_mixed_any()))])
-            });
         }
     }
 
@@ -327,44 +323,8 @@ pub(crate) fn get_functionlike(
         file_source,
     );
     type_context.template_supers = template_supers;
-    functionlike_info.return_type = if let Some(t) =
-        get_type_from_optional_hint(ret.get_hint(), None, &type_context, resolved_names)
-    {
-        Some(t)
-    } else {
-        if functionlike_id == "HH\\idx" {
-            if let Some(defining_entities) = type_context.template_type_map.get(&"Td".to_string()) {
-                let as_type = defining_entities.values().next().unwrap().clone();
-                let defining_entity = defining_entities.keys().next().unwrap().clone();
-
-                let mut template_type = wrap_atomic(TAtomic::TTemplateParam {
-                    param_name: "Td".to_string(),
-                    as_type: (*as_type).clone(),
-                    defining_entity: defining_entity.clone(),
-                    from_class: false,
-                    extra_types: None,
-                });
-
-                if let Some(default_param) = functionlike_info.params.get_mut(2) {
-                    default_param.signature_type = Some(template_type.clone());
-                }
-
-                template_type.add_type(TAtomic::TTemplateParam {
-                    param_name: "Tv".to_string(),
-                    as_type: (*as_type).clone(),
-                    defining_entity,
-                    from_class: false,
-                    extra_types: None,
-                });
-
-                Some(template_type)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    };
+    functionlike_info.return_type =
+        get_type_from_optional_hint(ret.get_hint(), None, &type_context, resolved_names);
 
     for user_attribute in user_attributes {
         let name = resolved_names
@@ -561,12 +521,7 @@ fn convert_param_nodes(
 
             param.is_variadic = param_node.is_variadic;
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
-                Some(get_type_from_hint(
-                    &*param_type.1,
-                    None,
-                    type_context,
-                    resolved_names,
-                ))
+                get_type_from_hint(&*param_type.1, None, type_context, resolved_names)
             } else {
                 None
             };

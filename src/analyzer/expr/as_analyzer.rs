@@ -141,7 +141,9 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             context.function_context.calling_class.as_ref(),
             &statements_analyzer.get_type_resolution_context(),
             statements_analyzer.get_file_analyzer().resolved_names,
-        );
+        )
+        .unwrap();
+
         populate_union_type(&mut hint_type, &codebase.symbols);
         type_expander::expand_union(
             codebase,

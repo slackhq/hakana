@@ -90,6 +90,7 @@ pub(crate) fn scan(
                     &type_context,
                     resolved_names,
                 )
+                .unwrap()
             } else {
                 get_mixed_any()
             };
@@ -144,15 +145,18 @@ pub(crate) fn scan(
                         params
                             .iter()
                             .map(|param| {
-                                Arc::new(get_type_from_hint(
-                                    &param.1,
-                                    Some(&class_name),
-                                    &TypeResolutionContext {
-                                        template_type_map: storage.template_types.clone(),
-                                        template_supers: FxHashMap::default(),
-                                    },
-                                    resolved_names,
-                                ))
+                                Arc::new(
+                                    get_type_from_hint(
+                                        &param.1,
+                                        Some(&class_name),
+                                        &TypeResolutionContext {
+                                            template_type_map: storage.template_types.clone(),
+                                            template_supers: FxHashMap::default(),
+                                        },
+                                        resolved_names,
+                                    )
+                                    .unwrap(),
+                                )
                             })
                             .collect(),
                     );
@@ -182,15 +186,18 @@ pub(crate) fn scan(
                             params
                                 .iter()
                                 .map(|param| {
-                                    Arc::new(get_type_from_hint(
-                                        &param.1,
-                                        Some(&class_name),
-                                        &TypeResolutionContext {
-                                            template_type_map: storage.template_types.clone(),
-                                            template_supers: FxHashMap::default(),
-                                        },
-                                        resolved_names,
-                                    ))
+                                    Arc::new(
+                                        get_type_from_hint(
+                                            &param.1,
+                                            Some(&class_name),
+                                            &TypeResolutionContext {
+                                                template_type_map: storage.template_types.clone(),
+                                                template_supers: FxHashMap::default(),
+                                            },
+                                            resolved_names,
+                                        )
+                                        .unwrap(),
+                                    )
                                 })
                                 .collect(),
                         );
@@ -216,6 +223,7 @@ pub(crate) fn scan(
                         &TypeResolutionContext::new(),
                         resolved_names,
                     )
+                    .unwrap()
                     .get_single_owned(),
                 );
             }
@@ -256,15 +264,18 @@ pub(crate) fn scan(
                         params
                             .iter()
                             .map(|param| {
-                                Arc::new(get_type_from_hint(
-                                    &param.1,
-                                    Some(&class_name),
-                                    &TypeResolutionContext {
-                                        template_type_map: storage.template_types.clone(),
-                                        template_supers: FxHashMap::default(),
-                                    },
-                                    resolved_names,
-                                ))
+                                Arc::new(
+                                    get_type_from_hint(
+                                        &param.1,
+                                        Some(&class_name),
+                                        &TypeResolutionContext {
+                                            template_type_map: storage.template_types.clone(),
+                                            template_supers: FxHashMap::default(),
+                                        },
+                                        resolved_names,
+                                    )
+                                    .unwrap(),
+                                )
                             })
                             .collect(),
                     );
@@ -295,15 +306,18 @@ pub(crate) fn scan(
                         params
                             .iter()
                             .map(|param| {
-                                Arc::new(get_type_from_hint(
-                                    &param.1,
-                                    Some(&class_name),
-                                    &TypeResolutionContext {
-                                        template_type_map: storage.template_types.clone(),
-                                        template_supers: FxHashMap::default(),
-                                    },
-                                    resolved_names,
-                                ))
+                                Arc::new(
+                                    get_type_from_hint(
+                                        &param.1,
+                                        Some(&class_name),
+                                        &TypeResolutionContext {
+                                            template_type_map: storage.template_types.clone(),
+                                            template_supers: FxHashMap::default(),
+                                        },
+                                        resolved_names,
+                                    )
+                                    .unwrap(),
+                                )
                             })
                             .collect(),
                     );
@@ -334,6 +348,7 @@ pub(crate) fn scan(
                         &TypeResolutionContext::new(),
                         resolved_names,
                     )
+                    .unwrap()
                     .get_single_owned(),
                 );
 
@@ -345,6 +360,7 @@ pub(crate) fn scan(
                             &TypeResolutionContext::new(),
                             resolved_names,
                         )
+                        .unwrap()
                         .get_single_owned(),
                     ));
                 }
@@ -370,6 +386,7 @@ pub(crate) fn scan(
             },
             resolved_names,
         )
+        .unwrap()
         .get_single_owned();
 
         if let TAtomic::TReference { name, .. } = trait_type {
@@ -492,15 +509,18 @@ fn handle_reqs(
                 params
                     .iter()
                     .map(|param| {
-                        Arc::new(get_type_from_hint(
-                            &param.1,
-                            Some(&class_name),
-                            &TypeResolutionContext {
-                                template_type_map: storage.template_types.clone(),
-                                template_supers: FxHashMap::default(),
-                            },
-                            resolved_names,
-                        ))
+                        Arc::new(
+                            get_type_from_hint(
+                                &param.1,
+                                Some(&class_name),
+                                &TypeResolutionContext {
+                                    template_type_map: storage.template_types.clone(),
+                                    template_supers: FxHashMap::default(),
+                                },
+                                resolved_names,
+                            )
+                            .unwrap(),
+                        )
                     })
                     .collect(),
             );
@@ -527,6 +547,7 @@ fn visit_xhp_attribute(
             },
             resolved_names,
         )
+        .unwrap()
     } else {
         get_mixed_any()
     };
@@ -591,7 +612,7 @@ fn visit_class_const_declaration(
     let mut supplied_type_location = None;
 
     if let Some(supplied_type_hint) = &const_node.type_ {
-        provided_type = Some(get_type_from_hint(
+        provided_type = get_type_from_hint(
             &*supplied_type_hint.1,
             Some(&classlike_storage.name),
             &TypeResolutionContext {
@@ -599,7 +620,7 @@ fn visit_class_const_declaration(
                 template_supers: FxHashMap::default(),
             },
             resolved_names,
-        ));
+        );
 
         supplied_type_location = Some(HPos::new(
             &supplied_type_hint.0,
@@ -650,7 +671,8 @@ fn visit_class_typeconst_declaration(
                 template_supers: FxHashMap::default(),
             },
             resolved_names,
-        ),
+        )
+        .unwrap(),
     };
 
     classlike_storage
@@ -670,7 +692,7 @@ fn visit_property_declaration(
     let mut property_type_location = None;
 
     if let Some(property_type_hint) = &property_node.type_.1 {
-        property_type = Some(get_type_from_hint(
+        property_type = get_type_from_hint(
             &*property_type_hint.1,
             Some(&classlike_storage.name),
             &TypeResolutionContext {
@@ -678,7 +700,7 @@ fn visit_property_declaration(
                 template_supers: FxHashMap::default(),
             },
             resolved_names,
-        ));
+        );
 
         property_type_location = Some(HPos::new(
             &property_type_hint.0,

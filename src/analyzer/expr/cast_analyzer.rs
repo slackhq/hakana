@@ -40,7 +40,8 @@ pub(crate) fn analyze(
         None,
         &statements_analyzer.get_type_resolution_context(),
         &FxHashMap::default(),
-    );
+    )
+    .unwrap();
 
     // todo emit issues about redundant casts
 

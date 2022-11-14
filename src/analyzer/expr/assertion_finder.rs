@@ -192,7 +192,7 @@ fn get_is_assertions(
         assertion_context.this_class_name,
         &assertion_context.type_resolution_context,
         assertion_context.resolved_names,
-    );
+    ).unwrap();
 
     if let Some(codebase) = assertion_context.codebase {
         populate_union_type(&mut is_type, &codebase.symbols);
