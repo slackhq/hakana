@@ -1,2 +1,2 @@
-ERROR: InvalidContainsCheck - input.hack:3:9 - HH\Lib\C\contains() of vec<string> expects type string, and will always return false for type int(1)
-ERROR: InvalidContainsCheck - input.hack:20:9 - HH\Lib\C\contains() of dict<string,string> expects type string, and will always return false for type int(1)
+ERROR: InvalidContainsCheck - input.hack:3:9 - Second arg of HH\Lib\C\contains expects type string, saw int(1)
+ERROR: InvalidContainsCheck - input.hack:20:9 - Second arg of HH\Lib\C\contains expects type string, saw int(1)
