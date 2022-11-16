@@ -143,8 +143,8 @@ pub(crate) fn is_contained_by(
         if let (Some(input_param), Some(container_param)) =
             (input_type_params.get(0), container_type_params.get(0))
         {
-            // this is a Hack to match behaviour in the official typechecker
-            if input_param.is_null() && container_param.is_void() {
+            // this is a hack to match behaviour in the official typechecker
+            if input_param.1.is_null() && container_param.is_void() {
                 return true;
             }
         }
@@ -156,9 +156,10 @@ pub(crate) fn is_contained_by(
                 codebase,
                 input_type_part,
                 input_name,
-                input_param,
+                &input_param.1,
                 container_name,
                 container_param,
+                input_param.0,
                 i,
                 inside_assertion,
                 &mut all_types_contain,
@@ -183,7 +184,8 @@ pub(crate) fn compare_generic_params(
     input_param: &TUnion,
     container_name: &Symbol,
     container_param: &TUnion,
-    param_offset: usize,
+    input_param_offset: Option<usize>,
+    container_param_offset: usize,
     inside_assertion: bool,
     all_types_contain: &mut bool,
     atomic_comparison_result: &mut TypeComparisonResult,
@@ -198,8 +200,10 @@ pub(crate) fn compare_generic_params(
             ..
         }) = atomic_comparison_result.replacement_atomic_type
         {
-            if let Some(existing_param) = type_params.get_mut(param_offset) {
-                *existing_param = container_param.clone();
+            if let Some(input_param_offset) = input_param_offset {
+                if let Some(existing_param) = type_params.get_mut(input_param_offset) {
+                    *existing_param = container_param.clone();
+                }
             }
         }
 
@@ -213,12 +217,12 @@ pub(crate) fn compare_generic_params(
     {
         container_classlike_storage
             .generic_variance
-            .get(&param_offset)
+            .get(&container_param_offset)
     } else if let Some(container_typealias_storage) = codebase.type_definitions.get(container_name)
     {
         container_typealias_storage
             .generic_variance
-            .get(&param_offset)
+            .get(&container_param_offset)
     } else {
         None
     };
@@ -246,7 +250,8 @@ pub(crate) fn compare_generic_params(
             }
         }
 
-        if input_name == &codebase.interner.get("HH\\KeyedContainer").unwrap() && param_offset == 0
+        if input_name == &codebase.interner.get("HH\\KeyedContainer").unwrap()
+            && container_param_offset == 0
         {
             param_comparison_result.type_coerced_from_nested_mixed = Some(true);
         }
@@ -265,7 +270,7 @@ pub(crate) fn compare_generic_params(
                 ..
             }) = atomic_comparison_result.replacement_atomic_type
             {
-                type_params.insert(param_offset, container_param.clone());
+                type_params.insert(container_param_offset, container_param.clone());
             }
         } else {
             if !matches!(container_type_param_variance, Some(Variance::Covariant))

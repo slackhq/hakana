@@ -364,7 +364,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     &mut has_valid_expected_offset,
                     context.inside_isset,
                     &mut false,
-                    &mut false
+                    &mut false,
                 );
 
                 if let Some(existing_type) = stmt_type {
@@ -436,34 +436,55 @@ pub(crate) fn get_array_access_type_given_offset(
                 has_valid_expected_offset = true;
             }
             TAtomic::TNamedObject {
-                name,
-                type_params: Some(type_params),
-                ..
+                name, type_params, ..
             } => match codebase.interner.lookup(*name) {
                 "HH\\KeyedContainer" | "HH\\AnyArray" => {
-                    if let Some(existing_type) = stmt_type {
-                        stmt_type = Some(add_union_type(
-                            existing_type,
-                            &type_params.get(1).unwrap(),
-                            codebase,
-                            false,
-                        ));
-                    } else {
-                        stmt_type = Some(type_params.get(1).unwrap().clone());
-                    }
+                    if let Some(type_params) = type_params {
+                        if let Some(existing_type) = stmt_type {
+                            stmt_type = Some(add_union_type(
+                                existing_type,
+                                &type_params.get(1).unwrap(),
+                                codebase,
+                                false,
+                            ));
+                        } else {
+                            stmt_type = Some(type_params.get(1).unwrap().clone());
+                        }
 
-                    has_valid_expected_offset = true;
+                        has_valid_expected_offset = true;
+                    }
                 }
                 "HH\\Container" => {
+                    if let Some(type_params) = type_params {
+                        if let Some(existing_type) = stmt_type {
+                            stmt_type = Some(add_union_type(
+                                existing_type,
+                                &type_params.get(0).unwrap(),
+                                codebase,
+                                false,
+                            ));
+                        } else {
+                            stmt_type = Some(type_params.get(0).unwrap().clone());
+                        }
+
+                        has_valid_expected_offset = true;
+                    }
+                }
+                "XHPChild" => {
+                    let new_type = handle_array_access_on_mixed(
+                        statements_analyzer,
+                        stmt.2,
+                        tast_info,
+                        context,
+                        atomic_var_type,
+                        &array_type,
+                        stmt_type.clone(),
+                    );
+
                     if let Some(existing_type) = stmt_type {
-                        stmt_type = Some(add_union_type(
-                            existing_type,
-                            &type_params.get(0).unwrap(),
-                            codebase,
-                            false,
-                        ));
+                        stmt_type = Some(add_union_type(existing_type, &new_type, codebase, false));
                     } else {
-                        stmt_type = Some(type_params.get(0).unwrap().clone());
+                        stmt_type = Some(new_type);
                     }
 
                     has_valid_expected_offset = true;

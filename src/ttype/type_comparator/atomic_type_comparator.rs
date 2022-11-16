@@ -664,6 +664,7 @@ pub fn is_contained_by(
                                     input_param,
                                     container_name,
                                     container_param,
+                                    None,
                                     i,
                                     inside_assertion,
                                     &mut all_types_contain,

@@ -504,7 +504,11 @@ fn replace_atomic(
                         template_result,
                         codebase,
                         &if let Some(mapped_type_params) = &mapped_type_params {
-                            mapped_type_params.get(offset).cloned()
+                            if let Some(matched) = mapped_type_params.get(offset).cloned() {
+                                Some(matched.1)
+                            } else {
+                                None
+                            }
                         } else {
                             input_type_param
                         },
@@ -1575,17 +1579,21 @@ fn find_matching_atomic_types_for_template(
     matching_atomic_types
 }
 
-pub(crate) fn get_mapped_generic_type_params(
+pub fn get_mapped_generic_type_params(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
     container_name: &Symbol,
     container_remapped_params: bool,
-) -> Vec<TUnion> {
+) -> Vec<(Option<usize>, TUnion)> {
     let mut input_type_params = match input_type_part {
         TAtomic::TNamedObject {
             type_params: Some(type_params),
             ..
-        } => type_params.clone(),
+        } => type_params
+            .iter()
+            .enumerate()
+            .map(|(k, v)| (Some(k), v.clone()))
+            .collect::<Vec<_>>(),
         _ => panic!(),
     };
 
@@ -1597,7 +1605,7 @@ pub(crate) fn get_mapped_generic_type_params(
     let input_class_storage = codebase.classlike_infos.get(input_name).unwrap();
 
     if input_name == container_name {
-        return input_type_params.clone();
+        return input_type_params;
     }
 
     let input_template_types = &input_class_storage.template_types;
@@ -1619,7 +1627,7 @@ pub(crate) fn get_mapped_generic_type_params(
                 replacement_templates
                     .entry(template_name.clone())
                     .or_insert_with(FxHashMap::default)
-                    .insert(input_name.clone(), input_type.clone());
+                    .insert(input_name.clone(), input_type.clone().1);
 
                 i += 1;
             } else {
@@ -1634,12 +1642,14 @@ pub(crate) fn get_mapped_generic_type_params(
         let mut new_input_params = Vec::new();
 
         for (_, extended_input_param) in params {
+            let mut mapped_input_offset = None;
+
             let mut new_input_param = None;
 
             for et in &extended_input_param.types {
                 let ets = get_extended_templated_types(&et, template_extends);
 
-                let mut candidate_param_type: Option<TUnion> = None;
+                let mut candidate_param_type: Option<_> = None;
 
                 if let Some(TAtomic::TTemplateParam {
                     param_name,
@@ -1659,8 +1669,11 @@ pub(crate) fn get_mapped_generic_type_params(
 
                             let candidate_param_type_inner = input_type_params
                                 .get(old_params_offset)
-                                .unwrap_or(&get_mixed_any())
-                                .clone();
+                                .unwrap_or(&(None, get_mixed_any()))
+                                .clone()
+                                .1;
+
+                            mapped_input_offset = input_class_storage.template_types.get_index_of(param_name);
 
                             candidate_param_type = Some(candidate_param_type_inner);
                         }
@@ -1684,10 +1697,13 @@ pub(crate) fn get_mapped_generic_type_params(
                 };
             }
 
-            new_input_params.push(inferred_type_replacer::replace(
-                &new_input_param.unwrap(),
-                &TemplateResult::new(IndexMap::new(), replacement_templates.clone()),
-                codebase,
+            new_input_params.push((
+                mapped_input_offset,
+                inferred_type_replacer::replace(
+                    &new_input_param.unwrap(),
+                    &TemplateResult::new(IndexMap::new(), replacement_templates.clone()),
+                    codebase,
+                ),
             ));
         }
 
@@ -1696,7 +1712,7 @@ pub(crate) fn get_mapped_generic_type_params(
             .map(|mut v| {
                 type_expander::expand_union(
                     codebase,
-                    &mut v,
+                    &mut v.1,
                     &TypeExpansionOptions {
                         ..Default::default()
                     },

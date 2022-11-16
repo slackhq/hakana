@@ -1,13 +1,14 @@
 use super::{
+    assertion_reconciler::intersect_atomic_with_atomic,
     reconciler::{trigger_issue_for_impossible, ReconciliationStatus},
     simple_negated_assertion_reconciler,
 };
 use crate::typed_ast::TastInfo;
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
+    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion, StrId,
 };
-use hakana_type::{get_nothing, wrap_atomic};
+use hakana_type::{get_nothing, get_placeholder, wrap_atomic};
 use hakana_type::{
     type_combiner,
     type_comparator::{
@@ -167,7 +168,6 @@ fn subtract_complex_type(
             (
                 TAtomic::TNamedObject {
                     name: existing_classlike_name,
-                    type_params: existing_type_params,
                     ..
                 },
                 TAtomic::TNamedObject {
@@ -181,37 +181,13 @@ fn subtract_complex_type(
                     // handle __Sealed classes, negating where possible
                     if let Some(child_classlikes) = &classlike_storage.child_classlikes {
                         if child_classlikes.contains(assertion_classlike_name) {
-                            for child_classlike in child_classlikes {
-                                if child_classlike != assertion_classlike_name {
-                                    let alternate_class = TAtomic::TNamedObject {
-                                        name: child_classlike.clone(),
-                                        type_params: if let Some(existing_type_params) =
-                                            existing_type_params
-                                        {
-                                            if let Some(child_classlike_info) =
-                                                codebase.classlike_infos.get(child_classlike)
-                                            {
-                                                // this is hack — ideally we'd map between the two
-                                                if child_classlike_info.template_types.len()
-                                                    == existing_type_params.len()
-                                                {
-                                                    Some(existing_type_params.clone())
-                                                } else {
-                                                    None
-                                                }
-                                            } else {
-                                                None
-                                            }
-                                        } else {
-                                            None
-                                        },
-                                        extra_types: None,
-                                        is_this: false,
-                                        remapped_params: false,
-                                    };
-                                    acceptable_types.push(alternate_class);
-                                }
-                            }
+                            handle_negated_class(
+                                child_classlikes,
+                                &existing_atomic,
+                                assertion_classlike_name,
+                                codebase,
+                                &mut acceptable_types,
+                            );
 
                             continue;
                         }
@@ -235,6 +211,48 @@ fn subtract_complex_type(
     }
 
     existing_var_type.types = acceptable_types;
+}
+
+fn handle_negated_class(
+    child_classlikes: &FxHashSet<StrId>,
+    existing_atomic: &TAtomic,
+    assertion_classlike_name: &StrId,
+    codebase: &CodebaseInfo,
+    acceptable_types: &mut Vec<TAtomic>,
+) {
+    for child_classlike in child_classlikes {
+        if child_classlike != assertion_classlike_name {
+            let alternate_class = TAtomic::TNamedObject {
+                name: child_classlike.clone(),
+                type_params: if let Some(child_classlike_info) =
+                    codebase.classlike_infos.get(child_classlike)
+                {
+                    let placeholder_params = child_classlike_info
+                        .template_types
+                        .iter()
+                        .map(|_| get_placeholder())
+                        .collect::<Vec<_>>();
+
+                    if placeholder_params.is_empty() {
+                        None
+                    } else {
+                        Some(placeholder_params)
+                    }
+                } else {
+                    None
+                },
+                extra_types: None,
+                is_this: false,
+                remapped_params: false,
+            };
+
+            if let Some(acceptable_alternate_class) =
+                intersect_atomic_with_atomic(existing_atomic, &alternate_class, codebase)
+            {
+                acceptable_types.push(acceptable_alternate_class);
+            }
+        }
+    }
 }
 
 fn handle_literal_negated_equality(

@@ -201,7 +201,7 @@ fn intersect_union_with_atomic(
     None
 }
 
-fn intersect_atomic_with_atomic(
+pub(crate) fn intersect_atomic_with_atomic(
     type_1_atomic: &TAtomic,
     type_2_atomic: &TAtomic,
     codebase: &CodebaseInfo,
@@ -236,6 +236,8 @@ fn intersect_atomic_with_atomic(
             atomic_comparison_results.type_coerced.unwrap_or(false),
         );
     }
+
+    atomic_comparison_results = TypeComparisonResult::new();
 
     if atomic_type_comparator::is_contained_by(
         codebase,
@@ -572,45 +574,46 @@ fn intersect_atomic_with_atomic(
 }
 
 fn intersect_contained_atomic_with_another(
-    type_1_atomic: &TAtomic,
-    type_2_atomic: &TAtomic,
+    super_atomic: &TAtomic,
+    sub_atomic: &TAtomic,
     codebase: &CodebaseInfo,
     generic_coercion: bool,
 ) -> Option<TAtomic> {
     if generic_coercion {
         if let TAtomic::TNamedObject {
-            name: type_2_name,
+            name: sub_atomic_name,
             type_params: None,
             ..
-        } = type_2_atomic
+        } = sub_atomic
         {
             if let TAtomic::TNamedObject {
-                type_params: Some(type_1_params),
+                name: super_atomic_name,
+                type_params: Some(super_params),
                 ..
-            } = type_1_atomic
+            } = super_atomic
             {
-                // this is a hack - it's not actually rigorous, as the params may be different
-                return Some(TAtomic::TNamedObject {
-                    name: type_2_name.clone(),
-                    type_params: Some(type_1_params.clone()),
-                    is_this: false,
-                    extra_types: None,
-                    remapped_params: false,
-                });
+                if super_atomic_name == sub_atomic_name {
+                    return Some(TAtomic::TNamedObject {
+                        name: sub_atomic_name.clone(),
+                        type_params: Some(super_params.clone()),
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    });
+                }
             }
         }
     }
 
-    if let TAtomic::TNamedObject { .. } = type_2_atomic {
-        let mut type_1_atomic = type_1_atomic.clone();
+    if let TAtomic::TNamedObject { .. } = sub_atomic {
+        let mut type_1_atomic = super_atomic.clone();
         if let TAtomic::TTemplateParam {
             as_type: ref mut type_1_as_type,
             ..
         } = type_1_atomic
         {
             if type_1_as_type.has_object_type() {
-                let type_1_as =
-                    intersect_union_with_atomic(codebase, &type_1_as_type, type_2_atomic);
+                let type_1_as = intersect_union_with_atomic(codebase, &type_1_as_type, sub_atomic);
 
                 if let Some(type_1_as) = type_1_as {
                     *type_1_as_type = type_1_as;
@@ -623,7 +626,7 @@ fn intersect_contained_atomic_with_another(
         }
     }
 
-    let mut type_2_atomic = type_2_atomic.clone();
+    let mut type_2_atomic = sub_atomic.clone();
     type_2_atomic.remove_placeholders(&codebase.interner);
 
     Some(type_2_atomic)
