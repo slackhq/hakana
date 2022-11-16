@@ -455,16 +455,14 @@ pub fn init(
                 }
 
                 if show_issue_stats {
-                    let mut issues_by_kind = IndexMap::new();
-                    for (_, issues) in &analysis_result.emitted_issues {
-                        for issue in issues {
-                            *issues_by_kind.entry(issue.kind.clone()).or_insert(0) += 1
-                        }
-                    }
+                    let mut issues_by_kind = analysis_result
+                        .issue_counts
+                        .into_iter()
+                        .collect::<IndexMap<_, _>>();
                     issues_by_kind.sort_by(|_, a, _, b| b.cmp(a));
 
                     for (issue, count) in issues_by_kind {
-                        println!("{}\t{}", issue, count);
+                        println!("{}\t{}", issue.to_string(), count);
                     }
                 }
 

@@ -581,6 +581,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             parent_tast_info
                 .matched_ignore_positions
                 .extend(tast_info.matched_ignore_positions);
+
+            for (kind, count) in tast_info.issue_counts {
+                *parent_tast_info.issue_counts.entry(kind).or_insert(0) += count;
+            }
         } else {
             update_analysis_result_with_tast(
                 tast_info,
@@ -890,7 +894,13 @@ pub(crate) fn update_analysis_result_with_tast(
         .emitted_issues
         .entry(file_path.to_string())
         .or_insert_with(Vec::new)
-        .extend(tast_info.issues_to_emit.into_iter().unique().collect::<Vec<_>>());
+        .extend(
+            tast_info
+                .issues_to_emit
+                .into_iter()
+                .unique()
+                .collect::<Vec<_>>(),
+        );
 
     if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         if !ignore_taint_path {
@@ -909,6 +919,10 @@ pub(crate) fn update_analysis_result_with_tast(
             } else {
                 analysis_result.mixed_source_counts.insert(source_id, c);
             }
+        }
+
+        for (kind, count) in tast_info.issue_counts {
+            *analysis_result.issue_counts.entry(kind).or_insert(0) += count;
         }
     }
 }

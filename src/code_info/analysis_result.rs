@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use crate::{
     data_flow::graph::{DataFlowGraph, GraphKind},
-    issue::Issue,
+    issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
 };
 
@@ -23,6 +23,7 @@ pub struct AnalysisResult {
     pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
+    pub issue_counts: FxHashMap<IssueKind, usize>,
 }
 
 impl AnalysisResult {
@@ -33,6 +34,7 @@ impl AnalysisResult {
             mixed_source_counts: FxHashMap::default(),
             program_dataflow_graph: DataFlowGraph::new(program_dataflow_graph_kind),
             symbol_references: SymbolReferences::new(),
+            issue_counts: FxHashMap::default(),
         }
     }
 
@@ -48,6 +50,9 @@ impl AnalysisResult {
         self.program_dataflow_graph
             .add_graph(other.program_dataflow_graph);
         self.symbol_references.extend(other.symbol_references);
+        for (kind, count) in other.issue_counts {
+            *self.issue_counts.entry(kind).or_insert(0) += count;
+        }
     }
 }
 

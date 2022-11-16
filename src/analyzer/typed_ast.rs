@@ -38,6 +38,7 @@ pub struct TastInfo {
     pub symbol_references: SymbolReferences,
     pub issue_filter: Option<FxHashSet<IssueKind>>,
     pub expr_effects: FxHashMap<(usize, usize), u8>,
+    pub issue_counts: FxHashMap<IssueKind, usize>,
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
@@ -104,6 +105,7 @@ impl TastInfo {
             hakana_fixme_or_ignores,
             expr_fixme_positions: FxHashMap::default(),
             matched_ignore_positions: FxHashSet::default(),
+            issue_counts: FxHashMap::default(),
         }
     }
 
@@ -169,17 +171,53 @@ impl TastInfo {
             return matches!(issue.kind, IssueKind::TaintedData(_));
         }
 
+        if self.covered_by_hh_fixme(&issue.kind, issue.pos.start_line)
+            || self.covered_by_hh_fixme(&issue.kind, issue.pos.start_line - 1)
+        {
+            return false;
+        }
+
+        for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
+            if hakana_fixme_or_ignores.0 == &issue.pos.start_line
+                || hakana_fixme_or_ignores.0 == &(issue.pos.start_line - 1)
+                || hakana_fixme_or_ignores.0 == &(issue.pos.end_line - 1)
+            {
+                for line_issue in hakana_fixme_or_ignores.1 {
+                    if line_issue.0 == issue.kind {
+                        self.matched_ignore_positions
+                            .insert((line_issue.1 .0, line_issue.1 .1));
+
+                        if self.recorded_issues.is_empty() {
+                            *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;
+                        }
+                        return false;
+                    }
+                }
+            }
+        }
+
+        if let Some(recorded_issues) = self.recorded_issues.last_mut() {
+            recorded_issues.push(issue.clone());
+            return false;
+        }
+
+        *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;
+
         if let Some(issue_filter) = &self.issue_filter {
             if !issue_filter.contains(&issue.kind) {
                 return false;
             }
         }
 
-        if let Some(fixmes) = self.hh_fixmes.get(&(issue.pos.start_line as isize)) {
+        return true;
+    }
+
+    fn covered_by_hh_fixme(&mut self, issue_kind: &IssueKind, start_line: usize) -> bool {
+        if let Some(fixmes) = self.hh_fixmes.get(&(start_line as isize)) {
             for (hack_error, _) in fixmes {
                 match *hack_error {
                     // Unify error
-                    4110 => match &issue.kind {
+                    4110 => match &issue_kind {
                         IssueKind::FalsableReturnStatement
                         | IssueKind::FalseArgument
                         | IssueKind::ImpossibleAssignment
@@ -210,12 +248,12 @@ impl TastInfo {
                         | IssueKind::InvalidPropertyAssignmentValue
                         | IssueKind::LessSpecificNestedAnyReturnStatement
                         | IssueKind::LessSpecificNestedAnyArgumentType => {
-                            return false;
+                            return true;
                         }
                         _ => {}
                     },
                     // type inference failed
-                    4297 => match &issue.kind {
+                    4297 => match &issue_kind {
                         IssueKind::MixedAnyArgument
                         | IssueKind::MixedAnyArrayAccess
                         | IssueKind::MixedAnyArrayAssignment
@@ -233,12 +271,12 @@ impl TastInfo {
                         | IssueKind::MixedPropertyAssignment
                         | IssueKind::MixedPropertyTypeCoercion
                         | IssueKind::MixedReturnStatement => {
-                            return false;
+                            return true;
                         }
                         _ => {}
                     },
                     // RequiredFieldIsOptional
-                    4163 => match &issue.kind {
+                    4163 => match &issue_kind {
                         IssueKind::InvalidArgument
                         | IssueKind::InvalidReturnStatement
                         | IssueKind::InvalidReturnType
@@ -249,75 +287,54 @@ impl TastInfo {
                         | IssueKind::LessSpecificReturnStatement
                         | IssueKind::PropertyTypeCoercion
                         | IssueKind::PossiblyInvalidArgument => {
-                            return false;
+                            return true;
                         }
                         _ => {}
                     },
-                    4323 => match &issue.kind {
+                    4323 => match &issue_kind {
                         IssueKind::PossiblyNullArgument => {
-                            return false;
+                            return true;
                         }
                         _ => {}
                     },
-                    4063 => match &issue.kind {
+                    4063 => match &issue_kind {
                         IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess => {
-                            return false;
+                            return true;
                         }
                         _ => {}
                     },
-                    4064 => match &issue.kind {
+                    4064 => match &issue_kind {
                         IssueKind::PossiblyNullArgument | IssueKind::PossiblyNullPropertyFetch => {
-                            return false;
+                            return true;
                         }
                         _ => {}
                     },
-                    4005 => match &issue.kind {
+                    4005 => match &issue_kind {
                         IssueKind::MixedArrayAccess => {
-                            return false;
+                            return true;
                         }
                         _ => {}
                     },
-                    2049 => match &issue.kind {
-                        IssueKind::NonExistentMethod => return false,
+                    2049 => match &issue_kind {
+                        IssueKind::NonExistentMethod => return true,
                         _ => {}
                     },
                     // missing shape field or shape field unknown
-                    4057 | 4138 => match &issue.kind {
+                    4057 | 4138 => match &issue_kind {
                         IssueKind::LessSpecificArgument
                         | IssueKind::LessSpecificReturnStatement
-                        | IssueKind::InvalidReturnStatement => return false,
+                        | IssueKind::InvalidReturnStatement => return true,
                         _ => {}
                     },
-                    4062 => match &issue.kind {
-                        IssueKind::MixedMethodCall => return false,
+                    4062 => match &issue_kind {
+                        IssueKind::MixedMethodCall => return true,
                         _ => {}
                     },
                     _ => {}
                 }
             }
         }
-
-        for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
-            if hakana_fixme_or_ignores.0 == &issue.pos.start_line
-                || hakana_fixme_or_ignores.0 == &(issue.pos.start_line - 1)
-                || hakana_fixme_or_ignores.0 == &(issue.pos.end_line - 1)
-            {
-                for line_issue in hakana_fixme_or_ignores.1 {
-                    if line_issue.0 == issue.kind {
-                        self.matched_ignore_positions
-                            .insert((line_issue.1 .0, line_issue.1 .1));
-                        return false;
-                    }
-                }
-            }
-        }
-
-        if let Some(recorded_issues) = self.recorded_issues.last_mut() {
-            recorded_issues.push(issue.clone());
-            return false;
-        }
-
-        return true;
+        false
     }
 
     pub fn start_recording_issues(&mut self) {
@@ -340,6 +357,14 @@ impl TastInfo {
         if self.recording_level == 0 {
             if issue.can_fix {
                 self.fix_issue(&issue);
+            }
+
+            *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;
+
+            if let Some(issue_filter) = &self.issue_filter {
+                if !issue_filter.contains(&issue.kind) {
+                    return;
+                }
             }
 
             self.add_issue(issue);

@@ -17,7 +17,7 @@ use hakana_reflection_info::{
 use hakana_type::{
     get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
     get_mixed_dict, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing, get_null, get_num,
-    get_object, get_scalar, get_string, get_true, get_vec, intersect_union_types,
+    get_object, get_scalar, get_string, get_true, intersect_union_types,
     type_comparator::{atomic_type_comparator, type_comparison_result::TypeComparisonResult},
     wrap_atomic,
 };
