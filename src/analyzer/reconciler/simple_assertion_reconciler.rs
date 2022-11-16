@@ -15,10 +15,11 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use hakana_type::{
-    get_arraykey, get_bool, get_dict, get_false, get_float, get_int, get_keyset, get_mixed_any,
+    get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
     get_mixed_dict, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing, get_null, get_num,
     get_object, get_scalar, get_string, get_true, get_vec, intersect_union_types,
     type_comparator::{atomic_type_comparator, type_comparison_result::TypeComparisonResult},
+    wrap_atomic,
 };
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
@@ -312,7 +313,7 @@ pub(crate) fn reconcile(
                     return Some(existing_var_type.clone());
                 }
             }
-            _ => {},
+            _ => {}
         }
     }
 
@@ -626,10 +627,28 @@ fn intersect_vec(
             {
                 match statements_analyzer.get_codebase().interner.lookup(*name) {
                     "HH\\Container" => {
-                        return get_vec(typed_params.get(0).unwrap().clone());
+                        acceptable_types.push(TAtomic::TVec {
+                            type_param: typed_params.get(0).unwrap().clone(),
+                            known_items: None,
+                            non_empty: false,
+                            known_count: None,
+                        });
                     }
                     "HH\\KeyedContainer" | "HH\\AnyArray" => {
-                        return get_vec(typed_params.get(1).unwrap().clone());
+                        acceptable_types.push(TAtomic::TVec {
+                            type_param: typed_params.get(1).unwrap().clone(),
+                            known_items: None,
+                            non_empty: false,
+                            known_count: None,
+                        });
+                    }
+                    "XHPChild" => {
+                        acceptable_types.push(TAtomic::TVec {
+                            type_param: wrap_atomic(atomic.clone()),
+                            known_items: None,
+                            non_empty: false,
+                            known_count: None,
+                        });
                     }
                     _ => {}
                 }
@@ -697,10 +716,19 @@ fn intersect_keyset(
             {
                 match statements_analyzer.get_codebase().interner.lookup(*name) {
                     "HH\\Container" => {
-                        return get_keyset(get_arraykey(true));
+                        acceptable_types.push(TAtomic::TKeyset {
+                            type_param: get_arraykey(true),
+                        });
                     }
                     "HH\\KeyedContainer" | "HH\\AnyArray" => {
-                        return get_keyset(typed_params.get(0).unwrap().clone());
+                        acceptable_types.push(TAtomic::TKeyset {
+                            type_param: typed_params.get(0).unwrap().clone(),
+                        });
+                    }
+                    "XHPChild" => {
+                        acceptable_types.push(TAtomic::TKeyset {
+                            type_param: wrap_atomic(atomic.clone()),
+                        });
                     }
                     _ => {}
                 }
@@ -788,23 +816,43 @@ fn intersect_dict(
             }
             _ => {
                 if let TAtomic::TNamedObject {
-                    name,
-                    type_params: Some(typed_params),
-                    ..
+                    name, type_params, ..
                 } = atomic
                 {
                     match statements_analyzer.get_codebase().interner.lookup(*name) {
                         "HH\\Container" => {
-                            return get_dict(
-                                get_arraykey(true),
-                                typed_params.get(0).unwrap().clone(),
-                            );
+                            if let Some(typed_params) = type_params {
+                                acceptable_types.push(TAtomic::TDict {
+                                    params: Some((
+                                        get_arraykey(true),
+                                        typed_params.get(0).unwrap().clone(),
+                                    )),
+                                    known_items: None,
+                                    non_empty: false,
+                                    shape_name: None,
+                                });
+                            }
                         }
                         "HH\\KeyedContainer" | "HH\\AnyArray" => {
-                            return get_dict(
-                                typed_params.get(0).unwrap().clone(),
-                                typed_params.get(1).unwrap().clone(),
-                            );
+                            if let Some(typed_params) = type_params {
+                                acceptable_types.push(TAtomic::TDict {
+                                    params: Some((
+                                        typed_params.get(0).unwrap().clone(),
+                                        typed_params.get(1).unwrap().clone(),
+                                    )),
+                                    known_items: None,
+                                    non_empty: false,
+                                    shape_name: None,
+                                });
+                            }
+                        }
+                        "XHPChild" => {
+                            acceptable_types.push(TAtomic::TDict {
+                                params: Some((get_arraykey(true), wrap_atomic(atomic.clone()))),
+                                known_items: None,
+                                non_empty: false,
+                                shape_name: None,
+                            });
                         }
                         _ => {}
                     }
