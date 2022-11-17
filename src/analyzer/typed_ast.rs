@@ -330,6 +330,10 @@ impl TastInfo {
                         IssueKind::MixedMethodCall => return true,
                         _ => {}
                     },
+                    4321 | 4108 => match &issue_kind {
+                        IssueKind::UndefinedStringArrayOffset => return true,
+                        _ => {}
+                    }
                     _ => {}
                 }
             }
