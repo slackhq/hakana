@@ -372,7 +372,7 @@ pub(crate) fn handle_paradoxical_condition(
                 statements_analyzer.get_hpos(&pos),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
     } else if expr_type.is_always_truthy(&statements_analyzer.get_codebase().interner) {
         tast_info.maybe_add_issue(
@@ -385,7 +385,7 @@ pub(crate) fn handle_paradoxical_condition(
                 statements_analyzer.get_hpos(&pos),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
     }
 }

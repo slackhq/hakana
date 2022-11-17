@@ -11,7 +11,10 @@ use std::collections::BTreeMap;
 use std::hash::Hash;
 mod tests;
 
-fn index_keys_match<T: Eq + Ord + Hash, U, V>(map1: &IndexMap<T, U>, map2: &IndexMap<T, V>) -> bool {
+fn index_keys_match<T: Eq + Ord + Hash, U, V>(
+    map1: &IndexMap<T, U>,
+    map2: &IndexMap<T, V>,
+) -> bool {
     map1.len() == map2.len() && map1.keys().all(|k| map2.contains_key(k))
 }
 

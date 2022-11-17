@@ -411,8 +411,7 @@ fn add_array_assignment_dataflow(
                                 literal_value.get_literal_string_value(&codebase.interner)
                             {
                                 value
-                            } else if let Some(value) = literal_value.get_literal_int_value()
-                            {
+                            } else if let Some(value) = literal_value.get_literal_int_value() {
                                 value.to_string()
                             } else {
                                 println!("{},", key_value.get_id(Some(&codebase.interner)));

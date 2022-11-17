@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     code_location::HPos,
-    taint::{self, SinkType, SourceType}, Interner,
+    taint::{self, SinkType, SourceType},
+    Interner,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,7 +34,9 @@ impl TaintedNode {
             if let Some(pos) = &self.pos {
                 format!(
                     " ({}:{}:{})",
-                    interner.lookup(pos.file_path), pos.start_line, pos.start_column
+                    interner.lookup(pos.file_path),
+                    pos.start_line,
+                    pos.start_column
                 )
             } else {
                 "".to_string()

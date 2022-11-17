@@ -37,7 +37,9 @@ pub(crate) fn analyze(
             statements_analyzer.get_hpos(&expr.1.pos()),
         );
 
-        pipe_expr_type.parent_nodes.insert(parent_node.get_id().clone(), parent_node.clone());
+        pipe_expr_type
+            .parent_nodes
+            .insert(parent_node.get_id().clone(), parent_node.clone());
         tast_info.data_flow_graph.add_node(parent_node);
     }
 

@@ -82,8 +82,10 @@ fn add_tuple_value_dataflow(
     value: &aast::Expr<(), ()>,
 ) -> Option<DataFlowNode> {
     if value_type.parent_nodes.is_empty()
-        || (matches!(&tast_info.data_flow_graph.kind, GraphKind::WholeProgram(WholeProgramKind::Taint))
-            && value_type.has_taintable_value())
+        || (matches!(
+            &tast_info.data_flow_graph.kind,
+            GraphKind::WholeProgram(WholeProgramKind::Taint)
+        ) && value_type.has_taintable_value())
     {
         return None;
     }

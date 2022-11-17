@@ -5,7 +5,6 @@ use name_context::NameContext;
 use ocamlrep::rc::RcOc;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
-use relative_path::{Prefix, RelativePath};
 use oxidized::scoured_comments::ScouredComments;
 use oxidized::{
     aast,
@@ -13,6 +12,7 @@ use oxidized::{
     ast_defs,
 };
 use parser_core_types::{indexed_source_text::IndexedSourceText, source_text::SourceText};
+use relative_path::{Prefix, RelativePath};
 use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::io::Write;

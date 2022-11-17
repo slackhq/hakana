@@ -7,9 +7,9 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
+use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::get_mixed_any;
@@ -227,10 +227,9 @@ pub(crate) fn check_method_args(
     {
         *existing_effects |= effect;
     } else {
-        tast_info.expr_effects.insert(
-            (pos.start_offset(), pos.end_offset()),
-            effect,
-        );
+        tast_info
+            .expr_effects
+            .insert((pos.start_offset(), pos.end_offset()), effect);
     }
 
     for arg in call_expr.2 {

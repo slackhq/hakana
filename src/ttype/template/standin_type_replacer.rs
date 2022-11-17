@@ -1673,7 +1673,8 @@ pub fn get_mapped_generic_type_params(
                                 .clone()
                                 .1;
 
-                            mapped_input_offset = input_class_storage.template_types.get_index_of(param_name);
+                            mapped_input_offset =
+                                input_class_storage.template_types.get_index_of(param_name);
 
                             candidate_param_type = Some(candidate_param_type_inner);
                         }

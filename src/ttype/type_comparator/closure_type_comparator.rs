@@ -26,11 +26,10 @@ pub(crate) fn is_contained_by(
             if let Some(container_effects) = container_effects {
                 if container_effects == &0 && input_effects.unwrap_or(0) > 0 {
                     atomic_comparison_result.type_coerced = Some(true);
-    
+
                     return false;
                 }
             }
-            
 
             for (i, input_param) in input_params.iter().enumerate() {
                 let mut container_param = None;

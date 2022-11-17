@@ -333,7 +333,7 @@ impl TastInfo {
                     4321 | 4108 => match &issue_kind {
                         IssueKind::UndefinedStringArrayOffset => return true,
                         _ => {}
-                    }
+                    },
                     _ => {}
                 }
             }

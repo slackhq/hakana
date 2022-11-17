@@ -8,12 +8,13 @@ use crate::{
     assertion::Assertion,
     attribute_info::AttributeInfo,
     code_location::HPos,
+    codebase_info::symbols::Symbol,
     functionlike_parameter::FunctionLikeParameter,
     issue::IssueKind,
     method_info::MethodInfo,
     t_union::TUnion,
     taint::{SinkType, SourceType},
-    type_resolution::TypeResolutionContext, codebase_info::symbols::Symbol,
+    type_resolution::TypeResolutionContext,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

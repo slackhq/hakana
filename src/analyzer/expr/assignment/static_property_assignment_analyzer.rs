@@ -115,7 +115,12 @@ pub(crate) fn analyze(
 
                     if let Some(lhs_type) = lhs_type {
                         for lhs_atomic_type in lhs_type.types.clone() {
-                            if let TAtomic::TNamedObject { name, type_params: None, .. } = lhs_atomic_type {
+                            if let TAtomic::TNamedObject {
+                                name,
+                                type_params: None,
+                                ..
+                            } = lhs_atomic_type
+                            {
                                 fq_class_names.push(name);
                             }
                         }
@@ -217,7 +222,7 @@ pub(crate) fn analyze(
                         statements_analyzer.get_hpos(&stmt_class.1),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
             }
 
@@ -238,7 +243,7 @@ pub(crate) fn analyze(
                             statements_analyzer.get_hpos(&stmt_class.1),
                         ),
                         statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual()
+                        statements_analyzer.get_file_path_actual(),
                     );
                 } else {
                     tast_info.maybe_add_issue(
@@ -253,7 +258,7 @@ pub(crate) fn analyze(
                             statements_analyzer.get_hpos(&stmt_class.1),
                         ),
                         statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual()
+                        statements_analyzer.get_file_path_actual(),
                     );
                 }
             }

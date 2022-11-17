@@ -44,7 +44,7 @@ pub(crate) fn analyze(
                         statements_analyzer.get_hpos(&pos),
                     ),
                     statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual()
+                    statements_analyzer.get_file_path_actual(),
                 );
 
                 Rc::new(get_mixed_any())

@@ -80,7 +80,7 @@ pub(crate) fn analyze(
                 statements_analyzer.get_hpos(&expr.1.pos()),
             ),
             statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual()
+            statements_analyzer.get_file_path_actual(),
         );
     } else {
         if class_type.is_nullable() && !nullsafe {
@@ -91,7 +91,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(&expr.1.pos()),
                 ),
                 statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual()
+                statements_analyzer.get_file_path_actual(),
             )
         }
 

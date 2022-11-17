@@ -170,7 +170,7 @@ fn get_unpacked_type(
 
                 get_mixed()
             }
-            | TAtomic::TMixedWithFlags(_, _, true, _) | TAtomic::TNothing => get_nothing(),
+            TAtomic::TMixedWithFlags(_, _, true, _) | TAtomic::TNothing => get_nothing(),
             _ => {
                 tast_info.maybe_add_issue(
                     Issue::new(

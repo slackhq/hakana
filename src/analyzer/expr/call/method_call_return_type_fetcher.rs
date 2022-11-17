@@ -168,24 +168,22 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
                 return Some(false_or_domelement);
             }
         }
-        "SimpleXMLElement" => {
-            match interner.lookup(method_id.1) {
-                "children" | "attributes" | "addChild" => {
-                    let null_or_simplexmlelement = TUnion::new(vec![
-                        TAtomic::TNamedObject {
-                            name: interner.get("SimpleXMLElement").unwrap(),
-                            type_params: None,
-                            is_this: false,
-                            extra_types: None,
-                            remapped_params: false,
-                        },
-                        TAtomic::TNull,
-                    ]);
-                    return Some(null_or_simplexmlelement);
-                }
-                _ => {}
+        "SimpleXMLElement" => match interner.lookup(method_id.1) {
+            "children" | "attributes" | "addChild" => {
+                let null_or_simplexmlelement = TUnion::new(vec![
+                    TAtomic::TNamedObject {
+                        name: interner.get("SimpleXMLElement").unwrap(),
+                        type_params: None,
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    },
+                    TAtomic::TNull,
+                ]);
+                return Some(null_or_simplexmlelement);
             }
-        }
+            _ => {}
+        },
         _ => {}
     }
 

@@ -50,7 +50,10 @@ pub(crate) fn check_for_paradox(
                     statements_analyzer.get_hpos(&pos),
                 ),
                 statements_analyzer.get_config(),
-                &statements_analyzer.get_file_analyzer().get_file_source().file_path_actual
+                &statements_analyzer
+                    .get_file_analyzer()
+                    .get_file_source()
+                    .file_path_actual,
             );
         }
 
@@ -131,7 +134,7 @@ pub(crate) fn check_for_paradox(
                             statements_analyzer.get_hpos(&pos),
                         ),
                         statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual()
+                        statements_analyzer.get_file_path_actual(),
                     );
 
                     return;
