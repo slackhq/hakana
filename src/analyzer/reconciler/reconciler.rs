@@ -1029,39 +1029,21 @@ pub(crate) fn trigger_issue_for_impossible(
 
         tast_info.maybe_add_issue(
             if not_operator {
-                if assertion_string == "null" {
-                    Issue::new(
-                        IssueKind::ImpossibleNullTypeComparison,
-                        format!("{} is never null", key),
-                        statements_analyzer.get_hpos(&pos),
-                    )
-                } else {
-                    Issue::new(
-                        IssueKind::ImpossibleTypeComparison,
-                        format!(
-                            "Type {} is never {}",
-                            old_var_type_string, &assertion_string
-                        ),
-                        statements_analyzer.get_hpos(&pos),
-                    )
-                }
+                get_impossible_issue(
+                    &assertion_string,
+                    key,
+                    statements_analyzer,
+                    pos,
+                    old_var_type_string,
+                )
             } else {
-                if assertion_string == "nonnull" || assertion_string == "nonnull-from-any" {
-                    Issue::new(
-                        IssueKind::RedundantNonnullTypeComparison,
-                        format!("{} is always nonnull", key),
-                        statements_analyzer.get_hpos(&pos),
-                    )
-                } else {
-                    Issue::new(
-                        IssueKind::RedundantTypeComparison,
-                        format!(
-                            "Type {} is always {}",
-                            old_var_type_string, &assertion_string
-                        ),
-                        statements_analyzer.get_hpos(&pos),
-                    )
-                }
+                get_redundant_issue(
+                    &assertion_string,
+                    key,
+                    statements_analyzer,
+                    pos,
+                    old_var_type_string,
+                )
             },
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
@@ -1074,42 +1056,91 @@ pub(crate) fn trigger_issue_for_impossible(
 
         tast_info.maybe_add_issue(
             if not_operator {
-                if assertion_string == "nonnull" || assertion_string == "nonnull-from-any" {
-                    Issue::new(
-                        IssueKind::RedundantNonnullTypeComparison,
-                        format!("{} is always nonnull", key),
-                        statements_analyzer.get_hpos(&pos),
-                    )
-                } else {
-                    Issue::new(
-                        IssueKind::RedundantTypeComparison,
-                        format!(
-                            "Type {} is always {}",
-                            old_var_type_string, &assertion_string
-                        ),
-                        statements_analyzer.get_hpos(&pos),
-                    )
-                }
+                get_redundant_issue(
+                    &assertion_string,
+                    key,
+                    statements_analyzer,
+                    pos,
+                    old_var_type_string,
+                )
             } else {
-                if assertion_string == "null" {
-                    Issue::new(
-                        IssueKind::ImpossibleNullTypeComparison,
-                        format!("{} is never null", key),
-                        statements_analyzer.get_hpos(&pos),
-                    )
-                } else {
-                    Issue::new(
-                        IssueKind::ImpossibleTypeComparison,
-                        format!(
-                            "Type {} is never {}",
-                            old_var_type_string, &assertion_string
-                        ),
-                        statements_analyzer.get_hpos(&pos),
-                    )
-                }
+                get_impossible_issue(
+                    &assertion_string,
+                    key,
+                    statements_analyzer,
+                    pos,
+                    old_var_type_string,
+                )
             },
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
         );
+    }
+}
+
+fn get_impossible_issue(
+    assertion_string: &String,
+    key: &String,
+    statements_analyzer: &StatementsAnalyzer,
+    pos: &Pos,
+    old_var_type_string: &String,
+) -> Issue {
+    if *assertion_string == "null" {
+        Issue::new(
+            IssueKind::ImpossibleNullTypeComparison,
+            format!("{} is never null", key),
+            statements_analyzer.get_hpos(&pos),
+        )
+    } else {
+        Issue::new(
+            IssueKind::ImpossibleTypeComparison,
+            format!(
+                "Type {} is never {}",
+                old_var_type_string, &assertion_string
+            ),
+            statements_analyzer.get_hpos(&pos),
+        )
+    }
+}
+
+fn get_redundant_issue(
+    assertion_string: &String,
+    key: &String,
+    statements_analyzer: &StatementsAnalyzer,
+    pos: &Pos,
+    old_var_type_string: &String,
+) -> Issue {
+    let old_var_type_string = if old_var_type_string.len() > 50 {
+        format!("of {}", key)
+    } else {
+        old_var_type_string.clone()
+    };
+    match assertion_string.as_str() {
+        "nonnull" | "nonnull-from-any" => Issue::new(
+            IssueKind::RedundantNonnullTypeComparison,
+            format!("{} is always nonnull", key),
+            statements_analyzer.get_hpos(&pos),
+        ),
+        "isset" => Issue::new(
+            IssueKind::RedundantIssetCheck,
+            "Unnncessary isset check".to_string(),
+            statements_analyzer.get_hpos(&pos),
+        ),
+        "truthy" | "falsy" => Issue::new(
+            IssueKind::RedundantTruthinessCheck,
+            format!(
+                "Type {} is always {}",
+                old_var_type_string, assertion_string
+            ),
+            statements_analyzer.get_hpos(&pos),
+        ),
+        _ => Issue::new(
+            IssueKind::RedundantTypeComparison,
+            format!(
+                "Type {} is always {}",
+                old_var_type_string, assertion_string
+            ),
+            statements_analyzer.get_hpos(&pos),
+        ),
     }
 }
