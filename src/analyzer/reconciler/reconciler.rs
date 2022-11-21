@@ -1123,7 +1123,7 @@ fn get_redundant_issue(
         ),
         "isset" => Issue::new(
             IssueKind::RedundantIssetCheck,
-            "Unnncessary isset check".to_string(),
+            "Unnecessary isset check".to_string(),
             statements_analyzer.get_hpos(&pos),
         ),
         "truthy" | "falsy" => Issue::new(
