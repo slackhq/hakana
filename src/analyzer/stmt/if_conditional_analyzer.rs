@@ -364,7 +364,7 @@ pub(crate) fn handle_paradoxical_condition(
     if expr_type.is_always_falsy() {
         tast_info.maybe_add_issue(
             Issue::new(
-                IssueKind::ImpossibleTypeComparison,
+                IssueKind::RedundantTruthinessCheck,
                 format!(
                     "Type {} is always falsy",
                     expr_type.get_id(Some(&statements_analyzer.get_codebase().interner))
@@ -377,7 +377,7 @@ pub(crate) fn handle_paradoxical_condition(
     } else if expr_type.is_always_truthy(&statements_analyzer.get_codebase().interner) {
         tast_info.maybe_add_issue(
             Issue::new(
-                IssueKind::RedundantTypeComparison,
+                IssueKind::RedundantTruthinessCheck,
                 format!(
                     "Type {} is always truthy",
                     expr_type.get_id(Some(&statements_analyzer.get_codebase().interner))

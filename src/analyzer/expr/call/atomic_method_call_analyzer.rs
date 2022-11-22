@@ -90,43 +90,64 @@ pub(crate) fn analyze(
 
     if let TAtomic::TNamedObject {
         name: classlike_name,
+        extra_types,
         ..
     } = &lhs_type_part
     {
         result.has_valid_method_call_type = true;
 
-        let does_class_exist = if lhs_var_id.clone().unwrap_or_default() == "$this" {
-            true
-        } else {
-            // check whether class exists using long method which emits an issue
-            // but for now we use the quick one
+        let mut classlike_names = vec![*classlike_name];
 
-            codebase.class_or_interface_or_enum_exists(&classlike_name)
-        };
+        if let Some(extra_types) = extra_types {
+            for (_, extra_atomic_type) in extra_types {
+                if let TAtomic::TNamedObject {
+                    name: extra_classlike_name,
+                    ..
+                } = extra_atomic_type
+                {
+                    classlike_names.push(*extra_classlike_name);
+                }
+            }
+        }
 
-        if !does_class_exist {
-            tast_info.maybe_add_issue(
-                Issue::new(
-                    IssueKind::NonExistentClass,
-                    format!(
-                        "Class or interface {} does not exist",
-                        codebase.interner.lookup(*classlike_name)
+        for classlike_name in &classlike_names {
+            let does_class_exist = if lhs_var_id.clone().unwrap_or_default() == "$this" {
+                true
+            } else {
+                // check whether class exists using long method which emits an issue
+                // but for now we use the quick one
+
+                codebase.class_or_interface_or_enum_exists(&classlike_name)
+            };
+
+            if !does_class_exist {
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::NonExistentClass,
+                        format!(
+                            "Class or interface {} does not exist",
+                            codebase.interner.lookup(*classlike_name)
+                        ),
+                        statements_analyzer.get_hpos(&pos),
                     ),
-                    statements_analyzer.get_hpos(&pos),
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
 
-            return;
+                return;
+            }
         }
 
         if let aast::Expr_::Id(boxed) = &expr.1 .2 {
-            let method_name = codebase.interner.get(&boxed.1);
+            let method_name = if let Some(method_name) = codebase.interner.get(&boxed.1) {
+                method_name
+            } else {
+                return;
+            };
 
-            if method_name.is_none()
-                || !codebase.method_exists(&classlike_name, &method_name.unwrap())
-            {
+            classlike_names.retain(|n| codebase.method_exists(n, &method_name));
+
+            if classlike_names.is_empty() {
                 tast_info.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentMethod,
@@ -140,15 +161,12 @@ pub(crate) fn analyze(
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
                 );
-
                 return;
             }
 
-            let method_name = method_name.unwrap();
-
             let return_type_candidate = existing_atomic_method_call_analyzer::analyze(
                 statements_analyzer,
-                classlike_name.clone(),
+                classlike_names[0], // todo intersect multiple return values
                 &method_name,
                 (expr.2, expr.3, expr.4),
                 &lhs_type_part,
