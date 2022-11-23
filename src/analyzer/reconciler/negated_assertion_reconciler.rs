@@ -268,8 +268,6 @@ fn handle_literal_negated_equality(
 ) -> TUnion {
     let assertion_type = assertion.get_type().unwrap();
 
-    let existing_var_type_single = existing_var_type.is_single();
-
     let mut did_remove_type = false;
     let mut did_match_literal_type = false;
 
@@ -399,12 +397,9 @@ fn handle_literal_negated_equality(
                                     } else {
                                         panic!("unrecognised constant type");
                                     }
-
-                                    did_match_literal_type = true;
-
-                                    did_remove_type = true;
                                 } else {
                                     matched_string = true;
+                                    did_match_literal_type = true;
                                 }
                             }
                         }
@@ -414,6 +409,7 @@ fn handle_literal_negated_equality(
                         acceptable_types.push(existing_atomic_type);
                     } else {
                         acceptable_types.extend(member_enum_literals);
+                        did_remove_type = true;
                     }
                 } else {
                     acceptable_types.push(existing_atomic_type);
@@ -472,7 +468,7 @@ fn handle_literal_negated_equality(
 
     if let Some(key) = &key {
         if let Some(pos) = pos {
-            if did_match_literal_type && (!did_remove_type || existing_var_type_single) {
+            if did_match_literal_type && (!did_remove_type || acceptable_types.is_empty()) {
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
