@@ -349,6 +349,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 None
             },
+            if let Some(parent_tast_info) = &parent_tast_info {
+                Some(parent_tast_info.hakana_fixme_or_ignores.clone())
+            } else {
+                None
+            },
         );
 
         if let Some(issue_filter) = &statements_analyzer.get_config().allowed_issues {

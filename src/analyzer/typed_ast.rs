@@ -42,7 +42,7 @@ pub struct TastInfo {
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
-    hakana_fixme_or_ignores: BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64))>>,
+    pub hakana_fixme_or_ignores: BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64))>>,
     pub matched_ignore_positions: FxHashSet<(usize, usize)>,
 }
 
@@ -53,37 +53,8 @@ impl TastInfo {
         comments: &Vec<&(Pos, Comment)>,
         all_custom_issues: &FxHashSet<String>,
         current_stmt_offset: Option<StmtStart>,
+        hakana_fixme_or_ignores: Option<BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64))>>>,
     ) -> Self {
-        let mut hakana_fixme_or_ignores = BTreeMap::new();
-        for (pos, comment) in comments {
-            match comment {
-                Comment::CmtBlock(text) => {
-                    let trimmed_text = if text.starts_with("*") {
-                        text[1..].trim()
-                    } else {
-                        text.trim()
-                    };
-
-                    if let Some(issue_kind) =
-                        get_issue_from_comment(trimmed_text, all_custom_issues)
-                    {
-                        hakana_fixme_or_ignores
-                            .entry(pos.line())
-                            .or_insert_with(Vec::new)
-                            .push((
-                                issue_kind,
-                                (
-                                    pos.start_offset(),
-                                    pos.end_offset(),
-                                    pos.to_raw_span().start.beg_of_line(),
-                                ),
-                            ));
-                    }
-                }
-                _ => {}
-            }
-        }
-
         Self {
             expr_types: FxHashMap::default(),
             data_flow_graph,
@@ -103,7 +74,8 @@ impl TastInfo {
             symbol_references: SymbolReferences::new(),
             issue_filter: None,
             expr_effects: FxHashMap::default(),
-            hakana_fixme_or_ignores,
+            hakana_fixme_or_ignores: hakana_fixme_or_ignores
+                .unwrap_or(get_hakana_fixmes_and_ignores(comments, all_custom_issues)),
             expr_fixme_positions: FxHashMap::default(),
             matched_ignore_positions: FxHashSet::default(),
             issue_counts: FxHashMap::default(),
@@ -475,4 +447,38 @@ impl TastInfo {
 
         unused_fixme_positions
     }
+}
+
+fn get_hakana_fixmes_and_ignores(
+    comments: &Vec<&(Pos, Comment)>,
+    all_custom_issues: &FxHashSet<String>,
+) -> BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64))>> {
+    let mut hakana_fixme_or_ignores = BTreeMap::new();
+    for (pos, comment) in comments {
+        match comment {
+            Comment::CmtBlock(text) => {
+                let trimmed_text = if text.starts_with("*") {
+                    text[1..].trim()
+                } else {
+                    text.trim()
+                };
+
+                if let Some(issue_kind) = get_issue_from_comment(trimmed_text, all_custom_issues) {
+                    hakana_fixme_or_ignores
+                        .entry(pos.line())
+                        .or_insert_with(Vec::new)
+                        .push((
+                            issue_kind,
+                            (
+                                pos.start_offset(),
+                                pos.end_offset(),
+                                pos.to_raw_span().start.beg_of_line(),
+                            ),
+                        ));
+                }
+            }
+            _ => {}
+        }
+    }
+    hakana_fixme_or_ignores
 }

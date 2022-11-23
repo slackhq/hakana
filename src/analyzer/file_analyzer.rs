@@ -52,6 +52,7 @@ impl<'a> FileAnalyzer<'a> {
             &Vec::from_iter(self.file_source.comments.iter()),
             &self.get_config().all_custom_issues,
             None,
+            None,
         );
 
         let unnamespaced_file_analyzer = self.clone();
