@@ -402,7 +402,7 @@ pub(crate) fn get_control_actions(
                 control_actions.retain(|action| *action != ControlAction::None);
             }
             aast::Stmt_::Block(block_stmts) => {
-                let block_actions = get_control_actions(
+                let mut block_actions = get_control_actions(
                     codebase,
                     resolved_names,
                     block_stmts,
@@ -412,12 +412,13 @@ pub(crate) fn get_control_actions(
                 );
 
                 if !block_actions.contains(&ControlAction::None) {
-                    control_actions.retain(|action| *action != ControlAction::None);
                     control_actions.extend(block_actions);
+                    control_actions.retain(|action| *action != ControlAction::None);
 
                     return control_actions;
                 }
 
+                block_actions.retain(|action| *action != ControlAction::None);
                 control_actions.extend(block_actions);
             }
             aast::Stmt_::Awaitall(boxed) => {
