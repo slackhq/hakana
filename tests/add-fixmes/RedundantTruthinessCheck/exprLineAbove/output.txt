@@ -4,7 +4,7 @@ function foo(string $s) {
 	} while (!$result);
 
 	if (
-		/* HAKANA_FIXME[RedundantTypeComparison] Type true is always truthy */
+		/* HAKANA_FIXME[RedundantTruthinessCheck] Type true is always truthy */
 		$result
 	) {}
 }

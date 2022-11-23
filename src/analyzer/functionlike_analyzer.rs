@@ -344,6 +344,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             statements_analyzer.get_file_analyzer().get_file_source(),
             &statements_analyzer.comments,
             &self.get_config().all_custom_issues,
+            if let Some(parent_tast_info) = &parent_tast_info {
+                parent_tast_info.current_stmt_offset.clone()
+            } else {
+                None
+            },
         );
 
         if let Some(issue_filter) = &statements_analyzer.get_config().allowed_issues {

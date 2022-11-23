@@ -64,6 +64,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
             statements_analyzer.get_file_analyzer().get_file_source(),
             &statements_analyzer.comments,
             &statements_analyzer.get_config().all_custom_issues,
+            None,
         );
 
         for constant in &stmt.consts {

@@ -1,1 +1,1 @@
-RedundantTypeComparison
+RedundantTruthinessCheck

@@ -52,6 +52,7 @@ impl TastInfo {
         file_source: &FileSource,
         comments: &Vec<&(Pos, Comment)>,
         all_custom_issues: &FxHashSet<String>,
+        current_stmt_offset: Option<StmtStart>,
     ) -> Self {
         let mut hakana_fixme_or_ignores = BTreeMap::new();
         for (pos, comment) in comments {
@@ -97,7 +98,7 @@ impl TastInfo {
             if_true_assertions: FxHashMap::default(),
             if_false_assertions: FxHashMap::default(),
             replacements: BTreeMap::new(),
-            current_stmt_offset: None,
+            current_stmt_offset,
             hh_fixmes: file_source.hh_fixmes.clone(),
             symbol_references: SymbolReferences::new(),
             issue_filter: None,
