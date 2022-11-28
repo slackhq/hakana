@@ -192,13 +192,11 @@ fn handle_special_functions(
         // int
         "mb_strlen" | "rand" => Some(get_int()),
         // string
-        "utf8_encode" | "sha1" | "dirname" | "hash_hmac" | "vsprintf" | "trim" | "ltrim"
-        | "rtrim" | "strpad" | "str_repeat" | "md5" | "basename" | "strtolower" | "strtoupper" => {
-            Some(get_string())
-        }
+        "utf8_encode" | "sha1" | "dirname" | "vsprintf" | "trim" | "ltrim" | "rtrim" | "strpad"
+        | "str_repeat" | "md5" | "basename" | "strtolower" | "strtoupper" => Some(get_string()),
         // falsable strings
         "json_encode" | "file_get_contents" | "hex2bin" | "realpath" | "date" | "base64_decode"
-        | "date_format" => {
+        | "date_format" | "hash_hmac" => {
             let mut false_or_string = TUnion::new(vec![TAtomic::TString, TAtomic::TFalse]);
             false_or_string.ignore_falsable_issues = true;
             Some(false_or_string)
@@ -208,6 +206,16 @@ fn handle_special_functions(
             let mut false_or_int = TUnion::new(vec![TAtomic::TInt, TAtomic::TFalse]);
             false_or_int.ignore_falsable_issues = true;
             Some(false_or_int)
+        }
+        // falsable strings
+        "password_hash" => {
+            let mut false_or_null_or_string = TUnion::new(vec![
+                TAtomic::TStringWithFlags(false, true, false),
+                TAtomic::TFalse,
+                TAtomic::TNull,
+            ]);
+            false_or_null_or_string.ignore_falsable_issues = true;
+            Some(false_or_null_or_string)
         }
         "preg_split" => {
             if let Some((_, arg_expr)) = args.get(3) {

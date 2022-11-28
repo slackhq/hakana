@@ -38,6 +38,14 @@ pub(crate) fn check_for_paradox(
             && formula_2_clause.reconcilable
             && (formula_1_hashes.contains(formula_2_clause)
                 || formula_2_hashes.contains(formula_2_clause))
+            && !formula_2_clause.possibilities.iter().any(|(_, c)| {
+                c.iter().any(|c| {
+                    matches!(
+                        c.1,
+                        Assertion::DontIgnoreTaints | Assertion::DontRemoveTaints(..),
+                    )
+                })
+            })
         {
             tast_info.maybe_add_issue(
                 Issue::new(
