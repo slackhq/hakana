@@ -1022,9 +1022,14 @@ pub(crate) fn trigger_issue_for_impossible(
     }
 
     if redundant {
-        if not_operator && assertion_string == "falsy" {
-            not_operator = false;
-            assertion_string = "truthy".to_string();
+        if not_operator {
+            if assertion_string == "falsy" {
+                not_operator = false;
+                assertion_string = "truthy".to_string();
+            } else if assertion_string == "truthy" {
+                not_operator = false;
+                assertion_string = "falsy".to_string();
+            }
         }
 
         tast_info.maybe_add_issue(
@@ -1049,11 +1054,6 @@ pub(crate) fn trigger_issue_for_impossible(
             statements_analyzer.get_file_path_actual(),
         );
     } else {
-        if !not_operator && assertion_string == "falsy" {
-            not_operator = true;
-            assertion_string = "truthy".to_string();
-        }
-
         tast_info.maybe_add_issue(
             if not_operator {
                 get_redundant_issue(
@@ -1085,21 +1085,28 @@ fn get_impossible_issue(
     pos: &Pos,
     old_var_type_string: &String,
 ) -> Issue {
-    if *assertion_string == "null" {
-        Issue::new(
+    match assertion_string.as_str() {
+        "null" => Issue::new(
             IssueKind::ImpossibleNullTypeComparison,
             format!("{} is never null", key),
             statements_analyzer.get_hpos(&pos),
-        )
-    } else {
-        Issue::new(
+        ),
+        "truthy" | "falsy" => Issue::new(
+            IssueKind::ImpossibleTruthinessCheck,
+            format!(
+                "Type {} is never {}",
+                old_var_type_string, assertion_string
+            ),
+            statements_analyzer.get_hpos(&pos),
+        ),
+        _ => Issue::new(
             IssueKind::ImpossibleTypeComparison,
             format!(
                 "Type {} is never {}",
                 old_var_type_string, &assertion_string
             ),
             statements_analyzer.get_hpos(&pos),
-        )
+        ),
     }
 }
 
@@ -1115,6 +1122,7 @@ fn get_redundant_issue(
     } else {
         old_var_type_string.clone()
     };
+
     match assertion_string.as_str() {
         "nonnull" | "nonnull-from-any" => Issue::new(
             IssueKind::RedundantNonnullTypeComparison,

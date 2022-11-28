@@ -52,7 +52,7 @@ impl Assertion {
         match self {
             Assertion::Any => "any".to_string(),
             Assertion::Falsy => "falsy".to_string(),
-            Assertion::Truthy => "!falsy".to_string(),
+            Assertion::Truthy => "truthy".to_string(),
             Assertion::IsType(atomic) => (&atomic).get_id(interner),
             Assertion::IsNotType(atomic) => "!".to_string() + &atomic.get_id(interner),
             Assertion::IsEqual(atomic) => "=".to_string() + &atomic.get_id(interner),
