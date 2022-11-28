@@ -13,7 +13,7 @@ use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     add_union_type, get_arrayish_params, get_bool, get_float, get_int, get_mixed, get_mixed_any,
-    get_mixed_vec, get_nothing, get_object, get_string, get_vec, template, type_expander,
+    get_mixed_vec, get_nothing, get_null, get_object, get_string, get_vec, template, type_expander,
     wrap_atomic,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -516,8 +516,9 @@ fn handle_special_functions(
                                 &mut false,
                             );
 
-                            if args.len() == 2 {
-                                expr_type_inner.add_type(TAtomic::TNull);
+                            if args.len() == 2 && !expr_type_inner.is_mixed() {
+                                expr_type_inner =
+                                    add_union_type(expr_type_inner, &get_null(), codebase, false);
                             }
 
                             expr_type = Some(expr_type_inner);

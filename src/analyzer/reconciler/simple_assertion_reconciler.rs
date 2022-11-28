@@ -1098,6 +1098,10 @@ fn intersect_string(
                     &mut TypeComparisonResult::new(),
                 ) {
                     acceptable_types.push(atomic.clone());
+
+                    if let TAtomic::TEnum { .. } = atomic {
+                        did_remove_type = true;
+                    }
                 } else {
                     did_remove_type = true;
                 }
@@ -1185,6 +1189,25 @@ fn intersect_int(
 
                 did_remove_type = true;
             }
+            TAtomic::TEnumLiteralCase {
+                constraint_type, ..
+            } => {
+                if let Some(constraint_type) = constraint_type {
+                    if atomic_type_comparator::is_contained_by(
+                        codebase,
+                        constraint_type,
+                        &TAtomic::TInt,
+                        false,
+                        &mut TypeComparisonResult::new(),
+                    ) {
+                        acceptable_types.push(atomic.clone());
+                    } else {
+                        did_remove_type = true;
+                    }
+                } else {
+                    return get_int();
+                }
+            }
             _ => {
                 if atomic_type_comparator::is_contained_by(
                     codebase,
@@ -1194,6 +1217,10 @@ fn intersect_int(
                     &mut TypeComparisonResult::new(),
                 ) {
                     acceptable_types.push(atomic.clone());
+
+                    if let TAtomic::TEnum { .. } = atomic {
+                        did_remove_type = true;
+                    }
                 } else {
                     did_remove_type = true;
                 }
