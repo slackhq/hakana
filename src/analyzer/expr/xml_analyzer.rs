@@ -7,6 +7,7 @@ use hakana_reflection_info::codebase_info::symbols::Symbol;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::taint::SinkType;
 use hakana_reflection_info::StrId;
 use hakana_type::get_named_object;
@@ -75,18 +76,58 @@ pub(crate) fn analyze(
             .interner
             .lookup(*name_string);
 
-        if match element_name {
-            "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p" => true,
-            _ => false,
-        } {
-            let xml_attribute_taint = DataFlowNode::TaintSink {
-                id: element_name.to_string(),
-                label: element_name.to_string(),
-                pos: None,
-                types: FxHashSet::from_iter([SinkType::Output]),
-            };
+        if let Some(expr_type) = tast_info.expr_types.get(&(
+            inner_expr.pos().start_offset(),
+            inner_expr.pos().end_offset(),
+        )) {
+            if match element_name {
+                "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p" => true,
+                _ => false,
+            } {
+                let xml_body_taint = DataFlowNode::TaintSink {
+                    id: element_name.to_string(),
+                    label: element_name.to_string(),
+                    pos: None,
+                    types: FxHashSet::from_iter([SinkType::Output]),
+                };
 
-            tast_info.data_flow_graph.add_node(xml_attribute_taint);
+                for (_, parent_node) in &expr_type.parent_nodes {
+                    tast_info.data_flow_graph.add_path(
+                        parent_node,
+                        &xml_body_taint,
+                        PathKind::Default,
+                        None,
+                        None,
+                    );
+                }
+
+                tast_info.data_flow_graph.add_node(xml_body_taint);
+            }
+
+            // find data leaking to style and script tags
+            if match element_name {
+                "Facebook\\XHP\\HTML\\style" | "Facebook\\XHP\\HTML\\script" => true,
+                _ => false,
+            } {
+                let xml_body_taint = DataFlowNode::TaintSink {
+                    id: element_name.to_string(),
+                    label: element_name.to_string(),
+                    pos: None,
+                    types: FxHashSet::from_iter([SinkType::HtmlTag, SinkType::Output]),
+                };
+
+                for (_, parent_node) in &expr_type.parent_nodes {
+                    tast_info.data_flow_graph.add_path(
+                        parent_node,
+                        &xml_body_taint,
+                        PathKind::Default,
+                        None,
+                        None,
+                    );
+                }
+
+                tast_info.data_flow_graph.add_node(xml_body_taint);
+            }
         }
     }
     context.inside_general_use = was_inside_general_use;
