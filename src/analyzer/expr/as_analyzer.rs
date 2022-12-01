@@ -154,6 +154,9 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             },
             &mut DataFlowGraph::new(GraphKind::FunctionBody),
         );
+        for atomic_type in hint_type.types.iter_mut() {
+            atomic_type.remove_placeholders(&codebase.interner);
+        }
         hint_type.parent_nodes = ternary_type.parent_nodes;
         ternary_type = hint_type;
     }

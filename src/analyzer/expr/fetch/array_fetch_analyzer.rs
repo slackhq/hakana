@@ -855,8 +855,7 @@ pub(crate) fn handle_array_access_on_string(
         &mut TypeComparisonResult::new(),
     ) {
         expected_offset_types.push(valid_offset_type.get_id(Some(&codebase.interner)));
-        let mut result = get_string();
-        result.add_type(TAtomic::TNull);
+        let result = TUnion::new(vec![TAtomic::TString, TAtomic::TNull]);
         return result;
     } else {
         *has_valid_expected_offset = true;

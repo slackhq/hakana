@@ -359,7 +359,12 @@ fn handle_shapes_static_method(
                             if !is_nullable && has_matching_dict_key {
                                 if call_expr.1.len() == 2 {
                                     if has_possibly_undefined {
-                                        expr_type_inner.add_type(TAtomic::TNull);
+                                        expr_type_inner = add_union_type(
+                                            expr_type_inner,
+                                            &get_null(),
+                                            codebase,
+                                            false,
+                                        );
                                     } else if !expr_type_inner.is_nothing() {
                                         if has_valid_expected_offset {
                                             handle_defined_shape_idx(
@@ -383,7 +388,8 @@ fn handle_shapes_static_method(
                                     );
                                 }
                             } else if call_expr.1.len() == 2 && is_nullable {
-                                expr_type_inner.add_type(TAtomic::TNull);
+                                expr_type_inner =
+                                    add_union_type(expr_type_inner, &get_null(), codebase, false);
                             }
 
                             expr_type = Some(expr_type_inner);

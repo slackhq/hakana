@@ -139,7 +139,7 @@ pub fn is_contained_by(
                         union_comparison_result.replacement_union_type
                     {
                         replacement_union_type.remove_type(&input_type_part);
-                        replacement_union_type.add_type(replacement_atomic_type);
+                        replacement_union_type.types.push(replacement_atomic_type);
                     } else {
                         union_comparison_result.replacement_union_type =
                             Some(wrap_atomic(replacement_atomic_type));

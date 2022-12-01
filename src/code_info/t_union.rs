@@ -67,10 +67,6 @@ impl TUnion {
         }
     }
 
-    pub fn add_type(&mut self, new_type: TAtomic) {
-        self.types.push(new_type);
-    }
-
     pub fn remove_type(&mut self, bad_type: &TAtomic) {
         self.types.retain(|t| t != bad_type);
     }

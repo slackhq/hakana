@@ -559,7 +559,7 @@ fn visit_xhp_attribute(
     }) && !attribute_type.is_mixed()
         && xhp_attribute.1.expr.is_none()
     {
-        attribute_type.add_type(TAtomic::TNull);
+        attribute_type.types.push(TAtomic::TNull);
     }
 
     let property_storage = PropertyInfo {

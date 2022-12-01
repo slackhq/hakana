@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
 use crate::typed_ast::TastInfo;
-use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_type::get_mixed_any;
+use hakana_type::{add_union_type, get_mixed_any, get_null};
 use oxidized::aast;
 use oxidized::ast_defs::ParamKind;
 
@@ -172,7 +172,12 @@ fn get_left_expr(
         left.pos().start_offset().to_string()
     );
     if root_not_left && !condition_type.is_nullable_mixed() {
-        condition_type.add_type(TAtomic::TNull);
+        condition_type = add_union_type(
+            condition_type,
+            &get_null(),
+            statements_analyzer.get_codebase(),
+            false,
+        );
     }
     context
         .vars_in_scope

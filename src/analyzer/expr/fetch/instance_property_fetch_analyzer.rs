@@ -4,7 +4,7 @@ use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_type::get_mixed_any;
+use hakana_type::{add_union_type, get_mixed_any, get_null};
 use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
@@ -149,7 +149,12 @@ pub(crate) fn analyze(
     if has_nullsafe_null {
         if let Some(ref mut stmt_type) = stmt_type {
             if !stmt_type.is_nullable_mixed() {
-                stmt_type.add_type(TAtomic::TNull);
+                *stmt_type = add_union_type(
+                    stmt_type.to_owned(),
+                    &get_null(),
+                    statements_analyzer.get_codebase(),
+                    false,
+                );
             }
         }
     } else if nullsafe {

@@ -7,13 +7,11 @@ use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
+    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion, Interner,
 };
 use hakana_type::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
-    type_comparator::{
-        atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
-    },
+    type_comparator::{atomic_type_comparator, type_comparison_result::TypeComparisonResult},
     type_expander::{self, TypeExpansionOptions},
     wrap_atomic,
 };
@@ -41,7 +39,7 @@ pub(crate) fn reconcile(
     let existing_var_type = if let Some(existing_var_type) = existing_var_type {
         existing_var_type
     } else {
-        return get_missing_type(assertion, inside_loop);
+        return get_missing_type(assertion, inside_loop, &codebase.interner);
     };
 
     let old_var_type_string = existing_var_type.get_id(Some(&codebase.interner));
@@ -86,16 +84,30 @@ pub(crate) fn reconcile(
     if let Some(assertion_type) = assertion.get_type() {
         let mut refined_type = refine_atomic_with_union(
             statements_analyzer,
-            tast_info,
             assertion_type,
-            assertion,
             existing_var_type,
-            key.clone(),
-            negated,
-            if can_report_issues { pos } else { None },
-            suppressed_issues,
             failed_reconciliation,
         );
+
+        if &existing_var_type.types == &refined_type.types {
+            if let Some(key) = key {
+                if let Some(pos) = pos {
+                    if !assertion.has_equality() {
+                        trigger_issue_for_impossible(
+                            tast_info,
+                            statements_analyzer,
+                            &old_var_type_string,
+                            key,
+                            assertion,
+                            true,
+                            negated,
+                            pos,
+                            suppressed_issues,
+                        );
+                    }
+                }
+            }
+        }
 
         type_expander::expand_union(
             codebase,
@@ -115,55 +127,20 @@ pub(crate) fn reconcile(
 
 pub(crate) fn refine_atomic_with_union(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
     new_type: &TAtomic,
-    assertion: &Assertion,
     existing_var_type: &TUnion,
-    key: Option<&String>,
-    negated: bool,
-    pos: Option<&Pos>,
-    suppressed_issues: &FxHashMap<String, usize>,
     failed_reconciliation: &mut ReconciliationStatus,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
 
-    let old_var_type_string = existing_var_type.get_id(Some(&codebase.interner));
-
     if !new_type.is_mixed() {
-        if let Some(key) = key {
-            if let Some(pos) = pos {
-                if let TAtomic::TNamedObject { name, .. } = &new_type {
-                    if !codebase.interface_exists(name)
-                        && !assertion.has_equality()
-                        && union_type_comparator::is_contained_by(
-                            codebase,
-                            existing_var_type,
-                            &wrap_atomic(new_type.clone()),
-                            false,
-                            false,
-                            false,
-                            &mut TypeComparisonResult::new(),
-                        )
-                    {
-                        trigger_issue_for_impossible(
-                            tast_info,
-                            statements_analyzer,
-                            &old_var_type_string,
-                            key,
-                            assertion,
-                            true,
-                            negated,
-                            pos,
-                            suppressed_issues,
-                        );
-                    }
-                }
-            }
-        }
-
         let intersection_type = intersect_union_with_atomic(codebase, existing_var_type, &new_type);
 
-        if let Some(intersection_type) = intersection_type {
+        if let Some(mut intersection_type) = intersection_type {
+            for intersection_atomic_type in intersection_type.types.iter_mut() {
+                intersection_atomic_type.remove_placeholders(&codebase.interner);
+            }
+
             return intersection_type;
         }
 
@@ -626,13 +603,10 @@ fn intersect_contained_atomic_with_another(
         }
     }
 
-    let mut type_2_atomic = sub_atomic.clone();
-    type_2_atomic.remove_placeholders(&codebase.interner);
-
-    Some(type_2_atomic)
+    Some(sub_atomic.clone())
 }
 
-fn get_missing_type(assertion: &Assertion, inside_loop: bool) -> TUnion {
+fn get_missing_type(assertion: &Assertion, inside_loop: bool, interner: &Interner) -> TUnion {
     if matches!(assertion, Assertion::IsIsset | Assertion::IsEqualIsset) {
         return get_mixed_maybe_from_loop(inside_loop);
     }
@@ -645,6 +619,8 @@ fn get_missing_type(assertion: &Assertion, inside_loop: bool) -> TUnion {
     }
 
     if let Assertion::IsEqual(atomic) | Assertion::IsType(atomic) = assertion {
+        let mut atomic = atomic.clone();
+        atomic.remove_placeholders(interner);
         return wrap_atomic(atomic.clone());
     }
 

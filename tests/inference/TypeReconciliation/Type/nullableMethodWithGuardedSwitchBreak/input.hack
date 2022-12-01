@@ -4,7 +4,7 @@ class One {
 
 class B {
     public function barBar(?One $one = null) : void {
-        $a = 4;
+        $a = rand(0, 1) ? 3 : 4;
 
         switch ($a) {
             case 4:

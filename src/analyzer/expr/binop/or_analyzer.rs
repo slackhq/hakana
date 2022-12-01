@@ -272,35 +272,6 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     clauses_for_right_analysis.extend(right_clauses.unwrap());
 
-    let combined_right_clauses =
-        hakana_algebra::simplify_cnf(clauses_for_right_analysis.iter().collect());
-
-    let mut right_referenced_var_ids = FxHashSet::default();
-
-    let (right_type_assertions, active_right_type_assertions) =
-        hakana_algebra::get_truths_from_formula(
-            combined_right_clauses.iter().collect(),
-            Some(right_cond_id),
-            &mut right_referenced_var_ids,
-        );
-
-    if !right_type_assertions.is_empty() {
-        let mut tmp_context = right_context.clone();
-        reconciler::reconcile_keyed_types(
-            &right_type_assertions,
-            active_right_type_assertions,
-            &mut tmp_context,
-            &mut FxHashSet::default(),
-            &right_referenced_var_ids,
-            statements_analyzer,
-            tast_info,
-            right.pos(),
-            true,
-            context.inside_negation,
-            &FxHashMap::default(),
-        );
-    }
-
     // todo handle exit in right branch of if
 
     context

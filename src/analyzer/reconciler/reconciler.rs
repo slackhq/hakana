@@ -762,7 +762,12 @@ fn get_value_for_key(
                                 && new_assertions.contains_key(&new_base_key)
                             {
                                 if has_inverted_isset && new_base_key.eq(&key) {
-                                    new_base_type_candidate.add_type(TAtomic::TNull);
+                                    new_base_type_candidate = add_union_type(
+                                        new_base_type_candidate,
+                                        &get_null(),
+                                        codebase,
+                                        false,
+                                    );
                                 }
 
                                 *possibly_undefined = true;
@@ -791,7 +796,12 @@ fn get_value_for_key(
                                 && new_assertions.contains_key(&new_base_key)
                             {
                                 if has_inverted_isset && new_base_key.eq(&key) {
-                                    new_base_type_candidate.add_type(TAtomic::TNull);
+                                    new_base_type_candidate = add_union_type(
+                                        new_base_type_candidate,
+                                        &get_null(),
+                                        codebase,
+                                        false,
+                                    );
                                 }
 
                                 *possibly_undefined = true;
@@ -828,7 +838,12 @@ fn get_value_for_key(
                                     && new_assertions.contains_key(&new_base_key)
                                 {
                                     if has_inverted_isset && new_base_key.eq(&key) {
-                                        new_base_type_candidate.add_type(TAtomic::TNull);
+                                        new_base_type_candidate = add_union_type(
+                                            new_base_type_candidate,
+                                            &get_null(),
+                                            codebase,
+                                            false,
+                                        );
                                     }
 
                                     *possibly_undefined = true;
@@ -1093,10 +1108,7 @@ fn get_impossible_issue(
         ),
         "truthy" | "falsy" => Issue::new(
             IssueKind::ImpossibleTruthinessCheck,
-            format!(
-                "Type {} is never {}",
-                old_var_type_string, assertion_string
-            ),
+            format!("Type {} is never {}", old_var_type_string, assertion_string),
             statements_analyzer.get_hpos(&pos),
         ),
         _ => Issue::new(

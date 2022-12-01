@@ -6,7 +6,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_type::get_mixed_any;
+use hakana_type::{add_union_type, get_mixed_any, get_null};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 
@@ -137,7 +137,12 @@ pub(crate) fn analyze(
 
     if let Some(mut stmt_type) = analysis_result.return_type {
         if nullsafe && !stmt_type.is_mixed() {
-            stmt_type.add_type(TAtomic::TNull);
+            stmt_type = add_union_type(
+                stmt_type,
+                &get_null(),
+                statements_analyzer.get_codebase(),
+                false,
+            );
         }
         if stmt_type.is_nothing() && !context.inside_loop {
             context.has_returned = true;

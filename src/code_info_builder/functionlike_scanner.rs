@@ -260,7 +260,7 @@ pub(crate) fn get_functionlike(
                     )
                     .unwrap();
 
-                    super_type.add_type(TAtomic::TTemplateParam {
+                    super_type.types.push(TAtomic::TTemplateParam {
                         param_name: type_param_node.name.1.clone(),
                         as_type: if let Some(template_as_type) = &template_as_type {
                             template_as_type.clone()

@@ -1277,7 +1277,10 @@ impl TAtomic {
             } => {
                 if let Some(type_params) = type_params {
                     let name = interner.lookup(*name);
-                    if name == "HH\\KeyedContainer" || name == "HH\\AnyArray" {
+                    if name == "HH\\KeyedContainer"
+                        || name == "HH\\AnyArray"
+                        || name == "HH\\KeyedTraversable"
+                    {
                         if let Some(key_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = key_param.get_single() {
                                 *key_param =
@@ -1292,12 +1295,19 @@ impl TAtomic {
                                 )]);
                             }
                         }
-                    } else if name == "HH\\Container" {
+                    } else if name == "HH\\Container" || name == "HH\\Traversable" {
                         if let Some(value_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = value_param.get_single() {
                                 *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
                                     true, false, false, false,
                                 )]);
+                            }
+                        }
+                    } else {
+                        for type_param in type_params {
+                            if let TAtomic::TPlaceholder = type_param.get_single() {
+                                *type_param =
+                                    TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                             }
                         }
                     }
