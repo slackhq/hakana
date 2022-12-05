@@ -117,10 +117,13 @@ pub(crate) fn analyze(
         ));
     }
 
-    let property_id = (
-        classlike_name.clone(),
-        codebase.interner.get(&prop_name.unwrap()).unwrap(),
-    );
+    let prop_name_id = codebase.interner.get(&prop_name.unwrap());
+
+    let property_id = if let Some(prop_name_id) = prop_name_id {
+        (classlike_name.clone(), prop_name_id)
+    } else {
+        return false;
+    };
 
     // TODO mutation handling
 
