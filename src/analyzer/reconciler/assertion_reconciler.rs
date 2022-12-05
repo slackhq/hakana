@@ -92,7 +92,7 @@ pub(crate) fn reconcile(
         if &existing_var_type.types == &refined_type.types {
             if let Some(key) = key {
                 if let Some(pos) = pos {
-                    if !assertion.has_equality() {
+                    if !assertion.has_equality() && !assertion_type.is_mixed() {
                         trigger_issue_for_impossible(
                             tast_info,
                             statements_analyzer,
