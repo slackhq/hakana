@@ -6,7 +6,6 @@ use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::{
     assertion::Assertion,
-    codebase_info::symbols::Symbol,
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
@@ -41,7 +40,7 @@ use super::{
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    mut classlike_name: Symbol,
+    mut classlike_name: StrId,
     method_name: &StrId,
     call_expr: (
         &Vec<aast::Targ<()>>,

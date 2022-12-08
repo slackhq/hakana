@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::{
-    codebase_info::{symbols::Symbol, CodebaseInfo},
-    t_atomic::{DictKey, TAtomic},
+    codebase_info::{CodebaseInfo},
+    t_atomic::{DictKey, TAtomic}, StrId,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -1055,7 +1055,7 @@ fn scrape_type_properties(
 
 fn merge_array_subtype(
     combination: &mut TypeCombination,
-    fq_class_name: &Symbol,
+    fq_class_name: &StrId,
     codebase: &CodebaseInfo,
 ) {
     let fq_class_name_key = codebase.interner.lookup(*fq_class_name).to_string();

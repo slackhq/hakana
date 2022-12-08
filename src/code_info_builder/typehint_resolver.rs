@@ -1,4 +1,4 @@
-use hakana_reflection_info::codebase_info::symbols::Symbol;
+
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -19,9 +19,9 @@ use std::sync::Arc;
 
 fn get_vec_type_from_hint(
     hint: &Hint,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     TAtomic::TVec {
         type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
@@ -34,9 +34,9 @@ fn get_vec_type_from_hint(
 
 fn get_tuple_type_from_hints(
     hints: &Vec<Hint>,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     TAtomic::TVec {
         type_param: get_nothing(),
@@ -65,9 +65,9 @@ fn get_tuple_type_from_hints(
 
 fn get_keyset_type_from_hint(
     hint: &Hint,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     TAtomic::TKeyset {
         type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
@@ -77,9 +77,9 @@ fn get_keyset_type_from_hint(
 
 fn get_classname_type_from_hint(
     hint: &Hint,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     if let Hint_::Happly(id, type_params) = &*hint.1 {
         let as_type = get_reference_type(
@@ -112,9 +112,9 @@ fn get_classname_type_from_hint(
 
 fn get_typename_type_from_hint(
     hint: &Hint,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     if let Hint_::Happly(id, type_params) = &*hint.1 {
         let as_type = get_reference_type(
@@ -146,9 +146,9 @@ fn get_typename_type_from_hint(
 fn get_dict_type_from_hints(
     key_hint: Option<&Hint>,
     value_hint: Option<&Hint>,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     TAtomic::TDict {
         params: Some((
@@ -171,9 +171,9 @@ fn get_dict_type_from_hints(
 
 fn get_shape_type_from_hints(
     shape_info: &NastShapeInfo,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     let mut known_items = BTreeMap::new();
 
@@ -225,9 +225,9 @@ fn get_shape_type_from_hints(
 
 fn get_function_type_from_hints(
     function_info: &HintFun,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     let mut params = function_info
         .param_tys
@@ -280,9 +280,9 @@ fn get_function_type_from_hints(
 fn get_reference_type(
     applied_type: &Id,
     extra_info: &Vec<Hint>,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     let type_name = &applied_type.1;
 
@@ -358,7 +358,7 @@ fn get_reference_type(
 }
 
 fn get_template_type(
-    defining_entities: &FxHashMap<Symbol, Arc<TUnion>>,
+    defining_entities: &FxHashMap<StrId, Arc<TUnion>>,
     type_name: &String,
 ) -> TAtomic {
     let as_type = defining_entities.values().next().unwrap().clone();
@@ -375,9 +375,9 @@ fn get_template_type(
 
 pub fn get_type_from_hint(
     hint: &Hint_,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> Option<TUnion> {
     let mut types = Vec::new();
 
@@ -538,9 +538,9 @@ pub fn get_type_from_hint(
 
 pub fn get_type_from_optional_hint(
     hint: &Option<Hint>,
-    classlike_name: Option<&Symbol>,
+    classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> Option<TUnion> {
     match hint {
         Some(x) => get_type_from_hint(&x.1, classlike_name, type_context, resolved_names),

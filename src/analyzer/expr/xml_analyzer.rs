@@ -3,7 +3,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use hakana_reflection_info::codebase_info::symbols::Symbol;
+
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
@@ -140,7 +140,7 @@ pub(crate) fn analyze(
 
 fn analyze_xhp_attribute_assignment(
     statements_analyzer: &StatementsAnalyzer,
-    element_name: &Symbol,
+    element_name: &StrId,
     attribute_info: &aast::XhpSimple<(), ()>,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,

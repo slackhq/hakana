@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::classlike_info::Variance;
-use hakana_reflection_info::codebase_info::symbols::Symbol;
+use hakana_reflection_info::StrId;
+
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_type::template::standin_type_replacer::get_most_specific_type_from_bounds;
@@ -238,7 +239,7 @@ fn analyze_named_constructor(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-    classlike_name: Symbol,
+    classlike_name: StrId,
     from_static: bool,
     can_extend: bool,
     result: &mut AtomicMethodCallAnalysisResult,

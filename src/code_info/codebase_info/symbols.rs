@@ -14,12 +14,12 @@ pub enum SymbolKind {
     Function,
 }
 
-pub type Symbol = StrId;
+
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Symbols {
-    pub all: FxHashMap<Symbol, SymbolKind>,
-    pub classlike_files: FxHashMap<Symbol, StrId>,
+    pub all: FxHashMap<StrId, SymbolKind>,
+    pub classlike_files: FxHashMap<StrId, StrId>,
 }
 
 impl Symbols {
@@ -30,7 +30,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
+    pub fn add_class_name(&mut self, fq_class_name: &StrId, file_path: Option<StrId>) {
         self.all.insert(fq_class_name.clone(), SymbolKind::Class);
 
         if let Some(file_path) = file_path {
@@ -39,7 +39,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_enum_class_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
+    pub fn add_enum_class_name(&mut self, fq_class_name: &StrId, file_path: Option<StrId>) {
         self.all
             .insert(fq_class_name.clone(), SymbolKind::EnumClass);
 
@@ -49,7 +49,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_interface_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
+    pub fn add_interface_name(&mut self, fq_class_name: &StrId, file_path: Option<StrId>) {
         self.all
             .insert(fq_class_name.clone(), SymbolKind::Interface);
 
@@ -59,7 +59,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_trait_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
+    pub fn add_trait_name(&mut self, fq_class_name: &StrId, file_path: Option<StrId>) {
         self.all.insert(fq_class_name.clone(), SymbolKind::Trait);
 
         if let Some(file_path) = file_path {
@@ -68,7 +68,7 @@ impl Symbols {
         }
     }
 
-    pub fn add_enum_name(&mut self, fq_class_name: &Symbol, file_path: Option<StrId>) {
+    pub fn add_enum_name(&mut self, fq_class_name: &StrId, file_path: Option<StrId>) {
         self.all.insert(fq_class_name.clone(), SymbolKind::Enum);
 
         if let Some(file_path) = file_path {
@@ -77,11 +77,11 @@ impl Symbols {
         }
     }
 
-    pub fn add_typedef_name(&mut self, fq_class_name: Symbol) {
+    pub fn add_typedef_name(&mut self, fq_class_name: StrId) {
         self.all.insert(fq_class_name, SymbolKind::TypeDefinition);
     }
 
-    pub fn add_function_name(&mut self, function_name: Symbol) {
+    pub fn add_function_name(&mut self, function_name: StrId) {
         self.all.insert(function_name, SymbolKind::Function);
     }
 }

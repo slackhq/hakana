@@ -6,7 +6,7 @@ use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
-use hakana_reflection_info::codebase_info::symbols::Symbol;
+
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_info::FnEffect;
@@ -39,7 +39,7 @@ pub(crate) fn scan_method(
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
     all_custom_issues: &FxHashSet<String>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     m: &aast::Method_<(), ()>,
     c: &mut Context,
     comments: &Vec<(Pos, Comment)>,
@@ -136,8 +136,8 @@ pub(crate) fn scan_method(
 fn add_promoted_param_property(
     param_node: &aast::FunParam<(), ()>,
     param_visibility: ast_defs::Visibility,
-    resolved_names: &FxHashMap<usize, Symbol>,
-    classlike_name: &Symbol,
+    resolved_names: &FxHashMap<usize, StrId>,
+    classlike_name: &StrId,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     interner: &mut ThreadedInterner,
@@ -201,7 +201,7 @@ pub(crate) fn get_functionlike(
     codebase: &CodebaseInfo,
     interner: &mut ThreadedInterner,
     all_custom_issues: &FxHashSet<String>,
-    name: Symbol,
+    name: StrId,
     def_pos: &Pos,
     name_pos: &Pos,
     tparams: &Vec<aast::Tparam<(), ()>>,
@@ -212,8 +212,8 @@ pub(crate) fn get_functionlike(
     contexts: &Option<tast::Contexts>,
     where_constraints: &Vec<WhereConstraintHint>,
     type_context: &mut TypeResolutionContext,
-    this_name: Option<&Symbol>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    this_name: Option<&StrId>,
+    resolved_names: &FxHashMap<usize, StrId>,
     functionlike_id: &String,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
@@ -510,7 +510,7 @@ fn convert_param_nodes(
     codebase: &CodebaseInfo,
     interner: &mut ThreadedInterner,
     param_nodes: &Vec<aast::FunParam<(), ()>>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     type_context: &TypeResolutionContext,
     file_source: &FileSource,
 ) -> Vec<FunctionLikeParameter> {

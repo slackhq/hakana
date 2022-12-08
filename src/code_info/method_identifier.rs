@@ -1,7 +1,7 @@
-use crate::{codebase_info::symbols::Symbol, Interner};
+use crate::{Interner, StrId};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MethodIdentifier(pub Symbol, pub Symbol);
+pub struct MethodIdentifier(pub StrId, pub StrId);
 
 impl MethodIdentifier {
     pub fn to_string(&self, interner: &Interner) -> String {

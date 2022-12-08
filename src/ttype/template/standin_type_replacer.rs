@@ -6,9 +6,9 @@ use crate::{
     type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
 };
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::{function_context::FunctionLikeIdentifier, StrId};
 use hakana_reflection_info::{
-    codebase_info::{symbols::Symbol, CodebaseInfo},
+    codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
@@ -25,7 +25,7 @@ pub fn replace(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&Symbol>,
+    calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,                             // true
     add_lower_bound: bool,                     // false
@@ -102,7 +102,7 @@ fn handle_atomic_standin(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&Symbol>,
+    calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
@@ -263,7 +263,7 @@ fn replace_atomic(
     codebase: &CodebaseInfo,
     input_type: Option<TAtomic>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&Symbol>,
+    calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
@@ -677,7 +677,7 @@ fn handle_template_param_standin(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&Symbol>,
+    calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
@@ -1061,7 +1061,7 @@ fn handle_template_param_class_standin(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&Symbol>,
+    calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
@@ -1237,7 +1237,7 @@ fn handle_template_param_type_standin(
     codebase: &CodebaseInfo,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
-    calling_class: Option<&Symbol>,
+    calling_class: Option<&StrId>,
     depth: usize,
     was_single: bool,
 ) -> Vec<TAtomic> {
@@ -1359,9 +1359,9 @@ fn handle_template_param_type_standin(
 }
 
 fn template_types_contains<'a>(
-    template_types: &'a IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
+    template_types: &'a IndexMap<String, FxHashMap<StrId, Arc<TUnion>>>,
     param_name: &String,
-    defining_entity: &Symbol,
+    defining_entity: &StrId,
 ) -> Option<&'a Arc<TUnion>> {
     if let Some(mapped_classes) = template_types.get(param_name) {
         return mapped_classes.get(defining_entity);
@@ -1582,7 +1582,7 @@ fn find_matching_atomic_types_for_template(
 pub fn get_mapped_generic_type_params(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
-    container_name: &Symbol,
+    container_name: &StrId,
     container_remapped_params: bool,
 ) -> Vec<(Option<usize>, TUnion)> {
     let mut input_type_params = match input_type_part {
@@ -1729,7 +1729,7 @@ pub fn get_mapped_generic_type_params(
 
 pub fn get_extended_templated_types<'a>(
     atomic_type: &'a TAtomic,
-    extends: &'a FxHashMap<Symbol, IndexMap<String, Arc<TUnion>>>,
+    extends: &'a FxHashMap<StrId, IndexMap<String, Arc<TUnion>>>,
 ) -> Vec<&'a TAtomic> {
     let mut extra_added_types = Vec::new();
 
@@ -1761,10 +1761,10 @@ pub fn get_extended_templated_types<'a>(
 }
 
 pub(crate) fn get_root_template_type(
-    lower_bounds: &IndexMap<String, FxHashMap<Symbol, Vec<TemplateBound>>>,
+    lower_bounds: &IndexMap<String, FxHashMap<StrId, Vec<TemplateBound>>>,
     param_name: &String,
-    defining_entity: &Symbol,
-    mut visited_entities: FxHashSet<Symbol>,
+    defining_entity: &StrId,
+    mut visited_entities: FxHashSet<StrId>,
     codebase: &CodebaseInfo,
 ) -> Option<TUnion> {
     if visited_entities.contains(defining_entity) {

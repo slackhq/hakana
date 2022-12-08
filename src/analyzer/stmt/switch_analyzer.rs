@@ -1,6 +1,7 @@
 use hakana_reflection_info::{
-    codebase_info::{symbols::Symbol, CodebaseInfo},
+    codebase_info::CodebaseInfo,
     issue::{Issue, IssueKind},
+    StrId,
 };
 use hakana_type::{combine_optional_union_types, combine_union_types, get_mixed_any};
 use indexmap::IndexMap;
@@ -842,7 +843,7 @@ fn update_case_exit_map(
     codebase: &CodebaseInfo,
     case_stmts: &Vec<aast::Stmt<(), ()>>,
     tast_info: &mut TastInfo,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     case_action_map: &mut FxHashMap<usize, FxHashSet<ControlAction>>,
     i: usize,
     last_case_exit_type: &mut ControlAction,

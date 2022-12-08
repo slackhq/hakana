@@ -1,7 +1,7 @@
 pub mod symbols;
 
 pub use self::symbols::Symbols;
-use self::symbols::{Symbol, SymbolKind};
+use self::symbols::{SymbolKind};
 use crate::classlike_info::ClassLikeInfo;
 use crate::functionlike_info::FunctionLikeInfo;
 use crate::method_identifier::MethodIdentifier;
@@ -15,19 +15,19 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct CodebaseInfo {
-    pub classlike_infos: FxHashMap<Symbol, ClassLikeInfo>,
-    pub functionlike_infos: FxHashMap<Symbol, FunctionLikeInfo>,
-    pub type_definitions: FxHashMap<Symbol, TypeDefinitionInfo>,
+    pub classlike_infos: FxHashMap<StrId, ClassLikeInfo>,
+    pub functionlike_infos: FxHashMap<StrId, FunctionLikeInfo>,
+    pub type_definitions: FxHashMap<StrId, TypeDefinitionInfo>,
     pub symbols: Symbols,
     pub interner: Interner,
     pub infer_types_from_usage: bool,
     pub register_stub_files: bool,
-    pub constant_infos: FxHashMap<Symbol, ConstantInfo>,
-    pub classlikes_in_files: FxHashMap<String, FxHashSet<Symbol>>,
-    pub typedefs_in_files: FxHashMap<String, FxHashSet<Symbol>>,
-    pub functions_in_files: FxHashMap<String, FxHashSet<Symbol>>,
-    pub const_files: FxHashMap<String, FxHashSet<Symbol>>,
-    pub classlike_descendents: FxHashMap<Symbol, FxHashSet<Symbol>>,
+    pub constant_infos: FxHashMap<StrId, ConstantInfo>,
+    pub classlikes_in_files: FxHashMap<String, FxHashSet<StrId>>,
+    pub typedefs_in_files: FxHashMap<String, FxHashSet<StrId>>,
+    pub functions_in_files: FxHashMap<String, FxHashSet<StrId>>,
+    pub const_files: FxHashMap<String, FxHashSet<StrId>>,
+    pub classlike_descendents: FxHashMap<StrId, FxHashSet<StrId>>,
 }
 
 impl CodebaseInfo {
@@ -50,7 +50,7 @@ impl CodebaseInfo {
     }
 
     #[inline]
-    pub fn class_or_interface_exists(&self, fq_class_name: &Symbol) -> bool {
+    pub fn class_or_interface_exists(&self, fq_class_name: &StrId) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Class | SymbolKind::EnumClass | SymbolKind::Interface) => true,
             _ => false,
@@ -58,7 +58,7 @@ impl CodebaseInfo {
     }
 
     #[inline]
-    pub fn class_or_interface_or_enum_exists(&self, fq_class_name: &Symbol) -> bool {
+    pub fn class_or_interface_or_enum_exists(&self, fq_class_name: &StrId) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(
                 SymbolKind::Class
@@ -71,7 +71,7 @@ impl CodebaseInfo {
     }
 
     #[inline]
-    pub fn class_or_interface_or_enum_or_trait_exists(&self, fq_class_name: &Symbol) -> bool {
+    pub fn class_or_interface_or_enum_or_trait_exists(&self, fq_class_name: &StrId) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(
                 SymbolKind::Class
@@ -85,7 +85,7 @@ impl CodebaseInfo {
     }
 
     #[inline]
-    pub fn class_exists(&self, fq_class_name: &Symbol) -> bool {
+    pub fn class_exists(&self, fq_class_name: &StrId) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Class | SymbolKind::EnumClass) => true,
             _ => false,
@@ -93,7 +93,7 @@ impl CodebaseInfo {
     }
 
     #[inline]
-    pub fn trait_exists(&self, fq_class_name: &Symbol) -> bool {
+    pub fn trait_exists(&self, fq_class_name: &StrId) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Trait) => true,
             _ => false,
@@ -101,7 +101,7 @@ impl CodebaseInfo {
     }
 
     #[inline]
-    pub fn interface_exists(&self, fq_class_name: &Symbol) -> bool {
+    pub fn interface_exists(&self, fq_class_name: &StrId) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Interface) => true,
             _ => false,
@@ -109,7 +109,7 @@ impl CodebaseInfo {
     }
 
     #[inline]
-    pub fn enum_exists(&self, fq_class_name: &Symbol) -> bool {
+    pub fn enum_exists(&self, fq_class_name: &StrId) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Enum) => true,
             _ => false,
@@ -117,21 +117,21 @@ impl CodebaseInfo {
     }
 
     #[inline]
-    pub fn typedef_exists(&self, fq_alias_name: &Symbol) -> bool {
+    pub fn typedef_exists(&self, fq_alias_name: &StrId) -> bool {
         match self.symbols.all.get(fq_alias_name) {
             Some(SymbolKind::TypeDefinition) => true,
             _ => false,
         }
     }
 
-    pub fn class_or_trait_extends(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
+    pub fn class_or_trait_extends(&self, child_class: &StrId, parent_class: &StrId) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage.all_parent_classes.contains(parent_class);
         }
         false
     }
 
-    pub fn class_extends_or_implements(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
+    pub fn class_extends_or_implements(&self, child_class: &StrId, parent_class: &StrId) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage.all_parent_classes.contains(parent_class)
                 || classlike_storage
@@ -143,8 +143,8 @@ impl CodebaseInfo {
 
     pub fn class_or_interface_can_use_trait(
         &self,
-        child_class: &Symbol,
-        parent_trait: &Symbol,
+        child_class: &StrId,
+        parent_trait: &StrId,
     ) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             if classlike_storage.used_traits.contains(parent_trait) {
@@ -162,7 +162,7 @@ impl CodebaseInfo {
         false
     }
 
-    pub fn interface_extends(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
+    pub fn interface_extends(&self, child_class: &StrId, parent_class: &StrId) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage
                 .all_parent_interfaces
@@ -172,7 +172,7 @@ impl CodebaseInfo {
         false
     }
 
-    pub fn class_or_trait_implements(&self, child_class: &Symbol, parent_class: &Symbol) -> bool {
+    pub fn class_or_trait_implements(&self, child_class: &StrId, parent_class: &StrId) -> bool {
         if let Some(classlike_storage) = self.classlike_infos.get(child_class) {
             return classlike_storage
                 .all_class_interfaces
@@ -183,7 +183,7 @@ impl CodebaseInfo {
 
     pub fn get_class_constant_type(
         &self,
-        fq_class_name: &Symbol,
+        fq_class_name: &StrId,
         const_name: &StrId,
         _visited_constant_ids: FxHashSet<String>,
     ) -> Option<TUnion> {
@@ -230,7 +230,7 @@ impl CodebaseInfo {
 
     pub fn get_classconst_literal_value(
         &self,
-        fq_class_name: &Symbol,
+        fq_class_name: &StrId,
         const_name: &StrId,
     ) -> Option<&TAtomic> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
@@ -248,7 +248,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn property_exists(&self, classlike_name: &Symbol, property_name: &Symbol) -> bool {
+    pub fn property_exists(&self, classlike_name: &StrId, property_name: &StrId) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             classlike_info
                 .declaring_property_ids
@@ -258,7 +258,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn method_exists(&self, classlike_name: &Symbol, method_name: &Symbol) -> bool {
+    pub fn method_exists(&self, classlike_name: &StrId, method_name: &StrId) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             classlike_info
                 .declaring_method_ids
@@ -268,7 +268,7 @@ impl CodebaseInfo {
         }
     }
 
-    pub fn declaring_method_exists(&self, classlike_name: &Symbol, method_name: &Symbol) -> bool {
+    pub fn declaring_method_exists(&self, classlike_name: &StrId, method_name: &StrId) -> bool {
         if let Some(classlike_info) = self.classlike_infos.get(classlike_name) {
             if let Some(declaring_class) = classlike_info.declaring_method_ids.get(method_name) {
                 declaring_class == classlike_name
@@ -282,9 +282,9 @@ impl CodebaseInfo {
 
     pub fn get_declaring_class_for_property(
         &self,
-        fq_class_name: &Symbol,
-        property_name: &Symbol,
-    ) -> Option<&Symbol> {
+        fq_class_name: &StrId,
+        property_name: &StrId,
+    ) -> Option<&StrId> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             return classlike_storage.declaring_property_ids.get(property_name);
         }
@@ -294,8 +294,8 @@ impl CodebaseInfo {
 
     pub fn get_property_type(
         &self,
-        fq_class_name: &Symbol,
-        property_name: &Symbol,
+        fq_class_name: &StrId,
+        property_name: &StrId,
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             let declaring_property_class =

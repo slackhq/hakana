@@ -7,14 +7,14 @@ use hakana_reflection_info::{
     classlike_info::{ClassLikeInfo, Variance},
     code_location::HPos,
     codebase_info::{
-        symbols::{Symbol, SymbolKind},
+        symbols::{SymbolKind},
         CodebaseInfo,
     },
     member_visibility::MemberVisibility,
     property_info::PropertyInfo,
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
-    FileSource, ThreadedInterner,
+    FileSource, ThreadedInterner, StrId,
 };
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use indexmap::IndexMap;
@@ -30,8 +30,8 @@ pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
     all_custom_issues: &FxHashSet<String>,
-    resolved_names: &FxHashMap<usize, Symbol>,
-    class_name: &Symbol,
+    resolved_names: &FxHashMap<usize, StrId>,
+    class_name: &StrId,
     classlike_node: &aast::Class_<(), ()>,
     file_source: &FileSource,
     user_defined: bool,
@@ -482,9 +482,9 @@ pub(crate) fn scan(
 
 fn handle_reqs(
     classlike_node: &aast::Class_<(), ()>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     storage: &mut ClassLikeInfo,
-    class_name: &Symbol,
+    class_name: &StrId,
 ) {
     for req in &classlike_node.reqs {
         if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
@@ -530,7 +530,7 @@ fn handle_reqs(
 
 fn visit_xhp_attribute(
     xhp_attribute: &aast::XhpAttr<(), ()>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     interner: &mut ThreadedInterner,
@@ -601,7 +601,7 @@ fn visit_xhp_attribute(
 
 fn visit_class_const_declaration(
     const_node: &aast::ClassConst<(), ()>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     codebase: &CodebaseInfo,
@@ -656,7 +656,7 @@ fn visit_class_const_declaration(
 
 fn visit_class_typeconst_declaration(
     const_node: &aast::ClassTypeconstDef<(), ()>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     classlike_storage: &mut ClassLikeInfo,
 ) {
     let const_type = match &const_node.kind {
@@ -682,7 +682,7 @@ fn visit_class_typeconst_declaration(
 
 fn visit_property_declaration(
     property_node: &aast::ClassVar<(), ()>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     interner: &mut ThreadedInterner,
@@ -755,7 +755,7 @@ fn visit_property_declaration(
 
 fn get_classlike_storage(
     codebase: &mut CodebaseInfo,
-    class_name: &Symbol,
+    class_name: &StrId,
     //mut is_classlike_overridden: bool,
     class: &aast::Class_<(), ()>,
     file_source: &FileSource,

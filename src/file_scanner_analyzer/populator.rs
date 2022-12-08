@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
-use hakana_reflection_info::codebase_info::symbols::{Symbol, SymbolKind};
+use hakana_reflection_info::codebase_info::symbols::{SymbolKind};
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::member_visibility::MemberVisibility;
@@ -140,8 +140,8 @@ fn populate_functionlike_storage(storage: &mut FunctionLikeInfo, codebase_symbol
 }
 
 fn populate_classlike_storage(
-    classlike_name: &Symbol,
-    all_classlike_descendants: &mut FxHashMap<Symbol, FxHashSet<Symbol>>,
+    classlike_name: &StrId,
+    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
 ) {
     let mut storage = if let Some(storage) = codebase.classlike_infos.remove(classlike_name) {
@@ -262,9 +262,9 @@ fn populate_interface_data_from_parent_or_implemented_interface(
 
 fn populate_interface_data_from_parent_interface(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<Symbol, FxHashSet<Symbol>>,
+    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
-    parent_storage_interface: &Symbol,
+    parent_storage_interface: &StrId,
 ) {
     populate_classlike_storage(
         parent_storage_interface,
@@ -294,9 +294,9 @@ fn populate_interface_data_from_parent_interface(
 
 fn populate_data_from_implemented_interface(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<Symbol, FxHashSet<Symbol>>,
+    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
-    parent_storage_interface: &Symbol,
+    parent_storage_interface: &StrId,
 ) {
     populate_classlike_storage(
         parent_storage_interface,
@@ -329,9 +329,9 @@ fn populate_data_from_implemented_interface(
 
 fn populate_data_from_parent_classlike(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<Symbol, FxHashSet<Symbol>>,
+    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
-    parent_storage_class: &Symbol,
+    parent_storage_class: &StrId,
 ) {
     populate_classlike_storage(parent_storage_class, all_classlike_descendants, codebase);
     let parent_storage = codebase.classlike_infos.get(parent_storage_class);
@@ -391,9 +391,9 @@ fn populate_data_from_parent_classlike(
 
 fn populate_data_from_trait(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<Symbol, FxHashSet<Symbol>>,
+    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
-    trait_name: &Symbol,
+    trait_name: &StrId,
 ) {
     populate_classlike_storage(trait_name, all_classlike_descendants, codebase);
     let trait_storage = codebase.classlike_infos.get(trait_name);
@@ -682,7 +682,7 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
 
 fn extend_type(
     type_: &Arc<TUnion>,
-    template_extended_params: &FxHashMap<Symbol, IndexMap<String, Arc<TUnion>>>,
+    template_extended_params: &FxHashMap<StrId, IndexMap<String, Arc<TUnion>>>,
 ) -> Arc<TUnion> {
     if !type_.has_template() {
         return type_.clone();

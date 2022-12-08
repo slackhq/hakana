@@ -1,4 +1,5 @@
-use hakana_reflection_info::codebase_info::symbols::Symbol;
+
+use hakana_reflection_info::StrId;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
@@ -508,7 +509,7 @@ fn process_function_effects(
 
 fn get_named_function_info<'a>(
     statements_analyzer: &'a StatementsAnalyzer,
-    name: &Symbol,
+    name: &StrId,
     _pos: &Pos,
 ) -> Option<&'a FunctionLikeInfo> {
     let codebase = statements_analyzer.get_codebase();

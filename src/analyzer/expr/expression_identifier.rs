@@ -1,4 +1,4 @@
-use hakana_reflection_info::codebase_info::{symbols::Symbol, CodebaseInfo};
+use hakana_reflection_info::{codebase_info::{CodebaseInfo}, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::FileSource;
@@ -9,9 +9,9 @@ use super::fetch::class_constant_fetch_analyzer::get_id_name;
 // gets a var id from a simple variable
 pub fn get_var_id(
     conditional: &aast::Expr<(), ()>,
-    this_class_name: Option<&Symbol>,
+    this_class_name: Option<&StrId>,
     source: &FileSource,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     codebase: Option<&CodebaseInfo>,
 ) -> Option<String> {
     match &conditional.2 {
@@ -100,7 +100,7 @@ pub fn get_var_id(
 // gets a the beginning var id from a chain
 pub(crate) fn get_root_var_id(
     conditional: &aast::Expr<(), ()>,
-    this_class_name: Option<&Symbol>,
+    this_class_name: Option<&StrId>,
     source: Option<&FileSource>,
 ) -> Option<String> {
     match &conditional.2 {
@@ -116,7 +116,7 @@ pub(crate) fn get_root_var_id(
 pub(crate) fn get_dim_id(
     conditional: &aast::Expr<(), ()>,
     codebase: Option<&CodebaseInfo>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> Option<String> {
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => Some(var_expr.1 .1.clone()),

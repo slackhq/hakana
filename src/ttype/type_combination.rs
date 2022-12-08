@@ -1,9 +1,9 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use hakana_reflection_info::{
-    codebase_info::symbols::Symbol,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    StrId,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -13,12 +13,12 @@ pub(crate) struct TypeCombination {
 
     pub has_object_top_type: bool,
 
-    pub enum_types: FxHashMap<Symbol, Option<Box<TAtomic>>>,
-    pub enum_value_types: FxHashMap<Symbol, FxHashMap<Symbol, Option<Box<TAtomic>>>>,
+    pub enum_types: FxHashMap<StrId, Option<Box<TAtomic>>>,
+    pub enum_value_types: FxHashMap<StrId, FxHashMap<StrId, Option<Box<TAtomic>>>>,
 
-    pub object_type_params: FxHashMap<String, (Symbol, Vec<TUnion>)>,
+    pub object_type_params: FxHashMap<String, (StrId, Vec<TUnion>)>,
 
-    pub object_static: FxHashMap<Symbol, bool>,
+    pub object_static: FxHashMap<StrId, bool>,
 
     pub vec_counts: Option<FxHashSet<usize>>,
 

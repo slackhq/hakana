@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use hakana_reflection_info::{
-    codebase_info::{symbols::Symbol, CodebaseInfo},
+    codebase_info::{CodebaseInfo},
     data_flow::{
         graph::GraphKind,
         node::DataFlowNode,
@@ -203,7 +203,7 @@ pub(crate) fn analyze_regular_assignment(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     prop_name: &StrId,
-) -> Vec<(TUnion, (Symbol, StrId), TUnion)> {
+) -> Vec<(TUnion, (StrId, StrId), TUnion)> {
     let stmt_var = expr.0;
 
     let mut assigned_properties = Vec::new();
@@ -347,7 +347,7 @@ pub(crate) fn analyze_atomic_assignment(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     prop_name: &StrId,
-) -> Option<(TUnion, (Symbol, StrId), TUnion)> {
+) -> Option<(TUnion, (StrId, StrId), TUnion)> {
     let codebase = statements_analyzer.get_codebase();
     let fq_class_name = if let TAtomic::TNamedObject { name, .. } = lhs_type_part {
         name.clone()
@@ -473,8 +473,8 @@ fn add_instance_property_dataflow(
     context: &mut ScopeContext,
     assignment_value_type: &TUnion,
     prop_name: &StrId,
-    fq_class_name: &Symbol,
-    property_id: &(Symbol, StrId),
+    fq_class_name: &StrId,
+    property_id: &(StrId, StrId),
 ) -> () {
     let codebase = statements_analyzer.get_codebase();
 
@@ -514,7 +514,7 @@ fn add_instance_property_assignment_dataflow(
     lhs_var_id: String,
     var_pos: &Pos,
     name_pos: &Pos,
-    property_id: &(Symbol, StrId),
+    property_id: &(StrId, StrId),
     assignment_value_type: &TUnion,
     context: &mut ScopeContext,
 ) {
@@ -562,14 +562,14 @@ fn add_instance_property_assignment_dataflow(
 
 pub(crate) fn add_unspecialized_property_assignment_dataflow(
     statements_analyzer: &StatementsAnalyzer,
-    property_id: &(Symbol, Symbol),
+    property_id: &(StrId, StrId),
     stmt_name_pos: &Pos,
     var_pos: Option<&Pos>,
     tast_info: &mut TastInfo,
     assignment_value_type: &TUnion,
     codebase: &CodebaseInfo,
-    fq_class_name: &Symbol,
-    prop_name: Symbol,
+    fq_class_name: &StrId,
+    prop_name: StrId,
 ) {
     let localized_property_node = DataFlowNode::get_for_assignment(
         format!(

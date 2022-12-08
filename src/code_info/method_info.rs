@@ -2,7 +2,7 @@ use rustc_hash::FxHashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{codebase_info::symbols::Symbol, member_visibility::MemberVisibility};
+use crate::{member_visibility::MemberVisibility, StrId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MethodInfo {
@@ -18,7 +18,7 @@ pub struct MethodInfo {
 
     pub overridden_somewhere: bool,
 
-    pub defining_fqcln: Option<Symbol>,
+    pub defining_fqcln: Option<StrId>,
 
     pub external_mutation_free: bool,
 

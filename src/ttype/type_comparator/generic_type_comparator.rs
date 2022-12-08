@@ -5,10 +5,10 @@ use crate::{
 };
 use hakana_reflection_info::{
     classlike_info::Variance,
-    codebase_info::{symbols::Symbol, CodebaseInfo},
+    codebase_info::{CodebaseInfo},
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
-    t_union::TUnion,
+    t_union::TUnion, StrId,
 };
 
 pub(crate) fn is_contained_by(
@@ -180,9 +180,9 @@ pub(crate) fn is_contained_by(
 pub(crate) fn compare_generic_params(
     codebase: &CodebaseInfo,
     input_type_part: &TAtomic,
-    input_name: &Symbol,
+    input_name: &StrId,
     input_param: &TUnion,
-    container_name: &Symbol,
+    container_name: &StrId,
     container_param: &TUnion,
     input_param_offset: Option<usize>,
     container_param_offset: usize,

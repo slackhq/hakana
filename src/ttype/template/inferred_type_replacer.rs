@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::{
-    codebase_info::{symbols::Symbol, CodebaseInfo},
+    codebase_info::{CodebaseInfo},
     t_atomic::TAtomic,
-    t_union::TUnion,
+    t_union::TUnion, StrId,
 };
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -177,9 +177,9 @@ pub fn replace(
 }
 
 fn replace_template_param(
-    inferred_lower_bounds: &IndexMap<String, FxHashMap<Symbol, Vec<TemplateBound>>>,
+    inferred_lower_bounds: &IndexMap<String, FxHashMap<StrId, Vec<TemplateBound>>>,
     param_name: &String,
-    defining_entity: &Symbol,
+    defining_entity: &StrId,
     codebase: &CodebaseInfo,
     as_type: &TUnion,
     extra_types: &Option<FxHashMap<String, TAtomic>>,

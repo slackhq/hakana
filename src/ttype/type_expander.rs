@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::{
-    codebase_info::{symbols::Symbol, CodebaseInfo},
+    codebase_info::{CodebaseInfo},
     data_flow::{
         graph::DataFlowGraph,
         node::DataFlowNode,
@@ -24,14 +24,14 @@ use crate::{template, type_combiner, wrap_atomic};
 #[derive(Debug)]
 pub enum StaticClassType<'a, 'b> {
     None,
-    Name(&'a Symbol),
+    Name(&'a StrId),
     Object(&'b TAtomic),
 }
 
 pub struct TypeExpansionOptions<'a> {
-    pub self_class: Option<&'a Symbol>,
+    pub self_class: Option<&'a StrId>,
     pub static_class_type: StaticClassType<'a, 'a>,
-    pub parent_class: Option<&'a Symbol>,
+    pub parent_class: Option<&'a StrId>,
     pub file_path: Option<&'a StrId>,
 
     pub evaluate_class_constants: bool,

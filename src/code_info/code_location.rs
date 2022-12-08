@@ -1,7 +1,9 @@
 use oxidized::ast::Pos;
 use serde::{Deserialize, Serialize};
 
-use crate::codebase_info::symbols::Symbol;
+use crate::StrId;
+
+
 
 // offset, start line, start column
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -9,7 +11,7 @@ pub struct StmtStart(pub usize, pub usize, pub usize);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct HPos {
-    pub file_path: Symbol,
+    pub file_path: StrId,
 
     pub start_offset: usize,
     pub end_offset: usize,
@@ -24,7 +26,7 @@ pub struct HPos {
 }
 
 impl HPos {
-    pub fn new(pos: &Pos, file_path: Symbol, stmt_start: Option<StmtStart>) -> HPos {
+    pub fn new(pos: &Pos, file_path: StrId, stmt_start: Option<StmtStart>) -> HPos {
         let (start, end) = pos.to_start_and_end_lnum_bol_offset();
         let (start_line, line_start_beginning_offset, start_offset) = start;
         let (end_line, line_end_beginning_offset, end_offset) = end;

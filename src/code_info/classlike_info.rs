@@ -4,7 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     code_location::HPos,
-    codebase_info::symbols::{Symbol, SymbolKind},
+    codebase_info::symbols::{SymbolKind},
     functionlike_info::FunctionLikeInfo,
     t_atomic::TAtomic,
     t_union::TUnion,
@@ -44,39 +44,39 @@ pub struct ClassLikeInfo {
 
     pub suppressed_issues: Option<FxHashMap<u32, String>>,
 
-    pub name: Symbol,
+    pub name: StrId,
 
     pub is_user_defined: bool,
 
     /**
      * Interfaces this class implements directly
      */
-    pub direct_class_interfaces: FxHashSet<Symbol>,
+    pub direct_class_interfaces: FxHashSet<StrId>,
 
     /**
      * Interfaces this class implements explicitly and implicitly
      */
-    pub all_class_interfaces: FxHashSet<Symbol>,
+    pub all_class_interfaces: FxHashSet<StrId>,
 
     /**
      * Parent interfaces listed explicitly
      */
-    pub direct_parent_interfaces: FxHashSet<Symbol>,
+    pub direct_parent_interfaces: FxHashSet<StrId>,
 
     /**
      * All parent interfaces
      */
-    pub all_parent_interfaces: FxHashSet<Symbol>,
+    pub all_parent_interfaces: FxHashSet<StrId>,
 
     /**
      * There can only be one parent class
      */
-    pub direct_parent_class: Option<Symbol>,
+    pub direct_parent_class: Option<StrId>,
 
     /**
      * Parent classes
      */
-    pub all_parent_classes: FxHashSet<Symbol>,
+    pub all_parent_classes: FxHashSet<StrId>,
 
     pub def_location: Option<HPos>,
 
@@ -88,38 +88,38 @@ pub struct ClassLikeInfo {
 
     pub kind: SymbolKind,
 
-    pub used_traits: FxHashSet<Symbol>,
+    pub used_traits: FxHashSet<StrId>,
 
     pub immutable: bool,
 
     pub specialize_instance: bool,
 
-    pub methods: FxHashMap<Symbol, FunctionLikeInfo>,
+    pub methods: FxHashMap<StrId, FunctionLikeInfo>,
 
-    pub declaring_method_ids: FxHashMap<Symbol, Symbol>,
+    pub declaring_method_ids: FxHashMap<StrId, StrId>,
 
-    pub appearing_method_ids: FxHashMap<Symbol, Symbol>,
+    pub appearing_method_ids: FxHashMap<StrId, StrId>,
 
     /**
      * Map from lowercase method name to list of declarations in order from parent, to grandparent, to
      * great-grandparent, etc **including traits and interfaces**. Ancestors that don't have their own declaration are
      * skipped.
      */
-    pub overridden_method_ids: FxHashMap<Symbol, FxHashSet<Symbol>>,
+    pub overridden_method_ids: FxHashMap<StrId, FxHashSet<StrId>>,
 
-    pub inheritable_method_ids: FxHashMap<Symbol, Symbol>,
+    pub inheritable_method_ids: FxHashMap<StrId, StrId>,
 
-    pub potential_declaring_method_ids: FxHashMap<Symbol, FxHashSet<Symbol>>,
+    pub potential_declaring_method_ids: FxHashMap<StrId, FxHashSet<StrId>>,
 
-    pub properties: FxHashMap<Symbol, PropertyInfo>,
+    pub properties: FxHashMap<StrId, PropertyInfo>,
 
-    pub appearing_property_ids: FxHashMap<Symbol, Symbol>,
+    pub appearing_property_ids: FxHashMap<StrId, StrId>,
 
-    pub declaring_property_ids: FxHashMap<Symbol, Symbol>,
+    pub declaring_property_ids: FxHashMap<StrId, StrId>,
 
-    pub inheritable_property_ids: FxHashMap<Symbol, Symbol>,
+    pub inheritable_property_ids: FxHashMap<StrId, StrId>,
 
-    pub overridden_property_ids: FxHashMap<Symbol, Vec<Symbol>>,
+    pub overridden_property_ids: FxHashMap<StrId, Vec<StrId>>,
 
     /**
      * An array holding the class template "as" types.
@@ -130,7 +130,7 @@ pub struct ClassLikeInfo {
      * (i.e. the same as the class name). This allows operations with the same-named template defined
      * across multiple classes to not run into trouble.
      */
-    pub template_types: IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
+    pub template_types: IndexMap<String, FxHashMap<StrId, Arc<TUnion>>>,
 
     pub generic_variance: FxHashMap<usize, Variance>,
 
@@ -141,7 +141,7 @@ pub struct ClassLikeInfo {
      *
      * @internal
      */
-    pub template_extended_offsets: FxHashMap<Symbol, Vec<Arc<TUnion>>>,
+    pub template_extended_offsets: FxHashMap<StrId, Vec<Arc<TUnion>>>,
 
     /**
      * A map of which generic classlikes are extended or implemented by this class or interface.
@@ -155,7 +155,7 @@ pub struct ClassLikeInfo {
      *     ]
      * ]
      */
-    pub template_extended_params: FxHashMap<Symbol, IndexMap<String, Arc<TUnion>>>,
+    pub template_extended_params: FxHashMap<StrId, IndexMap<String, Arc<TUnion>>>,
 
     pub template_extended_count: u32,
 
@@ -163,9 +163,9 @@ pub struct ClassLikeInfo {
 
     pub template_type_uses_count: FxHashMap<String, u32>,
 
-    pub initialized_properties: FxHashSet<Symbol>,
+    pub initialized_properties: FxHashSet<StrId>,
 
-    pub invalid_dependencies: Vec<Symbol>,
+    pub invalid_dependencies: Vec<StrId>,
 
     /**
      * A hash of the source file's name, contents, and this file's modified on date
@@ -191,14 +191,14 @@ pub struct ClassLikeInfo {
 
     pub generated: bool,
 
-    pub child_classlikes: Option<FxHashSet<Symbol>>,
+    pub child_classlikes: Option<FxHashSet<StrId>>,
 
     pub uses_position: Option<(usize, usize)>,
     pub namespace_position: Option<(usize, usize)>,
 }
 
 impl ClassLikeInfo {
-    pub fn new(name: Symbol) -> ClassLikeInfo {
+    pub fn new(name: StrId) -> ClassLikeInfo {
         ClassLikeInfo {
             constants: IndexMap::default(),
             is_populated: false,

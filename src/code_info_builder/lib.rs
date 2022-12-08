@@ -2,14 +2,9 @@ use std::sync::Arc;
 
 use crate::typehint_resolver::get_type_from_hint;
 use hakana_reflection_info::{
-    class_constant_info::ConstantInfo,
-    classlike_info::Variance,
-    code_location::HPos,
-    codebase_info::{symbols::Symbol, CodebaseInfo},
-    t_atomic::TAtomic,
-    taint::string_to_source_types,
-    type_definition_info::TypeDefinitionInfo,
-    type_resolution::TypeResolutionContext,
+    class_constant_info::ConstantInfo, classlike_info::Variance, code_location::HPos,
+    codebase_info::CodebaseInfo, t_atomic::TAtomic, taint::string_to_source_types,
+    type_definition_info::TypeDefinitionInfo, type_resolution::TypeResolutionContext, StrId,
 };
 use hakana_reflection_info::{FileSource, ThreadedInterner};
 use hakana_type::get_mixed_any;
@@ -28,8 +23,8 @@ pub mod typehint_resolver;
 
 #[derive(Clone)]
 struct Context {
-    classlike_name: Option<Symbol>,
-    function_name: Option<Symbol>,
+    classlike_name: Option<StrId>,
+    function_name: Option<StrId>,
     has_yield: bool,
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
@@ -39,7 +34,7 @@ struct Scanner<'a> {
     codebase: &'a mut CodebaseInfo,
     interner: &'a mut ThreadedInterner,
     file_source: FileSource,
-    resolved_names: &'a FxHashMap<usize, Symbol>,
+    resolved_names: &'a FxHashMap<usize, StrId>,
     all_custom_issues: &'a FxHashSet<String>,
     user_defined: bool,
 }
@@ -477,7 +472,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
 pub fn collect_info_for_aast(
     program: &aast::Program<(), ()>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     interner: &mut ThreadedInterner,
     codebase: &mut CodebaseInfo,
     all_custom_issues: &FxHashSet<String>,

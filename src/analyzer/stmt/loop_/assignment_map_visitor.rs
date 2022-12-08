@@ -1,4 +1,4 @@
-use hakana_reflection_info::codebase_info::symbols::Symbol;
+use hakana_reflection_info::StrId;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
@@ -15,7 +15,7 @@ struct Scanner {
 }
 
 struct Context {
-    this_class_name: Option<Symbol>,
+    this_class_name: Option<StrId>,
 }
 
 impl Scanner {
@@ -175,7 +175,7 @@ pub fn get_assignment_map(
     pre_conditions: Vec<&aast::Expr<(), ()>>,
     post_expressions: Vec<&aast::Expr<(), ()>>,
     stmts: &Vec<aast::Stmt<(), ()>>,
-    this_class_name: Option<Symbol>,
+    this_class_name: Option<StrId>,
 ) -> (FxHashMap<String, FxHashSet<String>>, Option<String>) {
     let mut scanner = Scanner::new();
     let mut context = Context { this_class_name };

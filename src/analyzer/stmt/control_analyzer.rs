@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::scope_context::control_action::ControlAction;
-use hakana_reflection_info::codebase_info::{symbols::Symbol, CodebaseInfo};
+use hakana_reflection_info::{codebase_info::{CodebaseInfo}, StrId};
 use oxidized::aast;
 
 use crate::typed_ast::TastInfo;
@@ -14,7 +14,7 @@ pub enum BreakContext {
 
 pub(crate) fn get_control_actions(
     codebase: &CodebaseInfo,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     stmts: &Vec<aast::Stmt<(), ()>>,
     tast_info: Option<&TastInfo>,
     break_context: Vec<BreakContext>,
@@ -465,7 +465,7 @@ fn handle_call(
         Vec<(oxidized::ast_defs::ParamKind, aast::Expr<(), ()>)>,
         Option<aast::Expr<(), ()>>,
     )>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
     codebase: &CodebaseInfo,
     control_actions: &FxHashSet<ControlAction>,
 ) -> Option<FxHashSet<ControlAction>> {

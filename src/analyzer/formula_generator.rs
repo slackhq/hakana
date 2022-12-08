@@ -4,12 +4,10 @@ use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
 use hakana_algebra::Clause;
-use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
-    assertion::Assertion,
-    codebase_info::{symbols::Symbol, CodebaseInfo},
-    type_resolution::TypeResolutionContext,
+    assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
 };
+use hakana_reflection_info::{FileSource, StrId};
 use oxidized::{
     aast,
     ast::{Bop, Uop},
@@ -19,9 +17,9 @@ use crate::{expr::assertion_finder, typed_ast::TastInfo};
 
 pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource,
-    pub resolved_names: &'a FxHashMap<usize, Symbol>,
+    pub resolved_names: &'a FxHashMap<usize, StrId>,
     pub codebase: Option<&'a CodebaseInfo>,
-    pub this_class_name: Option<&'a Symbol>,
+    pub this_class_name: Option<&'a StrId>,
     pub type_resolution_context: &'a TypeResolutionContext,
 }
 

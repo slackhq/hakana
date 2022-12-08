@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::codebase_info::symbols::Symbol;
+
+use hakana_reflection_info::StrId;
 use rustc_hash::FxHashMap;
 
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -137,10 +138,10 @@ pub(crate) fn check_template_result(
 }
 
 pub(crate) fn get_generic_param_for_offset(
-    classlike_name: &Symbol,
+    classlike_name: &StrId,
     template_name: &String,
-    template_extended_params: &FxHashMap<Symbol, IndexMap<String, Arc<TUnion>>>,
-    found_generic_params: &FxHashMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
+    template_extended_params: &FxHashMap<StrId, IndexMap<String, Arc<TUnion>>>,
+    found_generic_params: &FxHashMap<String, FxHashMap<StrId, Arc<TUnion>>>,
 ) -> Arc<TUnion> {
     if let Some(found_generic_param) =
         if let Some(result_map) = found_generic_params.get(template_name) {

@@ -1,7 +1,7 @@
 use hakana_reflection_info::{
-    codebase_info::{symbols::Symbol, CodebaseInfo},
+    codebase_info::{CodebaseInfo},
     t_atomic::{DictKey, TAtomic},
-    t_union::TUnion,
+    t_union::TUnion, StrId,
 };
 use hakana_type::{
     get_false, get_float, get_int, get_literal_int, get_literal_string, get_nothing, get_null,
@@ -18,7 +18,7 @@ pub fn infer(
     codebase: &CodebaseInfo,
     expr_types: &mut FxHashMap<Pos, TUnion>,
     expr: &aast::Expr<(), ()>,
-    resolved_names: &FxHashMap<usize, Symbol>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> Option<TUnion> {
     return match &expr.2 {
         aast::Expr_::ArrayGet(_) => None,

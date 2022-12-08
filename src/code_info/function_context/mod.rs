@@ -1,14 +1,15 @@
 use rustc_hash::FxHashMap;
 
+use crate::StrId;
 pub use crate::functionlike_identifier::FunctionLikeIdentifier;
 
-use crate::codebase_info::symbols::Symbol;
+
 
 #[derive(Clone, Debug)]
 pub struct FunctionContext {
     pub namespace: Option<String>,
 
-    pub calling_class: Option<Symbol>,
+    pub calling_class: Option<StrId>,
 
     pub aliased_namespaces: FxHashMap<String, String>,
 

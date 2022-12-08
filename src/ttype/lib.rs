@@ -1,9 +1,9 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
-    codebase_info::{symbols::Symbol, CodebaseInfo},
+    codebase_info::{CodebaseInfo},
     t_atomic::{DictKey, TAtomic},
-    t_union::TUnion,
+    t_union::TUnion, StrId,
 };
 use itertools::Itertools;
 use type_combiner::combine;
@@ -113,7 +113,7 @@ pub fn get_object() -> TUnion {
 }
 
 #[inline]
-pub fn get_named_object(name: Symbol) -> TUnion {
+pub fn get_named_object(name: StrId) -> TUnion {
     wrap_atomic(TAtomic::TNamedObject {
         name,
         type_params: None,

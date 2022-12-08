@@ -7,7 +7,7 @@ use crate::scope_context::ScopeContext;
 use crate::stmt_analyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::code_location::HPos;
-use hakana_reflection_info::codebase_info::symbols::Symbol;
+
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -95,7 +95,7 @@ impl<'a> StatementsAnalyzer<'a> {
     #[inline]
     pub(crate) fn get_assertion_context<'b>(
         &'b self,
-        this_class_name: Option<&'a Symbol>,
+        this_class_name: Option<&'a StrId>,
     ) -> AssertionContext {
         AssertionContext {
             file_source: self.get_file_analyzer().get_file_source(),

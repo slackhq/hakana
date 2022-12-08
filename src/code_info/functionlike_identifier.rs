@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{codebase_info::symbols::Symbol, method_identifier::MethodIdentifier, Interner};
+use crate::{method_identifier::MethodIdentifier, Interner, StrId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FunctionLikeIdentifier {
-    Function(Symbol),
-    Method(Symbol, Symbol),
+    Function(StrId),
+    Method(StrId, StrId),
 }
 
 impl FunctionLikeIdentifier {

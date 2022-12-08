@@ -8,13 +8,12 @@ use crate::{
     assertion::Assertion,
     attribute_info::AttributeInfo,
     code_location::HPos,
-    codebase_info::symbols::Symbol,
     functionlike_parameter::FunctionLikeParameter,
     issue::IssueKind,
     method_info::MethodInfo,
     t_union::TUnion,
     taint::{SinkType, SourceType},
-    type_resolution::TypeResolutionContext,
+    type_resolution::TypeResolutionContext, StrId,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,7 +59,7 @@ pub struct FunctionLikeInfo {
 
     pub return_type_location: Option<HPos>,
 
-    pub name: Symbol,
+    pub name: StrId,
 
     pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
 
@@ -77,7 +76,7 @@ pub struct FunctionLikeInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: IndexMap<String, FxHashMap<Symbol, Arc<TUnion>>>,
+    pub template_types: IndexMap<String, FxHashMap<StrId, Arc<TUnion>>>,
 
     pub assertions: Option<FxHashMap<usize, Assertion>>,
 
@@ -118,7 +117,7 @@ pub struct FunctionLikeInfo {
 
     pub removed_taints: Option<FxHashSet<SinkType>>,
 
-    pub return_source_params: FxHashMap<usize, Symbol>,
+    pub return_source_params: FxHashMap<usize, StrId>,
 
     pub attributes: Vec<AttributeInfo>,
 
@@ -139,7 +138,7 @@ pub struct FunctionLikeInfo {
 }
 
 impl FunctionLikeInfo {
-    pub fn new(name: Symbol) -> Self {
+    pub fn new(name: StrId) -> Self {
         Self {
             def_location: None,
             name_location: None,

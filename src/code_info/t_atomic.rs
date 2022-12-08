@@ -2,7 +2,7 @@ use crate::functionlike_identifier::FunctionLikeIdentifier;
 use crate::{
     classlike_info::Variance,
     codebase_info::{
-        symbols::{Symbol, SymbolKind},
+        symbols::{SymbolKind},
         CodebaseInfo, Symbols,
     },
     functionlike_parameter::FunctionLikeParameter,
@@ -18,7 +18,7 @@ use std::{collections::BTreeMap, sync::Arc};
 pub enum DictKey {
     Int(u32),
     String(String),
-    Enum(Symbol, Symbol),
+    Enum(StrId, StrId),
 }
 
 impl DictKey {
@@ -53,7 +53,7 @@ pub enum TAtomic {
         shape_name: Option<String>,
     },
     TEnum {
-        name: Symbol,
+        name: StrId,
         base_type: Option<Box<TAtomic>>,
     },
     TFalse,
@@ -72,11 +72,11 @@ pub enum TAtomic {
         type_param: TUnion,
     },
     TLiteralClassname {
-        name: Symbol,
+        name: StrId,
     },
     TEnumLiteralCase {
-        enum_name: Symbol,
-        member_name: Symbol,
+        enum_name: StrId,
+        member_name: StrId,
         constraint_type: Option<Box<TAtomic>>,
     },
     TLiteralInt {
@@ -93,7 +93,7 @@ pub enum TAtomic {
     // .3 => TNonnullMixed
     TMixedWithFlags(bool, bool, bool, bool),
     TNamedObject {
-        name: Symbol,
+        name: StrId,
         type_params: Option<Vec<TUnion>>,
         is_this: bool,
         extra_types: Option<FxHashMap<String, TAtomic>>,
@@ -104,7 +104,7 @@ pub enum TAtomic {
     TNull,
     TNum,
     TReference {
-        name: Symbol,
+        name: StrId,
         type_params: Option<Vec<TUnion>>,
     },
     TScalar,
@@ -116,22 +116,22 @@ pub enum TAtomic {
     TTemplateParam {
         param_name: String,
         as_type: TUnion,
-        defining_entity: Symbol,
+        defining_entity: StrId,
         from_class: bool,
         extra_types: Option<FxHashMap<String, TAtomic>>,
     },
     TTemplateParamClass {
         param_name: String,
         as_type: Box<crate::t_atomic::TAtomic>,
-        defining_entity: Symbol,
+        defining_entity: StrId,
     },
     TTemplateParamType {
         param_name: String,
-        defining_entity: Symbol,
+        defining_entity: StrId,
     },
     TTrue,
     TTypeAlias {
-        name: Symbol,
+        name: StrId,
         type_params: Option<Vec<TUnion>>,
         as_type: Option<Box<TAtomic>>,
     },
@@ -148,8 +148,8 @@ pub enum TAtomic {
         member_name: String,
     },
     TEnumClassLabel {
-        class_name: Option<Symbol>,
-        member_name: Symbol,
+        class_name: Option<StrId>,
+        member_name: StrId,
     },
 }
 

@@ -1,31 +1,32 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::codebase_info::symbols::Symbol;
-use crate::function_context::{FunctionContext, FunctionLikeIdentifier};
+use crate::{
+    function_context::{FunctionContext, FunctionLikeIdentifier},
+    StrId,
+};
 
 #[derive(Debug, Clone)]
 pub struct SymbolReferences {
     // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
     // (class method, enum case, class property etc)
-    symbol_references_to_members: FxHashMap<Symbol, FxHashSet<(Symbol, Symbol)>>,
+    symbol_references_to_members: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
-    symbol_references_to_symbols: FxHashMap<Symbol, FxHashSet<Symbol>>,
+    symbol_references_to_symbols: FxHashMap<StrId, FxHashSet<StrId>>,
 
     // A lookup table of all classlike members that reference another classlike member
-    classlike_member_references_to_members:
-        FxHashMap<(Symbol, Symbol), FxHashSet<(Symbol, Symbol)>>,
+    classlike_member_references_to_members: FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 
     // A lookup table of all classlike members that reference another symbol
-    classlike_member_references_to_symbols: FxHashMap<(Symbol, Symbol), FxHashSet<Symbol>>,
+    classlike_member_references_to_symbols: FxHashMap<(StrId, StrId), FxHashSet<StrId>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
     // (class method, enum case, class property etc)
-    symbol_references_to_overridden_members: FxHashMap<Symbol, FxHashSet<(Symbol, Symbol)>>,
+    symbol_references_to_overridden_members: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
 
     // A lookup table of all classlike members that reference another classlike member
     classlike_member_references_to_overridden_members:
-        FxHashMap<(Symbol, Symbol), FxHashSet<(Symbol, Symbol)>>,
+        FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 
     // A lookup table used for getting all the functions that reference a method's return value
     // This is used for dead code detection when we want to see what return values are unused
@@ -48,8 +49,8 @@ impl SymbolReferences {
 
     pub fn add_symbol_reference_to_class_member(
         &mut self,
-        referencing_symbol: Symbol,
-        class_member: (Symbol, Symbol),
+        referencing_symbol: StrId,
+        class_member: (StrId, StrId),
     ) {
         self.add_symbol_reference_to_symbol(referencing_symbol.clone(), class_member.0.clone());
         self.symbol_references_to_members
@@ -58,7 +59,7 @@ impl SymbolReferences {
             .insert(class_member);
     }
 
-    pub fn add_symbol_reference_to_symbol(&mut self, referencing_symbol: Symbol, symbol: Symbol) {
+    pub fn add_symbol_reference_to_symbol(&mut self, referencing_symbol: StrId, symbol: StrId) {
         self.symbol_references_to_symbols
             .entry(referencing_symbol)
             .or_insert_with(FxHashSet::default)
@@ -67,8 +68,8 @@ impl SymbolReferences {
 
     pub fn add_class_member_reference_to_class_member(
         &mut self,
-        referencing_class_member: (Symbol, Symbol),
-        class_member: (Symbol, Symbol),
+        referencing_class_member: (StrId, StrId),
+        class_member: (StrId, StrId),
     ) {
         self.add_symbol_reference_to_symbol(
             referencing_class_member.0.clone(),
@@ -82,8 +83,8 @@ impl SymbolReferences {
 
     pub fn add_class_member_reference_to_symbol(
         &mut self,
-        referencing_class_member: (Symbol, Symbol),
-        symbol: Symbol,
+        referencing_class_member: (StrId, StrId),
+        symbol: StrId,
     ) {
         self.add_symbol_reference_to_symbol(referencing_class_member.0.clone(), symbol.clone());
 
@@ -96,7 +97,7 @@ impl SymbolReferences {
     pub fn add_reference_to_class_member(
         &mut self,
         function_context: &FunctionContext,
-        class_member: (Symbol, Symbol),
+        class_member: (StrId, StrId),
     ) {
         if let Some(referencing_functionlike) = &function_context.calling_functionlike_id {
             match referencing_functionlike {
@@ -117,7 +118,7 @@ impl SymbolReferences {
     pub fn add_reference_to_overridden_class_member(
         &mut self,
         function_context: &FunctionContext,
-        class_member: (Symbol, Symbol),
+        class_member: (StrId, StrId),
     ) {
         if let Some(referencing_functionlike) = &function_context.calling_functionlike_id {
             match referencing_functionlike {
@@ -142,7 +143,7 @@ impl SymbolReferences {
         }
     }
 
-    pub fn add_reference_to_symbol(&mut self, function_context: &FunctionContext, symbol: Symbol) {
+    pub fn add_reference_to_symbol(&mut self, function_context: &FunctionContext, symbol: StrId) {
         if let Some(referencing_functionlike) = &function_context.calling_functionlike_id {
             match referencing_functionlike {
                 FunctionLikeIdentifier::Function(function_name) => {
@@ -214,7 +215,7 @@ impl SymbolReferences {
         }
     }
 
-    pub fn get_referenced_symbols(&self) -> FxHashSet<&Symbol> {
+    pub fn get_referenced_symbols(&self) -> FxHashSet<&StrId> {
         let mut referenced_symbols = FxHashSet::default();
 
         for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols {
@@ -224,7 +225,7 @@ impl SymbolReferences {
         referenced_symbols
     }
 
-    pub fn get_referenced_class_members(&self) -> FxHashSet<&(Symbol, Symbol)> {
+    pub fn get_referenced_class_members(&self) -> FxHashSet<&(StrId, StrId)> {
         let mut referenced_class_members = FxHashSet::default();
 
         for (_, symbol_references_to_class_members) in &self.symbol_references_to_members {
@@ -240,7 +241,7 @@ impl SymbolReferences {
         referenced_class_members
     }
 
-    pub fn get_referenced_overridden_class_members(&self) -> FxHashSet<&(Symbol, Symbol)> {
+    pub fn get_referenced_overridden_class_members(&self) -> FxHashSet<&(StrId, StrId)> {
         let mut referenced_class_members = FxHashSet::default();
 
         for (_, symbol_references_to_class_members) in &self.symbol_references_to_overridden_members

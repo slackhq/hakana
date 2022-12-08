@@ -1,6 +1,6 @@
 use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
-use hakana_reflection_info::codebase_info::symbols::Symbol;
-use hakana_reflection_info::ThreadedInterner;
+
+use hakana_reflection_info::{ThreadedInterner, StrId};
 use name_context::NameContext;
 use ocamlrep::rc::RcOc;
 use oxidized::ast_defs::Pos;
@@ -118,7 +118,7 @@ pub fn get_aast_for_path_and_contents(
 }
 
 struct Scanner<'a> {
-    pub resolved_names: FxHashMap<usize, Symbol>,
+    pub resolved_names: FxHashMap<usize, StrId>,
     pub interner: &'a mut ThreadedInterner,
 }
 
@@ -406,7 +406,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 pub fn scope_names(
     program: &aast::Program<(), ()>,
     interner: &mut ThreadedInterner,
-) -> FxHashMap<usize, Symbol> {
+) -> FxHashMap<usize, StrId> {
     let mut scanner = Scanner {
         interner,
         resolved_names: FxHashMap::default(),
