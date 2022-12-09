@@ -7,7 +7,8 @@ use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion, Interner,
+    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
+    Interner, StrId,
 };
 use hakana_type::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
@@ -89,9 +90,9 @@ pub(crate) fn reconcile(
             failed_reconciliation,
         );
 
-        if &existing_var_type.types == &refined_type.types {
-            if let Some(key) = key {
-                if let Some(pos) = pos {
+        if let Some(key) = key {
+            if let Some(pos) = pos {
+                if &existing_var_type.types == &refined_type.types {
                     if !assertion.has_equality() && !assertion_type.is_mixed() {
                         trigger_issue_for_impossible(
                             tast_info,
@@ -105,6 +106,18 @@ pub(crate) fn reconcile(
                             suppressed_issues,
                         );
                     }
+                } else if refined_type.is_nothing() {
+                    trigger_issue_for_impossible(
+                        tast_info,
+                        statements_analyzer,
+                        &old_var_type_string,
+                        key,
+                        assertion,
+                        false,
+                        negated,
+                        pos,
+                        suppressed_issues,
+                    );
                 }
             }
         }
@@ -303,21 +316,12 @@ pub(crate) fn intersect_atomic_with_atomic(
             },
             TAtomic::TString | TAtomic::TStringWithFlags(..),
         ) => {
-            let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
-
-            if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
-                if let Some(inferred_type) = &member_storage.inferred_type {
-                    if let Some(inferred_value) =
-                        inferred_type.get_single_literal_string_value(&codebase.interner)
-                    {
-                        return Some(TAtomic::TLiteralString {
-                            value: inferred_value,
-                        });
-                    }
-                }
-            }
-
-            return Some(type_2_atomic.clone());
+            return intersect_enumcase_with_string(
+                codebase,
+                type_1_name,
+                type_1_member_name,
+                type_2_atomic,
+            );
         }
         (
             TAtomic::TString | TAtomic::TStringWithFlags(..),
@@ -327,24 +331,63 @@ pub(crate) fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            let enum_storage = codebase.classlike_infos.get(type_2_name).unwrap();
-
-            if let Some(member_storage) = enum_storage.constants.get(type_2_member_name) {
-                if let Some(inferred_type) = &member_storage.inferred_type {
-                    if let Some(inferred_value) =
-                        inferred_type.get_single_literal_string_value(&codebase.interner)
-                    {
-                        return Some(TAtomic::TLiteralString {
-                            value: inferred_value,
-                        });
-                    } else {
-                        return None;
-                    }
-                }
-            }
-
-            return Some(type_1_atomic.clone());
+            return intersect_enumcase_with_string(
+                codebase,
+                type_2_name,
+                type_2_member_name,
+                type_1_atomic,
+            );
         }
+        (
+            TAtomic::TEnumLiteralCase {
+                enum_name: type_1_name,
+                member_name: type_1_member_name,
+                ..
+            },
+            TAtomic::TInt,
+        ) => {
+            return intersect_enum_case_with_int(
+                codebase,
+                type_1_name,
+                type_1_member_name,
+                type_2_atomic,
+            )
+        }
+        (
+            TAtomic::TInt,
+            TAtomic::TEnumLiteralCase {
+                enum_name: type_2_name,
+                member_name: type_2_member_name,
+                ..
+            },
+        ) => {
+            return intersect_enum_case_with_int(
+                codebase,
+                type_2_name,
+                type_2_member_name,
+                type_1_atomic,
+            )
+        }
+        (
+            TAtomic::TEnum {
+                name: type_1_name, ..
+            },
+            TAtomic::TLiteralInt { .. } | TAtomic::TLiteralString { .. },
+        ) => return intersect_enum_with_literal(codebase, type_1_name, type_2_atomic),
+        (
+            TAtomic::TTypeAlias {
+                as_type: Some(type_1_as),
+                ..
+            },
+            _,
+        ) => return intersect_atomic_with_atomic(type_1_as, type_2_atomic, codebase),
+        (
+            _,
+            TAtomic::TTypeAlias {
+                as_type: Some(type_2_as),
+                ..
+            },
+        ) => return intersect_atomic_with_atomic(type_1_atomic, type_2_as, codebase),
         (
             TAtomic::TNamedObject {
                 name: type_1_name, ..
@@ -548,6 +591,67 @@ pub(crate) fn intersect_atomic_with_atomic(
     // todo intersect Foo<int> and Foo<arraykey> in a way that's not broken
 
     None
+}
+
+fn intersect_enumcase_with_string(
+    codebase: &CodebaseInfo,
+    type_1_name: &StrId,
+    type_1_member_name: &StrId,
+    type_2_atomic: &TAtomic,
+) -> Option<TAtomic> {
+    let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
+    if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
+        if let Some(inferred_type) = &member_storage.inferred_type {
+            if let Some(inferred_value) =
+                inferred_type.get_single_literal_string_value(&codebase.interner)
+            {
+                return Some(TAtomic::TLiteralString {
+                    value: inferred_value,
+                });
+            }
+        }
+    }
+    return Some(type_2_atomic.clone());
+}
+
+fn intersect_enum_case_with_int(
+    codebase: &CodebaseInfo,
+    type_1_name: &StrId,
+    type_1_member_name: &StrId,
+    type_2_atomic: &TAtomic,
+) -> Option<TAtomic> {
+    let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
+    if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
+        if let Some(inferred_type) = &member_storage.inferred_type {
+            if let Some(inferred_value) = inferred_type.get_single_literal_int_value() {
+                return Some(TAtomic::TLiteralInt {
+                    value: inferred_value,
+                });
+            }
+        }
+    }
+    Some(type_2_atomic.clone())
+}
+
+fn intersect_enum_with_literal(
+    codebase: &CodebaseInfo,
+    type_1_name: &StrId,
+    type_2_atomic: &TAtomic,
+) -> Option<TAtomic> {
+    let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
+    for (case_name, enum_case) in &enum_storage.constants {
+        if let Some(inferred_type) = &enum_case.inferred_type {
+            if inferred_type.get_single() == type_2_atomic {
+                return Some(TAtomic::TEnumLiteralCase {
+                    enum_name: *type_1_name,
+                    member_name: *case_name,
+                    constraint_type: enum_storage.enum_constraint.clone(),
+                });
+            }
+        }
+    }
+
+    Some(type_2_atomic.clone())
 }
 
 fn intersect_contained_atomic_with_another(

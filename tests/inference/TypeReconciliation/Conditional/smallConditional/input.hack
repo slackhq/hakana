@@ -1,5 +1,5 @@
 class A {
-    public dict<arraykey, mixed> $parts = dict[];
+    public vec<mixed> $parts = vec[];
 }
 
 class FuncCall {

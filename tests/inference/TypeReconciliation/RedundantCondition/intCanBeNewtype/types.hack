@@ -1,0 +1,1 @@
+newtype nt as int = int;

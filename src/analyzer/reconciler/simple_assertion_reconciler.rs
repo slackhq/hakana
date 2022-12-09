@@ -566,7 +566,7 @@ fn intersect_object(
         }
     }
 
-    if (object_types.is_empty() || !did_remove_type) && !is_equality {
+    if object_types.is_empty() || (!did_remove_type && !is_equality) {
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
@@ -658,7 +658,7 @@ fn intersect_vec(
         }
     }
 
-    if (acceptable_types.is_empty() || !did_remove_type) && !is_equality {
+    if acceptable_types.is_empty() || (!did_remove_type && !is_equality) {
         if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
@@ -738,7 +738,7 @@ fn intersect_keyset(
         }
     }
 
-    if (acceptable_types.is_empty() || !did_remove_type) && !is_equality {
+    if acceptable_types.is_empty() || (!did_remove_type && !is_equality) {
         if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
@@ -863,7 +863,7 @@ fn intersect_dict(
         }
     }
 
-    if (acceptable_types.is_empty() || !did_remove_type) && !is_equality {
+    if acceptable_types.is_empty() || (!did_remove_type && !is_equality) {
         if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
@@ -919,7 +919,7 @@ fn intersect_arraykey(
         }
     }
 
-    if (acceptable_types.is_empty() || !did_remove_type) && !is_equality {
+    if acceptable_types.is_empty() || (!did_remove_type && !is_equality) {
         if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
@@ -975,7 +975,7 @@ fn intersect_num(
         }
     }
 
-    if (acceptable_types.is_empty() || !did_remove_type) && !is_equality {
+    if acceptable_types.is_empty() || (!did_remove_type && !is_equality) {
         if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
@@ -1087,7 +1087,9 @@ fn intersect_string(
                     acceptable_types.push(TAtomic::TString);
                     did_remove_type = true;
                 }
-                _ => {}
+                _ => {
+                    did_remove_type = true;
+                }
             },
             _ => {
                 if atomic_type_comparator::is_contained_by(
@@ -1109,7 +1111,7 @@ fn intersect_string(
         }
     }
 
-    if (acceptable_types.is_empty() || !did_remove_type) && !is_equality {
+    if acceptable_types.is_empty() || (!did_remove_type && !is_equality) {
         if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
@@ -1197,7 +1199,7 @@ fn intersect_int(
                         codebase,
                         constraint_type,
                         &TAtomic::TInt,
-                        false,
+                        true,
                         &mut TypeComparisonResult::new(),
                     ) {
                         acceptable_types.push(atomic.clone());
@@ -1228,7 +1230,7 @@ fn intersect_int(
         }
     }
 
-    if (acceptable_types.is_empty() || !did_remove_type) && !is_equality {
+    if acceptable_types.is_empty() || (!did_remove_type && !is_equality) {
         if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(

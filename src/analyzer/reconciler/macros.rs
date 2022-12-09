@@ -29,7 +29,7 @@ macro_rules! intersect_simple {
                 }
             }
 
-            if (acceptable_types.is_empty() || !did_remove_type) && !$is_equality {
+            if acceptable_types.is_empty() || (!did_remove_type && !$is_equality) {
                 if let Some(k) = $key {
                     if let Some(loc) = $pos {
                         trigger_issue_for_impossible(
