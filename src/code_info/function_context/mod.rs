@@ -1,9 +1,7 @@
 use rustc_hash::FxHashMap;
 
-use crate::StrId;
 pub use crate::functionlike_identifier::FunctionLikeIdentifier;
-
-
+use crate::StrId;
 
 #[derive(Clone, Debug)]
 pub struct FunctionContext {

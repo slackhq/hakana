@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
-use hakana_reflection_info::codebase_info::symbols::{SymbolKind};
+use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::member_visibility::MemberVisibility;

@@ -3,12 +3,8 @@ use std::sync::Arc;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    code_location::HPos,
-    codebase_info::symbols::{SymbolKind},
-    functionlike_info::FunctionLikeInfo,
-    t_atomic::TAtomic,
-    t_union::TUnion,
-    StrId,
+    code_location::HPos, codebase_info::symbols::SymbolKind, functionlike_info::FunctionLikeInfo,
+    t_atomic::TAtomic, t_union::TUnion, StrId,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};

@@ -3,10 +3,8 @@ use std::sync::Arc;
 use rustc_hash::FxHashMap;
 
 use hakana_reflection_info::{
-    classlike_info::ClassLikeInfo,
-    codebase_info::{CodebaseInfo},
-    t_atomic::TAtomic,
-    t_union::TUnion, StrId,
+    classlike_info::ClassLikeInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
+    StrId,
 };
 use hakana_type::{add_optional_union_type, get_mixed_any, wrap_atomic};
 use indexmap::IndexMap;

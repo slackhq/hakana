@@ -1,7 +1,7 @@
 pub mod symbols;
 
+use self::symbols::SymbolKind;
 pub use self::symbols::Symbols;
-use self::symbols::{SymbolKind};
 use crate::classlike_info::ClassLikeInfo;
 use crate::functionlike_info::FunctionLikeInfo;
 use crate::method_identifier::MethodIdentifier;

@@ -13,7 +13,8 @@ use crate::{
     method_info::MethodInfo,
     t_union::TUnion,
     taint::{SinkType, SourceType},
-    type_resolution::TypeResolutionContext, StrId,
+    type_resolution::TypeResolutionContext,
+    StrId,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

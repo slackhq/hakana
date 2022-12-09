@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use hakana_reflection_info::StrId;
 use hakana_reflection_info::assertion::Assertion;
+use hakana_reflection_info::StrId;
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;

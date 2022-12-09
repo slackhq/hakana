@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::{
-    codebase_info::{CodebaseInfo},
+    codebase_info::CodebaseInfo,
     data_flow::{
         graph::DataFlowGraph,
         node::DataFlowNode,

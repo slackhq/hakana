@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::scope_context::control_action::ControlAction;
-use hakana_reflection_info::{codebase_info::{CodebaseInfo}, StrId};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, StrId};
 use oxidized::aast;
 
 use crate::typed_ast::TastInfo;

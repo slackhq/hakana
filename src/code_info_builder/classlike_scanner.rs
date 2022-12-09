@@ -6,15 +6,12 @@ use hakana_reflection_info::{
     class_constant_info::ConstantInfo,
     classlike_info::{ClassLikeInfo, Variance},
     code_location::HPos,
-    codebase_info::{
-        symbols::{SymbolKind},
-        CodebaseInfo,
-    },
+    codebase_info::{symbols::SymbolKind, CodebaseInfo},
     member_visibility::MemberVisibility,
     property_info::PropertyInfo,
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
-    FileSource, ThreadedInterner, StrId,
+    FileSource, StrId, ThreadedInterner,
 };
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use indexmap::IndexMap;

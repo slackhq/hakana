@@ -6,8 +6,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    classlike_info::Variance, t_atomic::DictKey, t_union::TUnion,
-    taint::SourceType, StrId,
+    classlike_info::Variance, t_atomic::DictKey, t_union::TUnion, taint::SourceType, StrId,
 };
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

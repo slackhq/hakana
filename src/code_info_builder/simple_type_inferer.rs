@@ -1,7 +1,8 @@
 use hakana_reflection_info::{
-    codebase_info::{CodebaseInfo},
+    codebase_info::CodebaseInfo,
     t_atomic::{DictKey, TAtomic},
-    t_union::TUnion, StrId,
+    t_union::TUnion,
+    StrId,
 };
 use hakana_type::{
     get_false, get_float, get_int, get_literal_int, get_literal_string, get_nothing, get_null,

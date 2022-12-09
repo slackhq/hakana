@@ -1,10 +1,7 @@
 use crate::functionlike_identifier::FunctionLikeIdentifier;
 use crate::{
     classlike_info::Variance,
-    codebase_info::{
-        symbols::{SymbolKind},
-        CodebaseInfo, Symbols,
-    },
+    codebase_info::{symbols::SymbolKind, CodebaseInfo, Symbols},
     functionlike_parameter::FunctionLikeParameter,
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };

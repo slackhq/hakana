@@ -6,13 +6,13 @@ use crate::{
     type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
 };
-use hakana_reflection_info::{function_context::FunctionLikeIdentifier, StrId};
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_reflection_info::{function_context::FunctionLikeIdentifier, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::Arc;

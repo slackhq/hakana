@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::{
-    codebase_info::{CodebaseInfo},
-    t_atomic::{DictKey, TAtomic}, StrId,
+    codebase_info::CodebaseInfo,
+    t_atomic::{DictKey, TAtomic},
+    StrId,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 

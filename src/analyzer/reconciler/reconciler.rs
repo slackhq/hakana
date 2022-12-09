@@ -6,7 +6,7 @@ use crate::{
 };
 use hakana_reflection_info::{
     assertion::Assertion,
-    codebase_info::{CodebaseInfo},
+    codebase_info::CodebaseInfo,
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},

@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::StrId;
 
-
-
 // offset, start line, start column
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct StmtStart(pub usize, pub usize, pub usize);

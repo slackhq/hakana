@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use hakana_reflection_info::{
-    codebase_info::{CodebaseInfo},
+    codebase_info::CodebaseInfo,
     data_flow::{
         graph::GraphKind,
         node::DataFlowNode,

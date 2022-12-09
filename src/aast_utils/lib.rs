@@ -1,6 +1,6 @@
 use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
 
-use hakana_reflection_info::{ThreadedInterner, StrId};
+use hakana_reflection_info::{StrId, ThreadedInterner};
 use name_context::NameContext;
 use ocamlrep::rc::RcOc;
 use oxidized::ast_defs::Pos;

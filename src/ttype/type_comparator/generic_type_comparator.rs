@@ -5,10 +5,11 @@ use crate::{
 };
 use hakana_reflection_info::{
     classlike_info::Variance,
-    codebase_info::{CodebaseInfo},
+    codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
-    t_union::TUnion, StrId,
+    t_union::TUnion,
+    StrId,
 };
 
 pub(crate) fn is_contained_by(

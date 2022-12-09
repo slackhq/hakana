@@ -1,9 +1,10 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
-    codebase_info::{CodebaseInfo},
+    codebase_info::CodebaseInfo,
     t_atomic::{DictKey, TAtomic},
-    t_union::TUnion, StrId,
+    t_union::TUnion,
+    StrId,
 };
 use itertools::Itertools;
 use type_combiner::combine;

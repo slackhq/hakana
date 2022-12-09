@@ -14,8 +14,6 @@ pub enum SymbolKind {
     Function,
 }
 
-
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Symbols {
     pub all: FxHashMap<StrId, SymbolKind>,

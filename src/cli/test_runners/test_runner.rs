@@ -10,10 +10,10 @@ use rustc_hash::FxHashSet;
 use std::env;
 use std::fs;
 use std::io;
+use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
 use walkdir::WalkDir;
-use std::io::Write;
 
 pub trait TestRunner {
     fn run_test(

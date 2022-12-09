@@ -1,4 +1,4 @@
-use hakana_reflection_info::{codebase_info::{CodebaseInfo}, StrId};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::FileSource;
