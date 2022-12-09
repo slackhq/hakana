@@ -142,6 +142,19 @@ pub(crate) fn analyze(
             let method_name = if let Some(method_name) = codebase.interner.get(&boxed.1) {
                 method_name
             } else {
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::NonExistentMethod,
+                        format!(
+                            "Method {}::{} does not exist",
+                            codebase.interner.lookup(*classlike_name),
+                            &boxed.1
+                        ),
+                        statements_analyzer.get_hpos(&pos),
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
                 return;
             };
 

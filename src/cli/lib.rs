@@ -1,5 +1,5 @@
 use clap::{arg, Command};
-use hakana_analyzer::config;
+use hakana_analyzer::config::{self, Verbosity};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry, Replacement};
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
@@ -328,10 +328,16 @@ pub fn init(
         _ => 8,
     };
 
-    let debug = match matches.subcommand() {
-        Some(("test", _)) => false,
-        Some((_, sub_matches)) => sub_matches.is_present("debug"),
-        _ => false,
+    let verbosity = match matches.subcommand() {
+        Some(("test", _)) => Verbosity::Quiet,
+        Some((_, sub_matches)) => {
+            if sub_matches.is_present("debug") {
+                Verbosity::Debugging
+            } else {
+                Verbosity::Simple
+            }
+        }
+        _ => Verbosity::Simple,
     };
 
     let root_dir = match matches.subcommand() {
@@ -433,7 +439,7 @@ pub fn init(
                     Some(&cache_dir)
                 },
                 threads,
-                debug,
+                verbosity,
                 &header,
                 None,
             );
@@ -513,7 +519,7 @@ pub fn init(
                 Arc::new(config),
                 None,
                 threads,
-                debug,
+                verbosity,
                 &header,
                 None,
             );
@@ -562,7 +568,7 @@ pub fn init(
                 Arc::new(config),
                 None,
                 threads,
-                debug,
+                verbosity,
                 &header,
                 None,
             );
@@ -618,7 +624,7 @@ pub fn init(
                 Arc::new(config),
                 None,
                 threads,
-                debug,
+                verbosity,
                 &header,
                 None,
             );
@@ -671,7 +677,7 @@ pub fn init(
                 Arc::new(config),
                 None,
                 threads,
-                debug,
+                verbosity,
                 &header,
                 None,
             );
@@ -704,7 +710,7 @@ pub fn init(
                 Arc::new(config),
                 None,
                 threads,
-                debug,
+                verbosity,
                 &header,
                 None,
             );
@@ -740,7 +746,7 @@ pub fn init(
                 Arc::new(config),
                 None,
                 threads,
-                debug,
+                verbosity,
                 &header,
                 None,
             );
@@ -752,6 +758,7 @@ pub fn init(
         Some(("test", sub_matches)) => {
             test_runner.run_test(
                 sub_matches.value_of("TEST").expect("required").to_string(),
+                verbosity,
                 !sub_matches.is_present("no-cache"),
                 &mut had_error,
                 header,

@@ -2,7 +2,7 @@ pub(crate) mod populator;
 
 use crate::file_cache_provider::FileStatus;
 use hakana_aast_helper::get_aast_for_path_and_contents;
-use hakana_analyzer::config::Config;
+use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_analyzer::file_analyzer;
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
@@ -59,7 +59,7 @@ pub fn scan_and_analyze(
     config: Arc<Config>,
     cache_dir: Option<&String>,
     threads: u8,
-    debug: bool,
+    verbosity: Verbosity,
     header: &str,
     starter_data: Option<(CodebaseInfo, Interner)>,
 ) -> io::Result<AnalysisResult> {
@@ -77,7 +77,7 @@ pub fn scan_and_analyze(
         &mut files_to_analyze,
         &config,
         threads,
-        debug,
+        verbosity,
         header,
         starter_data,
     )?;
@@ -115,11 +115,13 @@ pub fn scan_and_analyze(
 
     let elapsed = now.elapsed();
 
-    if debug {
+    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("File discovery & scanning took {:.2?}", elapsed);
     }
 
-    println!("Calculating symbol inheritance");
+    if !matches!(verbosity, Verbosity::Quiet) {
+        println!("Calculating symbol inheritance");
+    }
 
     populate_codebase(&mut codebase, &interner);
 
@@ -142,12 +144,12 @@ pub fn scan_and_analyze(
         None,
         &file_statuses,
         threads,
-        debug,
+        verbosity,
     )?;
 
     let elapsed = now.elapsed();
 
-    if debug {
+    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("File analysis took {:.2?}", elapsed);
     }
 
@@ -173,13 +175,13 @@ pub fn scan_and_analyze(
             WholeProgramKind::Taint => find_tainted_data(
                 &analysis_result.program_dataflow_graph,
                 &config,
-                debug,
+                verbosity,
                 &interner,
             ),
             WholeProgramKind::Query => find_connections(
                 &analysis_result.program_dataflow_graph,
                 &config,
-                debug,
+                verbosity,
                 &interner,
             ),
         };
@@ -473,7 +475,7 @@ pub fn scan_and_analyze_single_file(
         let issues = find_tainted_data(
             &analysis_result.program_dataflow_graph,
             &analysis_config,
-            false,
+            Verbosity::Quiet,
             &codebase.interner,
         );
 
@@ -497,7 +499,7 @@ pub fn scan_files(
     files_to_analyze: &mut Vec<String>,
     config: &Arc<Config>,
     threads: u8,
-    debug: bool,
+    verbosity: Verbosity,
     build_checksum: &str,
     starter_data: Option<(CodebaseInfo, Interner)>,
 ) -> io::Result<(
@@ -506,7 +508,7 @@ pub fn scan_files(
     IndexMap<String, FileStatus>,
     FxHashMap<String, FxHashMap<usize, StrId>>,
 )> {
-    if debug {
+    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("{:#?}", scan_dirs);
     }
 
@@ -545,12 +547,14 @@ pub fn scan_files(
         }
     }
 
-    println!("Looking for Hack files");
+    if !matches!(verbosity, Verbosity::Quiet) {
+        println!("Looking for Hack files");
+    }
 
     let now = Instant::now();
 
     for scan_dir in scan_dirs {
-        if debug {
+        if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
             println!(" - in {}", scan_dir);
         }
 
@@ -559,7 +563,7 @@ pub fn scan_files(
 
     let elapsed = now.elapsed();
 
-    if debug {
+    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("File discovery took {:.2?}", elapsed);
     }
 
@@ -609,22 +613,28 @@ pub fn scan_files(
             &mut codebase,
             &config.root_dir,
             &file_statuses,
+            verbosity,
         );
     }
 
     if let Some(symbols_path) = &symbols_path {
-        load_cached_symbols(symbols_path, use_codebase_cache, &mut interner);
+        load_cached_symbols(symbols_path, use_codebase_cache, &mut interner, verbosity);
     }
 
     let mut resolved_names = FxHashMap::default();
 
     if let Some(aast_names_path) = &aast_names_path {
-        load_cached_aast_names(aast_names_path, use_codebase_cache, &mut resolved_names);
+        load_cached_aast_names(
+            aast_names_path,
+            use_codebase_cache,
+            &mut resolved_names,
+            verbosity,
+        );
     }
 
     let elapsed = now.elapsed();
 
-    if debug {
+    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!(
             "Loading serialised codebase from cache took {:.2?}",
             elapsed
@@ -652,19 +662,21 @@ pub fn scan_files(
     if files_to_scan.len() > 0 {
         let now = Instant::now();
 
-        let bar = if debug {
-            None
-        } else {
+        let bar = if matches!(verbosity, Verbosity::Simple) {
             let pb = ProgressBar::new(files_to_scan.len() as u64);
             let sty =
                 ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
             pb.set_style(sty);
             Some(Arc::new(pb))
+        } else {
+            None
         };
 
         let files_processed: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 
-        println!("Scanning {} files", files_to_scan.len());
+        if !matches!(verbosity, Verbosity::Quiet) {
+            println!("Scanning {} files", files_to_scan.len());
+        }
 
         let mut group_size = threads as usize;
 
@@ -701,7 +713,7 @@ pub fn scan_files(
                         &mut new_codebase,
                         &mut new_interner,
                         analyze_map.contains(*str_path),
-                        debug,
+                        verbosity,
                     ),
                 );
 
@@ -753,7 +765,7 @@ pub fn scan_files(
                                 &mut new_codebase,
                                 &mut new_interner,
                                 analyze_map.contains(str_path),
-                                debug,
+                                verbosity,
                             ),
                         );
 
@@ -789,7 +801,7 @@ pub fn scan_files(
 
         let elapsed = now.elapsed();
 
-        if debug {
+        if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
             println!("Scanning files took {:.2?}", elapsed);
         }
     }
@@ -829,9 +841,12 @@ fn load_cached_codebase(
     codebase: &mut CodebaseInfo,
     root_dir: &String,
     file_statuses: &IndexMap<String, FileStatus>,
+    verbosity: Verbosity,
 ) {
     if Path::new(codebase_path).exists() && use_codebase_cache {
-        println!("Deserializing stored codebase cache");
+        if !matches!(verbosity, Verbosity::Quiet) {
+            println!("Deserializing stored codebase cache");
+        }
         let serialized = fs::read(&codebase_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &codebase_path));
         if let Ok(d) = bincode::deserialize::<CodebaseInfo>(&serialized) {
@@ -900,9 +915,16 @@ fn load_cached_codebase(
     }
 }
 
-fn load_cached_symbols(symbols_path: &String, use_codebase_cache: bool, interner: &mut Interner) {
+fn load_cached_symbols(
+    symbols_path: &String,
+    use_codebase_cache: bool,
+    interner: &mut Interner,
+    verbosity: Verbosity,
+) {
     if Path::new(symbols_path).exists() && use_codebase_cache {
-        println!("Deserializing stored symbol cache");
+        if !matches!(verbosity, Verbosity::Quiet) {
+            println!("Deserializing stored symbol cache");
+        }
         let serialized = fs::read(&symbols_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &symbols_path));
         if let Ok(d) = bincode::deserialize::<Interner>(&serialized) {
@@ -915,9 +937,12 @@ fn load_cached_aast_names(
     aast_names_path: &String,
     use_codebase_cache: bool,
     resolved_names: &mut FxHashMap<String, FxHashMap<usize, StrId>>,
+    verbosity: Verbosity,
 ) {
     if Path::new(aast_names_path).exists() && use_codebase_cache {
-        println!("Deserializing aast names cache");
+        if !matches!(verbosity, Verbosity::Quiet) {
+            println!("Deserializing aast names cache");
+        }
         let serialized = fs::read(&aast_names_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &aast_names_path));
         if let Ok(d) =
@@ -1049,9 +1074,9 @@ fn scan_file(
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
     user_defined: bool,
-    debug: bool,
+    verbosity: Verbosity,
 ) -> FxHashMap<usize, StrId> {
-    if debug {
+    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("scanning {}", &target_file);
     }
 
@@ -1112,7 +1137,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &mut codebase,
             &mut threaded_interner,
             false,
-            false,
+            Verbosity::Quiet,
         );
     }
 
@@ -1125,7 +1150,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &mut codebase,
             &mut threaded_interner,
             false,
-            false,
+            Verbosity::Quiet,
         );
     }
 
@@ -1137,7 +1162,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &mut codebase,
             &mut threaded_interner,
             false,
-            false,
+            Verbosity::Quiet,
         );
     }
 
@@ -1240,7 +1265,7 @@ pub fn analyze_files(
     cache_dir: Option<&String>,
     _file_statuses: &IndexMap<String, FileStatus>,
     threads: u8,
-    debug: bool,
+    verbosity: Verbosity,
 ) -> io::Result<()> {
     let mut group_size = threads as usize;
 
@@ -1258,7 +1283,9 @@ pub fn analyze_files(
 
     let total_file_count = paths.len() as u64;
 
-    println!("Analyzing {} files", total_file_count);
+    if !matches!(verbosity, Verbosity::Quiet) {
+        println!("Analyzing {} files", total_file_count);
+    }
 
     if (paths.len() / group_size) < 4 {
         group_size = 1;
@@ -1272,13 +1299,13 @@ pub fn analyze_files(
             .push(str_path);
     }
 
-    let bar = if debug {
-        None
-    } else {
+    let bar = if matches!(verbosity, Verbosity::Simple) {
         let pb = ProgressBar::new(total_file_count);
         let sty = ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
         pb.set_style(sty);
         Some(Arc::new(pb))
+    } else {
+        None
     };
 
     if path_groups.len() == 1 {
@@ -1294,7 +1321,7 @@ pub fn analyze_files(
                     &config,
                     &mut new_analysis_result,
                     resolved_names,
-                    debug,
+                    verbosity,
                 );
             }
 
@@ -1340,7 +1367,7 @@ pub fn analyze_files(
                             &analysis_config,
                             &mut new_analysis_result,
                             resolved_names,
-                            debug,
+                            verbosity,
                         );
                     }
 
@@ -1383,9 +1410,9 @@ fn analyze_file(
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<usize, StrId>,
-    debug: bool,
+    verbosity: Verbosity,
 ) {
-    if debug {
+    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("analyzing {}", &str_path);
     }
 

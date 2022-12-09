@@ -11,6 +11,14 @@ use crate::custom_hook::CustomHook;
 
 pub mod json_config;
 
+#[derive(Copy, Clone)]
+pub enum Verbosity {
+    Quiet,
+    Simple,
+    Debugging,
+    DebuggingByLine,
+}
+
 pub struct Config {
     pub migration_symbols: FxHashSet<(String, String)>,
     pub find_unused_expressions: bool,

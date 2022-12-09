@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::config::Config;
+use crate::config::Verbosity;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::path::PathExpressionKind;
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -16,7 +17,7 @@ use hakana_reflection_info::taint::SinkType;
 pub fn find_tainted_data(
     graph: &DataFlowGraph,
     config: &Config,
-    debug: bool,
+    verbosity: Verbosity,
     interner: &Interner,
 ) -> Vec<Issue> {
     let mut new_issues = vec![];
@@ -27,10 +28,12 @@ pub fn find_tainted_data(
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    println!("Security analysis: detecting paths");
+    if !matches!(verbosity, Verbosity::Quiet) {
+        println!("Security analysis: detecting paths");
 
-    println!(" - initial sources count: {}", sources.len());
-    println!(" - initial sinks count:   {}", graph.sinks.len());
+        println!(" - initial sources count: {}", sources.len());
+        println!(" - initial sinks count:   {}", graph.sinks.len());
+    }
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, _) in to {
@@ -42,7 +45,7 @@ pub fn find_tainted_data(
         sources,
         graph,
         config,
-        debug,
+        verbosity,
         &mut new_issues,
         true,
         interner,
@@ -54,7 +57,7 @@ pub fn find_tainted_data(
 pub fn find_connections(
     graph: &DataFlowGraph,
     config: &Config,
-    debug: bool,
+    verbosity: Verbosity,
     interner: &Interner,
 ) -> Vec<Issue> {
     let mut new_issues = vec![];
@@ -66,7 +69,9 @@ pub fn find_connections(
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    println!(" - initial sources count: {}", sources.len());
+    if !matches!(verbosity, Verbosity::Quiet) {
+        println!(" - initial sources count: {}", sources.len());
+    }
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, _) in to {
@@ -78,7 +83,7 @@ pub fn find_connections(
         sources,
         graph,
         config,
-        debug,
+        verbosity,
         &mut new_issues,
         false,
         interner,
@@ -92,7 +97,7 @@ fn find_paths_to_sinks(
     mut sources: Vec<Arc<TaintedNode>>,
     graph: &DataFlowGraph,
     config: &Config,
-    debug: bool,
+    verbosity: Verbosity,
     new_issues: &mut Vec<Issue>,
     match_sinks: bool,
     interner: &Interner,
@@ -106,12 +111,20 @@ fn find_paths_to_sinks(
     if !match_sinks || !graph.sinks.is_empty() {
         for i in 0..config.security_config.max_depth {
             if !sources.is_empty() {
-                let now = if debug { Some(Instant::now()) } else { None };
+                let now = if matches!(verbosity, Verbosity::Debugging) {
+                    Some(Instant::now())
+                } else {
+                    None
+                };
                 let mut actual_source_count = 0;
                 let mut new_sources = Vec::new();
 
                 for source in sources {
-                    let inow = if debug { Some(Instant::now()) } else { None };
+                    let inow = if matches!(verbosity, Verbosity::Debugging) {
+                        Some(Instant::now())
+                    } else {
+                        None
+                    };
                     let source_taints = source.taint_sinks.clone();
                     let source_id = source.id.clone();
 
@@ -140,16 +153,18 @@ fn find_paths_to_sinks(
                     }
                 }
 
-                println!(
-                    " - generated {}{}",
-                    actual_source_count,
-                    if let Some(now) = now {
-                        let elapsed = now.elapsed();
-                        format!(" sources in {:.2?}", elapsed)
-                    } else {
-                        "".to_string()
-                    }
-                );
+                if !matches!(verbosity, Verbosity::Quiet) {
+                    println!(
+                        " - generated {}{}",
+                        actual_source_count,
+                        if let Some(now) = now {
+                            let elapsed = now.elapsed();
+                            format!(" sources in {:.2?}", elapsed)
+                        } else {
+                            "".to_string()
+                        }
+                    );
+                }
 
                 sources = new_sources;
             }

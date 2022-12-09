@@ -3,6 +3,7 @@ function foo(dict<string, string> $array) : void {
 
     if ($array["a"] === "a") {
         foreach (vec[rand(0, 1), rand(0, 1)] as $i) {
+            /* HAKANA_FIXME[PossiblyUndefinedStringArrayOffset] */
             if ($array["b"] === "c") {}
             $c++;
         }

@@ -1,4 +1,5 @@
 use hakana_analyzer::config;
+use hakana_analyzer::config::Verbosity;
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -8,25 +9,24 @@ use hakana_reflection_info::Interner;
 use rustc_hash::FxHashSet;
 use std::env;
 use std::fs;
+use std::io;
 use std::path::Path;
 use std::sync::Arc;
 use walkdir::WalkDir;
+use std::io::Write;
 
 pub trait TestRunner {
     fn run_test(
         &self,
         test_or_test_dir: String,
+        verbosity: Verbosity,
         use_cache: bool,
         had_error: &mut bool,
         build_checksum: &str,
     ) {
         let test_folders = get_all_test_folders(test_or_test_dir);
 
-        println!("Running tests\n");
-
         let mut test_diagnostics = vec![];
-
-        let mut test_results = vec![];
 
         let starter_codebase = if test_folders.len() > 1 {
             Some(hakana_workhorse::get_single_file_codebase(vec![
@@ -45,8 +45,9 @@ pub trait TestRunner {
 
             let is_xhp_test = test_folder.contains("xhp");
 
-            test_results.push(self.run_test_in_dir(
+            let test_result = self.run_test_in_dir(
                 test_folder,
+                verbosity,
                 if use_cache { Some(&cache_dir) } else { None },
                 had_error,
                 &mut test_diagnostics,
@@ -60,13 +61,14 @@ pub trait TestRunner {
                 } else {
                     None
                 },
-            ));
+            );
+
+            print!("{}", test_result);
+            io::stdout().flush().unwrap();
         }
 
-        println!("{}\n", test_results.join(""));
-
         println!(
-            "{}\n",
+            "\n{}\n",
             test_diagnostics
                 .into_iter()
                 .map(|(folder, diag)| format!("Unexpected output for {}:\n\n{}", folder, diag))
@@ -133,13 +135,14 @@ pub trait TestRunner {
     fn run_test_in_dir(
         &self,
         dir: String,
+        verbosity: Verbosity,
         cache_dir: Option<&String>,
         had_error: &mut bool,
         test_diagnostics: &mut Vec<(String, String)>,
         build_checksum: &str,
         starter_data: Option<(CodebaseInfo, Interner)>,
     ) -> String {
-        if dir.contains("skipped-") {
+        if dir.contains("skipped-") || dir.contains("SKIPPED-") {
             return "S".to_string();
         }
 
@@ -147,7 +150,9 @@ pub trait TestRunner {
 
         let analysis_config = self.get_config_for_test(&dir);
 
-        println!("running test {}", dir);
+        if matches!(verbosity, Verbosity::Debugging) {
+            println!("running test {}", dir);
+        }
 
         let mut stub_dirs = vec![cwd.clone() + "/test/stubs"];
 
@@ -172,7 +177,7 @@ pub trait TestRunner {
                 None
             },
             1,
-            false,
+            verbosity,
             build_checksum,
             starter_data,
         );
@@ -200,8 +205,10 @@ pub trait TestRunner {
             return if output_contents == expected_output_contents {
                 ".".to_string()
             } else {
-                println!("expected: {}", expected_output_contents);
-                println!("actual: {}", output_contents);
+                test_diagnostics.push((
+                    dir,
+                    format!("- {}\n+ {}", expected_output_contents, output_contents),
+                ));
                 "F".to_string()
             };
         } else {
