@@ -1,5 +1,5 @@
 diff --git a/hphp/hack/src/deps/rust/file_info_lib.rs b/hphp/hack/src/deps/rust/file_info_lib.rs
-index 35e8c94e95..957dc58358 100644
+index 35e8c94e952..957dc583586 100644
 --- a/hphp/hack/src/deps/rust/file_info_lib.rs
 +++ b/hphp/hack/src/deps/rust/file_info_lib.rs
 @@ -17,9 +17,13 @@ mod s_set {
@@ -33,23 +33,22 @@ index 35e8c94e95..957dc58358 100644
      fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
          Ok(rusqlite::types::ToSqlOutput::from(*self as i64))
 diff --git a/hphp/hack/src/naming/names_rust/Cargo.toml b/hphp/hack/src/naming/names_rust/Cargo.toml
-index 273b2c0f2f..469a30cbb0 100644
+index 244b0b5f7bd..57da21389ec 100644
 --- a/hphp/hack/src/naming/names_rust/Cargo.toml
 +++ b/hphp/hack/src/naming/names_rust/Cargo.toml
-@@ -17,7 +17,9 @@ oxidized = { path = "../../oxidized" }
+@@ -15,6 +15,8 @@ oxidized = { path = "../../oxidized" }
  oxidized_by_ref = { path = "../../oxidized_by_ref" }
  rand = { version = "0.8", features = ["small_rng"] }
  relative_path = { path = "../../utils/rust/relative_path" }
 -rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
  serde = { version = "1.0.136", features = ["derive", "rc"] }
- slog = { version = "2.7", features = ["max_level_trace", "nested-values"] }
  typing_deps_hash = { path = "../../deps/cargo/typing_deps_hash" }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 +rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
 \ No newline at end of file
 diff --git a/hphp/hack/src/naming/names_rust/datatypes.rs b/hphp/hack/src/naming/names_rust/datatypes.rs
-index 91106097aa..964a5efae4 100644
+index 91106097aa3..964a5efae45 100644
 --- a/hphp/hack/src/naming/names_rust/datatypes.rs
 +++ b/hphp/hack/src/naming/names_rust/datatypes.rs
 @@ -11,9 +11,13 @@ use oxidized::file_info::Mode;
@@ -67,7 +66,7 @@ index 91106097aa..964a5efae4 100644
  
  #[derive(Debug, Default)]
 diff --git a/hphp/hack/src/naming/names_rust/naming_sqlite.rs b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
-index 42d2fef31d..5388f686ba 100644
+index 6972660fea5..574f249d9bb 100644
 --- a/hphp/hack/src/naming/names_rust/naming_sqlite.rs
 +++ b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
 @@ -12,8 +12,11 @@ use hh24_types::ToplevelCanonSymbolHash;
@@ -83,10 +82,10 @@ index 42d2fef31d..5388f686ba 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/ocamlrep/impls.rs b/hphp/hack/src/ocamlrep/impls.rs
-index d7984bffd6..7340b653b5 100644
+index 3252f584ee7..f159549be08 100644
 --- a/hphp/hack/src/ocamlrep/impls.rs
 +++ b/hphp/hack/src/ocamlrep/impls.rs
-@@ -772,6 +772,11 @@ impl ToOcamlRep for OsStr {
+@@ -770,6 +770,11 @@ impl ToOcamlRep for OsStr {
          use std::os::unix::ffi::OsStrExt;
          alloc.add(self.as_bytes())
      }
@@ -98,7 +97,7 @@ index d7984bffd6..7340b653b5 100644
  }
  
  impl ToOcamlRep for &'_ OsStr {
-@@ -780,15 +785,26 @@ impl ToOcamlRep for &'_ OsStr {
+@@ -778,15 +783,26 @@ impl ToOcamlRep for &'_ OsStr {
          use std::os::unix::ffi::OsStrExt;
          alloc.add(self.as_bytes())
      }
@@ -125,7 +124,7 @@ index d7984bffd6..7340b653b5 100644
  }
  
  impl ToOcamlRep for OsString {
-@@ -805,6 +821,11 @@ impl FromOcamlRep for OsString {
+@@ -803,6 +819,11 @@ impl FromOcamlRep for OsString {
              bytes_from_ocamlrep(value)?,
          )))
      }
@@ -138,10 +137,10 @@ index d7984bffd6..7340b653b5 100644
  
  impl ToOcamlRep for Path {
 diff --git a/hphp/hack/src/ocamlrep/lib.rs b/hphp/hack/src/ocamlrep/lib.rs
-index a78e158644..b9ad1445d5 100644
+index af683937383..545857a7467 100644
 --- a/hphp/hack/src/ocamlrep/lib.rs
 +++ b/hphp/hack/src/ocamlrep/lib.rs
-@@ -350,7 +350,7 @@ pub use value::Value;
+@@ -351,7 +351,7 @@ pub use value::Value;
  // TODO: find the right forever home for these constants
  
  // 'mlvalues.h'
@@ -151,7 +150,7 @@ index a78e158644..b9ad1445d5 100644
  
  // 'gc.h'
 diff --git a/hphp/hack/src/oxidized_by_ref/manual/pos.rs b/hphp/hack/src/oxidized_by_ref/manual/pos.rs
-index b22f141921..cefae08697 100644
+index b22f1419210..cefae086977 100644
 --- a/hphp/hack/src/oxidized_by_ref/manual/pos.rs
 +++ b/hphp/hack/src/oxidized_by_ref/manual/pos.rs
 @@ -124,7 +124,7 @@ impl<'a> Pos<'a> {
@@ -287,7 +286,7 @@ index b22f141921..cefae08697 100644
      }
  }
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index 6a3a4b822d..d141a7d8f5 100644
+index 6a3a4b822d1..d141a7d8f5f 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
 @@ -78,11 +78,11 @@ impl<'src> AastParser {
@@ -364,7 +363,7 @@ index 6a3a4b822d..d141a7d8f5 100644
                  arena_bytes: arena.allocated_bytes() as u64,
                  ..Default::default()
 diff --git a/hphp/hack/src/parser/core/lexer.rs b/hphp/hack/src/parser/core/lexer.rs
-index a3a24d5845..d1c829ce6b 100644
+index a3a24d58451..d1c829ce6b9 100644
 --- a/hphp/hack/src/parser/core/lexer.rs
 +++ b/hphp/hack/src/parser/core/lexer.rs
 @@ -1979,7 +1979,7 @@ where
@@ -377,7 +376,7 @@ index a3a24d5845..d1c829ce6b 100644
                      }
                      _ => {
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos.rs b/hphp/hack/src/utils/rust/pos/file_pos.rs
-index fff34e9c15..49ae1121f9 100644
+index fff34e9c159..49ae1121f9c 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos.rs
 @@ -4,6 +4,6 @@
@@ -390,7 +389,7 @@ index fff34e9c15..49ae1121f9 100644
 +    fn line_column_beg(&self) -> (u64, u64, u64);
  }
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos_large.rs b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
-index f59e0a024c..a1929b265f 100644
+index f59e0a024cc..a1929b265f5 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos_large.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
 @@ -15,13 +15,13 @@ use crate::file_pos_small::FilePosSmall;
@@ -514,7 +513,7 @@ index f59e0a024c..a1929b265f 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos_small.rs b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
-index 386e01671e..66579bfcea 100644
+index 386e01671ea..66579bfceab 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos_small.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
 @@ -38,23 +38,23 @@ arena_deserializer::impl_deserialize_in_arena!(FilePosSmall);
@@ -669,7 +668,7 @@ index 386e01671e..66579bfcea 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/pos_impl.rs b/hphp/hack/src/utils/rust/pos/pos_impl.rs
-index ce809c77e2..566d903956 100644
+index ce809c77e2b..566d903956a 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_impl.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_impl.rs
 @@ -24,16 +24,7 @@ use crate::file_pos_small::FilePosSmall;
@@ -860,7 +859,7 @@ index ce809c77e2..566d903956 100644
  
      #[test]
 diff --git a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
-index c931ab4804..f446104a9a 100644
+index c931ab48042..f446104a9a6 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
 @@ -130,83 +130,83 @@ impl PosSpanTiny {

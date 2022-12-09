@@ -25,6 +25,8 @@ Clone this repo, install Rust and Cargo if you haven't already.
 
 Run `git submodule init && git submodule update` to ensure HHVM is present (Hakana borrows HHVM's parser).
 
+Then run `cd third-party/hhvm && git apply ../../hhvm-patch.diff && cd ../../` to apply a few patches that enable WASM compilation.
+
 Then run `cargo build --release`
 
 That will create a binary at `./target/release/hakana-default`
