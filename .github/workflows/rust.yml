@@ -17,4 +17,4 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build & Run tests
-      run: cargo run --release test tests
+      run: git submodule init && git submodule update && cargo run --release test tests
