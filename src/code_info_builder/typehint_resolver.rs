@@ -1,4 +1,3 @@
-
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -524,7 +523,21 @@ pub fn get_type_from_hint(
         Hint_::Hthis => panic!(),
         Hint_::Hdynamic => panic!(),
         Hint_::Hnothing => TAtomic::TNothing,
-        Hint_::Hunion(_) => panic!(),
+        Hint_::Hunion(union_hints) => {
+            let mut all_atomic_types = vec![];
+            for inner_hint in union_hints {
+                let inner_type =
+                    get_type_from_hint(&inner_hint.1, classlike_name, type_context, resolved_names);
+
+                if let Some(inner_type) = inner_type {
+                    all_atomic_types.extend(inner_type.types);
+                }
+            }
+
+            let base = all_atomic_types.pop().unwrap();
+            types.extend(all_atomic_types);
+            base
+        }
         Hint_::Hintersection(_) => TAtomic::TObject,
         Hint_::HfunContext(_) => panic!(),
         Hint_::Hvar(_) => panic!(),

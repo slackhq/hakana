@@ -324,6 +324,7 @@ pub fn infer(
             }))
         }
         aast::Expr_::New(..) => None,
+        aast::Expr_::Omitted => None,
         _ => {
             println!("{:#?}", expr.2);
             panic!()
