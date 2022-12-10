@@ -44,13 +44,6 @@ struct HhiAsset;
 #[include = "*.hack"]
 struct HslAsset;
 
-#[cfg(target_arch = "wasm32")]
-#[derive(RustEmbed)]
-#[folder = "$CARGO_MANIFEST_DIR/../../tests/security/taintedCurlInit/.hakana_cache"]
-#[prefix = "cached_codebase_"]
-#[exclude = "*aast_names"]
-struct CachedCodebase;
-
 pub fn scan_and_analyze(
     include_core_libs: bool,
     stubs_dirs: Vec<String>,
@@ -1121,7 +1114,6 @@ fn scan_file(
     resolved_names
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, Interner) {
     let mut codebase = CodebaseInfo::new();
     let interner = Arc::new(Mutex::new(Interner::new()));
@@ -1186,37 +1178,6 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
     };
 
     populate_codebase(&mut codebase, &interner);
-
-    (codebase, interner)
-}
-
-#[cfg(target_arch = "wasm32")]
-pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, Interner) {
-    let mut codebase = CodebaseInfo::new();
-    let mut interner = Interner::default();
-
-    // add HHVM libs
-    for file_path in CachedCodebase::iter() {
-        if file_path.ends_with("codebase") {
-            let serialized = CachedCodebase::get(&file_path)
-                .unwrap_or_else(|| panic!("Could not read cached codebase {}", file_path))
-                .data;
-            if let Ok(d) = bincode::deserialize::<CodebaseInfo>(&serialized) {
-                codebase = d;
-            }
-        }
-
-        if file_path.ends_with("symbols") {
-            let serialized = CachedCodebase::get(&file_path)
-                .unwrap_or_else(|| panic!("Could not read cached symbols {}", file_path))
-                .data;
-            if let Ok(d) = bincode::deserialize::<Interner>(&serialized) {
-                interner = d;
-            }
-        }
-    }
-
-    populate_codebase(&mut codebase, &mut interner);
 
     (codebase, interner)
 }
