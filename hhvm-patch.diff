@@ -1,3 +1,18 @@
+diff --git a/hphp/hack/src/deps/rust/file_info/Cargo.toml b/hphp/hack/src/deps/rust/file_info/Cargo.toml
+index d53a27d7a7d..d7ff78cb172 100644
+--- a/hphp/hack/src/deps/rust/file_info/Cargo.toml
++++ b/hphp/hack/src/deps/rust/file_info/Cargo.toml
+@@ -17,6 +17,8 @@ ocamlrep = { path = "../../../ocamlrep" }
+ parser_core_types = { path = "../../../parser/cargo/core_types" }
+ rc_pos = { path = "../../../utils/rust/pos" }
+ relative_path = { path = "../../../utils/rust/relative_path" }
+-rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
+ serde = { version = "1.0.136", features = ["derive", "rc"] }
+ typing_deps_hash = { path = "../../cargo/typing_deps_hash" }
++
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
++rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
+\ No newline at end of file
 diff --git a/hphp/hack/src/deps/rust/file_info_lib.rs b/hphp/hack/src/deps/rust/file_info_lib.rs
 index 35e8c94e952..957dc583586 100644
 --- a/hphp/hack/src/deps/rust/file_info_lib.rs
@@ -48,7 +63,7 @@ index 244b0b5f7bd..57da21389ec 100644
 +rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
 \ No newline at end of file
 diff --git a/hphp/hack/src/naming/names_rust/datatypes.rs b/hphp/hack/src/naming/names_rust/datatypes.rs
-index 91106097aa3..964a5efae45 100644
+index 91106097aa3..930dfa897c5 100644
 --- a/hphp/hack/src/naming/names_rust/datatypes.rs
 +++ b/hphp/hack/src/naming/names_rust/datatypes.rs
 @@ -11,9 +11,13 @@ use oxidized::file_info::Mode;
@@ -65,6 +80,14 @@ index 91106097aa3..964a5efae45 100644
  use rusqlite::types::ValueRef;
  
  #[derive(Debug, Default)]
+@@ -83,6 +87,7 @@ impl FileInfoId {
+     }
+ }
+ 
++#[cfg(unix)]
+ impl rusqlite::ToSql for FileInfoId {
+     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+         Ok(rusqlite::types::ToSqlOutput::from(self.0.get() as i64))
 diff --git a/hphp/hack/src/naming/names_rust/naming_sqlite.rs b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
 index 6972660fea5..574f249d9bb 100644
 --- a/hphp/hack/src/naming/names_rust/naming_sqlite.rs
@@ -82,7 +105,7 @@ index 6972660fea5..574f249d9bb 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/ocamlrep/impls.rs b/hphp/hack/src/ocamlrep/impls.rs
-index 3252f584ee7..f159549be08 100644
+index 3252f584ee7..1a5fcf01099 100644
 --- a/hphp/hack/src/ocamlrep/impls.rs
 +++ b/hphp/hack/src/ocamlrep/impls.rs
 @@ -770,6 +770,11 @@ impl ToOcamlRep for OsStr {
@@ -91,7 +114,7 @@ index 3252f584ee7..f159549be08 100644
      }
 +
 +    #[cfg(target_arch = "wasm32")]
-+    fn to_ocamlrep<'a, A: Allocator>(&'a self, alloc: &'a A) -> OpaqueValue<'a> {
++    fn to_ocamlrep<'a, A: Allocator>(&'a self, alloc: &'a A) -> Value<'a> {
 +        panic!()
 +    }
  }
@@ -103,7 +126,7 @@ index 3252f584ee7..f159549be08 100644
      }
 +
 +    #[cfg(target_arch = "wasm32")]
-+    fn to_ocamlrep<'a, A: Allocator>(&'a self, alloc: &'a A) -> OpaqueValue<'a> {
++    fn to_ocamlrep<'a, A: Allocator>(&'a self, alloc: &'a A) -> Value<'a> {
 +        panic!()
 +    }
  }
@@ -375,6 +398,42 @@ index a3a24d58451..d1c829ce6b9 100644
                          return acc;
                      }
                      _ => {
+diff --git a/hphp/hack/src/utils/hh24_types/Cargo.toml b/hphp/hack/src/utils/hh24_types/Cargo.toml
+index 4cfb083627b..cc84e3d40e0 100644
+--- a/hphp/hack/src/utils/hh24_types/Cargo.toml
++++ b/hphp/hack/src/utils/hh24_types/Cargo.toml
+@@ -14,8 +14,10 @@ file_info = { path = "../../deps/rust/file_info" }
+ hh_hash = { path = "../hh_hash" }
+ nohash-hasher = "0.2"
+ relative_path = { path = "../rust/relative_path" }
+-rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
+ serde = { version = "1.0.136", features = ["derive", "rc"] }
+ serde_json = { version = "1.0.79", features = ["float_roundtrip", "unbounded_depth"] }
+ thiserror = "1.0.36"
+ typing_deps_hash = { path = "../../deps/cargo/typing_deps_hash" }
++
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
++rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
+\ No newline at end of file
+diff --git a/hphp/hack/src/utils/hh24_types/hh24_types.rs b/hphp/hack/src/utils/hh24_types/hh24_types.rs
+index 37dca9b1f85..2d494dac1eb 100644
+--- a/hphp/hack/src/utils/hh24_types/hh24_types.rs
++++ b/hphp/hack/src/utils/hh24_types/hh24_types.rs
+@@ -34,12 +34,14 @@ macro_rules! u64_hash_wrapper_impls {
+ 
+         impl nohash_hasher::IsEnabled for $name {}
+ 
++        #[cfg(unix)]
+         impl rusqlite::ToSql for $name {
+             fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+                 Ok(rusqlite::types::ToSqlOutput::from(self.0 as i64))
+             }
+         }
+ 
++        #[cfg(unix)]
+         impl rusqlite::types::FromSql for $name {
+             fn column_result(
+                 value: rusqlite::types::ValueRef<'_>,
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos.rs b/hphp/hack/src/utils/rust/pos/file_pos.rs
 index fff34e9c159..49ae1121f9c 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos.rs
