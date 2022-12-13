@@ -441,7 +441,8 @@ pub fn is_contained_by(
             name: input_name, ..
         } = input_type_part
         {
-            return codebase.typedef_exists(input_name);
+            return codebase.class_or_interface_exists(input_name)
+                || codebase.typedef_exists(input_name);
         }
     }
 
