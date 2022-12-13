@@ -6,9 +6,10 @@ use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
 use crate::typed_ast::TastInfo;
-use hakana_type::{add_union_type, get_mixed_any, get_null};
+use hakana_type::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use oxidized::aast;
 use oxidized::ast_defs::ParamKind;
+use rustc_hash::FxHashSet;
 
 pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     statements_analyzer: &StatementsAnalyzer,
@@ -179,6 +180,26 @@ fn get_left_expr(
             false,
         );
     }
+
+    let redefined_vars = isset_context
+        .get_redefined_vars(&context.vars_in_scope, false, &mut FxHashSet::default())
+        .into_iter()
+        .map(|(k, _)| k)
+        .collect::<FxHashSet<_>>();
+
+    //these vars were changed in both branches
+    for redef_var_id in &redefined_vars {
+        context.vars_in_scope.insert(
+            redef_var_id.clone(),
+            Rc::new(combine_union_types(
+                &isset_context.vars_in_scope[redef_var_id],
+                &context.vars_in_scope[redef_var_id],
+                statements_analyzer.get_codebase(),
+                false,
+            )),
+        );
+    }
+
     context
         .vars_in_scope
         .insert(left_var_id.clone(), Rc::new(condition_type));
