@@ -25,6 +25,7 @@ pub mod typehint_resolver;
 struct Context {
     classlike_name: Option<StrId>,
     function_name: Option<StrId>,
+    method_name: Option<StrId>,
     has_yield: bool,
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
@@ -330,7 +331,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_method_(&mut self, c: &mut Context, m: &aast::Method_<(), ()>) -> Result<(), ()> {
-        let (method_name, mut functionlike_storage) = functionlike_scanner::scan_method(
+        let (method_name, functionlike_storage) = functionlike_scanner::scan_method(
             self.codebase,
             self.interner,
             self.all_custom_issues,
@@ -341,11 +342,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             &self.file_source,
         );
 
-        let result = m.recurse(c, self);
-
-        if c.has_yield {
-            functionlike_storage.has_yield = true;
-        }
+        c.method_name = Some(method_name);
 
         self.codebase
             .classlike_infos
@@ -354,7 +351,21 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .methods
             .insert(method_name, functionlike_storage);
 
-        c.has_yield = false;
+        let result = m.recurse(c, self);
+
+        c.method_name = None;
+
+        if c.has_yield {
+            self.codebase
+                .classlike_infos
+                .get_mut(c.classlike_name.as_ref().unwrap())
+                .unwrap()
+                .methods
+                .get_mut(&method_name)
+                .unwrap()
+                .has_yield = true;
+            c.has_yield = false;
+        }
 
         result
     }
@@ -374,8 +385,20 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             name = self.interner.intern(function_id);
         }
 
-        let parent_function_storage = if let Some(parent_function_id) = &c.function_name {
-            self.codebase.functionlike_infos.get(parent_function_id)
+        let parent_function_storage = if is_anonymous {
+            if let Some(parent_function_id) = &c.function_name {
+                self.codebase.functionlike_infos.get(parent_function_id)
+            } else if let (Some(parent_class_id), Some(parent_method_id)) =
+                (&c.classlike_name, &c.method_name)
+            {
+                if let Some(classlike_info) = self.codebase.classlike_infos.get(parent_class_id) {
+                    classlike_info.methods.get(parent_method_id)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -491,6 +514,7 @@ pub fn collect_info_for_aast(
     let mut context = Context {
         classlike_name: None,
         function_name: None,
+        method_name: None,
         has_yield: false,
         uses_position: None,
         namespace_position: None,
