@@ -160,7 +160,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             let str = namespace_name.clone() + "\\" + c.name.1.as_str();
             self.interner.intern(str)
         } else {
-            self.interner.intern(c.name.1.clone())
+            if c.is_xhp {
+                self.interner.intern(c.name.1.replace(":", "\\"))
+            } else {
+                self.interner.intern(c.name.1.clone())
+            }
         };
 
         self.resolved_names.insert(c.name.0.start_offset(), p);

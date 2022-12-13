@@ -148,7 +148,7 @@ impl NameContext {
 
         // XHP names preceded by : are already resolved
         if name.starts_with(":") {
-            return name[1..].to_string();
+            return name[1..].replace(":", "\\");
         }
 
         match name.as_str() {
