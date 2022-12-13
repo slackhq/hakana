@@ -309,6 +309,11 @@ pub fn init(
                         .required(false)
                         .help("Whether to use cache"),
                 )
+                .arg(
+                    arg!(--"debug")
+                        .required(false)
+                        .help("Whether to show debug output"),
+                )
                 .arg(arg!(<TEST> "The test to run"))
                 .arg_required_else_help(true),
         )
@@ -329,7 +334,13 @@ pub fn init(
     };
 
     let verbosity = match matches.subcommand() {
-        Some(("test", _)) => Verbosity::Quiet,
+        Some(("test", sub_matches)) => {
+            if sub_matches.is_present("debug") {
+                Verbosity::Debugging
+            } else {
+                Verbosity::Quiet
+            }
+        }
         Some((_, sub_matches)) => {
             if sub_matches.is_present("debug") {
                 Verbosity::Debugging
