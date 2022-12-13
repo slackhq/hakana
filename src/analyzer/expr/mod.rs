@@ -22,3 +22,4 @@ pub(crate) mod unop_analyzer;
 pub(crate) mod variable_fetch_analyzer;
 pub(crate) mod xml_analyzer;
 pub(crate) mod yield_analyzer;
+pub(crate) mod closure_analyzer;
