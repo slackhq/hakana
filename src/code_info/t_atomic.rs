@@ -1654,6 +1654,16 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
                     }
                 };
             } else {
+                if *name == StrId::php_incomplete_class() {
+                    *t_atomic = TAtomic::TNamedObject {
+                        name: *name,
+                        type_params: None,
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    };
+                    return;
+                }
                 // println!("Uknown symbol {}", name);
             }
         }

@@ -76,6 +76,9 @@ impl StrId {
     pub fn container() -> Self {
         StrId(11)
     }
+    pub fn php_incomplete_class() -> Self {
+        StrId(12)
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -106,6 +109,7 @@ impl Interner {
         interner.intern("HH\\AnyArray".to_string());
         interner.intern("HH\\KeyedContainer".to_string());
         interner.intern("HH\\Container".to_string());
+        interner.intern("__PHP_Incomplete_Class".to_string());
         interner
     }
 
