@@ -172,8 +172,8 @@ impl<'ast> Visitor<'ast> for Scanner {
 }
 
 pub fn get_assignment_map(
-    pre_conditions: Vec<&aast::Expr<(), ()>>,
-    post_expressions: Vec<&aast::Expr<(), ()>>,
+    pre_conditions: &Vec<&aast::Expr<(), ()>>,
+    post_expressions: &Vec<&aast::Expr<(), ()>>,
     stmts: &Vec<aast::Stmt<(), ()>>,
     this_class_name: Option<StrId>,
 ) -> (FxHashMap<String, FxHashSet<String>>, Option<String>) {

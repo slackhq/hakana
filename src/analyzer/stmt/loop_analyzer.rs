@@ -35,8 +35,8 @@ pub(crate) fn analyze<'a>(
     always_enters_loop: bool,
 ) -> (bool, ScopeContext) {
     let (assignment_map, first_var_id) = get_assignment_map(
-        pre_conditions.clone(),
-        post_expressions.clone(),
+        &pre_conditions,
+        &post_expressions,
         stmts,
         loop_context.function_context.calling_class.clone(),
     );
