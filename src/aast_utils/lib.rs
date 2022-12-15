@@ -316,7 +316,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         if nc.in_class_id || nc.in_function_id || nc.in_xhp_id || nc.in_constant_id {
             if !self.resolved_names.contains_key(&id.0.start_offset()) {
                 let resolved_name = if nc.in_xhp_id {
-                    nc.get_resolved_name(&id.1[1..].to_string(), aast::NsKind::NSClassAndNamespace)
+                    nc.get_resolved_name(&id.1[1..].replace(":", "\\"), aast::NsKind::NSClassAndNamespace)
                 } else {
                     nc.get_resolved_name(
                         &id.1,

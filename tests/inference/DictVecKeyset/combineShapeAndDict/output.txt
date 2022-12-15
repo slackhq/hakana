@@ -1,0 +1,2 @@
+ERROR: MixedReturnStatement - input.hack:5:10 - Could not infer a proper return type — saw mixed
+ERROR: MixedReturnStatement - input.hack:12:10 - Could not infer a proper return type — saw mixed

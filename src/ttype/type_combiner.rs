@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
@@ -10,6 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{
     combine_union_types, get_int,
     type_combination::{self, TypeCombination},
+    wrap_atomic,
 };
 
 pub fn combine(
@@ -406,18 +407,7 @@ fn scrape_type_properties(
         ..
     } = atomic
     {
-        let mut had_previous_param = false;
-        combination.vec_type_param = if let Some(ref existing_type) = combination.vec_type_param {
-            had_previous_param = true;
-            Some(combine_union_types(
-                &existing_type,
-                &type_param,
-                codebase,
-                overwrite_empty_array,
-            ))
-        } else {
-            Some(type_param.clone())
-        };
+        let had_previous_param = combination.vec_type_param.is_some();
 
         if non_empty {
             if let Some(ref mut existing_counts) = combination.vec_counts {
@@ -441,27 +431,44 @@ fn scrape_type_properties(
             let mut has_defined_keys = false;
 
             for (candidate_item_offset, (cu, candidate_item_type)) in known_items {
-                let existing_type = combination.vec_entries.get(&candidate_item_offset);
-
-                let new_type_possibly_undefined;
-                let new_type = if let Some((eu, existing_type)) = existing_type {
-                    new_type_possibly_undefined = *eu || *cu;
-                    combine_union_types(
-                        existing_type,
-                        &candidate_item_type,
-                        codebase,
-                        overwrite_empty_array,
-                    )
-                } else {
-                    let new_type = candidate_item_type.clone();
-                    new_type_possibly_undefined = has_existing_entries || *cu;
-
-                    new_type
-                };
-
                 combination.vec_entries.insert(
                     *candidate_item_offset,
-                    (new_type_possibly_undefined, new_type),
+                    if let Some((eu, existing_type)) =
+                        combination.vec_entries.get(&candidate_item_offset)
+                    {
+                        (
+                            *eu || *cu,
+                            combine_union_types(
+                                existing_type,
+                                &candidate_item_type,
+                                codebase,
+                                overwrite_empty_array,
+                            ),
+                        )
+                    } else {
+                        (
+                            has_existing_entries || *cu,
+                            if let Some(ref mut existing_value_param) = combination.vec_type_param {
+                                if !existing_value_param.is_nothing() {
+                                    *existing_value_param = combine_union_types(
+                                        existing_value_param,
+                                        candidate_item_type,
+                                        codebase,
+                                        overwrite_empty_array,
+                                    );
+                                    continue;
+                                }
+
+                                let new_type = candidate_item_type.clone();
+
+                                new_type
+                            } else {
+                                let new_type = candidate_item_type.clone();
+
+                                new_type
+                            },
+                        )
+                    },
                 );
 
                 possibly_undefined_entries.remove(&candidate_item_offset);
@@ -484,10 +491,36 @@ fn scrape_type_properties(
                 }
             }
         } else if !overwrite_empty_array {
-            for (_, (tu, _)) in combination.vec_entries.iter_mut() {
-                *tu = true;
+            if type_param.is_nothing() {
+                for (_, (tu, _)) in combination.vec_entries.iter_mut() {
+                    *tu = true;
+                }
+            } else {
+                for (_, (_, entry_type)) in &combination.vec_entries {
+                    if let Some(ref mut existing_value_param) = combination.vec_type_param {
+                        *existing_value_param = combine_union_types(
+                            existing_value_param,
+                            entry_type,
+                            codebase,
+                            overwrite_empty_array,
+                        );
+                    }
+                }
+
+                combination.vec_entries = BTreeMap::new();
             }
         }
+
+        combination.vec_type_param = if let Some(ref existing_type) = combination.vec_type_param {
+            Some(combine_union_types(
+                &existing_type,
+                &type_param,
+                codebase,
+                overwrite_empty_array,
+            ))
+        } else {
+            Some(type_param.clone())
+        };
 
         return;
     }
@@ -519,26 +552,6 @@ fn scrape_type_properties(
         let had_previous_dict = combination.has_dict;
         combination.has_dict = true;
 
-        combination.dict_type_params = match (&combination.dict_type_params, params) {
-            (None, None) => None,
-            (Some(existing_types), None) => Some(existing_types.clone()),
-            (None, Some(params)) => Some(params.clone()),
-            (Some(existing_types), Some(params)) => Some((
-                combine_union_types(
-                    &existing_types.0,
-                    &params.0,
-                    codebase,
-                    overwrite_empty_array,
-                ),
-                combine_union_types(
-                    &existing_types.1,
-                    &params.1,
-                    codebase,
-                    overwrite_empty_array,
-                ),
-            )),
-        };
-
         if non_empty {
             combination.dict_sometimes_filled = true;
         } else {
@@ -561,37 +574,49 @@ fn scrape_type_properties(
 
         if let Some(known_items) = known_items {
             let has_existing_entries = !combination.dict_entries.is_empty() || had_previous_dict;
-            let mut possibly_undefined_entries: FxHashSet<DictKey> =
-                combination.dict_entries.keys().cloned().collect();
+            let mut possibly_undefined_entries = combination
+                .dict_entries
+                .iter()
+                .map(|(k, _)| k.clone())
+                .collect::<FxHashSet<_>>();
 
             let mut has_defined_keys = false;
 
             for (candidate_item_name, (cu, candidate_item_type)) in known_items {
-                let existing_type = combination.dict_entries.get(candidate_item_name);
-
-                let new_type_possibly_undefined;
-                let new_type = if let Some((eu, existing_type)) = existing_type {
-                    new_type_possibly_undefined = *eu || *cu;
-                    if candidate_item_type != existing_type {
-                        Arc::new(combine_union_types(
-                            existing_type,
-                            candidate_item_type,
-                            codebase,
-                            overwrite_empty_array,
-                        ))
-                    } else {
-                        existing_type.clone()
-                    }
-                } else {
-                    let new_type = candidate_item_type.clone();
-                    new_type_possibly_undefined = has_existing_entries || *cu;
-
-                    new_type
-                };
-
                 combination.dict_entries.insert(
                     candidate_item_name.clone(),
-                    (new_type_possibly_undefined, new_type),
+                    if let Some((eu, existing_type)) =
+                        combination.dict_entries.get(candidate_item_name)
+                    {
+                        (
+                            *eu || *cu,
+                            if candidate_item_type != existing_type {
+                                Arc::new(combine_union_types(
+                                    existing_type,
+                                    candidate_item_type,
+                                    codebase,
+                                    overwrite_empty_array,
+                                ))
+                            } else {
+                                existing_type.clone()
+                            },
+                        )
+                    } else {
+                        if let Some((_, ref mut existing_value_param)) =
+                            combination.dict_type_params
+                        {
+                            *existing_value_param = combine_union_types(
+                                existing_value_param,
+                                candidate_item_type,
+                                codebase,
+                                overwrite_empty_array,
+                            );
+                            continue;
+                        } else {
+                            let new_type = candidate_item_type.clone();
+                            (has_existing_entries || *cu, new_type)
+                        }
+                    },
                 );
 
                 possibly_undefined_entries.remove(candidate_item_name);
@@ -614,10 +639,71 @@ fn scrape_type_properties(
                 }
             }
         } else if !overwrite_empty_array {
-            for (_, (tu, _)) in combination.dict_entries.iter_mut() {
-                *tu = true;
+            if match &params {
+                Some((_, value_param)) => value_param.is_nothing(),
+                None => true,
+            } {
+                for (_, (tu, _)) in combination.dict_entries.iter_mut() {
+                    *tu = true;
+                }
+            } else {
+                for (key, (_, entry_type)) in &combination.dict_entries {
+                    if let Some((ref mut existing_key_param, ref mut existing_value_param)) =
+                        combination.dict_type_params
+                    {
+                        *existing_value_param = combine_union_types(
+                            existing_value_param,
+                            entry_type,
+                            codebase,
+                            overwrite_empty_array,
+                        );
+
+                        let new_key_type = wrap_atomic(match key {
+                            DictKey::Int(value) => TAtomic::TLiteralInt {
+                                value: *value as i64,
+                            },
+                            DictKey::String(value) => TAtomic::TLiteralString {
+                                value: value.clone(),
+                            },
+                            DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
+                                enum_name: *a,
+                                member_name: *b,
+                                constraint_type: None,
+                            },
+                        });
+
+                        *existing_key_param = combine_union_types(
+                            existing_key_param,
+                            &new_key_type,
+                            codebase,
+                            overwrite_empty_array,
+                        );
+                    }
+                }
+
+                combination.dict_entries = BTreeMap::new();
             }
         }
+
+        combination.dict_type_params = match (&combination.dict_type_params, params) {
+            (None, None) => None,
+            (Some(existing_types), None) => Some(existing_types.clone()),
+            (None, Some(params)) => Some(params.clone()),
+            (Some(existing_types), Some(params)) => Some((
+                combine_union_types(
+                    &existing_types.0,
+                    &params.0,
+                    codebase,
+                    overwrite_empty_array,
+                ),
+                combine_union_types(
+                    &existing_types.1,
+                    &params.1,
+                    codebase,
+                    overwrite_empty_array,
+                ),
+            )),
+        };
 
         return;
     }

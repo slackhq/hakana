@@ -784,7 +784,11 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             None
         };
 
-        let key_values = get_key_values_from_type(dim_type);
+        let key_values = if let Some(dim_type) = dim_type {
+            get_array_assignment_offset_types(dim_type)
+        } else {
+            vec![]
+        };
 
         let mut parent_array_var_id = None;
 
@@ -839,7 +843,11 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             None
         };
 
-        let key_values = get_key_values_from_type(dim_type);
+        let key_values = if let Some(dim_type) = dim_type {
+            get_array_assignment_offset_types(dim_type)
+        } else {
+            vec![]
+        };
 
         let array_type = add_array_assignment_dataflow(
             statements_analyzer,
@@ -863,22 +871,6 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
     }
 
     last_array_expr_dim
-}
-
-fn get_key_values_from_type(dim_type: Option<&TUnion>) -> Vec<TAtomic> {
-    let mut key_values = Vec::new();
-    if let Some(dim_type) = dim_type {
-        for key_atomic_type in &dim_type.types {
-            if let TAtomic::TLiteralString { .. } = key_atomic_type {
-                key_values.push(key_atomic_type.clone());
-            } else if let TAtomic::TLiteralInt { .. } = key_atomic_type {
-                key_values.push(key_atomic_type.clone());
-            } else {
-                // TODO implement this
-            }
-        }
-    }
-    key_values
 }
 
 fn get_array_assignment_offset_types(child_stmt_dim_type: &TUnion) -> Vec<TAtomic> {
