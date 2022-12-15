@@ -572,9 +572,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 parent_tast_info.replacements.extend(tast_info.replacements);
             }
 
-            parent_tast_info
-                .issues_to_emit
-                .extend(tast_info.issues_to_emit);
+            for issue in tast_info.issues_to_emit {
+                parent_tast_info.maybe_add_issue(
+                    issue,
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
 
             parent_tast_info
                 .symbol_references
