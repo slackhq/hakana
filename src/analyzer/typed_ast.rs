@@ -304,7 +304,13 @@ impl TastInfo {
                         _ => {}
                     },
                     4321 | 4108 => match &issue_kind {
-                        IssueKind::UndefinedStringArrayOffset => return true,
+                        IssueKind::UndefinedStringArrayOffset
+                        | IssueKind::UndefinedIntArrayOffset => return true,
+                        _ => {}
+                    },
+                    4165 => match &issue_kind {
+                        IssueKind::PossiblyUndefinedStringArrayOffset
+                        | IssueKind::PossiblyUndefinedIntArrayOffset => return true,
                         _ => {}
                     },
                     _ => {}

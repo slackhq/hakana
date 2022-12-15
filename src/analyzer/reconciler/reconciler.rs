@@ -486,14 +486,32 @@ fn add_nested_assertions(
 
                         let new_base_key = (&base_key).clone() + "[" + array_key.as_str() + "]";
 
-                        new_types
-                            .entry(base_key.clone())
-                            .or_insert_with(Vec::new)
-                            .push(vec![if array_key.contains("'") {
-                                Assertion::HasStringArrayAccess
+                        let entry = new_types.entry(base_key.clone()).or_insert_with(Vec::new);
+
+                        entry.push(vec![if array_key.contains("'") {
+                            Assertion::HasStringArrayAccess
+                        } else {
+                            Assertion::HasIntOrStringArrayAccess
+                        }]);
+
+                        let new_key = if array_key.starts_with("'") {
+                            Some(DictKey::String(
+                                array_key[1..(array_key.len() - 1)].to_string(),
+                            ))
+                        } else if array_key.starts_with("$") {
+                            None
+                        } else {
+                            if let Ok(arraykey_value) = array_key.parse::<u32>() {
+                                Some(DictKey::Int(arraykey_value))
                             } else {
-                                Assertion::HasIntOrStringArrayAccess
-                            }]);
+                                println!("bad int key {}", array_key);
+                                panic!()
+                            }
+                        };
+
+                        if let Some(new_key) = new_key {
+                            entry.push(vec![Assertion::HasArrayKey(new_key)]);
+                        }
 
                         base_key = new_base_key;
                         continue;
