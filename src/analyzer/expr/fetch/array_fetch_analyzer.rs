@@ -720,7 +720,7 @@ pub(crate) fn handle_array_access_on_dict(
                             Issue::new(
                                 IssueKind::PossiblyUndefinedStringArrayOffset,
                                 format!(
-                                    "Fetch on {} using possibly-undefined key '{}'",
+                                    "Fetch on {} using possibly-undefined key {}",
                                     dict.get_id(Some(&codebase.interner)),
                                     dict_key.to_string(Some(&codebase.interner))
                                 ),
