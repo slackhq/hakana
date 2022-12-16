@@ -61,7 +61,7 @@ pub(crate) fn analyze(
     lhs_var_id: &Option<String>,
     result: &mut AtomicMethodCallAnalysisResult,
 ) {
-    if let TAtomic::TTemplateParam {
+    if let TAtomic::TGenericParam {
         as_type,
         extra_types,
         ..

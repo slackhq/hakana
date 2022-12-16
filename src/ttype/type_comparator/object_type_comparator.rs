@@ -52,14 +52,14 @@ fn is_intersection_shallowly_contained_by(
     inside_assertion: bool,
     atomic_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
-    if let TAtomic::TTemplateParam {
+    if let TAtomic::TGenericParam {
         defining_entity: container_defining_entity,
         param_name: container_param_name,
         from_class: container_param_from_class,
         ..
     } = intersection_container_type
     {
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             defining_entity: input_defining_entity,
             from_class: input_param_from_class,
             param_name: input_param_name,
@@ -118,7 +118,7 @@ fn is_intersection_shallowly_contained_by(
         return false;
     }
 
-    if let TAtomic::TTemplateParam {
+    if let TAtomic::TGenericParam {
         as_type: input_extends,
         ..
     } = intersection_input_type

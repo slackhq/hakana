@@ -26,7 +26,7 @@ pub fn replace(
         let mut atomic_type = atomic_type.clone();
         atomic_type = replace_atomic(atomic_type, template_result, codebase);
 
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
             as_type,
@@ -55,7 +55,7 @@ pub fn replace(
             } else {
                 new_types.push(atomic_type);
             }
-        } else if let TAtomic::TTemplateParamClass {
+        } else if let TAtomic::TGenericClassname {
             param_name,
             defining_entity,
             ..
@@ -82,7 +82,7 @@ pub fn replace(
                         class_template_type = Some(TAtomic::TClassname {
                             as_type: Box::new(template_type_part.clone()),
                         });
-                    } else if let TAtomic::TTemplateParam {
+                    } else if let TAtomic::TGenericParam {
                         as_type,
                         param_name,
                         defining_entity,
@@ -91,7 +91,7 @@ pub fn replace(
                     {
                         let first_atomic_type = as_type.get_single();
 
-                        class_template_type = Some(TAtomic::TTemplateParamClass {
+                        class_template_type = Some(TAtomic::TGenericClassname {
                             param_name: param_name.clone(),
                             as_type: Box::new(first_atomic_type.clone()),
                             defining_entity: defining_entity.clone(),
@@ -105,7 +105,7 @@ pub fn replace(
                     new_types.push(class_template_type);
                 }
             }
-        } else if let TAtomic::TTemplateParamType {
+        } else if let TAtomic::TGenericTypename {
             param_name,
             defining_entity,
             ..
@@ -127,13 +127,13 @@ pub fn replace(
                         class_template_type = Some(TAtomic::TClassname {
                             as_type: Box::new(template_type_part.clone()),
                         });
-                    } else if let TAtomic::TTemplateParam {
+                    } else if let TAtomic::TGenericParam {
                         param_name,
                         defining_entity,
                         ..
                     } = template_type_part
                     {
-                        class_template_type = Some(TAtomic::TTemplateParamType {
+                        class_template_type = Some(TAtomic::TGenericTypename {
                             param_name: param_name.clone(),
                             defining_entity: defining_entity.clone(),
                         })
@@ -224,7 +224,7 @@ fn replace_template_param(
                     classlike_info.template_extended_params.get(defining_entity)
                 {
                     if let Some(param_inner) = param_map.get(key) {
-                        let template_name = if let TAtomic::TTemplateParam { param_name, .. } =
+                        let template_name = if let TAtomic::TGenericParam { param_name, .. } =
                             param_inner.get_single()
                         {
                             param_name

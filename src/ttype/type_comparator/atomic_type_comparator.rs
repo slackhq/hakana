@@ -20,13 +20,13 @@ pub fn is_contained_by(
         return true;
     }
 
-    if let TAtomic::TTemplateParam { .. }
+    if let TAtomic::TGenericParam { .. }
     | TAtomic::TNamedObject {
         extra_types: Some(_),
         ..
     } = container_type_part
     {
-        if let TAtomic::TTemplateParam { .. }
+        if let TAtomic::TGenericParam { .. }
         | TAtomic::TNamedObject {
             extra_types: Some(_),
             ..
@@ -73,7 +73,7 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TNull = input_type_part {
-        if let TAtomic::TTemplateParam { as_type, .. } = container_type_part {
+        if let TAtomic::TGenericParam { as_type, .. } = container_type_part {
             if as_type.is_nullable() || as_type.is_mixed() {
                 return true;
             }
@@ -351,12 +351,12 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TTemplateParam {
+    if let TAtomic::TGenericParam {
         as_type: container_type_extends,
         ..
     } = container_type_part
     {
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             as_type: input_type_extends,
             ..
         } = input_type_part
@@ -391,7 +391,7 @@ pub fn is_contained_by(
 
     // TODO handle conditional container_type_part
 
-    if let TAtomic::TTemplateParam {
+    if let TAtomic::TGenericParam {
         extra_types: input_extra_types,
         as_type: input_extends,
         ..

@@ -328,7 +328,7 @@ fn subtract_object(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_object(
@@ -403,7 +403,7 @@ fn subtract_vec(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_vec(
@@ -477,7 +477,7 @@ fn subtract_keyset(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_keyset(
@@ -551,7 +551,7 @@ fn subtract_dict(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_dict(
@@ -625,7 +625,7 @@ fn subtract_string(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_string(
@@ -730,7 +730,7 @@ fn subtract_int(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_int(
@@ -844,7 +844,7 @@ fn subtract_float(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_float(
@@ -943,7 +943,7 @@ fn subtract_num(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_num(
@@ -1046,7 +1046,7 @@ fn subtract_arraykey(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_arraykey(
@@ -1151,7 +1151,7 @@ fn subtract_bool(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_bool(
@@ -1242,7 +1242,7 @@ pub(crate) fn subtract_null(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             let mut template_failed_reconciliation = ReconciliationStatus::Ok;
             let new_atomic = atomic.replace_template_extends(subtract_null(
                 assertion,
@@ -1328,7 +1328,7 @@ fn subtract_false(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_false(
@@ -1417,7 +1417,7 @@ fn subtract_true(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TTemplateParam { as_type, .. } = atomic {
+        if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
                 let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_true(
@@ -1510,7 +1510,7 @@ fn reconcile_falsy(
         } else if !atomic.is_falsy() {
             did_remove_type = true;
 
-            if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+            if let TAtomic::TGenericParam { as_type, .. } = &atomic {
                 if !as_type.is_mixed() {
                     let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                     let atomic = atomic.replace_template_extends(reconcile_falsy(

@@ -53,7 +53,7 @@ pub fn is_contained_by(
             }
         }
 
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             extra_types: None,
             as_type,
             ..
@@ -82,7 +82,7 @@ pub fn is_contained_by(
             }
 
             for container_atomic_type in &container_atomic_types {
-                if let TAtomic::TTemplateParam { as_type, .. } = container_atomic_type {
+                if let TAtomic::TGenericParam { as_type, .. } = container_atomic_type {
                     if as_type.is_arraykey() {
                         continue 'outer;
                     }

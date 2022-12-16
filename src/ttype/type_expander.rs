@@ -206,7 +206,7 @@ fn expand_atomic(
                 expand_union(codebase, param_type, options, data_flow_graph);
             }
         }
-    } else if let TAtomic::TTemplateParam {
+    } else if let TAtomic::TGenericParam {
         ref mut from_class,
         ref defining_entity,
         ref mut as_type,

@@ -640,8 +640,8 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TString { .. } => "string".to_string(),
-        TAtomic::TTemplateParam { param_name, .. } => param_name.clone(),
-        TAtomic::TTemplateParamClass {
+        TAtomic::TGenericParam { param_name, .. } => param_name.clone(),
+        TAtomic::TGenericClassname {
             param_name,
             defining_entity,
             ..
@@ -650,7 +650,7 @@ pub fn get_atomic_syntax_type(
             param_name,
             codebase.interner.lookup(*defining_entity)
         ),
-        TAtomic::TTemplateParamType {
+        TAtomic::TGenericTypename {
             param_name,
             defining_entity,
             ..

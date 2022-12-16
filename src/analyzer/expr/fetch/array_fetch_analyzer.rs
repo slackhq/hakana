@@ -328,7 +328,7 @@ pub(crate) fn get_array_access_type_given_offset(
         } = atomic_var_type
         {
             atomic_var_type = &as_type
-        } else if let TAtomic::TTemplateParam { as_type, .. } = atomic_var_type {
+        } else if let TAtomic::TGenericParam { as_type, .. } = atomic_var_type {
             array_atomic_types.extend(&as_type.types);
             continue;
         }

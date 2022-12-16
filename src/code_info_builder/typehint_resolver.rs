@@ -89,13 +89,13 @@ fn get_classname_type_from_hint(
             resolved_names,
         );
 
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
             ..
         } = &as_type
         {
-            return TAtomic::TTemplateParamClass {
+            return TAtomic::TGenericClassname {
                 param_name: param_name.clone(),
                 defining_entity: defining_entity.clone(),
                 as_type: Box::new(as_type),
@@ -124,13 +124,13 @@ fn get_typename_type_from_hint(
             resolved_names,
         );
 
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
             ..
         } = as_type
         {
-            return TAtomic::TTemplateParamType {
+            return TAtomic::TGenericTypename {
                 param_name,
                 defining_entity,
             };
@@ -363,7 +363,7 @@ fn get_template_type(
     let as_type = defining_entities.values().next().unwrap().clone();
     let defining_entity = defining_entities.keys().next().unwrap().clone();
 
-    return TAtomic::TTemplateParam {
+    return TAtomic::TGenericParam {
         param_name: type_name.clone(),
         as_type: (*as_type).clone(),
         defining_entity,

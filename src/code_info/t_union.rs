@@ -281,7 +281,7 @@ impl TUnion {
 
     pub fn has_template_or_static(&self) -> bool {
         for atomic in &self.types {
-            if let TAtomic::TTemplateParam { .. } = atomic {
+            if let TAtomic::TGenericParam { .. } = atomic {
                 return true;
             }
 
@@ -297,7 +297,7 @@ impl TUnion {
 
                 if let Some(extra_types) = extra_types {
                     for (_, extra_type) in extra_types {
-                        if let TAtomic::TTemplateParam { .. } = extra_type {
+                        if let TAtomic::TGenericParam { .. } = extra_type {
                             return true;
                         }
                     }
@@ -310,14 +310,14 @@ impl TUnion {
 
     pub fn has_template(&self) -> bool {
         for atomic in &self.types {
-            if let TAtomic::TTemplateParam { .. } = atomic {
+            if let TAtomic::TGenericParam { .. } = atomic {
                 return true;
             }
 
             if let TAtomic::TNamedObject { extra_types, .. } = atomic {
                 if let Some(extra_types) = extra_types {
                     for (_, extra_type) in extra_types {
-                        if let TAtomic::TTemplateParam { .. } = extra_type {
+                        if let TAtomic::TGenericParam { .. } = extra_type {
                             return true;
                         }
                     }
@@ -345,9 +345,9 @@ impl TUnion {
 
         for child_node in all_child_nodes {
             if let TypeNode::Atomic(inner) = child_node {
-                if let TAtomic::TTemplateParam { .. }
-                | TAtomic::TTemplateParamClass { .. }
-                | TAtomic::TTemplateParamType { .. } = inner
+                if let TAtomic::TGenericParam { .. }
+                | TAtomic::TGenericClassname { .. }
+                | TAtomic::TGenericTypename { .. } = inner
                 {
                     return true;
                 }
@@ -376,9 +376,9 @@ impl TUnion {
 
         for child_node in all_child_nodes {
             if let TypeNode::Atomic(inner) = child_node {
-                if let TAtomic::TTemplateParam { .. }
-                | TAtomic::TTemplateParamClass { .. }
-                | TAtomic::TTemplateParamType { .. } = inner
+                if let TAtomic::TGenericParam { .. }
+                | TAtomic::TGenericClassname { .. }
+                | TAtomic::TGenericTypename { .. } = inner
                 {
                     template_types.push(inner.clone());
                 }
@@ -747,7 +747,7 @@ pub fn populate_union_type(t_union: &mut self::TUnion, codebase_symbols: &Symbol
 
     for atomic in types.iter_mut() {
         if let TAtomic::TClassname { ref mut as_type }
-        | TAtomic::TTemplateParamClass {
+        | TAtomic::TGenericClassname {
             ref mut as_type, ..
         } = atomic
         {

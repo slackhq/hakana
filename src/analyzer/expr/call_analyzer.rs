@@ -154,7 +154,7 @@ pub(crate) fn get_generic_param_for_offset(
         for (extended_class_name, type_map) in template_extended_params {
             for (extended_template_name, extended_type) in type_map {
                 for extended_atomic_type in &extended_type.types {
-                    if let TAtomic::TTemplateParam {
+                    if let TAtomic::TGenericParam {
                         param_name: extended_param_name,
                         defining_entity,
                         ..

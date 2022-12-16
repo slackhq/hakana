@@ -445,7 +445,7 @@ pub(crate) fn intersect_null(
                 nullable_types.push(TAtomic::TNull);
                 did_remove_type = true;
             }
-            TAtomic::TTemplateParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. } => {
                 if as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(get_null());
 
@@ -538,7 +538,7 @@ fn intersect_object(
     for atomic in &existing_var_type.types {
         if atomic.is_object_type() {
             object_types.push(atomic.clone());
-        } else if let TAtomic::TTemplateParam { as_type, .. } = atomic {
+        } else if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if as_type.is_mixed() {
                 let atomic = atomic.replace_template_extends(get_object());
 
@@ -790,7 +790,7 @@ fn intersect_dict(
             TAtomic::TDict { .. } => {
                 acceptable_types.push(atomic.clone());
             }
-            TAtomic::TTemplateParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. } => {
                 if as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(get_mixed_dict());
 
@@ -1053,7 +1053,7 @@ fn intersect_string(
                     return get_string();
                 }
             }
-            TAtomic::TTemplateParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. } => {
                 if as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(get_string());
 
@@ -1167,7 +1167,7 @@ fn intersect_int(
             | TAtomic::TMixedFromLoopIsset => {
                 return get_int();
             }
-            TAtomic::TTemplateParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. } => {
                 if as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(get_int());
 
@@ -1286,7 +1286,7 @@ fn reconcile_truthy(
         {
             did_remove_type = true;
 
-            if let TAtomic::TTemplateParam { as_type, .. } = &atomic {
+            if let TAtomic::TGenericParam { as_type, .. } = &atomic {
                 if !as_type.is_mixed() {
                     let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                     let atomic = atomic.replace_template_extends(reconcile_truthy(

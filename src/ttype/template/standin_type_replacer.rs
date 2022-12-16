@@ -119,7 +119,7 @@ fn handle_atomic_standin(
         atomic_type.get_key()
     };
 
-    if let TAtomic::TTemplateParam {
+    if let TAtomic::TGenericParam {
         param_name,
         defining_entity,
         ..
@@ -149,7 +149,7 @@ fn handle_atomic_standin(
         }
     }
 
-    if let TAtomic::TTemplateParamClass {
+    if let TAtomic::TGenericClassname {
         param_name,
         defining_entity,
         ..
@@ -179,7 +179,7 @@ fn handle_atomic_standin(
         }
     }
 
-    if let TAtomic::TTemplateParamType {
+    if let TAtomic::TGenericTypename {
         param_name,
         defining_entity,
         ..
@@ -685,7 +685,7 @@ fn handle_template_param_standin(
     depth: usize,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
-    let (param_name, defining_entity, extra_types, as_type) = if let TAtomic::TTemplateParam {
+    let (param_name, defining_entity, extra_types, as_type) = if let TAtomic::TGenericParam {
         param_name,
         defining_entity,
         extra_types,
@@ -737,7 +737,7 @@ fn handle_template_param_standin(
             if extra_type_union.is_single() {
                 let extra_type = extra_type_union.get_single().clone();
 
-                if let TAtomic::TNamedObject { .. } | TAtomic::TTemplateParam { .. } = extra_type {
+                if let TAtomic::TNamedObject { .. } | TAtomic::TGenericParam { .. } = extra_type {
                     new_extra_types.insert(extra_type.get_key(), extra_type);
                 }
             }
@@ -793,7 +793,7 @@ fn handle_template_param_standin(
             for replacement_atomic_type in &replacement_type.types {
                 let mut replacements_found = false;
 
-                if let TAtomic::TTemplateParam {
+                if let TAtomic::TGenericParam {
                     defining_entity: replacement_defining_entity,
                     as_type: replacement_as_type,
                     ..
@@ -950,7 +950,7 @@ fn handle_template_param_standin(
                 extra_types: ref mut atomic_extra_types,
                 ..
             }
-            | TAtomic::TTemplateParam {
+            | TAtomic::TGenericParam {
                 extra_types: ref mut atomic_extra_types,
                 ..
             } = atomic_type
@@ -1069,7 +1069,7 @@ fn handle_template_param_class_standin(
     depth: usize,
     was_single: bool,
 ) -> Vec<TAtomic> {
-    if let TAtomic::TTemplateParamClass {
+    if let TAtomic::TGenericClassname {
         defining_entity,
         as_type,
         param_name,
@@ -1105,14 +1105,14 @@ fn handle_template_param_class_standin(
                         extra_types: None,
                         remapped_params: false,
                     });
-                } else if let TAtomic::TTemplateParamClass {
+                } else if let TAtomic::TGenericClassname {
                     param_name,
                     as_type,
                     defining_entity,
                     ..
                 } = input_atomic_type
                 {
-                    valid_input_atomic_types.push(TAtomic::TTemplateParam {
+                    valid_input_atomic_types.push(TAtomic::TGenericParam {
                         param_name: param_name.clone(),
                         as_type: wrap_atomic(*as_type.clone()),
                         defining_entity: defining_entity.clone(),
@@ -1207,13 +1207,13 @@ fn handle_template_param_class_standin(
         }
 
         if atomic_types.is_empty() {
-            if let TAtomic::TTemplateParam {
+            if let TAtomic::TGenericParam {
                 param_name,
                 defining_entity,
                 ..
             } = &atomic_type_as
             {
-                atomic_types.push(TAtomic::TTemplateParamClass {
+                atomic_types.push(TAtomic::TGenericClassname {
                     param_name: param_name.clone(),
                     as_type: Box::new(atomic_type_as.clone()),
                     defining_entity: defining_entity.clone(),
@@ -1241,7 +1241,7 @@ fn handle_template_param_type_standin(
     depth: usize,
     was_single: bool,
 ) -> Vec<TAtomic> {
-    if let TAtomic::TTemplateParamType {
+    if let TAtomic::TGenericTypename {
         defining_entity,
         param_name,
         ..
@@ -1273,13 +1273,13 @@ fn handle_template_param_type_standin(
                         type_params: None,
                         as_type: None,
                     });
-                } else if let TAtomic::TTemplateParamType {
+                } else if let TAtomic::TGenericTypename {
                     param_name,
                     defining_entity,
                     ..
                 } = input_atomic_type
                 {
-                    valid_input_atomic_types.push(TAtomic::TTemplateParam {
+                    valid_input_atomic_types.push(TAtomic::TGenericParam {
                         param_name: param_name.clone(),
                         as_type: get_mixed_any(),
                         defining_entity: defining_entity.clone(),
@@ -1500,7 +1500,7 @@ fn find_matching_atomic_types_for_template(
                     }
                 }
             }
-            TAtomic::TTemplateParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. } => {
                 matching_atomic_types.extend(find_matching_atomic_types_for_template(
                     base_type,
                     normalized_key,
@@ -1651,7 +1651,7 @@ pub fn get_mapped_generic_type_params(
 
                 let mut candidate_param_type: Option<_> = None;
 
-                if let Some(TAtomic::TTemplateParam {
+                if let Some(TAtomic::TGenericParam {
                     param_name,
                     defining_entity,
                     ..
@@ -1733,7 +1733,7 @@ pub fn get_extended_templated_types<'a>(
 ) -> Vec<&'a TAtomic> {
     let mut extra_added_types = Vec::new();
 
-    if let TAtomic::TTemplateParam {
+    if let TAtomic::TGenericParam {
         defining_entity,
         param_name,
         ..
@@ -1742,7 +1742,7 @@ pub fn get_extended_templated_types<'a>(
         if let Some(defining_params) = extends.get(defining_entity) {
             if let Some(extended_param) = defining_params.get(param_name) {
                 for extended_atomic_type in &extended_param.types {
-                    if let TAtomic::TTemplateParam { .. } = extended_atomic_type {
+                    if let TAtomic::TGenericParam { .. } = extended_atomic_type {
                         extra_added_types
                             .extend(get_extended_templated_types(&extended_atomic_type, extends));
                     } else {
@@ -1781,7 +1781,7 @@ pub(crate) fn get_root_template_type(
 
             let first_template = &mapped_type.get_single();
 
-            if let TAtomic::TTemplateParam {
+            if let TAtomic::TGenericParam {
                 param_name,
                 defining_entity,
                 ..

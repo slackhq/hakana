@@ -45,7 +45,7 @@ pub(crate) fn analyze(
             // todo check class name and register usage
             name.clone()
         }
-        TAtomic::TClassname { as_type, .. } | TAtomic::TTemplateParamClass { as_type, .. } => {
+        TAtomic::TClassname { as_type, .. } | TAtomic::TGenericClassname { as_type, .. } => {
             let as_type = *as_type.clone();
             if let TAtomic::TNamedObject { name, .. } = as_type {
                 // todo check class name and register usage
@@ -55,7 +55,7 @@ pub(crate) fn analyze(
             }
         }
         TAtomic::TLiteralClassname { name } => name.clone(),
-        TAtomic::TTemplateParam { as_type, .. } => {
+        TAtomic::TGenericParam { as_type, .. } => {
             let mut classlike_name = None;
             for generic_param_type in &as_type.types {
                 if let TAtomic::TNamedObject { name, .. } = generic_param_type {

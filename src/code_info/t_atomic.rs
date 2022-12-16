@@ -110,19 +110,19 @@ pub enum TAtomic {
     // .1 => TNonEmptyString
     // .2 => TNonspecificLiteralString
     TStringWithFlags(bool, bool, bool),
-    TTemplateParam {
+    TGenericParam {
         param_name: String,
         as_type: TUnion,
         defining_entity: StrId,
         from_class: bool,
         extra_types: Option<FxHashMap<String, TAtomic>>,
     },
-    TTemplateParamClass {
+    TGenericClassname {
         param_name: String,
         as_type: Box<crate::t_atomic::TAtomic>,
         defining_entity: StrId,
     },
-    TTemplateParamType {
+    TGenericTypename {
         param_name: String,
         defining_entity: StrId,
     },
@@ -439,7 +439,7 @@ impl TAtomic {
 
                 return str + "string";
             }
-            TAtomic::TTemplateParam {
+            TAtomic::TGenericParam {
                 param_name,
                 defining_entity,
                 ..
@@ -454,7 +454,7 @@ impl TAtomic {
                 }
                 return str;
             }
-            TAtomic::TTemplateParamClass {
+            TAtomic::TGenericClassname {
                 param_name,
                 defining_entity,
                 ..
@@ -471,7 +471,7 @@ impl TAtomic {
                 str += ">";
                 return str;
             }
-            TAtomic::TTemplateParamType {
+            TAtomic::TGenericTypename {
                 param_name,
                 defining_entity,
                 ..
@@ -642,7 +642,7 @@ impl TAtomic {
                 }
             },
 
-            TAtomic::TTemplateParam {
+            TAtomic::TGenericParam {
                 param_name,
                 defining_entity,
                 ..
@@ -653,7 +653,7 @@ impl TAtomic {
                 str += defining_entity.0.to_string().as_str();
                 return str;
             }
-            TAtomic::TTemplateParamClass {
+            TAtomic::TGenericClassname {
                 param_name,
                 defining_entity,
                 ..
@@ -666,7 +666,7 @@ impl TAtomic {
                 str += ">";
                 return str;
             }
-            TAtomic::TTemplateParamType {
+            TAtomic::TGenericTypename {
                 param_name,
                 defining_entity,
                 ..
@@ -740,7 +740,7 @@ impl TAtomic {
 
     pub fn is_templated_as_mixed(&self, has_any: &mut bool) -> bool {
         match self {
-            TAtomic::TTemplateParam {
+            TAtomic::TGenericParam {
                 as_type,
                 extra_types: None,
                 ..
@@ -754,7 +754,7 @@ impl TAtomic {
             TAtomic::TObject { .. } => true,
             TAtomic::TClosure { .. } => true,
             TAtomic::TNamedObject { .. } => true,
-            TAtomic::TTemplateParam {
+            TAtomic::TGenericParam {
                 as_type,
                 extra_types: None,
                 ..
@@ -772,7 +772,7 @@ impl TAtomic {
 
     pub fn is_templated_as_object(&self) -> bool {
         match self {
-            TAtomic::TTemplateParam {
+            TAtomic::TGenericParam {
                 as_type,
                 extra_types: None,
                 ..
@@ -826,8 +826,8 @@ impl TAtomic {
     #[inline]
     pub fn is_some_scalar(&self) -> bool {
         match self {
-            TAtomic::TTemplateParamClass { .. }
-            | TAtomic::TTemplateParamType { .. }
+            TAtomic::TGenericClassname { .. }
+            | TAtomic::TGenericTypename { .. }
             | TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralInt { .. }
             | TAtomic::TLiteralString { .. }
@@ -886,8 +886,8 @@ impl TAtomic {
             | TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TClassname { .. }
-            | TAtomic::TTemplateParamClass { .. }
-            | TAtomic::TTemplateParamType { .. }
+            | TAtomic::TGenericClassname { .. }
+            | TAtomic::TGenericTypename { .. }
             | TAtomic::TStringWithFlags { .. } => true,
 
             _ => false,
@@ -900,8 +900,8 @@ impl TAtomic {
             TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TClassname { .. }
-            | TAtomic::TTemplateParamClass { .. }
-            | TAtomic::TTemplateParamType { .. }
+            | TAtomic::TGenericClassname { .. }
+            | TAtomic::TGenericTypename { .. }
             | TAtomic::TStringWithFlags { .. } => true,
 
             _ => false,
@@ -941,7 +941,7 @@ impl TAtomic {
     }
 
     pub fn replace_template_extends(&self, new_as_type: TUnion) -> TAtomic {
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
             extra_types,
@@ -949,7 +949,7 @@ impl TAtomic {
             ..
         } = self
         {
-            return TAtomic::TTemplateParam {
+            return TAtomic::TGenericParam {
                 as_type: new_as_type,
                 param_name: param_name.clone(),
                 defining_entity: defining_entity.clone(),
@@ -1140,7 +1140,7 @@ impl TAtomic {
     #[inline]
     pub fn needs_population(&self) -> bool {
         match self {
-            TAtomic::TTemplateParamClass { .. }
+            TAtomic::TGenericClassname { .. }
             | TAtomic::TClassname { .. }
             | TAtomic::TDict { .. }
             | TAtomic::TClosure { .. }
@@ -1149,7 +1149,7 @@ impl TAtomic {
             | TAtomic::TVec { .. }
             | TAtomic::TReference { .. }
             | TAtomic::TClassTypeConstant { .. }
-            | TAtomic::TTemplateParam { .. } => true,
+            | TAtomic::TGenericParam { .. } => true,
             _ => false,
         }
     }
@@ -1159,7 +1159,7 @@ impl TAtomic {
             ref mut extra_types,
             ..
         }
-        | TAtomic::TTemplateParam {
+        | TAtomic::TGenericParam {
             ref mut extra_types,
             ..
         } = self
@@ -1181,7 +1181,7 @@ impl TAtomic {
             ref mut extra_types,
             ..
         }
-        | TAtomic::TTemplateParam {
+        | TAtomic::TGenericParam {
             ref mut extra_types,
             ..
         } = clone
@@ -1200,7 +1200,7 @@ impl TAtomic {
                 extra_types: Some(extra_types),
                 ..
             }
-            | TAtomic::TTemplateParam {
+            | TAtomic::TGenericParam {
                 extra_types: Some(extra_types),
                 ..
             } => {
@@ -1210,10 +1210,10 @@ impl TAtomic {
                 return (intersection_types, FxHashMap::default());
             }
             _ => {
-                if let TAtomic::TTemplateParam { as_type, .. } = self {
+                if let TAtomic::TGenericParam { as_type, .. } = self {
                     for as_atomic in &as_type.types {
                         // T1 as T2 as object becomes (T1 as object) & (T2 as object)
-                        if let TAtomic::TTemplateParam {
+                        if let TAtomic::TGenericParam {
                             as_type: extends_as_type,
                             ..
                         } = as_atomic
@@ -1222,7 +1222,7 @@ impl TAtomic {
                             let intersection_types = as_atomic.get_intersection_types();
                             new_intersection_types.extend(intersection_types.1);
                             let mut type_part = self.clone();
-                            if let TAtomic::TTemplateParam {
+                            if let TAtomic::TGenericParam {
                                 ref mut as_type, ..
                             } = type_part
                             {
@@ -1421,7 +1421,7 @@ impl TAtomic {
                 as_type: Some(as_type),
                 ..
             } => as_type.is_json_compatible(banned_type_aliases),
-            TAtomic::TTemplateParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. } => {
                 as_type.is_json_compatible(banned_type_aliases)
             }
             _ => false,
@@ -1506,7 +1506,7 @@ impl HasTypeNodes for TAtomic {
                     vec
                 }
             },
-            TAtomic::TTemplateParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. } => {
                 vec![TypeNode::Union(as_type)]
             }
             TAtomic::TTypeAlias {
@@ -1673,7 +1673,7 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
         TAtomic::TClassTypeConstant { class_type, .. } => {
             populate_atomic_type(class_type, codebase_symbols);
         }
-        TAtomic::TTemplateParam {
+        TAtomic::TGenericParam {
             ref mut as_type, ..
         } => {
             populate_union_type(as_type, codebase_symbols);

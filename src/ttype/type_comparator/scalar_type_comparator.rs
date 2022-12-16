@@ -389,7 +389,7 @@ pub fn is_contained_by(
         as_type: container_name,
         ..
     }
-    | TAtomic::TTemplateParamClass {
+    | TAtomic::TGenericClassname {
         as_type: container_name,
         ..
     } = container_type_part
@@ -436,7 +436,7 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TTemplateParamType { .. } = container_type_part {
+    if let TAtomic::TGenericTypename { .. } = container_type_part {
         if let TAtomic::TLiteralClassname {
             name: input_name, ..
         } = input_type_part
@@ -446,7 +446,7 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TTemplateParamType { .. } = input_type_part {
+    if let TAtomic::TGenericTypename { .. } = input_type_part {
         if let TAtomic::TString = container_type_part {
             return true;
         }
@@ -457,7 +457,7 @@ pub fn is_contained_by(
         as_type: input_name,
         ..
     }
-    | TAtomic::TTemplateParamClass {
+    | TAtomic::TGenericClassname {
         as_type: input_name,
         ..
     } = input_type_part

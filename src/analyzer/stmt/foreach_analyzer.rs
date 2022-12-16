@@ -218,7 +218,7 @@ fn check_iterator_type(
     let codebase = statements_analyzer.get_codebase();
 
     while let Some(mut iterator_atomic_type) = iterator_atomic_types.pop() {
-        if let TAtomic::TTemplateParam { as_type, .. } = iterator_atomic_type {
+        if let TAtomic::TGenericParam { as_type, .. } = iterator_atomic_type {
             iterator_atomic_types.extend(as_type.types);
             continue;
         }

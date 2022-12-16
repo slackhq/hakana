@@ -731,7 +731,7 @@ fn get_value_for_key(
                 atomic_types.reverse();
 
                 while let Some(mut existing_key_type_part) = atomic_types.pop() {
-                    if let TAtomic::TTemplateParam { as_type, .. } = existing_key_type_part {
+                    if let TAtomic::TGenericParam { as_type, .. } = existing_key_type_part {
                         atomic_types.extend(as_type.types.clone());
                         continue;
                     }
@@ -911,7 +911,7 @@ fn get_value_for_key(
                 let mut atomic_types = base_type.types.clone();
 
                 while let Some(existing_key_type_part) = atomic_types.pop() {
-                    if let TAtomic::TTemplateParam { as_type, .. } = existing_key_type_part {
+                    if let TAtomic::TGenericParam { as_type, .. } = existing_key_type_part {
                         atomic_types.extend(as_type.types.clone());
                         continue;
                     }
@@ -922,7 +922,7 @@ fn get_value_for_key(
                         class_property_type = get_null();
                     } else if let TAtomic::TMixed
                     | TAtomic::TMixedWithFlags(..)
-                    | TAtomic::TTemplateParam { .. }
+                    | TAtomic::TGenericParam { .. }
                     | TAtomic::TObject { .. } = existing_key_type_part
                     {
                         class_property_type = get_mixed_any();

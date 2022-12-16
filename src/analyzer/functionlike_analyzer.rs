@@ -203,7 +203,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             .map(|(param_name, template_map)| {
                                 let first_map_entry = template_map.iter().next().unwrap();
 
-                                wrap_atomic(TAtomic::TTemplateParam {
+                                wrap_atomic(TAtomic::TGenericParam {
                                     param_name: param_name.clone(),
                                     as_type: (**first_map_entry.1).clone(),
                                     defining_entity: first_map_entry.0.clone(),

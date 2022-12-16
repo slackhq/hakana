@@ -693,7 +693,7 @@ fn extend_type(
     let mut cloned = type_.types.clone();
 
     while let Some(atomic_type) = cloned.pop() {
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             defining_entity,
             param_name,
             ..

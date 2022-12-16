@@ -551,13 +551,13 @@ pub(crate) fn intersect_atomic_with_atomic(
                 shape_name: None,
             });
         }
-        (TAtomic::TTemplateParam { as_type, .. }, TAtomic::TNamedObject { .. }) => {
+        (TAtomic::TGenericParam { as_type, .. }, TAtomic::TNamedObject { .. }) => {
             let new_as = intersect_union_with_atomic(codebase, as_type, type_2_atomic);
 
             if let Some(new_as) = new_as {
                 let mut type_1_atomic = type_1_atomic.clone();
 
-                if let TAtomic::TTemplateParam {
+                if let TAtomic::TGenericParam {
                     ref mut as_type, ..
                 } = type_1_atomic
                 {
@@ -567,13 +567,13 @@ pub(crate) fn intersect_atomic_with_atomic(
                 return Some(type_1_atomic);
             }
         }
-        (TAtomic::TNamedObject { .. }, TAtomic::TTemplateParam { as_type, .. }) => {
+        (TAtomic::TNamedObject { .. }, TAtomic::TGenericParam { as_type, .. }) => {
             let new_as = intersect_union_with_atomic(codebase, as_type, type_1_atomic);
 
             if let Some(new_as) = new_as {
                 let mut type_2_atomic = type_2_atomic.clone();
 
-                if let TAtomic::TTemplateParam {
+                if let TAtomic::TGenericParam {
                     ref mut as_type, ..
                 } = type_2_atomic
                 {
@@ -688,7 +688,7 @@ fn intersect_contained_atomic_with_another(
 
     if let TAtomic::TNamedObject { .. } = sub_atomic {
         let mut type_1_atomic = super_atomic.clone();
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             as_type: ref mut type_1_as_type,
             ..
         } = type_1_atomic

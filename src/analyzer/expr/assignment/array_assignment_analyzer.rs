@@ -210,7 +210,7 @@ fn update_atomic_given_key(
     current_type: &TUnion,
     codebase: &CodebaseInfo,
 ) -> TAtomic {
-    if let TAtomic::TTemplateParam { .. } = atomic_type {
+    if let TAtomic::TGenericParam { .. } = atomic_type {
         // TODO
     }
     if key_values.len() > 0 {

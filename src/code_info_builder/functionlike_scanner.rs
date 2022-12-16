@@ -260,7 +260,7 @@ pub(crate) fn get_functionlike(
                     )
                     .unwrap();
 
-                    super_type.types.push(TAtomic::TTemplateParam {
+                    super_type.types.push(TAtomic::TGenericParam {
                         param_name: type_param_node.name.1.clone(),
                         as_type: if let Some(template_as_type) = &template_as_type {
                             template_as_type.clone()
@@ -297,7 +297,7 @@ pub(crate) fn get_functionlike(
                     .unwrap();
 
             match where_first {
-                TAtomic::TTemplateParam { param_name, .. } => match where_hint.1 {
+                TAtomic::TGenericParam { param_name, .. } => match where_hint.1 {
                     ast_defs::ConstraintKind::ConstraintEq => {
                         functionlike_info
                             .where_constraints

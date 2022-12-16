@@ -545,7 +545,7 @@ fn adjust_param_type(
         }
 
         for template_type in &bindable_template_params {
-            if let TAtomic::TTemplateParam {
+            if let TAtomic::TGenericParam {
                 param_name,
                 defining_entity,
                 as_type,
@@ -1094,7 +1094,7 @@ pub(crate) fn get_template_types_for_call(
                         let output_type = if type_.has_template() {
                             let mut output_type = None;
                             for atomic_type in &type_.types {
-                                let output_type_candidate = if let TAtomic::TTemplateParam {
+                                let output_type_candidate = if let TAtomic::TGenericParam {
                                     defining_entity,
                                     param_name,
                                     ..

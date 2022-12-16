@@ -124,7 +124,7 @@ pub(crate) fn resolve_template_param(
     let mut output_type_extends = None;
 
     for type_extends_atomic in &input_type_extends.types {
-        if let TAtomic::TTemplateParam {
+        if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
             ..
@@ -190,7 +190,7 @@ fn expand_type(
     let mut output_type_extends = Vec::new();
 
     for type_extends_atomic in &input_type_extends.types {
-        if let Some(extended_type) = if let TAtomic::TTemplateParam {
+        if let Some(extended_type) = if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
             ..

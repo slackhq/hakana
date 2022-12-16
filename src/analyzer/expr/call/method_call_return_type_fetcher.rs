@@ -97,8 +97,8 @@ pub(crate) fn fetch(
         &mut return_type_candidate,
         &TypeExpansionOptions {
             self_class: Some(&method_id.0),
-            static_class_type: if let TAtomic::TNamedObject { .. }
-            | TAtomic::TTemplateParam { .. } = lhs_type_part
+            static_class_type: if let TAtomic::TNamedObject { .. } | TAtomic::TGenericParam { .. } =
+                lhs_type_part
             {
                 type_expander::StaticClassType::Object(lhs_type_part)
             } else if let TAtomic::TClassname { as_type } = lhs_type_part {
