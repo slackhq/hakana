@@ -5,6 +5,7 @@ class S {
 }
 
 function foo(vec_or_dict $arr) : void {
+    /* HAKANA_FIXME[PossiblyUndefinedIntArrayOffset] */
     switch ($arr[S::A]) {
         case S::B:
         case S::C:

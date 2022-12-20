@@ -5,6 +5,7 @@ function is_dev(): bool {
 
 function foo(): void {
     if (is_dev()) {
+        /* HAKANA_FIXME[PossiblyUndefinedStringArrayOffset] */
         $a = $_GET['a'] as string;
         echo $a;
     }

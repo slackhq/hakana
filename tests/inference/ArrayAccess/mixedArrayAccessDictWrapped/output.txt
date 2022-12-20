@@ -1,1 +1,2 @@
-MixedAnyArgument - input.hack:6:10 - Argument 1 of echo expects arraykey, any provided
+ERROR: PossiblyUndefinedStringArrayOffset - input.hack:6:10 - Fetch on dict<arraykey,any> using possibly-undefined key 'foo'
+ERROR: MixedAnyArgument - input.hack:6:10 - Argument 1 of echo expects arraykey, any provided

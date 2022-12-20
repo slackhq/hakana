@@ -7,7 +7,7 @@ use hakana_reflection_info::{
         path::{PathExpressionKind, PathKind},
     },
     issue::{Issue, IssueKind},
-    t_atomic::TAtomic,
+    t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
 use hakana_type::{
@@ -718,7 +718,10 @@ pub(crate) fn handle_array_access_on_dict(
                         // oh no!
                         tast_info.maybe_add_issue(
                             Issue::new(
-                                IssueKind::PossiblyUndefinedStringArrayOffset,
+                                match &dict_key {
+                                    DictKey::Int(_) => IssueKind::PossiblyUndefinedIntArrayOffset,
+                                    _ => IssueKind::PossiblyUndefinedStringArrayOffset,
+                                },
                                 format!(
                                     "Fetch on {} using possibly-undefined key {}",
                                     dict.get_id(Some(&codebase.interner)),
@@ -804,6 +807,32 @@ pub(crate) fn handle_array_access_on_dict(
 
         // }
         return if let Some(params) = params {
+            if let Some(dict_key) = dim_type.get_single_dict_key() {
+                if !in_assignment {
+                    if !allow_possibly_undefined {
+                        // oh no!
+                        tast_info.maybe_add_issue(
+                            Issue::new(
+                                match &dict_key {
+                                    DictKey::Int(_) => IssueKind::PossiblyUndefinedIntArrayOffset,
+                                    _ => IssueKind::PossiblyUndefinedStringArrayOffset,
+                                },
+                                format!(
+                                    "Fetch on {} using possibly-undefined key {}",
+                                    dict.get_id(Some(&codebase.interner)),
+                                    dict_key.to_string(Some(&codebase.interner))
+                                ),
+                                statements_analyzer.get_hpos(&pos),
+                            ),
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
+                        );
+                    } else {
+                        *has_possibly_undefined = true;
+                    }
+                }
+            }
+
             params.1.clone()
         } else {
             get_nothing()

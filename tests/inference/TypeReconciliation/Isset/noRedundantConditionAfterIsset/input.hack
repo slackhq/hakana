@@ -3,5 +3,6 @@ function foo(dict<string, dict<int, string>> $arr, string $k) : void {
         return;
     }
 
+    /* HAKANA_FIXME[PossiblyUndefinedIntArrayOffset] */
     if ($arr[$k][0]) {}
 }
