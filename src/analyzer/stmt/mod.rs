@@ -13,5 +13,6 @@ pub(crate) mod loop_;
 pub(crate) mod loop_analyzer;
 pub(crate) mod return_analyzer;
 pub(crate) mod switch_analyzer;
+pub(crate) mod switch_case_analyzer;
 pub(crate) mod try_analyzer;
 pub(crate) mod while_analyzer;
