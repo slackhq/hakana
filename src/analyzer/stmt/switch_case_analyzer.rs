@@ -8,6 +8,7 @@ use hakana_type::combine_optional_union_types;
 use oxidized::aast;
 use oxidized::ast_defs::ParamKind;
 use oxidized::file_pos::FilePos;
+use oxidized::pos_span_raw::PosSpanRaw;
 
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::CaseScope;
@@ -215,9 +216,18 @@ pub(crate) fn analyze_case(
 
         switch_scope.leftover_case_equality_expr = Some(
             if let Some(leftover_case_equality_expr) = &switch_scope.leftover_case_equality_expr {
+                let new_pos_start = leftover_case_equality_expr.1.to_raw_span().start;
+                let new_pos_end = case_cond.pos().to_raw_span().end;
+
                 aast::Expr(
                     (),
-                    case_cond.pos().clone(),
+                    Pos::from_raw_span(
+                        RcOc::new(case_cond.pos().filename().clone()),
+                        PosSpanRaw {
+                            start: new_pos_start,
+                            end: new_pos_end,
+                        },
+                    ),
                     aast::Expr_::Binop(Box::new((
                         ast_defs::Bop::Barbar,
                         leftover_case_equality_expr.clone(),
