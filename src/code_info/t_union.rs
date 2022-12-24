@@ -1,6 +1,7 @@
 use crate::{
     codebase_info::Symbols,
     data_flow::node::DataFlowNode,
+    symbol_references::{SymbolReferences, ReferenceSource},
     t_atomic::{populate_atomic_type, DictKey, TAtomic},
     Interner,
 };
@@ -736,7 +737,12 @@ impl HasTypeNodes for TUnion {
     }
 }
 
-pub fn populate_union_type(t_union: &mut self::TUnion, codebase_symbols: &Symbols) {
+pub fn populate_union_type(
+    t_union: &mut self::TUnion,
+    codebase_symbols: &Symbols,
+    reference_source: &ReferenceSource,
+    symbol_references: &mut SymbolReferences,
+) {
     if t_union.populated {
         return;
     }
@@ -752,10 +758,10 @@ pub fn populate_union_type(t_union: &mut self::TUnion, codebase_symbols: &Symbol
         } = atomic
         {
             let mut new_as_type = (**as_type).clone();
-            populate_atomic_type(&mut new_as_type, codebase_symbols);
+            populate_atomic_type(&mut new_as_type, codebase_symbols, reference_source, symbol_references);
             *as_type = Box::new(new_as_type);
         } else {
-            populate_atomic_type(atomic, codebase_symbols);
+            populate_atomic_type(atomic, codebase_symbols, reference_source, symbol_references);
         }
     }
 }

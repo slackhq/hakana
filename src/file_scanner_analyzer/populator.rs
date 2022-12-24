@@ -5,6 +5,7 @@ use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::member_visibility::MemberVisibility;
+use hakana_reflection_info::symbol_references::{ReferenceSource, SymbolReferences};
 use hakana_reflection_info::t_atomic::{populate_atomic_type, TAtomic};
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
 use hakana_reflection_info::{Interner, StrId};
@@ -12,7 +13,11 @@ use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 // as currently constructed this is not efficient memory-wise
-pub fn populate_codebase(codebase: &mut CodebaseInfo, interner: &Interner) {
+pub fn populate_codebase(
+    codebase: &mut CodebaseInfo,
+    interner: &Interner,
+    symbol_references: &mut SymbolReferences,
+) {
     let mut all_classlike_descendants = FxHashMap::default();
 
     let classlike_names = codebase
@@ -25,23 +30,43 @@ pub fn populate_codebase(codebase: &mut CodebaseInfo, interner: &Interner) {
         populate_classlike_storage(k, &mut all_classlike_descendants, codebase);
     }
 
-    for (_, v) in codebase.functionlike_infos.iter_mut() {
-        populate_functionlike_storage(v, &codebase.symbols);
+    for (name, v) in codebase.functionlike_infos.iter_mut() {
+        populate_functionlike_storage(
+            v,
+            &codebase.symbols,
+            &ReferenceSource::Symbol(true, *name),
+            symbol_references,
+        );
     }
 
-    for (_, storage) in codebase.classlike_infos.iter_mut() {
-        for (_, v) in storage.methods.iter_mut() {
-            populate_functionlike_storage(v, &codebase.symbols);
+    for (name, storage) in codebase.classlike_infos.iter_mut() {
+        for (method_name, v) in storage.methods.iter_mut() {
+            populate_functionlike_storage(
+                v,
+                &codebase.symbols,
+                &ReferenceSource::ClasslikeMember(true, *name, *method_name),
+                symbol_references,
+            );
         }
 
-        for (_, v) in storage.properties.iter_mut() {
-            populate_union_type(&mut v.type_, &codebase.symbols);
+        for (prop_name, v) in storage.properties.iter_mut() {
+            populate_union_type(
+                &mut v.type_,
+                &codebase.symbols,
+                &ReferenceSource::ClasslikeMember(true, *name, *prop_name),
+                symbol_references,
+            );
         }
 
         for (_, map) in storage.template_extended_params.iter_mut() {
             for (_, v) in map {
                 if v.needs_population() {
-                    populate_union_type(Arc::make_mut(v), &codebase.symbols);
+                    populate_union_type(
+                        Arc::make_mut(v),
+                        &codebase.symbols,
+                        &ReferenceSource::Symbol(true, *name),
+                        symbol_references,
+                    );
                 }
             }
         }
@@ -49,41 +74,81 @@ pub fn populate_codebase(codebase: &mut CodebaseInfo, interner: &Interner) {
         for (_, map) in storage.template_types.iter_mut() {
             for (_, v) in map {
                 if v.needs_population() {
-                    populate_union_type(Arc::make_mut(v), &codebase.symbols);
+                    populate_union_type(
+                        Arc::make_mut(v),
+                        &codebase.symbols,
+                        &ReferenceSource::Symbol(true, *name),
+                        symbol_references,
+                    );
                 }
             }
         }
 
         for (_, constant) in storage.constants.iter_mut() {
             if let Some(provided_type) = constant.provided_type.as_mut() {
-                populate_union_type(provided_type, &codebase.symbols);
+                populate_union_type(
+                    provided_type,
+                    &codebase.symbols,
+                    &ReferenceSource::Symbol(true, *name),
+                    symbol_references,
+                );
             }
         }
 
         for (_, constant_type) in storage.type_constants.iter_mut() {
-            populate_union_type(constant_type, &codebase.symbols);
+            populate_union_type(
+                constant_type,
+                &codebase.symbols,
+                &ReferenceSource::Symbol(true, *name),
+                symbol_references,
+            );
         }
 
         if let Some(ref mut enum_type) = storage.enum_type {
-            populate_atomic_type(enum_type, &codebase.symbols);
+            populate_atomic_type(
+                enum_type,
+                &codebase.symbols,
+                &ReferenceSource::Symbol(true, *name),
+                symbol_references,
+            );
         }
 
         if let Some(ref mut enum_constraint) = storage.enum_constraint {
-            populate_atomic_type(enum_constraint, &codebase.symbols);
+            populate_atomic_type(
+                enum_constraint,
+                &codebase.symbols,
+                &ReferenceSource::Symbol(true, *name),
+                symbol_references,
+            );
         }
     }
 
-    for (_, type_alias) in codebase.type_definitions.iter_mut() {
-        populate_union_type(&mut type_alias.actual_type, &codebase.symbols);
+    for (name, type_alias) in codebase.type_definitions.iter_mut() {
+        populate_union_type(
+            &mut type_alias.actual_type,
+            &codebase.symbols,
+            &ReferenceSource::Symbol(true, *name),
+            symbol_references,
+        );
 
         if let Some(ref mut as_type) = type_alias.as_type {
-            populate_union_type(as_type, &codebase.symbols);
+            populate_union_type(
+                as_type,
+                &codebase.symbols,
+                &ReferenceSource::Symbol(true, *name),
+                symbol_references,
+            );
         }
     }
 
-    for (_, constant) in codebase.constant_infos.iter_mut() {
+    for (name, constant) in codebase.constant_infos.iter_mut() {
         if let Some(provided_type) = constant.provided_type.as_mut() {
-            populate_union_type(provided_type, &codebase.symbols);
+            populate_union_type(
+                provided_type,
+                &codebase.symbols,
+                &ReferenceSource::Symbol(true, *name),
+                symbol_references,
+            );
         }
     }
 
@@ -115,27 +180,52 @@ pub fn populate_codebase(codebase: &mut CodebaseInfo, interner: &Interner) {
     codebase.classlike_descendents = all_classlike_descendants;
 }
 
-fn populate_functionlike_storage(storage: &mut FunctionLikeInfo, codebase_symbols: &Symbols) {
+fn populate_functionlike_storage(
+    storage: &mut FunctionLikeInfo,
+    codebase_symbols: &Symbols,
+    reference_source: &ReferenceSource,
+    symbol_references: &mut SymbolReferences,
+) {
     if let Some(ref mut return_type) = storage.return_type {
-        populate_union_type(return_type, &codebase_symbols);
+        populate_union_type(
+            return_type,
+            &codebase_symbols,
+            reference_source,
+            symbol_references,
+        );
     }
 
     for param in storage.params.iter_mut() {
         if let Some(ref mut param_type) = param.signature_type {
-            populate_union_type(param_type, &codebase_symbols);
+            populate_union_type(
+                param_type,
+                &codebase_symbols,
+                reference_source,
+                symbol_references,
+            );
         }
     }
 
     for (_, type_param_map) in storage.template_types.iter_mut() {
         for (_, v) in type_param_map {
             if v.needs_population() {
-                populate_union_type(Arc::make_mut(v), &codebase_symbols);
+                populate_union_type(
+                    Arc::make_mut(v),
+                    &codebase_symbols,
+                    reference_source,
+                    symbol_references,
+                );
             }
         }
     }
 
     for (_, where_type) in storage.where_constraints.iter_mut() {
-        populate_union_type(where_type, &codebase_symbols);
+        populate_union_type(
+            where_type,
+            &codebase_symbols,
+            reference_source,
+            symbol_references,
+        );
     }
 }
 

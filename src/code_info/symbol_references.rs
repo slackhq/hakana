@@ -1,36 +1,59 @@
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     function_context::{FunctionContext, FunctionLikeIdentifier},
     StrId,
 };
 
-#[derive(Debug, Clone)]
+pub enum ReferenceSource {
+    Symbol(bool, StrId),
+    ClasslikeMember(bool, StrId, StrId),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SymbolReferences {
     // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
     // (class method, enum case, class property etc)
-    symbol_references_to_members: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
+    pub symbol_references_to_members: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
+
+    // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
+    // (class method, enum case, class property etc) from their signature
+    pub symbol_references_to_members_in_signature: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
-    symbol_references_to_symbols: FxHashMap<StrId, FxHashSet<StrId>>,
+    pub symbol_references_to_symbols: FxHashMap<StrId, FxHashSet<StrId>>,
+
+    // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
+    // from that symbol's signature (e.g. a function return type, or class implements)
+    pub symbol_references_to_symbols_in_signature: FxHashMap<StrId, FxHashSet<StrId>>,
 
     // A lookup table of all classlike members that reference another classlike member
-    classlike_member_references_to_members: FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
+    pub classlike_member_references_to_members:
+        FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
+
+    // A lookup table of all classlike members that reference another classlike member
+    pub classlike_member_references_to_members_in_signature:
+        FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 
     // A lookup table of all classlike members that reference another symbol
-    classlike_member_references_to_symbols: FxHashMap<(StrId, StrId), FxHashSet<StrId>>,
+    pub classlike_member_references_to_symbols: FxHashMap<(StrId, StrId), FxHashSet<StrId>>,
+
+    // A lookup table of all classlike members that reference another symbol
+    pub classlike_member_references_to_symbols_in_signature:
+        FxHashMap<(StrId, StrId), FxHashSet<StrId>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
     // (class method, enum case, class property etc)
-    symbol_references_to_overridden_members: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
+    pub symbol_references_to_overridden_members: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
 
     // A lookup table of all classlike members that reference another classlike member
-    classlike_member_references_to_overridden_members:
+    pub classlike_member_references_to_overridden_members:
         FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 
     // A lookup table used for getting all the functions that reference a method's return value
     // This is used for dead code detection when we want to see what return values are unused
-    functionlike_references_to_functionlike_returns:
+    pub functionlike_references_to_functionlike_returns:
         FxHashMap<FunctionLikeIdentifier, FxHashSet<FunctionLikeIdentifier>>,
 }
 
@@ -44,6 +67,10 @@ impl SymbolReferences {
             functionlike_references_to_functionlike_returns: FxHashMap::default(),
             symbol_references_to_overridden_members: FxHashMap::default(),
             classlike_member_references_to_overridden_members: FxHashMap::default(),
+            symbol_references_to_members_in_signature: FxHashMap::default(),
+            symbol_references_to_symbols_in_signature: FxHashMap::default(),
+            classlike_member_references_to_members_in_signature: FxHashMap::default(),
+            classlike_member_references_to_symbols_in_signature: FxHashMap::default(),
         }
     }
 
@@ -51,67 +78,123 @@ impl SymbolReferences {
         &mut self,
         referencing_symbol: StrId,
         class_member: (StrId, StrId),
+        in_signature: bool,
     ) {
-        self.add_symbol_reference_to_symbol(referencing_symbol.clone(), class_member.0.clone());
-        self.symbol_references_to_members
-            .entry(referencing_symbol)
-            .or_insert_with(FxHashSet::default)
-            .insert(class_member);
+        self.add_symbol_reference_to_symbol(
+            referencing_symbol.clone(),
+            class_member.0.clone(),
+            in_signature,
+        );
+
+        if in_signature {
+            self.symbol_references_to_members_in_signature
+                .entry(referencing_symbol)
+                .or_insert_with(FxHashSet::default)
+                .insert(class_member);
+        } else {
+            self.symbol_references_to_members
+                .entry(referencing_symbol)
+                .or_insert_with(FxHashSet::default)
+                .insert(class_member);
+        }
     }
 
-    pub fn add_symbol_reference_to_symbol(&mut self, referencing_symbol: StrId, symbol: StrId) {
-        self.symbol_references_to_symbols
-            .entry(referencing_symbol)
-            .or_insert_with(FxHashSet::default)
-            .insert(symbol);
+    pub fn add_symbol_reference_to_symbol(
+        &mut self,
+        referencing_symbol: StrId,
+        symbol: StrId,
+        in_signature: bool,
+    ) {
+        if in_signature {
+            self.symbol_references_to_symbols_in_signature
+                .entry(referencing_symbol)
+                .or_insert_with(FxHashSet::default)
+                .insert(symbol);
+        } else {
+            self.symbol_references_to_symbols
+                .entry(referencing_symbol)
+                .or_insert_with(FxHashSet::default)
+                .insert(symbol);
+        }
     }
 
     pub fn add_class_member_reference_to_class_member(
         &mut self,
         referencing_class_member: (StrId, StrId),
         class_member: (StrId, StrId),
+        in_signature: bool,
     ) {
         self.add_symbol_reference_to_symbol(
             referencing_class_member.0.clone(),
             class_member.0.clone(),
+            in_signature,
         );
-        self.classlike_member_references_to_members
-            .entry(referencing_class_member)
-            .or_insert_with(FxHashSet::default)
-            .insert(class_member);
+
+        if in_signature {
+            self.classlike_member_references_to_members_in_signature
+                .entry(referencing_class_member)
+                .or_insert_with(FxHashSet::default)
+                .insert(class_member);
+        } else {
+            self.classlike_member_references_to_members
+                .entry(referencing_class_member)
+                .or_insert_with(FxHashSet::default)
+                .insert(class_member);
+        }
     }
 
     pub fn add_class_member_reference_to_symbol(
         &mut self,
         referencing_class_member: (StrId, StrId),
         symbol: StrId,
+        in_signature: bool,
     ) {
-        self.add_symbol_reference_to_symbol(referencing_class_member.0.clone(), symbol.clone());
+        self.add_symbol_reference_to_symbol(
+            referencing_class_member.0.clone(),
+            symbol.clone(),
+            in_signature,
+        );
 
-        self.classlike_member_references_to_symbols
-            .entry(referencing_class_member)
-            .or_insert_with(FxHashSet::default)
-            .insert(symbol);
+        if in_signature {
+            self.classlike_member_references_to_symbols_in_signature
+                .entry(referencing_class_member)
+                .or_insert_with(FxHashSet::default)
+                .insert(symbol);
+        } else {
+            self.classlike_member_references_to_symbols
+                .entry(referencing_class_member)
+                .or_insert_with(FxHashSet::default)
+                .insert(symbol);
+        }
     }
 
     pub fn add_reference_to_class_member(
         &mut self,
         function_context: &FunctionContext,
         class_member: (StrId, StrId),
+        in_signature: bool,
     ) {
         if let Some(referencing_functionlike) = &function_context.calling_functionlike_id {
             match referencing_functionlike {
-                FunctionLikeIdentifier::Function(function_name) => {
-                    self.add_symbol_reference_to_class_member(function_name.clone(), class_member)
-                }
+                FunctionLikeIdentifier::Function(function_name) => self
+                    .add_symbol_reference_to_class_member(
+                        function_name.clone(),
+                        class_member,
+                        in_signature,
+                    ),
                 FunctionLikeIdentifier::Method(class_name, function_name) => self
                     .add_class_member_reference_to_class_member(
                         (class_name.clone(), function_name.clone()),
                         class_member,
+                        in_signature,
                     ),
             }
         } else if let Some(calling_class) = &function_context.calling_class {
-            self.add_symbol_reference_to_class_member(calling_class.clone(), class_member)
+            self.add_symbol_reference_to_class_member(
+                calling_class.clone(),
+                class_member,
+                in_signature,
+            )
         }
     }
 
@@ -143,20 +226,26 @@ impl SymbolReferences {
         }
     }
 
-    pub fn add_reference_to_symbol(&mut self, function_context: &FunctionContext, symbol: StrId) {
+    pub fn add_reference_to_symbol(
+        &mut self,
+        function_context: &FunctionContext,
+        symbol: StrId,
+        in_signature: bool,
+    ) {
         if let Some(referencing_functionlike) = &function_context.calling_functionlike_id {
             match referencing_functionlike {
                 FunctionLikeIdentifier::Function(function_name) => {
-                    self.add_symbol_reference_to_symbol(function_name.clone(), symbol)
+                    self.add_symbol_reference_to_symbol(function_name.clone(), symbol, in_signature)
                 }
                 FunctionLikeIdentifier::Method(class_name, function_name) => self
                     .add_class_member_reference_to_symbol(
                         (class_name.clone(), function_name.clone()),
                         symbol,
+                        in_signature,
                     ),
             }
         } else if let Some(calling_class) = &function_context.calling_class {
-            self.add_symbol_reference_to_symbol(calling_class.clone(), symbol)
+            self.add_symbol_reference_to_symbol(calling_class.clone(), symbol, in_signature)
         }
     }
 

@@ -674,14 +674,17 @@ fn analyze_function_pointer(
 
     match &id {
         FunctionLikeIdentifier::Function(name) => {
-            tast_info
-                .symbol_references
-                .add_reference_to_symbol(&context.function_context, name.clone());
+            tast_info.symbol_references.add_reference_to_symbol(
+                &context.function_context,
+                name.clone(),
+                false,
+            );
         }
         FunctionLikeIdentifier::Method(class_name, method_name) => {
             tast_info.symbol_references.add_reference_to_class_member(
                 &context.function_context,
                 (class_name.clone(), *method_name),
+                false,
             );
 
             if let Some(classlike_storage) = codebase.classlike_infos.get(class_name) {

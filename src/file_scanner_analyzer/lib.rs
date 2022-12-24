@@ -10,6 +10,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
+use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::{FileSource, StrId};
 use hakana_reflection_info::{Interner, ThreadedInterner};
 use indexmap::IndexMap;
@@ -116,7 +117,7 @@ pub fn scan_and_analyze(
         println!("Calculating symbol inheritance");
     }
 
-    populate_codebase(&mut codebase, &interner);
+    populate_codebase(&mut codebase, &interner, &mut SymbolReferences::new());
 
     codebase.interner = interner;
 
@@ -452,7 +453,7 @@ pub fn scan_and_analyze_single_file(
         .into_inner()
         .unwrap();
 
-    populate_codebase(codebase, &interner);
+    populate_codebase(codebase, &interner, &mut SymbolReferences::new());
 
     codebase.interner = interner;
 
@@ -1177,7 +1178,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
         }
     };
 
-    populate_codebase(&mut codebase, &interner);
+    populate_codebase(&mut codebase, &interner, &mut SymbolReferences::new());
 
     (codebase, interner)
 }

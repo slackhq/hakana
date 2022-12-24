@@ -56,9 +56,11 @@ pub(crate) fn analyze(
     lhs_var_pos: Option<&Pos>,
     result: &mut AtomicMethodCallAnalysisResult,
 ) -> TUnion {
-    tast_info
-        .symbol_references
-        .add_reference_to_symbol(&context.function_context, classlike_name.clone());
+    tast_info.symbol_references.add_reference_to_symbol(
+        &context.function_context,
+        classlike_name.clone(),
+        false,
+    );
 
     let codebase = statements_analyzer.get_codebase();
 
@@ -79,6 +81,7 @@ pub(crate) fn analyze(
     tast_info.symbol_references.add_reference_to_class_member(
         &context.function_context,
         (declaring_method_id.0, declaring_method_id.1),
+        false,
     );
 
     if let Some(overridden_classlikes) = classlike_storage

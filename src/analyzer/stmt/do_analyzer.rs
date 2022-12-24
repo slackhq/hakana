@@ -44,8 +44,10 @@ pub(crate) fn analyze(
 
     let cond_id = (stmt.1 .1.start_offset(), stmt.1 .1.end_offset());
 
-    let assertion_context =
-        statements_analyzer.get_assertion_context(context.function_context.calling_class.as_ref());
+    let assertion_context = statements_analyzer.get_assertion_context(
+        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_functionlike_id.as_ref(),
+    );
 
     let mut while_clauses = formula_generator::get_formula(
         cond_id,

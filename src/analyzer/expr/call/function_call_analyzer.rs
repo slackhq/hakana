@@ -106,9 +106,11 @@ pub(crate) fn analyze(
 
     let name = function_storage.name.clone();
 
-    tast_info
-        .symbol_references
-        .add_reference_to_symbol(&context.function_context, name.clone());
+    tast_info.symbol_references.add_reference_to_symbol(
+        &context.function_context,
+        name.clone(),
+        false,
+    );
 
     let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
 
@@ -447,8 +449,10 @@ fn process_function_effects(
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
 ) {
-    let assertion_context =
-        statements_analyzer.get_assertion_context(context.function_context.calling_class.as_ref());
+    let assertion_context = statements_analyzer.get_assertion_context(
+        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_functionlike_id.as_ref(),
+    );
     // todo support $a = !($b || $c)
     let var_object_id = (first_arg.pos().start_offset(), first_arg.pos().end_offset());
     let assert_clauses = formula_generator::get_formula(

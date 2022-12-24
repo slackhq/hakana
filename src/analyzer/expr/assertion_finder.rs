@@ -41,7 +41,13 @@ pub(crate) fn scrape_assertions(
     match &conditional.2 {
         // matches if ($foo is Bar)
         aast::Expr_::Is(is_expr) => {
-            return get_is_assertions(&is_expr.0, &is_expr.1, assertion_context, inside_negation);
+            return get_is_assertions(
+                &is_expr.0,
+                &is_expr.1,
+                assertion_context,
+                tast_info,
+                inside_negation,
+            );
         }
         aast::Expr_::Call(call) => {
             let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
@@ -183,6 +189,7 @@ fn get_is_assertions(
     var_expr: &aast::Expr<(), ()>,
     hint: &Hint,
     assertion_context: &AssertionContext,
+    tast_info: &mut TastInfo,
     _inside_negation: bool,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let mut if_types: FxHashMap<String, Vec<Vec<Assertion>>> = FxHashMap::default();
@@ -196,7 +203,12 @@ fn get_is_assertions(
     .unwrap();
 
     if let Some(codebase) = assertion_context.codebase {
-        populate_union_type(&mut is_type, &codebase.symbols);
+        populate_union_type(
+            &mut is_type,
+            &codebase.symbols,
+            &assertion_context.reference_source,
+            &mut tast_info.symbol_references,
+        );
         type_expander::expand_union(
             codebase,
             &mut is_type,

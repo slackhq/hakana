@@ -55,8 +55,13 @@ pub(crate) fn analyze<'a>(
     let codebase = statements_analyzer.get_codebase();
 
     if !pre_conditions.is_empty() {
-        let assertion_context = statements_analyzer
-            .get_assertion_context(loop_context.function_context.calling_class.as_ref());
+        let assertion_context = statements_analyzer.get_assertion_context(
+            loop_context.function_context.calling_class.as_ref(),
+            loop_context
+                .function_context
+                .calling_functionlike_id
+                .as_ref(),
+        );
 
         for pre_condition in &pre_conditions {
             let pre_condition_id = (

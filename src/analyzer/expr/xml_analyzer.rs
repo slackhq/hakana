@@ -3,7 +3,6 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
@@ -33,9 +32,11 @@ pub(crate) fn analyze(
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
     let name_string = resolved_names.get(&boxed.0 .0.start_offset()).unwrap();
 
-    tast_info
-        .symbol_references
-        .add_reference_to_symbol(&context.function_context, name_string.clone());
+    tast_info.symbol_references.add_reference_to_symbol(
+        &context.function_context,
+        name_string.clone(),
+        false,
+    );
 
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;

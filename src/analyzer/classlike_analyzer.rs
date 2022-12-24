@@ -40,19 +40,19 @@ impl<'a> ClassLikeAnalyzer<'a> {
         for parent_class in &classlike_storage.all_parent_classes {
             analysis_result
                 .symbol_references
-                .add_symbol_reference_to_symbol(name.clone(), parent_class.clone());
+                .add_symbol_reference_to_symbol(name.clone(), parent_class.clone(), true);
         }
 
         for parent_interface in &classlike_storage.all_parent_interfaces {
             analysis_result
                 .symbol_references
-                .add_symbol_reference_to_symbol(name.clone(), parent_interface.clone());
+                .add_symbol_reference_to_symbol(name.clone(), parent_interface.clone(), true);
         }
 
         for trait_name in &classlike_storage.used_traits {
             analysis_result
                 .symbol_references
-                .add_symbol_reference_to_symbol(name.clone(), trait_name.clone());
+                .add_symbol_reference_to_symbol(name.clone(), trait_name.clone(), true);
         }
 
         let mut class_context = ScopeContext::new(FunctionContext::new());

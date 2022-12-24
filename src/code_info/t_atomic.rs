@@ -1,4 +1,5 @@
 use crate::functionlike_identifier::FunctionLikeIdentifier;
+use crate::symbol_references::{ReferenceSource, SymbolReferences};
 use crate::{
     classlike_info::Variance,
     codebase_info::{symbols::SymbolKind, CodebaseInfo, Symbols},
@@ -1542,7 +1543,12 @@ impl HasTypeNodes for TAtomic {
     }
 }
 
-pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Symbols) {
+pub fn populate_atomic_type(
+    t_atomic: &mut self::TAtomic,
+    codebase_symbols: &Symbols,
+    reference_source: &ReferenceSource,
+    symbol_references: &mut SymbolReferences,
+) {
     match t_atomic {
         TAtomic::TDict {
             ref mut params,
@@ -1550,13 +1556,28 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
             ..
         } => {
             if let Some(params) = params {
-                populate_union_type(&mut params.0, codebase_symbols);
-                populate_union_type(&mut params.1, codebase_symbols);
+                populate_union_type(
+                    &mut params.0,
+                    codebase_symbols,
+                    reference_source,
+                    symbol_references,
+                );
+                populate_union_type(
+                    &mut params.1,
+                    codebase_symbols,
+                    reference_source,
+                    symbol_references,
+                );
             }
 
             if let Some(known_items) = known_items {
                 for (_, (_, prop_type)) in known_items {
-                    populate_union_type(Arc::make_mut(prop_type), codebase_symbols);
+                    populate_union_type(
+                        Arc::make_mut(prop_type),
+                        codebase_symbols,
+                        reference_source,
+                        symbol_references,
+                    );
                 }
             }
         }
@@ -1566,19 +1587,34 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
             ..
         } => {
             if let Some(return_type) = return_type {
-                populate_union_type(return_type, codebase_symbols);
+                populate_union_type(
+                    return_type,
+                    codebase_symbols,
+                    reference_source,
+                    symbol_references,
+                );
             }
 
             for param in params {
                 if let Some(ref mut param_type) = param.signature_type {
-                    populate_union_type(param_type, codebase_symbols);
+                    populate_union_type(
+                        param_type,
+                        codebase_symbols,
+                        reference_source,
+                        symbol_references,
+                    );
                 }
             }
         }
         TAtomic::TKeyset {
             ref mut type_param, ..
         } => {
-            populate_union_type(type_param, codebase_symbols);
+            populate_union_type(
+                type_param,
+                codebase_symbols,
+                reference_source,
+                symbol_references,
+            );
         }
         TAtomic::TNamedObject {
             ref mut type_params,
@@ -1587,7 +1623,12 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
             None => {}
             Some(type_params) => {
                 for type_param in type_params {
-                    populate_union_type(type_param, codebase_symbols);
+                    populate_union_type(
+                        type_param,
+                        codebase_symbols,
+                        reference_source,
+                        symbol_references,
+                    );
                 }
             }
         },
@@ -1598,7 +1639,12 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
             None => {}
             Some(type_params) => {
                 for type_param in type_params {
-                    populate_union_type(type_param, codebase_symbols);
+                    populate_union_type(
+                        type_param,
+                        codebase_symbols,
+                        reference_source,
+                        symbol_references,
+                    );
                 }
             }
         },
@@ -1607,11 +1653,21 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
             ref mut known_items,
             ..
         } => {
-            populate_union_type(type_param, codebase_symbols);
+            populate_union_type(
+                type_param,
+                codebase_symbols,
+                reference_source,
+                symbol_references,
+            );
 
             if let Some(known_items) = known_items {
                 for (_, (_, tuple_type)) in known_items {
-                    populate_union_type(tuple_type, codebase_symbols);
+                    populate_union_type(
+                        tuple_type,
+                        codebase_symbols,
+                        reference_source,
+                        symbol_references,
+                    );
                 }
             }
         }
@@ -1621,8 +1677,21 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
         } => {
             if let Some(type_params) = type_params {
                 for type_param in type_params {
-                    populate_union_type(type_param, codebase_symbols);
+                    populate_union_type(
+                        type_param,
+                        codebase_symbols,
+                        reference_source,
+                        symbol_references,
+                    );
                 }
+            }
+
+            match reference_source {
+                ReferenceSource::Symbol(in_signature, a) => {
+                    symbol_references.add_symbol_reference_to_symbol(*a, *name, *in_signature)
+                }
+                ReferenceSource::ClasslikeMember(in_signature, a, b) => symbol_references
+                    .add_class_member_reference_to_symbol((*a, *b), *name, *in_signature),
             }
 
             if let Some(symbol_kind) = codebase_symbols.all.get(name) {
@@ -1668,15 +1737,30 @@ pub fn populate_atomic_type(t_atomic: &mut self::TAtomic, codebase_symbols: &Sym
             }
         }
         TAtomic::TClassname { as_type } => {
-            populate_atomic_type(as_type, codebase_symbols);
+            populate_atomic_type(
+                as_type,
+                codebase_symbols,
+                reference_source,
+                symbol_references,
+            );
         }
         TAtomic::TClassTypeConstant { class_type, .. } => {
-            populate_atomic_type(class_type, codebase_symbols);
+            populate_atomic_type(
+                class_type,
+                codebase_symbols,
+                reference_source,
+                symbol_references,
+            );
         }
         TAtomic::TGenericParam {
             ref mut as_type, ..
         } => {
-            populate_union_type(as_type, codebase_symbols);
+            populate_union_type(
+                as_type,
+                codebase_symbols,
+                reference_source,
+                symbol_references,
+            );
         }
         _ => {}
     }

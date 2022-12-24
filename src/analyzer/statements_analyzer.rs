@@ -7,10 +7,11 @@ use crate::scope_context::ScopeContext;
 use crate::stmt_analyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::code_location::HPos;
-
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_reflection_info::symbol_references::ReferenceSource;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_reflection_info::StrId;
 use oxidized::aast;
@@ -96,6 +97,7 @@ impl<'a> StatementsAnalyzer<'a> {
     pub(crate) fn get_assertion_context<'b>(
         &'b self,
         this_class_name: Option<&'a StrId>,
+        calling_functionlike_id: Option<&'a FunctionLikeIdentifier>,
     ) -> AssertionContext {
         AssertionContext {
             file_source: self.get_file_analyzer().get_file_source(),
@@ -103,6 +105,15 @@ impl<'a> StatementsAnalyzer<'a> {
             codebase: Some(self.get_codebase()),
             this_class_name,
             type_resolution_context: &self.type_resolution_context,
+            reference_source: match calling_functionlike_id {
+                Some(functionlike_id) => match functionlike_id {
+                    FunctionLikeIdentifier::Function(name) => ReferenceSource::Symbol(false, *name),
+                    FunctionLikeIdentifier::Method(a, b) => {
+                        ReferenceSource::ClasslikeMember(false, *a, *b)
+                    }
+                },
+                None => ReferenceSource::Symbol(false, *self.get_file_path()),
+            },
         }
     }
 

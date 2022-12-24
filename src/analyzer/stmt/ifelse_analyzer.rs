@@ -88,8 +88,10 @@ pub(crate) fn analyze(
 
     let cond_object_id = (stmt.0.pos().start_offset(), stmt.0.pos().end_offset());
 
-    let assertion_context =
-        statements_analyzer.get_assertion_context(context.function_context.calling_class.as_ref());
+    let assertion_context = statements_analyzer.get_assertion_context(
+        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_functionlike_id.as_ref(),
+    );
 
     let if_clauses = formula_generator::get_formula(
         cond_object_id,

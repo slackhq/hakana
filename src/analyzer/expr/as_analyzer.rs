@@ -144,7 +144,12 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         )
         .unwrap();
 
-        populate_union_type(&mut hint_type, &codebase.symbols);
+        populate_union_type(
+            &mut hint_type,
+            &codebase.symbols,
+            &context.function_context.get_reference_source(statements_analyzer.get_file_path()),
+            &mut tast_info.symbol_references,
+        );
         type_expander::expand_union(
             codebase,
             &mut hint_type,

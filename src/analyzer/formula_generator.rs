@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use hakana_reflection_info::symbol_references::ReferenceSource;
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
@@ -21,6 +22,7 @@ pub(crate) struct AssertionContext<'a> {
     pub codebase: Option<&'a CodebaseInfo>,
     pub this_class_name: Option<&'a StrId>,
     pub type_resolution_context: &'a TypeResolutionContext,
+    pub reference_source: ReferenceSource,
 }
 
 pub(crate) fn get_formula(

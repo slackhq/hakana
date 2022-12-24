@@ -286,8 +286,10 @@ pub(crate) fn analyze_case(
     switch_scope.leftover_statements = vec![];
     switch_scope.leftover_case_equality_expr = None;
 
-    let assertion_context =
-        statements_analyzer.get_assertion_context(context.function_context.calling_class.as_ref());
+    let assertion_context = statements_analyzer.get_assertion_context(
+        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_functionlike_id.as_ref(),
+    );
 
     let case_clauses = if let Some(case_equality_expr) = &case_equality_expr {
         let id = (

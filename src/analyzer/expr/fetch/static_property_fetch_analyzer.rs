@@ -160,6 +160,7 @@ pub(crate) fn analyze(
     tast_info.symbol_references.add_reference_to_class_member(
         &context.function_context,
         (property_id.0.clone(), property_id.1),
+        false,
     );
 
     // TODO AtomicPropertyFetchAnalyzer::checkPropertyDeprecation

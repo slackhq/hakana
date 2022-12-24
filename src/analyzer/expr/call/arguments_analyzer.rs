@@ -72,7 +72,14 @@ pub(crate) fn check_arguments_match(
                 continue;
             }
 
-            populate_union_type(&mut param_type, &statements_analyzer.get_codebase().symbols);
+            populate_union_type(
+                &mut param_type,
+                &statements_analyzer.get_codebase().symbols,
+                &context
+                    .function_context
+                    .get_reference_source(statements_analyzer.get_file_path()),
+                &mut tast_info.symbol_references,
+            );
 
             if let Some((template_name, map)) = template_result.template_types.get_index(i) {
                 template_result.lower_bounds.insert(

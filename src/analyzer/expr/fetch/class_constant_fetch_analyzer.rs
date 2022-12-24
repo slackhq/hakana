@@ -1,7 +1,6 @@
 use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
-
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
@@ -164,6 +163,7 @@ fn analyse_known_class_constant(
             classlike_name.clone(),
             codebase.interner.get(&const_name).unwrap(),
         ),
+        false,
     );
 
     if const_name == "class" {

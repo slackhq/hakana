@@ -279,6 +279,7 @@ fn analyze_named_constructor(
         tast_info.symbol_references.add_reference_to_class_member(
             &context.function_context,
             (classlike_name.clone(), method_id.1),
+            false,
         );
 
         let mut template_result = TemplateResult::new(
@@ -332,7 +333,14 @@ fn analyze_named_constructor(
                     continue;
                 }
 
-                populate_union_type(&mut param_type, &statements_analyzer.get_codebase().symbols);
+                populate_union_type(
+                    &mut param_type,
+                    &statements_analyzer.get_codebase().symbols,
+                    &context
+                        .function_context
+                        .get_reference_source(statements_analyzer.get_file_path()),
+                    &mut tast_info.symbol_references,
+                );
 
                 if let Some((template_name, map)) = template_result.template_types.get_index(i) {
                     template_result.lower_bounds.insert(
@@ -408,9 +416,11 @@ fn analyze_named_constructor(
             generic_type_params = Some(v);
         }
     } else {
-        tast_info
-            .symbol_references
-            .add_reference_to_symbol(&context.function_context, classlike_name.clone());
+        tast_info.symbol_references.add_reference_to_symbol(
+            &context.function_context,
+            classlike_name.clone(),
+            false,
+        );
 
         if !expr.2.is_empty() {
             // todo complain about too many arguments
@@ -433,6 +443,10 @@ fn analyze_named_constructor(
                         populate_union_type(
                             &mut param_type,
                             &statements_analyzer.get_codebase().symbols,
+                            &context
+                                .function_context
+                                .get_reference_source(statements_analyzer.get_file_path()),
+                            &mut tast_info.symbol_references,
                         );
 
                         generic_params.push(param_type);

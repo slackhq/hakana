@@ -2,7 +2,6 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::{expr::call::arguments_analyzer::get_template_types_for_call, typed_ast::TastInfo};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::code_location::HPos;
-
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
@@ -76,6 +75,7 @@ pub(crate) fn analyze(
     tast_info.symbol_references.add_reference_to_class_member(
         &context.function_context,
         (classlike_name.clone(), *prop_name),
+        false,
     );
 
     let declaring_property_class =

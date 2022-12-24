@@ -558,8 +558,10 @@ fn analyze_assignment_to_variable(
                     source_expr.pos().end_offset(),
                 );
 
-                let assertion_context = statements_analyzer
-                    .get_assertion_context(context.function_context.calling_class.as_ref());
+                let assertion_context = statements_analyzer.get_assertion_context(
+                    context.function_context.calling_class.as_ref(),
+                    context.function_context.calling_functionlike_id.as_ref(),
+                );
 
                 let right_clauses = formula_generator::get_formula(
                     cond_object_id,
