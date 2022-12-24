@@ -50,7 +50,7 @@ impl FnEffect {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionLikeInfo {
-    pub def_location: Option<HPos>,
+    pub def_location: HPos,
 
     pub name_location: Option<HPos>,
 
@@ -139,9 +139,9 @@ pub struct FunctionLikeInfo {
 }
 
 impl FunctionLikeInfo {
-    pub fn new(name: StrId) -> Self {
+    pub fn new(name: StrId, def_location: HPos) -> Self {
         Self {
-            def_location: None,
+            def_location,
             name_location: None,
             params: Vec::new(),
             return_type: None,

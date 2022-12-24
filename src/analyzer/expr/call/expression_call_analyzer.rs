@@ -59,7 +59,8 @@ pub(crate) fn analyze(
         {
             let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
 
-            let mut lambda_storage = FunctionLikeInfo::new(*closure_id);
+            let mut lambda_storage =
+                FunctionLikeInfo::new(*closure_id, statements_analyzer.get_hpos(pos));
             lambda_storage.params = closure_params.clone();
             lambda_storage.return_type = closure_return_type.clone();
             lambda_storage.effects = FnEffect::from_u8(effects);

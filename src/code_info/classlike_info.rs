@@ -74,9 +74,9 @@ pub struct ClassLikeInfo {
      */
     pub all_parent_classes: FxHashSet<StrId>,
 
-    pub def_location: Option<HPos>,
+    pub def_location: HPos,
 
-    pub name_location: Option<HPos>,
+    pub name_location: HPos,
 
     pub is_abstract: bool,
 
@@ -181,7 +181,7 @@ pub struct ClassLikeInfo {
     pub enum_type: Option<TAtomic>,
     pub enum_constraint: Option<Box<TAtomic>>,
 
-    pub type_constants: FxHashMap<String, TUnion>,
+    pub type_constants: FxHashMap<StrId, Option<TUnion>>,
 
     pub user_defined: bool,
 
@@ -194,7 +194,7 @@ pub struct ClassLikeInfo {
 }
 
 impl ClassLikeInfo {
-    pub fn new(name: StrId) -> ClassLikeInfo {
+    pub fn new(name: StrId, def_location: HPos, name_location: HPos) -> ClassLikeInfo {
         ClassLikeInfo {
             constants: IndexMap::default(),
             is_populated: false,
@@ -231,8 +231,8 @@ impl ClassLikeInfo {
             initialized_properties: FxHashSet::default(),
             internal_to: None,
             invalid_dependencies: Vec::new(),
-            def_location: None,
-            name_location: None,
+            def_location,
+            name_location,
             methods: FxHashMap::default(),
             overridden_method_ids: FxHashMap::default(),
             overridden_property_ids: FxHashMap::default(),

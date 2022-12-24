@@ -219,7 +219,19 @@ pub(crate) fn get_functionlike(
     file_source: &FileSource,
     is_anonymous: bool,
 ) -> FunctionLikeInfo {
-    let mut functionlike_info = FunctionLikeInfo::new(name.clone());
+    let mut definition_location = HPos::new(def_pos, file_source.file_path, None);
+
+    let mut suppressed_issues = FxHashMap::default();
+
+    adjust_location_from_comments(
+        comments,
+        &mut definition_location,
+        file_source,
+        &mut suppressed_issues,
+        all_custom_issues,
+    );
+
+    let mut functionlike_info = FunctionLikeInfo::new(name.clone(), definition_location);
 
     let mut template_supers = FxHashMap::default();
 
@@ -408,23 +420,11 @@ pub(crate) fn get_functionlike(
     }
 
     functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path, None));
-    let mut definition_location = HPos::new(def_pos, file_source.file_path, None);
-
-    let mut suppressed_issues = FxHashMap::default();
-
-    adjust_location_from_comments(
-        comments,
-        &mut definition_location,
-        file_source,
-        &mut suppressed_issues,
-        all_custom_issues,
-    );
 
     if !suppressed_issues.is_empty() {
         functionlike_info.suppressed_issues = Some(suppressed_issues);
     }
 
-    functionlike_info.def_location = Some(definition_location);
     functionlike_info.is_async = fun_kind.is_async();
     functionlike_info.effects = if let Some(contexts) = contexts {
         if contexts.1.len() == 0 {

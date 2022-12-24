@@ -462,32 +462,39 @@ fn expand_atomic(
                     return;
                 };
 
-                let mut type_ = if let Some(t) = classlike_storage.type_constants.get(member_name) {
-                    t.clone()
+                let type_ = if let Some(name_id) = codebase.interner.get(member_name) {
+                    if let Some(t) = classlike_storage.type_constants.get(&name_id) {
+                        t.clone()
+                    } else {
+                        *skip_key = true;
+                        new_return_type_parts
+                            .push(TAtomic::TMixedWithFlags(true, false, false, false));
+                        return;
+                    }
                 } else {
-                    *skip_key = true;
-                    new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
-                    return;
+                    panic!("Symbol for {} not found", member_name);
                 };
 
-                expand_union(codebase, &mut type_, options, data_flow_graph);
+                if let Some(mut type_) = type_ {
+                    expand_union(codebase, &mut type_, options, data_flow_graph);
 
-                *skip_key = true;
-                new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
-                    if let TAtomic::TDict {
-                        known_items: Some(_),
-                        ref mut shape_name,
-                        ..
-                    } = v
-                    {
-                        *shape_name = Some(format!(
-                            "{}::{}",
-                            codebase.interner.lookup(*class_name),
-                            member_name
-                        ));
-                    };
-                    v
-                }));
+                    *skip_key = true;
+                    new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
+                        if let TAtomic::TDict {
+                            known_items: Some(_),
+                            ref mut shape_name,
+                            ..
+                        } = v
+                        {
+                            *shape_name = Some(format!(
+                                "{}::{}",
+                                codebase.interner.lookup(*class_name),
+                                member_name
+                            ));
+                        };
+                        v
+                    }));
+                }
             }
             _ => {
                 *skip_key = true;

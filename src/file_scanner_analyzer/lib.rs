@@ -237,18 +237,17 @@ fn find_unused_definitions(
                     "unused_symbol".to_string(),
                     codebase.interner.lookup(*function_name).to_string(),
                 )) {
-                    if let Some(def_pos) = &functionlike_info.def_location {
-                        analysis_result
-                            .replacements
-                            .entry(codebase.interner.lookup(pos.file_path).to_string())
-                            .or_insert_with(BTreeMap::new)
-                            .insert(
-                                (def_pos.start_offset, def_pos.end_offset),
-                                Replacement::TrimPrecedingWhitespace(
-                                    (def_pos.start_offset - (def_pos.start_column - 1)) as u64,
-                                ),
-                            );
-                    }
+                    let def_pos = &functionlike_info.def_location;
+                    analysis_result
+                        .replacements
+                        .entry(codebase.interner.lookup(pos.file_path).to_string())
+                        .or_insert_with(BTreeMap::new)
+                        .insert(
+                            (def_pos.start_offset, def_pos.end_offset),
+                            Replacement::TrimPrecedingWhitespace(
+                                (def_pos.start_offset - (def_pos.start_column - 1)) as u64,
+                            ),
+                        );
                 }
 
                 let issue = Issue::new(
@@ -273,7 +272,7 @@ fn find_unused_definitions(
 
     'outer2: for (classlike_name, classlike_info) in &codebase.classlike_infos {
         if classlike_info.user_defined && !classlike_info.generated {
-            let pos = classlike_info.name_location.as_ref().unwrap();
+            let pos = &classlike_info.name_location;
             let file_path = codebase.interner.lookup(pos.file_path);
 
             if let Some(ignored_paths) = ignored_paths {
@@ -310,18 +309,17 @@ fn find_unused_definitions(
                     "unused_symbol".to_string(),
                     codebase.interner.lookup(*classlike_name).to_string(),
                 )) {
-                    if let Some(def_pos) = &classlike_info.def_location {
-                        analysis_result
-                            .replacements
-                            .entry(codebase.interner.lookup(pos.file_path).to_string())
-                            .or_insert_with(BTreeMap::new)
-                            .insert(
-                                (def_pos.start_offset, def_pos.end_offset),
-                                Replacement::TrimPrecedingWhitespace(
-                                    (def_pos.start_offset - (def_pos.start_column - 1)) as u64,
-                                ),
-                            );
-                    }
+                    let def_pos = &classlike_info.def_location;
+                    analysis_result
+                        .replacements
+                        .entry(codebase.interner.lookup(pos.file_path).to_string())
+                        .or_insert_with(BTreeMap::new)
+                        .insert(
+                            (def_pos.start_offset, def_pos.end_offset),
+                            Replacement::TrimPrecedingWhitespace(
+                                (def_pos.start_offset - (def_pos.start_column - 1)) as u64,
+                            ),
+                        );
                 }
 
                 if config.can_add_issue(&issue) {
@@ -370,7 +368,7 @@ fn find_unused_definitions(
                         if *method_name_ptr == StrId::construct()
                             && matches!(method_storage.visibility, MemberVisibility::Private)
                         {
-                            if let (Some(stmt_pos), Some(name_pos)) = (
+                            if let (stmt_pos, Some(name_pos)) = (
                                 &functionlike_storage.def_location,
                                 &functionlike_storage.name_location,
                             ) {

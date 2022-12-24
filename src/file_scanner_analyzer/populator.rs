@@ -96,12 +96,14 @@ pub fn populate_codebase(
         }
 
         for (_, constant_type) in storage.type_constants.iter_mut() {
-            populate_union_type(
-                constant_type,
-                &codebase.symbols,
-                &ReferenceSource::Symbol(true, *name),
-                symbol_references,
-            );
+            if let Some(constant_type) = constant_type {
+                populate_union_type(
+                    constant_type,
+                    &codebase.symbols,
+                    &ReferenceSource::Symbol(true, *name),
+                    symbol_references,
+                );
+            }
         }
 
         if let Some(ref mut enum_type) = storage.enum_type {

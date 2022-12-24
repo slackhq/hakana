@@ -36,21 +36,8 @@ pub(crate) fn scan(
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
 ) -> bool {
-    let mut storage = match get_classlike_storage(codebase, class_name, classlike_node, file_source)
-    {
-        Ok(value) => value,
-        Err(value) => return value,
-    };
-
-    storage.user_defined = user_defined;
-
-    storage.name_location = Some(HPos::new(
-        classlike_node.name.pos(),
-        file_source.file_path,
-        None,
-    ));
-
     let mut definition_location = HPos::new(&classlike_node.span, file_source.file_path, None);
+    let name_location = HPos::new(classlike_node.name.pos(), file_source.file_path, None);
 
     adjust_location_from_comments(
         comments,
@@ -60,7 +47,14 @@ pub(crate) fn scan(
         all_custom_issues,
     );
 
-    storage.def_location = Some(definition_location);
+    let mut storage =
+        match get_classlike_storage(codebase, class_name, definition_location, name_location) {
+            Ok(value) => value,
+            Err(value) => return value,
+        };
+
+    storage.user_defined = user_defined;
+
     storage.uses_position = uses_position;
     storage.namespace_position = namespace_position;
 
@@ -404,7 +398,12 @@ pub(crate) fn scan(
 
     for class_typeconst_node in &classlike_node.typeconsts {
         if !class_typeconst_node.is_ctx {
-            visit_class_typeconst_declaration(class_typeconst_node, resolved_names, &mut storage);
+            visit_class_typeconst_declaration(
+                class_typeconst_node,
+                resolved_names,
+                &mut storage,
+                interner,
+            );
         }
     }
 
@@ -626,8 +625,12 @@ fn visit_class_const_declaration(
         ));
     }
 
+    let def_pos = HPos::new(&const_node.span, file_source.file_path, None);
+
+    let name = interner.intern(const_node.id.1.clone());
+
     let const_storage = ConstantInfo {
-        pos: Some(HPos::new(const_node.id.pos(), file_source.file_path, None)),
+        pos: def_pos,
         type_pos: supplied_type_location,
         provided_type,
         inferred_type: if let ClassConstKind::CCAbstract(Some(const_expr))
@@ -646,35 +649,37 @@ fn visit_class_const_declaration(
         is_abstract: matches!(const_node.kind, ClassConstKind::CCAbstract(..)),
     };
 
-    classlike_storage
-        .constants
-        .insert(interner.intern(const_node.id.1.clone()), const_storage);
+    classlike_storage.constants.insert(name, const_storage);
 }
 
 fn visit_class_typeconst_declaration(
     const_node: &aast::ClassTypeconstDef<(), ()>,
     resolved_names: &FxHashMap<usize, StrId>,
     classlike_storage: &mut ClassLikeInfo,
+    interner: &mut ThreadedInterner,
 ) {
     let const_type = match &const_node.kind {
         aast::ClassTypeconst::TCAbstract(_) => {
+            interner.intern(const_node.name.1.clone());
             return;
         }
-        aast::ClassTypeconst::TCConcrete(const_node) => get_type_from_hint(
-            &const_node.c_tc_type.1,
-            Some(&classlike_storage.name),
-            &TypeResolutionContext {
-                template_type_map: classlike_storage.template_types.clone(),
-                template_supers: FxHashMap::default(),
-            },
-            resolved_names,
-        )
-        .unwrap(),
+        aast::ClassTypeconst::TCConcrete(const_node) => Some(
+            get_type_from_hint(
+                &const_node.c_tc_type.1,
+                Some(&classlike_storage.name),
+                &TypeResolutionContext {
+                    template_type_map: classlike_storage.template_types.clone(),
+                    template_supers: FxHashMap::default(),
+                },
+                resolved_names,
+            )
+            .unwrap(),
+        ),
     };
 
-    classlike_storage
-        .type_constants
-        .insert(const_node.name.1.clone(), const_type);
+    let name = interner.intern(const_node.name.1.clone());
+
+    classlike_storage.type_constants.insert(name, const_type);
 }
 
 fn visit_property_declaration(
@@ -706,6 +711,10 @@ fn visit_property_declaration(
         ));
     }
 
+    let def_pos = HPos::new(&property_node.span, file_source.file_path, None);
+
+    let property_ref_id = interner.intern(property_node.id.1.clone());
+
     let property_storage = PropertyInfo {
         is_static: property_node.is_static,
         visibility: match property_node.visibility {
@@ -720,7 +729,7 @@ fn visit_property_declaration(
             file_source.file_path,
             None,
         )),
-        stmt_pos: Some(HPos::new(&property_node.span, file_source.file_path, None)),
+        stmt_pos: Some(def_pos),
         type_pos: property_type_location,
         type_: property_type.unwrap_or(get_mixed_any()),
         has_default: property_node.expr.is_some(),
@@ -728,8 +737,6 @@ fn visit_property_declaration(
         is_promoted: false,
         is_internal: matches!(property_node.visibility, ast_defs::Visibility::Internal),
     };
-
-    let property_ref_id = interner.intern(property_node.id.1.clone());
 
     classlike_storage
         .declaring_property_ids
@@ -753,9 +760,8 @@ fn visit_property_declaration(
 fn get_classlike_storage(
     codebase: &mut CodebaseInfo,
     class_name: &StrId,
-    //mut is_classlike_overridden: bool,
-    class: &aast::Class_<(), ()>,
-    file_source: &FileSource,
+    definition_pos: HPos,
+    name_pos: HPos,
 ) -> Result<ClassLikeInfo, bool> {
     let mut storage;
     if let Some(duplicate_storage) = codebase.classlike_infos.get(class_name) {
@@ -773,8 +779,7 @@ fn get_classlike_storage(
             // todo maybe handle dependent classlikes
         }
     } else {
-        storage = ClassLikeInfo::new(class_name.clone());
-        storage.name_location = Some(HPos::new(class.name.pos(), file_source.file_path, None));
+        storage = ClassLikeInfo::new(class_name.clone(), definition_pos, name_pos);
     }
     storage.is_user_defined = !codebase.register_stub_files;
     storage.is_stubbed = codebase.register_stub_files;

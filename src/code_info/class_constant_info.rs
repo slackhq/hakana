@@ -6,7 +6,7 @@ use crate::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConstantInfo {
-    pub pos: Option<HPos>,
+    pub pos: HPos,
 
     pub type_pos: Option<HPos>,
 
