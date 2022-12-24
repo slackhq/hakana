@@ -24,9 +24,7 @@ pub struct CodebaseInfo {
     pub infer_types_from_usage: bool,
     pub register_stub_files: bool,
     pub constant_infos: FxHashMap<StrId, ConstantInfo>,
-    pub classlikes_in_files: FxHashMap<String, FxHashSet<StrId>>,
-    pub typedefs_in_files: FxHashMap<String, FxHashSet<StrId>>,
-    pub functions_in_files: FxHashMap<String, FxHashSet<StrId>>,
+    pub closures_in_files: FxHashMap<String, FxHashSet<StrId>>,
     pub const_files: FxHashMap<String, FxHashSet<StrId>>,
     pub classlike_descendents: FxHashMap<StrId, FxHashSet<StrId>>,
     pub files: FxHashMap<StrId, FileInfo>,
@@ -42,9 +40,7 @@ impl CodebaseInfo {
             infer_types_from_usage: false,
             register_stub_files: false,
             constant_infos: FxHashMap::default(),
-            classlikes_in_files: FxHashMap::default(),
-            typedefs_in_files: FxHashMap::default(),
-            functions_in_files: FxHashMap::default(),
+            closures_in_files: FxHashMap::default(),
             const_files: FxHashMap::default(),
             classlike_descendents: FxHashMap::default(),
             interner: Interner::default(),
@@ -378,9 +374,7 @@ impl CodebaseInfo {
             .extend(other.symbols.classlike_files);
         self.type_definitions.extend(other.type_definitions);
         self.constant_infos.extend(other.constant_infos);
-        self.classlikes_in_files.extend(other.classlikes_in_files);
-        self.typedefs_in_files.extend(other.typedefs_in_files);
-        self.functions_in_files.extend(other.functions_in_files);
+        self.closures_in_files.extend(other.closures_in_files);
         self.const_files.extend(other.const_files);
         self.files.extend(other.files);
     }

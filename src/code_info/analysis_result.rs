@@ -27,14 +27,17 @@ pub struct AnalysisResult {
 }
 
 impl AnalysisResult {
-    pub fn new(program_dataflow_graph_kind: GraphKind) -> Self {
+    pub fn new(
+        program_dataflow_graph_kind: GraphKind,
+        symbol_references: SymbolReferences,
+    ) -> Self {
         Self {
             emitted_issues: BTreeMap::new(),
             replacements: FxHashMap::default(),
             mixed_source_counts: FxHashMap::default(),
             program_dataflow_graph: DataFlowGraph::new(program_dataflow_graph_kind),
-            symbol_references: SymbolReferences::new(),
             issue_counts: FxHashMap::default(),
+            symbol_references,
         }
     }
 

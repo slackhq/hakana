@@ -25,6 +25,8 @@ pub mod t_union;
 pub mod taint;
 pub mod type_definition_info;
 pub mod type_resolution;
+pub mod ast_signature;
+pub mod diff;
 
 use std::{
     collections::BTreeMap,
@@ -41,6 +43,7 @@ use serde::{Deserialize, Serialize};
 pub struct FileSource {
     pub file_path: StrId,
     pub file_path_actual: String,
+    pub file_contents: String,
     pub hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
     pub comments: Vec<(Pos, Comment)>,
 }

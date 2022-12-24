@@ -2,6 +2,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    diff::CodebaseDiff,
     function_context::{FunctionContext, FunctionLikeIdentifier},
     StrId,
 };
@@ -345,5 +346,75 @@ impl SymbolReferences {
         }
 
         referenced_class_members
+    }
+
+    pub fn get_invalid_symbols(
+        &self,
+        codebase_diff: &CodebaseDiff,
+    ) -> (FxHashSet<StrId>, FxHashSet<(StrId, StrId)>) {
+        let mut invalid_symbols = FxHashSet::default();
+        let mut invalid_symbol_members = FxHashSet::default();
+
+        let mut new_invalid_symbols = codebase_diff.add_or_delete.clone();
+
+        let mut seen_symbols = FxHashSet::default();
+
+        while !new_invalid_symbols.is_empty() {
+            let new_invalid_symbol = new_invalid_symbols.pop().unwrap();
+
+            if seen_symbols.contains(&new_invalid_symbol) {
+                continue;
+            }
+
+            seen_symbols.insert(new_invalid_symbol);
+
+            let (changed_symbol, changed_symbol_member) = new_invalid_symbol;
+
+            if let Some(changed_symbol_member) = changed_symbol_member {
+                for (referencing_member, referenced_members) in
+                    &self.classlike_member_references_to_members_in_signature
+                {
+                    if referenced_members.contains(&(changed_symbol, changed_symbol_member)) {
+                        new_invalid_symbols
+                            .push((referencing_member.0, Some(referencing_member.1)));
+                        invalid_symbol_members.insert(*referencing_member);
+                    }
+                }
+
+                for (referencing_member, referenced_members) in
+                    &self.symbol_references_to_members_in_signature
+                {
+                    if referenced_members.contains(&(changed_symbol, changed_symbol_member)) {
+                        new_invalid_symbols.push((*referencing_member, None));
+                        invalid_symbols.insert(*referencing_member);
+                    }
+                }
+
+                invalid_symbol_members.insert((changed_symbol, changed_symbol_member));
+            } else {
+                for (referencing_member, referenced_members) in
+                    &self.classlike_member_references_to_symbols_in_signature
+                {
+                    if referenced_members.contains(&changed_symbol) {
+                        new_invalid_symbols
+                            .push((referencing_member.0, Some(referencing_member.1)));
+                        invalid_symbol_members.insert(*referencing_member);
+                    }
+                }
+
+                for (referencing_member, referenced_members) in
+                    &self.symbol_references_to_symbols_in_signature
+                {
+                    if referenced_members.contains(&changed_symbol) {
+                        new_invalid_symbols.push((*referencing_member, None));
+                        invalid_symbols.insert(*referencing_member);
+                    }
+                }
+
+                invalid_symbols.insert(changed_symbol);
+            }
+        }
+
+        (invalid_symbols, invalid_symbol_members)
     }
 }

@@ -4,13 +4,16 @@ use crate::typehint_resolver::get_type_from_hint;
 use hakana_reflection_info::file_info::FileInfo;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::{
-    class_constant_info::ConstantInfo, classlike_info::Variance, code_location::HPos,
-    codebase_info::CodebaseInfo, t_atomic::TAtomic, taint::string_to_source_types,
-    type_definition_info::TypeDefinitionInfo, type_resolution::TypeResolutionContext, StrId,
+    ast_signature::DefSignatureNode, class_constant_info::ConstantInfo, classlike_info::Variance,
+    code_location::HPos, codebase_info::CodebaseInfo, t_atomic::TAtomic,
+    taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
+    type_resolution::TypeResolutionContext, StrId,
 };
 use hakana_reflection_info::{FileSource, ThreadedInterner};
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
+use oxidized::ast::{FunParam, Tparam, TypeHint};
+use oxidized::ast_defs::Id;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
@@ -41,6 +44,7 @@ struct Scanner<'a> {
     all_custom_issues: &'a FxHashSet<String>,
     user_defined: bool,
     closures: FxHashMap<usize, FunctionLikeInfo>,
+    ast_nodes: Vec<DefSignatureNode>,
 }
 
 impl<'ast> Visitor<'ast> for Scanner<'_> {
@@ -90,12 +94,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .unwrap()
             .clone();
 
-        self.codebase
-            .classlikes_in_files
-            .entry((self.file_source.file_path_actual).clone())
-            .or_insert_with(FxHashSet::default)
-            .insert(class_name.clone());
-
         classlike_scanner::scan(
             self.codebase,
             self.interner,
@@ -108,6 +106,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             &self.file_source.comments,
             c.namespace_position,
             c.uses_position,
+            &mut self.ast_nodes,
         );
 
         class.recurse(
@@ -133,10 +132,29 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .or_insert_with(FxHashSet::default)
             .insert(name.clone());
 
+        let definition_location = HPos::new(&gc.name.0, self.file_source.file_path, None);
+
+        self.ast_nodes.push(DefSignatureNode {
+            name,
+            start_offset: definition_location.start_offset,
+            end_offset: definition_location.end_offset,
+            start_line: definition_location.start_line,
+            end_line: definition_location.end_line,
+            children: Vec::new(),
+            signature_hash: xxhash_rust::xxh3::xxh3_64(
+                self.file_source.file_contents
+                    [definition_location.start_offset..definition_location.end_offset]
+                    .as_bytes(),
+            ),
+            body_hash: None,
+        });
+
+        self.codebase.symbols.add_constant_name(name);
+
         self.codebase.constant_infos.insert(
             name,
             ConstantInfo {
-                pos: HPos::new(&gc.name.0, self.file_source.file_path, None),
+                pos: definition_location,
                 type_pos: if let Some(t) = &gc.type_ {
                     Some(HPos::new(&t.0, self.file_source.file_path, None))
                 } else {
@@ -185,12 +203,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .unwrap()
             .clone();
 
-        self.codebase
-            .typedefs_in_files
-            .entry((self.file_source.file_path_actual).clone())
-            .or_insert_with(FxHashSet::default)
-            .insert(type_name.clone());
-
         let mut template_type_map = IndexMap::new();
 
         let mut generic_variance = FxHashMap::default();
@@ -232,6 +244,28 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
             template_type_map.insert(param.name.1.clone(), h);
         }
+
+        let mut definition_location = HPos::new(&typedef.span, self.file_source.file_path, None);
+
+        if let Some(user_attribute) = typedef.user_attributes.get(0) {
+            definition_location.start_line = user_attribute.name.0.line();
+            definition_location.start_offset = user_attribute.name.0.start_offset();
+        }
+
+        self.ast_nodes.push(DefSignatureNode {
+            name: type_name,
+            start_offset: definition_location.start_offset,
+            end_offset: definition_location.end_offset,
+            start_line: definition_location.start_line,
+            end_line: definition_location.end_line,
+            children: Vec::new(),
+            signature_hash: xxhash_rust::xxh3::xxh3_64(
+                self.file_source.file_contents
+                    [definition_location.start_offset..definition_location.end_offset]
+                    .as_bytes(),
+            ),
+            body_hash: None,
+        });
 
         let mut type_definition = TypeDefinitionInfo {
             newtype_file: if typedef.vis.is_opaque() {
@@ -347,6 +381,27 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         c.method_name = Some(method_name);
 
+        if let Some(last_current_node) = self.ast_nodes.last_mut() {
+            let (signature_hash, body_hash) = get_function_hashes(
+                &self.file_source.file_contents,
+                &functionlike_storage.def_location,
+                &m.name,
+                &m.tparams,
+                &m.params,
+                &m.ret,
+            );
+            last_current_node.children.push(DefSignatureNode {
+                name: functionlike_storage.name,
+                start_offset: functionlike_storage.def_location.start_offset,
+                end_offset: functionlike_storage.def_location.end_offset,
+                start_line: functionlike_storage.def_location.start_line,
+                end_line: functionlike_storage.def_location.end_line,
+                signature_hash,
+                body_hash,
+                children: vec![],
+            });
+        }
+
         self.codebase
             .classlike_infos
             .get_mut(c.classlike_name.as_ref().unwrap())
@@ -458,11 +513,25 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
 
         if !is_anonymous {
-            self.codebase
-                .functions_in_files
-                .entry((self.file_source.file_path_actual).clone())
-                .or_insert_with(FxHashSet::default)
-                .insert(name.clone());
+            let (signature_hash, body_hash) = get_function_hashes(
+                &self.file_source.file_contents,
+                &functionlike_storage.def_location,
+                &f.name,
+                &f.tparams,
+                &f.params,
+                &f.ret,
+            );
+
+            self.ast_nodes.push(DefSignatureNode {
+                name,
+                start_offset: functionlike_storage.def_location.start_offset,
+                end_offset: functionlike_storage.def_location.end_offset,
+                start_line: functionlike_storage.def_location.start_line,
+                end_line: functionlike_storage.def_location.end_line,
+                children: Vec::new(),
+                signature_hash,
+                body_hash,
+            });
 
             self.codebase
                 .functionlike_infos
@@ -499,6 +568,50 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 }
 
+fn get_function_hashes(
+    file_contents: &String,
+    def_location: &HPos,
+    name: &Id,
+    tparams: &Vec<Tparam>,
+    params: &Vec<FunParam>,
+    ret: &TypeHint,
+) -> (u64, Option<u64>) {
+    let mut signature_end = name.0.end_offset();
+
+    if let Some(last_tparam) = tparams.last() {
+        signature_end = last_tparam.name.0.end_offset();
+
+        if let Some((_, last_tparam_constraint)) = last_tparam.constraints.last() {
+            signature_end = last_tparam_constraint.0.end_offset();
+        }
+    }
+
+    if let Some(last_param) = params.last() {
+        if let Some(expr) = &last_param.expr {
+            signature_end = expr.1.end_offset();
+        }
+
+        if let Some(last_hint) = &last_param.type_hint.1 {
+            signature_end = last_hint.0.end_offset();
+        }
+    }
+
+    if let Some(ret_hint) = &ret.1 {
+        signature_end = ret_hint.0.end_offset();
+    }
+
+    let signature_hash = xxhash_rust::xxh3::xxh3_64(
+        file_contents[def_location.start_offset..signature_end].as_bytes(),
+    );
+
+    (
+        signature_hash,
+        Some(xxhash_rust::xxh3::xxh3_64(
+            file_contents[signature_end..def_location.end_offset].as_bytes(),
+        )),
+    )
+}
+
 pub fn collect_info_for_aast(
     program: &aast::Program<(), ()>,
     resolved_names: &FxHashMap<usize, StrId>,
@@ -518,6 +631,7 @@ pub fn collect_info_for_aast(
         user_defined,
         all_custom_issues,
         closures: FxHashMap::default(),
+        ast_nodes: Vec::new(),
     };
 
     let mut context = Context {
@@ -534,6 +648,7 @@ pub fn collect_info_for_aast(
         file_path_id,
         FileInfo {
             closure_infos: checker.closures,
+            ast_nodes: checker.ast_nodes,
         },
     );
 }

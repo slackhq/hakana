@@ -267,12 +267,11 @@ impl IssueKind {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Issue {
     pub kind: IssueKind,
     pub description: String,
     pub pos: HPos,
-    pub functionlike_id: Option<String>,
     pub can_fix: bool,
 }
 
@@ -282,7 +281,6 @@ impl Issue {
             kind,
             description,
             pos,
-            functionlike_id: None,
             can_fix: false,
         }
     }

@@ -1,14 +1,17 @@
 pub(crate) mod populator;
 
 use crate::file_cache_provider::FileStatus;
+use ast_differ::get_diff;
 use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_aast_helper::name_context::NameContext;
 use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_analyzer::file_analyzer;
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
+use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
+use hakana_reflection_info::diff::CodebaseDiff;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::symbol_references::SymbolReferences;
@@ -28,6 +31,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
 
+mod ast_differ;
 mod file_cache_provider;
 
 #[derive(RustEmbed)]
@@ -65,7 +69,7 @@ pub fn scan_and_analyze(
 
     let mut files_to_analyze = vec![];
 
-    let (mut codebase, interner, file_statuses, resolved_names) = scan_files(
+    let (mut codebase, interner, file_statuses, resolved_names, codebase_diff) = scan_files(
         &all_scanned_dirs,
         include_core_libs,
         cache_dir,
@@ -108,6 +112,35 @@ pub fn scan_and_analyze(
             .unwrap_or_else(|_| panic!("Could not write aast manifest {}", &aast_manifest_path));
     }
 
+    let references_path = if let Some(cache_dir) = cache_dir {
+        Some(format!("{}/references", cache_dir))
+    } else {
+        None
+    };
+
+    let mut existing_references = None;
+
+    if let Some(existing_references_path) = &references_path {
+        load_cached_existing_references(existing_references_path, true, &mut existing_references);
+    }
+
+    if let (Some(existing_references), Some(codebase_diff)) = (existing_references, codebase_diff) {
+        let (invalid_symbols, invalid_symbol_members) =
+            existing_references.get_invalid_symbols(&codebase_diff);
+    }
+
+    let issues_path = if let Some(cache_dir) = cache_dir {
+        Some(format!("{}/issues", cache_dir))
+    } else {
+        None
+    };
+
+    let mut existing_issues = BTreeMap::new();
+
+    if let Some(existing_issues_path) = &issues_path {
+        load_cached_existing_issues(existing_issues_path, true, &mut existing_issues);
+    }
+
     let elapsed = now.elapsed();
 
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
@@ -118,13 +151,18 @@ pub fn scan_and_analyze(
         println!("Calculating symbol inheritance");
     }
 
-    populate_codebase(&mut codebase, &interner, &mut SymbolReferences::new());
+    let mut symbol_references = SymbolReferences::new();
+
+    populate_codebase(&mut codebase, &interner, &mut symbol_references);
 
     codebase.interner = interner;
 
     let now = Instant::now();
 
-    let analysis_result = Arc::new(Mutex::new(AnalysisResult::new(config.graph_kind)));
+    let analysis_result = Arc::new(Mutex::new(AnalysisResult::new(
+        config.graph_kind,
+        symbol_references,
+    )));
 
     let arc_codebase = Arc::new(codebase);
 
@@ -149,6 +187,19 @@ pub fn scan_and_analyze(
     }
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
+
+    if let Some(references_path) = references_path {
+        let mut symbols_file = fs::File::create(&references_path).unwrap();
+        let serialized_symbol_references =
+            bincode::serialize(&analysis_result.symbol_references).unwrap();
+        symbols_file.write_all(&serialized_symbol_references)?;
+    }
+
+    if let Some(issues_path) = issues_path {
+        let mut issues_file = fs::File::create(&issues_path).unwrap();
+        let serialized_issues = bincode::serialize(&analysis_result.emitted_issues).unwrap();
+        issues_file.write_all(&serialized_issues)?;
+    }
 
     let mut codebase = Arc::try_unwrap(arc_codebase).unwrap();
 
@@ -369,10 +420,8 @@ fn find_unused_definitions(
                         if *method_name_ptr == StrId::construct()
                             && matches!(method_storage.visibility, MemberVisibility::Private)
                         {
-                            if let (stmt_pos, Some(name_pos)) = (
-                                &functionlike_storage.def_location,
-                                &functionlike_storage.name_location,
-                            ) {
+                            let stmt_pos = &functionlike_storage.def_location;
+                            if let Some(name_pos) = &functionlike_storage.name_location {
                                 if stmt_pos.end_line - name_pos.start_line <= 1 {
                                     continue;
                                 }
@@ -452,7 +501,9 @@ pub fn scan_and_analyze_single_file(
         .into_inner()
         .unwrap();
 
-    populate_codebase(codebase, &interner, &mut SymbolReferences::new());
+    let mut symbol_references = SymbolReferences::new();
+
+    populate_codebase(codebase, &interner, &mut symbol_references);
 
     codebase.interner = interner;
 
@@ -485,7 +536,7 @@ pub fn scan_and_analyze_single_file(
     Ok(analysis_result)
 }
 
-pub fn scan_files(
+pub(crate) fn scan_files(
     scan_dirs: &Vec<String>,
     include_core_libs: bool,
     cache_dir: Option<&String>,
@@ -500,6 +551,7 @@ pub fn scan_files(
     Interner,
     IndexMap<String, FileStatus>,
     FxHashMap<String, FxHashMap<usize, StrId>>,
+    Option<CodebaseDiff>,
 )> {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("{:#?}", scan_dirs);
@@ -599,19 +651,21 @@ pub fn scan_files(
 
     let now = Instant::now();
 
+    if let Some(symbols_path) = &symbols_path {
+        load_cached_symbols(symbols_path, use_codebase_cache, &mut interner, verbosity);
+    }
+
+    // this needs to come after we've loaded interned strings
     if let Some(codebase_path) = &codebase_path {
         load_cached_codebase(
             codebase_path,
             use_codebase_cache,
             &mut codebase,
+            &interner,
             &config.root_dir,
             &file_statuses,
             verbosity,
         );
-    }
-
-    if let Some(symbols_path) = &symbols_path {
-        load_cached_symbols(symbols_path, use_codebase_cache, &mut interner, verbosity);
     }
 
     let mut resolved_names = FxHashMap::default();
@@ -652,6 +706,8 @@ pub fn scan_files(
 
     let has_new_files = files_to_scan.len() > 0;
 
+    let mut maybe_codebase_diff = None;
+
     if files_to_scan.len() > 0 {
         let now = Instant::now();
 
@@ -687,6 +743,8 @@ pub fn scan_files(
                 .push(str_path);
         }
 
+        let mut codebase_diff;
+
         if path_groups.len() == 1 {
             let mut new_codebase = CodebaseInfo::new();
             let mut new_interner = ThreadedInterner::new(interner.clone());
@@ -715,8 +773,12 @@ pub fn scan_files(
                 update_progressbar(i as u64, bar.clone());
             }
 
+            codebase_diff = get_diff(&codebase, &new_codebase);
+
             codebase.extend(new_codebase);
         } else {
+            codebase_diff = CodebaseDiff::default();
+
             let mut handles = vec![];
 
             let thread_codebases = Arc::new(Mutex::new(vec![]));
@@ -787,10 +849,14 @@ pub fn scan_files(
 
             if let Ok(thread_codebases) = Arc::try_unwrap(thread_codebases) {
                 for thread_codebase in thread_codebases.into_inner().unwrap().into_iter() {
+                    codebase_diff.extend(get_diff(&codebase, &thread_codebase));
+
                     codebase.extend(thread_codebase.clone());
                 }
             }
         }
+
+        maybe_codebase_diff = Some(codebase_diff);
 
         if let Some(bar) = &bar {
             bar.finish_and_clear();
@@ -829,17 +895,26 @@ pub fn scan_files(
         }
     }
 
-    Ok((codebase, interner, file_statuses, resolved_names))
+    Ok((
+        codebase,
+        interner,
+        file_statuses,
+        resolved_names,
+        maybe_codebase_diff,
+    ))
 }
 
 fn load_cached_codebase(
     codebase_path: &String,
     use_codebase_cache: bool,
     codebase: &mut CodebaseInfo,
+    interner: &Interner,
     root_dir: &String,
     file_statuses: &IndexMap<String, FileStatus>,
     verbosity: Verbosity,
-) {
+) -> FxHashSet<StrId> {
+    let mut changed_symbols = FxHashSet::default();
+
     if Path::new(codebase_path).exists() && use_codebase_cache {
         if !matches!(verbosity, Verbosity::Quiet) {
             println!("Deserializing stored codebase cache");
@@ -861,32 +936,37 @@ fn load_cached_codebase(
                 })
                 .collect::<FxHashSet<_>>();
 
-            let functions_to_remove = codebase
-                .functions_in_files
+            for (_, file_storage) in codebase
+                .files
                 .iter()
-                .filter(|(k, _)| changed_files.contains(*k))
-                .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
-                .flatten()
-                .collect::<FxHashSet<_>>();
+                .filter(|f| changed_files.contains(interner.lookup(*f.0)))
+            {
+                for ast_node in &file_storage.ast_nodes {
+                    changed_symbols.insert(ast_node.name);
 
-            let typedefs_to_remove = codebase
-                .typedefs_in_files
-                .iter()
-                .filter(|(k, _)| changed_files.contains(*k))
-                .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
-                .flatten()
-                .collect::<FxHashSet<_>>();
+                    match codebase.symbols.all.get(&ast_node.name) {
+                        Some(kind) => match kind {
+                            SymbolKind::TypeDefinition => {
+                                codebase.type_definitions.remove(&ast_node.name);
+                            }
+                            SymbolKind::Function => {
+                                codebase.functionlike_infos.remove(&ast_node.name);
+                            }
+                            SymbolKind::Constant => {
+                                codebase.constant_infos.remove(&ast_node.name);
+                            }
+                            _ => {
+                                codebase.classlike_infos.remove(&ast_node.name);
+                            }
+                        },
+                        None => {}
+                    }
+                }
+            }
 
-            let constants_to_remove = codebase
-                .const_files
-                .iter()
-                .filter(|(k, _)| changed_files.contains(*k))
-                .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
-                .flatten()
-                .collect::<FxHashSet<_>>();
-
-            let classlikes_to_remove = codebase
-                .classlikes_in_files
+            // we need to check for anonymous functions here
+            let closures_to_remove = codebase
+                .closures_in_files
                 .iter()
                 .filter(|(k, _)| changed_files.contains(*k))
                 .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
@@ -895,21 +975,11 @@ fn load_cached_codebase(
 
             codebase
                 .functionlike_infos
-                .retain(|k, _| !functions_to_remove.contains(k));
-
-            codebase
-                .type_definitions
-                .retain(|k, _| !typedefs_to_remove.contains(k));
-
-            codebase
-                .constant_infos
-                .retain(|k, _| !constants_to_remove.contains(k));
-
-            codebase
-                .classlike_infos
-                .retain(|k, _| !classlikes_to_remove.contains(k));
+                .retain(|k, _| !closures_to_remove.contains(k));
         }
     }
+
+    changed_symbols
 }
 
 fn load_cached_symbols(
@@ -946,6 +1016,36 @@ fn load_cached_aast_names(
             bincode::deserialize::<FxHashMap<String, FxHashMap<usize, StrId>>>(&serialized)
         {
             *resolved_names = d;
+        }
+    }
+}
+
+fn load_cached_existing_references(
+    existing_references_path: &String,
+    use_codebase_cache: bool,
+    existing_references: &mut Option<SymbolReferences>,
+) {
+    if Path::new(existing_references_path).exists() && use_codebase_cache {
+        println!("Deserializing existing references cache");
+        let serialized = fs::read(&existing_references_path)
+            .unwrap_or_else(|_| panic!("Could not read file {}", &existing_references_path));
+        if let Ok(d) = bincode::deserialize::<SymbolReferences>(&serialized) {
+            *existing_references = Some(d);
+        }
+    }
+}
+
+fn load_cached_existing_issues(
+    existing_issues_path: &String,
+    use_codebase_cache: bool,
+    existing_issues: &mut BTreeMap<String, Vec<Issue>>,
+) {
+    if Path::new(existing_issues_path).exists() && use_codebase_cache {
+        println!("Deserializing existing issues cache");
+        let serialized = fs::read(&existing_issues_path)
+            .unwrap_or_else(|_| panic!("Could not read file {}", &existing_issues_path));
+        if let Ok(d) = bincode::deserialize::<BTreeMap<String, Vec<Issue>>>(&serialized) {
+            *existing_issues = d;
         }
     }
 }
@@ -1021,8 +1121,7 @@ pub fn get_aast_for_path(
     path: &String,
     root_dir: &String,
     cache_dir: Option<&String>,
-    has_changed: bool,
-) -> Result<(aast::Program<(), ()>, ScouredComments), String> {
+) -> Result<(aast::Program<(), ()>, ScouredComments, String), String> {
     let file_contents = if path.starts_with("hsl_embedded_") {
         std::str::from_utf8(
             &HslAsset::get(path)
@@ -1061,7 +1160,7 @@ pub fn get_aast_for_path(
         None
     };
 
-    get_aast_for_path_and_contents(local_path, file_contents, aast_cache_dir, has_changed)
+    get_aast_for_path_and_contents(local_path, file_contents, aast_cache_dir)
 }
 
 fn scan_file(
@@ -1078,7 +1177,7 @@ fn scan_file(
         println!("scanning {}", &target_file);
     }
 
-    let aast = get_aast_for_path(&target_file, root_dir, None, true);
+    let aast = get_aast_for_path(&target_file, root_dir, None);
 
     let aast = match aast {
         Ok(aast) => aast,
@@ -1112,6 +1211,7 @@ fn scan_file(
             file_path: interned_file_path,
             hh_fixmes: aast.1.fixmes,
             comments: aast.1.comments,
+            file_contents: aast.2,
         },
         user_defined,
     );
@@ -1186,7 +1286,9 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
         }
     };
 
-    populate_codebase(&mut codebase, &interner, &mut SymbolReferences::new());
+    let mut symbol_references = SymbolReferences::new();
+
+    populate_codebase(&mut codebase, &interner, &mut symbol_references);
 
     (codebase, interner)
 }
@@ -1197,7 +1299,7 @@ pub fn scan_single_file(
     path: String,
     file_contents: String,
 ) -> std::result::Result<FxHashMap<usize, StrId>, String> {
-    let aast = match get_aast_for_path_and_contents(path.clone(), file_contents, None, true) {
+    let aast = match get_aast_for_path_and_contents(path.clone(), file_contents, None) {
         Ok(aast) => aast,
         Err(err) => return std::result::Result::Err(format!("Unable to parse AAST\n{}", err)),
     };
@@ -1219,6 +1321,7 @@ pub fn scan_single_file(
             file_path,
             hh_fixmes: aast.1.fixmes,
             comments: aast.1.comments,
+            file_contents: aast.2,
         },
         true,
     );
@@ -1281,14 +1384,14 @@ pub fn analyze_files(
     };
 
     if path_groups.len() == 1 {
-        let mut new_analysis_result = AnalysisResult::new(config.graph_kind);
+        let mut new_analysis_result =
+            AnalysisResult::new(config.graph_kind, SymbolReferences::new());
 
         for (i, str_path) in path_groups[&0].iter().enumerate() {
             if let Some(resolved_names) = resolved_names.get(*str_path) {
                 analyze_file(
                     str_path,
                     cache_dir,
-                    false,
                     &codebase,
                     &config,
                     &mut new_analysis_result,
@@ -1327,14 +1430,14 @@ pub fn analyze_files(
             let resolved_names = resolved_names.clone();
 
             let handle = std::thread::spawn(move || {
-                let mut new_analysis_result = AnalysisResult::new(analysis_config.graph_kind);
+                let mut new_analysis_result =
+                    AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
                 for str_path in &pgc {
                     if let Some(resolved_names) = resolved_names.get(str_path) {
                         analyze_file(
                             str_path,
                             cache_dir_c.as_ref(),
-                            false,
                             &codebase,
                             &analysis_config,
                             &mut new_analysis_result,
@@ -1377,7 +1480,6 @@ fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
 fn analyze_file(
     str_path: &String,
     cache_dir: Option<&String>,
-    has_changed: bool,
     codebase: &Arc<CodebaseInfo>,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
@@ -1388,7 +1490,7 @@ fn analyze_file(
         println!("analyzing {}", &str_path);
     }
 
-    let aast_result = get_aast_for_path(str_path, &config.root_dir, cache_dir, has_changed);
+    let aast_result = get_aast_for_path(str_path, &config.root_dir, cache_dir);
     let aast = match aast_result {
         Ok(aast) => aast,
         Err(_) => {
@@ -1409,6 +1511,7 @@ fn analyze_file(
         file_path,
         hh_fixmes: aast.1.fixmes,
         comments: aast.1.comments,
+        file_contents: "".to_string(),
     };
     let mut file_analyzer =
         file_analyzer::FileAnalyzer::new(file_source, &resolved_names, codebase, config);
@@ -1422,7 +1525,7 @@ pub fn analyze_single_file(
     resolved_names: &FxHashMap<usize, StrId>,
     analysis_config: &Config,
 ) -> std::result::Result<AnalysisResult, String> {
-    let aast_result = get_aast_for_path_and_contents(path.clone(), file_contents, None, true);
+    let aast_result = get_aast_for_path_and_contents(path.clone(), file_contents, None);
 
     let aast = match aast_result {
         Ok(aast) => aast,
@@ -1431,7 +1534,8 @@ pub fn analyze_single_file(
         }
     };
 
-    let mut analysis_result = AnalysisResult::new(analysis_config.graph_kind);
+    let mut analysis_result =
+        AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
     let file_path = codebase.interner.get(path.as_str()).unwrap();
 
@@ -1440,6 +1544,7 @@ pub fn analyze_single_file(
         file_path,
         hh_fixmes: aast.1.fixmes,
         comments: aast.1.comments,
+        file_contents: "".to_string(),
     };
 
     let mut file_analyzer =
