@@ -108,16 +108,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut lambda_storage = if let Some(lambda_storage) = lambda_storage {
             lambda_storage
         } else {
-            let name = self
-                .get_codebase()
-                .interner
-                .get(format!("{}:{}", stmt.name.0.filename(), stmt.name.0.start_offset()).as_str())
-                .unwrap();
-            if let Some(lambda_storage) = self.file_analyzer.codebase.functionlike_infos.get(&name)
-            {
-                lambda_storage.clone()
-            } else {
-                return None;
+            match get_closure_storage(&self.file_analyzer, stmt.span.start_offset()) {
+                None => {
+                    return None;
+                }
+                Some(value) => value,
             }
         };
 
@@ -956,5 +951,21 @@ impl ScopeAnalyzer for FunctionLikeAnalyzer<'_> {
 
     fn get_config(&self) -> &Config {
         self.file_analyzer.get_config()
+    }
+}
+
+pub(crate) fn get_closure_storage(
+    file_analyzer: &FileAnalyzer,
+    offset: usize,
+) -> Option<FunctionLikeInfo> {
+    let file_storage = file_analyzer
+        .codebase
+        .files
+        .get(&file_analyzer.get_file_source().file_path);
+
+    if let Some(file_storage) = file_storage {
+        file_storage.closure_infos.get(&offset).cloned()
+    } else {
+        return None;
     }
 }

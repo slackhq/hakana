@@ -154,6 +154,17 @@ pub fn populate_codebase(
         }
     }
 
+    for (name, file_info) in codebase.files.iter_mut() {
+        for (_, functionlike_info) in file_info.closure_infos.iter_mut() {
+            populate_functionlike_storage(
+                functionlike_info,
+                &codebase.symbols,
+                &ReferenceSource::Symbol(true, *name),
+                symbol_references,
+            );
+        }
+    }
+
     for (classlike_name, classlike_storage) in &codebase.classlike_infos {
         for parent_interface in &classlike_storage.all_parent_interfaces {
             all_classlike_descendants

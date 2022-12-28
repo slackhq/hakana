@@ -12,7 +12,7 @@ use crate::expr::binop::assignment_analyzer;
 use crate::expr::call_analyzer::get_generic_param_for_offset;
 use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
-use crate::expression_analyzer;
+use crate::{expression_analyzer, functionlike_analyzer};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -702,21 +702,17 @@ fn handle_closure_arg(
     replaced_type =
         inferred_type_replacer::replace(&replaced_type, &replace_template_result, codebase);
 
-    let closure_id = codebase
-        .interner
-        .get(&format!(
-            "{}:{}",
-            closure_expr.pos().filename(),
-            closure_expr.pos().start_offset()
-        ))
-        .unwrap();
-
-    let mut closure_storage =
-        if let Some(lambda_storage) = codebase.functionlike_infos.get(&closure_id) {
-            lambda_storage.clone()
-        } else {
-            return;
-        };
+    let mut closure_storage = {
+        match functionlike_analyzer::get_closure_storage(
+            statements_analyzer.get_file_analyzer(),
+            closure_expr.1.start_offset(),
+        ) {
+            None => {
+                return;
+            }
+            Some(value) => value,
+        }
+    };
 
     for (param_offset, param_storage) in closure_storage.params.iter_mut().enumerate() {
         if let None = param_storage.signature_type {

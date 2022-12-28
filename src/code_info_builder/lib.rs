@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use crate::typehint_resolver::get_type_from_hint;
+use hakana_reflection_info::file_info::FileInfo;
+use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::{
     class_constant_info::ConstantInfo, classlike_info::Variance, code_location::HPos,
     codebase_info::CodebaseInfo, t_atomic::TAtomic, taint::string_to_source_types,
@@ -38,6 +40,7 @@ struct Scanner<'a> {
     resolved_names: &'a FxHashMap<usize, StrId>,
     all_custom_issues: &'a FxHashSet<String>,
     user_defined: bool,
+    closures: FxHashMap<usize, FunctionLikeInfo>,
 }
 
 impl<'ast> Visitor<'ast> for Scanner<'_> {
@@ -454,18 +457,21 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
 
-        self.codebase
-            .functionlike_infos
-            .insert(name.clone(), functionlike_storage);
-
-        self.codebase
-            .functions_in_files
-            .entry((self.file_source.file_path_actual).clone())
-            .or_insert_with(FxHashSet::default)
-            .insert(name.clone());
-
         if !is_anonymous {
+            self.codebase
+                .functions_in_files
+                .entry((self.file_source.file_path_actual).clone())
+                .or_insert_with(FxHashSet::default)
+                .insert(name.clone());
+
+            self.codebase
+                .functionlike_infos
+                .insert(name.clone(), functionlike_storage);
+
             c.function_name = Some(name);
+        } else {
+            self.closures
+                .insert(f.span.start_offset(), functionlike_storage);
         }
 
         let result = f.recurse(c, self);
@@ -502,6 +508,8 @@ pub fn collect_info_for_aast(
     file_source: FileSource,
     user_defined: bool,
 ) {
+    let file_path_id = file_source.file_path;
+
     let mut checker = Scanner {
         codebase,
         interner,
@@ -509,6 +517,7 @@ pub fn collect_info_for_aast(
         resolved_names,
         user_defined,
         all_custom_issues,
+        closures: FxHashMap::default(),
     };
 
     let mut context = Context {
@@ -520,4 +529,11 @@ pub fn collect_info_for_aast(
         namespace_position: None,
     };
     visit(&mut checker, &mut context, program).unwrap();
+
+    checker.codebase.files.insert(
+        file_path_id,
+        FileInfo {
+            closure_infos: checker.closures,
+        },
+    );
 }

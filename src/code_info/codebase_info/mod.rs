@@ -3,6 +3,7 @@ pub mod symbols;
 use self::symbols::SymbolKind;
 pub use self::symbols::Symbols;
 use crate::classlike_info::ClassLikeInfo;
+use crate::file_info::FileInfo;
 use crate::functionlike_info::FunctionLikeInfo;
 use crate::method_identifier::MethodIdentifier;
 use crate::t_atomic::TAtomic;
@@ -28,6 +29,7 @@ pub struct CodebaseInfo {
     pub functions_in_files: FxHashMap<String, FxHashSet<StrId>>,
     pub const_files: FxHashMap<String, FxHashSet<StrId>>,
     pub classlike_descendents: FxHashMap<StrId, FxHashSet<StrId>>,
+    pub files: FxHashMap<StrId, FileInfo>,
 }
 
 impl CodebaseInfo {
@@ -46,6 +48,7 @@ impl CodebaseInfo {
             const_files: FxHashMap::default(),
             classlike_descendents: FxHashMap::default(),
             interner: Interner::default(),
+            files: FxHashMap::default(),
         }
     }
 
@@ -379,5 +382,6 @@ impl CodebaseInfo {
         self.typedefs_in_files.extend(other.typedefs_in_files);
         self.functions_in_files.extend(other.functions_in_files);
         self.const_files.extend(other.const_files);
+        self.files.extend(other.files);
     }
 }

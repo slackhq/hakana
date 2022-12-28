@@ -1,19 +1,17 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 
+use crate::functionlike_info::FunctionLikeInfo;
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct FileInfo {
-    pub classlikes_in_file: FxHashSet<String>,
-    pub functions_in_file: FxHashSet<String>,
-    pub required_classes: FxHashSet<String>,
-    pub required_interfaces: FxHashSet<String>,
+    pub closure_infos: FxHashMap<usize, FunctionLikeInfo>,
 }
 
 impl FileInfo {
     pub fn new() -> Self {
         Self {
-            classlikes_in_file: FxHashSet::default(),
-            functions_in_file: FxHashSet::default(),
-            required_classes: FxHashSet::default(),
-            required_interfaces: FxHashSet::default(),
+            closure_infos: FxHashMap::default(),
         }
     }
 }
