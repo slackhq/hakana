@@ -12,6 +12,7 @@ use hakana_reflection_info::{
 use hakana_reflection_info::{FileSource, ThreadedInterner};
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
+use no_pos_hash::position_insensitive_hash;
 use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;
 use oxidized::{
@@ -141,11 +142,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             start_line: definition_location.start_line,
             end_line: definition_location.end_line,
             children: Vec::new(),
-            signature_hash: xxhash_rust::xxh3::xxh3_64(
-                self.file_source.file_contents
-                    [definition_location.start_offset..definition_location.end_offset]
-                    .as_bytes(),
-            ),
+            signature_hash: { position_insensitive_hash(gc) },
             body_hash: None,
         });
 
@@ -259,11 +256,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             start_line: definition_location.start_line,
             end_line: definition_location.end_line,
             children: Vec::new(),
-            signature_hash: xxhash_rust::xxh3::xxh3_64(
-                self.file_source.file_contents
-                    [definition_location.start_offset..definition_location.end_offset]
-                    .as_bytes(),
-            ),
+            signature_hash: { position_insensitive_hash(typedef) },
             body_hash: None,
         });
 
@@ -389,6 +382,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &m.tparams,
                 &m.params,
                 &m.ret,
+                &m.body,
             );
             last_current_node.children.push(DefSignatureNode {
                 name: functionlike_storage.name,
@@ -397,7 +391,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 start_line: functionlike_storage.def_location.start_line,
                 end_line: functionlike_storage.def_location.end_line,
                 signature_hash,
-                body_hash,
+                body_hash: Some(body_hash),
                 children: vec![],
             });
         }
@@ -520,6 +514,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &f.tparams,
                 &f.params,
                 &f.ret,
+                &f.body,
             );
 
             self.ast_nodes.push(DefSignatureNode {
@@ -530,7 +525,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 end_line: functionlike_storage.def_location.end_line,
                 children: Vec::new(),
                 signature_hash,
-                body_hash,
+                body_hash: Some(body_hash),
             });
 
             self.codebase
@@ -575,7 +570,10 @@ fn get_function_hashes(
     tparams: &Vec<Tparam>,
     params: &Vec<FunParam>,
     ret: &TypeHint,
-) -> (u64, Option<u64>) {
+    body: &aast::FuncBody<(), ()>,
+) -> (u64, u64) {
+    let body_hash = position_insensitive_hash(body);
+
     let mut signature_end = name.0.end_offset();
 
     if let Some(last_tparam) = tparams.last() {
@@ -604,12 +602,7 @@ fn get_function_hashes(
         file_contents[def_location.start_offset..signature_end].as_bytes(),
     );
 
-    (
-        signature_hash,
-        Some(xxhash_rust::xxh3::xxh3_64(
-            file_contents[signature_end..def_location.end_offset].as_bytes(),
-        )),
-    )
+    (signature_hash, body_hash)
 }
 
 pub fn collect_info_for_aast(
