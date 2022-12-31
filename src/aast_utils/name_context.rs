@@ -28,6 +28,8 @@ impl NameResolutionContext {
 pub struct NameContext {
     name_resolution_contexts: Vec<NameResolutionContext>,
     namespace_name: Option<String>,
+    pub symbol_name: Option<StrId>,
+    pub member_name: Option<StrId>,
     pub in_class_id: bool,
     pub in_function_id: bool,
     pub in_constant_id: bool,
@@ -45,6 +47,8 @@ impl NameContext {
             in_xhp_id: false,
             in_constant_id: false,
             in_member_id: false,
+            symbol_name: None,
+            member_name: None,
         }
     }
 
