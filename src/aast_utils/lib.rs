@@ -138,7 +138,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             }
             aast::Def::NamespaceUse(uses) => {
                 for (ns_kind, name, alias_name) in uses {
-                    nc.add_alias(name.1.clone(), alias_name.1.clone(), ns_kind);
+                    nc.add_alias(self.interner, name.1.clone(), alias_name.1.clone(), ns_kind);
                 }
             }
             _ => {}
@@ -269,11 +269,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         match p {
             oxidized::nast::ShapeFieldName::SFclassConst(id, _) => {
-                let resolved_name = nc.get_resolved_name(&id.1, aast::NsKind::NSClass);
+                let resolved_name =
+                    nc.get_resolved_name(self.interner, &id.1, aast::NsKind::NSClass);
 
-                let p = self.interner.intern(resolved_name);
-
-                self.resolved_names.insert(id.0.start_offset(), p);
+                self.resolved_names
+                    .insert(id.0.start_offset(), resolved_name);
             }
             _ => {}
         };
@@ -317,11 +317,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             if !self.resolved_names.contains_key(&id.0.start_offset()) {
                 let resolved_name = if nc.in_xhp_id {
                     nc.get_resolved_name(
+                        self.interner,
                         &id.1[1..].replace(":", "\\"),
                         aast::NsKind::NSClassAndNamespace,
                     )
                 } else {
                     nc.get_resolved_name(
+                        self.interner,
                         &id.1,
                         if nc.in_class_id || nc.in_constant_id {
                             aast::NsKind::NSClassAndNamespace
@@ -331,9 +333,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     )
                 };
 
-                let p = self.interner.intern(resolved_name);
-
-                self.resolved_names.insert(id.0.start_offset(), p);
+                self.resolved_names
+                    .insert(id.0.start_offset(), resolved_name);
             }
 
             nc.in_class_id = false;
@@ -389,12 +390,14 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         if let Some(happly) = happly {
             if !NameContext::is_reserved(&happly.0 .1) {
-                let resolved_name =
-                    nc.get_resolved_name(&happly.0 .1, aast::NsKind::NSClassAndNamespace);
+                let resolved_name = nc.get_resolved_name(
+                    self.interner,
+                    &happly.0 .1,
+                    aast::NsKind::NSClassAndNamespace,
+                );
 
-                let p = self.interner.intern(resolved_name);
-
-                self.resolved_names.insert(happly.0 .0.start_offset(), p);
+                self.resolved_names
+                    .insert(happly.0 .0.start_offset(), resolved_name);
             }
         }
 

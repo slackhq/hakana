@@ -690,7 +690,7 @@ pub fn scan_files(
         if path_groups.len() == 1 {
             let mut new_codebase = CodebaseInfo::new();
             let mut new_interner = ThreadedInterner::new(interner.clone());
-            let empty_name_context = NameContext::new();
+            let empty_name_context = NameContext::new(&mut new_interner);
 
             let analyze_map = files_to_analyze
                 .clone()
@@ -748,7 +748,7 @@ pub fn scan_files(
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
                     let mut new_interner = ThreadedInterner::new(interner);
-                    let empty_name_context = NameContext::new();
+                    let empty_name_context = NameContext::new(&mut new_interner);
                     let mut local_resolved_names = FxHashMap::default();
 
                     for str_path in &pgc {
@@ -1124,7 +1124,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
     let interner = Arc::new(Mutex::new(Interner::new()));
 
     let mut threaded_interner = ThreadedInterner::new(interner.clone());
-    let empty_name_context = NameContext::new();
+    let empty_name_context = NameContext::new(&mut threaded_interner);
 
     // add HHVM libs
     for file in HhiAsset::iter() {
@@ -1204,7 +1204,7 @@ pub fn scan_single_file(
 
     let file_path = interner.intern(path.clone());
 
-    let name_context = NameContext::new();
+    let name_context = NameContext::new(interner);
 
     let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner, name_context);
 

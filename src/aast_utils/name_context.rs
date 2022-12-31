@@ -1,3 +1,4 @@
+use hakana_reflection_info::{StrId, ThreadedInterner};
 use rustc_hash::FxHashMap;
 
 use oxidized::aast::NsKind;
@@ -5,20 +6,20 @@ use oxidized::aast::NsKind;
 #[derive(Clone, Debug)]
 pub(crate) struct NameResolutionContext {
     namespace_name: String,
-    type_aliases: FxHashMap<String, String>,
-    namespace_aliases: FxHashMap<String, String>,
-    const_aliases: FxHashMap<String, String>,
-    fun_aliases: FxHashMap<String, String>,
+    type_aliases: FxHashMap<StrId, StrId>,
+    namespace_aliases: FxHashMap<StrId, StrId>,
+    const_aliases: FxHashMap<StrId, StrId>,
+    fun_aliases: FxHashMap<StrId, StrId>,
 }
 
 impl NameResolutionContext {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(interner: &mut ThreadedInterner) -> Self {
         Self {
             namespace_name: "".to_string(),
-            type_aliases: get_aliased_classes(),
-            namespace_aliases: get_aliased_namespaces(),
+            type_aliases: get_aliased_classes(interner),
+            namespace_aliases: get_aliased_namespaces(interner),
             const_aliases: FxHashMap::default(),
-            fun_aliases: get_aliased_functions(),
+            fun_aliases: get_aliased_functions(interner),
         }
     }
 }
@@ -35,9 +36,9 @@ pub struct NameContext {
 }
 
 impl NameContext {
-    pub fn new() -> Self {
+    pub fn new(interner: &mut ThreadedInterner) -> Self {
         Self {
-            name_resolution_contexts: vec![NameResolutionContext::new()],
+            name_resolution_contexts: vec![NameResolutionContext::new(interner)],
             namespace_name: None,
             in_class_id: false,
             in_function_id: false,
@@ -97,21 +98,28 @@ impl NameContext {
      * @param int    $type        One of Stmt\Use_::TYPE_*
      * @param array  $errorAttrs Attributes to use to report an error
      */
-    pub fn add_alias(&mut self, mut name: String, alias_name: String, alias_kind: &NsKind) {
+    pub fn add_alias(
+        &mut self,
+        interner: &mut ThreadedInterner,
+        mut name: String,
+        alias_name: String,
+        alias_kind: &NsKind,
+    ) {
         let current_context = self.name_resolution_contexts.last_mut().unwrap();
 
         if name.starts_with("\\") {
             name = name[1..].to_string();
         }
 
+        let alias_name = interner.intern(alias_name);
+        let name = interner.intern(name);
+
         match alias_kind {
             NsKind::NSClass => {
                 current_context.type_aliases.insert(alias_name, name);
             }
             NsKind::NSClassAndNamespace => {
-                current_context
-                    .type_aliases
-                    .insert(alias_name.clone(), name.clone());
+                current_context.type_aliases.insert(alias_name, name);
                 current_context.namespace_aliases.insert(alias_name, name);
             }
             NsKind::NSNamespace => {
@@ -140,15 +148,20 @@ impl NameContext {
      *
      * @param Name $name Name to resolve
      */
-    pub fn get_resolved_name(&mut self, name: &String, alias_kind: NsKind) -> String {
+    pub fn get_resolved_name(
+        &mut self,
+        interner: &mut ThreadedInterner,
+        name: &String,
+        alias_kind: NsKind,
+    ) -> StrId {
         // fully qualified names are already resolved
         if name.starts_with("\\") {
-            return name[1..].to_string();
+            return interner.intern(name[1..].to_string());
         }
 
         // XHP names preceded by : are already resolved
         if name.starts_with(":") {
-            return name[1..].replace(":", "\\");
+            return interner.intern(name[1..].replace(":", "\\"));
         }
 
         match name.as_str() {
@@ -174,12 +187,12 @@ impl NameContext {
             | "__ReturnDisposable"
             | "__Sealed"
             | "__Soft" => {
-                return name.clone();
+                return interner.intern(name.clone());
             }
             _ => {}
         }
 
-        let resolved_name = self.resolve_alias(&name, alias_kind);
+        let resolved_name = self.resolve_alias(interner, &name, alias_kind);
 
         // Try to resolve aliases
         if let Some(resolved_name) = resolved_name {
@@ -187,52 +200,57 @@ impl NameContext {
         }
 
         match self.get_namespace_name() {
-            None => name.clone(),
-            Some(inner_name) => {
-                format!("{}\\{}", inner_name, name)
-            }
+            None => interner.intern(name.clone()),
+            Some(inner_name) => interner.intern(format!("{}\\{}", inner_name, name)),
         }
     }
 
-    fn resolve_alias(&mut self, name: &String, alias_kind: NsKind) -> Option<String> {
+    fn resolve_alias(
+        &mut self,
+        interner: &mut ThreadedInterner,
+        name: &String,
+        alias_kind: NsKind,
+    ) -> Option<StrId> {
         let existing_context = self.name_resolution_contexts.last().unwrap();
 
         let parts: Vec<&str> = name.split('\\').collect();
-        let first_part = &parts.get(0).unwrap().to_string();
+        let first_part = parts.get(0).unwrap().to_string();
 
         if parts.len() > 1 {
             let alias = if first_part == "namespace" {
-                return Some(format!(
+                return Some(interner.intern(format!(
                     "{}\\{}",
                     self.get_namespace_name().as_ref().unwrap(),
                     parts[1..].join("\\")
-                ));
+                )));
             } else {
-                existing_context.namespace_aliases.get(first_part)
+                existing_context
+                    .namespace_aliases
+                    .get(&interner.intern(first_part))
             };
 
             // resolve aliases for qualified names, always against class alias table
             if let Some(alias) = alias {
                 let mut str = String::new();
-                str += alias;
+                str += interner.lookup(*alias);
                 str += "\\";
                 str += parts[1..].join("\\").as_str();
-                return Some(str);
+                return Some(interner.intern(str));
             }
         } else {
-            // constant aliases are case-sensitive, function aliases case-insensitive
+            let first_part = interner.intern(first_part);
 
             let alias = match alias_kind {
                 NsKind::NSClass | NsKind::NSClassAndNamespace => {
-                    existing_context.type_aliases.get(first_part)
+                    existing_context.type_aliases.get(&first_part)
                 }
-                NsKind::NSNamespace => existing_context.namespace_aliases.get(first_part),
-                NsKind::NSConst => existing_context.const_aliases.get(first_part),
-                NsKind::NSFun => existing_context.fun_aliases.get(first_part),
+                NsKind::NSNamespace => existing_context.namespace_aliases.get(&first_part),
+                NsKind::NSConst => existing_context.const_aliases.get(&first_part),
+                NsKind::NSFun => existing_context.fun_aliases.get(&first_part),
             };
 
             if let Some(inner_alias) = alias {
-                return Some(inner_alias.to_string());
+                return Some(*inner_alias);
             }
         }
 
@@ -268,7 +286,7 @@ impl NameContext {
     }
 }
 
-fn get_aliased_classes() -> FxHashMap<String, String> {
+fn get_aliased_classes(interner: &mut ThreadedInterner) -> FxHashMap<StrId, StrId> {
     let reserved_classes = vec![
         "Collection",
         "ConstCollection",
@@ -351,11 +369,16 @@ fn get_aliased_classes() -> FxHashMap<String, String> {
 
     reserved_classes
         .into_iter()
-        .map(|k| (k.split("\\").last().unwrap().to_string(), k.to_string()))
+        .map(|k| {
+            (
+                interner.intern(k.split("\\").last().unwrap().to_string()),
+                interner.intern(k.to_string()),
+            )
+        })
         .collect()
 }
 
-fn get_aliased_functions() -> FxHashMap<String, String> {
+fn get_aliased_functions(interner: &mut ThreadedInterner) -> FxHashMap<StrId, StrId> {
     let reserved_functions = vec![
         "HH\\asio_get_current_context_idx",
         "HH\\asio_get_running_in_context",
@@ -407,19 +430,45 @@ fn get_aliased_functions() -> FxHashMap<String, String> {
 
     reserved_functions
         .into_iter()
-        .map(|k| (k.split("\\").last().unwrap().to_string(), k.to_string()))
+        .map(|k| {
+            (
+                interner.intern(k.split("\\").last().unwrap().to_string()),
+                interner.intern(k.to_string()),
+            )
+        })
         .collect()
 }
 
 // todo load this from .hhconfig
-fn get_aliased_namespaces() -> FxHashMap<String, String> {
+fn get_aliased_namespaces(interner: &mut ThreadedInterner) -> FxHashMap<StrId, StrId> {
     FxHashMap::from_iter([
-        ("Vec".to_string(), "HH\\Lib\\Vec".to_string()),
-        ("Dict".to_string(), "HH\\Lib\\Dict".to_string()),
-        ("Str".to_string(), "HH\\Lib\\Str".to_string()),
-        ("C".to_string(), "HH\\Lib\\C".to_string()),
-        ("Keyset".to_string(), "HH\\Lib\\Keyset".to_string()),
-        ("Math".to_string(), "HH\\Lib\\Math".to_string()),
-        ("Asio".to_string(), "HH\\Asio".to_string()),
+        (
+            interner.intern("Vec".to_string()),
+            interner.intern("HH\\Lib\\Vec".to_string()),
+        ),
+        (
+            interner.intern("Dict".to_string()),
+            interner.intern("HH\\Lib\\Dict".to_string()),
+        ),
+        (
+            interner.intern("Str".to_string()),
+            interner.intern("HH\\Lib\\Str".to_string()),
+        ),
+        (
+            interner.intern("C".to_string()),
+            interner.intern("HH\\Lib\\C".to_string()),
+        ),
+        (
+            interner.intern("Keyset".to_string()),
+            interner.intern("HH\\Lib\\Keyset".to_string()),
+        ),
+        (
+            interner.intern("Math".to_string()),
+            interner.intern("HH\\Lib\\Math".to_string()),
+        ),
+        (
+            interner.intern("Asio".to_string()),
+            interner.intern("HH\\Asio".to_string()),
+        ),
     ])
 }
