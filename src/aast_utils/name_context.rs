@@ -24,7 +24,7 @@ impl NameResolutionContext {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct NameContext {
+pub struct NameContext {
     name_resolution_contexts: Vec<NameResolutionContext>,
     namespace_name: Option<String>,
     pub in_class_id: bool,

@@ -21,7 +21,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-mod name_context;
+pub mod name_context;
 
 pub fn get_aast_for_path_and_contents(
     local_path: String,
@@ -316,7 +316,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         if nc.in_class_id || nc.in_function_id || nc.in_xhp_id || nc.in_constant_id {
             if !self.resolved_names.contains_key(&id.0.start_offset()) {
                 let resolved_name = if nc.in_xhp_id {
-                    nc.get_resolved_name(&id.1[1..].replace(":", "\\"), aast::NsKind::NSClassAndNamespace)
+                    nc.get_resolved_name(
+                        &id.1[1..].replace(":", "\\"),
+                        aast::NsKind::NSClassAndNamespace,
+                    )
                 } else {
                     nc.get_resolved_name(
                         &id.1,
@@ -410,12 +413,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 pub fn scope_names(
     program: &aast::Program<(), ()>,
     interner: &mut ThreadedInterner,
+    mut name_context: NameContext,
 ) -> FxHashMap<usize, StrId> {
     let mut scanner = Scanner {
         interner,
         resolved_names: FxHashMap::default(),
     };
-    let mut context = NameContext::new();
-    visit(&mut scanner, &mut context, program).unwrap();
+
+    visit(&mut scanner, &mut name_context, program).unwrap();
     scanner.resolved_names
 }

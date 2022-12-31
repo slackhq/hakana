@@ -2,6 +2,7 @@ pub(crate) mod populator;
 
 use crate::file_cache_provider::FileStatus;
 use hakana_aast_helper::get_aast_for_path_and_contents;
+use hakana_aast_helper::name_context::NameContext;
 use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_analyzer::file_analyzer;
@@ -689,6 +690,7 @@ pub fn scan_files(
         if path_groups.len() == 1 {
             let mut new_codebase = CodebaseInfo::new();
             let mut new_interner = ThreadedInterner::new(interner.clone());
+            let empty_name_context = NameContext::new();
 
             let analyze_map = files_to_analyze
                 .clone()
@@ -704,6 +706,7 @@ pub fn scan_files(
                         &config.all_custom_issues,
                         &mut new_codebase,
                         &mut new_interner,
+                        empty_name_context.clone(),
                         analyze_map.contains(*str_path),
                         verbosity,
                     ),
@@ -745,6 +748,7 @@ pub fn scan_files(
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
                     let mut new_interner = ThreadedInterner::new(interner);
+                    let empty_name_context = NameContext::new();
                     let mut local_resolved_names = FxHashMap::default();
 
                     for str_path in &pgc {
@@ -756,6 +760,7 @@ pub fn scan_files(
                                 &config.all_custom_issues,
                                 &mut new_codebase,
                                 &mut new_interner,
+                                empty_name_context.clone(),
                                 analyze_map.contains(str_path),
                                 verbosity,
                             ),
@@ -1065,6 +1070,7 @@ fn scan_file(
     all_custom_issues: &FxHashSet<String>,
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
+    empty_name_context: NameContext,
     user_defined: bool,
     verbosity: Verbosity,
 ) -> FxHashMap<usize, StrId> {
@@ -1093,7 +1099,7 @@ fn scan_file(
 
     let interned_file_path = interner.intern(target_name.clone());
 
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner);
+    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner, empty_name_context);
 
     hakana_reflector::collect_info_for_aast(
         &aast.0,
@@ -1118,6 +1124,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
     let interner = Arc::new(Mutex::new(Interner::new()));
 
     let mut threaded_interner = ThreadedInterner::new(interner.clone());
+    let empty_name_context = NameContext::new();
 
     // add HHVM libs
     for file in HhiAsset::iter() {
@@ -1127,6 +1134,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
+            empty_name_context.clone(),
             false,
             Verbosity::Quiet,
         );
@@ -1140,6 +1148,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
+            empty_name_context.clone(),
             false,
             Verbosity::Quiet,
         );
@@ -1152,6 +1161,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
+            empty_name_context.clone(),
             false,
             Verbosity::Quiet,
         );
@@ -1194,7 +1204,9 @@ pub fn scan_single_file(
 
     let file_path = interner.intern(path.clone());
 
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner);
+    let name_context = NameContext::new();
+
+    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner, name_context);
 
     hakana_reflector::collect_info_for_aast(
         &aast.0,
