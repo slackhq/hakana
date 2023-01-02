@@ -2,9 +2,10 @@ use hakana_reflection_info::{StrId, ThreadedInterner};
 use rustc_hash::FxHashMap;
 
 use oxidized::aast::NsKind;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
-pub(crate) struct NameResolutionContext {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NameResolutionContext {
     namespace_name: String,
     type_aliases: FxHashMap<StrId, StrId>,
     namespace_aliases: FxHashMap<StrId, StrId>,
@@ -157,6 +158,7 @@ impl NameContext {
         interner: &mut ThreadedInterner,
         name: &String,
         alias_kind: NsKind,
+        uses: &mut Vec<(StrId, StrId)>,
     ) -> StrId {
         // fully qualified names are already resolved
         if name.starts_with("\\") {
@@ -196,7 +198,7 @@ impl NameContext {
             _ => {}
         }
 
-        let resolved_name = self.resolve_alias(interner, &name, alias_kind);
+        let resolved_name = self.resolve_alias(interner, &name, alias_kind, uses);
 
         // Try to resolve aliases
         if let Some(resolved_name) = resolved_name {
@@ -214,6 +216,7 @@ impl NameContext {
         interner: &mut ThreadedInterner,
         name: &String,
         alias_kind: NsKind,
+        uses: &mut Vec<(StrId, StrId)>,
     ) -> Option<StrId> {
         let existing_context = self.name_resolution_contexts.last().unwrap();
 
@@ -239,7 +242,11 @@ impl NameContext {
                 str += interner.lookup(*alias);
                 str += "\\";
                 str += parts[1..].join("\\").as_str();
-                return Some(interner.intern(str));
+                let resolved_qualified_alias = interner.intern(str);
+
+                uses.push((*alias, resolved_qualified_alias));
+
+                return Some(resolved_qualified_alias);
             }
         } else {
             let first_part = interner.intern(first_part);
@@ -254,6 +261,8 @@ impl NameContext {
             };
 
             if let Some(inner_alias) = alias {
+                uses.push((first_part, *inner_alias));
+
                 return Some(*inner_alias);
             }
         }

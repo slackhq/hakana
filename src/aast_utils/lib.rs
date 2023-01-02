@@ -123,6 +123,9 @@ pub fn scope_names(
     let mut scanner = Scanner {
         interner,
         resolved_names: FxHashMap::default(),
+        symbol_uses: FxHashMap::default(),
+        symbol_member_uses: FxHashMap::default(),
+        file_uses: vec![],
     };
 
     visit(&mut scanner, &mut name_context, program).unwrap();

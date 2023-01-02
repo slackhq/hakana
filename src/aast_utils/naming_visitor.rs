@@ -11,6 +11,9 @@ use crate::name_context::NameContext;
 
 pub(crate) struct Scanner<'a> {
     pub resolved_names: FxHashMap<usize, StrId>,
+    pub symbol_uses: FxHashMap<StrId, Vec<(StrId, StrId)>>,
+    pub symbol_member_uses: FxHashMap<(StrId, StrId), Vec<(StrId, StrId)>>,
+    pub file_uses: Vec<(StrId, StrId)>,
     pub interner: &'a mut ThreadedInterner,
 }
 
@@ -169,8 +172,22 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         match p {
             oxidized::nast::ShapeFieldName::SFclassConst(id, _) => {
-                let resolved_name =
-                    nc.get_resolved_name(self.interner, &id.1, aast::NsKind::NSClass);
+                let resolved_name = nc.get_resolved_name(
+                    self.interner,
+                    &id.1,
+                    aast::NsKind::NSClass,
+                    if let Some(symbol_name) = nc.symbol_name {
+                        if let Some(member_name) = nc.member_name {
+                            self.symbol_member_uses
+                                .entry((symbol_name, member_name))
+                                .or_insert_with(Vec::new)
+                        } else {
+                            self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
+                        }
+                    } else {
+                        &mut self.file_uses
+                    },
+                );
 
                 self.resolved_names
                     .insert(id.0.start_offset(), resolved_name);
@@ -220,6 +237,17 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         self.interner,
                         &id.1[1..].replace(":", "\\"),
                         aast::NsKind::NSClassAndNamespace,
+                        if let Some(symbol_name) = nc.symbol_name {
+                            if let Some(member_name) = nc.member_name {
+                                self.symbol_member_uses
+                                    .entry((symbol_name, member_name))
+                                    .or_insert_with(Vec::new)
+                            } else {
+                                self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
+                            }
+                        } else {
+                            &mut self.file_uses
+                        },
                     )
                 } else {
                     nc.get_resolved_name(
@@ -229,6 +257,17 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             aast::NsKind::NSClassAndNamespace
                         } else {
                             aast::NsKind::NSFun
+                        },
+                        if let Some(symbol_name) = nc.symbol_name {
+                            if let Some(member_name) = nc.member_name {
+                                self.symbol_member_uses
+                                    .entry((symbol_name, member_name))
+                                    .or_insert_with(Vec::new)
+                            } else {
+                                self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
+                            }
+                        } else {
+                            &mut self.file_uses
                         },
                     )
                 };
@@ -258,9 +297,45 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.resolved_names.insert(f.name.0.start_offset(), p);
 
-        nc.symbol_name = Some(p);
+        let is_anonymous = f.name.1.contains(";");
+
+        if !is_anonymous {
+            nc.symbol_name = Some(p);
+        }
+
         let result = f.recurse(nc, self);
-        nc.symbol_name = None;
+
+        if !is_anonymous {
+            nc.symbol_name = None;
+        }
+
+        result
+    }
+
+    fn visit_method_(&mut self, nc: &mut NameContext, m: &aast::Method_<(), ()>) -> Result<(), ()> {
+        let p = self.interner.intern(m.name.1.clone());
+
+        self.resolved_names.insert(m.name.0.start_offset(), p);
+
+        nc.member_name = Some(p);
+        let result = m.recurse(nc, self);
+        nc.member_name = None;
+
+        result
+    }
+
+    fn visit_class_const(
+        &mut self,
+        nc: &mut NameContext,
+        c: &aast::ClassConst<(), ()>,
+    ) -> Result<(), ()> {
+        let p = self.interner.intern(c.id.1.clone());
+
+        self.resolved_names.insert(c.id.0.start_offset(), p);
+
+        nc.member_name = Some(p);
+        let result = c.recurse(nc, self);
+        nc.member_name = None;
 
         result
     }
@@ -302,6 +377,17 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     self.interner,
                     &happly.0 .1,
                     aast::NsKind::NSClassAndNamespace,
+                    if let Some(symbol_name) = nc.symbol_name {
+                        if let Some(member_name) = nc.member_name {
+                            self.symbol_member_uses
+                                .entry((symbol_name, member_name))
+                                .or_insert_with(Vec::new)
+                        } else {
+                            self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
+                        }
+                    } else {
+                        &mut self.file_uses
+                    },
                 );
 
                 self.resolved_names
