@@ -146,6 +146,18 @@ pub trait TestRunner {
             return "S".to_string();
         }
 
+        if dir.contains("/diff/") {
+            return self.run_diff_test(
+                dir,
+                verbosity,
+                cache_dir,
+                had_error,
+                test_diagnostics,
+                build_checksum,
+                starter_data,
+            );
+        }
+
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
         let analysis_config = self.get_config_for_test(&dir);
@@ -270,11 +282,158 @@ pub trait TestRunner {
             }
         }
     }
+
+    fn run_diff_test(
+        &self,
+        dir: String,
+        verbosity: Verbosity,
+        cache_dir: Option<&String>,
+        had_error: &mut bool,
+        test_diagnostics: &mut Vec<(String, String)>,
+        build_checksum: &str,
+        starter_data: Option<(CodebaseInfo, Interner)>,
+    ) -> String {
+        let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
+
+        if matches!(verbosity, Verbosity::Debugging) {
+            println!("running test {}", dir);
+        }
+
+        let workdir_base = dir.clone() + "/.workdir";
+
+        copy_recursively(dir.clone() + "/a", workdir_base.clone()).unwrap();
+
+        let config = self.get_config_for_test(&workdir_base);
+        let config = Arc::new(config);
+
+        let stub_dirs = vec![cwd.clone() + "/test/stubs"];
+
+        hakana_workhorse::scan_and_analyze(
+            starter_data.is_none(),
+            stub_dirs.clone(),
+            None,
+            Some(FxHashSet::from_iter([
+                "tests/stubs/stubs.hack".to_string(),
+                format!("{}/third-party/xhp-lib/src", cwd),
+            ])),
+            config.clone(),
+            if starter_data.is_none() {
+                cache_dir
+            } else {
+                None
+            },
+            1,
+            verbosity,
+            build_checksum,
+            starter_data.clone(),
+        )
+        .unwrap();
+
+        copy_recursively(dir.clone() + "/b", workdir_base.clone()).unwrap();
+
+        let config = self.get_config_for_test(&workdir_base);
+        let config = Arc::new(config);
+
+        let b_result = hakana_workhorse::scan_and_analyze(
+            starter_data.is_none(),
+            stub_dirs,
+            None,
+            Some(FxHashSet::from_iter([
+                "tests/stubs/stubs.hack".to_string(),
+                format!("{}/third-party/xhp-lib/src", cwd),
+            ])),
+            config.clone(),
+            if starter_data.is_none() {
+                cache_dir
+            } else {
+                None
+            },
+            1,
+            verbosity,
+            build_checksum,
+            starter_data,
+        );
+
+        fs::remove_dir_all(&workdir_base).unwrap();
+
+        let test_output = match b_result {
+            Ok(analysis_result) => {
+                let mut output = vec![];
+                for (file_path, issues) in &analysis_result.emitted_issues {
+                    for issue in issues {
+                        output.push(issue.format(&file_path));
+                    }
+                }
+
+                output
+            }
+            Err(error) => {
+                *had_error = true;
+                vec![error.to_string()]
+            }
+        };
+
+        let expected_output_path = dir.clone() + "/output.txt";
+        let expected_output = if Path::new(&expected_output_path).exists() {
+            let expected = fs::read_to_string(expected_output_path)
+                .unwrap()
+                .trim()
+                .to_string();
+            Some(expected)
+        } else {
+            None
+        };
+
+        if if let Some(expected_output) = &expected_output {
+            if expected_output.trim() == test_output.join("").trim() {
+                true
+            } else {
+                test_output.len() == 1
+                    && expected_output
+                        .as_bytes()
+                        .iter()
+                        .filter(|&&c| c == b'\n')
+                        .count()
+                        == 0
+                    && test_output.iter().any(|s| s.contains(expected_output))
+            }
+        } else {
+            test_output.is_empty()
+        } {
+            return ".".to_string();
+        } else {
+            if let Some(expected_output) = &expected_output {
+                test_diagnostics.push((
+                    dir,
+                    format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
+                ));
+            } else {
+                test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
+            }
+            return "F".to_string();
+        }
+    }
+}
+
+fn copy_recursively(source: impl AsRef<Path>, destination: impl AsRef<Path>) -> io::Result<()> {
+    fs::create_dir_all(&destination)?;
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        let filetype = entry.file_type()?;
+        if filetype.is_dir() {
+            copy_recursively(entry.path(), destination.as_ref().join(entry.file_name()))?;
+        } else {
+            fs::copy(entry.path(), destination.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
 }
 
 fn get_all_test_folders(test_or_test_dir: String) -> Vec<String> {
     let mut test_folders = vec![];
-    if Path::new(&(test_or_test_dir.clone() + "/input.hack")).exists() {
+    if Path::new(&(test_or_test_dir.clone() + "/input.hack")).exists()
+        || Path::new(&(test_or_test_dir.clone() + "/output.txt")).exists()
+    {
         test_folders.push(test_or_test_dir);
     } else {
         for entry in WalkDir::new(test_or_test_dir)
@@ -289,7 +448,9 @@ fn get_all_test_folders(test_or_test_dir: String) -> Vec<String> {
 
             if metadata.is_dir() {
                 if let Some(path) = path.to_str() {
-                    if Path::new(&(path.to_owned() + "/input.hack")).exists() {
+                    if (Path::new(&(path.to_owned() + "/input.hack")).exists() && !path.contains("/diff/"))
+                        || Path::new(&(path.to_owned() + "/output.txt")).exists()
+                    {
                         test_folders.push(path.to_owned().to_string());
                     }
                 }

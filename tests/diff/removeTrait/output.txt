@@ -1,0 +1,1 @@
+ERROR: NonExistentMethod - input.hack:9:5 - Method C::foo does not exist
