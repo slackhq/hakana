@@ -100,11 +100,16 @@ pub fn get_aast_for_path_and_contents(
     Ok((aast, parser_result.scoured_comments, file_contents))
 }
 
+pub struct Uses {
+    pub symbol_uses: FxHashMap<StrId, Vec<(StrId, StrId)>>,
+    pub symbol_member_uses: FxHashMap<(StrId, StrId), Vec<(StrId, StrId)>>,
+}
+
 pub fn scope_names(
     program: &aast::Program<(), ()>,
     interner: &mut ThreadedInterner,
     mut name_context: NameContext,
-) -> FxHashMap<usize, StrId> {
+) -> (FxHashMap<usize, StrId>, Uses) {
     let mut scanner = Scanner {
         interner,
         resolved_names: FxHashMap::default(),
@@ -114,5 +119,11 @@ pub fn scope_names(
     };
 
     visit(&mut scanner, &mut name_context, program).unwrap();
-    scanner.resolved_names
+    (
+        scanner.resolved_names,
+        Uses {
+            symbol_uses: scanner.symbol_uses,
+            symbol_member_uses: scanner.symbol_member_uses,
+        },
+    )
 }

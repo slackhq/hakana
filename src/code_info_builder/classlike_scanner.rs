@@ -37,6 +37,7 @@ pub(crate) fn scan(
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
     ast_nodes: &mut Vec<DefSignatureNode>,
+    uses_hash: u64,
 ) -> bool {
     let mut definition_location = HPos::new(&classlike_node.span, file_source.file_path, None);
     let name_location = HPos::new(classlike_node.name.pos(), file_source.file_path, None);
@@ -420,7 +421,8 @@ pub(crate) fn scan(
         children: Vec::new(),
         signature_hash: xxhash_rust::xxh3::xxh3_64(
             file_source.file_contents[storage.def_location.start_offset..signature_end].as_bytes(),
-        ),
+        )
+        .wrapping_add(uses_hash),
         body_hash: Some(xxhash_rust::xxh3::xxh3_64(
             file_source.file_contents
                 [storage.def_location.start_offset..storage.def_location.end_offset]

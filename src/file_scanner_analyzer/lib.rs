@@ -1198,7 +1198,8 @@ fn scan_file(
 
     let interned_file_path = interner.intern(target_name.clone());
 
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner, empty_name_context);
+    let (resolved_names, uses) =
+        hakana_aast_helper::scope_names(&aast.0, interner, empty_name_context);
 
     hakana_reflector::collect_info_for_aast(
         &aast.0,
@@ -1214,6 +1215,7 @@ fn scan_file(
             file_contents: aast.2,
         },
         user_defined,
+        uses,
     );
 
     resolved_names
@@ -1308,7 +1310,8 @@ pub fn scan_single_file(
 
     let name_context = NameContext::new(interner);
 
-    let resolved_names = hakana_aast_helper::scope_names(&aast.0, interner, name_context);
+    let (resolved_names, uses) =
+        hakana_aast_helper::scope_names(&aast.0, interner, name_context);
 
     hakana_reflector::collect_info_for_aast(
         &aast.0,
@@ -1324,6 +1327,7 @@ pub fn scan_single_file(
             file_contents: aast.2,
         },
         true,
+        uses
     );
 
     Ok(resolved_names)

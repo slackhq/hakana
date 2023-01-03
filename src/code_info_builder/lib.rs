@@ -1,6 +1,8 @@
+use std::hash::Hash;
 use std::sync::Arc;
 
 use crate::typehint_resolver::get_type_from_hint;
+use hakana_aast_helper::Uses;
 use hakana_reflection_info::file_info::FileInfo;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::{
@@ -12,7 +14,7 @@ use hakana_reflection_info::{
 use hakana_reflection_info::{FileSource, ThreadedInterner};
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
-use no_pos_hash::position_insensitive_hash;
+use no_pos_hash::{position_insensitive_hash, Hasher};
 use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;
 use oxidized::{
@@ -46,6 +48,7 @@ struct Scanner<'a> {
     user_defined: bool,
     closures: FxHashMap<usize, FunctionLikeInfo>,
     ast_nodes: Vec<DefSignatureNode>,
+    uses: Uses,
 }
 
 impl<'ast> Visitor<'ast> for Scanner<'_> {
@@ -95,6 +98,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .unwrap()
             .clone();
 
+            let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&class_name).unwrap_or(&vec![]));
+
+        
+
         classlike_scanner::scan(
             self.codebase,
             self.interner,
@@ -108,6 +115,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c.namespace_position,
             c.uses_position,
             &mut self.ast_nodes,
+            uses_hash
         );
 
         class.recurse(
@@ -135,6 +143,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let definition_location = HPos::new(&gc.name.0, self.file_source.file_path, None);
 
+        let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&name).unwrap_or(&vec![]));
+
         self.ast_nodes.push(DefSignatureNode {
             name,
             start_offset: definition_location.start_offset,
@@ -142,7 +152,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             start_line: definition_location.start_line,
             end_line: definition_location.end_line,
             children: Vec::new(),
-            signature_hash: { position_insensitive_hash(gc) },
+            signature_hash: { position_insensitive_hash(gc).wrapping_add(uses_hash) },
             body_hash: None,
         });
 
@@ -249,6 +259,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             definition_location.start_offset = user_attribute.name.0.start_offset();
         }
 
+        let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&type_name).unwrap_or(&vec![]));
+
         self.ast_nodes.push(DefSignatureNode {
             name: type_name,
             start_offset: definition_location.start_offset,
@@ -256,7 +268,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             start_line: definition_location.start_line,
             end_line: definition_location.end_line,
             children: Vec::new(),
-            signature_hash: { position_insensitive_hash(typedef) },
+            signature_hash: { position_insensitive_hash(typedef).wrapping_add(uses_hash) },
             body_hash: None,
         });
 
@@ -383,6 +395,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &m.params,
                 &m.ret,
                 &m.body,
+                &self
+                    .uses
+                    .symbol_member_uses
+                    .get(&(c.classlike_name.unwrap(), c.method_name.unwrap()))
+                    .unwrap_or(&vec![]),
             );
             last_current_node.children.push(DefSignatureNode {
                 name: functionlike_storage.name,
@@ -515,6 +532,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &f.params,
                 &f.ret,
                 &f.body,
+                &self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
             );
 
             self.ast_nodes.push(DefSignatureNode {
@@ -563,6 +581,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 }
 
+fn get_uses_hash(uses: &Vec<(StrId, StrId)>) -> u64 {
+    let mut hasher = rustc_hash::FxHasher::default();
+    uses.hash(&mut hasher);
+    hasher.finish()
+}
+
 fn get_function_hashes(
     file_contents: &String,
     def_location: &HPos,
@@ -571,8 +595,11 @@ fn get_function_hashes(
     params: &Vec<FunParam>,
     ret: &TypeHint,
     body: &aast::FuncBody<(), ()>,
+    uses: &Vec<(StrId, StrId)>,
 ) -> (u64, u64) {
-    let body_hash = position_insensitive_hash(body);
+    let mut body_hash = position_insensitive_hash(body);
+
+    body_hash = body_hash.wrapping_add(get_uses_hash(uses));
 
     let mut signature_end = name.0.end_offset();
 
@@ -613,6 +640,7 @@ pub fn collect_info_for_aast(
     all_custom_issues: &FxHashSet<String>,
     file_source: FileSource,
     user_defined: bool,
+    uses: Uses,
 ) {
     let file_path_id = file_source.file_path;
 
@@ -625,6 +653,7 @@ pub fn collect_info_for_aast(
         all_custom_issues,
         closures: FxHashMap::default(),
         ast_nodes: Vec::new(),
+        uses,
     };
 
     let mut context = Context {
