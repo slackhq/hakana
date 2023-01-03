@@ -626,6 +626,71 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 let mut param_type = param_type.clone();
                 let calling_class = context.function_context.calling_class.as_ref();
 
+                for reference in &param_type.get_all_references() {
+                    if let Some(member_id) = reference.1 {
+                        match context.function_context.calling_functionlike_id {
+                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                                tast_info
+                                    .symbol_references
+                                    .add_symbol_reference_to_class_member(
+                                        calling_function,
+                                        (reference.0, member_id),
+                                        true,
+                                    );
+                            }
+                            Some(FunctionLikeIdentifier::Method(
+                                calling_classlike,
+                                calling_function,
+                            )) => {
+                                tast_info
+                                    .symbol_references
+                                    .add_class_member_reference_to_class_member(
+                                        (calling_classlike, calling_function),
+                                        (reference.0, member_id),
+                                        true,
+                                    );
+                            }
+                            _ => {}
+                        }
+                    } else {
+                        match context.function_context.calling_functionlike_id {
+                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                                println!("{} references {}", calling_function.0, reference.0 .0);
+                                println!(
+                                    "{} references {}",
+                                    statements_analyzer
+                                        .get_codebase()
+                                        .interner
+                                        .lookup(calling_function),
+                                    statements_analyzer
+                                        .get_codebase()
+                                        .interner
+                                        .lookup(reference.0)
+                                );
+
+                                tast_info.symbol_references.add_symbol_reference_to_symbol(
+                                    calling_function,
+                                    reference.0,
+                                    true,
+                                );
+                            }
+                            Some(FunctionLikeIdentifier::Method(
+                                calling_classlike,
+                                calling_function,
+                            )) => {
+                                tast_info
+                                    .symbol_references
+                                    .add_class_member_reference_to_symbol(
+                                        (calling_classlike, calling_function),
+                                        reference.0,
+                                        true,
+                                    );
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
                 type_expander::expand_union(
                     self.file_analyzer.get_codebase(),
                     &mut param_type,

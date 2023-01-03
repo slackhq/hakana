@@ -98,9 +98,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .unwrap()
             .clone();
 
-            let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&class_name).unwrap_or(&vec![]));
-
-        
+        let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&class_name).unwrap_or(&vec![]));
 
         classlike_scanner::scan(
             self.codebase,
@@ -115,7 +113,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c.namespace_position,
             c.uses_position,
             &mut self.ast_nodes,
-            uses_hash
+            uses_hash,
         );
 
         class.recurse(

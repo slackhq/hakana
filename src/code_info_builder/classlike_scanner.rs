@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use no_pos_hash::{Hasher, NoPosHash};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
@@ -423,11 +424,7 @@ pub(crate) fn scan(
             file_source.file_contents[storage.def_location.start_offset..signature_end].as_bytes(),
         )
         .wrapping_add(uses_hash),
-        body_hash: Some(xxhash_rust::xxh3::xxh3_64(
-            file_source.file_contents
-                [storage.def_location.start_offset..storage.def_location.end_offset]
-                .as_bytes(),
-        )),
+        body_hash: None,
     };
 
     for trait_use in &classlike_node.uses {
@@ -445,6 +442,13 @@ pub(crate) fn scan(
 
         if let TAtomic::TReference { name, .. } = trait_type {
             storage.used_traits.insert(name.clone());
+
+            let mut hasher = rustc_hash::FxHasher::default();
+            name.0.hash(&mut hasher);
+
+            def_signature_node.signature_hash = def_signature_node
+                .signature_hash
+                .wrapping_add(hasher.finish());
         }
     }
 

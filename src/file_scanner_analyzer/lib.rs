@@ -124,9 +124,44 @@ pub fn scan_and_analyze(
         load_cached_existing_references(existing_references_path, true, &mut existing_references);
     }
 
+    let mut safe_symbols = FxHashSet::default();
+    let mut safe_symbol_members = FxHashSet::default();
+
     if let (Some(existing_references), Some(codebase_diff)) = (existing_references, codebase_diff) {
         let (invalid_symbols, invalid_symbol_members) =
             existing_references.get_invalid_symbols(&codebase_diff);
+
+        for keep_symbol in &codebase_diff.keep {
+            if let Some(member_id) = keep_symbol.1 {
+                if !invalid_symbols.contains(&keep_symbol.0)
+                    && !invalid_symbol_members.contains(&(keep_symbol.0, member_id))
+                {
+                    safe_symbol_members.insert((keep_symbol.0, member_id));
+                }
+            } else {
+                if !invalid_symbols.contains(&keep_symbol.0) {
+                    safe_symbols.insert(keep_symbol.0);
+                }
+            }
+        }
+
+        println!(
+            "{:#?}",
+            safe_symbols
+                .iter()
+                .map(|id| interner.lookup(*id))
+                .collect::<Vec<_>>()
+        );
+        println!(
+            "{:#?}",
+            safe_symbol_members
+                .iter()
+                .map(
+                    |(classlike_id, member_id)| interner.lookup(*classlike_id).to_string()
+                        + interner.lookup(*member_id)
+                )
+                .collect::<Vec<_>>()
+        );
     }
 
     let issues_path = if let Some(cache_dir) = cache_dir {
@@ -912,9 +947,7 @@ fn load_cached_codebase(
     root_dir: &String,
     file_statuses: &IndexMap<String, FileStatus>,
     verbosity: Verbosity,
-) -> FxHashSet<StrId> {
-    let mut changed_symbols = FxHashSet::default();
-
+) {
     if Path::new(codebase_path).exists() && use_codebase_cache {
         if !matches!(verbosity, Verbosity::Quiet) {
             println!("Deserializing stored codebase cache");
@@ -942,8 +975,6 @@ fn load_cached_codebase(
                 .filter(|f| changed_files.contains(interner.lookup(*f.0)))
             {
                 for ast_node in &file_storage.ast_nodes {
-                    changed_symbols.insert(ast_node.name);
-
                     match codebase.symbols.all.get(&ast_node.name) {
                         Some(kind) => match kind {
                             SymbolKind::TypeDefinition => {
@@ -978,8 +1009,6 @@ fn load_cached_codebase(
                 .retain(|k, _| !closures_to_remove.contains(k));
         }
     }
-
-    changed_symbols
 }
 
 fn load_cached_symbols(
@@ -1310,8 +1339,7 @@ pub fn scan_single_file(
 
     let name_context = NameContext::new(interner);
 
-    let (resolved_names, uses) =
-        hakana_aast_helper::scope_names(&aast.0, interner, name_context);
+    let (resolved_names, uses) = hakana_aast_helper::scope_names(&aast.0, interner, name_context);
 
     hakana_reflector::collect_info_for_aast(
         &aast.0,
@@ -1327,7 +1355,7 @@ pub fn scan_single_file(
             file_contents: aast.2,
         },
         true,
-        uses
+        uses,
     );
 
     Ok(resolved_names)

@@ -1436,6 +1436,71 @@ impl TAtomic {
             _ => false,
         }
     }
+
+    pub fn get_all_references(&self) -> Vec<(StrId, Option<StrId>)> {
+        match self {
+            TAtomic::TNamedObject {
+                name, type_params, ..
+            } => {
+                let mut references = vec![(*name, None)];
+
+                if let Some(type_params) = type_params {
+                    for type_param in type_params {
+                        references.extend(type_param.get_all_references());
+                    }
+                }
+
+                return references;
+            }
+            TAtomic::TDict {
+                known_items,
+                params,
+                ..
+            } => {
+                let mut references = vec![];
+
+                if let Some(params) = params {
+                    references.extend(params.0.get_all_references());
+                    references.extend(params.1.get_all_references());
+                }
+
+                if let Some(known_items) = known_items {
+                    for (_, (_, item_type)) in known_items {
+                        references.extend(item_type.get_all_references());
+                    }
+                }
+
+                references
+            }
+            TAtomic::TKeyset { type_param } => type_param.get_all_references(),
+            TAtomic::TVec {
+                known_items,
+                type_param,
+                ..
+            } => {
+                let mut references = type_param.get_all_references();
+
+                if let Some(known_items) = known_items {
+                    for (_, (_, item_type)) in known_items {
+                        references.extend(item_type.get_all_references());
+                    }
+                }
+
+                references
+            }
+            TAtomic::TTypeAlias { name, as_type, .. } => {
+                let mut references = vec![(*name, None)];
+
+                if let Some(as_type) = as_type {
+                    references.extend(as_type.get_all_references());
+                }
+
+                references
+            }
+            TAtomic::TGenericParam { as_type, .. } => as_type.get_all_references(),
+            _ => vec![],
+        }
+    }
 }
 
 impl HasTypeNodes for TAtomic {

@@ -290,6 +290,34 @@ impl SymbolReferences {
                 .extend(v);
         }
 
+        for (k, v) in other.symbol_references_to_members_in_signature {
+            self.symbol_references_to_members_in_signature
+                .entry(k)
+                .or_insert_with(FxHashSet::default)
+                .extend(v);
+        }
+
+        for (k, v) in other.symbol_references_to_symbols_in_signature {
+            self.symbol_references_to_symbols_in_signature
+                .entry(k)
+                .or_insert_with(FxHashSet::default)
+                .extend(v);
+        }
+
+        for (k, v) in other.classlike_member_references_to_symbols_in_signature {
+            self.classlike_member_references_to_symbols_in_signature
+                .entry(k)
+                .or_insert_with(FxHashSet::default)
+                .extend(v);
+        }
+
+        for (k, v) in other.classlike_member_references_to_members_in_signature {
+            self.classlike_member_references_to_members_in_signature
+                .entry(k)
+                .or_insert_with(FxHashSet::default)
+                .extend(v);
+        }
+
         for (k, v) in other.symbol_references_to_overridden_members {
             self.symbol_references_to_overridden_members
                 .entry(k)
@@ -414,6 +442,46 @@ impl SymbolReferences {
                 invalid_symbols.insert(changed_symbol);
             }
         }
+
+        let mut invalid_symbol_bodies = FxHashSet::default();
+        let mut invalid_symbol_member_bodies = FxHashSet::default();
+
+        for invalid_symbol in &invalid_symbols {
+            for (referencing_member, referenced_members) in
+                &self.classlike_member_references_to_symbols
+            {
+                if referenced_members.contains(invalid_symbol) {
+                    invalid_symbol_member_bodies.insert(*referencing_member);
+                }
+            }
+
+            for (referencing_member, referenced_members) in &self.symbol_references_to_symbols {
+                if referenced_members.contains(invalid_symbol) {
+                    invalid_symbol_bodies.insert(*referencing_member);
+                }
+            }
+        }
+
+        for invalid_symbol_member in &invalid_symbol_members {
+            for (referencing_member, referenced_members) in
+                &self.classlike_member_references_to_members
+            {
+                if referenced_members.contains(&(invalid_symbol_member.0, invalid_symbol_member.1))
+                {
+                    invalid_symbol_member_bodies.insert(*referencing_member);
+                }
+            }
+
+            for (referencing_member, referenced_members) in &self.symbol_references_to_members {
+                if referenced_members.contains(&(invalid_symbol_member.0, invalid_symbol_member.1))
+                {
+                    invalid_symbol_bodies.insert(*referencing_member);
+                }
+            }
+        }
+
+        invalid_symbols.extend(invalid_symbol_bodies);
+        invalid_symbol_members.extend(invalid_symbol_member_bodies);
 
         (invalid_symbols, invalid_symbol_members)
     }
