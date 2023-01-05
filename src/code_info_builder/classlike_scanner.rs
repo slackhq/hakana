@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use no_pos_hash::{Hasher, NoPosHash};
+use hakana_aast_helper::Uses;
+use no_pos_hash::{position_insensitive_hash, Hasher, NoPosHash};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
@@ -22,8 +23,8 @@ use oxidized::{
     ast_defs::{self, ClassishKind},
 };
 
-use crate::typehint_resolver::get_type_from_hint;
 use crate::{functionlike_scanner::adjust_location_from_comments, simple_type_inferer};
+use crate::{get_uses_hash, typehint_resolver::get_type_from_hint};
 
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
@@ -38,7 +39,7 @@ pub(crate) fn scan(
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
     ast_nodes: &mut Vec<DefSignatureNode>,
-    uses_hash: u64,
+    all_uses: &Uses,
 ) -> bool {
     let mut definition_location = HPos::new(&classlike_node.span, file_source.file_path, None);
     let name_location = HPos::new(classlike_node.name.pos(), file_source.file_path, None);
@@ -413,6 +414,8 @@ pub(crate) fn scan(
         }
     }
 
+    let uses_hash = get_uses_hash(all_uses.symbol_uses.get(&class_name).unwrap_or(&vec![]));
+
     let mut def_signature_node = DefSignatureNode {
         name: *class_name,
         start_offset: storage.def_location.start_offset,
@@ -461,6 +464,7 @@ pub(crate) fn scan(
             &codebase,
             interner,
             &mut def_signature_node.children,
+            all_uses,
         );
     }
 
@@ -473,6 +477,7 @@ pub(crate) fn scan(
                 file_source,
                 interner,
                 &mut def_signature_node.children,
+                all_uses,
             );
         }
     }
@@ -529,6 +534,7 @@ pub(crate) fn scan(
             file_source,
             interner,
             &mut def_signature_node.children,
+            all_uses,
         );
     }
 
@@ -676,6 +682,7 @@ fn visit_class_const_declaration(
     codebase: &CodebaseInfo,
     interner: &mut ThreadedInterner,
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
+    all_uses: &Uses,
 ) {
     let mut provided_type = None;
 
@@ -703,15 +710,20 @@ fn visit_class_const_declaration(
 
     let name = interner.intern(const_node.id.1.clone());
 
+    let uses_hash = get_uses_hash(
+        all_uses
+            .symbol_member_uses
+            .get(&(classlike_storage.name, name))
+            .unwrap_or(&vec![]),
+    );
+
     def_child_signature_nodes.push(DefSignatureNode {
         name,
         start_offset: def_pos.start_offset,
         end_offset: def_pos.end_offset,
         start_line: def_pos.start_line,
         end_line: def_pos.end_line,
-        signature_hash: xxhash_rust::xxh3::xxh3_64(
-            file_source.file_contents[def_pos.start_offset..def_pos.end_offset].as_bytes(),
-        ),
+        signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
     });
@@ -746,6 +758,7 @@ fn visit_class_typeconst_declaration(
     file_source: &FileSource,
     interner: &mut ThreadedInterner,
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
+    all_uses: &Uses,
 ) {
     let const_type = match &const_node.kind {
         aast::ClassTypeconst::TCAbstract(_) => {
@@ -770,15 +783,20 @@ fn visit_class_typeconst_declaration(
 
     let name = interner.intern(const_node.name.1.clone());
 
+    let uses_hash = get_uses_hash(
+        all_uses
+            .symbol_member_uses
+            .get(&(classlike_storage.name, name))
+            .unwrap_or(&vec![]),
+    );
+
     def_child_signature_nodes.push(DefSignatureNode {
         name,
         start_offset: def_pos.start_offset,
         end_offset: def_pos.end_offset,
         start_line: def_pos.start_line,
         end_line: def_pos.end_line,
-        signature_hash: xxhash_rust::xxh3::xxh3_64(
-            file_source.file_contents[def_pos.start_offset..def_pos.end_offset].as_bytes(),
-        ),
+        signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
     });
@@ -793,6 +811,7 @@ fn visit_property_declaration(
     file_source: &FileSource,
     interner: &mut ThreadedInterner,
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
+    all_uses: &Uses,
 ) {
     let mut property_type = None;
 
@@ -820,6 +839,13 @@ fn visit_property_declaration(
 
     let property_ref_id = interner.intern(property_node.id.1.clone());
 
+    let uses_hash = get_uses_hash(
+        all_uses
+            .symbol_member_uses
+            .get(&(classlike_storage.name, property_ref_id))
+            .unwrap_or(&vec![]),
+    );
+
     def_child_signature_nodes.push(DefSignatureNode {
         name: property_ref_id,
         start_offset: def_pos.start_offset,
@@ -828,7 +854,8 @@ fn visit_property_declaration(
         end_line: def_pos.end_line,
         signature_hash: xxhash_rust::xxh3::xxh3_64(
             file_source.file_contents[def_pos.start_offset..def_pos.end_offset].as_bytes(),
-        ),
+        )
+        .wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
     });

@@ -1,0 +1,1 @@
+ERROR: InvalidArgument - input.hack:13:14 - Argument 1 of echo expects arraykey, different type Exception provided

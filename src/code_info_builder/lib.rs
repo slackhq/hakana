@@ -33,7 +33,7 @@ pub mod typehint_resolver;
 struct Context {
     classlike_name: Option<StrId>,
     function_name: Option<StrId>,
-    method_name: Option<StrId>,
+    member_name: Option<StrId>,
     has_yield: bool,
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
@@ -98,8 +98,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .unwrap()
             .clone();
 
-        let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&class_name).unwrap_or(&vec![]));
-
         classlike_scanner::scan(
             self.codebase,
             self.interner,
@@ -113,7 +111,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c.namespace_position,
             c.uses_position,
             &mut self.ast_nodes,
-            uses_hash,
+            &self.uses,
         );
 
         class.recurse(
@@ -370,6 +368,54 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         typedef.recurse(c, self)
     }
 
+    fn visit_class_const(
+        &mut self,
+        c: &mut Context,
+        m: &aast::ClassConst<(), ()>,
+    ) -> Result<(), ()> {
+        let member_name = self.interner.intern(m.id.1.clone());
+
+        c.member_name = Some(member_name);
+
+        let result = m.recurse(c, self);
+
+        c.member_name = None;
+
+        result
+    }
+
+    fn visit_class_typeconst_def(
+        &mut self,
+        c: &mut Context,
+        m: &aast::ClassTypeconstDef<(), ()>,
+    ) -> Result<(), ()> {
+        let member_name = self.interner.intern(m.name.1.clone());
+
+        c.member_name = Some(member_name);
+
+        let result = m.recurse(c, self);
+
+        c.member_name = None;
+
+        result
+    }
+
+    fn visit_class_var(
+        &mut self,
+        c: &mut Context,
+        m: &aast::ClassVar<(), ()>,
+    ) -> Result<(), ()> {
+        let member_name = self.interner.intern(m.id.1.clone());
+
+        c.member_name = Some(member_name);
+
+        let result = m.recurse(c, self);
+
+        c.member_name = None;
+
+        result
+    }
+
     fn visit_method_(&mut self, c: &mut Context, m: &aast::Method_<(), ()>) -> Result<(), ()> {
         let (method_name, functionlike_storage) = functionlike_scanner::scan_method(
             self.codebase,
@@ -382,7 +428,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             &self.file_source,
         );
 
-        c.method_name = Some(method_name);
+        c.member_name = Some(method_name);
 
         if let Some(last_current_node) = self.ast_nodes.last_mut() {
             let (signature_hash, body_hash) = get_function_hashes(
@@ -396,7 +442,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &self
                     .uses
                     .symbol_member_uses
-                    .get(&(c.classlike_name.unwrap(), c.method_name.unwrap()))
+                    .get(&(c.classlike_name.unwrap(), c.member_name.unwrap()))
                     .unwrap_or(&vec![]),
             );
             last_current_node.children.push(DefSignatureNode {
@@ -420,7 +466,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let result = m.recurse(c, self);
 
-        c.method_name = None;
+        c.member_name = None;
 
         if c.has_yield {
             self.codebase
@@ -456,7 +502,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             if let Some(parent_function_id) = &c.function_name {
                 self.codebase.functionlike_infos.get(parent_function_id)
             } else if let (Some(parent_class_id), Some(parent_method_id)) =
-                (&c.classlike_name, &c.method_name)
+                (&c.classlike_name, &c.member_name)
             {
                 if let Some(classlike_info) = self.codebase.classlike_infos.get(parent_class_id) {
                     classlike_info.methods.get(parent_method_id)
@@ -657,7 +703,7 @@ pub fn collect_info_for_aast(
     let mut context = Context {
         classlike_name: None,
         function_name: None,
-        method_name: None,
+        member_name: None,
         has_yield: false,
         uses_position: None,
         namespace_position: None,

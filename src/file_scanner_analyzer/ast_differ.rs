@@ -34,10 +34,9 @@ pub(crate) fn get_diff(
 
             for diff_elem in diff {
                 match diff_elem {
-                    AstDiffElem::Keep(a, _) => {
-                        keep.push((a.name, None));
-                    }
-                    AstDiffElem::KeepSignature(a, b) => {
+                    AstDiffElem::Keep(a, b) => {
+                        let mut has_change = false;
+
                         let (class_trace, class_x, class_y, class_bc) =
                             calculate_trace(&a.children, &b.children);
 
@@ -64,18 +63,30 @@ pub(crate) fn get_diff(
                                     ));
                                 }
                                 AstDiffElem::KeepSignature(a_child, _) => {
+                                    has_change = true;
                                     keep_signature.push((a.name, Some(a_child.name)));
                                 }
                                 AstDiffElem::Remove(child_node) => {
+                                    has_change = true;
                                     add_or_delete.push((a.name, Some(child_node.name)));
                                     deletion_ranges
                                         .push((child_node.start_offset, child_node.end_offset));
                                 }
                                 AstDiffElem::Add(child_node) => {
+                                    has_change = true;
                                     add_or_delete.push((a.name, Some(child_node.name)));
                                 }
                             }
                         }
+
+                        if has_change {
+                            keep_signature.push((a.name, None));
+                        } else {
+                            keep.push((a.name, None));
+                        }
+                    }
+                    AstDiffElem::KeepSignature(a, _) => {
+                        keep_signature.push((a.name, None));
                     }
                     AstDiffElem::Remove(node) => {
                         add_or_delete.push((node.name, None));

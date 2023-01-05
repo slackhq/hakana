@@ -630,6 +630,26 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     if let Some(member_id) = reference.1 {
                         match context.function_context.calling_functionlike_id {
                             Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                                println!(
+                                    "{} references {}::{}",
+                                    calling_function.0, reference.0 .0, member_id.0
+                                );
+                                println!(
+                                    "{} references {}::{}",
+                                    statements_analyzer
+                                        .get_codebase()
+                                        .interner
+                                        .lookup(calling_function),
+                                    statements_analyzer
+                                        .get_codebase()
+                                        .interner
+                                        .lookup(reference.0),
+                                    statements_analyzer
+                                        .get_codebase()
+                                        .interner
+                                        .lookup(member_id)
+                                );
+
                                 tast_info
                                     .symbol_references
                                     .add_symbol_reference_to_class_member(
@@ -655,19 +675,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     } else {
                         match context.function_context.calling_functionlike_id {
                             Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                println!("{} references {}", calling_function.0, reference.0 .0);
-                                println!(
-                                    "{} references {}",
-                                    statements_analyzer
-                                        .get_codebase()
-                                        .interner
-                                        .lookup(calling_function),
-                                    statements_analyzer
-                                        .get_codebase()
-                                        .interner
-                                        .lookup(reference.0)
-                                );
-
                                 tast_info.symbol_references.add_symbol_reference_to_symbol(
                                     calling_function,
                                     reference.0,

@@ -393,7 +393,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         .insert(id.0.start_offset(), resolved_name);
                 }
             }
-            oxidized::tast::Hint_::Haccess(id, const_names) => {
+            oxidized::tast::Hint_::Haccess(_, const_names) => {
                 for const_name in const_names {
                     let resolved_name = self.interner.intern(const_name.1.clone());
 

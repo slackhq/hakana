@@ -1498,6 +1498,20 @@ impl TAtomic {
                 references
             }
             TAtomic::TGenericParam { as_type, .. } => as_type.get_all_references(),
+            TAtomic::TClassTypeConstant {
+                class_type,
+                member_name,
+            } => {
+                let mut references = vec![];
+
+                let class_references = class_type.get_all_references();
+
+                for (class_id, _) in class_references {
+                    references.push((class_id, Some(*member_name)));
+                }
+
+                references
+            }
             _ => vec![],
         }
     }

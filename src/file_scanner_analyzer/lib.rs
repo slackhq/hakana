@@ -158,6 +158,7 @@ pub fn scan_and_analyze(
                 .iter()
                 .map(
                     |(classlike_id, member_id)| interner.lookup(*classlike_id).to_string()
+                        + "::"
                         + interner.lookup(*member_id)
                 )
                 .collect::<Vec<_>>()
