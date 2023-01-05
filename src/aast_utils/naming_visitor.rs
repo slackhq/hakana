@@ -369,30 +369,39 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_hint_(&mut self, nc: &mut NameContext, p: &aast::Hint_) -> Result<(), ()> {
-        let happly = p.as_happly();
-
-        if let Some(happly) = happly {
-            if !NameContext::is_reserved(&happly.0 .1) {
-                let resolved_name = nc.get_resolved_name(
-                    self.interner,
-                    &happly.0 .1,
-                    aast::NsKind::NSClassAndNamespace,
-                    if let Some(symbol_name) = nc.symbol_name {
-                        if let Some(member_name) = nc.member_name {
-                            self.symbol_member_uses
-                                .entry((symbol_name, member_name))
-                                .or_insert_with(Vec::new)
+        match p {
+            oxidized::tast::Hint_::Happly(id, _) => {
+                if !NameContext::is_reserved(&id.1) {
+                    let resolved_name = nc.get_resolved_name(
+                        self.interner,
+                        &id.1,
+                        aast::NsKind::NSClassAndNamespace,
+                        if let Some(symbol_name) = nc.symbol_name {
+                            if let Some(member_name) = nc.member_name {
+                                self.symbol_member_uses
+                                    .entry((symbol_name, member_name))
+                                    .or_insert_with(Vec::new)
+                            } else {
+                                self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
+                            }
                         } else {
-                            self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
-                        }
-                    } else {
-                        &mut self.file_uses
-                    },
-                );
+                            &mut self.file_uses
+                        },
+                    );
 
-                self.resolved_names
-                    .insert(happly.0 .0.start_offset(), resolved_name);
+                    self.resolved_names
+                        .insert(id.0.start_offset(), resolved_name);
+                }
             }
+            oxidized::tast::Hint_::Haccess(id, const_names) => {
+                for const_name in const_names {
+                    let resolved_name = self.interner.intern(const_name.1.clone());
+
+                    self.resolved_names
+                        .insert(const_name.0.start_offset(), resolved_name);
+                }
+            }
+            _ => {}
         }
 
         let was_in_namespaced_symbol_id = nc.in_function_id;

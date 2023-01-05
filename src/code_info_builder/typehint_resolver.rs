@@ -506,7 +506,7 @@ pub fn get_type_from_hint(
             for type_id in type_names {
                 inner_type = TAtomic::TClassTypeConstant {
                     class_type: Box::new(inner_type),
-                    member_name: type_id.1.clone(),
+                    member_name: *resolved_names.get(&type_id.0.start_offset()).unwrap(),
                 };
             }
 

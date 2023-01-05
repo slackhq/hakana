@@ -711,7 +711,11 @@ pub fn get_atomic_syntax_type(
             member_name,
         } => {
             let lhs = get_atomic_syntax_type(class_type, codebase, is_valid);
-            format!("{}::{}", lhs, member_name)
+            format!(
+                "{}::{}",
+                lhs,
+                codebase.interner.lookup(*member_name)
+            )
         }
         TAtomic::TEnumClassLabel { .. } => {
             *is_valid = false;

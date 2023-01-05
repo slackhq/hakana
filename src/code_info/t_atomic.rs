@@ -143,7 +143,7 @@ pub enum TAtomic {
     TPlaceholder,
     TClassTypeConstant {
         class_type: Box<TAtomic>,
-        member_name: String,
+        member_name: StrId,
     },
     TEnumClassLabel {
         class_name: Option<StrId>,
@@ -538,7 +538,15 @@ impl TAtomic {
                 member_name,
                 ..
             } => {
-                format!("{}::{}", class_type.get_id(interner), member_name)
+                format!(
+                    "{}::{}",
+                    class_type.get_id(interner),
+                    if let Some(interner) = interner {
+                        interner.lookup(*member_name).to_string()
+                    } else {
+                        member_name.0.to_string()
+                    }
+                )
             }
             TAtomic::TEnumClassLabel {
                 class_name,

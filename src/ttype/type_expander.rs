@@ -462,17 +462,12 @@ fn expand_atomic(
                     return;
                 };
 
-                let type_ = if let Some(name_id) = codebase.interner.get(member_name) {
-                    if let Some(t) = classlike_storage.type_constants.get(&name_id) {
-                        t.clone()
-                    } else {
-                        *skip_key = true;
-                        new_return_type_parts
-                            .push(TAtomic::TMixedWithFlags(true, false, false, false));
-                        return;
-                    }
+                let type_ = if let Some(t) = classlike_storage.type_constants.get(&member_name) {
+                    t.clone()
                 } else {
-                    panic!("Symbol for {} not found", member_name);
+                    *skip_key = true;
+                    new_return_type_parts.push(TAtomic::TMixedWithFlags(true, false, false, false));
+                    return;
                 };
 
                 if let Some(mut type_) = type_ {
@@ -489,7 +484,7 @@ fn expand_atomic(
                             *shape_name = Some(format!(
                                 "{}::{}",
                                 codebase.interner.lookup(*class_name),
-                                member_name
+                                codebase.interner.lookup(*member_name),
                             ));
                         };
                         v
