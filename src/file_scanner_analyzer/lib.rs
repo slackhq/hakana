@@ -140,9 +140,7 @@ pub fn scan_and_analyze(
     let mut existing_issues = BTreeMap::new();
 
     if config.ast_diff {
-        if let (Some(existing_references), Some(codebase_diff)) =
-            (existing_references, codebase_diff)
-        {
+        if let Some(existing_references) = existing_references {
             let (invalid_symbols, invalid_symbol_members) =
                 existing_references.get_invalid_symbols(&codebase_diff);
 
@@ -639,7 +637,7 @@ pub(crate) fn scan_files(
     Interner,
     IndexMap<String, FileStatus>,
     FxHashMap<String, FxHashMap<usize, StrId>>,
-    Option<CodebaseDiff>,
+    CodebaseDiff,
 )> {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("{:#?}", scan_dirs);
@@ -743,6 +741,18 @@ pub(crate) fn scan_files(
         load_cached_symbols(symbols_path, use_codebase_cache, &mut interner, verbosity);
     }
 
+    let changed_files = file_statuses
+        .iter()
+        .filter(|(_, v)| !matches!(v, FileStatus::Unchanged(..)))
+        .map(|(k, _)| {
+            if k.contains(&config.root_dir) {
+                k[(config.root_dir.len() + 1)..].to_string()
+            } else {
+                k.clone()
+            }
+        })
+        .collect::<FxHashSet<_>>();
+
     // this needs to come after we've loaded interned strings
     if let Some(codebase_path) = &codebase_path {
         load_cached_codebase(
@@ -750,8 +760,7 @@ pub(crate) fn scan_files(
             use_codebase_cache,
             &mut codebase,
             &interner,
-            &config.root_dir,
-            &file_statuses,
+            &changed_files,
             verbosity,
         );
     }
@@ -789,12 +798,33 @@ pub(crate) fn scan_files(
         }
     }
 
+    let mut updated_files = FxHashMap::default();
+
+    let files = codebase.files;
+
+    let mut unchanged_files = FxHashMap::default();
+
+    for (file_id, file_info) in files {
+        if changed_files.contains(interner.lookup(file_id)) {
+            updated_files.insert(file_id, file_info);
+        } else {
+            unchanged_files.insert(file_id, file_info);
+        }
+    }
+
+    codebase.files = unchanged_files;
+
+    // get the full list of unchanged symbols
+    let mut codebase_diff = if config.ast_diff {
+        get_diff(&codebase.files, &codebase.files)
+    } else {
+        CodebaseDiff::default()
+    };
+
     let interner = Arc::new(Mutex::new(interner));
     let resolved_names = Arc::new(Mutex::new(resolved_names));
 
     let has_new_files = files_to_scan.len() > 0;
-
-    let mut maybe_codebase_diff = None;
 
     if files_to_scan.len() > 0 {
         let now = Instant::now();
@@ -831,8 +861,6 @@ pub(crate) fn scan_files(
                 .push(str_path);
         }
 
-        let mut codebase_diff;
-
         if path_groups.len() == 1 {
             let mut new_codebase = CodebaseInfo::new();
             let mut new_interner = ThreadedInterner::new(interner.clone());
@@ -861,12 +889,12 @@ pub(crate) fn scan_files(
                 update_progressbar(i as u64, bar.clone());
             }
 
-            codebase_diff = get_diff(&codebase, &new_codebase);
+            if config.ast_diff {
+                codebase_diff.extend(get_diff(&updated_files, &new_codebase.files));
+            }
 
             codebase.extend(new_codebase);
         } else {
-            codebase_diff = CodebaseDiff::default();
-
             let mut handles = vec![];
 
             let thread_codebases = Arc::new(Mutex::new(vec![]));
@@ -937,14 +965,14 @@ pub(crate) fn scan_files(
 
             if let Ok(thread_codebases) = Arc::try_unwrap(thread_codebases) {
                 for thread_codebase in thread_codebases.into_inner().unwrap().into_iter() {
-                    codebase_diff.extend(get_diff(&codebase, &thread_codebase));
+                    if config.ast_diff {
+                        codebase_diff.extend(get_diff(&updated_files, &thread_codebase.files));
+                    }
 
                     codebase.extend(thread_codebase.clone());
                 }
             }
         }
-
-        maybe_codebase_diff = Some(codebase_diff);
 
         if let Some(bar) = &bar {
             bar.finish_and_clear();
@@ -958,6 +986,7 @@ pub(crate) fn scan_files(
     }
 
     let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
+
     let resolved_names = Arc::try_unwrap(resolved_names)
         .unwrap()
         .into_inner()
@@ -988,7 +1017,7 @@ pub(crate) fn scan_files(
         interner,
         file_statuses,
         resolved_names,
-        maybe_codebase_diff,
+        codebase_diff,
     ))
 }
 
@@ -997,8 +1026,7 @@ fn load_cached_codebase(
     use_codebase_cache: bool,
     codebase: &mut CodebaseInfo,
     interner: &Interner,
-    root_dir: &String,
-    file_statuses: &IndexMap<String, FileStatus>,
+    changed_files: &FxHashSet<String>,
     verbosity: Verbosity,
 ) {
     if Path::new(codebase_path).exists() && use_codebase_cache {
@@ -1009,18 +1037,6 @@ fn load_cached_codebase(
             .unwrap_or_else(|_| panic!("Could not read file {}", &codebase_path));
         if let Ok(d) = bincode::deserialize::<CodebaseInfo>(&serialized) {
             *codebase = d;
-
-            let changed_files = file_statuses
-                .iter()
-                .filter(|(_, v)| !matches!(v, FileStatus::Unchanged(..)))
-                .map(|(k, _)| {
-                    if k.contains(root_dir) {
-                        k[(root_dir.len() + 1)..].to_string()
-                    } else {
-                        k.clone()
-                    }
-                })
-                .collect::<FxHashSet<_>>();
 
             for (_, file_storage) in codebase
                 .files

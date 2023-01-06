@@ -1,0 +1,1 @@
+ERROR: InvalidReturnStatement - input.hack:6:12 - The type string(a) does not match the declared return type int for bar
