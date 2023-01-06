@@ -54,6 +54,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             .unwrap()
             .clone();
 
+        if self.file_analyzer.analysis_config.ast_diff {
+            if self.file_analyzer.codebase.safe_symbols.contains(&name) {
+                return;
+            }
+        }
+
         let function_storage =
             if let Some(f) = self.file_analyzer.codebase.functionlike_infos.get(&name) {
                 f
@@ -166,7 +172,19 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if stmt.abstract_ {
             return;
         }
+
         let method_name = self.get_codebase().interner.get(&stmt.name.1).unwrap();
+
+        if self.file_analyzer.analysis_config.ast_diff {
+            if self
+                .file_analyzer
+                .codebase
+                .safe_symbol_members
+                .contains(&(classlike_storage.name, method_name))
+            {
+                return;
+            }
+        }
 
         let functionlike_storage = &classlike_storage.methods.get(&method_name).unwrap();
 
@@ -630,26 +648,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     if let Some(member_id) = reference.1 {
                         match context.function_context.calling_functionlike_id {
                             Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                println!(
-                                    "{} references {}::{}",
-                                    calling_function.0, reference.0 .0, member_id.0
-                                );
-                                println!(
-                                    "{} references {}::{}",
-                                    statements_analyzer
-                                        .get_codebase()
-                                        .interner
-                                        .lookup(calling_function),
-                                    statements_analyzer
-                                        .get_codebase()
-                                        .interner
-                                        .lookup(reference.0),
-                                    statements_analyzer
-                                        .get_codebase()
-                                        .interner
-                                        .lookup(member_id)
-                                );
-
                                 tast_info
                                     .symbol_references
                                     .add_symbol_reference_to_class_member(

@@ -69,7 +69,7 @@ pub fn scan_and_analyze(
 
     let mut files_to_analyze = vec![];
 
-    let (mut codebase, interner, file_statuses, resolved_names, codebase_diff) = scan_files(
+    let (mut codebase, mut interner, file_statuses, resolved_names, codebase_diff) = scan_files(
         &all_scanned_dirs,
         include_core_libs,
         cache_dir,
@@ -118,63 +118,58 @@ pub fn scan_and_analyze(
         None
     };
 
-    let mut existing_references = None;
-
-    if let Some(existing_references_path) = &references_path {
-        load_cached_existing_references(existing_references_path, true, &mut existing_references);
-    }
-
-    let mut safe_symbols = FxHashSet::default();
-    let mut safe_symbol_members = FxHashSet::default();
-
-    if let (Some(existing_references), Some(codebase_diff)) = (existing_references, codebase_diff) {
-        let (invalid_symbols, invalid_symbol_members) =
-            existing_references.get_invalid_symbols(&codebase_diff);
-
-        for keep_symbol in &codebase_diff.keep {
-            if let Some(member_id) = keep_symbol.1 {
-                if !invalid_symbols.contains(&keep_symbol.0)
-                    && !invalid_symbol_members.contains(&(keep_symbol.0, member_id))
-                {
-                    safe_symbol_members.insert((keep_symbol.0, member_id));
-                }
-            } else {
-                if !invalid_symbols.contains(&keep_symbol.0) {
-                    safe_symbols.insert(keep_symbol.0);
-                }
-            }
-        }
-
-        println!(
-            "{:#?}",
-            safe_symbols
-                .iter()
-                .map(|id| interner.lookup(*id))
-                .collect::<Vec<_>>()
-        );
-        println!(
-            "{:#?}",
-            safe_symbol_members
-                .iter()
-                .map(
-                    |(classlike_id, member_id)| interner.lookup(*classlike_id).to_string()
-                        + "::"
-                        + interner.lookup(*member_id)
-                )
-                .collect::<Vec<_>>()
-        );
-    }
-
     let issues_path = if let Some(cache_dir) = cache_dir {
         Some(format!("{}/issues", cache_dir))
     } else {
         None
     };
 
+    let mut existing_references = None;
+
+    if let Some(existing_references_path) = &references_path {
+        load_cached_existing_references(
+            existing_references_path,
+            true,
+            &mut existing_references,
+            verbosity,
+        );
+    }
+
+    let mut safe_symbols = FxHashSet::default();
+    let mut safe_symbol_members = FxHashSet::default();
     let mut existing_issues = BTreeMap::new();
 
-    if let Some(existing_issues_path) = &issues_path {
-        load_cached_existing_issues(existing_issues_path, true, &mut existing_issues);
+    if config.ast_diff {
+        if let (Some(existing_references), Some(codebase_diff)) =
+            (existing_references, codebase_diff)
+        {
+            let (invalid_symbols, invalid_symbol_members) =
+                existing_references.get_invalid_symbols(&codebase_diff);
+
+            for keep_symbol in &codebase_diff.keep {
+                if let Some(member_id) = keep_symbol.1 {
+                    if !invalid_symbols.contains(&keep_symbol.0)
+                        && !invalid_symbol_members.contains(&(keep_symbol.0, member_id))
+                    {
+                        safe_symbol_members.insert((keep_symbol.0, member_id));
+                    }
+                } else {
+                    if !invalid_symbols.contains(&keep_symbol.0) {
+                        safe_symbols.insert(keep_symbol.0);
+                    }
+                }
+            }
+
+            if let Some(existing_issues_path) = &issues_path {
+                update_issues_from_diff(
+                    existing_issues_path,
+                    &mut existing_issues,
+                    verbosity,
+                    &mut interner,
+                    codebase_diff,
+                );
+            }
+        }
     }
 
     let elapsed = now.elapsed();
@@ -192,13 +187,16 @@ pub fn scan_and_analyze(
     populate_codebase(&mut codebase, &interner, &mut symbol_references);
 
     codebase.interner = interner;
+    codebase.safe_symbols = safe_symbols;
+    codebase.safe_symbol_members = safe_symbol_members;
 
     let now = Instant::now();
 
-    let analysis_result = Arc::new(Mutex::new(AnalysisResult::new(
-        config.graph_kind,
-        symbol_references,
-    )));
+    let mut analysis_result = AnalysisResult::new(config.graph_kind, symbol_references);
+
+    analysis_result.emitted_issues = existing_issues;
+
+    let analysis_result = Arc::new(Mutex::new(analysis_result));
 
     let arc_codebase = Arc::new(codebase);
 
@@ -278,6 +276,60 @@ pub fn scan_and_analyze(
     }
 
     Ok(analysis_result)
+}
+
+fn update_issues_from_diff(
+    existing_issues_path: &String,
+    existing_issues: &mut BTreeMap<String, Vec<Issue>>,
+    verbosity: Verbosity,
+    interner: &mut Interner,
+    codebase_diff: CodebaseDiff,
+) {
+    load_cached_existing_issues(existing_issues_path, true, existing_issues, verbosity);
+
+    for (existing_file, file_issues) in existing_issues.iter_mut() {
+        let file_id = &interner.intern(existing_file.clone());
+
+        let diff_map = codebase_diff
+            .diff_map
+            .get(file_id)
+            .cloned()
+            .unwrap_or(vec![]);
+
+        let deletion_ranges = codebase_diff
+            .deletion_ranges_map
+            .get(file_id)
+            .cloned()
+            .unwrap_or(vec![]);
+
+        if !deletion_ranges.is_empty() {
+            file_issues.retain(|issue| {
+                for (from, to) in &deletion_ranges {
+                    if &issue.pos.start_offset >= from && &issue.pos.start_offset <= to {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        }
+
+        if !diff_map.is_empty() {
+            for issue in file_issues {
+                for (from, to, file_offset, line_offset) in &diff_map {
+                    if &issue.pos.start_offset >= from && &issue.pos.start_offset <= to {
+                        issue.pos.start_offset =
+                            ((issue.pos.start_offset as isize) + file_offset) as usize;
+                        issue.pos.end_offset =
+                            ((issue.pos.end_offset as isize) + file_offset) as usize;
+                        issue.pos.start_line =
+                            ((issue.pos.start_line as isize) + line_offset) as usize;
+                        issue.pos.end_line = ((issue.pos.end_line as isize) + line_offset) as usize;
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn find_unused_definitions(
@@ -1054,9 +1106,12 @@ fn load_cached_existing_references(
     existing_references_path: &String,
     use_codebase_cache: bool,
     existing_references: &mut Option<SymbolReferences>,
+    verbosity: Verbosity,
 ) {
     if Path::new(existing_references_path).exists() && use_codebase_cache {
-        println!("Deserializing existing references cache");
+        if !matches!(verbosity, Verbosity::Quiet) {
+            println!("Deserializing existing references cache");
+        }
         let serialized = fs::read(&existing_references_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &existing_references_path));
         if let Ok(d) = bincode::deserialize::<SymbolReferences>(&serialized) {
@@ -1069,9 +1124,12 @@ fn load_cached_existing_issues(
     existing_issues_path: &String,
     use_codebase_cache: bool,
     existing_issues: &mut BTreeMap<String, Vec<Issue>>,
+    verbosity: Verbosity,
 ) {
     if Path::new(existing_issues_path).exists() && use_codebase_cache {
-        println!("Deserializing existing issues cache");
+        if !matches!(verbosity, Verbosity::Quiet) {
+            println!("Deserializing existing issues cache");
+        }
         let serialized = fs::read(&existing_issues_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &existing_issues_path));
         if let Ok(d) = bincode::deserialize::<BTreeMap<String, Vec<Issue>>>(&serialized) {
@@ -1436,8 +1494,7 @@ pub fn analyze_files(
             update_progressbar(i as u64, bar.clone());
         }
 
-        let mut a = analysis_result.lock().unwrap();
-        *a = new_analysis_result;
+        analysis_result.lock().unwrap().extend(new_analysis_result);
     } else {
         let mut handles = vec![];
 
@@ -1485,8 +1542,7 @@ pub fn analyze_files(
                     update_progressbar(*tally, bar.clone());
                 }
 
-                let mut a = analysis_result.lock().unwrap();
-                a.extend(new_analysis_result);
+                analysis_result.lock().unwrap().extend(new_analysis_result);
             });
 
             handles.push(handle);

@@ -33,6 +33,13 @@ impl<'a> ClassLikeAnalyzer<'a> {
             .clone();
 
         let codebase = self.file_analyzer.get_codebase();
+
+        if self.file_analyzer.analysis_config.ast_diff {
+            if self.file_analyzer.codebase.safe_symbols.contains(&name) {
+                return;
+            }
+        }
+
         let classlike_storage = codebase.classlike_infos.get(&name).unwrap();
 
         let name = classlike_storage.name.clone();

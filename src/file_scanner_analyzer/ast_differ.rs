@@ -83,10 +83,17 @@ pub(crate) fn get_diff(
                             keep_signature.push((a.name, None));
                         } else {
                             keep.push((a.name, None));
+                            file_diffs.push((
+                                a.start_offset,
+                                a.end_offset,
+                                b.start_offset as isize - a.start_offset as isize,
+                                b.start_line as isize - a.start_line as isize,
+                            ));
                         }
                     }
-                    AstDiffElem::KeepSignature(a, _) => {
+                    AstDiffElem::KeepSignature(a, b) => {
                         keep_signature.push((a.name, None));
+                        deletion_ranges.push((b.start_offset, b.end_offset));
                     }
                     AstDiffElem::Remove(node) => {
                         add_or_delete.push((node.name, None));

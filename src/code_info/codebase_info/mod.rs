@@ -28,6 +28,8 @@ pub struct CodebaseInfo {
     pub const_files: FxHashMap<String, FxHashSet<StrId>>,
     pub classlike_descendents: FxHashMap<StrId, FxHashSet<StrId>>,
     pub files: FxHashMap<StrId, FileInfo>,
+    pub safe_symbols: FxHashSet<StrId>,
+    pub safe_symbol_members: FxHashSet<(StrId, StrId)>,
 }
 
 impl CodebaseInfo {
@@ -45,6 +47,8 @@ impl CodebaseInfo {
             classlike_descendents: FxHashMap::default(),
             interner: Interner::default(),
             files: FxHashMap::default(),
+            safe_symbols: FxHashSet::default(),
+            safe_symbol_members: FxHashSet::default(),
         }
     }
 

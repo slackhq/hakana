@@ -299,11 +299,17 @@ pub trait TestRunner {
             println!("running test {}", dir);
         }
 
+        if let Some(cache_dir) = cache_dir {
+            fs::remove_dir_all(&cache_dir).unwrap();
+            fs::create_dir(&cache_dir).unwrap();
+        }
+
         let workdir_base = dir.clone() + "/.workdir";
 
         copy_recursively(dir.clone() + "/a", workdir_base.clone()).unwrap();
 
-        let config = self.get_config_for_test(&workdir_base);
+        let mut config = self.get_config_for_test(&workdir_base);
+        config.ast_diff = true;
         let config = Arc::new(config);
 
         let stub_dirs = vec![cwd.clone() + "/test/stubs"];
@@ -330,9 +336,6 @@ pub trait TestRunner {
         .unwrap();
 
         copy_recursively(dir.clone() + "/b", workdir_base.clone()).unwrap();
-
-        let config = self.get_config_for_test(&workdir_base);
-        let config = Arc::new(config);
 
         let b_result = hakana_workhorse::scan_and_analyze(
             starter_data.is_none(),
@@ -448,7 +451,8 @@ fn get_all_test_folders(test_or_test_dir: String) -> Vec<String> {
 
             if metadata.is_dir() {
                 if let Some(path) = path.to_str() {
-                    if (Path::new(&(path.to_owned() + "/input.hack")).exists() && !path.contains("/diff/"))
+                    if (Path::new(&(path.to_owned() + "/input.hack")).exists()
+                        && !path.contains("/diff/"))
                         || Path::new(&(path.to_owned() + "/output.txt")).exists()
                     {
                         test_folders.push(path.to_owned().to_string());

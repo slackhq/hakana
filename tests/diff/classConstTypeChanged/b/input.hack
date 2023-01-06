@@ -13,3 +13,6 @@ function foo(B::T $arr): void {
         echo $v;
     }
 }
+
+foo(vec[new Exception("bad")]);
+(new B())->bar();
