@@ -141,7 +141,7 @@ pub fn scan_and_analyze(
 
     if config.ast_diff {
         if let Some(existing_references) = existing_references {
-            let (invalid_symbols, invalid_symbol_members) =
+            let (invalid_symbols, invalid_symbol_members, partially_invalid_symbols) =
                 existing_references.get_invalid_symbols(&codebase_diff);
 
             for keep_symbol in &codebase_diff.keep {
@@ -157,6 +157,21 @@ pub fn scan_and_analyze(
                     }
                 }
             }
+
+            let invalid_files = codebase
+                .files
+                .iter()
+                .filter(|(_, file_info)| {
+                    file_info.ast_nodes.iter().any(|node| {
+                        invalid_symbols.contains(&node.name)
+                            || partially_invalid_symbols.contains(&node.name)
+                    })
+                })
+                .map(|(file_id, _)| interner.lookup(*file_id).to_string())
+                .collect::<FxHashSet<_>>();
+
+            files_to_analyze
+                .retain(|full_path| invalid_files.contains(&get_relative_path(full_path, &config)));
 
             if let Some(existing_issues_path) = &issues_path {
                 update_issues_from_diff(
@@ -1201,7 +1216,7 @@ fn find_files_in_dir(
                             .unwrap()
                             .duration_since(SystemTime::UNIX_EPOCH)
                             .unwrap()
-                            .as_secs(),
+                            .as_micros() as u64,
                     );
 
                     if !extension.eq("hhi") {
@@ -1603,11 +1618,7 @@ fn analyze_file(
         }
     };
 
-    let target_name = if str_path.contains(&config.root_dir) {
-        str_path[(config.root_dir.len() + 1)..].to_string()
-    } else {
-        str_path.clone()
-    };
+    let target_name = get_relative_path(str_path, config);
 
     let file_path = codebase.interner.get(target_name.as_str()).unwrap();
 
@@ -1621,6 +1632,14 @@ fn analyze_file(
     let mut file_analyzer =
         file_analyzer::FileAnalyzer::new(file_source, &resolved_names, codebase, config);
     file_analyzer.analyze(&aast.0, analysis_result);
+}
+
+fn get_relative_path(str_path: &String, config: &Config) -> String {
+    if str_path.contains(&config.root_dir) {
+        str_path[(config.root_dir.len() + 1)..].to_string()
+    } else {
+        str_path.clone()
+    }
 }
 
 pub fn analyze_single_file(

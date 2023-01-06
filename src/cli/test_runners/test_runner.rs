@@ -43,7 +43,7 @@ pub trait TestRunner {
                 panic!("could not create aast cache directory");
             }
 
-            let is_xhp_test = test_folder.contains("xhp");
+            let needs_fresh_codebase = test_folder.contains("xhp") || test_folder.contains("/diff/");
 
             let test_result = self.run_test_in_dir(
                 test_folder,
@@ -53,7 +53,7 @@ pub trait TestRunner {
                 &mut test_diagnostics,
                 build_checksum,
                 if let Some(starter_codebase) = &starter_codebase {
-                    if is_xhp_test {
+                    if needs_fresh_codebase {
                         None
                     } else {
                         Some(starter_codebase.clone())

@@ -400,11 +400,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         result
     }
 
-    fn visit_class_var(
-        &mut self,
-        c: &mut Context,
-        m: &aast::ClassVar<(), ()>,
-    ) -> Result<(), ()> {
+    fn visit_class_var(&mut self, c: &mut Context, m: &aast::ClassVar<(), ()>) -> Result<(), ()> {
         let member_name = self.interner.intern(m.id.1.clone());
 
         c.member_name = Some(member_name);
@@ -438,7 +434,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &m.tparams,
                 &m.params,
                 &m.ret,
-                &m.body,
                 &self
                     .uses
                     .symbol_member_uses
@@ -575,7 +570,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &f.tparams,
                 &f.params,
                 &f.ret,
-                &f.body,
                 &self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
             );
 
@@ -638,13 +632,8 @@ fn get_function_hashes(
     tparams: &Vec<Tparam>,
     params: &Vec<FunParam>,
     ret: &TypeHint,
-    body: &aast::FuncBody<(), ()>,
     uses: &Vec<(StrId, StrId)>,
 ) -> (u64, u64) {
-    let mut body_hash = position_insensitive_hash(body);
-
-    body_hash = body_hash.wrapping_add(get_uses_hash(uses));
-
     let mut signature_end = name.0.end_offset();
 
     if let Some(last_tparam) = tparams.last() {
@@ -673,7 +662,13 @@ fn get_function_hashes(
         file_contents[def_location.start_offset..signature_end].as_bytes(),
     );
 
-    (signature_hash, body_hash)
+    (
+        signature_hash,
+        xxhash_rust::xxh3::xxh3_64(
+            file_contents[signature_end..def_location.end_offset].as_bytes(),
+        )
+        .wrapping_add(get_uses_hash(uses)),
+    )
 }
 
 pub fn collect_info_for_aast(

@@ -379,7 +379,11 @@ impl SymbolReferences {
     pub fn get_invalid_symbols(
         &self,
         codebase_diff: &CodebaseDiff,
-    ) -> (FxHashSet<StrId>, FxHashSet<(StrId, StrId)>) {
+    ) -> (
+        FxHashSet<StrId>,
+        FxHashSet<(StrId, StrId)>,
+        FxHashSet<StrId>,
+    ) {
         let mut invalid_symbols = FxHashSet::default();
         let mut invalid_symbol_members = FxHashSet::default();
 
@@ -483,6 +487,17 @@ impl SymbolReferences {
         invalid_symbols.extend(invalid_symbol_bodies);
         invalid_symbol_members.extend(invalid_symbol_member_bodies);
 
-        (invalid_symbols, invalid_symbol_members)
+        let mut partially_invalid_symbols = invalid_symbol_members
+            .iter()
+            .map(|(a, _)| *a)
+            .collect::<FxHashSet<_>>();
+
+        partially_invalid_symbols.extend(codebase_diff.keep_signature.iter().map(|(a, _)| a));
+
+        (
+            invalid_symbols,
+            invalid_symbol_members,
+            partially_invalid_symbols,
+        )
     }
 }
