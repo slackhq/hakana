@@ -27,19 +27,27 @@ pub struct AnalysisResult {
 }
 
 impl AnalysisResult {
-    pub fn new(program_dataflow_graph_kind: GraphKind) -> Self {
+    pub fn new(
+        program_dataflow_graph_kind: GraphKind,
+        symbol_references: SymbolReferences,
+    ) -> Self {
         Self {
             emitted_issues: BTreeMap::new(),
             replacements: FxHashMap::default(),
             mixed_source_counts: FxHashMap::default(),
             program_dataflow_graph: DataFlowGraph::new(program_dataflow_graph_kind),
-            symbol_references: SymbolReferences::new(),
             issue_counts: FxHashMap::default(),
+            symbol_references,
         }
     }
 
     pub fn extend(&mut self, other: Self) {
-        self.emitted_issues.extend(other.emitted_issues);
+        for (file_path, issues) in other.emitted_issues {
+            self.emitted_issues
+                .entry(file_path)
+                .or_insert_with(Vec::new)
+                .extend(issues);
+        }
         self.replacements.extend(other.replacements);
         for (id, c) in other.mixed_source_counts {
             self.mixed_source_counts

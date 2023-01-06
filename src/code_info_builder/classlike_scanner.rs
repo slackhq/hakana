@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
+use hakana_aast_helper::Uses;
+use no_pos_hash::{position_insensitive_hash, Hasher, NoPosHash};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
+    ast_signature::DefSignatureNode,
     class_constant_info::ConstantInfo,
     classlike_info::{ClassLikeInfo, Variance},
     code_location::HPos,
@@ -20,8 +23,8 @@ use oxidized::{
     ast_defs::{self, ClassishKind},
 };
 
-use crate::typehint_resolver::get_type_from_hint;
 use crate::{functionlike_scanner::adjust_location_from_comments, simple_type_inferer};
+use crate::{get_uses_hash, typehint_resolver::get_type_from_hint};
 
 pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
@@ -35,6 +38,8 @@ pub(crate) fn scan(
     comments: &Vec<(oxidized::tast::Pos, oxidized::prim_defs::Comment)>,
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
+    ast_nodes: &mut Vec<DefSignatureNode>,
+    all_uses: &Uses,
 ) -> bool {
     let mut definition_location = HPos::new(&classlike_node.span, file_source.file_path, None);
     let name_location = HPos::new(classlike_node.name.pos(), file_source.file_path, None);
@@ -55,6 +60,8 @@ pub(crate) fn scan(
 
     storage.user_defined = user_defined;
 
+    let mut signature_end = storage.name_location.end_offset;
+
     storage.uses_position = uses_position;
     storage.namespace_position = namespace_position;
 
@@ -72,6 +79,18 @@ pub(crate) fn scan(
         }
 
         for (i, type_param_node) in classlike_node.tparams.iter().enumerate() {
+            signature_end = type_param_node.name.0.end_offset();
+
+            if !type_param_node.constraints.is_empty() {
+                signature_end = type_param_node
+                    .constraints
+                    .last()
+                    .unwrap()
+                    .1
+                     .0
+                    .end_offset();
+            }
+
             let first_constraint = type_param_node.constraints.first();
 
             let template_as_type = if let Some((_, constraint_hint)) = first_constraint {
@@ -126,7 +145,13 @@ pub(crate) fn scan(
 
             if let Some(parent_class) = classlike_node.extends.first() {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_class.1 {
+                    signature_end = name.0.end_offset();
+
                     let parent_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
+
+                    if !params.is_empty() {
+                        signature_end = params.last().unwrap().0.end_offset();
+                    }
 
                     storage.direct_parent_class = Some(parent_name.clone());
                     storage.all_parent_classes.insert(parent_name.clone());
@@ -156,8 +181,14 @@ pub(crate) fn scan(
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
+                    signature_end = name.0.end_offset();
+
                     let interface_name =
                         resolved_names.get(&name.0.start_offset()).unwrap().clone();
+
+                    if !params.is_empty() {
+                        signature_end = params.last().unwrap().0.end_offset();
+                    }
 
                     storage
                         .direct_class_interfaces
@@ -245,7 +276,13 @@ pub(crate) fn scan(
 
             for parent_interface in &classlike_node.extends {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_interface.1 {
+                    signature_end = name.0.end_offset();
+
                     let parent_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
+
+                    if !params.is_empty() {
+                        signature_end = params.last().unwrap().0.end_offset();
+                    }
 
                     storage.direct_parent_interfaces.insert(parent_name.clone());
                     storage.all_parent_interfaces.insert(parent_name.clone());
@@ -284,8 +321,14 @@ pub(crate) fn scan(
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
+                    signature_end = name.0.end_offset();
+
                     let interface_name =
                         resolved_names.get(&name.0.start_offset()).unwrap().clone();
+
+                    if !params.is_empty() {
+                        signature_end = params.last().unwrap().0.end_offset();
+                    }
 
                     storage
                         .direct_class_interfaces
@@ -332,6 +375,8 @@ pub(crate) fn scan(
             })));
 
             if let Some(enum_node) = &classlike_node.enum_ {
+                signature_end = enum_node.base.0.end_offset();
+
                 storage.enum_type = Some(
                     get_type_from_hint(
                         &enum_node.base.1,
@@ -344,6 +389,8 @@ pub(crate) fn scan(
                 );
 
                 if let Some(constraint) = &enum_node.constraint {
+                    signature_end = constraint.0.end_offset();
+
                     storage.enum_constraint = Some(Box::new(
                         get_type_from_hint(
                             &constraint.1,
@@ -367,6 +414,22 @@ pub(crate) fn scan(
         }
     }
 
+    let uses_hash = get_uses_hash(all_uses.symbol_uses.get(&class_name).unwrap_or(&vec![]));
+
+    let mut def_signature_node = DefSignatureNode {
+        name: *class_name,
+        start_offset: storage.def_location.start_offset,
+        end_offset: storage.def_location.end_offset,
+        start_line: storage.def_location.start_line,
+        end_line: storage.def_location.end_line,
+        children: Vec::new(),
+        signature_hash: xxhash_rust::xxh3::xxh3_64(
+            file_source.file_contents[storage.def_location.start_offset..signature_end].as_bytes(),
+        )
+        .wrapping_add(uses_hash),
+        body_hash: None,
+    };
+
     for trait_use in &classlike_node.uses {
         let trait_type = get_type_from_hint(
             &trait_use.1,
@@ -382,6 +445,13 @@ pub(crate) fn scan(
 
         if let TAtomic::TReference { name, .. } = trait_type {
             storage.used_traits.insert(name.clone());
+
+            let mut hasher = rustc_hash::FxHasher::default();
+            name.0.hash(&mut hasher);
+
+            def_signature_node.signature_hash = def_signature_node
+                .signature_hash
+                .wrapping_add(hasher.finish());
         }
     }
 
@@ -393,6 +463,8 @@ pub(crate) fn scan(
             file_source,
             &codebase,
             interner,
+            &mut def_signature_node.children,
+            all_uses,
         );
     }
 
@@ -402,7 +474,10 @@ pub(crate) fn scan(
                 class_typeconst_node,
                 resolved_names,
                 &mut storage,
+                file_source,
                 interner,
+                &mut def_signature_node.children,
+                all_uses,
             );
         }
     }
@@ -458,6 +533,8 @@ pub(crate) fn scan(
             &mut storage,
             file_source,
             interner,
+            &mut def_signature_node.children,
+            all_uses,
         );
     }
 
@@ -472,6 +549,8 @@ pub(crate) fn scan(
     }
 
     codebase.classlike_infos.insert(class_name.clone(), storage);
+
+    ast_nodes.push(def_signature_node);
 
     true
 }
@@ -602,6 +681,8 @@ fn visit_class_const_declaration(
     file_source: &FileSource,
     codebase: &CodebaseInfo,
     interner: &mut ThreadedInterner,
+    def_child_signature_nodes: &mut Vec<DefSignatureNode>,
+    all_uses: &Uses,
 ) {
     let mut provided_type = None;
 
@@ -628,6 +709,24 @@ fn visit_class_const_declaration(
     let def_pos = HPos::new(&const_node.span, file_source.file_path, None);
 
     let name = interner.intern(const_node.id.1.clone());
+
+    let uses_hash = get_uses_hash(
+        all_uses
+            .symbol_member_uses
+            .get(&(classlike_storage.name, name))
+            .unwrap_or(&vec![]),
+    );
+
+    def_child_signature_nodes.push(DefSignatureNode {
+        name,
+        start_offset: def_pos.start_offset,
+        end_offset: def_pos.end_offset,
+        start_line: def_pos.start_line,
+        end_line: def_pos.end_line,
+        signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
+        body_hash: None,
+        children: vec![],
+    });
 
     let const_storage = ConstantInfo {
         pos: def_pos,
@@ -656,7 +755,10 @@ fn visit_class_typeconst_declaration(
     const_node: &aast::ClassTypeconstDef<(), ()>,
     resolved_names: &FxHashMap<usize, StrId>,
     classlike_storage: &mut ClassLikeInfo,
+    file_source: &FileSource,
     interner: &mut ThreadedInterner,
+    def_child_signature_nodes: &mut Vec<DefSignatureNode>,
+    all_uses: &Uses,
 ) {
     let const_type = match &const_node.kind {
         aast::ClassTypeconst::TCAbstract(_) => {
@@ -677,7 +779,27 @@ fn visit_class_typeconst_declaration(
         ),
     };
 
+    let def_pos = HPos::new(&const_node.span, file_source.file_path, None);
+
     let name = interner.intern(const_node.name.1.clone());
+
+    let uses_hash = get_uses_hash(
+        all_uses
+            .symbol_member_uses
+            .get(&(classlike_storage.name, name))
+            .unwrap_or(&vec![]),
+    );
+
+    def_child_signature_nodes.push(DefSignatureNode {
+        name,
+        start_offset: def_pos.start_offset,
+        end_offset: def_pos.end_offset,
+        start_line: def_pos.start_line,
+        end_line: def_pos.end_line,
+        signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
+        body_hash: None,
+        children: vec![],
+    });
 
     classlike_storage.type_constants.insert(name, const_type);
 }
@@ -688,6 +810,8 @@ fn visit_property_declaration(
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     interner: &mut ThreadedInterner,
+    def_child_signature_nodes: &mut Vec<DefSignatureNode>,
+    all_uses: &Uses,
 ) {
     let mut property_type = None;
 
@@ -714,6 +838,27 @@ fn visit_property_declaration(
     let def_pos = HPos::new(&property_node.span, file_source.file_path, None);
 
     let property_ref_id = interner.intern(property_node.id.1.clone());
+
+    let uses_hash = get_uses_hash(
+        all_uses
+            .symbol_member_uses
+            .get(&(classlike_storage.name, property_ref_id))
+            .unwrap_or(&vec![]),
+    );
+
+    def_child_signature_nodes.push(DefSignatureNode {
+        name: property_ref_id,
+        start_offset: def_pos.start_offset,
+        end_offset: def_pos.end_offset,
+        start_line: def_pos.start_line,
+        end_line: def_pos.end_line,
+        signature_hash: xxhash_rust::xxh3::xxh3_64(
+            file_source.file_contents[def_pos.start_offset..def_pos.end_offset].as_bytes(),
+        )
+        .wrapping_add(uses_hash),
+        body_hash: None,
+        children: vec![],
+    });
 
     let property_storage = PropertyInfo {
         is_static: property_node.is_static,

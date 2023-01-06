@@ -6,7 +6,6 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::analysis_result::AnalysisResult;
-
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::function_context::FunctionContext;

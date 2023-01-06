@@ -54,6 +54,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             .unwrap()
             .clone();
 
+        if self.file_analyzer.analysis_config.ast_diff {
+            if self.file_analyzer.codebase.safe_symbols.contains(&name) {
+                return;
+            }
+        }
+
         let function_storage =
             if let Some(f) = self.file_analyzer.codebase.functionlike_infos.get(&name) {
                 f
@@ -166,7 +172,19 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if stmt.abstract_ {
             return;
         }
+
         let method_name = self.get_codebase().interner.get(&stmt.name.1).unwrap();
+
+        if self.file_analyzer.analysis_config.ast_diff {
+            if self
+                .file_analyzer
+                .codebase
+                .safe_symbol_members
+                .contains(&(classlike_storage.name, method_name))
+            {
+                return;
+            }
+        }
 
         let functionlike_storage = &classlike_storage.methods.get(&method_name).unwrap();
 
@@ -625,6 +643,58 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             let mut param_type = if let Some(param_type) = &param.signature_type {
                 let mut param_type = param_type.clone();
                 let calling_class = context.function_context.calling_class.as_ref();
+
+                for reference in &param_type.get_all_references() {
+                    if let Some(member_id) = reference.1 {
+                        match context.function_context.calling_functionlike_id {
+                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                                tast_info
+                                    .symbol_references
+                                    .add_symbol_reference_to_class_member(
+                                        calling_function,
+                                        (reference.0, member_id),
+                                        true,
+                                    );
+                            }
+                            Some(FunctionLikeIdentifier::Method(
+                                calling_classlike,
+                                calling_function,
+                            )) => {
+                                tast_info
+                                    .symbol_references
+                                    .add_class_member_reference_to_class_member(
+                                        (calling_classlike, calling_function),
+                                        (reference.0, member_id),
+                                        true,
+                                    );
+                            }
+                            _ => {}
+                        }
+                    } else {
+                        match context.function_context.calling_functionlike_id {
+                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                                tast_info.symbol_references.add_symbol_reference_to_symbol(
+                                    calling_function,
+                                    reference.0,
+                                    true,
+                                );
+                            }
+                            Some(FunctionLikeIdentifier::Method(
+                                calling_classlike,
+                                calling_function,
+                            )) => {
+                                tast_info
+                                    .symbol_references
+                                    .add_class_member_reference_to_symbol(
+                                        (calling_classlike, calling_function),
+                                        reference.0,
+                                        true,
+                                    );
+                            }
+                            _ => {}
+                        }
+                    }
+                }
 
                 type_expander::expand_union(
                     self.file_analyzer.get_codebase(),

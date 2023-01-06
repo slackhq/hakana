@@ -8,6 +8,7 @@ use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
+use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_type::type_expander;
 use hakana_type::type_expander::TypeExpansionOptions;
@@ -24,7 +25,8 @@ pub(crate) fn analyze(
 ) -> bool {
     let mut function_analyzer = FunctionLikeAnalyzer::new(statements_analyzer.get_file_analyzer());
     let mut lambda_context = context.clone();
-    let mut analysis_result = AnalysisResult::new(tast_info.data_flow_graph.kind);
+    let mut analysis_result =
+        AnalysisResult::new(tast_info.data_flow_graph.kind, SymbolReferences::new());
     let mut lambda_storage = if let Some(lambda_storage) = function_analyzer.analyze_lambda(
         &boxed.0,
         &mut lambda_context,

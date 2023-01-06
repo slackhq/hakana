@@ -6,11 +6,14 @@ edition = "2021"
 [dependencies]
 hakana-type = { path = "../ttype" }
 hakana-reflection-info = { path = "../code_info" }
+hakana-aast-helper = { path = "../aast_utils" }
 indexmap = "1.8.0"
 parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
 oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
+no_pos_hash = { path = "../../third-party/hhvm/hphp/hack/src/utils/no_pos_hash" }
 naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/naming" }
 rustc-hash = "1.1.0"
+xxhash-rust = { version = "0.8.3", features = ["xxh3", "xxh32"] }
 
 [lib]
 path = "lib.rs"

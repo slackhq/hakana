@@ -25,8 +25,7 @@ pub fn get_aast_for_path_and_contents(
     local_path: String,
     file_contents: String,
     aast_cache_dir: Option<String>,
-    has_changed: bool,
-) -> Result<(aast::Program<(), ()>, ScouredComments), String> {
+) -> Result<(aast::Program<(), ()>, ScouredComments, String), String> {
     let path_hash = xxhash_rust::xxh3::xxh3_64(local_path.as_bytes());
 
     let cache_path = if let Some(cache_dir) = aast_cache_dir {
@@ -40,20 +39,6 @@ pub fn get_aast_for_path_and_contents(
     } else {
         None
     };
-
-    if !has_changed {
-        if let Some(cache_path) = &cache_path {
-            if Path::new(&cache_path).exists() {
-                let serialized_aast = fs::read(&cache_path)
-                    .unwrap_or_else(|_| panic!("Could not read file {}", &cache_path));
-                if let Ok(aast) = bincode::deserialize::<(aast::Program<(), ()>, ScouredComments)>(
-                    &serialized_aast,
-                ) {
-                    return Ok(aast);
-                }
-            }
-        }
-    }
 
     let rc_path = RcOc::new(RelativePath::make(Prefix::Root, PathBuf::from(&local_path)));
 
@@ -112,14 +97,19 @@ pub fn get_aast_for_path_and_contents(
             .unwrap_or_else(|_| panic!("Could not write file {}", &cache_path));
     }
 
-    Ok((aast, parser_result.scoured_comments))
+    Ok((aast, parser_result.scoured_comments, file_contents))
+}
+
+pub struct Uses {
+    pub symbol_uses: FxHashMap<StrId, Vec<(StrId, StrId)>>,
+    pub symbol_member_uses: FxHashMap<(StrId, StrId), Vec<(StrId, StrId)>>,
 }
 
 pub fn scope_names(
     program: &aast::Program<(), ()>,
     interner: &mut ThreadedInterner,
     mut name_context: NameContext,
-) -> FxHashMap<usize, StrId> {
+) -> (FxHashMap<usize, StrId>, Uses) {
     let mut scanner = Scanner {
         interner,
         resolved_names: FxHashMap::default(),
@@ -129,5 +119,11 @@ pub fn scope_names(
     };
 
     visit(&mut scanner, &mut name_context, program).unwrap();
-    scanner.resolved_names
+    (
+        scanner.resolved_names,
+        Uses {
+            symbol_uses: scanner.symbol_uses,
+            symbol_member_uses: scanner.symbol_member_uses,
+        },
+    )
 }

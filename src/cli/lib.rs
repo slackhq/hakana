@@ -110,7 +110,12 @@ pub fn init(
                 .arg(
                     arg!(--"no-cache")
                         .required(false)
-                        .help("Whether to use cache"),
+                        .help("Whether to ignore the cache"),
+                )
+                .arg(
+                    arg!(--"diff")
+                        .required(false)
+                        .help("Whether perform AST-based diffing to speed up execution"),
                 )
                 .arg(
                     arg!(--"show-issue-stats")
@@ -400,6 +405,7 @@ pub fn init(
             let show_symbol_map = sub_matches.is_present("show-symbol-map");
             let ignore_mixed_issues = sub_matches.is_present("ignore-mixed-issues");
             let show_issue_stats = sub_matches.is_present("show-issue-stats");
+            let do_ast_diff = sub_matches.is_present("diff");
 
             let mut issue_kinds_filter = FxHashSet::default();
 
@@ -424,6 +430,7 @@ pub fn init(
             config.find_unused_expressions = find_unused_expressions;
             config.find_unused_definitions = find_unused_definitions;
             config.ignore_mixed_issues = ignore_mixed_issues;
+            config.ast_diff = do_ast_diff;
 
             config.hooks = analysis_hooks;
 

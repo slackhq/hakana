@@ -6,7 +6,6 @@ use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
-
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_info::FnEffect;

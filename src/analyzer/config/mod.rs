@@ -36,6 +36,7 @@ pub struct Config {
     pub add_fixmes: bool,
     pub remove_fixmes: bool,
     pub all_custom_issues: FxHashSet<String>,
+    pub ast_diff: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -74,6 +75,7 @@ impl Config {
             remove_fixmes: false,
             all_custom_issues,
             allowable_issues: None,
+            ast_diff: false,
         }
     }
 

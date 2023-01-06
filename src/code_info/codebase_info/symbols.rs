@@ -12,6 +12,7 @@ pub enum SymbolKind {
     Interface,
     TypeDefinition,
     Function,
+    Constant,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -81,5 +82,9 @@ impl Symbols {
 
     pub fn add_function_name(&mut self, function_name: StrId) {
         self.all.insert(function_name, SymbolKind::Function);
+    }
+
+    pub fn add_constant_name(&mut self, function_name: StrId) {
+        self.all.insert(function_name, SymbolKind::Constant);
     }
 }
