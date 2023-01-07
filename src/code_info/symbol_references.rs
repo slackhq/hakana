@@ -12,7 +12,7 @@ pub enum ReferenceSource {
     ClasslikeMember(bool, StrId, StrId),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SymbolReferences {
     // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
     // (class method, enum case, class property etc)
@@ -340,6 +340,10 @@ impl SymbolReferences {
             referenced_symbols.extend(symbol_references_to_symbols);
         }
 
+        for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols_in_signature {
+            referenced_symbols.extend(symbol_references_to_symbols);
+        }
+
         referenced_symbols
     }
 
@@ -352,6 +356,18 @@ impl SymbolReferences {
 
         for (_, class_member_references_to_class_members) in
             &self.classlike_member_references_to_members
+        {
+            referenced_class_members.extend(class_member_references_to_class_members);
+        }
+
+        for (_, symbol_references_to_class_members) in
+            &self.symbol_references_to_members_in_signature
+        {
+            referenced_class_members.extend(symbol_references_to_class_members);
+        }
+
+        for (_, class_member_references_to_class_members) in
+            &self.classlike_member_references_to_members_in_signature
         {
             referenced_class_members.extend(class_member_references_to_class_members);
         }

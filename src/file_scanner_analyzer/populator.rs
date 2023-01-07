@@ -27,7 +27,12 @@ pub fn populate_codebase(
         .collect::<Vec<_>>();
 
     for k in &classlike_names {
-        populate_classlike_storage(k, &mut all_classlike_descendants, codebase);
+        populate_classlike_storage(
+            k,
+            &mut all_classlike_descendants,
+            codebase,
+            symbol_references,
+        );
     }
 
     for (name, v) in codebase.functionlike_infos.iter_mut() {
@@ -246,6 +251,7 @@ fn populate_classlike_storage(
     classlike_name: &StrId,
     all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
+    symbol_references: &mut SymbolReferences,
 ) {
     let mut storage = if let Some(storage) = codebase.classlike_infos.remove(classlike_name) {
         storage
@@ -276,6 +282,7 @@ fn populate_classlike_storage(
             all_classlike_descendants,
             codebase,
             trait_name,
+            symbol_references,
         );
     }
 
@@ -285,6 +292,7 @@ fn populate_classlike_storage(
             all_classlike_descendants,
             codebase,
             parent_classname,
+            symbol_references,
         );
     }
 
@@ -294,6 +302,7 @@ fn populate_classlike_storage(
             all_classlike_descendants,
             codebase,
             direct_parent_interface,
+            symbol_references,
         );
     }
 
@@ -303,6 +312,7 @@ fn populate_classlike_storage(
             all_classlike_descendants,
             codebase,
             direct_class_interface,
+            symbol_references,
         );
     }
 
@@ -368,12 +378,16 @@ fn populate_interface_data_from_parent_interface(
     all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     parent_storage_interface: &StrId,
+    symbol_references: &mut SymbolReferences,
 ) {
     populate_classlike_storage(
         parent_storage_interface,
         all_classlike_descendants,
         codebase,
+        symbol_references,
     );
+
+    symbol_references.add_symbol_reference_to_symbol(storage.name, *parent_storage_interface, true);
 
     let parent_interface_storage = if let Some(parent_interface_storage) =
         codebase.classlike_infos.get(parent_storage_interface)
@@ -400,12 +414,17 @@ fn populate_data_from_implemented_interface(
     all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     parent_storage_interface: &StrId,
+
+    symbol_references: &mut SymbolReferences,
 ) {
     populate_classlike_storage(
         parent_storage_interface,
         all_classlike_descendants,
         codebase,
+        symbol_references,
     );
+
+    symbol_references.add_symbol_reference_to_symbol(storage.name, *parent_storage_interface, true);
 
     let implemented_interface_storage = if let Some(implemented_interface_storage) =
         codebase.classlike_infos.get(parent_storage_interface)
@@ -435,8 +454,17 @@ fn populate_data_from_parent_classlike(
     all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     parent_storage_class: &StrId,
+    symbol_references: &mut SymbolReferences,
 ) {
-    populate_classlike_storage(parent_storage_class, all_classlike_descendants, codebase);
+    populate_classlike_storage(
+        parent_storage_class,
+        all_classlike_descendants,
+        codebase,
+        symbol_references,
+    );
+
+    symbol_references.add_symbol_reference_to_symbol(storage.name, *parent_storage_class, true);
+
     let parent_storage = codebase.classlike_infos.get(parent_storage_class);
 
     let parent_storage = if let Some(parent_storage) = parent_storage {
@@ -497,8 +525,17 @@ fn populate_data_from_trait(
     all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     trait_name: &StrId,
+    symbol_references: &mut SymbolReferences,
 ) {
-    populate_classlike_storage(trait_name, all_classlike_descendants, codebase);
+    populate_classlike_storage(
+        trait_name,
+        all_classlike_descendants,
+        codebase,
+        symbol_references,
+    );
+
+    symbol_references.add_symbol_reference_to_symbol(storage.name, *trait_name, true);
+
     let trait_storage = codebase.classlike_infos.get(trait_name);
 
     let trait_storage = if let Some(trait_storage) = trait_storage {
