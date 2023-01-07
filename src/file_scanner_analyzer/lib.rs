@@ -129,21 +129,24 @@ pub fn scan_and_analyze(
     let mut safe_symbols = FxHashSet::default();
     let mut safe_symbol_members = FxHashSet::default();
     let mut existing_issues = BTreeMap::new();
+    let mut symbol_references = SymbolReferences::new();
 
     if config.ast_diff {
-        mark_safe_symbols_from_diff(
+        if let Some(cached_analysis) = mark_safe_symbols_from_diff(
             &references_path,
             verbosity,
             codebase_diff,
-            &mut safe_symbol_members,
-            &mut safe_symbols,
             &codebase,
             &mut interner,
             &mut files_to_analyze,
             &config,
             &issues_path,
-            &mut existing_issues,
-        );
+        ) {
+            safe_symbols = cached_analysis.safe_symbols;
+            safe_symbol_members = cached_analysis.safe_symbol_members;
+            existing_issues = cached_analysis.existing_issues;
+            symbol_references = cached_analysis.symbol_references;
+        }
     }
 
     let elapsed = now.elapsed();
@@ -155,8 +158,6 @@ pub fn scan_and_analyze(
     if !matches!(verbosity, Verbosity::Quiet) {
         println!("Calculating symbol inheritance");
     }
-
-    let mut symbol_references = SymbolReferences::new();
 
     populate_codebase(&mut codebase, &interner, &mut symbol_references);
 

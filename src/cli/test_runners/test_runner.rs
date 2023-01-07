@@ -310,6 +310,7 @@ pub trait TestRunner {
 
         let mut config = self.get_config_for_test(&workdir_base);
         config.ast_diff = true;
+        config.find_unused_definitions = true;
         let config = Arc::new(config);
 
         let stub_dirs = vec![cwd.clone() + "/test/stubs"];

@@ -2,6 +2,7 @@ use hakana_analyzer::config::{Config, Verbosity};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::diff::CodebaseDiff;
 use hakana_reflection_info::issue::Issue;
+use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::StrId;
 use rustc_hash::FxHashSet;
@@ -11,35 +12,46 @@ use crate::cache::load_cached_existing_issues;
 use crate::cache::load_cached_existing_references;
 use crate::get_relative_path;
 
+#[derive(Default)]
+pub(crate) struct CachedAnalysis {
+    pub safe_symbols: FxHashSet<StrId>,
+    pub safe_symbol_members: FxHashSet<(StrId, StrId)>,
+    pub existing_issues: BTreeMap<String, Vec<Issue>>,
+    pub symbol_references: SymbolReferences,
+}
+
 pub(crate) fn mark_safe_symbols_from_diff(
     references_path: &Option<String>,
     verbosity: Verbosity,
     codebase_diff: CodebaseDiff,
-    safe_symbol_members: &mut FxHashSet<(StrId, StrId)>,
-    safe_symbols: &mut FxHashSet<StrId>,
     codebase: &CodebaseInfo,
     interner: &mut Interner,
     files_to_analyze: &mut Vec<String>,
     config: &Config,
     issues_path: &Option<String>,
-    existing_issues: &mut BTreeMap<String, Vec<Issue>>,
-) {
+) -> Option<CachedAnalysis> {
     if let Some(existing_references) =
         load_cached_existing_references(references_path.as_ref().unwrap(), true, verbosity)
     {
         let (invalid_symbols, invalid_symbol_members, partially_invalid_symbols) =
             existing_references.get_invalid_symbols(&codebase_diff);
 
+        let mut cached_analysis = CachedAnalysis::default();
+
+        cached_analysis.symbol_references = existing_references;
+
         for keep_symbol in &codebase_diff.keep {
             if let Some(member_id) = keep_symbol.1 {
                 if !invalid_symbols.contains(&keep_symbol.0)
                     && !invalid_symbol_members.contains(&(keep_symbol.0, member_id))
                 {
-                    safe_symbol_members.insert((keep_symbol.0, member_id));
+                    cached_analysis
+                        .safe_symbol_members
+                        .insert((keep_symbol.0, member_id));
                 }
             } else {
                 if !invalid_symbols.contains(&keep_symbol.0) {
-                    safe_symbols.insert(keep_symbol.0);
+                    cached_analysis.safe_symbols.insert(keep_symbol.0);
                 }
             }
         }
@@ -60,26 +72,25 @@ pub(crate) fn mark_safe_symbols_from_diff(
             .retain(|full_path| invalid_files.contains(&get_relative_path(full_path, config)));
 
         if let Some(existing_issues_path) = issues_path {
-            update_issues_from_diff(
-                existing_issues_path,
-                existing_issues,
-                verbosity,
-                interner,
-                codebase_diff,
-            );
+            if let Some(mut existing_issues) =
+                load_cached_existing_issues(existing_issues_path, true, verbosity)
+            {
+                update_issues_from_diff(&mut existing_issues, interner, codebase_diff);
+                cached_analysis.existing_issues = existing_issues;
+            }
         }
+
+        Some(cached_analysis)
+    } else {
+        None
     }
 }
 
 fn update_issues_from_diff(
-    existing_issues_path: &String,
     existing_issues: &mut BTreeMap<String, Vec<Issue>>,
-    verbosity: Verbosity,
     interner: &mut Interner,
     codebase_diff: CodebaseDiff,
 ) {
-    load_cached_existing_issues(existing_issues_path, true, existing_issues, verbosity);
-
     for (existing_file, file_issues) in existing_issues.iter_mut() {
         let file_id = &interner.intern(existing_file.clone());
 
@@ -118,6 +129,7 @@ fn update_issues_from_diff(
                         issue.pos.start_line =
                             ((issue.pos.start_line as isize) + line_offset) as usize;
                         issue.pos.end_line = ((issue.pos.end_line as isize) + line_offset) as usize;
+                        break;
                     }
                 }
             }

@@ -129,9 +129,8 @@ pub(crate) fn load_cached_existing_references(
 pub(crate) fn load_cached_existing_issues(
     existing_issues_path: &String,
     use_codebase_cache: bool,
-    existing_issues: &mut BTreeMap<String, Vec<Issue>>,
     verbosity: Verbosity,
-) {
+) -> Option<BTreeMap<String, Vec<Issue>>> {
     if Path::new(existing_issues_path).exists() && use_codebase_cache {
         if !matches!(verbosity, Verbosity::Quiet) {
             println!("Deserializing existing issues cache");
@@ -139,7 +138,9 @@ pub(crate) fn load_cached_existing_issues(
         let serialized = fs::read(&existing_issues_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &existing_issues_path));
         if let Ok(d) = bincode::deserialize::<BTreeMap<String, Vec<Issue>>>(&serialized) {
-            *existing_issues = d;
+            return Some(d);
         }
     }
+
+    None
 }

@@ -9,4 +9,7 @@ function foo(C $c) {
     $c->foo();
 }
 
-foo(new C());
+<<__EntryPoint>>
+function main(): void {
+    foo(new C());
+}

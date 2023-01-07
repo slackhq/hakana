@@ -1,3 +1,6 @@
 function baz(): void {}
 
-baz();
+<<__EntryPoint>>
+function main2(): void {
+    baz();
+}

@@ -6,5 +6,8 @@ function bar(): int {
     return "a";
 }
 
-foo();
-bar();
+<<__EntryPoint>>
+function main(): void {
+    foo();
+    bar();
+}

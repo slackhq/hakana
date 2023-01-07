@@ -14,5 +14,8 @@ function foo(B::T $arr): void {
     }
 }
 
-foo(vec[new Exception("bad")]);
-(new B())->bar();
+<<__EntryPoint>>
+function main(): void {
+    foo(vec[new Exception("bad")]);
+    (new B())->bar();
+}

@@ -1,4 +1,7 @@
 function foo(): void {}
 
-foo();
-bar();
+<<__EntryPoint>>
+function main(): void {
+    foo();
+    bar();
+}

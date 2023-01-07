@@ -2,4 +2,7 @@ function baz(): void {
     echo "baz";
 }
 
-baz();
+<<__EntryPoint>>
+function main2(): void {
+    baz();
+}
