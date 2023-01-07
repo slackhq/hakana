@@ -516,4 +516,28 @@ impl SymbolReferences {
             partially_invalid_symbols,
         )
     }
+
+    pub fn remove_references_from_invalid_symbols(
+        &mut self,
+        invalid_symbols: &FxHashSet<StrId>,
+        invalid_symbol_members: &FxHashSet<(StrId, StrId)>,
+    ) {
+        self.symbol_references_to_members
+            .retain(|symbol, _| !invalid_symbols.contains(symbol));
+        self.symbol_references_to_members_in_signature
+            .retain(|symbol, _| !invalid_symbols.contains(symbol));
+        self.symbol_references_to_symbols
+            .retain(|symbol, _| !invalid_symbols.contains(symbol));
+        self.symbol_references_to_symbols_in_signature
+            .retain(|symbol, _| !invalid_symbols.contains(symbol));
+
+        self.classlike_member_references_to_members
+            .retain(|symbol, _| !invalid_symbol_members.contains(symbol));
+        self.classlike_member_references_to_members_in_signature
+            .retain(|symbol, _| !invalid_symbol_members.contains(symbol));
+        self.classlike_member_references_to_symbols
+            .retain(|symbol, _| !invalid_symbol_members.contains(symbol));
+        self.classlike_member_references_to_symbols_in_signature
+            .retain(|symbol, _| !invalid_symbol_members.contains(symbol));
+    }
 }

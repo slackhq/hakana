@@ -56,6 +56,10 @@ pub(crate) fn mark_safe_symbols_from_diff(
             }
         }
 
+        cached_analysis
+            .symbol_references
+            .remove_references_from_invalid_symbols(&invalid_symbols, &invalid_symbol_members);
+
         let invalid_files = codebase
             .files
             .iter()
