@@ -6,6 +6,7 @@ use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::Interner;
+use hakana_workhorse::wasm::get_single_file_codebase;
 use rustc_hash::FxHashSet;
 use std::env;
 use std::fs;
@@ -29,9 +30,7 @@ pub trait TestRunner {
         let mut test_diagnostics = vec![];
 
         let starter_codebase = if test_folders.len() > 1 {
-            Some(hakana_workhorse::get_single_file_codebase(vec![
-                "tests/stubs/stubs.hack",
-            ]))
+            Some(get_single_file_codebase(vec!["tests/stubs/stubs.hack"]))
         } else {
             None
         };
@@ -43,7 +42,8 @@ pub trait TestRunner {
                 panic!("could not create aast cache directory");
             }
 
-            let needs_fresh_codebase = test_folder.contains("xhp") || test_folder.contains("/diff/");
+            let needs_fresh_codebase =
+                test_folder.contains("xhp") || test_folder.contains("/diff/");
 
             let test_result = self.run_test_in_dir(
                 test_folder,
