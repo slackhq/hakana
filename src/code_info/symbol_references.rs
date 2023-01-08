@@ -503,12 +503,18 @@ impl SymbolReferences {
         invalid_symbols.extend(invalid_symbol_bodies);
         invalid_symbol_members.extend(invalid_symbol_member_bodies);
 
-        let mut partially_invalid_symbols = invalid_symbol_members
+        let partially_invalid_symbols = invalid_symbol_members
             .iter()
             .map(|(a, _)| *a)
             .collect::<FxHashSet<_>>();
 
-        partially_invalid_symbols.extend(codebase_diff.keep_signature.iter().map(|(a, _)| a));
+        for keep_signature in &codebase_diff.keep_signature {
+            if let Some(member_id) = keep_signature.1 {
+                invalid_symbol_members.insert((keep_signature.0, member_id));
+            } else {
+                invalid_symbols.insert(keep_signature.0);
+            }
+        }
 
         (
             invalid_symbols,
