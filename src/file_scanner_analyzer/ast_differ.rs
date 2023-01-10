@@ -54,17 +54,24 @@ pub(crate) fn get_diff(
                                 AstDiffElem::Keep(a_child, b_child) => {
                                     keep.push((a.name, Some(a_child.name)));
 
-                                    file_diffs.push((
-                                        a_child.start_offset,
-                                        a_child.end_offset,
-                                        b_child.start_offset as isize
-                                            - a_child.start_offset as isize,
-                                        b_child.start_line as isize - a_child.start_line as isize,
-                                    ));
+                                    if b_child.start_offset != a_child.start_offset
+                                        || b_child.start_line != a_child.start_line
+                                    {
+                                        file_diffs.push((
+                                            a_child.start_offset,
+                                            a_child.end_offset,
+                                            b_child.start_offset as isize
+                                                - a_child.start_offset as isize,
+                                            b_child.start_line as isize
+                                                - a_child.start_line as isize,
+                                        ));
+                                    }
                                 }
                                 AstDiffElem::KeepSignature(a_child, _) => {
                                     has_change = true;
                                     keep_signature.push((a.name, Some(a_child.name)));
+                                    deletion_ranges
+                                        .push((a_child.start_offset, a_child.end_offset));
                                 }
                                 AstDiffElem::Remove(child_node) => {
                                     has_change = true;
@@ -83,17 +90,20 @@ pub(crate) fn get_diff(
                             keep_signature.push((a.name, None));
                         } else {
                             keep.push((a.name, None));
-                            file_diffs.push((
-                                a.start_offset,
-                                a.end_offset,
-                                b.start_offset as isize - a.start_offset as isize,
-                                b.start_line as isize - a.start_line as isize,
-                            ));
+
+                            if b.start_offset != a.start_offset || b.start_line != a.start_line {
+                                file_diffs.push((
+                                    a.start_offset,
+                                    a.end_offset,
+                                    b.start_offset as isize - a.start_offset as isize,
+                                    b.start_line as isize - a.start_line as isize,
+                                ));
+                            }
                         }
                     }
-                    AstDiffElem::KeepSignature(a, b) => {
+                    AstDiffElem::KeepSignature(a, _) => {
                         keep_signature.push((a.name, None));
-                        deletion_ranges.push((b.start_offset, b.end_offset));
+                        deletion_ranges.push((a.start_offset, a.end_offset));
                     }
                     AstDiffElem::Remove(node) => {
                         add_or_delete.push((node.name, None));
@@ -105,8 +115,13 @@ pub(crate) fn get_diff(
                 }
             }
 
-            diff_map.insert(*file_id, file_diffs);
-            deletion_ranges_map.insert(*file_id, deletion_ranges);
+            if !file_diffs.is_empty() {
+                diff_map.insert(*file_id, file_diffs);
+            }
+
+            if !deletion_ranges.is_empty() {
+                deletion_ranges_map.insert(*file_id, deletion_ranges);
+            }
         }
     }
 

@@ -1,0 +1,1 @@
+ERROR: RedundantNonnullTypeComparison - input.hack:6:13 - $vecs is always nonnull
