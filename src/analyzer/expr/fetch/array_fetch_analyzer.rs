@@ -362,7 +362,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     offset_type,
                     in_assignment,
                     &mut has_valid_expected_offset,
-                    context.inside_isset,
+                    context.inside_isset || context.inside_unset,
                     &mut false,
                     &mut false,
                 );
@@ -596,7 +596,11 @@ pub(crate) fn handle_array_access_on_vec(
                 *has_valid_expected_offset = true;
                 // we know exactly which item we are fetching
 
-                if *actual_possibly_undefined && !context.inside_isset && !in_assignment {
+                if *actual_possibly_undefined
+                    && !context.inside_isset
+                    && !context.inside_unset
+                    && !in_assignment
+                {
                     // oh no!
                     tast_info.maybe_add_issue(
                         Issue::new(

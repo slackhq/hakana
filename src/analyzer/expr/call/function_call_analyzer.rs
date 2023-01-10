@@ -2,20 +2,20 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::StrId;
-use hakana_type::get_arrayish_params;
 use hakana_type::type_comparator::union_type_comparator;
+use hakana_type::{get_arrayish_params, get_void};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use crate::expr::call::arguments_analyzer;
 use crate::expr::call_analyzer::check_template_result;
 use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_analyzer};
-use crate::formula_generator;
 use crate::reconciler::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
+use crate::{expression_analyzer, formula_generator};
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
@@ -67,6 +67,24 @@ pub(crate) fn analyze(
                 context,
                 if_body_context,
             );
+        }
+    }
+
+    if name == "unset" {
+        if expr.2.len() > 0 {
+            let first_arg = &expr.2.first().unwrap().1;
+            context.inside_unset = true;
+            let result = expression_analyzer::analyze(
+                statements_analyzer,
+                first_arg,
+                tast_info,
+                context,
+                if_body_context,
+            );
+            context.inside_unset = false;
+            tast_info.copy_effects(first_arg.pos(), pos);
+            tast_info.set_expr_type(&pos, get_void());
+            return result;
         }
     }
 
