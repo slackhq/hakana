@@ -65,7 +65,7 @@ pub(crate) fn scan_method(
         all_custom_issues,
         method_name,
         &m.span,
-        &m.name.0,
+        Some(&m.name.0),
         &m.tparams,
         &m.params,
         &m.ret,
@@ -202,7 +202,7 @@ pub(crate) fn get_functionlike(
     all_custom_issues: &FxHashSet<String>,
     name: StrId,
     def_pos: &Pos,
-    name_pos: &Pos,
+    name_pos: Option<&Pos>,
     tparams: &Vec<aast::Tparam<(), ()>>,
     params: &Vec<aast::FunParam<(), ()>>,
     ret: &aast::TypeHint<()>,
@@ -418,7 +418,9 @@ pub(crate) fn get_functionlike(
             Some(HPos::new(&ret.0, file_source.file_path, None));
     }
 
-    functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path, None));
+    if let Some(name_pos) = name_pos {
+        functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path, None));
+    }
 
     if !suppressed_issues.is_empty() {
         functionlike_info.suppressed_issues = Some(suppressed_issues);

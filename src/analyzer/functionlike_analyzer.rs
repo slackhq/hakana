@@ -50,7 +50,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     ) {
         let resolved_names = self.file_analyzer.resolved_names.clone();
         let name = resolved_names
-            .get(&stmt.fun.name.0.start_offset())
+            .get(&stmt.name.0.start_offset())
             .unwrap()
             .clone();
 
@@ -108,7 +108,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         tast_info: &mut TastInfo,
         analysis_result: &mut AnalysisResult,
         expr_pos: &Pos,
-    ) -> Option<FunctionLikeInfo> {
+    ) -> FunctionLikeInfo {
         let lambda_storage = tast_info.closures.get(expr_pos).cloned();
 
         let mut lambda_storage = if let Some(lambda_storage) = lambda_storage {
@@ -116,7 +116,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             match get_closure_storage(&self.file_analyzer, stmt.span.start_offset()) {
                 None => {
-                    return None;
+                    println!("{}", stmt.span.start_offset());
+                    panic!();
                 }
                 Some(value) => value,
             }
@@ -159,7 +160,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         lambda_storage.return_type = Some(inferred_return_type.unwrap_or(get_mixed_any()));
         lambda_storage.effects = FnEffect::from_u8(&Some(effects));
 
-        Some(lambda_storage)
+        lambda_storage
     }
 
     pub fn analyze_method(

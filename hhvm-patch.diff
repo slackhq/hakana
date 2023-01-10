@@ -309,7 +309,7 @@ index b22f1419210..cefae086977 100644
      }
  }
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index 6a3a4b822d1..d141a7d8f5f 100644
+index b589bff13eb..2a61fce99ce 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
 @@ -78,11 +78,11 @@ impl<'src> AastParser {
@@ -399,12 +399,12 @@ index a3a24d58451..d1c829ce6b9 100644
                      }
                      _ => {
 diff --git a/hphp/hack/src/utils/hh24_types/Cargo.toml b/hphp/hack/src/utils/hh24_types/Cargo.toml
-index 4cfb083627b..cc84e3d40e0 100644
+index ea0da307120..bd5db0c8ca1 100644
 --- a/hphp/hack/src/utils/hh24_types/Cargo.toml
 +++ b/hphp/hack/src/utils/hh24_types/Cargo.toml
-@@ -14,8 +14,10 @@ file_info = { path = "../../deps/rust/file_info" }
+@@ -13,8 +13,10 @@ derive_more = "0.99.17"
+ file_info = { path = "../../deps/rust/file_info" }
  hh_hash = { path = "../hh_hash" }
- nohash-hasher = "0.2"
  relative_path = { path = "../rust/relative_path" }
 -rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
  serde = { version = "1.0.136", features = ["derive", "rc"] }
@@ -416,12 +416,12 @@ index 4cfb083627b..cc84e3d40e0 100644
 +rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
 \ No newline at end of file
 diff --git a/hphp/hack/src/utils/hh24_types/hh24_types.rs b/hphp/hack/src/utils/hh24_types/hh24_types.rs
-index 37dca9b1f85..2d494dac1eb 100644
+index 0febd35fe7d..4fd8c642cac 100644
 --- a/hphp/hack/src/utils/hh24_types/hh24_types.rs
 +++ b/hphp/hack/src/utils/hh24_types/hh24_types.rs
-@@ -34,12 +34,14 @@ macro_rules! u64_hash_wrapper_impls {
- 
-         impl nohash_hasher::IsEnabled for $name {}
+@@ -32,12 +32,14 @@ macro_rules! u64_hash_wrapper_impls {
+             }
+         }
  
 +        #[cfg(unix)]
          impl rusqlite::ToSql for $name {
@@ -727,7 +727,7 @@ index 386e01671ea..66579bfceab 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/pos_impl.rs b/hphp/hack/src/utils/rust/pos/pos_impl.rs
-index ce809c77e2b..566d903956a 100644
+index f6fffe8408d..b9485dd64b2 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_impl.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_impl.rs
 @@ -24,16 +24,7 @@ use crate::file_pos_small::FilePosSmall;

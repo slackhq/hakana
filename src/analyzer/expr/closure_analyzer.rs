@@ -20,24 +20,20 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     context: &mut ScopeContext,
     tast_info: &mut TastInfo,
-    boxed: &Box<(aast::Fun_<(), ()>, Vec<oxidized::tast::Lid>)>,
+    fun: &aast::Fun_<(), ()>,
     expr: &aast::Expr<(), ()>,
 ) -> bool {
     let mut function_analyzer = FunctionLikeAnalyzer::new(statements_analyzer.get_file_analyzer());
     let mut lambda_context = context.clone();
     let mut analysis_result =
         AnalysisResult::new(tast_info.data_flow_graph.kind, SymbolReferences::new());
-    let mut lambda_storage = if let Some(lambda_storage) = function_analyzer.analyze_lambda(
-        &boxed.0,
+    let mut lambda_storage = function_analyzer.analyze_lambda(
+        fun,
         &mut lambda_context,
         tast_info,
         &mut analysis_result,
         expr.pos(),
-    ) {
-        lambda_storage
-    } else {
-        return false;
-    };
+    );
 
     for param in lambda_storage.params.iter_mut() {
         if let Some(ref mut param_type) = param.signature_type {
@@ -72,11 +68,7 @@ pub(crate) fn analyze(
         tast_info.replacements.extend(replacements);
     }
 
-    let closure_id = format!(
-        "{}:{}",
-        boxed.0.name.pos().filename(),
-        boxed.0.name.pos().start_offset()
-    );
+    let closure_id = format!("{}:{}", fun.span.filename(), fun.span.start_offset());
 
     let mut closure_type = wrap_atomic(TAtomic::TClosure {
         params: lambda_storage.params,

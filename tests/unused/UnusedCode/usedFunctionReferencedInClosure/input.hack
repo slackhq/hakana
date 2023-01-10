@@ -1,9 +1,12 @@
 function foo(): void {}
 
-$a = () ==> {};
-$a();
+<<__EntryPoint>>
+function bar() {
+    $a = () ==> {};
+    $a();
 
-$b = () ==> {
-    foo();
-};
-$b();
+    $b = () ==> {
+        foo();
+    };
+    $b();
+}

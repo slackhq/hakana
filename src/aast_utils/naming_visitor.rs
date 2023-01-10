@@ -285,7 +285,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         id.recurse(nc, self)
     }
 
-    fn visit_fun_(&mut self, nc: &mut NameContext, f: &aast::Fun_<(), ()>) -> Result<(), ()> {
+    fn visit_fun_def(&mut self, nc: &mut NameContext, f: &aast::FunDef<(), ()>) -> Result<(), ()> {
         let namespace_name = nc.get_namespace_name();
 
         let p = if let Some(namespace_name) = namespace_name {
@@ -297,17 +297,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.resolved_names.insert(f.name.0.start_offset(), p);
 
-        let is_anonymous = f.name.1.contains(";");
-
-        if !is_anonymous {
-            nc.symbol_name = Some(p);
-        }
+        nc.symbol_name = Some(p);
 
         let result = f.recurse(nc, self);
 
-        if !is_anonymous {
-            nc.symbol_name = None;
-        }
+        nc.symbol_name = None;
 
         result
     }

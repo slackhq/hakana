@@ -92,7 +92,7 @@ pub fn infer(
                 }
             }
 
-            match boxed.0 {
+            match boxed.0.1 {
                 oxidized::tast::VcKind::Vec => Some(wrap_atomic(TAtomic::TVec {
                     known_count: Some(entries.len()),
                     known_items: Some(entries),
@@ -124,7 +124,7 @@ pub fn infer(
             }
 
             if known_items.len() < 100 {
-                match boxed.0 {
+                match boxed.0.1 {
                     oxidized::tast::KvcKind::Dict => Some(wrap_atomic(TAtomic::TDict {
                         non_empty: !known_items.is_empty(),
                         known_items: Some(known_items),
@@ -135,73 +135,6 @@ pub fn infer(
                 }
             } else {
                 None
-            }
-        }
-        aast::Expr_::Collection(boxed) => {
-            if boxed.0 .1 == "dict" {
-                let mut known_items = BTreeMap::new();
-
-                for entry_field in &boxed.2 {
-                    if let aast::Afield::AFkvalue(key_expr, value_expr) = entry_field {
-                        if let aast::Expr_::String(key_value) = &key_expr.2 {
-                            let value_type =
-                                infer(codebase, expr_types, &value_expr, resolved_names);
-
-                            if let Some(value_type) = value_type {
-                                known_items.insert(
-                                    DictKey::String(key_value.to_string()),
-                                    (false, Arc::new(value_type)),
-                                );
-                            } else {
-                                return None;
-                            }
-                        } else {
-                            return None;
-                        }
-                    } else {
-                        return None;
-                    }
-                }
-
-                if known_items.len() < 100 {
-                    Some(wrap_atomic(TAtomic::TDict {
-                        non_empty: !known_items.is_empty(),
-                        known_items: Some(known_items),
-                        params: None,
-                        shape_name: None,
-                    }))
-                } else {
-                    None
-                }
-            } else if boxed.0 .1 == "vec" {
-                let mut entries = BTreeMap::new();
-
-                for (i, entry_field) in boxed.2.iter().enumerate() {
-                    if let aast::Afield::AFvalue(entry_expr) = entry_field {
-                        let entry_type = infer(codebase, expr_types, &entry_expr, resolved_names);
-
-                        if let Some(entry_type) = entry_type {
-                            entries.insert(i, (false, entry_type));
-                        } else {
-                            return None;
-                        }
-                    }
-                }
-
-                if entries.len() < 100 {
-                    Some(wrap_atomic(TAtomic::TVec {
-                        known_count: Some(entries.len()),
-                        known_items: Some(entries),
-                        type_param: get_nothing(),
-                        non_empty: true,
-                    }))
-                } else {
-                    None
-                }
-            } else if boxed.0 .1 == "keyset" {
-                None
-            } else {
-                panic!();
             }
         }
         aast::Expr_::Null => Some(get_null()),

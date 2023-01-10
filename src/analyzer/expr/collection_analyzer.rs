@@ -14,8 +14,9 @@ use hakana_type::{
     wrap_atomic,
 };
 use oxidized::{
-    aast::{self, Afield},
-    ast_defs::{Id, Pos},
+    ast::Expr,
+    ast_defs::Pos,
+    tast::{KvcKind, VcKind},
 };
 use rustc_hash::FxHashMap;
 
@@ -66,278 +67,276 @@ impl FromStr for TContainerType {
     }
 }
 
-pub(crate) fn analyze(
+pub(crate) fn analyze_vals(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (&Id, &Vec<Afield<(), ()>>),
+    vc_kind: &oxidized::tast::VcKind,
+    items: &Vec<oxidized::ast::Expr>,
     pos: &Pos,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> bool {
-    // The Id contains the type of container we have
-    let container_type = if let Ok(container_type) = TContainerType::from_str(&expr.0 .1) {
-        container_type
-    } else {
-        return true;
-    };
-
     // if the array is empty, this special type allows us to match any other array type against it
-    if !expr.1.is_empty() {
-        let codebase = statements_analyzer.get_codebase();
-        let mut array_creation_info = ArrayCreationInfo::new();
-
-        // Iterate through all of the items in this collection
-        for (offset, item) in expr.1.iter().enumerate() {
-            // println!("item! {:?} ", item);
-            analyze_array_item(
-                &statements_analyzer,
-                context,
-                &mut array_creation_info,
-                &item,
-                &container_type,
-                tast_info,
-                offset,
-            );
-        }
-
-        match container_type {
-            TContainerType::Vec => {
-                let types = array_creation_info.item_value_atomic_types.clone();
-
-                let mut known_items = BTreeMap::new();
-
-                if array_creation_info.item_key_atomic_types.len() < 20 {
-                    for (offset, (key_type, value_type)) in
-                        array_creation_info.known_items.into_iter().enumerate()
-                    {
-                        if let TAtomic::TLiteralInt {
-                            value: key_literal_value,
-                            ..
-                        } = key_type
-                        {
-                            if (offset as i64) == key_literal_value {
-                                known_items.insert(offset, (false, value_type));
-                            }
-                        }
-                    }
-                }
-
-                let mut new_vec = wrap_atomic(if known_items.len() > 0 {
-                    TAtomic::TVec {
-                        known_items: Some(known_items),
-                        type_param: get_nothing(),
-                        known_count: Some(types.len()),
-                        non_empty: true,
-                    }
-                } else {
-                    TAtomic::TVec {
+    if items.is_empty() {
+        match vc_kind {
+            VcKind::Vec => {
+                tast_info.set_expr_type(
+                    &pos,
+                    wrap_atomic(TAtomic::TVec {
                         known_items: None,
-                        type_param: TUnion::new(type_combiner::combine(
-                            array_creation_info.item_value_atomic_types.clone(),
-                            codebase,
-                            false,
-                        )),
-                        known_count: None,
-                        non_empty: true,
-                    }
-                });
-
-                new_vec.parent_nodes = array_creation_info.parent_nodes;
-
-                tast_info.set_expr_type(&pos, new_vec);
+                        type_param: get_nothing(),
+                        known_count: Some(0),
+                        non_empty: false,
+                    }),
+                );
             }
-            TContainerType::Keyset => {
-                let item_value_type = TUnion::new(type_combiner::combine(
-                    array_creation_info.item_value_atomic_types.clone(),
-                    codebase,
-                    false,
-                ));
-
-                let mut keyset = get_keyset(item_value_type);
-
-                keyset.parent_nodes = array_creation_info.parent_nodes;
-
-                tast_info.set_expr_type(&pos, keyset);
+            VcKind::Keyset => {
+                tast_info.set_expr_type(&pos, get_keyset(get_nothing()));
             }
-            TContainerType::Dict => {
-                let mut known_items = BTreeMap::new();
-
-                if array_creation_info.item_key_atomic_types.len() < 20 {
-                    for (key_type, value_type) in array_creation_info.known_items.into_iter() {
-                        if let TAtomic::TLiteralString {
-                            value: key_literal_value,
-                            ..
-                        } = key_type
-                        {
-                            known_items.insert(
-                                DictKey::String(key_literal_value),
-                                (false, Arc::new(value_type)),
-                            );
-                        }
-                    }
-                }
-
-                let mut new_dict = wrap_atomic(TAtomic::TDict {
-                    known_items: if known_items.len() > 0 {
-                        Some(known_items)
-                    } else {
-                        None
-                    },
-                    params: if array_creation_info.item_key_atomic_types.is_empty() {
-                        None
-                    } else {
-                        Some((
-                            TUnion::new(type_combiner::combine(
-                                array_creation_info.item_key_atomic_types.clone(),
-                                codebase,
-                                false,
-                            )),
-                            TUnion::new(type_combiner::combine(
-                                array_creation_info.item_value_atomic_types.clone(),
-                                codebase,
-                                false,
-                            )),
-                        ))
-                    },
-                    non_empty: true,
-                    shape_name: None,
-                });
-
-                new_dict.parent_nodes = array_creation_info.parent_nodes;
-
-                tast_info.set_expr_type(&pos, new_dict);
+            VcKind::Vector => {
+                tast_info.set_expr_type(
+                    &pos,
+                    wrap_atomic(TAtomic::TNamedObject {
+                        name: statements_analyzer
+                            .get_codebase()
+                            .interner
+                            .get("HH\\Vector")
+                            .unwrap(),
+                        type_params: Some(vec![get_mixed_any()]),
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    }),
+                );
             }
-            TContainerType::Vector => {
-                let mut new_vec = wrap_atomic(TAtomic::TNamedObject {
-                    name: codebase.interner.get("HH\\Vector").unwrap(),
-                    type_params: Some(vec![get_mixed_any()]),
-                    is_this: false,
-                    extra_types: None,
-                    remapped_params: false,
-                });
-
-                new_vec.parent_nodes = array_creation_info.parent_nodes;
-
-                tast_info.set_expr_type(&pos, new_vec);
-            }
+            _ => {}
         }
-
-        tast_info.expr_effects.insert(
-            (pos.start_offset(), pos.end_offset()),
-            array_creation_info.effects,
-        );
 
         return true;
     }
 
-    // fallthrough: create empty array
-    match container_type {
-        TContainerType::Vec => {
-            tast_info.set_expr_type(
-                &pos,
-                wrap_atomic(TAtomic::TVec {
-                    known_items: None,
-                    type_param: get_nothing(),
-                    known_count: Some(0),
-                    non_empty: false,
-                }),
-            );
-        }
-        TContainerType::Dict => {
-            tast_info.set_expr_type(
-                &pos,
-                wrap_atomic(TAtomic::TDict {
-                    known_items: None,
-                    params: None,
-                    non_empty: false,
-                    shape_name: None,
-                }),
-            );
-        }
-        TContainerType::Keyset => {
-            tast_info.set_expr_type(&pos, get_keyset(get_nothing()));
-        }
-        TContainerType::Vector => {
-            tast_info.set_expr_type(
-                &pos,
-                wrap_atomic(TAtomic::TNamedObject {
-                    name: statements_analyzer
-                        .get_codebase()
-                        .interner
-                        .get("HH\\Vector")
-                        .unwrap(),
-                    type_params: Some(vec![get_mixed_any()]),
-                    is_this: false,
-                    extra_types: None,
-                    remapped_params: false,
-                }),
-            );
-        }
+    let codebase = statements_analyzer.get_codebase();
+    let mut array_creation_info = ArrayCreationInfo::new();
+
+    // Iterate through all of the items in this collection
+    for (offset, item) in items.iter().enumerate() {
+        // println!("item! {:?} ", item);
+        analyze_vals_item(
+            &statements_analyzer,
+            context,
+            &mut array_creation_info,
+            item,
+            vc_kind,
+            tast_info,
+            offset,
+        );
     }
+
+    match vc_kind {
+        VcKind::Vec => {
+            let types = array_creation_info.item_value_atomic_types.clone();
+
+            let mut known_items = BTreeMap::new();
+
+            if array_creation_info.item_key_atomic_types.len() < 20 {
+                for (offset, (key_type, value_type)) in
+                    array_creation_info.known_items.into_iter().enumerate()
+                {
+                    if let TAtomic::TLiteralInt {
+                        value: key_literal_value,
+                        ..
+                    } = key_type
+                    {
+                        if (offset as i64) == key_literal_value {
+                            known_items.insert(offset, (false, value_type));
+                        }
+                    }
+                }
+            }
+
+            let mut new_vec = wrap_atomic(if known_items.len() > 0 {
+                TAtomic::TVec {
+                    known_items: Some(known_items),
+                    type_param: get_nothing(),
+                    known_count: Some(types.len()),
+                    non_empty: true,
+                }
+            } else {
+                TAtomic::TVec {
+                    known_items: None,
+                    type_param: TUnion::new(type_combiner::combine(
+                        array_creation_info.item_value_atomic_types.clone(),
+                        codebase,
+                        false,
+                    )),
+                    known_count: None,
+                    non_empty: true,
+                }
+            });
+
+            new_vec.parent_nodes = array_creation_info.parent_nodes;
+
+            tast_info.set_expr_type(&pos, new_vec);
+        }
+        VcKind::Keyset => {
+            let item_value_type = TUnion::new(type_combiner::combine(
+                array_creation_info.item_value_atomic_types.clone(),
+                codebase,
+                false,
+            ));
+
+            let mut keyset = get_keyset(item_value_type);
+
+            keyset.parent_nodes = array_creation_info.parent_nodes;
+
+            tast_info.set_expr_type(&pos, keyset);
+        }
+        VcKind::Vector => {
+            let mut new_vec = wrap_atomic(TAtomic::TNamedObject {
+                name: codebase.interner.get("HH\\Vector").unwrap(),
+                type_params: Some(vec![get_mixed_any()]),
+                is_this: false,
+                extra_types: None,
+                remapped_params: false,
+            });
+
+            new_vec.parent_nodes = array_creation_info.parent_nodes;
+
+            tast_info.set_expr_type(&pos, new_vec);
+        }
+        _ => {}
+    }
+
+    tast_info.expr_effects.insert(
+        (pos.start_offset(), pos.end_offset()),
+        array_creation_info.effects,
+    );
 
     true
 }
 
-fn analyze_array_item(
+pub(crate) fn analyze_keyvals(
+    statements_analyzer: &StatementsAnalyzer,
+    kvc_kind: &oxidized::tast::KvcKind,
+    items: &Vec<oxidized::tast::Field<(), ()>>,
+    pos: &Pos,
+    tast_info: &mut TastInfo,
+    context: &mut ScopeContext,
+) -> bool {
+    // if the array is empty, this special type allows us to match any other array type against it
+    if items.is_empty() {
+        tast_info.set_expr_type(
+            &pos,
+            wrap_atomic(TAtomic::TDict {
+                known_items: None,
+                params: None,
+                non_empty: false,
+                shape_name: None,
+            }),
+        );
+        return true;
+    }
+
+    let codebase = statements_analyzer.get_codebase();
+    let mut array_creation_info = ArrayCreationInfo::new();
+
+    // Iterate through all of the items in this collection
+    for item in items {
+        // println!("item! {:?} ", item);
+        analyze_keyvals_item(
+            &statements_analyzer,
+            context,
+            &mut array_creation_info,
+            item,
+            kvc_kind,
+            tast_info,
+        );
+    }
+
+    let mut known_items = BTreeMap::new();
+
+    if array_creation_info.item_key_atomic_types.len() < 20 {
+        for (key_type, value_type) in array_creation_info.known_items.into_iter() {
+            if let TAtomic::TLiteralString {
+                value: key_literal_value,
+                ..
+            } = key_type
+            {
+                known_items.insert(
+                    DictKey::String(key_literal_value),
+                    (false, Arc::new(value_type)),
+                );
+            }
+        }
+    }
+
+    let mut new_dict = wrap_atomic(TAtomic::TDict {
+        known_items: if known_items.len() > 0 {
+            Some(known_items)
+        } else {
+            None
+        },
+        params: if array_creation_info.item_key_atomic_types.is_empty() {
+            None
+        } else {
+            Some((
+                TUnion::new(type_combiner::combine(
+                    array_creation_info.item_key_atomic_types.clone(),
+                    codebase,
+                    false,
+                )),
+                TUnion::new(type_combiner::combine(
+                    array_creation_info.item_value_atomic_types.clone(),
+                    codebase,
+                    false,
+                )),
+            ))
+        },
+        non_empty: true,
+        shape_name: None,
+    });
+
+    new_dict.parent_nodes = array_creation_info.parent_nodes;
+
+    tast_info.set_expr_type(&pos, new_dict);
+
+    tast_info.expr_effects.insert(
+        (pos.start_offset(), pos.end_offset()),
+        array_creation_info.effects,
+    );
+
+    true
+}
+
+fn analyze_vals_item(
     statements_analyzer: &StatementsAnalyzer,
     context: &mut ScopeContext,
     array_creation_info: &mut ArrayCreationInfo,
-    item: &Afield<(), ()>,
-    container_type: &TContainerType,
+    item_value: &Expr,
+    container_type: &VcKind,
     tast_info: &mut TastInfo,
     offset: usize,
 ) -> bool {
-    // Special handling for dict-like arrays
-    let (key_item_type, value) = match item {
-        Afield::AFkvalue(item_key, item_key_value) => {
-            // Analyze type for key
-            expression_analyzer::analyze(
-                statements_analyzer,
-                item_key,
-                tast_info,
-                context,
-                &mut None,
-            );
-
-            array_creation_info.effects |= tast_info
-                .expr_effects
-                .get(&(item_key.pos().start_offset(), item_key.pos().end_offset()))
-                .unwrap_or(&0);
-
-            let key_item_type = tast_info
-                .get_expr_type(&item_key.pos())
-                .cloned()
-                .unwrap_or(get_arraykey(true));
-
-            add_array_key_dataflow(
-                statements_analyzer,
-                &key_item_type,
-                tast_info,
-                item_key.pos(),
-                array_creation_info,
-            );
-
-            (key_item_type, item_key_value)
-        }
-        Afield::AFvalue(item_value) => {
-            let key_item_type = get_literal_int(offset.try_into().unwrap());
-
-            // key is an int in vec-like arrays
-            // array_creation_info.item_key_atomic_types.push(get_int());
-
-            (key_item_type, item_value)
-        }
-    };
+    let key_item_type = get_literal_int(offset.try_into().unwrap());
 
     // Now check types of the values
-    expression_analyzer::analyze(statements_analyzer, value, tast_info, context, &mut None);
+    expression_analyzer::analyze(
+        statements_analyzer,
+        item_value,
+        tast_info,
+        context,
+        &mut None,
+    );
 
     array_creation_info.effects |= tast_info
         .expr_effects
-        .get(&(value.pos().start_offset(), value.pos().end_offset()))
+        .get(&(
+            item_value.pos().start_offset(),
+            item_value.pos().end_offset(),
+        ))
         .unwrap_or(&0);
 
     let value_item_type = tast_info
-        .get_expr_type(&value.pos())
+        .get_expr_type(&item_value.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
 
@@ -346,13 +345,84 @@ fn analyze_array_item(
         &value_item_type,
         tast_info,
         &key_item_type,
-        value,
+        item_value,
+        array_creation_info,
+    );
+
+    if key_item_type.is_single() && key_item_type.has_int() && matches!(container_type, VcKind::Vec)
+    {
+        array_creation_info
+            .known_items
+            .push((key_item_type.get_single_owned(), value_item_type));
+    } else {
+        let key_type_values = key_item_type.types.clone();
+        // This is a lot simpler than the PHP mess, the type here can be
+        // either int or string, and no other weird behavior.
+        array_creation_info
+            .item_key_atomic_types
+            .extend(key_type_values);
+        array_creation_info
+            .item_value_atomic_types
+            .extend(value_item_type.types);
+    }
+
+    true
+}
+
+fn analyze_keyvals_item(
+    statements_analyzer: &StatementsAnalyzer,
+    context: &mut ScopeContext,
+    array_creation_info: &mut ArrayCreationInfo,
+    item: &oxidized::tast::Field<(), ()>,
+    container_type: &KvcKind,
+    tast_info: &mut TastInfo,
+) -> bool {
+    // Analyze type for key
+    expression_analyzer::analyze(statements_analyzer, &item.0, tast_info, context, &mut None);
+
+    array_creation_info.effects |= tast_info
+        .expr_effects
+        .get(&(item.0.pos().start_offset(), item.0.pos().end_offset()))
+        .unwrap_or(&0);
+
+    let key_item_type = tast_info
+        .get_expr_type(&item.0.pos())
+        .cloned()
+        .unwrap_or(get_arraykey(true));
+
+    add_array_key_dataflow(
+        statements_analyzer,
+        &key_item_type,
+        tast_info,
+        item.0.pos(),
+        array_creation_info,
+    );
+
+    // Now check types of the values
+    expression_analyzer::analyze(statements_analyzer, &item.1, tast_info, context, &mut None);
+
+    array_creation_info.effects |= tast_info
+        .expr_effects
+        .get(&(item.1.pos().start_offset(), item.1.pos().end_offset()))
+        .unwrap_or(&0);
+
+    let value_item_type = tast_info
+        .get_expr_type(&item.1.pos())
+        .cloned()
+        .unwrap_or(get_mixed_any());
+
+    add_array_value_dataflow(
+        statements_analyzer,
+        &value_item_type,
+        tast_info,
+        &key_item_type,
+        &item.1,
         array_creation_info,
     );
 
     if key_item_type.is_single()
-        && ((key_item_type.has_string() && matches!(container_type, TContainerType::Dict))
-            || (key_item_type.has_int() && matches!(container_type, TContainerType::Vec)))
+        && key_item_type.has_string()
+        && matches!(container_type, KvcKind::Dict)
     {
         array_creation_info
             .known_items
@@ -377,7 +447,7 @@ fn add_array_value_dataflow(
     value_type: &TUnion,
     tast_info: &mut TastInfo,
     key_item_type: &TUnion,
-    value: &aast::Expr<(), ()>,
+    value: &oxidized::aast::Expr<(), ()>,
     array_creation_info: &mut ArrayCreationInfo,
 ) {
     if !value_type.parent_nodes.is_empty()

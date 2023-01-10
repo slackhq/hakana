@@ -478,21 +478,99 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         result
     }
 
-    fn visit_fun_(&mut self, c: &mut Context, f: &aast::Fun_<(), ()>) -> Result<(), ()> {
-        let mut name = self
+    fn visit_fun_def(&mut self, c: &mut Context, f: &aast::FunDef<(), ()>) -> Result<(), ()> {
+        let name = self
             .resolved_names
             .get(&f.name.0.start_offset())
             .unwrap()
             .clone();
 
-        let is_anonymous = f.name.1.contains(";");
+        let functionlike_id = self.interner.lookup(name).to_string();
 
-        if is_anonymous {
-            let function_id = format!("{}:{}", f.name.0.filename(), f.name.0.start_offset());
+        let functionlike_storage =
+            self.visit_function(false, c, name, &f.fun, Some(&f.name.0), functionlike_id);
 
-            name = self.interner.intern(function_id);
+        let (signature_hash, body_hash) = get_function_hashes(
+            &self.file_source.file_contents,
+            &functionlike_storage.def_location,
+            &f.name,
+            &f.fun.tparams,
+            &f.fun.params,
+            &f.fun.ret,
+            &self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
+        );
+
+        self.ast_nodes.push(DefSignatureNode {
+            name,
+            start_offset: functionlike_storage.def_location.start_offset,
+            end_offset: functionlike_storage.def_location.end_offset,
+            start_line: functionlike_storage.def_location.start_line,
+            end_line: functionlike_storage.def_location.end_line,
+            children: Vec::new(),
+            signature_hash,
+            body_hash: Some(body_hash),
+        });
+
+        self.codebase
+            .functionlike_infos
+            .insert(name.clone(), functionlike_storage);
+
+        c.function_name = Some(name);
+
+        let result = f.recurse(c, self);
+
+        c.has_yield = false;
+
+        c.function_name = None;
+
+        result
+    }
+
+    fn visit_expr(&mut self, c: &mut Context, p: &aast::Expr<(), ()>) -> Result<(), ()> {
+        let result = p.recurse(c, self);
+
+        let mut fun = None;
+        match &p.2 {
+            aast::Expr_::Yield(_) => {
+                c.has_yield = true;
+            }
+            aast::Expr_::Lfun(f) => {
+                fun = Some(&f.0);
+            }
+            aast::Expr_::Efun(f) => {
+                fun = Some(&f.fun);
+            }
+            _ => (),
         }
 
+        if let Some(fun) = fun {
+            let function_id = format!("{}:{}", fun.span.filename(), fun.span.start_offset());
+
+            let name = self.interner.intern(function_id);
+
+            let functionlike_id = self.interner.lookup(name).to_string();
+
+            let functionlike_storage =
+                self.visit_function(true, c, name, fun, None, functionlike_id);
+
+            self.closures
+                .insert(fun.span.start_offset(), functionlike_storage);
+        }
+
+        result
+    }
+}
+
+impl<'a> Scanner<'a> {
+    fn visit_function(
+        &mut self,
+        is_anonymous: bool,
+        c: &mut Context,
+        name: StrId,
+        fun: &aast::Fun_<(), ()>,
+        name_pos: Option<&oxidized::tast::Pos>,
+        functionlike_id: String,
+    ) -> FunctionLikeInfo {
         let parent_function_storage = if is_anonymous {
             if let Some(parent_function_id) = &c.function_name {
                 self.codebase.functionlike_infos.get(parent_function_id)
@@ -533,22 +611,20 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             template_supers: FxHashMap::default(),
         };
 
-        let functionlike_id = self.interner.lookup(name).to_string();
-
         let mut functionlike_storage = functionlike_scanner::get_functionlike(
             &self.codebase,
             self.interner,
             self.all_custom_issues,
             name.clone(),
-            &f.span,
-            &f.name.0,
-            &f.tparams,
-            &f.params,
-            &f.ret,
-            &f.fun_kind,
-            &f.user_attributes,
-            &f.ctxs,
-            &f.where_constraints,
+            &fun.span,
+            name_pos,
+            &fun.tparams,
+            &fun.params,
+            &fun.ret,
+            &fun.fun_kind,
+            &fun.user_attributes,
+            &fun.ctxs,
+            &fun.where_constraints,
             &mut type_resolution_context,
             None,
             &self.resolved_names,
@@ -559,63 +635,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         );
 
         functionlike_storage.user_defined = self.user_defined && !is_anonymous;
-
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
-
-        if !is_anonymous {
-            let (signature_hash, body_hash) = get_function_hashes(
-                &self.file_source.file_contents,
-                &functionlike_storage.def_location,
-                &f.name,
-                &f.tparams,
-                &f.params,
-                &f.ret,
-                &self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
-            );
-
-            self.ast_nodes.push(DefSignatureNode {
-                name,
-                start_offset: functionlike_storage.def_location.start_offset,
-                end_offset: functionlike_storage.def_location.end_offset,
-                start_line: functionlike_storage.def_location.start_line,
-                end_line: functionlike_storage.def_location.end_line,
-                children: Vec::new(),
-                signature_hash,
-                body_hash: Some(body_hash),
-            });
-
-            self.codebase
-                .functionlike_infos
-                .insert(name.clone(), functionlike_storage);
-
-            c.function_name = Some(name);
-        } else {
-            self.closures
-                .insert(f.span.start_offset(), functionlike_storage);
-        }
-
-        let result = f.recurse(c, self);
-
-        c.has_yield = false;
-
-        if !is_anonymous {
-            c.function_name = None;
-        }
-
-        result
-    }
-
-    fn visit_expr(&mut self, c: &mut Context, p: &aast::Expr<(), ()>) -> Result<(), ()> {
-        let result = p.recurse(c, self);
-
-        match &p.2 {
-            aast::Expr_::Yield(_) => {
-                c.has_yield = true;
-            }
-            _ => (),
-        }
-
-        result
+        functionlike_storage
     }
 }
 

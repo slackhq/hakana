@@ -1,1 +1,0 @@
-$a = function() use ($argv) : void {};
