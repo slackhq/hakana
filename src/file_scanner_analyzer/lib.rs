@@ -278,7 +278,14 @@ fn find_files_in_dir(
 
     let walker = walker_builder.build().into_iter().filter_map(|e| e.ok());
 
-    for entry in walker {
+    let ignore_patterns = config
+        .ignore_files
+        .iter()
+        .filter(|file| !file.ends_with("/**"))
+        .map(|ignore_file| glob::Pattern::new(ignore_file).unwrap())
+        .collect::<Vec<_>>();
+
+    'walker_entry: for entry in walker {
         let path = entry.path();
 
         let metadata = if let Ok(metadata) = fs::metadata(&path) {
@@ -292,6 +299,12 @@ fn find_files_in_dir(
             if let Some(extension) = path.extension() {
                 if extension.eq("hack") || extension.eq("php") || extension.eq("hhi") {
                     let path = path.to_str().unwrap().to_string();
+
+                    for ignore_pattern in &ignore_patterns {
+                        if ignore_pattern.matches(&path) {
+                            continue 'walker_entry;
+                        }
+                    }
 
                     files_to_scan.insert(
                         path.clone(),
