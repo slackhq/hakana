@@ -344,9 +344,7 @@ pub fn get_truths_from_formula(
                 let mut things_that_can_be_said = FxHashMap::default();
 
                 for (_, assertion) in possible_types {
-                    if matches!(assertion, Assertion::Falsy) || !assertion.has_negation() {
-                        things_that_can_be_said.insert(assertion.to_string(None), assertion);
-                    }
+                    things_that_can_be_said.insert(assertion.to_string(None), assertion);
                 }
 
                 if !things_that_can_be_said.is_empty()
