@@ -7,16 +7,23 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
+use hakana_reflection_info::issue::Issue;
+use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::property_info::PropertyKind;
+use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
 use hakana_reflection_info::StrId;
 use hakana_type::get_named_object;
+use itertools::Itertools;
 use oxidized::aast;
 use oxidized::ast_defs;
+use oxidized::pos::Pos;
 use rustc_hash::FxHashSet;
 use std::rc::Rc;
 
 use super::assignment::instance_property_assignment_analyzer::add_unspecialized_property_assignment_dataflow;
+use super::fetch::atomic_property_fetch_analyzer;
 
 pub(crate) fn analyze(
     context: &mut ScopeContext,
@@ -25,10 +32,10 @@ pub(crate) fn analyze(
         Vec<aast::XhpAttribute<(), ()>>,
         Vec<aast::Expr<(), ()>>,
     )>,
+    pos: &Pos,
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
     if_body_context: &mut Option<ScopeContext>,
-    expr: &aast::Expr<(), ()>,
 ) {
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
     let xhp_class_name = resolved_names.get(&boxed.0 .0.start_offset()).unwrap();
@@ -44,40 +51,78 @@ pub(crate) fn analyze(
 
     let mut used_attributes = FxHashSet::default();
 
+    let codebase = statements_analyzer.get_codebase();
+
     for attribute in &boxed.1 {
         match attribute {
             aast::XhpAttribute::XhpSimple(xhp_simple) => {
-                used_attributes.insert(analyze_xhp_attribute_assignment(
+                let attribute_name = get_attribute_name(
+                    xhp_simple,
                     statements_analyzer,
+                    tast_info,
+                    context,
+                    &xhp_class_name,
+                );
+
+                used_attributes.insert(attribute_name);
+
+                analyze_xhp_attribute_assignment(
+                    statements_analyzer,
+                    attribute_name,
                     &xhp_class_name,
                     xhp_simple,
                     tast_info,
                     context,
                     if_body_context,
-                ));
+                );
             }
             aast::XhpAttribute::XhpSpread(xhp_expr) => {
-                expression_analyzer::analyze(
+                used_attributes.extend(handle_attribute_spread(
                     statements_analyzer,
                     xhp_expr,
+                    &xhp_class_name,
                     tast_info,
                     context,
                     if_body_context,
-                );
+                    codebase,
+                ));
             }
         }
     }
 
-    let codebase = statements_analyzer.get_codebase();
     if let Some(classlike_info) = codebase.classlike_infos.get(&xhp_class_name) {
         let mut required_attributes = classlike_info
             .properties
             .iter()
-            .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { .. }))
+            .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { is_required: true }))
             .map(|p| p.0)
             .collect::<FxHashSet<_>>();
 
         required_attributes.retain(|attr| !used_attributes.contains(attr));
+
+        if !required_attributes.is_empty() {
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::MissingRequiredXhpAttribute,
+                    format!(
+                        "XHP class {} is missing {}: {}",
+                        codebase.interner.lookup(*xhp_class_name),
+                        if required_attributes.len() == 1 {
+                            "a required attribute"
+                        } else {
+                            "some required attributes"
+                        },
+                        required_attributes
+                            .iter()
+                            .map(|attr| codebase.interner.lookup(**attr)[1..].to_string())
+                            .join(", ")
+                    ),
+                    statements_analyzer.get_hpos(&pos),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
     }
 
     for inner_expr in &boxed.2 {
@@ -151,19 +196,105 @@ pub(crate) fn analyze(
     context.inside_general_use = was_inside_general_use;
 
     tast_info.expr_types.insert(
-        (expr.1.start_offset(), expr.1.end_offset()),
+        (pos.start_offset(), pos.end_offset()),
         Rc::new(get_named_object(*xhp_class_name)),
     );
 }
 
+fn handle_attribute_spread(
+    statements_analyzer: &StatementsAnalyzer,
+    xhp_expr: &aast::Expr<(), ()>,
+    element_name: &StrId,
+    tast_info: &mut TastInfo,
+    context: &mut ScopeContext,
+    if_body_context: &mut Option<ScopeContext>,
+    codebase: &CodebaseInfo,
+) -> FxHashSet<StrId> {
+    expression_analyzer::analyze(
+        statements_analyzer,
+        xhp_expr,
+        tast_info,
+        context,
+        if_body_context,
+    );
+
+    let mut used_attributes = FxHashSet::default();
+
+    if let Some(expr_type) = tast_info
+        .expr_types
+        .get(&(xhp_expr.pos().start_offset(), xhp_expr.pos().end_offset()))
+        .cloned()
+    {
+        for expr_type_atomic in &expr_type.types {
+            match expr_type_atomic {
+                TAtomic::TNamedObject {
+                    name: spread_xhp_class,
+                    is_this: true,
+                    ..
+                } => {
+                    if let Some(spread_class_info) = codebase.classlike_infos.get(spread_xhp_class)
+                    {
+                        let all_attributes = spread_class_info
+                            .properties
+                            .iter()
+                            .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { .. }));
+
+                        for spread_attribute in all_attributes {
+                            atomic_property_fetch_analyzer::analyze(
+                                statements_analyzer,
+                                (xhp_expr, xhp_expr),
+                                xhp_expr.pos(),
+                                tast_info,
+                                context,
+                                false,
+                                expr_type_atomic.clone(),
+                                &Some(*spread_attribute.0),
+                                &None,
+                                &None,
+                            );
+
+                            used_attributes.insert(*spread_attribute.0);
+
+                            if let Some(property_fetch_type) = tast_info
+                                .expr_types
+                                .get(&(xhp_expr.pos().start_offset(), xhp_expr.pos().end_offset()))
+                                .cloned()
+                            {
+                                add_all_dataflow(
+                                    tast_info,
+                                    statements_analyzer,
+                                    (*element_name, *spread_attribute.0),
+                                    xhp_expr.pos(),
+                                    xhp_expr.pos(),
+                                    property_fetch_type,
+                                    codebase.interner.lookup(*spread_attribute.0),
+                                );
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        tast_info.expr_types.insert(
+            (xhp_expr.pos().start_offset(), xhp_expr.pos().end_offset()),
+            expr_type,
+        );
+    }
+
+    used_attributes
+}
+
 fn analyze_xhp_attribute_assignment(
     statements_analyzer: &StatementsAnalyzer,
+    attribute_name: StrId,
     element_name: &StrId,
     attribute_info: &aast::XhpSimple<(), ()>,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> StrId {
+) {
     expression_analyzer::analyze(
         statements_analyzer,
         &attribute_info.expr,
@@ -172,9 +303,77 @@ fn analyze_xhp_attribute_assignment(
         if_body_context,
     );
 
+    let property_id = (*element_name, attribute_name);
+
+    let attribute_value_type = tast_info
+        .expr_types
+        .get(&(
+            attribute_info.expr.pos().start_offset(),
+            attribute_info.expr.pos().end_offset(),
+        ))
+        .cloned();
+
+    let attribute_name_pos = &attribute_info.name.0;
+    let attribute_value_pos = attribute_info.expr.pos();
+    let attribute_name = &attribute_info.name.1;
+
+    if let Some(attribute_value_type) = attribute_value_type {
+        add_all_dataflow(
+            tast_info,
+            statements_analyzer,
+            property_id,
+            attribute_name_pos,
+            attribute_value_pos,
+            attribute_value_type,
+            attribute_name,
+        );
+    }
+}
+
+fn add_all_dataflow(
+    tast_info: &mut TastInfo,
+    statements_analyzer: &StatementsAnalyzer,
+    property_id: (StrId, StrId),
+    attribute_name_pos: &Pos,
+    attribute_value_pos: &Pos,
+    attribute_value_type: Rc<TUnion>,
+    attribute_name: &str,
+) {
+    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+        let codebase = statements_analyzer.get_codebase();
+
+        add_unspecialized_property_assignment_dataflow(
+            statements_analyzer,
+            &property_id,
+            attribute_name_pos,
+            Some(attribute_value_pos),
+            tast_info,
+            &attribute_value_type,
+            codebase,
+            &property_id.0,
+            property_id.1,
+        );
+
+        add_xml_attribute_dataflow(
+            codebase,
+            &property_id.0,
+            property_id,
+            attribute_name,
+            tast_info,
+        );
+    }
+}
+
+fn get_attribute_name(
+    attribute_info: &oxidized::tast::XhpSimple<(), ()>,
+    statements_analyzer: &StatementsAnalyzer,
+    tast_info: &mut TastInfo,
+    context: &ScopeContext,
+    element_name: &StrId,
+) -> StrId {
     let codebase = statements_analyzer.get_codebase();
 
-    let attribute_name = if attribute_info.name.1.starts_with("data-") {
+    if attribute_info.name.1.starts_with("data-") {
         StrId::data_attribute()
     } else if attribute_info.name.1.starts_with("aria-") {
         StrId::aria_attribute()
@@ -191,50 +390,14 @@ fn analyze_xhp_attribute_assignment(
         );
 
         attribute_name
-    };
-
-    let property_id = (*element_name, attribute_name);
-
-    let attribute_type = tast_info
-        .expr_types
-        .get(&(
-            attribute_info.expr.pos().start_offset(),
-            attribute_info.expr.pos().end_offset(),
-        ))
-        .cloned();
-
-    if let Some(attribute_type) = attribute_type {
-        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-            add_unspecialized_property_assignment_dataflow(
-                statements_analyzer,
-                &property_id,
-                &attribute_info.name.0,
-                Some(attribute_info.expr.pos()),
-                tast_info,
-                &attribute_type,
-                codebase,
-                element_name,
-                property_id.1,
-            );
-
-            add_xml_attribute_dataflow(
-                codebase,
-                element_name,
-                property_id,
-                attribute_info,
-                tast_info,
-            );
-        }
     }
-
-    attribute_name
 }
 
 fn add_xml_attribute_dataflow(
     codebase: &CodebaseInfo,
     element_name: &StrId,
     property_id: (StrId, StrId),
-    attribute_info: &oxidized::ast::XhpSimple<(), ()>,
+    name: &str,
     tast_info: &mut TastInfo,
 ) {
     if let Some(classlike_storage) = codebase.classlike_infos.get(element_name) {
@@ -257,40 +420,31 @@ fn add_xml_attribute_dataflow(
             {
                 // We allow input value attributes to have user-submitted values
                 // because that's to be expected
-                if element_name == "Facebook\\XHP\\HTML\\label" && attribute_info.name.1 == "for" {
+                if element_name == "Facebook\\XHP\\HTML\\label" && name == "for" {
                     // do nothing
-                } else if element_name == "Facebook\\XHP\\HTML\\meta"
-                    && attribute_info.name.1 == "content"
-                {
+                } else if element_name == "Facebook\\XHP\\HTML\\meta" && name == "content" {
                     // do nothing
-                } else if attribute_info.name.1 == "id"
-                    || attribute_info.name.1 == "class"
-                    || attribute_info.name.1 == "lang"
-                {
+                } else if name == "id" || name == "class" || name == "lang" {
                     // do nothing
                 } else if (element_name == "Facebook\\XHP\\HTML\\input"
                     || element_name == "Facebook\\XHP\\HTML\\option")
-                    && (attribute_info.name.1 == "value" || attribute_info.name.1 == "checked")
+                    && (name == "value" || name == "checked")
                 {
                     // do nothing
                 } else if (element_name == "Facebook\\XHP\\HTML\\a"
                     || element_name == "Facebook\\XHP\\HTML\\area"
                     || element_name == "Facebook\\XHP\\HTML\\base"
                     || element_name == "Facebook\\XHP\\HTML\\link")
-                    && attribute_info.name.1 == "href"
+                    && name == "href"
                 {
                     taints.insert(SinkType::HtmlAttributeUri);
-                } else if element_name == "Facebook\\XHP\\HTML\\body"
-                    && attribute_info.name.1 == "background"
-                {
+                } else if element_name == "Facebook\\XHP\\HTML\\body" && name == "background" {
                     taints.insert(SinkType::HtmlAttributeUri);
-                } else if element_name == "Facebook\\XHP\\HTML\\form"
-                    && attribute_info.name.1 == "action"
-                {
+                } else if element_name == "Facebook\\XHP\\HTML\\form" && name == "action" {
                     taints.insert(SinkType::HtmlAttributeUri);
                 } else if (element_name == "Facebook\\XHP\\HTML\\button"
                     || element_name == "Facebook\\XHP\\HTML\\input")
-                    && attribute_info.name.1 == "formaction"
+                    && name == "formaction"
                 {
                     taints.insert(SinkType::HtmlAttributeUri);
                 } else if (element_name == "Facebook\\XHP\\HTML\\iframe"
@@ -299,12 +453,10 @@ fn add_xml_attribute_dataflow(
                     || element_name == "Facebook\\XHP\\HTML\\audio"
                     || element_name == "Facebook\\XHP\\HTML\\video"
                     || element_name == "Facebook\\XHP\\HTML\\source")
-                    && attribute_info.name.1 == "src"
+                    && name == "src"
                 {
                     taints.insert(SinkType::HtmlAttributeUri);
-                } else if element_name == "Facebook\\XHP\\HTML\\video"
-                    && attribute_info.name.1 == "poster"
-                {
+                } else if element_name == "Facebook\\XHP\\HTML\\video" && name == "poster" {
                     taints.insert(SinkType::HtmlAttributeUri);
                 } else {
                     taints.insert(SinkType::HtmlAttribute);

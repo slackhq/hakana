@@ -1,0 +1,1 @@
+ERROR: MissingRequiredXhpAttribute - input.hack:4:12 - XHP class Facebook\XHP\HTML\link is missing a required attribute: rel

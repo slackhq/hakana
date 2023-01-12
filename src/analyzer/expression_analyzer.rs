@@ -451,10 +451,10 @@ pub(crate) fn analyze(
             xml_analyzer::analyze(
                 context,
                 boxed,
+                expr.pos(),
                 statements_analyzer,
                 tast_info,
                 if_body_context,
-                expr,
             );
         }
         aast::Expr_::Await(boxed) => {
@@ -677,10 +677,13 @@ fn analyze_function_pointer(
             }
             .unwrap();
 
-            FunctionLikeIdentifier::Method(
-                class_name,
-                codebase.interner.get(&method_name.1).unwrap(),
-            )
+            let method_name = codebase.interner.get(&method_name.1);
+
+            if let Some(method_name) = method_name {
+                FunctionLikeIdentifier::Method(class_name, method_name)
+            } else {
+                return;
+            }
         }
     };
 
