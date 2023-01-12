@@ -3,10 +3,18 @@ use serde::{Deserialize, Serialize};
 use crate::{code_location::HPos, member_visibility::MemberVisibility, t_union::TUnion};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum PropertyKind {
+    Property,
+    XhpAttribute { is_required: bool },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PropertyInfo {
     pub is_static: bool,
 
     pub visibility: MemberVisibility,
+
+    pub kind: PropertyKind,
 
     pub pos: Option<HPos>,
 

@@ -11,7 +11,7 @@ use hakana_reflection_info::{
     code_location::HPos,
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
     member_visibility::MemberVisibility,
-    property_info::PropertyInfo,
+    property_info::{PropertyInfo, PropertyKind},
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
     FileSource, StrId, ThreadedInterner,
@@ -627,19 +627,20 @@ fn visit_xhp_attribute(
         get_mixed_any()
     };
 
-    if !(if let Some(attr_tag) = &xhp_attribute.2 {
+    let is_required = if let Some(attr_tag) = &xhp_attribute.2 {
         attr_tag.is_required()
     } else {
         false
-    }) && !attribute_type.is_mixed()
-        && xhp_attribute.1.expr.is_none()
-    {
+    };
+
+    if !is_required && !attribute_type.is_mixed() && xhp_attribute.1.expr.is_none() {
         attribute_type.types.push(TAtomic::TNull);
     }
 
     let property_storage = PropertyInfo {
         is_static: false,
         visibility: MemberVisibility::Protected,
+        kind: PropertyKind::XhpAttribute { is_required },
         pos: Some(HPos::new(
             xhp_attribute.1.id.pos(),
             file_source.file_path,
@@ -874,6 +875,7 @@ fn visit_property_declaration(
             file_source.file_path,
             None,
         )),
+        kind: PropertyKind::Property,
         stmt_pos: Some(def_pos),
         type_pos: property_type_location,
         type_: property_type.unwrap_or(get_mixed_any()),

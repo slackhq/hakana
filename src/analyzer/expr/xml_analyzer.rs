@@ -7,6 +7,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
+use hakana_reflection_info::property_info::PropertyKind;
 use hakana_reflection_info::taint::SinkType;
 use hakana_reflection_info::StrId;
 use hakana_type::get_named_object;
@@ -30,27 +31,30 @@ pub(crate) fn analyze(
     expr: &aast::Expr<(), ()>,
 ) {
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
-    let name_string = resolved_names.get(&boxed.0 .0.start_offset()).unwrap();
+    let xhp_class_name = resolved_names.get(&boxed.0 .0.start_offset()).unwrap();
 
     tast_info.symbol_references.add_reference_to_symbol(
         &context.function_context,
-        name_string.clone(),
+        xhp_class_name.clone(),
         false,
     );
 
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
+
+    let mut used_attributes = FxHashSet::default();
+
     for attribute in &boxed.1 {
         match attribute {
             aast::XhpAttribute::XhpSimple(xhp_simple) => {
-                analyze_xhp_attribute_assignment(
+                used_attributes.insert(analyze_xhp_attribute_assignment(
                     statements_analyzer,
-                    &name_string,
+                    &xhp_class_name,
                     xhp_simple,
                     tast_info,
                     context,
                     if_body_context,
-                );
+                ));
             }
             aast::XhpAttribute::XhpSpread(xhp_expr) => {
                 expression_analyzer::analyze(
@@ -63,6 +67,19 @@ pub(crate) fn analyze(
             }
         }
     }
+
+    let codebase = statements_analyzer.get_codebase();
+    if let Some(classlike_info) = codebase.classlike_infos.get(&xhp_class_name) {
+        let mut required_attributes = classlike_info
+            .properties
+            .iter()
+            .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { .. }))
+            .map(|p| p.0)
+            .collect::<FxHashSet<_>>();
+
+        required_attributes.retain(|attr| !used_attributes.contains(attr));
+    }
+
     for inner_expr in &boxed.2 {
         expression_analyzer::analyze(
             statements_analyzer,
@@ -75,7 +92,7 @@ pub(crate) fn analyze(
         let element_name = statements_analyzer
             .get_codebase()
             .interner
-            .lookup(*name_string);
+            .lookup(*xhp_class_name);
 
         if let Some(expr_type) = tast_info.expr_types.get(&(
             inner_expr.pos().start_offset(),
@@ -135,7 +152,7 @@ pub(crate) fn analyze(
 
     tast_info.expr_types.insert(
         (expr.1.start_offset(), expr.1.end_offset()),
-        Rc::new(get_named_object(*name_string)),
+        Rc::new(get_named_object(*xhp_class_name)),
     );
 }
 
@@ -146,7 +163,7 @@ fn analyze_xhp_attribute_assignment(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) {
+) -> StrId {
     expression_analyzer::analyze(
         statements_analyzer,
         &attribute_info.expr,
@@ -162,10 +179,18 @@ fn analyze_xhp_attribute_assignment(
     } else if attribute_info.name.1.starts_with("aria-") {
         StrId::aria_attribute()
     } else {
-        codebase
+        let attribute_name = codebase
             .interner
             .get(&format!(":{}", attribute_info.name.1))
-            .unwrap()
+            .unwrap();
+
+        tast_info.symbol_references.add_reference_to_class_member(
+            &context.function_context,
+            (*element_name, attribute_name),
+            false,
+        );
+
+        attribute_name
     };
 
     let property_id = (*element_name, attribute_name);
@@ -201,6 +226,8 @@ fn analyze_xhp_attribute_assignment(
             );
         }
     }
+
+    attribute_name
 }
 
 fn add_xml_attribute_dataflow(

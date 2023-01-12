@@ -155,6 +155,7 @@ fn add_promoted_param_property(
             }
             ast_defs::Visibility::Protected => MemberVisibility::Protected,
         },
+        kind: hakana_reflection_info::property_info::PropertyKind::Property,
         pos: Some(HPos::new(&param_node.pos, file_source.file_path, None)),
         stmt_pos: Some(HPos::new(&param_node.pos, file_source.file_path, None)),
         type_pos: signature_type_location,
