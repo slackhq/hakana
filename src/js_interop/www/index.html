@@ -13,6 +13,12 @@
       margin: 0;
       padding: 0;
       width: 100%;
+      background-color: #E8E0DD;
+    }
+
+    hgroup {
+      background-color: #8D401B;
+      padding: 30px 10px;
     }
 
     h1 {
@@ -27,6 +33,7 @@
       margin: 0;
       font-weight: 300;
       font-size: 20px;
+      color: #FFF;
     }
 
     #hack_code {
@@ -57,22 +64,45 @@
       font-weight: 400;
       line-height: 1.6em;
     }
+
+    #hakana_output {
+      background-color: #FFF;
+    }
+
+    #get_link_button {
+      color: #FFF;
+      background-color: #8D401B;
+      padding: 10px 15px;
+      border: 0;
+      font-size: 16px;
+    }
+
+    footer {
+      text-align: center;
+      margin: 1em 0 0 0;
+      padding: 20px;
+    }
   </style>
 </head>
 
 <body>
-  <h1><svg width="163" height="38" xmlns="http://www.w3.org/2000/svg" aria-labelledby="aria-h1-title" role="img">
-      <title id="aria-h1-title">Hakana</title>
-      <g stroke="#FFF" fill="none" fill-rule="evenodd">
-        <path
-          d="M10.5 14.4h4.3L15 .6h9.5V37h-9.5V25.4l-4.4.1V37H.8V.6h9.7v13.8ZM64.7 10.2 70.1.6h8.6v4.1l-7.3 12.7 7.7 17.2-.5 2.4H69l-4.2-9.4V37h-9.6V.6h9.6v9.6ZM42.5 31.5h-6.3L34.7 37h-9.2L35 .6h9.4L54 37H44l-1.4-5.5ZM96.8 31.5h-6.6L88.7 37H79L88.5.6H98l9.5 36.4h-9.3l-1.4-5.5ZM119.4 25.9l.1 11.1H109V.6h8.4l5.5 10 .1-10h9.6V37H126L119.4 26ZM150.7 31.5h-6.6l-1.5 5.5h-9.1L143 .6h9.5L162 37h-9.5l-1.8-5.5Z"
-          fill="#4E4E4E" fill-rule="nonzero" />
-        <path
-          d="M10.5 14.5v10.9M64.6 1l.1 27.3 6.4-10.8M43.7 1l-7.5 30.4M39.3 18.9l3.2 12.3M89 1l7.7 30.3M93.6 19l-3.4 12.3M109.2 8.4l10.1 17.2M123 10.9l9.4 16.9M151.8 1.1l-7.7 30.2M147.3 19l3.4 12.3" />
-      </g>
-    </svg>
-  </h1>
-  <h2>Another type checker for Hack</h2>
+  <hgroup>
+    <h1><svg width="326" height="76" xmlns="http://www.w3.org/2000/svg" aria-labelledby="aria-h1-title" role="img"
+        viewBox="0 0 163 39">
+        <title id="aria-h1-title">Hakana</title>
+        <g stroke="#FFF" fill="none" fill-rule="evenodd">
+          <path
+            d="M10.7 14.9H15L15.1 1h9.5v36.4H15V26l-4.4.1v11.5H1V1.1h9.6l.1 13.8ZM64.9 10.7l5.4-9.6H79v4.1L71.6 18 79.3 35l-.5 2.4h-9.7l-4.2-9.4v9.4h-9.6V1.1H65v9.6ZM42.7 32h-6.3l-1.5 5.5h-9.3l9.5-36.4h9.5l9.5 36.4h-10L42.8 32ZM97 32h-6.6l-1.5 5.5h-9.7l9.5-36.4H98l9.6 36.4h-9.3L97 32ZM119.6 26.4l.1 11.1h-10.5V1.1h8.4l5.5 10V1h9.7v36.4h-6.6l-6.6-11.1ZM150.9 32h-6.6l-1.5 5.5h-9.1l9.5-36.4h9.4l9.6 36.4h-9.5L151 32Z"
+            fill="#CD7143" fill-rule="nonzero" />
+          <g opacity=".5">
+            <path
+              d="M10.7 15v10.9M64.8 1.5l.1 27.3L71.4 18M43.9 1.5l-7.5 30.3M39.5 19.4l3.2 12.2M89.3 1.5l7.6 30.3M93.8 19.5l-3.4 12.3M109.4 8.9l10.1 17.2M123.2 11.4l9.4 16.9M152 1.6l-7.7 30.2M147.5 19.5l3.4 12.3" />
+          </g>
+        </g>
+      </svg>
+    </h1>
+    <h2>Another type checker for Hack</h2>
+  </hgroup>
   <main style="min-width: 300px; max-width: 600px;margin: 0 auto;padding: 20px;">
     <div id="codemirror_container">
       <textarea id="hack_code"></textarea>
@@ -84,6 +114,9 @@
 
     <button id="get_link_button">Get link</button>
   </main>
+  <footer>
+    &nbsp;
+  </footer>
 </body>
 
 </html>
