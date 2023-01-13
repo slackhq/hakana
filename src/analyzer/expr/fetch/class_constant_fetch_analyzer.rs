@@ -157,15 +157,6 @@ fn analyse_known_class_constant(
         return None;
     }
 
-    tast_info.symbol_references.add_reference_to_class_member(
-        &context.function_context,
-        (
-            classlike_name.clone(),
-            codebase.interner.get(&const_name).unwrap(),
-        ),
-        false,
-    );
-
     if const_name == "class" {
         let inner_object = if is_this {
             let named_object = TAtomic::TNamedObject {
@@ -184,14 +175,29 @@ fn analyse_known_class_constant(
             }
         };
 
+        tast_info.symbol_references.add_reference_to_symbol(
+            &context.function_context,
+            classlike_name.clone(),
+            false,
+        );
+
         return Some(wrap_atomic(inner_object));
     }
 
-    let mut class_constant_type = codebase.get_class_constant_type(
-        &classlike_name,
-        &codebase.interner.get(&const_name).unwrap(),
-        FxHashSet::default(),
+    let const_name = if let Some(const_name) = codebase.interner.get(&const_name) {
+        const_name
+    } else {
+        return None;
+    };
+
+    tast_info.symbol_references.add_reference_to_class_member(
+        &context.function_context,
+        (classlike_name.clone(), const_name),
+        false,
     );
+
+    let mut class_constant_type =
+        codebase.get_class_constant_type(&classlike_name, &const_name, FxHashSet::default());
 
     if let Some(ref mut class_constant_type) = class_constant_type {
         type_expander::expand_union(

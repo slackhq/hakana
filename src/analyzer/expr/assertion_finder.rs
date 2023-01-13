@@ -338,10 +338,14 @@ fn get_functionlike_id_from_call(
                         if let aast::Expr_::Id(id) = &lhs_expr.2 {
                             let resolved_names = assertion_context.resolved_names;
 
-                            Some(FunctionLikeIdentifier::Method(
-                                resolved_names.get(&id.0.start_offset()).unwrap().clone(),
-                                codebase.interner.get(&rhs_expr.1).unwrap(),
-                            ))
+                            if let (Some(class_name), Some(method_name)) = (
+                                resolved_names.get(&id.0.start_offset()),
+                                codebase.interner.get(&rhs_expr.1),
+                            ) {
+                                Some(FunctionLikeIdentifier::Method(*class_name, method_name))
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }

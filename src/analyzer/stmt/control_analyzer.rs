@@ -500,14 +500,20 @@ fn handle_call(
                                 if let Some(classlike_storage) =
                                     codebase.classlike_infos.get(name_string)
                                 {
-                                    if let Some(functionlike_storage) = classlike_storage
-                                        .methods
-                                        .get(&codebase.interner.get(&boxed.1 .1).unwrap())
-                                    {
-                                        if let Some(return_type) = &functionlike_storage.return_type
+                                    let method_name = codebase.interner.get(&boxed.1 .1);
+
+                                    if let Some(method_name) = method_name {
+                                        if let Some(functionlike_storage) =
+                                            classlike_storage.methods.get(&method_name)
                                         {
-                                            if return_type.is_nothing() {
-                                                return Some(control_end(control_actions.clone()));
+                                            if let Some(return_type) =
+                                                &functionlike_storage.return_type
+                                            {
+                                                if return_type.is_nothing() {
+                                                    return Some(control_end(
+                                                        control_actions.clone(),
+                                                    ));
+                                                }
                                             }
                                         }
                                     }
