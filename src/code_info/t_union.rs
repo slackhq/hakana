@@ -1,7 +1,7 @@
 use crate::{
     codebase_info::Symbols,
     data_flow::node::DataFlowNode,
-    symbol_references::{SymbolReferences, ReferenceSource},
+    symbol_references::{ReferenceSource, SymbolReferences},
     t_atomic::{populate_atomic_type, DictKey, TAtomic},
     Interner, StrId,
 };
@@ -329,7 +329,7 @@ impl TUnion {
         false
     }
 
-    pub fn has_template_types(&self) -> bool {
+    pub fn get_all_child_nodes(&self) -> Vec<TypeNode> {
         let mut child_nodes = self.get_child_nodes();
         let mut all_child_nodes = vec![];
 
@@ -343,6 +343,12 @@ impl TUnion {
 
             child_nodes.extend(new_child_nodes);
         }
+
+        all_child_nodes
+    }
+
+    pub fn has_template_types(&self) -> bool {
+        let all_child_nodes = self.get_all_child_nodes();
 
         for child_node in all_child_nodes {
             if let TypeNode::Atomic(inner) = child_node {
@@ -359,19 +365,7 @@ impl TUnion {
     }
 
     pub fn get_template_types(&self) -> Vec<TAtomic> {
-        let mut child_nodes = self.get_child_nodes();
-        let mut all_child_nodes = vec![];
-
-        while let Some(child_node) = child_nodes.pop() {
-            let new_child_nodes = match child_node {
-                TypeNode::Union(union) => union.get_child_nodes(),
-                TypeNode::Atomic(atomic) => atomic.get_child_nodes(),
-            };
-
-            all_child_nodes.push(child_node);
-
-            child_nodes.extend(new_child_nodes);
-        }
+        let all_child_nodes = self.get_all_child_nodes();
 
         let mut template_types = Vec::new();
 
@@ -768,10 +762,20 @@ pub fn populate_union_type(
         } = atomic
         {
             let mut new_as_type = (**as_type).clone();
-            populate_atomic_type(&mut new_as_type, codebase_symbols, reference_source, symbol_references);
+            populate_atomic_type(
+                &mut new_as_type,
+                codebase_symbols,
+                reference_source,
+                symbol_references,
+            );
             *as_type = Box::new(new_as_type);
         } else {
-            populate_atomic_type(atomic, codebase_symbols, reference_source, symbol_references);
+            populate_atomic_type(
+                atomic,
+                codebase_symbols,
+                reference_source,
+                symbol_references,
+            );
         }
     }
 }

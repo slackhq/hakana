@@ -44,30 +44,6 @@ pub(crate) fn analyze(
 ) -> bool {
     let codebase = statements_analyzer.get_codebase();
     let stmt_var = expr.0;
-    let stmt_name = expr.1;
-
-    let prop_name = if let aast::Expr_::Id(id) = &stmt_name.2 {
-        if let Some(prop_name) = codebase.interner.get(&id.1) {
-            Some(prop_name)
-        } else {
-            tast_info.maybe_add_issue(
-                Issue::new(
-                    IssueKind::NonExistentProperty,
-                    format!("Undefined property ${}", &id.1),
-                    statements_analyzer.get_hpos(&expr.1.pos()),
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-            return false;
-        }
-    } else {
-        None
-    };
-
-    if let None = prop_name {
-        return false;
-    }
 
     // TODO if ($stmt instanceof PropertyProperty) {
 
@@ -79,7 +55,6 @@ pub(crate) fn analyze(
         assign_value_type,
         tast_info,
         context,
-        &prop_name.unwrap(),
     );
 
     if assigned_properties.len() == 0 || assign_value_type.is_mixed() {
@@ -202,7 +177,6 @@ pub(crate) fn analyze_regular_assignment(
     assign_value_type: &TUnion,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
-    prop_name: &StrId,
 ) -> Vec<(TUnion, (StrId, StrId), TUnion)> {
     let stmt_var = expr.0;
 
@@ -303,7 +277,6 @@ pub(crate) fn analyze_regular_assignment(
             if let TAtomic::TNull { .. } = lhs_type_part {
                 continue;
             }
-            // TODO if ($lhs_type_part instanceof TTemplateParam) {
 
             let assigned_prop = analyze_atomic_assignment(
                 statements_analyzer,
@@ -312,7 +285,6 @@ pub(crate) fn analyze_regular_assignment(
                 lhs_type_part,
                 tast_info,
                 context,
-                prop_name,
             );
 
             if let Some(assigned_prop) = assigned_prop {
@@ -346,11 +318,58 @@ pub(crate) fn analyze_atomic_assignment(
     lhs_type_part: &TAtomic,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
-    prop_name: &StrId,
 ) -> Option<(TUnion, (StrId, StrId), TUnion)> {
     let codebase = statements_analyzer.get_codebase();
-    let fq_class_name = if let TAtomic::TNamedObject { name, .. } = lhs_type_part {
-        name.clone()
+    let fq_class_name = match lhs_type_part {
+        TAtomic::TNamedObject { name, .. } => name.clone(),
+        TAtomic::TReference { name, .. } => {
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NonExistentClass,
+                    format!("Undefined class {}", codebase.interner.lookup(*name)),
+                    statements_analyzer.get_hpos(&expr.1.pos()),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+
+            tast_info.symbol_references.add_reference_to_symbol(
+                &context.function_context,
+                *name,
+                false,
+            );
+
+            return None;
+        }
+        _ => return None,
+    };
+
+    let prop_name = if let aast::Expr_::Id(id) = &expr.1 .2 {
+        if let Some(prop_name) = codebase.interner.get(&id.1) {
+            prop_name
+        } else {
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NonExistentProperty,
+                    format!(
+                        "Undefined property {}::${}",
+                        codebase.interner.lookup(fq_class_name),
+                        &id.1
+                    ),
+                    statements_analyzer.get_hpos(&expr.1.pos()),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+
+            tast_info.symbol_references.add_reference_to_symbol(
+                &context.function_context,
+                fq_class_name,
+                false,
+            );
+
+            return None;
+        }
     } else {
         return None;
     };
@@ -376,7 +395,7 @@ pub(crate) fn analyze_atomic_assignment(
             tast_info,
             context,
             assign_value_type,
-            prop_name,
+            &prop_name,
             &fq_class_name,
             &property_id,
         );
@@ -385,7 +404,13 @@ pub(crate) fn analyze_atomic_assignment(
     // TODO property does not exist, emit errors
 
     let declaring_property_class =
-        codebase.get_declaring_class_for_property(&fq_class_name, prop_name);
+        codebase.get_declaring_class_for_property(&fq_class_name, &prop_name);
+
+    tast_info.symbol_references.add_reference_to_class_member(
+        &context.function_context,
+        (fq_class_name, prop_name),
+        false,
+    );
 
     if let Some(declaring_property_class) = declaring_property_class {
         let declaring_classlike_storage = codebase

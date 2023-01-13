@@ -1,0 +1,4 @@
+ERROR: NonExistentFunction - input.hack:2:5 - Function f1 is not defined
+ERROR: NonExistentFunction - input.hack:6:10 - Unknown function f2
+ERROR: MixedAnyArgument - input.hack:6:10 - Argument 1 of echo expects arraykey, any provided
+ERROR: NonExistentFunction - input.hack:10:5 - Function f3 is not defined

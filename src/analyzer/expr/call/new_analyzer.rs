@@ -248,6 +248,19 @@ fn analyze_named_constructor(
     let storage = if let Some(storage) = codebase.classlike_infos.get(&classlike_name) {
         storage
     } else {
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentClass,
+                format!(
+                    "Cannot call new on undefined class {}",
+                    codebase.interner.lookup(classlike_name)
+                ),
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+
         return;
     };
 

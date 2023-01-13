@@ -109,16 +109,6 @@ pub struct ScopeContext {
 
     pub include_location: Option<Pos>,
 
-    pub check_classes: bool,
-
-    pub check_variables: bool,
-
-    pub check_methods: bool,
-
-    pub check_consts: bool,
-
-    pub check_functions: bool,
-
     /**
      * Variables assigned in loops that should not be overwritten
      */
@@ -183,12 +173,6 @@ impl ScopeContext {
             inside_throw: false,
             inside_assignment: false,
             inside_try: false,
-
-            check_classes: true,
-            check_variables: true,
-            check_methods: true,
-            check_consts: true,
-            check_functions: true,
 
             inside_negation: false,
 

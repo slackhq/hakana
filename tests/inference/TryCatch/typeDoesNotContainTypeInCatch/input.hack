@@ -1,4 +1,4 @@
-function foo(bool $test, callable $bar): string {
+function foo(bool $test, (function(...):mixed) $bar): string {
     try {
         $bar();
 

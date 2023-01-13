@@ -1,0 +1,1 @@
+ERROR: NonExistentProperty - input.hack:6:11 - Cannot access undefined property A::$bar

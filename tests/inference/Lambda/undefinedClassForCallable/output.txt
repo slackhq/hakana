@@ -1,1 +1,2 @@
-UndefinedClass
+ERROR: NonExistentClasslike - input.hack:2:33 - Class, enum or interface UndefinedClass cannot be found
+ERROR: InvalidArgument - input.hack:4:9 - Argument 1 of Foo::__construct expects unknown-ref(UndefinedClass), different type (function(): void) provided

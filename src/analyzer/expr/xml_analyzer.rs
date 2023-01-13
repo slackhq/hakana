@@ -248,7 +248,7 @@ fn handle_attribute_spread(
                                 context,
                                 false,
                                 expr_type_atomic.clone(),
-                                &Some(*spread_attribute.0),
+                                codebase.interner.lookup(*spread_attribute.0),
                                 &None,
                                 &None,
                             );

@@ -2,7 +2,7 @@ const K = 5;
 
 abstract class C6 {
 
-  const M = dict[
+  const dict<int, int> M = dict[
     1 => -1,
     K => 6,
   ];

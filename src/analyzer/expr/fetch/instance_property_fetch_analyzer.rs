@@ -137,7 +137,7 @@ pub(crate) fn analyze(
                 context,
                 in_assignment,
                 lhs_type_part.clone(),
-                &statements_analyzer.get_codebase().interner.get(&prop_name),
+                &prop_name,
                 &var_id,
                 &stmt_var_id,
             );

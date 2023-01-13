@@ -669,13 +669,13 @@ fn analyze_function_pointer(
                 aast::ClassId_::CIexpr(inner_expr) => {
                     if let aast::Expr_::Id(id) = &inner_expr.2 {
                         get_id_name(id, &calling_class, codebase, &mut false, resolved_names)
+                            .unwrap()
                     } else {
-                        None
+                        panic!("Unrecognised expression type for class constant reference");
                     }
                 }
-                _ => None,
-            }
-            .unwrap();
+                _ => panic!("Unrecognised expression type for class constant reference"),
+            };
 
             let method_name = codebase.interner.get(&method_name.1);
 
@@ -694,6 +694,20 @@ fn analyze_function_pointer(
                 name.clone(),
                 false,
             );
+
+            if !codebase.functionlike_infos.contains_key(name) {
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::NonExistentFunction,
+                        format!("Unknown function {}", codebase.interner.lookup(*name)),
+                        statements_analyzer.get_hpos(&expr.pos()),
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+
+                return;
+            }
         }
         FunctionLikeIdentifier::Method(class_name, method_name) => {
             tast_info.symbol_references.add_reference_to_class_member(
@@ -721,6 +735,21 @@ fn analyze_function_pointer(
                             );
                     }
                 }
+            } else {
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::NonExistentClasslike,
+                        format!(
+                            "Unknown classlike {}",
+                            codebase.interner.lookup(*class_name)
+                        ),
+                        statements_analyzer.get_hpos(&expr.pos()),
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+
+                return;
             }
         }
     }

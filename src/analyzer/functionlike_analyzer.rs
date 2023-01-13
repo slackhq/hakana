@@ -374,54 +374,49 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             tast_info.issue_filter = Some(issue_filter.clone());
         }
 
-        self.add_param_types_to_context(
+        let mut completed_analysis = false;
+
+        if self.add_param_types_to_context(
             params,
             functionlike_storage,
             &mut tast_info,
             context,
             statements_analyzer,
-        );
+        ) {
+            if let Some(calling_class) = &context.function_context.calling_class {
+                if let Some(classlike_storage) = self
+                    .file_analyzer
+                    .get_codebase()
+                    .classlike_infos
+                    .get(calling_class)
+                {
+                    self.add_properties_to_context(
+                        classlike_storage,
+                        &mut tast_info,
+                        functionlike_storage,
+                        context,
+                    );
+                }
+            }
 
-        if let Some(calling_class) = &context.function_context.calling_class {
-            if let Some(classlike_storage) = self
-                .file_analyzer
-                .get_codebase()
-                .classlike_infos
-                .get(calling_class)
-            {
-                self.add_properties_to_context(
-                    classlike_storage,
-                    &mut tast_info,
+            completed_analysis =
+                statements_analyzer.analyze(&fb_ast, &mut tast_info, context, &mut None);
+
+            if !context.has_returned {
+                handle_inout_at_return(
                     functionlike_storage,
+                    statements_analyzer,
                     context,
+                    &mut tast_info,
+                    None,
                 );
             }
-        }
-
-        let completed_analysis =
-            statements_analyzer.analyze(&fb_ast, &mut tast_info, context, &mut None);
-
-        if !context.has_returned {
-            handle_inout_at_return(
-                functionlike_storage,
-                statements_analyzer,
-                context,
-                &mut tast_info,
-                None,
-            );
         }
 
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             if let Some(method_storage) = &functionlike_storage.method_info {
                 if !method_storage.is_static {
                     if let Some(this_type) = context.vars_in_scope.get("$this") {
-                        if this_type.parent_nodes.len() == 1
-                            && this_type
-                                .parent_nodes
-                                .contains_key(&"$this-11057:82-88".to_string())
-                        {
-                            //panic!();
-                        }
                         let new_call_node = DataFlowNode::get_for_this_after_method(
                             &MethodIdentifier(
                                 context.function_context.calling_class.unwrap().clone(),
@@ -637,7 +632,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         tast_info: &mut TastInfo,
         context: &mut ScopeContext,
         statements_analyzer: &mut StatementsAnalyzer,
-    ) {
+    ) -> bool {
         let interner = &statements_analyzer.get_codebase().interner;
 
         for (i, param) in functionlike_storage.params.iter().enumerate() {
@@ -728,6 +723,27 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 get_mixed_any()
             };
+
+            for type_node in param_type.get_all_child_nodes() {
+                match type_node {
+                    hakana_reflection_info::t_union::TypeNode::Atomic(TAtomic::TReference {
+                        name,
+                        ..
+                    }) => {
+                        tast_info.add_issue(Issue::new(
+                            IssueKind::NonExistentClasslike,
+                            format!(
+                                "Class, enum or interface {} cannot be found",
+                                statements_analyzer.get_codebase().interner.lookup(*name)
+                            ),
+                            param.signature_type_location.clone().unwrap(),
+                        ));
+
+                        return false;
+                    }
+                    _ => {}
+                }
+            }
 
             let param_node = &params[i];
 
@@ -847,6 +863,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .vars_in_scope
                 .insert(param.name.clone(), Rc::new(param_type.clone()));
         }
+
+        true
     }
 }
 

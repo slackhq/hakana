@@ -2,6 +2,7 @@ use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
 use hakana_type::type_expander::TypeExpansionOptions;
@@ -62,15 +63,42 @@ pub(crate) fn analyze(
 
                 if let Some(lhs_type) = tast_info.get_expr_type(lhs_expr.pos()).cloned() {
                     for atomic_type in &lhs_type.types {
-                        if let TAtomic::TNamedObject { name, is_this, .. } = atomic_type {
-                            stmt_type = Some(add_optional_union_type(
-                                analyse_known_class_constant(
-                                    codebase, tast_info, context, &name, const_name, *is_this,
-                                )
-                                .unwrap_or(get_mixed_any()),
-                                stmt_type.as_ref(),
-                                codebase,
-                            ));
+                        match atomic_type {
+                            TAtomic::TNamedObject { name, is_this, .. } => {
+                                stmt_type = Some(add_optional_union_type(
+                                    analyse_known_class_constant(
+                                        codebase,
+                                        tast_info,
+                                        context,
+                                        &name,
+                                        const_name,
+                                        *is_this,
+                                        statements_analyzer,
+                                        pos,
+                                    )
+                                    .unwrap_or(get_mixed_any()),
+                                    stmt_type.as_ref(),
+                                    codebase,
+                                ));
+                            }
+                            TAtomic::TReference {
+                                name: classlike_name,
+                                ..
+                            } => {
+                                tast_info.maybe_add_issue(
+                                    Issue::new(
+                                        IssueKind::NonExistentClasslike,
+                                        format!(
+                                            "Unknown classlike {}",
+                                            codebase.interner.lookup(*classlike_name)
+                                        ),
+                                        statements_analyzer.get_hpos(&pos),
+                                    ),
+                                    statements_analyzer.get_config(),
+                                    statements_analyzer.get_file_path_actual(),
+                                );
+                            }
+                            _ => (),
                         }
                     }
                 }
@@ -92,6 +120,8 @@ pub(crate) fn analyze(
         &classlike_name,
         const_name,
         is_static,
+        statements_analyzer,
+        pos,
     )
     .unwrap_or(get_mixed_any());
     tast_info.set_expr_type(&pos, stmt_type);
@@ -147,13 +177,40 @@ fn analyse_known_class_constant(
     classlike_name: &StrId,
     const_name: &String,
     is_this: bool,
+    statements_analyzer: &StatementsAnalyzer,
+    pos: &Pos,
 ) -> Option<TUnion> {
-    if !codebase.class_or_interface_or_enum_exists(&classlike_name) {
+    if !codebase.class_or_interface_or_enum_or_trait_exists(&classlike_name) {
         if const_name == "class" && codebase.type_definitions.contains_key(classlike_name) {
             return Some(wrap_atomic(TAtomic::TLiteralClassname {
                 name: classlike_name.clone(),
             }));
         }
+
+        tast_info.maybe_add_issue(
+            if const_name == "class" {
+                Issue::new(
+                    IssueKind::NonExistentType,
+                    format!(
+                        "Unknown class {}",
+                        codebase.interner.lookup(*classlike_name)
+                    ),
+                    statements_analyzer.get_hpos(&pos),
+                )
+            } else {
+                Issue::new(
+                    IssueKind::NonExistentClasslike,
+                    format!(
+                        "Unknown classlike {}",
+                        codebase.interner.lookup(*classlike_name)
+                    ),
+                    statements_analyzer.get_hpos(&pos),
+                )
+            },
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+
         return None;
     }
 
@@ -187,6 +244,20 @@ fn analyse_known_class_constant(
     let const_name = if let Some(const_name) = codebase.interner.get(&const_name) {
         const_name
     } else {
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentClassConstant,
+                format!(
+                    "Unknown class constant {}::{}",
+                    codebase.interner.lookup(*classlike_name),
+                    const_name
+                ),
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+
         return None;
     };
 
@@ -195,6 +266,24 @@ fn analyse_known_class_constant(
         (classlike_name.clone(), const_name),
         false,
     );
+
+    let classlike_storage = codebase.classlike_infos.get(classlike_name).unwrap();
+
+    if !classlike_storage.constants.contains_key(&const_name) {
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentClassConstant,
+                format!(
+                    "Unknown class constant {}::{}",
+                    codebase.interner.lookup(*classlike_name),
+                    codebase.interner.lookup(const_name),
+                ),
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+    }
 
     let mut class_constant_type =
         codebase.get_class_constant_type(&classlike_name, &const_name, FxHashSet::default());

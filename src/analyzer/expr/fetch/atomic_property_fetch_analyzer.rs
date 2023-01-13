@@ -2,6 +2,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::{expr::call::arguments_analyzer::get_template_types_for_call, typed_ast::TastInfo};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::code_location::HPos;
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
@@ -31,7 +32,7 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     in_assignment: bool,
     lhs_type_part: TAtomic,
-    prop_name: &Option<StrId>,
+    prop_name: &str,
     var_id: &Option<String>,
     lhs_var_id: &Option<String>,
 ) -> bool {
@@ -39,42 +40,80 @@ pub(crate) fn analyze(
         tast_info.set_expr_type(&expr.0.pos(), get_mixed_any());
     }
 
-    if !lhs_type_part.is_object_type() && !lhs_type_part.is_named_object() {
-        // TODO return lhs_type_part's ID so we can emit error
-        return false;
-    }
-
-    // TODO handle null, false error cases
-
-    //if lhs_type_part.is_object_type()
-
     let codebase = statements_analyzer.get_codebase();
-
-    // TODO handle enums
 
     let classlike_name = match &lhs_type_part {
         TAtomic::TNamedObject { name, .. } => name.clone(),
+        TAtomic::TReference {
+            name: classlike_name,
+            ..
+        } => {
+            tast_info.symbol_references.add_reference_to_symbol(
+                &context.function_context,
+                *classlike_name,
+                false,
+            );
+
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NonExistentClass,
+                    format!(
+                        "Cannot access property on undefined class {}",
+                        codebase.interner.lookup(*classlike_name)
+                    ),
+                    statements_analyzer.get_hpos(&pos),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+            return false;
+        }
         _ => {
             return false;
         }
     };
 
-    let prop_name = if let Some(prop_name) = prop_name {
+    let prop_name = if let Some(prop_name) = codebase.interner.get(prop_name) {
         prop_name
     } else {
-        // todo handle SimpleXML prop
-        // todo emit issue
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentProperty,
+                format!(
+                    "Cannot access undefined property {}::${}",
+                    codebase.interner.lookup(classlike_name),
+                    prop_name,
+                ),
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+
         return true;
     };
 
-    if !codebase.property_exists(&classlike_name, prop_name) {
-        // todo emit issue
-        return true;
+    if !codebase.property_exists(&classlike_name, &prop_name) {
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentProperty,
+                format!(
+                    "Cannot access undefined property {}::${}",
+                    codebase.interner.lookup(classlike_name),
+                    codebase.interner.lookup(prop_name)
+                ),
+                statements_analyzer.get_hpos(&pos),
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+
+        return false;
     }
 
     tast_info.symbol_references.add_reference_to_class_member(
         &context.function_context,
-        (classlike_name.clone(), *prop_name),
+        (classlike_name.clone(), prop_name),
         false,
     );
 
@@ -94,7 +133,7 @@ pub(crate) fn analyze(
     let mut class_property_type = get_class_property_type(
         statements_analyzer,
         &classlike_name,
-        prop_name,
+        &prop_name,
         declaring_property_class.unwrap(),
         lhs_type_part,
         tast_info,
