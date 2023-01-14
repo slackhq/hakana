@@ -1,5 +1,5 @@
 interface Stringable {
-    function __toString() {}
+    public function __toString() {}
 }
 function foo(Stringable $s): void {}
 

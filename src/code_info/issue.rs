@@ -19,6 +19,7 @@ pub enum IssueKind {
     InvalidArgument,
     InvalidArrayOffset,
     InvalidContainsCheck,
+    InvalidHackFile,
     InvalidInoutArgument,
     InvalidMethodCall,
     InvalidPropertyAssignmentValue,

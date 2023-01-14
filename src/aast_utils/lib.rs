@@ -21,6 +21,10 @@ use std::{
 pub mod name_context;
 mod naming_visitor;
 
+pub enum ParserError {
+
+}
+
 pub fn get_aast_for_path_and_contents(
     local_path: String,
     file_contents: String,
@@ -56,6 +60,10 @@ pub fn get_aast_for_path_and_contents(
             Ok(parser_result) => parser_result,
             Err(_) => return Err("Not a valid Hack file".to_string()),
         };
+
+    if !parser_result.errors.is_empty() {
+        return Err("File has issues".to_string());
+    }
 
     let aast = parser_result.aast;
 

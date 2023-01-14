@@ -1,10 +1,10 @@
 class A {
-    function __toString() {
+    public function __toString() {
         return "hello";
     }
 }
 class B {
-    function __toString() {
+    public function __toString() {
         return "goodbye";
     }
 }

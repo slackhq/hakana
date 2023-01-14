@@ -7,8 +7,10 @@ use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::Interner;
 use indexmap::IndexMap;
@@ -18,7 +20,7 @@ use oxidized::scoured_comments::ScouredComments;
 use populator::populate_codebase;
 use rust_embed::RustEmbed;
 use rustc_hash::{FxHashMap, FxHashSet};
-use scanner::scan_files;
+use scanner::{scan_files, ScanFilesResult};
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write};
@@ -71,7 +73,14 @@ pub fn scan_and_analyze(
 
     let mut files_to_analyze = vec![];
 
-    let (mut codebase, mut interner, file_statuses, resolved_names, codebase_diff) = scan_files(
+    let ScanFilesResult {
+        mut codebase,
+        mut interner,
+        file_statuses,
+        resolved_names,
+        codebase_diff,
+        invalid_files,
+    } = scan_files(
         &all_scanned_dirs,
         include_core_libs,
         cache_dir,
@@ -170,6 +179,26 @@ pub fn scan_and_analyze(
     let mut analysis_result = AnalysisResult::new(config.graph_kind, symbol_references);
 
     analysis_result.emitted_issues = existing_issues;
+
+    for invalid_file in invalid_files {
+        analysis_result.emitted_issues.insert(
+            invalid_file.clone(),
+            vec![Issue::new(
+                IssueKind::InvalidHackFile,
+                "Invalid Hack file".to_string(),
+                HPos {
+                    file_path: codebase.interner.get(&invalid_file).unwrap(),
+                    start_offset: 0,
+                    end_offset: 0,
+                    start_line: 0,
+                    end_line: 0,
+                    start_column: 0,
+                    end_column: 0,
+                    insertion_start: None,
+                },
+            )],
+        );
+    }
 
     let analysis_result = Arc::new(Mutex::new(analysis_result));
 

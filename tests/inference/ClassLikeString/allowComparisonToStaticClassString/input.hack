@@ -1,7 +1,7 @@
 class A {
     const CLASSES = dict["foobar" =>  B::class];
 
-    function foo(): bool {
+    public function foo(): bool {
         return self::CLASSES["foobar"] === static::class;
     }
 }

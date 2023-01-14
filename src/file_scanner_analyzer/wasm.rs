@@ -98,7 +98,8 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             empty_name_context.clone(),
             false,
             Verbosity::Quiet,
-        );
+        )
+        .unwrap();
     }
 
     // add HHVM libs
@@ -112,7 +113,8 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             empty_name_context.clone(),
             false,
             Verbosity::Quiet,
-        );
+        )
+        .unwrap();
     }
 
     for str_path in additional_files {
@@ -125,7 +127,8 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             empty_name_context.clone(),
             false,
             Verbosity::Quiet,
-        );
+        )
+        .unwrap();
     }
 
     drop(threaded_interner);

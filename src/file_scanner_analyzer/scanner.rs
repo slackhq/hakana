@@ -33,6 +33,15 @@ use indicatif::ProgressStyle;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
+pub struct ScanFilesResult {
+    pub codebase: CodebaseInfo,
+    pub interner: Interner,
+    pub file_statuses: IndexMap<String, FileStatus>,
+    pub resolved_names: FxHashMap<String, FxHashMap<usize, StrId>>,
+    pub codebase_diff: CodebaseDiff,
+    pub invalid_files: Vec<String>,
+}
+
 pub(crate) fn scan_files(
     scan_dirs: &Vec<String>,
     include_core_libs: bool,
@@ -43,13 +52,7 @@ pub(crate) fn scan_files(
     verbosity: Verbosity,
     build_checksum: &str,
     starter_data: Option<(CodebaseInfo, Interner)>,
-) -> io::Result<(
-    CodebaseInfo,
-    Interner,
-    IndexMap<String, FileStatus>,
-    FxHashMap<String, FxHashMap<usize, StrId>>,
-    CodebaseDiff,
-)> {
+) -> io::Result<ScanFilesResult> {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("{:#?}", scan_dirs);
     }
@@ -237,6 +240,8 @@ pub(crate) fn scan_files(
 
     let has_new_files = files_to_scan.len() > 0;
 
+    let invalid_files = Arc::new(Mutex::new(vec![]));
+
     if files_to_scan.len() > 0 {
         let now = Instant::now();
 
@@ -283,19 +288,26 @@ pub(crate) fn scan_files(
                 .collect::<FxHashSet<_>>();
 
             for (i, str_path) in path_groups[&0].iter().enumerate() {
-                resolved_names.lock().unwrap().insert(
-                    (**str_path).clone(),
-                    scan_file(
-                        str_path,
-                        &config.root_dir,
-                        &config.all_custom_issues,
-                        &mut new_codebase,
-                        &mut new_interner,
-                        empty_name_context.clone(),
-                        analyze_map.contains(*str_path),
-                        verbosity,
-                    ),
-                );
+                let file_resolved_names = if let Ok(file_resolved_names) = scan_file(
+                    str_path,
+                    &config.root_dir,
+                    &config.all_custom_issues,
+                    &mut new_codebase,
+                    &mut new_interner,
+                    empty_name_context.clone(),
+                    analyze_map.contains(*str_path),
+                    verbosity,
+                ) {
+                    file_resolved_names
+                } else {
+                    invalid_files.lock().unwrap().push((*str_path).clone());
+                    continue;
+                };
+
+                resolved_names
+                    .lock()
+                    .unwrap()
+                    .insert((**str_path).clone(), file_resolved_names);
 
                 update_progressbar(i as u64, bar.clone());
             }
@@ -334,31 +346,39 @@ pub(crate) fn scan_files(
 
                 let config = config.clone();
 
+                let invalid_files = invalid_files.clone();
+
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
                     let mut new_interner = ThreadedInterner::new(interner);
                     let empty_name_context = NameContext::new(&mut new_interner);
                     let mut local_resolved_names = FxHashMap::default();
+                    let mut local_invalid_files = vec![];
 
                     for str_path in &pgc {
-                        local_resolved_names.insert(
-                            (*str_path).clone(),
-                            scan_file(
-                                str_path,
-                                &root_dir_c,
-                                &config.all_custom_issues,
-                                &mut new_codebase,
-                                &mut new_interner,
-                                empty_name_context.clone(),
-                                analyze_map.contains(str_path),
-                                verbosity,
-                            ),
-                        );
+                        if let Ok(file_resolved_names) = scan_file(
+                            str_path,
+                            &root_dir_c,
+                            &config.all_custom_issues,
+                            &mut new_codebase,
+                            &mut new_interner,
+                            empty_name_context.clone(),
+                            analyze_map.contains(str_path),
+                            verbosity,
+                        ) {
+                            local_resolved_names.insert((*str_path).clone(), file_resolved_names);
+                        } else {
+                            local_invalid_files.push(str_path.clone());
+                        };
 
                         let mut tally = files_processed.lock().unwrap();
                         *tally += 1;
 
                         update_progressbar(*tally, bar.clone());
+                    }
+
+                    if !local_invalid_files.is_empty() {
+                        invalid_files.lock().unwrap().extend(local_invalid_files);
                     }
 
                     resolved_names.lock().unwrap().extend(local_resolved_names);
@@ -403,6 +423,11 @@ pub(crate) fn scan_files(
         .into_inner()
         .unwrap();
 
+    let invalid_files = Arc::try_unwrap(invalid_files)
+        .unwrap()
+        .into_inner()
+        .unwrap();
+
     if has_new_files {
         if let Some(codebase_path) = codebase_path {
             let mut codebase_file = fs::File::create(&codebase_path).unwrap();
@@ -423,13 +448,14 @@ pub(crate) fn scan_files(
         }
     }
 
-    Ok((
+    Ok(ScanFilesResult {
         codebase,
         interner,
         file_statuses,
         resolved_names,
         codebase_diff,
-    ))
+        invalid_files,
+    })
 }
 
 pub(crate) fn scan_file(
@@ -441,7 +467,7 @@ pub(crate) fn scan_file(
     empty_name_context: NameContext,
     user_defined: bool,
     verbosity: Verbosity,
-) -> FxHashMap<usize, StrId> {
+) -> Result<FxHashMap<usize, StrId>, String> {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("scanning {}", &target_file);
     }
@@ -451,11 +477,7 @@ pub(crate) fn scan_file(
     let aast = match aast {
         Ok(aast) => aast,
         Err(err) => {
-            if err == "Not a valid Hack file" {
-                return FxHashMap::default();
-            }
-
-            panic!("Parser error {}", err);
+            return Err(err);
         }
     };
 
@@ -487,5 +509,5 @@ pub(crate) fn scan_file(
         uses,
     );
 
-    resolved_names
+    Ok(resolved_names)
 }

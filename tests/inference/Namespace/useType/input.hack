@@ -1,12 +1,12 @@
 namespace Foo\Bar {
   class A {
-    static function bar(): void {}
+    public static function bar(): void {}
   }
 }
 
 namespace A {
   class B {
-    static function foo(): void {}
+    public static function foo(): void {}
   }
 }
 

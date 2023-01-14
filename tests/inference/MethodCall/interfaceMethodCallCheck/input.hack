@@ -1,9 +1,9 @@
 interface A {
-    function foo() : void;
+    public function foo() : void;
 }
 
 interface B extends A {
-    function foo(string $a = "") : void;
+    public function foo(string $a = "") : void;
 }
 
 class C implements B {
