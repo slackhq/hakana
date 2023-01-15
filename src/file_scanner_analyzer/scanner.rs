@@ -17,6 +17,7 @@ use crate::cache::load_cached_symbols;
 use crate::file_cache_provider;
 use crate::file_cache_provider::FileStatus;
 use crate::get_aast_for_path;
+use crate::get_relative_path;
 use ast_differ::get_diff;
 use hakana_aast_helper::name_context::NameContext;
 use hakana_analyzer::config::Config;
@@ -300,7 +301,9 @@ pub(crate) fn scan_files(
                 ) {
                     file_resolved_names
                 } else {
-                    invalid_files.lock().unwrap().push((*str_path).clone());
+                    let str_path = get_relative_path(str_path, &config.root_dir);
+                    new_interner.intern(str_path.clone());
+                    invalid_files.lock().unwrap().push(str_path.clone());
                     continue;
                 };
 
@@ -368,6 +371,8 @@ pub(crate) fn scan_files(
                         ) {
                             local_resolved_names.insert((*str_path).clone(), file_resolved_names);
                         } else {
+                            let str_path = get_relative_path(str_path, &root_dir_c);
+                            new_interner.intern(str_path.clone());
                             local_invalid_files.push(str_path.clone());
                         };
 
@@ -481,11 +486,7 @@ pub(crate) fn scan_file(
         }
     };
 
-    let target_name = if target_file.contains(root_dir) {
-        target_file[(root_dir.len() + 1)..].to_string()
-    } else {
-        target_file.clone()
-    };
+    let target_name = get_relative_path(target_file, root_dir);
 
     let interned_file_path = interner.intern(target_name.clone());
 

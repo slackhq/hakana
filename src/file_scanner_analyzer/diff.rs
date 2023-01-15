@@ -72,8 +72,9 @@ pub(crate) fn mark_safe_symbols_from_diff(
             .map(|(file_id, _)| interner.lookup(*file_id).to_string())
             .collect::<FxHashSet<_>>();
 
-        files_to_analyze
-            .retain(|full_path| invalid_files.contains(&get_relative_path(full_path, config)));
+        files_to_analyze.retain(|full_path| {
+            invalid_files.contains(&get_relative_path(full_path, &config.root_dir))
+        });
 
         if let Some(existing_issues_path) = issues_path {
             if let Some(mut existing_issues) =

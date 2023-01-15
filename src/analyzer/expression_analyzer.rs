@@ -619,7 +619,6 @@ pub(crate) fn analyze(
         | aast::Expr_::Pair(_)
         | aast::Expr_::ETSplice(_)
         | aast::Expr_::Hole(_) => {
-            //println!("{:#?}", expr);
             tast_info.maybe_add_issue(
                 Issue::new(
                     IssueKind::UnrecognizedExpression,

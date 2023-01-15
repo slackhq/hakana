@@ -154,16 +154,10 @@ pub(crate) fn analyze_case(
                             aast::Expr(
                                 (),
                                 case_cond.pos().clone(),
-                                aast::Expr_::Collection(Box::new((
-                                    oxidized::ast_defs::Id(
-                                        case_cond.pos().clone(),
-                                        "vec".to_string(),
-                                    ),
+                                aast::Expr_::ValCollection(Box::new((
+                                    (case_cond.pos().clone(), oxidized::tast::VcKind::Vec),
                                     None,
-                                    case_conds
-                                        .into_iter()
-                                        .map(|e| aast::Afield::AFvalue(e))
-                                        .collect(),
+                                    case_conds,
                                 ))),
                             ),
                         ),

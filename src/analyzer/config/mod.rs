@@ -29,6 +29,7 @@ pub struct Config {
     pub graph_kind: GraphKind,
     pub ignore_files: Vec<String>,
     pub ignore_issue_files: FxHashMap<IssueKind, Vec<String>>,
+    pub ignore_all_issues_in_files: Vec<String>,
     pub security_config: SecurityConfig,
     pub root_dir: String,
     pub hooks: Vec<Box<dyn CustomHook>>,
@@ -68,6 +69,7 @@ impl Config {
             graph_kind: GraphKind::FunctionBody,
             ignore_files: Vec::new(),
             ignore_issue_files: FxHashMap::default(),
+            ignore_all_issues_in_files: vec![],
             security_config: SecurityConfig::new(),
             issues_to_fix: FxHashSet::default(),
             hooks: vec![],
@@ -91,9 +93,11 @@ impl Config {
             .into_iter()
             .map(|v| format!("{}/{}", cwd, v))
             .collect();
+
         self.ignore_issue_files = json_config
             .ignore_issue_files
-            .into_iter()
+            .iter()
+            .filter(|(k, _)| *k != "*")
             .map(|(k, v)| {
                 (
                     IssueKind::from_str(k.as_str(), &self.all_custom_issues).unwrap(),
@@ -101,6 +105,11 @@ impl Config {
                 )
             })
             .collect();
+
+        if let Some(v) = json_config.ignore_issue_files.get("*") {
+            self.ignore_all_issues_in_files =
+                v.into_iter().map(|v| format!("{}/{}", cwd, v)).collect();
+        }
 
         self.allowed_issues = if json_config.allowed_issues.is_empty() {
             None
@@ -131,6 +140,18 @@ impl Config {
     pub fn can_add_issue(&self, issue: &Issue) -> bool {
         if let Some(issue_filter) = &self.allowed_issues {
             if !issue_filter.contains(&issue.kind) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn allow_issues_in_file(&self, file: &str) -> bool {
+        let file = format!("{}/{}", self.root_dir, file);
+
+        for ignore_file_path in &self.ignore_all_issues_in_files {
+            if glob::Pattern::new(ignore_file_path).unwrap().matches(&file) {
                 return false;
             }
         }

@@ -34,6 +34,10 @@ pub fn analyze_files(
         paths.retain(|str_path| str_path.matches(filter.as_str()).count() > 0);
     }
 
+    paths.retain(|str_path| {
+        config.allow_issues_in_file(&get_relative_path(str_path, &config.root_dir))
+    });
+
     if let Some(ignored_paths) = &ignored_paths {
         for ignored_path in ignored_paths {
             paths.retain(|str_path| str_path.matches(ignored_path.as_str()).count() == 0);
@@ -174,7 +178,7 @@ fn analyze_file(
         }
     };
 
-    let target_name = get_relative_path(str_path, config);
+    let target_name = get_relative_path(str_path, &config.root_dir);
 
     let file_path = codebase.interner.get(target_name.as_str()).unwrap();
 

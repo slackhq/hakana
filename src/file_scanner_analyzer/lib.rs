@@ -414,9 +414,9 @@ fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
     }
 }
 
-fn get_relative_path(str_path: &String, config: &Config) -> String {
-    if str_path.contains(&config.root_dir) {
-        str_path[(config.root_dir.len() + 1)..].to_string()
+fn get_relative_path(str_path: &String, root_dir: &String) -> String {
+    if str_path.contains(root_dir) {
+        str_path[(root_dir.len() + 1)..].to_string()
     } else {
         str_path.clone()
     }
