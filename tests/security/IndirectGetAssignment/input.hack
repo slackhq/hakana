@@ -5,7 +5,6 @@ class InputFilter {
         $this->name = $name;
     }
 
-    <<\Hakana\SecurityAnalysis\SpecializeCall()>>
     public function getArg(string $method, string $type)
     {
         $arg = null;
