@@ -416,7 +416,7 @@ pub fn init(
             if let Some(filter_issue_strings) = filter_issue_strings {
                 for filter_issue_string in filter_issue_strings {
                     if let Ok(issue_kind) =
-                        IssueKind::from_str(filter_issue_string, &all_custom_issues)
+                        IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
                     {
                         issue_kinds_filter.insert(issue_kind);
                     } else {
@@ -661,7 +661,7 @@ pub fn init(
             if let Some(filter_issue_strings) = filter_issue_strings {
                 for filter_issue_string in filter_issue_strings {
                     if let Ok(issue_kind) =
-                        IssueKind::from_str(filter_issue_string, &all_custom_issues)
+                        IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
                     {
                         issue_kinds_filter.insert(issue_kind);
                     } else {
@@ -739,7 +739,7 @@ pub fn init(
         }
         Some(("fix", sub_matches)) => {
             let issue_name = sub_matches.value_of("issue").unwrap().to_string();
-            let issue_kind = IssueKind::from_str(&issue_name, &all_custom_issues).unwrap();
+            let issue_kind = IssueKind::from_str_custom(&issue_name, &all_custom_issues).unwrap();
 
             let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 

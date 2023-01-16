@@ -475,7 +475,9 @@ fn get_hakana_fixmes_and_ignores(
                     text.trim()
                 };
 
-                if let Some(issue_kind) = get_issue_from_comment(trimmed_text, all_custom_issues) {
+                if let Some(Ok(issue_kind)) =
+                    get_issue_from_comment(trimmed_text, all_custom_issues)
+                {
                     hakana_fixme_or_ignores
                         .entry(pos.line())
                         .or_insert_with(Vec::new)

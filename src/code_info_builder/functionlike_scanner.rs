@@ -360,7 +360,9 @@ pub(crate) fn get_functionlike(
                         if let Some(str) =
                             attribute_param_type.get_single_literal_string_value(&codebase.interner)
                         {
-                            source_types.extend(string_to_source_types(str));
+                            if let Some(source_type) = string_to_source_types(str) {
+                                source_types.insert(source_type);
+                            }
                         }
                     }
                 }
@@ -496,8 +498,10 @@ pub(crate) fn adjust_location_from_comments(
                     if let Some(issue_kind) =
                         get_issue_from_comment(trimmed_text, all_custom_issues)
                     {
-                        let comment_pos = HPos::new(comment_pos, file_source.file_path, None);
-                        suppressed_issues.insert(issue_kind, comment_pos);
+                        if let Ok(issue_kind) = issue_kind {
+                            let comment_pos = HPos::new(comment_pos, file_source.file_path, None);
+                            suppressed_issues.insert(issue_kind, comment_pos);
+                        }
                     }
 
                     definition_location.start_line = start_line;

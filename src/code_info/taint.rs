@@ -1,9 +1,9 @@
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
-use std::hash::Hash;
-use strum_macros::Display;
+use std::{hash::Hash, str::FromStr};
+use strum_macros::{Display, EnumString};
 
-#[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum SourceType {
     UriRequestHeader,
     NonUriRequestHeader,
@@ -26,9 +26,11 @@ impl SourceType {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString, Default,
+)]
 pub enum SinkType {
-    HtmlTag,
+    #[default] HtmlTag,
     Sql,
     Shell,
     FileSystem,
@@ -135,18 +137,8 @@ impl SinkType {
     }
 }
 
-pub fn string_to_source_types(str: String) -> FxHashSet<SourceType> {
-    match str.as_str() {
-        "UriRequestHeader" => FxHashSet::from_iter([SourceType::UriRequestHeader]),
-        "NonUriRequestHeader" => FxHashSet::from_iter([SourceType::NonUriRequestHeader]),
-        "RawUserData" => FxHashSet::from_iter([SourceType::RawUserData]),
-        "UserPII" => FxHashSet::from_iter([SourceType::UserPII]),
-        "UserPassword" => FxHashSet::from_iter([SourceType::UserPassword]),
-        "SystemSecret" => FxHashSet::from_iter([SourceType::SystemSecret]),
-        _ => {
-            panic!()
-        }
-    }
+pub fn string_to_source_types(str: String) -> Option<SourceType> {
+    SourceType::from_str(&str).ok()
 }
 
 pub fn string_to_sink_types(str: String) -> FxHashSet<SinkType> {
@@ -164,25 +156,13 @@ pub fn string_to_sink_types(str: String) -> FxHashSet<SinkType> {
             SinkType::Unserialize,
             SinkType::Cookie,
         ]),
-        "Sql" => FxHashSet::from_iter([SinkType::Sql]),
-        "HtmlTag" => FxHashSet::from_iter([SinkType::HtmlTag]),
-        "CurlUri" => FxHashSet::from_iter([SinkType::CurlUri]),
-        "CurlHeader" => FxHashSet::from_iter([SinkType::CurlHeader]),
-        "HtmlAttributeUri" => FxHashSet::from_iter([SinkType::HtmlAttributeUri]),
-        "HtmlAttribute" => FxHashSet::from_iter([SinkType::HtmlAttribute]),
-        "RedirectUri" => FxHashSet::from_iter([SinkType::RedirectUri]),
-        "FileSystem" => FxHashSet::from_iter([SinkType::FileSystem]),
-        "Logging" => FxHashSet::from_iter([SinkType::Logging]),
-        "Shell" => FxHashSet::from_iter([SinkType::Shell]),
-        "Unserialize" => FxHashSet::from_iter([SinkType::Unserialize]),
-        "Cookie" => FxHashSet::from_iter([SinkType::Cookie]),
-        "Output" => FxHashSet::from_iter([SinkType::Output]),
         str => {
-            if str.starts_with("Custom:") {
+            if let Ok(sink_type) = SinkType::from_str(&str) {
+                FxHashSet::from_iter([sink_type])
+            } else if str.starts_with("Custom:") {
                 FxHashSet::from_iter([SinkType::Custom(str.get(7..).unwrap().to_string())])
             } else {
-                println!("Unrecognised annotation {}", str);
-                panic!()
+                FxHashSet::default()
             }
         }
     }

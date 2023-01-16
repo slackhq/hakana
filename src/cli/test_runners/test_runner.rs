@@ -113,13 +113,13 @@ pub trait TestRunner {
 
             analysis_config
                 .issues_to_fix
-                .insert(IssueKind::from_str(&issue_name, &FxHashSet::default()).unwrap());
+                .insert(IssueKind::from_str_custom(&issue_name, &FxHashSet::default()).unwrap());
         } else if dir.contains("/add-fixmes/") {
             let issue_name = dir_parts.get(1).unwrap().to_string();
 
             analysis_config
                 .issues_to_fix
-                .insert(IssueKind::from_str(&issue_name, &FxHashSet::default()).unwrap());
+                .insert(IssueKind::from_str_custom(&issue_name, &FxHashSet::default()).unwrap());
 
             analysis_config.add_fixmes = true;
         } else if dir.contains("/remove-unused-fixmes/") {

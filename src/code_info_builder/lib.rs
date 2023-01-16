@@ -324,7 +324,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .next();
 
         if let Some(shape_source_attribute) = shape_source_attribute {
-            let mut shape_sinks = FxHashMap::default();
+            let mut shape_sources = FxHashMap::default();
 
             let attribute_param_expr = &shape_source_attribute.params[0];
 
@@ -344,20 +344,22 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 } = atomic_param_attribute
                 {
                     for (name, (_, item_type)) in attribute_known_items {
-                        let mut sink_types = FxHashSet::default();
+                        let mut source_types = FxHashSet::default();
 
                         if let Some(str) =
                             item_type.get_single_literal_string_value(&self.codebase.interner)
                         {
-                            sink_types.extend(string_to_source_types(str));
+                            if let Some(source_type) = string_to_source_types(str) {
+                                source_types.insert(source_type);
+                            }
                         }
 
-                        shape_sinks.insert(name.clone(), sink_types);
+                        shape_sources.insert(name.clone(), source_types);
                     }
                 }
             }
 
-            type_definition.shape_field_taints = Some(shape_sinks);
+            type_definition.shape_field_taints = Some(shape_sources);
         }
 
         self.codebase.symbols.add_typedef_name(type_name.clone());

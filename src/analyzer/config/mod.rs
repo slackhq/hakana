@@ -100,7 +100,7 @@ impl Config {
             .filter(|(k, _)| *k != "*")
             .map(|(k, v)| {
                 (
-                    IssueKind::from_str(k.as_str(), &self.all_custom_issues).unwrap(),
+                    IssueKind::from_str_custom(k.as_str(), &self.all_custom_issues).unwrap(),
                     v.into_iter().map(|v| format!("{}/{}", cwd, v)).collect(),
                 )
             })
@@ -118,7 +118,9 @@ impl Config {
                 json_config
                     .allowed_issues
                     .into_iter()
-                    .map(|s| IssueKind::from_str(s.as_str(), &self.all_custom_issues).unwrap())
+                    .map(|s| {
+                        IssueKind::from_str_custom(s.as_str(), &self.all_custom_issues).unwrap()
+                    })
                     .collect::<FxHashSet<_>>(),
             )
         };
