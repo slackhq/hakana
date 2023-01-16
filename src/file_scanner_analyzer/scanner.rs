@@ -20,6 +20,7 @@ use crate::get_aast_for_path;
 use crate::get_relative_path;
 use ast_differ::get_diff;
 use hakana_aast_helper::name_context::NameContext;
+use hakana_aast_helper::ParserError;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::config::Verbosity;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -40,7 +41,6 @@ pub struct ScanFilesResult {
     pub file_statuses: IndexMap<String, FileStatus>,
     pub resolved_names: FxHashMap<String, FxHashMap<usize, StrId>>,
     pub codebase_diff: CodebaseDiff,
-    pub invalid_files: Vec<String>,
 }
 
 pub(crate) fn scan_files(
@@ -241,8 +241,6 @@ pub(crate) fn scan_files(
 
     let has_new_files = files_to_scan.len() > 0;
 
-    let invalid_files = Arc::new(Mutex::new(vec![]));
-
     if files_to_scan.len() > 0 {
         let now = Instant::now();
 
@@ -303,8 +301,7 @@ pub(crate) fn scan_files(
                 } else {
                     let str_path = get_relative_path(str_path, &config.root_dir);
                     new_interner.intern(str_path.clone());
-                    invalid_files.lock().unwrap().push(str_path.clone());
-                    continue;
+                    FxHashMap::default()
                 };
 
                 resolved_names
@@ -349,14 +346,11 @@ pub(crate) fn scan_files(
 
                 let config = config.clone();
 
-                let invalid_files = invalid_files.clone();
-
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
                     let mut new_interner = ThreadedInterner::new(interner);
                     let empty_name_context = NameContext::new(&mut new_interner);
                     let mut local_resolved_names = FxHashMap::default();
-                    let mut local_invalid_files = vec![];
 
                     for str_path in &pgc {
                         if let Ok(file_resolved_names) = scan_file(
@@ -371,19 +365,15 @@ pub(crate) fn scan_files(
                         ) {
                             local_resolved_names.insert((*str_path).clone(), file_resolved_names);
                         } else {
+                            local_resolved_names.insert((*str_path).clone(), FxHashMap::default());
                             let str_path = get_relative_path(str_path, &root_dir_c);
                             new_interner.intern(str_path.clone());
-                            local_invalid_files.push(str_path.clone());
                         };
 
                         let mut tally = files_processed.lock().unwrap();
                         *tally += 1;
 
                         update_progressbar(*tally, bar.clone());
-                    }
-
-                    if !local_invalid_files.is_empty() {
-                        invalid_files.lock().unwrap().extend(local_invalid_files);
                     }
 
                     resolved_names.lock().unwrap().extend(local_resolved_names);
@@ -428,11 +418,6 @@ pub(crate) fn scan_files(
         .into_inner()
         .unwrap();
 
-    let invalid_files = Arc::try_unwrap(invalid_files)
-        .unwrap()
-        .into_inner()
-        .unwrap();
-
     if has_new_files {
         if let Some(codebase_path) = codebase_path {
             let mut codebase_file = fs::File::create(&codebase_path).unwrap();
@@ -459,7 +444,6 @@ pub(crate) fn scan_files(
         file_statuses,
         resolved_names,
         codebase_diff,
-        invalid_files,
     })
 }
 
@@ -472,7 +456,7 @@ pub(crate) fn scan_file(
     empty_name_context: NameContext,
     user_defined: bool,
     verbosity: Verbosity,
-) -> Result<FxHashMap<usize, StrId>, String> {
+) -> Result<FxHashMap<usize, StrId>, ParserError> {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("scanning {}", &target_file);
     }

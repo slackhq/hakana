@@ -1,5 +1,6 @@
 use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
 
+use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::{StrId, ThreadedInterner};
 use name_context::NameContext;
 use naming_visitor::Scanner;
@@ -21,15 +22,17 @@ use std::{
 pub mod name_context;
 mod naming_visitor;
 
+#[derive(Debug)]
 pub enum ParserError {
-
+    NotAHackFile,
+    SyntaxError { message: String, pos: HPos },
 }
 
 pub fn get_aast_for_path_and_contents(
     local_path: String,
     file_contents: String,
     aast_cache_dir: Option<String>,
-) -> Result<(aast::Program<(), ()>, ScouredComments, String), String> {
+) -> Result<(aast::Program<(), ()>, ScouredComments, String), ParserError> {
     let path_hash = xxhash_rust::xxh3::xxh3_64(local_path.as_bytes());
 
     let cache_path = if let Some(cache_dir) = aast_cache_dir {
@@ -54,15 +57,44 @@ pub fn get_aast_for_path_and_contents(
     parser_env.parser_options.po_disable_hh_ignore_error = 0;
     parser_env.include_line_comments = true;
     parser_env.scour_comments = true;
+    parser_env.parser_options.po_enable_xhp_class_modifier = true;
 
     let mut parser_result =
         match aast_parser::AastParser::from_text(&parser_env, &indexed_source_text) {
             Ok(parser_result) => parser_result,
-            Err(_) => return Err("Not a valid Hack file".to_string()),
+            Err(err) => {
+                return Err(match err {
+                    aast_parser::Error::ParserFatal(err, pos) => ParserError::SyntaxError {
+                        message: err.message.to_string(),
+                        pos: HPos::new(&pos, StrId(0), None),
+                    },
+                    _ => ParserError::NotAHackFile,
+                })
+            }
         };
 
-    if !parser_result.errors.is_empty() {
-        return Err("File has issues".to_string());
+    if !parser_result.syntax_errors.is_empty() {
+        let first_error = &parser_result.syntax_errors[0];
+
+        let lines = file_contents[0..first_error.start_offset]
+            .split("\n")
+            .collect::<Vec<_>>();
+        let column = lines.last().unwrap().len();
+        let line_count = lines.len();
+
+        return Err(ParserError::SyntaxError {
+            message: first_error.message.to_string(),
+            pos: HPos {
+                file_path: StrId(0),
+                start_offset: first_error.start_offset,
+                end_offset: first_error.end_offset,
+                start_line: line_count,
+                end_line: line_count,
+                start_column: column,
+                end_column: column,
+                insertion_start: None,
+            },
+        });
     }
 
     let aast = parser_result.aast;

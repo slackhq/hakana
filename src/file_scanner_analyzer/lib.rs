@@ -3,14 +3,12 @@ pub(crate) mod populator;
 use crate::file_cache_provider::FileStatus;
 use analyzer::analyze_files;
 use diff::mark_safe_symbols_from_diff;
-use hakana_aast_helper::get_aast_for_path_and_contents;
+use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
 use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
-use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::Interner;
 use indexmap::IndexMap;
@@ -79,7 +77,6 @@ pub fn scan_and_analyze(
         file_statuses,
         resolved_names,
         codebase_diff,
-        invalid_files,
     } = scan_files(
         &all_scanned_dirs,
         include_core_libs,
@@ -179,26 +176,6 @@ pub fn scan_and_analyze(
     let mut analysis_result = AnalysisResult::new(config.graph_kind, symbol_references);
 
     analysis_result.emitted_issues = existing_issues;
-
-    for invalid_file in invalid_files {
-        analysis_result.emitted_issues.insert(
-            invalid_file.clone(),
-            vec![Issue::new(
-                IssueKind::InvalidHackFile,
-                "Invalid Hack file".to_string(),
-                HPos {
-                    file_path: codebase.interner.get(&invalid_file).unwrap(),
-                    start_offset: 0,
-                    end_offset: 0,
-                    start_line: 0,
-                    end_line: 0,
-                    start_column: 0,
-                    end_column: 0,
-                    insertion_start: None,
-                },
-            )],
-        );
-    }
 
     let analysis_result = Arc::new(Mutex::new(analysis_result));
 
@@ -366,7 +343,7 @@ pub fn get_aast_for_path(
     path: &String,
     root_dir: &String,
     cache_dir: Option<&String>,
-) -> Result<(aast::Program<(), ()>, ScouredComments, String), String> {
+) -> Result<(aast::Program<(), ()>, ScouredComments, String), ParserError> {
     let file_contents = if path.starts_with("hsl_embedded_") {
         std::str::from_utf8(
             &HslAsset::get(path)
@@ -388,7 +365,7 @@ pub fn get_aast_for_path(
     } else {
         match fs::read_to_string(path) {
             Ok(str_file) => str_file,
-            Err(err) => return Err(err.to_string()),
+            Err(_) => return Err(ParserError::NotAHackFile),
         }
     };
 

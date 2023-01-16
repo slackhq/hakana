@@ -1,11 +1,12 @@
-use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_aast_helper::name_context::NameContext;
+use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
 use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::dataflow::program_analyzer::find_tainted_data;
 use hakana_analyzer::file_analyzer;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::{FileSource, Interner, StrId, ThreadedInterner};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -33,12 +34,16 @@ pub fn scan_and_analyze_single_file(
 
     let mut interner = ThreadedInterner::new(Arc::new(Mutex::new(codebase.interner.clone())));
 
-    let resolved_names = scan_single_file(
+    let resolved_names = if let Ok(resolved_names) = scan_single_file(
         codebase,
         &mut interner,
         file_name.clone(),
         file_contents.clone(),
-    )?;
+    ) {
+        resolved_names
+    } else {
+        FxHashMap::default()
+    };
 
     let interner = Arc::try_unwrap(interner.parent)
         .unwrap()
@@ -162,10 +167,10 @@ pub fn scan_single_file(
     interner: &mut ThreadedInterner,
     path: String,
     file_contents: String,
-) -> std::result::Result<FxHashMap<usize, StrId>, String> {
+) -> std::result::Result<FxHashMap<usize, StrId>, ParserError> {
     let aast = match get_aast_for_path_and_contents(path.clone(), file_contents, None) {
         Ok(aast) => aast,
-        Err(err) => return std::result::Result::Err(format!("Unable to parse AAST\n{}", err)),
+        Err(err) => return Err(err),
     };
 
     let file_path = interner.intern(path.clone());
@@ -203,17 +208,26 @@ pub fn analyze_single_file(
 ) -> std::result::Result<AnalysisResult, String> {
     let aast_result = get_aast_for_path_and_contents(path.clone(), file_contents, None);
 
-    let aast = match aast_result {
-        Ok(aast) => aast,
-        Err(error) => {
-            return std::result::Result::Err(error);
-        }
-    };
-
     let mut analysis_result =
         AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
     let file_path = codebase.interner.get(path.as_str()).unwrap();
+
+    let aast = match aast_result {
+        Ok(aast) => aast,
+        Err(error) => match error {
+            ParserError::NotAHackFile => return Err("Not a Hack file".to_string()),
+            ParserError::SyntaxError { message, mut pos } => {
+                pos.file_path = file_path;
+                analysis_result.emitted_issues.insert(
+                    path.clone(),
+                    vec![Issue::new(IssueKind::InvalidHackFile, message, pos)],
+                );
+
+                return Ok(analysis_result);
+            }
+        },
+    };
 
     let file_source = FileSource {
         file_path_actual: path.clone(),

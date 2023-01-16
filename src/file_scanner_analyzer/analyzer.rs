@@ -1,9 +1,12 @@
 use crate::file_cache_provider::FileStatus;
 use crate::{get_aast_for_path, get_relative_path, update_progressbar};
+use hakana_aast_helper::ParserError;
 use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::file_analyzer;
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::{FileSource, StrId};
 use indexmap::IndexMap;
@@ -167,20 +170,44 @@ fn analyze_file(
     verbosity: Verbosity,
 ) {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-        println!("analyzing {}", &str_path);
+        println!("Analyzing {}", &str_path);
     }
-
-    let aast_result = get_aast_for_path(str_path, &config.root_dir, cache_dir);
-    let aast = match aast_result {
-        Ok(aast) => aast,
-        Err(_) => {
-            return;
-        }
-    };
 
     let target_name = get_relative_path(str_path, &config.root_dir);
 
     let file_path = codebase.interner.get(target_name.as_str()).unwrap();
+
+    let aast_result = get_aast_for_path(str_path, &config.root_dir, cache_dir);
+    let aast = match aast_result {
+        Ok(aast) => aast,
+        Err(err) => {
+            analysis_result.emitted_issues.insert(
+                target_name.clone(),
+                vec![match err {
+                    ParserError::NotAHackFile => Issue::new(
+                        IssueKind::InvalidHackFile,
+                        "Invalid Hack file".to_string(),
+                        HPos {
+                            file_path,
+                            start_offset: 0,
+                            end_offset: 0,
+                            start_line: 0,
+                            end_line: 0,
+                            start_column: 0,
+                            end_column: 0,
+                            insertion_start: None,
+                        },
+                    ),
+                    ParserError::SyntaxError { message, mut pos } => {
+                        pos.file_path = file_path;
+                        Issue::new(IssueKind::InvalidHackFile, message, pos)
+                    }
+                }],
+            );
+
+            return;
+        }
+    };
 
     let file_source = FileSource {
         file_path_actual: target_name,
