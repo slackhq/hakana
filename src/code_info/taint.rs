@@ -34,7 +34,6 @@ pub enum SinkType {
     FileSystem,
     RedirectUri,
     Unserialize,
-    //Ldap,
     Cookie,
     CurlHeader,
     CurlUri,
