@@ -8,7 +8,7 @@ Hakana’s primary goal is to infer accurate types in the codebase, and to do so
 
 Good type inference allows Hakana to do several other valuable things:
 
- - Security Analysis
+ - [Security Analysis](https://github.com/slackhq/hakana/blob/main/docs/security_analysis.md)
  - Custom type-aware migrations
  - Detection of potential logic bugs
  - Discovery and removal of dead code
