@@ -56,13 +56,30 @@ pub(crate) fn analyze(
     for attribute in &boxed.1 {
         match attribute {
             aast::XhpAttribute::XhpSimple(xhp_simple) => {
-                let attribute_name = get_attribute_name(
+                let attribute_name = if let Some(attribute_name) = get_attribute_name(
                     xhp_simple,
                     statements_analyzer,
                     tast_info,
                     context,
                     &xhp_class_name,
-                );
+                ) {
+                    attribute_name
+                } else {
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::NonExistentXhpAttribute,
+                            format!(
+                                "Cannot access property on undefined attribute {}",
+                                xhp_simple.name.1
+                            ),
+                            statements_analyzer.get_hpos(&xhp_simple.name.0),
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+
+                    continue;
+                };
 
                 used_attributes.insert(attribute_name);
 
@@ -370,18 +387,22 @@ fn get_attribute_name(
     tast_info: &mut TastInfo,
     context: &ScopeContext,
     element_name: &StrId,
-) -> StrId {
+) -> Option<StrId> {
     let codebase = statements_analyzer.get_codebase();
 
     if attribute_info.name.1.starts_with("data-") {
-        StrId::data_attribute()
+        Some(StrId::data_attribute())
     } else if attribute_info.name.1.starts_with("aria-") {
-        StrId::aria_attribute()
+        Some(StrId::aria_attribute())
     } else {
-        let attribute_name = codebase
+        let attribute_name = if let Some(attribute_name) = codebase
             .interner
             .get(&format!(":{}", attribute_info.name.1))
-            .unwrap();
+        {
+            attribute_name
+        } else {
+            return None;
+        };
 
         tast_info.symbol_references.add_reference_to_class_member(
             &context.function_context,
@@ -389,7 +410,7 @@ fn get_attribute_name(
             false,
         );
 
-        attribute_name
+        Some(attribute_name)
     }
 }
 

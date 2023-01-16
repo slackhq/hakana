@@ -59,6 +59,7 @@ pub enum IssueKind {
     NonExistentMethod,
     NonExistentProperty,
     NonExistentType,
+    NonExistentXhpAttribute,
     NonNullableReturnType,
     NothingReturn,
     NullArgument,

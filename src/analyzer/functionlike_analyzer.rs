@@ -736,7 +736,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                 "Class, enum or interface {} cannot be found",
                                 statements_analyzer.get_codebase().interner.lookup(*name)
                             ),
-                            param.signature_type_location.clone().unwrap(),
+                            if let Some(type_location) = &param.signature_type_location {
+                                type_location.clone()
+                            } else {
+                                param.location.clone().unwrap()
+                            },
                         ));
 
                         return false;
