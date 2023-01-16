@@ -173,3 +173,22 @@ function takesUser(User $user): void {
     echo $user->getEmail(); // this is an error
 }
 ```
+
+### `HAKANA_SECURITY_IGNORE`
+
+In addition to attributes, Hakana supports using the `HAKANA_SECURITY_IGNORE[<SinkType>]` doc comment to suppress individual paths. This can be used when you want to deliberately do something that would otherwise be considered dangerous.
+
+```hack
+function check_endpoint(string $s): void {
+    // make curl req to see if a given endpoint is valid
+}
+
+function explictly_follow_user_uri(): void {
+    $endpoint = $_POST['endpoint'];
+
+    check_endpoint(
+        /* HAKANA_SECURITY_IGNORE[CurlUri] stops taint analysis through this path  */
+        $endpoint
+    );
+}
+```
