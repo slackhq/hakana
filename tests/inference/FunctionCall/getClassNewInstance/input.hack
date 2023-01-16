@@ -5,4 +5,4 @@ class Props {
     public vec<classname<I>> $arr = vec[];
 }
 
-(new Props)->arr[] = get_class(new C);
+(new Props())->arr[] = get_class(new C());

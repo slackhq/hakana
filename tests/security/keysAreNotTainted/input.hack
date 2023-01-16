@@ -4,4 +4,4 @@ function takesArray(dict<arraykey, mixed> $arr): void {
     }
 }
 
-takesArray(["good" => $_GET["bad"]]);
+takesArray(dict["good" => $_GET["bad"]]);

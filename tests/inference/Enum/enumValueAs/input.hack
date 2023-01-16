@@ -1,8 +1,8 @@
 function takesString(string $s) {}
 
 enum Foo: string {
-    A = "a",
-    B = "b",
+    A = "a";
+    B = "b";
 }
 
 function callIt(): void {

@@ -8,11 +8,6 @@ function b(): void {
 
 function c(Foo $f): void {}
 
-function d(): void {
-    $f = get_foo();
-    echo $f::class;
-}
-
 function e(): void {
     $f = get_foo();
     echo $f::B2;

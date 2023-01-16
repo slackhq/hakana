@@ -16,5 +16,5 @@ function loopI(IteratorAggregate $coll): void
     foreach ($coll as $item) {}
 }
 
-loopT(new C);
-loopI(new C);
+loopT(new C());
+loopI(new C());

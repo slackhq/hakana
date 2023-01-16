@@ -10,4 +10,4 @@ function foo(A $i): B {
     throw new \Exception("bad");
 }
 
-foo(new C);
+foo(new C());

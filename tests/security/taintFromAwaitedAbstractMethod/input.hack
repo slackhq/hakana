@@ -26,8 +26,6 @@ final class ResultError extends Result<nothing, string> {
 }
 
 abstract class InputHandler<TArgs> {
-    public Validator<TArgs> $validator;
-
     public function __construct(public Validator<TArgs> $validator) {}
 
     public function getValidatedInput() {
@@ -36,7 +34,7 @@ abstract class InputHandler<TArgs> {
         $this->handleResult($input);
     }
 
-    async public function handleResult(TArgs $args): Awaitable<Result<mixed>> {
+    public async function handleResult(TArgs $args): Awaitable<Result<mixed>> {
         $a = await $this->getResult($args);
         if ($a is ResultSuccess<_>) {
             echo $a->get();
@@ -52,7 +50,7 @@ type my_args_t = shape('a' => string);
 abstract class BHandler extends InputHandler<my_args_t> {}
 
 class MyHandler extends BHandler {
-    async public function getResult(my_args_t $args): Awaitable<Result<string>> {
+    public async function getResult(my_args_t $args): Awaitable<Result<string>> {
         return new ResultSuccess($args['a']);
     }
 }

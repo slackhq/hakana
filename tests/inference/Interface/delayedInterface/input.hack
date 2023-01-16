@@ -1,5 +1,5 @@
 // fails in PHP, whatcha gonna do
-$c = new C;
+$c = new C();
 
 class A { }
 

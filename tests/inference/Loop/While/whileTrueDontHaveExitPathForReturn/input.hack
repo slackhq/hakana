@@ -1,6 +1,6 @@
 function getResultWithRetry(): string
 {
-    while (new stdClass) {
+    while (new stdClass()) {
         return "";
     }
 }

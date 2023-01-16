@@ -3,6 +3,6 @@ class AClass
 {
     public function get(): HaruDestination
     {
-        return new HaruDestination;
+        return new HaruDestination();
     }
 }

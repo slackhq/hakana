@@ -8,8 +8,6 @@ abstract class Validator<+T> {
 }
 
 abstract class InputHandler<TArgs> {
-    public Validator<TArgs> $validator;
-
     public function __construct(public Validator<TArgs> $validator) {}
 
     public function getValidatedInput() {

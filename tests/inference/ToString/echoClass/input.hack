@@ -1,2 +1,2 @@
 class A {}
-echo (new A);
+echo (new A());

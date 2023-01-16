@@ -1,6 +1,6 @@
 class C {
     public static function foo() : array {
-        $a = [];
+        $a = vec[];
         $a[] = (string) $_GET["bad"];
         return $a;
     }

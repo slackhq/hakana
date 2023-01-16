@@ -3,13 +3,13 @@ function takesAwaitableVoidFunction(
 ): void {}
 
 takesAwaitableVoidFunction(
-    async (): Awaitable<void> {
+    async (): Awaitable<void> ==> {
         echo "foo";
     }
 );
 
 takesAwaitableVoidFunction(
-    async () {
+    async () ==> {
         echo "foo";
     }
 );

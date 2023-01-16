@@ -16,4 +16,4 @@ function takesWithoutArguments(A $a) : void {
     }
 }
 
-takesWithoutArguments(new C);
+takesWithoutArguments(new C());

@@ -7,5 +7,5 @@ trait T {
 }
 
 class A implements I {
-    use T { boo as public; }
+    use T;
 }

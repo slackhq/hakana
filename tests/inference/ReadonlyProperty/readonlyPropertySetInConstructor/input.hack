@@ -6,4 +6,4 @@ class A {
     }
 }
 
-echo (new A)->bar;
+echo (new A())->bar;

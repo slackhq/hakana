@@ -1,7 +1,7 @@
 $name = $_GET["name"] ?? "unknown";
 $id = (int) $_GET["id"];
 
-$data = [];
+$data = dict[];
 $data["name"] = $name;
 $data["id"] = $id;
 

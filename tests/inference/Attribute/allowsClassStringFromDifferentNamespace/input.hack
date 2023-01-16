@@ -4,8 +4,6 @@ namespace NamespaceOne {
 
     class FooAttribute implements HH\ClassAttribute
     {
-        private classname<FoobarInterface> $className;
-
         public function __construct(private classname<FoobarInterface> $className)
         {}
     }

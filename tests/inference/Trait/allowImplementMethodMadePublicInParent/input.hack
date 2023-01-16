@@ -7,7 +7,7 @@ trait T {
 }
 
 class B {
-    use T { boo as public; }
+    use T;
 }
 
 class BChild extends B implements I {}

@@ -6,7 +6,7 @@ class B extends A {
 class C {}
 class D extends C {}
 
-$b_or_d = rand(0, 1) ? new B : new D;
+$b_or_d = rand(0, 1) ? new B() : new D();
 
 if ($b_or_d is A) {
     $b_or_d->foo();

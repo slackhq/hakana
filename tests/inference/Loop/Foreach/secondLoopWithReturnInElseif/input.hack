@@ -4,7 +4,7 @@ class C extends A {}
 
 $b = null;
 
-foreach (vec[new A, new A] as $a) {
+foreach (vec[new A(), new A()] as $a) {
     if ($a is B) {
 
     } else if (!$a is C) {

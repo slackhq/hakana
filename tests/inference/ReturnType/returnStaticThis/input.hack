@@ -10,4 +10,4 @@ class B extends A {
     public function foo() : void {}
 }
 
-(new B)->getThis()->foo();
+(new B())->getThis()->foo();

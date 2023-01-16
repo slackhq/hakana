@@ -1,2 +1,2 @@
 $unsafe = strval($_GET['unsafe']);
-echo $unsafe
+echo $unsafe;

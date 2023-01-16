@@ -11,5 +11,5 @@ namespace {
     A\foo();
     \A\foo();
 
-    (new A\Bar);
+    (new A\Bar());
 }

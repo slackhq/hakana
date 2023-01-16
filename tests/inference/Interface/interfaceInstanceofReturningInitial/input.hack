@@ -13,4 +13,4 @@ function foo(A $i): A {
     return $i;
 }
 
-foo(new C);
+foo(new C());

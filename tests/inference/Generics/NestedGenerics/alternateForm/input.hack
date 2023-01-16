@@ -1,4 +1,4 @@
-public function get_nonnull<Tu, T as ?Tu>(T $t): Tu {
+function get_nonnull<Tu, T as ?Tu>(T $t): Tu {
     if ($t is null) {
       throw new \Exception('bad');
     }

@@ -8,7 +8,7 @@ function foo(LetterCase $c) {
         case LetterCase::Upper:
             $a = 1;
             break;
-        case LetterCase::Lower;
+        case LetterCase::Lower:
             $a = 2;
             break;
     }

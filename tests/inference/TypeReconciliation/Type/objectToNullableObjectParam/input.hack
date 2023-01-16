@@ -5,4 +5,4 @@ class B {
 }
 
 $b = new B();
-$b->barBar(new A);
+$b->barBar(new A());

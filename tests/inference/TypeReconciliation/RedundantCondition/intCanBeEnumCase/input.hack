@@ -19,11 +19,11 @@ function baz(OtherInt $i) : void {
 }
 
 enum SomeInt: int as int {
-    A = 0,
-    B = 1,
+    A = 0;
+    B = 1;
 }
 
 enum OtherInt: int {
-    A = 0,
-    B = 1,
+    A = 0;
+    B = 1;
 }

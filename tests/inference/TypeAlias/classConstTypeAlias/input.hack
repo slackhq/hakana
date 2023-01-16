@@ -3,7 +3,7 @@ abstract class A {
 }
 
 class B extends A {
-    const type T = vec<Exception>,
+    const type T = vec<Exception>;
 }
 
 function foo(B::T $arr): void {

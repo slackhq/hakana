@@ -4,7 +4,7 @@ function foo(string $s) : void {
         case "b":
         case "c":
             if ($s === "a" || $s === "b") {
-                throw new \InvalidArgumentException;
+                throw new \InvalidArgumentException();
             }
             break;
     }

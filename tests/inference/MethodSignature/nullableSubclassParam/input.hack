@@ -10,4 +10,4 @@ class B extends A {
     }
 }
 
-echo (new B)->foo(null);
+echo (new B())->foo(null);

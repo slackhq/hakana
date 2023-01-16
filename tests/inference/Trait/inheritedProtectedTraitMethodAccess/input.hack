@@ -3,9 +3,7 @@ trait T {
 }
 
 class A {
-    use T {
-        bar as protected;
-    }
+    use T;
 }
 
 class AChild extends A {

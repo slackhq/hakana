@@ -2,4 +2,4 @@ class A {
     public $foo = "hello";
 }
 
-$a = (new A)->foo;
+$a = (new A())->foo;

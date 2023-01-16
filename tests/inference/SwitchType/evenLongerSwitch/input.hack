@@ -1,302 +1,302 @@
 function foo(string $f) : string {
     switch ($f) {
-        case "str1";
+        case "str1":
             return "foo1";
-        case "str2";
+        case "str2":
             return "foo2";
-        case "str3";
+        case "str3":
             return "foo3";
-        case "str4";
+        case "str4":
             return "foo4";
-        case "str5";
+        case "str5":
             return "foo5";
-        case "str6";
+        case "str6":
             return "foo6";
-        case "str7";
+        case "str7":
             return "foo7";
-        case "str8";
+        case "str8":
             return "foo8";
-        case "str9";
+        case "str9":
             return "foo9";
-        case "str10";
+        case "str10":
             return "foo10";
-        case "str11";
+        case "str11":
             return "foo11";
-        case "str12";
+        case "str12":
             return "foo12";
-        case "str13";
+        case "str13":
             return "foo13";
-        case "str14";
+        case "str14":
             return "foo14";
-        case "str15";
+        case "str15":
             return "foo15";
-        case "str16";
+        case "str16":
             return "foo16";
-        case "str17";
+        case "str17":
             return "foo17";
-        case "str18";
+        case "str18":
             return "foo18";
-        case "str19";
+        case "str19":
             return "foo19";
-        case "str20";
+        case "str20":
             return "foo20";
-        case "str21";
+        case "str21":
             return "foo21";
-        case "str22";
+        case "str22":
             return "foo22";
-        case "str23";
+        case "str23":
             return "foo23";
-        case "str24";
+        case "str24":
             return "foo24";
-        case "str25";
+        case "str25":
             return "foo25";
-        case "str26";
+        case "str26":
             return "foo26";
-        case "str27";
+        case "str27":
             return "foo27";
-        case "str28";
+        case "str28":
             return "foo28";
-        case "str29";
+        case "str29":
             return "foo29";
-        case "str30";
+        case "str30":
             return "foo30";
-        case "str31";
+        case "str31":
             return "foo31";
-        case "str32";
+        case "str32":
             return "foo32";
-        case "str33";
+        case "str33":
             return "foo33";
-        case "str34";
+        case "str34":
             return "foo34";
-        case "str35";
+        case "str35":
             return "foo35";
-        case "str36";
+        case "str36":
             return "foo36";
-        case "str37";
+        case "str37":
             return "foo37";
-        case "str38";
+        case "str38":
             return "foo38";
-        case "str39";
+        case "str39":
             return "foo39";
-        case "str40";
+        case "str40":
             return "foo40";
-        case "str41";
+        case "str41":
             return "foo41";
-        case "str42";
+        case "str42":
             return "foo42";
-        case "str43";
+        case "str43":
             return "foo43";
-        case "str44";
+        case "str44":
             return "foo44";
-        case "str45";
+        case "str45":
             return "foo45";
-        case "str46";
+        case "str46":
             return "foo46";
-        case "str47";
+        case "str47":
             return "foo47";
-        case "str48";
+        case "str48":
             return "foo48";
-        case "str49";
+        case "str49":
             return "foo49";
-        case "str50";
+        case "str50":
             return "foo50";
-        case "str51";
+        case "str51":
             return "foo51";
-        case "str52";
+        case "str52":
             return "foo52";
-        case "str53";
+        case "str53":
             return "foo53";
-        case "str54";
+        case "str54":
             return "foo54";
-        case "str55";
+        case "str55":
             return "foo55";
-        case "str56";
+        case "str56":
             return "foo56";
-        case "str57";
+        case "str57":
             return "foo57";
-        case "str58";
+        case "str58":
             return "foo58";
-        case "str59";
+        case "str59":
             return "foo59";
-        case "str60";
+        case "str60":
             return "foo60";
-        case "str61";
+        case "str61":
             return "foo61";
-        case "str62";
+        case "str62":
             return "foo62";
-        case "str63";
+        case "str63":
             return "foo63";
-        case "str64";
+        case "str64":
             return "foo64";
-        case "str65";
+        case "str65":
             return "foo65";
-        case "str66";
+        case "str66":
             return "foo66";
-        case "str67";
+        case "str67":
             return "foo67";
-        case "str68";
+        case "str68":
             return "foo68";
-        case "str70";
+        case "str70":
             return "foo70";
-        case "str71";
+        case "str71":
             return "foo71";
-        case "str72";
+        case "str72":
             return "foo72";
-        case "str73";
+        case "str73":
             return "foo73";
-        case "str74";
+        case "str74":
             return "foo74";
-        case "str75";
+        case "str75":
             return "foo75";
-        case "str76";
+        case "str76":
             return "foo76";
-        case "str77";
+        case "str77":
             return "foo77";
-        case "str78";
+        case "str78":
             return "foo78";
-        case "str79";
+        case "str79":
             return "foo79";
-        case "str80";
+        case "str80":
             return "foo80";
-        case "str81";
+        case "str81":
             return "foo81";
-        case "str82";
+        case "str82":
             return "foo82";
-        case "str83";
+        case "str83":
             return "foo83";
-        case "str84";
+        case "str84":
             return "foo84";
-        case "str85";
+        case "str85":
             return "foo85";
-        case "str86";
+        case "str86":
             return "foo86";
-        case "str87";
+        case "str87":
             return "foo87";
-        case "str88";
+        case "str88":
             return "foo88";
-        case "str89";
+        case "str89":
             return "foo89";
-        case "str90";
+        case "str90":
             return "foo90";
-        case "str91";
+        case "str91":
             return "foo91";
-        case "str92";
+        case "str92":
             return "foo92";
-        case "str93";
+        case "str93":
             return "foo93";
-        case "str94";
+        case "str94":
             return "foo94";
-        case "str95";
+        case "str95":
             return "foo95";
-        case "str96";
+        case "str96":
             return "foo96";
-        case "str97";
+        case "str97":
             return "foo97";
-        case "str98";
+        case "str98":
             return "foo98";
-        case "str99";
+        case "str99":
             return "foo99";
-        case "str100";
+        case "str100":
             return "foo100";
-        case "str101";
+        case "str101":
             return "foo101";
-        case "str102";
+        case "str102":
             return "foo102";
-        case "str103";
+        case "str103":
             return "foo103";
-        case "str104";
+        case "str104":
             return "foo104";
-        case "str105";
+        case "str105":
             return "foo105";
-        case "str106";
+        case "str106":
             return "foo106";
-        case "str107";
+        case "str107":
             return "foo107";
-        case "str108";
+        case "str108":
             return "foo108";
-        case "str109";
+        case "str109":
             return "foo109";
-        case "str110";
+        case "str110":
             return "foo110";
-        case "str111";
+        case "str111":
             return "foo111";
-        case "str112";
+        case "str112":
             return "foo112";
-        case "str113";
+        case "str113":
             return "foo113";
-        case "str114";
+        case "str114":
             return "foo114";
-        case "str115";
+        case "str115":
             return "foo115";
-        case "str116";
+        case "str116":
             return "foo116";
-        case "str117";
+        case "str117":
             return "foo117";
-        case "str118";
+        case "str118":
             return "foo118";
-        case "str119";
+        case "str119":
             return "foo119";
-        case "str120";
+        case "str120":
             return "foo120";
-        case "str121";
+        case "str121":
             return "foo121";
-        case "str122";
+        case "str122":
             return "foo122";
-        case "str123";
+        case "str123":
             return "foo123";
-        case "str124";
+        case "str124":
             return "foo124";
-        case "str125";
+        case "str125":
             return "foo125";
-        case "str126";
+        case "str126":
             return "foo126";
-        case "str127";
+        case "str127":
             return "foo127";
-        case "str128";
+        case "str128":
             return "foo128";
-        case "str129";
+        case "str129":
             return "foo129";
-        case "str130";
+        case "str130":
             return "foo130";
-        case "str131";
+        case "str131":
             return "foo131";
-        case "str132";
+        case "str132":
             return "foo132";
-        case "str133";
+        case "str133":
             return "foo133";
-        case "str134";
+        case "str134":
             return "foo134";
-        case "str135";
+        case "str135":
             return "foo135";
-        case "str136";
+        case "str136":
             return "foo136";
-        case "str137";
+        case "str137":
             return "foo137";
-        case "str138";
+        case "str138":
             return "foo138";
-        case "str139";
+        case "str139":
             return "foo139";
-        case "str140";
+        case "str140":
             return "foo140";
-        case "str141";
+        case "str141":
             return "foo141";
-        case "str142";
+        case "str142":
             return "foo142";
-        case "str143";
+        case "str143":
             return "foo143";
-        case "str144";
+        case "str144":
             return "foo144";
-        case "str145";
+        case "str145":
             return "foo145";
-        case "str146";
+        case "str146":
             return "foo146";
-        case "str147";
+        case "str147":
             return "foo147";
-        case "str148";
+        case "str148":
             return "foo148";
-        case "str149";
+        case "str149":
             return "foo149";
-        default;
+        default:
             return "foo69";
     }
 }

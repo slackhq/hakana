@@ -20,4 +20,4 @@ class V1 extends V {
     }
 }
 
-(new V1)->foo(new O1());
+(new V1())->foo(new O1());

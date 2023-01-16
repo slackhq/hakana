@@ -10,4 +10,4 @@ class B {
     }
 }
 
-(new B)->fooFoo("hello");
+(new B())->fooFoo("hello");

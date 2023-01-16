@@ -13,11 +13,11 @@ namespace Traits {
 
   trait T {
     public function getA() : A {
-      return new A;
+      return new A();
     }
   }
 }
 
 namespace {
-    $a = (new Classes\B)->getA();
+    $a = (new Classes\B())->getA();
 }

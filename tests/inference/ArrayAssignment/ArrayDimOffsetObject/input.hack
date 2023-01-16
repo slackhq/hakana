@@ -1,2 +1,2 @@
 $_a = dict[];
-$_a[new stdClass] = "a";
+$_a[new stdClass()] = "a";

@@ -1,8 +1,8 @@
 function foo((function(): Awaitable<string>) $fn): void {}
 
-foo(async (): Awaitable<string> {
+foo(async (): Awaitable<string> ==> {
     return "foo";
 });
-foo(async () {
+foo(async () ==> {
     return "foo";
 });

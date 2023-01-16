@@ -5,13 +5,11 @@ ERROR: MixedAnyArgument - input.hack:6:10 - Argument 1 of echo expects arraykey,
 ERROR: NonExistentClasslike - input.hack:9:12 - Class, enum or interface Foo cannot be found
 ERROR: NonExistentClasslike - input.hack:13:10 - Unknown classlike Foo
 ERROR: MixedAnyArgument - input.hack:13:10 - Argument 1 of echo expects arraykey, any provided
-ERROR: NonExistentClasslike - input.hack:18:10 - Unknown classlike Foo
-ERROR: MixedAnyArgument - input.hack:18:10 - Argument 1 of echo expects arraykey, any provided
-ERROR: NonExistentClasslike - input.hack:28:5 - Unknown classlike Foo
+ERROR: NonExistentClasslike - input.hack:23:5 - Unknown classlike Foo
+ERROR: NonExistentClass - input.hack:28:10 - Cannot access property on undefined class Foo
+ERROR: MixedAnyArgument - input.hack:28:10 - Argument 1 of echo expects arraykey, any provided
 ERROR: NonExistentClass - input.hack:33:10 - Cannot access property on undefined class Foo
-ERROR: MixedAnyArgument - input.hack:33:10 - Argument 1 of echo expects arraykey, any provided
-ERROR: NonExistentClass - input.hack:38:10 - Cannot access property on undefined class Foo
-ERROR: InvalidArgument - input.hack:38:10 - Argument 1 of echo expects arraykey, different type unknown-ref(Foo) provided
-ERROR: NonExistentClass - input.hack:42:10 - Cannot access property on undefined class Foo
-ERROR: MixedAnyArgument - input.hack:42:10 - Argument 1 of echo expects arraykey, any provided
-ERROR: NonExistentClass - input.hack:47:9 - Undefined class Foo
+ERROR: InvalidArgument - input.hack:33:10 - Argument 1 of echo expects arraykey, different type unknown-ref(Foo) provided
+ERROR: NonExistentClass - input.hack:37:10 - Cannot access property on undefined class Foo
+ERROR: MixedAnyArgument - input.hack:37:10 - Argument 1 of echo expects arraykey, any provided
+ERROR: NonExistentClass - input.hack:42:9 - Undefined class Foo

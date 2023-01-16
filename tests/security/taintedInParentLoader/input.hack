@@ -24,4 +24,4 @@ class C {
     }
 }
 
-(new C)->foo((string) $_GET["user_id"]);
+(new C())->foo((string) $_GET["user_id"]);

@@ -3,7 +3,7 @@ function processParams(dict<arraykey, mixed> $params) : dict<arraykey, mixed> {
         return $params;
     }
 
-    return [];
+    return dict[];
 }
 
 $params = processParams($_GET);
