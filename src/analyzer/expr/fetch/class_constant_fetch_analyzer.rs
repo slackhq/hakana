@@ -90,7 +90,7 @@ pub(crate) fn analyze(
                                         IssueKind::NonExistentClasslike,
                                         format!(
                                             "Unknown classlike {}",
-                                            codebase.interner.lookup(*classlike_name)
+                                            codebase.interner.lookup(classlike_name)
                                         ),
                                         statements_analyzer.get_hpos(&pos),
                                     ),
@@ -193,7 +193,7 @@ fn analyse_known_class_constant(
                     IssueKind::NonExistentType,
                     format!(
                         "Unknown class {}",
-                        codebase.interner.lookup(*classlike_name)
+                        codebase.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(&pos),
                 )
@@ -202,7 +202,7 @@ fn analyse_known_class_constant(
                     IssueKind::NonExistentClasslike,
                     format!(
                         "Unknown classlike {}",
-                        codebase.interner.lookup(*classlike_name)
+                        codebase.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(&pos),
                 )
@@ -249,7 +249,7 @@ fn analyse_known_class_constant(
                 IssueKind::NonExistentClassConstant,
                 format!(
                     "Unknown class constant {}::{}",
-                    codebase.interner.lookup(*classlike_name),
+                    codebase.interner.lookup(classlike_name),
                     const_name
                 ),
                 statements_analyzer.get_hpos(&pos),
@@ -275,8 +275,8 @@ fn analyse_known_class_constant(
                 IssueKind::NonExistentClassConstant,
                 format!(
                     "Unknown class constant {}::{}",
-                    codebase.interner.lookup(*classlike_name),
-                    codebase.interner.lookup(const_name),
+                    codebase.interner.lookup(classlike_name),
+                    codebase.interner.lookup(&const_name),
                 ),
                 statements_analyzer.get_hpos(&pos),
             ),

@@ -71,7 +71,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentClass,
                 format!(
                     "Cannot access property on undefined class {}",
-                    codebase.interner.lookup(classlike_name)
+                    codebase.interner.lookup(&classlike_name)
                 ),
                 statements_analyzer.get_hpos(&pos),
             ),
@@ -115,7 +115,7 @@ pub(crate) fn analyze(
 
     let var_id = format!(
         "{}::${}",
-        codebase.interner.lookup(classlike_name),
+        codebase.interner.lookup(&classlike_name),
         prop_name
     );
 
@@ -135,7 +135,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Property {}::${} is undefined",
-                    codebase.interner.lookup(classlike_name),
+                    codebase.interner.lookup(&classlike_name),
                     prop_name,
                 ),
                 statements_analyzer.get_hpos(&pos),
@@ -183,8 +183,8 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Property {}::{} is undefined",
-                    codebase.interner.lookup(classlike_name),
-                    codebase.interner.lookup(property_id.1)
+                    codebase.interner.lookup(&classlike_name),
+                    codebase.interner.lookup(&property_id.1)
                 ),
                 statements_analyzer.get_hpos(&pos),
             ),

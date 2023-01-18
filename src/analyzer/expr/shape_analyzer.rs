@@ -90,7 +90,7 @@ pub(crate) fn analyze(
                 } else {
                     println!(
                         "unknown constant {}::{}",
-                        &codebase.interner.lookup(*lhs_name),
+                        &codebase.interner.lookup(lhs_name),
                         &name.1
                     );
                     panic!();
@@ -131,9 +131,9 @@ pub(crate) fn analyze(
                     DictKey::Int(i) => i.to_string(),
                     DictKey::String(k) => k.clone(),
                     DictKey::Enum(class_name, member_name) => {
-                        codebase.interner.lookup(*class_name).to_string()
+                        codebase.interner.lookup(class_name).to_string()
                             + "::"
-                            + codebase.interner.lookup(*member_name)
+                            + codebase.interner.lookup(member_name)
                     }
                 },
                 value_expr,

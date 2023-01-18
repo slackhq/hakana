@@ -42,7 +42,7 @@ pub(crate) fn is_contained_by(
     if !codebase.class_or_interface_or_enum_or_trait_exists(input_name) {
         println!(
             "Classlike {} does not exist",
-            codebase.interner.lookup(*input_name)
+            codebase.interner.lookup(input_name)
         );
         return false;
     }
@@ -50,7 +50,7 @@ pub(crate) fn is_contained_by(
     if !codebase.class_or_interface_or_enum_or_trait_exists(container_name) {
         println!(
             "Classlike {} does not exist",
-            codebase.interner.lookup(*container_name)
+            codebase.interner.lookup(container_name)
         );
         return false;
     }

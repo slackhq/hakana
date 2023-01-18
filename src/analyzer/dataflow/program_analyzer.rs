@@ -376,7 +376,7 @@ fn get_child_nodes(
                                             if let Some(pos) = &new_destination.pos {
                                                 if !config.allow_sink_in_file(
                                                     &matching_taint,
-                                                    interner.lookup(pos.file_path),
+                                                    interner.lookup(&pos.file_path),
                                                 ) {
                                                     continue;
                                                 }

@@ -213,7 +213,7 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        let defining_entity_name = codebase.interner.lookup(*defining_entity);
+        let defining_entity_name = codebase.interner.lookup(defining_entity);
         *from_class = !defining_entity_name.starts_with("fn-")
             && !defining_entity_name.starts_with("typedef-");
         expand_union(codebase, as_type, options, data_flow_graph);
@@ -340,8 +340,8 @@ fn expand_atomic(
                         {
                             if let Some(shape_field_taints) = &type_definition.shape_field_taints {
                                 let shape_node = DataFlowNode::new(
-                                    codebase.interner.lookup(*type_name).to_string(),
-                                    codebase.interner.lookup(*type_name).to_string(),
+                                    codebase.interner.lookup(type_name).to_string(),
+                                    codebase.interner.lookup(type_name).to_string(),
                                     None,
                                     None,
                                 );
@@ -349,7 +349,7 @@ fn expand_atomic(
                                 for (field_name, taints) in shape_field_taints {
                                     let label = format!(
                                         "{}[{}]",
-                                        codebase.interner.lookup(*type_name),
+                                        codebase.interner.lookup(type_name),
                                         field_name.to_string(Some(&codebase.interner))
                                     );
                                     let field_node = DataFlowNode::TaintSource {
@@ -381,7 +381,7 @@ fn expand_atomic(
 
                                 data_flow_graph.add_node(shape_node);
                             }
-                            *shape_name = Some(codebase.interner.lookup(*type_name).to_string());
+                            *shape_name = Some(codebase.interner.lookup(type_name).to_string());
                         };
                     }
                     v
@@ -483,8 +483,8 @@ fn expand_atomic(
                         {
                             *shape_name = Some(format!(
                                 "{}::{}",
-                                codebase.interner.lookup(*class_name),
-                                codebase.interner.lookup(*member_name),
+                                codebase.interner.lookup(class_name),
+                                codebase.interner.lookup(member_name),
                             ));
                         };
                         v

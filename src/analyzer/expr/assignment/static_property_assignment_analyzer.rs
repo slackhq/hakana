@@ -214,8 +214,8 @@ pub(crate) fn analyze(
                         IssueKind::InvalidPropertyAssignmentValue,
                         format!(
                             "{}::${} with declared type {}, cannot be assigned type {}",
-                            codebase.interner.lookup(*declaring_property_class),
-                            codebase.interner.lookup(property_id.1),
+                            codebase.interner.lookup(declaring_property_class),
+                            codebase.interner.lookup(&property_id.1),
                             class_property_type.get_id(Some(&codebase.interner)),
                             assign_value_type.get_id(Some(&codebase.interner)),
                         ),

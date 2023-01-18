@@ -99,7 +99,7 @@ impl<'a> FileAnalyzer<'a> {
             tast_info,
             analysis_result,
             self.get_codebase().interner.lookup(
-                statements_analyzer
+                &statements_analyzer
                     .get_file_analyzer()
                     .get_file_source()
                     .file_path,

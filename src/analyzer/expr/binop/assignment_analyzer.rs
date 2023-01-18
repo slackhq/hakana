@@ -414,7 +414,7 @@ fn analyze_list_assignment(
                 ..
             } = assign_value_atomic_type
             {
-                if codebase.interner.lookup(*name) == "HH\\Vector" {
+                if codebase.interner.lookup(name) == "HH\\Vector" {
                     type_params[0].clone()
                 } else {
                     get_nothing()

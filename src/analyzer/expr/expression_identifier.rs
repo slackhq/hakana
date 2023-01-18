@@ -56,13 +56,13 @@ pub fn get_var_id(
                     return match &boxed.1 {
                         aast::ClassGetExpr::CGstring(str) => Some(format!(
                             "{}::{}",
-                            codebase.unwrap().interner.lookup(class_name),
+                            codebase.unwrap().interner.lookup(&class_name),
                             str.1
                         )),
                         aast::ClassGetExpr::CGexpr(rhs_expr) => match &rhs_expr.2 {
                             aast::Expr_::Lvar(rhs_var_expr) => Some(format!(
                                 "{}::${}",
-                                codebase.unwrap().interner.lookup(class_name),
+                                codebase.unwrap().interner.lookup(&class_name),
                                 rhs_var_expr.1 .1
                             )),
                             _ => None,

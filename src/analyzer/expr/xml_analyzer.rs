@@ -107,7 +107,7 @@ pub(crate) fn analyze(
                     IssueKind::MissingRequiredXhpAttribute,
                     format!(
                         "XHP class {} is missing {}: {}",
-                        codebase.interner.lookup(*xhp_class_name),
+                        codebase.interner.lookup(xhp_class_name),
                         if required_attributes.len() == 1 {
                             "a required attribute"
                         } else {
@@ -115,7 +115,7 @@ pub(crate) fn analyze(
                         },
                         required_attributes
                             .iter()
-                            .map(|attr| codebase.interner.lookup(**attr)[1..].to_string())
+                            .map(|attr| codebase.interner.lookup(*attr)[1..].to_string())
                             .join(", ")
                     ),
                     statements_analyzer.get_hpos(&pos),
@@ -138,7 +138,7 @@ pub(crate) fn analyze(
         let element_name = statements_analyzer
             .get_codebase()
             .interner
-            .lookup(*xhp_class_name);
+            .lookup(xhp_class_name);
 
         if let Some(expr_type) = tast_info.expr_types.get(&(
             inner_expr.pos().start_offset(),
@@ -249,7 +249,7 @@ fn handle_attribute_spread(
                                 context,
                                 false,
                                 expr_type_atomic.clone(),
-                                codebase.interner.lookup(*spread_attribute.0),
+                                codebase.interner.lookup(spread_attribute.0),
                                 &None,
                                 &None,
                             );
@@ -268,7 +268,7 @@ fn handle_attribute_spread(
                                     xhp_expr.pos(),
                                     xhp_expr.pos(),
                                     property_fetch_type,
-                                    codebase.interner.lookup(*spread_attribute.0),
+                                    codebase.interner.lookup(spread_attribute.0),
                                 );
                             }
                         }
@@ -329,8 +329,8 @@ fn analyze_xhp_attribute_assignment(
                     IssueKind::NonExistentXhpAttribute,
                     format!(
                         "XHP attribute {} is not defined on {}",
-                        codebase.interner.lookup(attribute_name),
-                        codebase.interner.lookup(*element_name)
+                        codebase.interner.lookup(&attribute_name),
+                        codebase.interner.lookup(element_name)
                     ),
                     statements_analyzer.get_hpos(&attribute_name_pos),
                 ),
@@ -423,15 +423,15 @@ fn add_xml_attribute_dataflow(
     tast_info: &mut TastInfo,
 ) {
     if let Some(classlike_storage) = codebase.classlike_infos.get(element_name) {
-        let element_name = codebase.interner.lookup(*element_name);
+        let element_name = codebase.interner.lookup(element_name);
         if element_name.starts_with("Facebook\\XHP\\HTML\\")
             || property_id.1 == StrId::data_attribute()
             || property_id.1 == StrId::aria_attribute()
         {
             let label = format!(
                 "{}::${}",
-                codebase.interner.lookup(property_id.0),
-                codebase.interner.lookup(property_id.1),
+                codebase.interner.lookup(&property_id.0),
+                codebase.interner.lookup(&property_id.1),
             );
 
             let mut taints = FxHashSet::from_iter([SinkType::Output]);

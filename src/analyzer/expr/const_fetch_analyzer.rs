@@ -34,7 +34,7 @@ pub(crate) fn analyze(
             get_mixed_any()
         }
     } else {
-        match codebase.interner.lookup(*name) {
+        match codebase.interner.lookup(name) {
             "__FILE__" | "__DIR__" => get_string(),
             _ => get_mixed_any(),
         }

@@ -467,7 +467,7 @@ pub(crate) fn verify_type(
                 match statements_analyzer
                     .get_codebase()
                     .interner
-                    .lookup(*function_id)
+                    .lookup(function_id)
                 {
                     "echo" | "print" => false,
                     _ => true,
@@ -523,7 +523,7 @@ pub(crate) fn verify_type(
                 match statements_analyzer
                     .get_codebase()
                     .interner
-                    .lookup(*function_id)
+                    .lookup(function_id)
                 {
                     "echo" | "print" => false,
                     _ => true,
@@ -645,9 +645,9 @@ fn add_dataflow(
                             if codebase.declaring_method_exists(&dependent_classlike, &method_name)
                             {
                                 let new_sink = DataFlowNode::get_for_method_argument(
-                                    codebase.interner.lookup(*dependent_classlike).to_string()
+                                    codebase.interner.lookup(dependent_classlike).to_string()
                                         + "::"
-                                        + codebase.interner.lookup(*method_name),
+                                        + codebase.interner.lookup(method_name),
                                     argument_offset,
                                     None,
                                     if specialize_taint {
@@ -816,7 +816,7 @@ fn get_argument_taints(
     interner: &Interner,
 ) -> Vec<SinkType> {
     match function_id {
-        FunctionLikeIdentifier::Function(id) => match interner.lookup(*id) {
+        FunctionLikeIdentifier::Function(id) => match interner.lookup(id) {
             "echo" | "print" | "var_dump" => {
                 return vec![SinkType::HtmlTag, SinkType::Output];
             }
@@ -875,7 +875,7 @@ fn get_argument_taints(
             _ => {}
         },
         FunctionLikeIdentifier::Method(fq_class, method_name) => {
-            match (interner.lookup(*fq_class), interner.lookup(*method_name)) {
+            match (interner.lookup(fq_class), interner.lookup(method_name)) {
                 ("AsyncMysqlConnection", "query") => {
                     if arg_offset == 0 {
                         return vec![SinkType::Sql];

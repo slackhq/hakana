@@ -843,7 +843,7 @@ fn get_value_for_key(
                         ..
                     } = &existing_key_type_part
                     {
-                        let real_name = codebase.interner.lookup(*name);
+                        let real_name = codebase.interner.lookup(name);
                         match real_name {
                             "HH\\KeyedContainer" | "HH\\Container" => {
                                 new_base_type_candidate = if real_name == "HH\\KeyedContainer" {
@@ -931,7 +931,7 @@ fn get_value_for_key(
                         ..
                     } = existing_key_type_part
                     {
-                        if codebase.interner.lookup(fq_class_name) == "stdClass" {
+                        if codebase.interner.lookup(&fq_class_name) == "stdClass" {
                             class_property_type = get_mixed_any();
                         } else if !codebase.class_or_interface_exists(&fq_class_name) {
                             class_property_type = get_mixed_any();

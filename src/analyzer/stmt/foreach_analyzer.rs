@@ -460,7 +460,7 @@ fn check_iterator_type(
             ..
         } = iterator_atomic_type
         {
-            match codebase.interner.lookup(name) {
+            match codebase.interner.lookup(&name) {
                 "HH\\KeyedContainer" | "HH\\KeyedIterator" => {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(

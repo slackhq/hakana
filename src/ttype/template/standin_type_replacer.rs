@@ -112,9 +112,9 @@ fn handle_atomic_standin(
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
     let normalized_key = if let TAtomic::TNamedObject { name, .. } = atomic_type {
-        codebase.interner.lookup(*name).to_string()
+        codebase.interner.lookup(name).to_string()
     } else if let TAtomic::TTypeAlias { name, .. } = atomic_type {
-        codebase.interner.lookup(*name).to_string()
+        codebase.interner.lookup(name).to_string()
     } else {
         atomic_type.get_key()
     };
@@ -480,7 +480,7 @@ fn replace_atomic(
                                 let (key_param, value_param) =
                                     get_arrayish_params(&input_inner, codebase).unwrap();
 
-                                match codebase.interner.lookup(*name) {
+                                match codebase.interner.lookup(name) {
                                     "HH\\KeyedContainer" | "HH\\KeyedTraversable" => {
                                         if offset == 0 {
                                             Some(key_param)
@@ -802,7 +802,7 @@ fn handle_template_param_standin(
                     if (calling_class.is_none()
                         || replacement_defining_entity != calling_class.unwrap())
                         && (calling_function.is_none()
-                            || codebase.interner.lookup(*replacement_defining_entity)
+                            || codebase.interner.lookup(replacement_defining_entity)
                                 != format!(
                                     "fn-{}",
                                     calling_function.unwrap().to_string(&codebase.interner)
@@ -1388,9 +1388,9 @@ fn find_matching_atomic_types_for_template(
 
     for atomic_input_type in &input_type.types {
         let input_key = &if let TAtomic::TNamedObject { name, .. } = atomic_input_type {
-            codebase.interner.lookup(*name).to_string()
+            codebase.interner.lookup(name).to_string()
         } else if let TAtomic::TTypeAlias { name, .. } = atomic_input_type {
-            codebase.interner.lookup(*name).to_string()
+            codebase.interner.lookup(name).to_string()
         } else {
             atomic_input_type.get_key()
         };
@@ -1467,7 +1467,7 @@ fn find_matching_atomic_types_for_template(
                     } else {
                         println!(
                             "Cannot locate class {}",
-                            codebase.interner.lookup(*input_name)
+                            codebase.interner.lookup(input_name)
                         );
                         matching_atomic_types.push(TAtomic::TObject);
                         continue;

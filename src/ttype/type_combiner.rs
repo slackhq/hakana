@@ -740,7 +740,7 @@ fn scrape_type_properties(
         ..
     } = atomic
     {
-        match codebase.interner.lookup(*fq_class_name) {
+        match codebase.interner.lookup(fq_class_name) {
             "HH\\Container" => {
                 // dict<string, Foo>|Container<Bar> => Container<Foo|Bar>
                 if let Some(ref dict_types) = combination.dict_type_params {
@@ -921,7 +921,7 @@ fn scrape_type_properties(
                     }
                 } else {
                     if codebase.interface_extends(existing_name, fq_class_name) {
-                        types_to_remove.push(codebase.interner.lookup(*existing_name).to_string());
+                        types_to_remove.push(codebase.interner.lookup(existing_name).to_string());
                         continue;
                     }
 
@@ -1145,7 +1145,7 @@ fn merge_array_subtype(
     fq_class_name: &StrId,
     codebase: &CodebaseInfo,
 ) {
-    let fq_class_name_key = codebase.interner.lookup(*fq_class_name).to_string();
+    let fq_class_name_key = codebase.interner.lookup(fq_class_name).to_string();
     let keyed_container_types = combination.object_type_params.get(&fq_class_name_key);
     // dict<string, Foo>|KeyedContainer<int, Bar> => KeyedContainer<string|int, Foo|Bar>
     if let Some(ref dict_types) = combination.dict_type_params {

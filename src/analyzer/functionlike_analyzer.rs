@@ -66,7 +66,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 panic!(
                     "Function {} could not be loaded",
-                    self.get_codebase().interner.lookup(name)
+                    self.get_codebase().interner.lookup(&name)
                 );
             };
 
@@ -297,8 +297,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                 let expr_id = format!(
                     "{}::${}",
-                    interner.lookup(classlike_storage.name),
-                    interner.lookup(*property_name),
+                    interner.lookup(&classlike_storage.name),
+                    interner.lookup(property_name),
                 );
 
                 if let Some(property_pos) = &property_storage.pos {
@@ -613,7 +613,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 tast_info,
                 analysis_result,
                 self.get_codebase().interner.lookup(
-                    statements_analyzer
+                    &statements_analyzer
                         .get_file_analyzer()
                         .get_file_source()
                         .file_path,
@@ -734,7 +734,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             IssueKind::NonExistentClasslike,
                             format!(
                                 "Class, enum or interface {} cannot be found",
-                                statements_analyzer.get_codebase().interner.lookup(*name)
+                                statements_analyzer.get_codebase().interner.lookup(name)
                             ),
                             if let Some(type_location) = &param.signature_type_location {
                                 type_location.clone()
@@ -779,7 +779,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     let id = format!(
                         "{}-{}:{}-{}",
                         param.name,
-                        interner.lookup(param_pos.file_path),
+                        interner.lookup(&param_pos.file_path),
                         param_pos.start_offset,
                         param_pos.end_offset
                     );
@@ -915,7 +915,7 @@ fn report_unused_expressions(
                             statements_analyzer
                                 .get_codebase()
                                 .interner
-                                .lookup(pos.file_path),
+                                .lookup(&pos.file_path),
                         ) {
                             if config.issues_to_fix.contains(&IssueKind::UnusedAssignment) {
                                 unused_variable_nodes.push(node.clone());

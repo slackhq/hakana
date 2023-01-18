@@ -484,7 +484,7 @@ pub(crate) fn analyze(
                     ..
                 } = atomic_type
                 {
-                    if statements_analyzer.get_codebase().interner.lookup(name) == "HH\\Awaitable"
+                    if statements_analyzer.get_codebase().interner.lookup(&name) == "HH\\Awaitable"
                         && type_params.len() == 1
                     {
                         let mut inside_type = type_params.get(0).unwrap().clone();
@@ -698,7 +698,7 @@ fn analyze_function_pointer(
                 tast_info.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentFunction,
-                        format!("Unknown function {}", codebase.interner.lookup(*name)),
+                        format!("Unknown function {}", codebase.interner.lookup(name)),
                         statements_analyzer.get_hpos(&expr.pos()),
                     ),
                     statements_analyzer.get_config(),
@@ -740,7 +740,7 @@ fn analyze_function_pointer(
                         IssueKind::NonExistentClasslike,
                         format!(
                             "Unknown classlike {}",
-                            codebase.interner.lookup(*class_name)
+                            codebase.interner.lookup(class_name)
                         ),
                         statements_analyzer.get_hpos(&expr.pos()),
                     ),

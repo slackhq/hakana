@@ -53,7 +53,7 @@ pub(crate) fn fetch(
         FunctionLikeIdentifier::Function(name) => {
             if let Some(t) = handle_special_functions(
                 statements_analyzer,
-                codebase.interner.lookup(*name),
+                codebase.interner.lookup(name),
                 expr.2,
                 pos,
                 codebase,
@@ -620,7 +620,7 @@ fn add_dataflow(
             let argument_node = DataFlowNode::get_for_method_argument(
                 codebase
                     .interner
-                    .lookup(functionlike_storage.name)
+                    .lookup(&functionlike_storage.name)
                     .to_string(),
                 param_offset,
                 if let Some(arg) = expr.2.get(param_offset) {
@@ -687,7 +687,7 @@ fn get_special_argument_nodes(
     interner: &Interner,
 ) -> (Vec<(usize, PathKind)>, Option<PathKind>) {
     match functionlike_id {
-        FunctionLikeIdentifier::Function(function_name) => match interner.lookup(*function_name) {
+        FunctionLikeIdentifier::Function(function_name) => match interner.lookup(function_name) {
             "var_export"
             | "print_r"
             | "highlight_string"
@@ -878,7 +878,7 @@ fn get_special_added_removed_taints(
     interner: &Interner,
 ) -> FxHashMap<usize, (FxHashSet<SinkType>, FxHashSet<SinkType>)> {
     match functionlike_id {
-        FunctionLikeIdentifier::Function(function_name) => match interner.lookup(*function_name) {
+        FunctionLikeIdentifier::Function(function_name) => match interner.lookup(function_name) {
             "html_entity_decode" | "htmlspecialchars_decode" => FxHashMap::from_iter([(
                 0,
                 (

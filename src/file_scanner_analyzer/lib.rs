@@ -250,7 +250,7 @@ pub fn scan_and_analyze(
         for issue in issues {
             analysis_result
                 .emitted_issues
-                .entry(interner.lookup(issue.pos.file_path).to_string())
+                .entry(interner.lookup(&issue.pos.file_path).to_string())
                 .or_insert_with(Vec::new)
                 .push(issue);
         }

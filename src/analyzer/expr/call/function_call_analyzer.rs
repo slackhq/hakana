@@ -112,7 +112,7 @@ pub(crate) fn analyze(
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentFunction,
-                format!("Function {} is not defined", codebase.interner.lookup(name)),
+                format!("Function {} is not defined", codebase.interner.lookup(&name)),
                 statements_analyzer.get_hpos(&expr.0 .0),
             ),
             statements_analyzer.get_config(),
@@ -233,7 +233,7 @@ pub(crate) fn analyze(
         context.has_returned = true;
     }
 
-    let real_name = codebase.interner.lookup(name);
+    let real_name = codebase.interner.lookup(&name);
 
     match real_name {
         "HH\\invariant" => {

@@ -12,11 +12,11 @@ use crate::expr::binop::assignment_analyzer;
 use crate::expr::call_analyzer::get_generic_param_for_offset;
 use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
-use crate::{expression_analyzer, functionlike_analyzer};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
+use crate::{expression_analyzer, functionlike_analyzer};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -372,8 +372,8 @@ pub(crate) fn check_arguments_match(
         if function_param.is_inout {
             // First inout param for HH\Shapes::removeKey is already handled
             if if let FunctionLikeIdentifier::Method(classname, method_name) = functionlike_id {
-                codebase.interner.lookup(*classname) != "HH\\Shapes"
-                    || codebase.interner.lookup(*method_name) != "removeKey"
+                codebase.interner.lookup(classname) != "HH\\Shapes"
+                    || codebase.interner.lookup(method_name) != "removeKey"
             } else {
                 true
             } {
@@ -529,7 +529,7 @@ fn adjust_param_type(
                 if let Some(calling_class) = &context.function_context.calling_class {
                     if !context.function_context.is_static {
                         if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id {
-                            if codebase.interner.lookup(*method_name) == "__construct" {
+                            if codebase.interner.lookup(method_name) == "__construct" {
                                 None
                             } else {
                                 Some(&calling_class)
@@ -747,7 +747,7 @@ fn handle_closure_arg(
 
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
-                match codebase.interner.lookup(*function_name) {
+                match codebase.interner.lookup(function_name) {
                     "HH\\Lib\\Vec\\map"
                     | "HH\\Lib\\Dict\\map"
                     | "HH\\Lib\\Keyset\\map"

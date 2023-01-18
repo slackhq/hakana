@@ -34,7 +34,7 @@ impl TaintedNode {
             if let Some(pos) = &self.pos {
                 format!(
                     " ({}:{}:{})",
-                    interner.lookup(pos.file_path),
+                    interner.lookup(&pos.file_path),
                     pos.start_line,
                     pos.start_column
                 )

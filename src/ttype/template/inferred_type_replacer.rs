@@ -213,7 +213,7 @@ fn replace_template_param(
     } else {
         for (_, template_type_map) in inferred_lower_bounds {
             for (map_defining_entity, _) in template_type_map {
-                let resolved_symbol = codebase.interner.lookup(*map_defining_entity);
+                let resolved_symbol = codebase.interner.lookup(map_defining_entity);
                 if resolved_symbol.starts_with("fn-") || resolved_symbol.starts_with("typedef-") {
                     continue;
                 }

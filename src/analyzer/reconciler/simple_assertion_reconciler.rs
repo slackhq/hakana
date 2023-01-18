@@ -471,7 +471,7 @@ pub(crate) fn intersect_null(
                 name,
                 type_params: None,
                 ..
-            } => match statements_analyzer.get_codebase().interner.lookup(*name) {
+            } => match statements_analyzer.get_codebase().interner.lookup(name) {
                 "XHPChild" => {
                     nullable_types.push(TAtomic::TNull);
                     did_remove_type = true;
@@ -625,7 +625,7 @@ fn intersect_vec(
                 ..
             } = atomic
             {
-                match statements_analyzer.get_codebase().interner.lookup(*name) {
+                match statements_analyzer.get_codebase().interner.lookup(name) {
                     "HH\\Container" => {
                         acceptable_types.push(TAtomic::TVec {
                             type_param: typed_params.get(0).unwrap().clone(),
@@ -714,7 +714,7 @@ fn intersect_keyset(
                 ..
             } = atomic
             {
-                match statements_analyzer.get_codebase().interner.lookup(*name) {
+                match statements_analyzer.get_codebase().interner.lookup(name) {
                     "HH\\Container" => {
                         acceptable_types.push(TAtomic::TKeyset {
                             type_param: get_arraykey(true),
@@ -819,7 +819,7 @@ fn intersect_dict(
                     name, type_params, ..
                 } = atomic
                 {
-                    match statements_analyzer.get_codebase().interner.lookup(*name) {
+                    match statements_analyzer.get_codebase().interner.lookup(name) {
                         "HH\\Container" => {
                             if let Some(typed_params) = type_params {
                                 acceptable_types.push(TAtomic::TDict {
@@ -1082,7 +1082,7 @@ fn intersect_string(
                 name,
                 type_params: None,
                 ..
-            } => match statements_analyzer.get_codebase().interner.lookup(*name) {
+            } => match statements_analyzer.get_codebase().interner.lookup(name) {
                 "XHPChild" => {
                     acceptable_types.push(TAtomic::TString);
                     did_remove_type = true;

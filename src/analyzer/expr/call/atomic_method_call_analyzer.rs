@@ -126,7 +126,7 @@ pub(crate) fn analyze(
                             IssueKind::NonExistentClass,
                             format!(
                                 "Class or interface {} does not exist",
-                                codebase.interner.lookup(*classlike_name)
+                                codebase.interner.lookup(classlike_name)
                             ),
                             statements_analyzer.get_hpos(&pos),
                         ),
@@ -147,7 +147,7 @@ pub(crate) fn analyze(
                             IssueKind::NonExistentMethod,
                             format!(
                                 "Method {}::{} does not exist",
-                                codebase.interner.lookup(*classlike_name),
+                                codebase.interner.lookup(classlike_name),
                                 &boxed.1
                             ),
                             statements_analyzer.get_hpos(&pos),
@@ -166,7 +166,7 @@ pub(crate) fn analyze(
                             IssueKind::NonExistentMethod,
                             format!(
                                 "Method {}::{} does not exist",
-                                codebase.interner.lookup(*classlike_name),
+                                codebase.interner.lookup(classlike_name),
                                 &boxed.1
                             ),
                             statements_analyzer.get_hpos(&pos),
@@ -222,7 +222,7 @@ pub(crate) fn analyze(
                     IssueKind::NonExistentClasslike,
                     format!(
                         "Unknown classlike {}",
-                        codebase.interner.lookup(*classlike_name)
+                        codebase.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(&pos),
                 ),

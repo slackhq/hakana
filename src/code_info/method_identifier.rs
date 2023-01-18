@@ -5,6 +5,6 @@ pub struct MethodIdentifier(pub StrId, pub StrId);
 
 impl MethodIdentifier {
     pub fn to_string(&self, interner: &Interner) -> String {
-        format!("{}::{}", interner.lookup(self.0), interner.lookup(self.1))
+        format!("{}::{}", interner.lookup(&self.0), interner.lookup(&self.1))
     }
 }

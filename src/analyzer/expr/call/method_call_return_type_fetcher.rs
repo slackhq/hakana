@@ -135,9 +135,9 @@ pub(crate) fn fetch(
 }
 
 fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) -> Option<TUnion> {
-    match interner.lookup(method_id.0) {
+    match interner.lookup(&method_id.0) {
         "DateTime" | "DateTimeImmutable" => {
-            if interner.lookup(method_id.1) == "createFromFormat" {
+            if interner.lookup(&method_id.1) == "createFromFormat" {
                 let mut false_or_datetime = TUnion::new(vec![
                     TAtomic::TNamedObject {
                         name: method_id.0.clone(),
@@ -153,7 +153,7 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
             }
         }
         "DOMDocument" => {
-            if interner.lookup(method_id.1) == "createElement" {
+            if interner.lookup(&method_id.1) == "createElement" {
                 let mut false_or_domelement = TUnion::new(vec![
                     TAtomic::TNamedObject {
                         name: interner.get("DOMElement").unwrap(),
@@ -168,7 +168,7 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
                 return Some(false_or_domelement);
             }
         }
-        "SimpleXMLElement" => match interner.lookup(method_id.1) {
+        "SimpleXMLElement" => match interner.lookup(&method_id.1) {
             "children" | "attributes" | "addChild" => {
                 let null_or_simplexmlelement = TUnion::new(vec![
                     TAtomic::TNamedObject {

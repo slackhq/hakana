@@ -26,7 +26,7 @@ impl DictKey {
             DictKey::String(k) => "'".to_string() + k.as_str() + "'",
             DictKey::Enum(c, m) => {
                 if let Some(interner) = interner {
-                    interner.lookup(*c).to_string() + "::" + interner.lookup(*m)
+                    interner.lookup(c).to_string() + "::" + interner.lookup(m)
                 } else {
                     c.0.to_string() + "::" + m.0.to_string().as_str()
                 }
@@ -216,7 +216,7 @@ impl TAtomic {
             }
             TAtomic::TEnum { name, .. } => {
                 if let Some(interner) = interner {
-                    interner.lookup(*name).to_string()
+                    interner.lookup(name).to_string()
                 } else {
                     name.0.to_string()
                 }
@@ -280,7 +280,7 @@ impl TAtomic {
             TAtomic::TLiteralClassname { name } => {
                 let mut str = String::new();
                 if let Some(interner) = interner {
-                    str += interner.lookup(*name);
+                    str += interner.lookup(name);
                 } else {
                     str += name.0.to_string().as_str();
                 }
@@ -294,13 +294,13 @@ impl TAtomic {
             } => {
                 let mut str = String::new();
                 if let Some(interner) = interner {
-                    str += interner.lookup(*enum_name);
+                    str += interner.lookup(enum_name);
                 } else {
                     str += enum_name.0.to_string().as_str();
                 }
                 str += "::";
                 if let Some(interner) = interner {
-                    str += interner.lookup(*member_name);
+                    str += interner.lookup(member_name);
                 } else {
                     str += member_name.0.to_string().as_str();
                 }
@@ -353,7 +353,7 @@ impl TAtomic {
                 None => format!(
                     "{}{}{}",
                     if let Some(interner) = interner {
-                        interner.lookup(*name).to_string()
+                        interner.lookup(name).to_string()
                     } else {
                         name.0.to_string()
                     },
@@ -372,7 +372,7 @@ impl TAtomic {
                 Some(type_params) => {
                     let mut str = String::new();
                     if let Some(interner) = interner {
-                        str += interner.lookup(*name);
+                        str += interner.lookup(name);
                     } else {
                         str += name.0.to_string().as_str();
                     }
@@ -395,7 +395,7 @@ impl TAtomic {
                 None => {
                     let mut str = "type-alias(".to_string();
                     if let Some(interner) = interner {
-                        str += interner.lookup(*name);
+                        str += interner.lookup(name);
                     } else {
                         str += name.0.to_string().as_str();
                     }
@@ -406,7 +406,7 @@ impl TAtomic {
                     let mut str = String::new();
                     str += "type-alias(";
                     if let Some(interner) = interner {
-                        str += interner.lookup(*name);
+                        str += interner.lookup(name);
                     } else {
                         str += name.0.to_string().as_str();
                     }
@@ -449,7 +449,7 @@ impl TAtomic {
                 str += param_name.as_str();
                 str += ":";
                 if let Some(interner) = interner {
-                    str += interner.lookup(*defining_entity);
+                    str += interner.lookup(defining_entity);
                 } else {
                     str += defining_entity.0.to_string().as_str();
                 }
@@ -465,7 +465,7 @@ impl TAtomic {
                 str += param_name.as_str();
                 str += ":";
                 if let Some(interner) = interner {
-                    str += interner.lookup(*defining_entity);
+                    str += interner.lookup(defining_entity);
                 } else {
                     str += defining_entity.0.to_string().as_str();
                 }
@@ -482,7 +482,7 @@ impl TAtomic {
                 str += param_name.as_str();
                 str += ":";
                 if let Some(interner) = interner {
-                    str += interner.lookup(*defining_entity);
+                    str += interner.lookup(defining_entity);
                 } else {
                     str += defining_entity.0.to_string().as_str();
                 }
@@ -525,7 +525,7 @@ impl TAtomic {
                 let mut str = String::new();
                 str += "unknown-ref(";
                 if let Some(interner) = interner {
-                    str += interner.lookup(*name);
+                    str += interner.lookup(name);
                 } else {
                     str += name.0.to_string().as_str();
                 }
@@ -542,7 +542,7 @@ impl TAtomic {
                     "{}::{}",
                     class_type.get_id(interner),
                     if let Some(interner) = interner {
-                        interner.lookup(*member_name).to_string()
+                        interner.lookup(member_name).to_string()
                     } else {
                         member_name.0.to_string()
                     }
@@ -556,15 +556,15 @@ impl TAtomic {
                     if let Some(interner) = interner {
                         format!(
                             "#{}::{}",
-                            interner.lookup(*class_name),
-                            interner.lookup(*member_name)
+                            interner.lookup(class_name),
+                            interner.lookup(member_name)
                         )
                     } else {
                         format!("#{}::{}", class_name.0, member_name.0)
                     }
                 } else {
                     if let Some(interner) = interner {
-                        format!("#{}", interner.lookup(*member_name))
+                        format!("#{}", interner.lookup(member_name))
                     } else {
                         format!("#{}", member_name.0)
                     }
@@ -697,7 +697,7 @@ impl TAtomic {
             TAtomic::TNamedObject {
                 name, type_params, ..
             } => match type_params {
-                None => codebase.interner.lookup(*name).to_string(),
+                None => codebase.interner.lookup(name).to_string(),
                 Some(type_params) => {
                     let covariants =
                         if let Some(classlike_storage) = codebase.classlike_infos.get(name) {
@@ -707,7 +707,7 @@ impl TAtomic {
                         };
 
                     let mut str = String::new();
-                    str += codebase.interner.lookup(*name);
+                    str += codebase.interner.lookup(name);
                     str += "<";
                     str += type_params
                         .into_iter()
@@ -1010,7 +1010,7 @@ impl TAtomic {
             | &TAtomic::TClosure { .. }
             | &TAtomic::TLiteralClassname { .. }
             | &TAtomic::TClassname { .. } => true,
-            &TAtomic::TNamedObject { name, .. } => match interner.lookup(*name) {
+            &TAtomic::TNamedObject { name, .. } => match interner.lookup(name) {
                 "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" => false,
                 _ => true,
             },
@@ -1127,7 +1127,7 @@ impl TAtomic {
     pub fn is_array_accessible_with_string_key(&self, interner: &Interner) -> bool {
         match self {
             TAtomic::TDict { .. } | TAtomic::TKeyset { .. } => true,
-            TAtomic::TNamedObject { name, .. } => match interner.lookup(*name) {
+            TAtomic::TNamedObject { name, .. } => match interner.lookup(name) {
                 "HH\\KeyedContainer" | "HH\\AnyArray" => true,
                 _ => false,
             },
@@ -1138,7 +1138,7 @@ impl TAtomic {
     pub fn is_array_accessible_with_int_or_string_key(&self, interner: &Interner) -> bool {
         match self {
             TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => true,
-            TAtomic::TNamedObject { name, .. } => match interner.lookup(*name) {
+            TAtomic::TNamedObject { name, .. } => match interner.lookup(name) {
                 "HH\\KeyedContainer" | "HH\\Container" | "HH\\AnyArray" => true,
                 _ => false,
             },
@@ -1282,7 +1282,7 @@ impl TAtomic {
                 ..
             } => {
                 if let Some(type_params) = type_params {
-                    let name = interner.lookup(*name);
+                    let name = interner.lookup(name);
                     if name == "HH\\KeyedContainer"
                         || name == "HH\\AnyArray"
                         || name == "HH\\KeyedTraversable"

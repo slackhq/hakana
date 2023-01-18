@@ -64,7 +64,7 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.get_codebase();
 
-    if codebase.interner.lookup(classlike_name) == "static" {
+    if codebase.interner.lookup(&classlike_name) == "static" {
         classlike_name = context.function_context.calling_class.clone().unwrap();
     }
 
@@ -98,8 +98,8 @@ pub(crate) fn analyze(
         }
     }
 
-    let class_template_params = if codebase.interner.lookup(classlike_name) != "HH\\Vector"
-        || codebase.interner.lookup(*method_name) != "fromItems"
+    let class_template_params = if codebase.interner.lookup(&classlike_name) != "HH\\Vector"
+        || codebase.interner.lookup(method_name) != "fromItems"
     {
         class_template_param_collector::collect(
             codebase,
@@ -174,7 +174,7 @@ pub(crate) fn analyze(
         );
     }
 
-    if codebase.interner.lookup(method_id.0) == "HH\\Shapes" {
+    if codebase.interner.lookup(&method_id.0) == "HH\\Shapes" {
         if let Some(value) = handle_shapes_static_method(
             &method_id,
             call_expr,
@@ -229,7 +229,7 @@ fn handle_shapes_static_method(
     pos: &Pos,
     codebase: &hakana_reflection_info::codebase_info::CodebaseInfo,
 ) -> Option<TUnion> {
-    match codebase.interner.lookup(method_id.1) {
+    match codebase.interner.lookup(&method_id.1) {
         "keyExists" => {
             if call_expr.1.len() == 2 {
                 let expr_var_id = expression_identifier::get_var_id(

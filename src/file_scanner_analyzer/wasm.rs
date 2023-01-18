@@ -73,7 +73,7 @@ pub fn scan_and_analyze_single_file(
         );
 
         for issue in issues {
-            let file_path = codebase.interner.lookup(issue.pos.file_path);
+            let file_path = codebase.interner.lookup(&issue.pos.file_path);
             analysis_result
                 .emitted_issues
                 .entry(file_path.to_string())

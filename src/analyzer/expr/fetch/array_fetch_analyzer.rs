@@ -437,7 +437,7 @@ pub(crate) fn get_array_access_type_given_offset(
             }
             TAtomic::TNamedObject {
                 name, type_params, ..
-            } => match codebase.interner.lookup(*name) {
+            } => match codebase.interner.lookup(name) {
                 "HH\\KeyedContainer" | "HH\\AnyArray" => {
                     if let Some(type_params) = type_params {
                         if let Some(existing_type) = stmt_type {

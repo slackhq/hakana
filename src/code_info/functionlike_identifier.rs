@@ -22,12 +22,12 @@ impl FunctionLikeIdentifier {
 
     pub fn to_string(&self, interner: &Interner) -> String {
         match self {
-            FunctionLikeIdentifier::Function(fn_name) => interner.lookup(*fn_name).to_string(),
+            FunctionLikeIdentifier::Function(fn_name) => interner.lookup(fn_name).to_string(),
             FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => {
                 format!(
                     "{}::{}",
-                    interner.lookup(*fq_classlike_name),
-                    interner.lookup(*method_name)
+                    interner.lookup(fq_classlike_name),
+                    interner.lookup(method_name)
                 )
             }
         }

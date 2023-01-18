@@ -193,7 +193,7 @@ pub fn populate_codebase(
         }
     }
 
-    all_classlike_descendants.retain(|k, _| !interner.lookup(*k).starts_with("HH\\"));
+    all_classlike_descendants.retain(|k, _| !interner.lookup(k).starts_with("HH\\"));
 
     codebase.classlike_descendents = all_classlike_descendants;
 }

@@ -438,13 +438,13 @@ pub fn is_contained_by(
         name: input_name, ..
     } = input_type_part
     {
-        if codebase.interner.lookup(*input_name) == "static" {
+        if codebase.interner.lookup(input_name) == "static" {
             if let TAtomic::TNamedObject {
                 name: container_name,
                 ..
             } = container_type_part
             {
-                if codebase.interner.lookup(*container_name) == "self" {
+                if codebase.interner.lookup(container_name) == "self" {
                     return true;
                 }
             }
@@ -458,7 +458,7 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        let container_name_key = codebase.interner.lookup(*container_name);
+        let container_name_key = codebase.interner.lookup(container_name);
         if match container_name_key {
             "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" => true,
             _ => false,
@@ -560,7 +560,7 @@ pub fn is_contained_by(
         ..
     } = input_type_part
     {
-        let input_name_key = codebase.interner.lookup(*input_name);
+        let input_name_key = codebase.interner.lookup(input_name);
         if match input_name_key {
             "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" => true,
             _ => false,

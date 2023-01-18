@@ -55,7 +55,7 @@ pub(crate) fn scrape_assertions(
             if let Some(FunctionLikeIdentifier::Function(name)) = functionlike_id {
                 if let Some(codebase) = assertion_context.codebase {
                     return scrape_function_assertions(
-                        &codebase.interner.lookup(name),
+                        &codebase.interner.lookup(&name),
                         &call.2,
                         &conditional.1,
                         assertion_context,
@@ -265,8 +265,8 @@ fn scrape_shapes_isset(
 
             if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
                 if let Some(codebase) = assertion_context.codebase {
-                    if codebase.interner.lookup(class_name) == "HH\\Shapes"
-                        && codebase.interner.lookup(member_name) == "idx"
+                    if codebase.interner.lookup(&class_name) == "HH\\Shapes"
+                        && codebase.interner.lookup(&member_name) == "idx"
                     {
                         let shape_name = get_var_id(
                             &call.2[0].1,

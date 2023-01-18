@@ -153,7 +153,7 @@ pub(crate) fn analyze(
                     IssueKind::InvalidPropertyAssignmentValue,
                     format!(
                         "{} with declared type {}, cannot be assigned type {}",
-                        codebase.interner.lookup(*property_id),
+                        codebase.interner.lookup(property_id),
                         invalid_class_property_type,
                         assignment_type.get_id(Some(&codebase.interner)),
                     ),
@@ -326,7 +326,7 @@ pub(crate) fn analyze_atomic_assignment(
             tast_info.maybe_add_issue(
                 Issue::new(
                     IssueKind::NonExistentClass,
-                    format!("Undefined class {}", codebase.interner.lookup(*name)),
+                    format!("Undefined class {}", codebase.interner.lookup(name)),
                     statements_analyzer.get_hpos(&expr.1.pos()),
                 ),
                 statements_analyzer.get_config(),
@@ -353,7 +353,7 @@ pub(crate) fn analyze_atomic_assignment(
                     IssueKind::NonExistentProperty,
                     format!(
                         "Undefined property {}::${}",
-                        codebase.interner.lookup(fq_class_name),
+                        codebase.interner.lookup(&fq_class_name),
                         &id.1
                     ),
                     statements_analyzer.get_hpos(&expr.1.pos()),
@@ -476,8 +476,8 @@ pub(crate) fn analyze_atomic_assignment(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Undefined property {}::${}",
-                    codebase.interner.lookup(property_id.0),
-                    codebase.interner.lookup(property_id.1),
+                    codebase.interner.lookup(&property_id.0),
+                    codebase.interner.lookup(&property_id.1),
                 ),
                 statements_analyzer.get_hpos(&expr.1.pos()),
             ),
@@ -550,7 +550,7 @@ fn add_instance_property_assignment_dataflow(
     );
     tast_info.data_flow_graph.add_node(var_node.clone());
     let property_node = DataFlowNode::get_for_assignment(
-        format!("{}->{}", lhs_var_id, interner.lookup(property_id.1)),
+        format!("{}->{}", lhs_var_id, interner.lookup(&property_id.1)),
         statements_analyzer.get_hpos(name_pos),
     );
     tast_info.data_flow_graph.add_node(property_node.clone());
@@ -559,7 +559,7 @@ fn add_instance_property_assignment_dataflow(
         &var_node,
         PathKind::ExpressionAssignment(
             PathExpressionKind::Property,
-            interner.lookup(property_id.1).to_owned(),
+            interner.lookup(&property_id.1).to_owned(),
         ),
         None,
         None,
@@ -599,8 +599,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     let localized_property_node = DataFlowNode::get_for_assignment(
         format!(
             "{}::${}",
-            codebase.interner.lookup(property_id.0),
-            codebase.interner.lookup(property_id.1)
+            codebase.interner.lookup(&property_id.0),
+            codebase.interner.lookup(&property_id.1)
         ),
         statements_analyzer.get_hpos(stmt_name_pos),
     );
@@ -611,8 +611,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
 
     let property_id_str = format!(
         "{}::${}",
-        codebase.interner.lookup(property_id.0),
-        codebase.interner.lookup(property_id.1)
+        codebase.interner.lookup(&property_id.0),
+        codebase.interner.lookup(&property_id.1)
     );
 
     let removed_taints = if let Some(var_pos) = var_pos {
@@ -629,7 +629,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         &property_node,
         PathKind::ExpressionAssignment(
             PathExpressionKind::Property,
-            codebase.interner.lookup(property_id.1).to_string(),
+            codebase.interner.lookup(&property_id.1).to_string(),
         ),
         None,
         if removed_taints.is_empty() {
@@ -656,8 +656,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         if declaring_property_class != fq_class_name {
             let declaring_property_id_str = format!(
                 "{}::${}",
-                codebase.interner.lookup(*declaring_property_class),
-                codebase.interner.lookup(property_id.1)
+                codebase.interner.lookup(declaring_property_class),
+                codebase.interner.lookup(&property_id.1)
             );
 
             let declaring_property_node = DataFlowNode::new(
@@ -672,7 +672,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
                 &declaring_property_node,
                 PathKind::ExpressionAssignment(
                     PathExpressionKind::Property,
-                    codebase.interner.lookup(property_id.1).to_string(),
+                    codebase.interner.lookup(&property_id.1).to_string(),
                 ),
                 None,
                 None,

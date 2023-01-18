@@ -413,7 +413,7 @@ pub(crate) fn analyze(
         && statements_analyzer
             .get_codebase()
             .interner
-            .lookup(functionlike_storage.name)
+            .lookup(&functionlike_storage.name)
             != "__construct"
     {
         tast_info.maybe_add_issue(
@@ -558,9 +558,9 @@ fn handle_dataflow(
                     for parent_classlike in all_parents {
                         if codebase.declaring_method_exists(&parent_classlike, &method_name) {
                             let new_sink = DataFlowNode::get_for_method_return(
-                                codebase.interner.lookup(*parent_classlike).to_string()
+                                codebase.interner.lookup(parent_classlike).to_string()
                                     + "::"
-                                    + codebase.interner.lookup(*method_name),
+                                    + codebase.interner.lookup(method_name),
                                 None,
                                 None,
                             );

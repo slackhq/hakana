@@ -30,7 +30,7 @@ pub(crate) fn load_cached_codebase(
             for (_, file_storage) in codebase
                 .files
                 .iter()
-                .filter(|f| changed_files.contains(interner.lookup(*f.0)))
+                .filter(|f| changed_files.contains(interner.lookup(f.0)))
             {
                 for ast_node in &file_storage.ast_nodes {
                     match codebase.symbols.all.get(&ast_node.name) {

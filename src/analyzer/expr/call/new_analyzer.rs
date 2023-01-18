@@ -253,7 +253,7 @@ fn analyze_named_constructor(
                 IssueKind::NonExistentClass,
                 format!(
                     "Cannot call new on undefined class {}",
-                    codebase.interner.lookup(classlike_name)
+                    codebase.interner.lookup(&classlike_name)
                 ),
                 statements_analyzer.get_hpos(&pos),
             ),

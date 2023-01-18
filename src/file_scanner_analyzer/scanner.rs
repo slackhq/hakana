@@ -220,7 +220,7 @@ pub(crate) fn scan_files(
     let mut unchanged_files = FxHashMap::default();
 
     for (file_id, file_info) in files {
-        if changed_files.contains(interner.lookup(file_id)) {
+        if changed_files.contains(interner.lookup(&file_id)) {
             updated_files.insert(file_id, file_info);
         } else {
             unchanged_files.insert(file_id, file_info);

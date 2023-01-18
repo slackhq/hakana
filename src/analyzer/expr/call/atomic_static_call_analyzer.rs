@@ -100,7 +100,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentMethod,
                 format!(
                     "Method {}::{} does not exist",
-                    codebase.interner.lookup(classlike_name),
+                    codebase.interner.lookup(&classlike_name),
                     &expr.1 .1
                 ),
                 statements_analyzer.get_hpos(&pos),

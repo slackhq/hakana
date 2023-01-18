@@ -138,7 +138,7 @@ impl Interner {
     /// # Panics
     ///
     /// Panics if `id` does not exists in `self`.
-    pub fn lookup(&self, id: StrId) -> &str {
+    pub fn lookup(&self, id: &StrId) -> &str {
         self.map.get_index(id.0 as usize).unwrap()
     }
 

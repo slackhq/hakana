@@ -59,7 +59,7 @@ pub(crate) fn analyze(
                     IssueKind::NonExistentClass,
                     format!(
                         "Cannot access property on undefined class {}",
-                        codebase.interner.lookup(*classlike_name)
+                        codebase.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(&pos),
                 ),
@@ -81,7 +81,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Cannot access undefined property {}::${}",
-                    codebase.interner.lookup(classlike_name),
+                    codebase.interner.lookup(&classlike_name),
                     prop_name,
                 ),
                 statements_analyzer.get_hpos(&pos),
@@ -99,8 +99,8 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Cannot access undefined property {}::${}",
-                    codebase.interner.lookup(classlike_name),
-                    codebase.interner.lookup(prop_name)
+                    codebase.interner.lookup(&classlike_name),
+                    codebase.interner.lookup(&prop_name)
                 ),
                 statements_analyzer.get_hpos(&pos),
             ),
@@ -409,7 +409,7 @@ fn add_property_dataflow(
                 &property_node,
                 PathKind::ExpressionFetch(
                     PathExpressionKind::Property,
-                    interner.lookup(property_id.1).to_string(),
+                    interner.lookup(&property_id.1).to_string(),
                 ),
                 None,
                 None,
@@ -465,8 +465,8 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         } else {
             format!(
                 "{}::${}",
-                interner.lookup(property_id.0),
-                interner.lookup(property_id.1)
+                interner.lookup(&property_id.0),
+                interner.lookup(&property_id.1)
             )
         },
         pos,
@@ -478,8 +478,8 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
 
     let label = format!(
         "{}::${}",
-        interner.lookup(property_id.0),
-        interner.lookup(property_id.1)
+        interner.lookup(&property_id.0),
+        interner.lookup(&property_id.1)
     );
 
     let property_node = DataFlowNode::new(label.clone(), label, None, None);
@@ -490,7 +490,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
             &localized_property_node,
             PathKind::ExpressionAssignment(
                 PathExpressionKind::Property,
-                interner.lookup(property_id.1).to_string(),
+                interner.lookup(&property_id.1).to_string(),
             ),
             None,
             None,
@@ -501,7 +501,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
             &localized_property_node,
             PathKind::ExpressionFetch(
                 PathExpressionKind::Property,
-                interner.lookup(property_id.1).to_string(),
+                interner.lookup(&property_id.1).to_string(),
             ),
             None,
             None,

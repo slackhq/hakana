@@ -1273,7 +1273,7 @@ pub(crate) fn subtract_null(
             ..
         } = atomic
         {
-            match statements_analyzer.get_codebase().interner.lookup(name) {
+            match statements_analyzer.get_codebase().interner.lookup(&name) {
                 "XHPChild" => {
                     did_remove_type = true;
                     acceptable_types.push(atomic);

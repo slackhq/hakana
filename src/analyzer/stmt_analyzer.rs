@@ -268,7 +268,7 @@ fn analyze_awaitall(
                         ..
                     } = inner
                     {
-                        if statements_analyzer.get_codebase().interner.lookup(*name)
+                        if statements_analyzer.get_codebase().interner.lookup(name)
                             == "HH\\Awaitable"
                         {
                             let mut new = type_params.get(0).unwrap().clone();

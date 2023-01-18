@@ -358,7 +358,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             name,
             type_params: Some(type_params),
             ..
-        } => match codebase.interner.lookup(*name) {
+        } => match codebase.interner.lookup(name) {
             "HH\\KeyedContainer" | "HH\\KeyedTraversable" | "HH\\AnyArray" => Some((
                 type_params.get(0).unwrap().clone(),
                 type_params.get(1).unwrap().clone(),
@@ -414,7 +414,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             name,
             type_params: Some(type_params),
             ..
-        } => match codebase.interner.lookup(*name) {
+        } => match codebase.interner.lookup(name) {
             "HH\\KeyedContainer" | "HH\\KeyedTraversable" | "HH\\AnyArray" => {
                 Some(type_params.get(1).unwrap().clone())
             }
@@ -478,7 +478,7 @@ pub fn get_union_syntax_type(
     if t_atomic_strings.len() != 1 && t_atomic_strings.len() == t_object_parents.len() {
         let flattened_parents = t_object_parents
             .into_iter()
-            .map(|(_, v)| codebase.interner.lookup(v).to_string())
+            .map(|(_, v)| codebase.interner.lookup(&v).to_string())
             .collect::<FxHashSet<_>>();
 
         if flattened_parents.len() == 1 {
@@ -570,7 +570,7 @@ pub fn get_atomic_syntax_type(
                 "dict<nothing, nothing>".to_string()
             };
         }
-        TAtomic::TEnum { name, .. } => codebase.interner.lookup(*name).to_string(),
+        TAtomic::TEnum { name, .. } => codebase.interner.lookup(name).to_string(),
         TAtomic::TFalse { .. } => "bool".to_string(),
         TAtomic::TFloat { .. } => "float".to_string(),
         TAtomic::TClosure { .. } => {
@@ -597,7 +597,7 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TEnumLiteralCase { enum_name, .. } => {
-            codebase.interner.lookup(*enum_name).to_string()
+            codebase.interner.lookup(enum_name).to_string()
         }
         TAtomic::TLiteralInt { .. } => "int".to_string(),
         TAtomic::TLiteralString { .. } | TAtomic::TStringWithFlags(..) => "string".to_string(),
@@ -605,7 +605,7 @@ pub fn get_atomic_syntax_type(
         TAtomic::TNamedObject {
             name, type_params, ..
         } => match type_params {
-            None => codebase.interner.lookup(*name).to_string(),
+            None => codebase.interner.lookup(name).to_string(),
             Some(type_params) => {
                 let mut param_strings = vec![];
                 for param in type_params {
@@ -614,7 +614,7 @@ pub fn get_atomic_syntax_type(
 
                 format!(
                     "{}<{}>",
-                    codebase.interner.lookup(*name),
+                    codebase.interner.lookup(name),
                     param_strings.join(", ")
                 )
             }
@@ -623,7 +623,7 @@ pub fn get_atomic_syntax_type(
             name, type_params, ..
         } => {
             if let None = type_params {
-                codebase.interner.lookup(*name).to_string()
+                codebase.interner.lookup(name).to_string()
             } else {
                 *is_valid = false;
                 "_".to_string()
@@ -648,7 +648,7 @@ pub fn get_atomic_syntax_type(
         } => format!(
             "classname<{}:{}>",
             param_name,
-            codebase.interner.lookup(*defining_entity)
+            codebase.interner.lookup(defining_entity)
         ),
         TAtomic::TGenericTypename {
             param_name,
@@ -657,7 +657,7 @@ pub fn get_atomic_syntax_type(
         } => format!(
             "typename<{}:{}>",
             param_name,
-            codebase.interner.lookup(*defining_entity)
+            codebase.interner.lookup(defining_entity)
         ),
         TAtomic::TTrue { .. } => "bool".to_string(),
         TAtomic::TVec {
@@ -711,11 +711,7 @@ pub fn get_atomic_syntax_type(
             member_name,
         } => {
             let lhs = get_atomic_syntax_type(class_type, codebase, is_valid);
-            format!(
-                "{}::{}",
-                lhs,
-                codebase.interner.lookup(*member_name)
-            )
+            format!("{}::{}", lhs, codebase.interner.lookup(member_name))
         }
         TAtomic::TEnumClassLabel { .. } => {
             *is_valid = false;

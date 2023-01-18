@@ -398,8 +398,8 @@ pub(crate) fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            if codebase.interner.lookup(*type_1_name) == "XHPChild" {
-                let type_2_name = codebase.interner.lookup(*type_2_name);
+            if codebase.interner.lookup(type_1_name) == "XHPChild" {
+                let type_2_name = codebase.interner.lookup(type_2_name);
 
                 if type_2_name == "HH\\KeyedContainer" {
                     let mut atomic = TAtomic::TNamedObject {
@@ -515,7 +515,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            let type_1_name = codebase.interner.lookup(*type_1_name);
+            let type_1_name = codebase.interner.lookup(type_1_name);
 
             let (type_1_key_param, type_1_value_param) = if type_1_name == "HH\\Container" {
                 (get_arraykey(true), &type_1_params[0])

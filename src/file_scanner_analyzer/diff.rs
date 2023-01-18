@@ -69,7 +69,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
                         || partially_invalid_symbols.contains(&node.name)
                 })
             })
-            .map(|(file_id, _)| interner.lookup(*file_id).to_string())
+            .map(|(file_id, _)| interner.lookup(file_id).to_string())
             .collect::<FxHashSet<_>>();
 
         files_to_analyze.retain(|full_path| {
