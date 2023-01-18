@@ -19,6 +19,7 @@ use itertools::Itertools;
 use oxidized::aast;
 use oxidized::ast_defs;
 use oxidized::pos::Pos;
+use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::rc::Rc;
 
@@ -56,30 +57,13 @@ pub(crate) fn analyze(
     for attribute in &boxed.1 {
         match attribute {
             aast::XhpAttribute::XhpSimple(xhp_simple) => {
-                let attribute_name = if let Some(attribute_name) = get_attribute_name(
+                let attribute_name = get_attribute_name(
                     xhp_simple,
-                    statements_analyzer,
+                    resolved_names,
                     tast_info,
                     context,
                     &xhp_class_name,
-                ) {
-                    attribute_name
-                } else {
-                    tast_info.maybe_add_issue(
-                        Issue::new(
-                            IssueKind::NonExistentXhpAttribute,
-                            format!(
-                                "Cannot access property on undefined attribute {}",
-                                xhp_simple.name.1
-                            ),
-                            statements_analyzer.get_hpos(&xhp_simple.name.0),
-                        ),
-                        statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual(),
-                    );
-
-                    continue;
-                };
+                );
 
                 used_attributes.insert(attribute_name);
 
@@ -331,8 +315,32 @@ fn analyze_xhp_attribute_assignment(
         .cloned();
 
     let attribute_name_pos = &attribute_info.name.0;
+    let codebase = statements_analyzer.get_codebase();
+
+    if let Some(classlike_info) = codebase.classlike_infos.get(element_name) {
+        if attribute_name != StrId::data_attribute()
+            && attribute_name != StrId::aria_attribute()
+            && !classlike_info
+                .appearing_property_ids
+                .contains_key(&attribute_name)
+        {
+            tast_info.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NonExistentXhpAttribute,
+                    format!(
+                        "XHP attribute {} is not defined on {}",
+                        codebase.interner.lookup(attribute_name),
+                        codebase.interner.lookup(*element_name)
+                    ),
+                    statements_analyzer.get_hpos(&attribute_name_pos),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+    }
+
     let attribute_value_pos = attribute_info.expr.pos();
-    let attribute_name = &attribute_info.name.1;
 
     if let Some(attribute_value_type) = attribute_value_type {
         add_all_dataflow(
@@ -342,7 +350,7 @@ fn analyze_xhp_attribute_assignment(
             attribute_name_pos,
             attribute_value_pos,
             attribute_value_type,
-            attribute_name,
+            &attribute_info.name.1,
         );
     }
 }
@@ -383,26 +391,19 @@ fn add_all_dataflow(
 
 fn get_attribute_name(
     attribute_info: &oxidized::tast::XhpSimple<(), ()>,
-    statements_analyzer: &StatementsAnalyzer,
+    resolved_names: &FxHashMap<usize, StrId>,
     tast_info: &mut TastInfo,
     context: &ScopeContext,
     element_name: &StrId,
-) -> Option<StrId> {
-    let codebase = statements_analyzer.get_codebase();
-
+) -> StrId {
     if attribute_info.name.1.starts_with("data-") {
-        Some(StrId::data_attribute())
+        StrId::data_attribute()
     } else if attribute_info.name.1.starts_with("aria-") {
-        Some(StrId::aria_attribute())
+        StrId::aria_attribute()
     } else {
-        let attribute_name = if let Some(attribute_name) = codebase
-            .interner
-            .get(&format!(":{}", attribute_info.name.1))
-        {
-            attribute_name
-        } else {
-            return None;
-        };
+        let attribute_name = *resolved_names
+            .get(&attribute_info.name.0.start_offset())
+            .unwrap();
 
         tast_info.symbol_references.add_reference_to_class_member(
             &context.function_context,
@@ -410,7 +411,7 @@ fn get_attribute_name(
             false,
         );
 
-        Some(attribute_name)
+        attribute_name
     }
 }
 

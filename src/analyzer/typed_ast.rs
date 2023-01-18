@@ -295,7 +295,9 @@ impl TastInfo {
                     },
                     // missing member
                     4053 => match &issue_kind {
-                        IssueKind::NonExistentMethod => return true,
+                        IssueKind::NonExistentMethod | IssueKind::NonExistentXhpAttribute => {
+                            return true
+                        }
                         _ => {}
                     },
                     // missing shape field or shape field unknown

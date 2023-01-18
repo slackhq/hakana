@@ -121,6 +121,19 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         result
     }
 
+    fn visit_xhp_simple(
+        &mut self,
+        nc: &mut NameContext,
+        p: &oxidized::tast::XhpSimple<(), ()>,
+    ) -> Result<(), ()> {
+        if !p.name.1.starts_with("data-") && !p.name.1.starts_with("aria-") {
+            let name = self.interner.intern(":".to_string() + &p.name.1);
+            self.resolved_names.insert(p.name.0.start_offset(), name);
+        }
+
+        p.recurse(nc, self)
+    }
+
     fn visit_expr_(&mut self, nc: &mut NameContext, e: &aast::Expr_<(), ()>) -> Result<(), ()> {
         let in_xhp_id = nc.in_xhp_id;
 
