@@ -386,9 +386,30 @@ pub(crate) fn reconcile(
             suppressed_issues,
             typed_value,
         )),
-        Assertion::HasArrayKey(key_name) => {
-            Some(reconcile_has_array_key(existing_var_type, key_name))
-        }
+        Assertion::HasArrayKey(key_name) => Some(reconcile_has_array_key(
+            assertion,
+            existing_var_type,
+            key,
+            key_name,
+            negated,
+            possibly_undefined,
+            tast_info,
+            statements_analyzer,
+            pos,
+            suppressed_issues,
+        )),
+        Assertion::HasNonnullEntryForKey(key_name) => Some(reconcile_has_nonnull_entry_for_key(
+            assertion,
+            existing_var_type,
+            key,
+            key_name,
+            negated,
+            possibly_undefined,
+            tast_info,
+            statements_analyzer,
+            pos,
+            suppressed_issues,
+        )),
         Assertion::NonEmptyCountable(_) => Some(reconcile_non_empty_countable(
             assertion,
             existing_var_type,
@@ -1366,10 +1387,8 @@ fn reconcile_isset(
 ) -> TUnion {
     let mut did_remove_type = possibly_undefined || existing_var_type.possibly_undefined_from_try;
 
-    if let Some(key) = key {
-        if key.contains("[") {
-            did_remove_type = true;
-        }
+    if possibly_undefined {
+        did_remove_type = true;
     }
 
     let mut new_var_type = existing_var_type.clone();
@@ -1748,25 +1767,45 @@ fn reconcile_in_array(
     get_mixed_any()
 }
 
-fn reconcile_has_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TUnion {
-    let mut filtered_types = vec![];
+fn reconcile_has_array_key(
+    assertion: &Assertion,
+    existing_var_type: &TUnion,
+    key: Option<&String>,
+    key_name: &DictKey,
+    negated: bool,
+    possibly_undefined: bool,
+    tast_info: &mut TastInfo,
+    statements_analyzer: &StatementsAnalyzer,
+    pos: Option<&Pos>,
+    suppressed_issues: &FxHashMap<String, usize>,
+) -> TUnion {
+    let mut did_remove_type = possibly_undefined;
 
-    for atomic in &existing_var_type.types {
-        let mut atomic = atomic.clone();
+    let mut new_var_type = existing_var_type.clone();
 
-        match &mut atomic {
+    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    let mut acceptable_types = vec![];
+
+    for mut atomic in existing_var_types {
+        match atomic {
             TAtomic::TDict {
-                known_items,
-                params,
+                ref mut known_items,
+                ref mut params,
                 ..
             } => {
                 if let Some(known_items) = known_items {
                     if let Some(known_item) = known_items.get_mut(key_name) {
-                        *known_item = (false, known_item.1.clone());
+                        if known_item.0 {
+                            *known_item = (false, known_item.1.clone());
+                            did_remove_type = true;
+                        }
                     } else if let Some((_, value_param)) = params {
                         known_items
                             .insert(key_name.clone(), (false, Arc::new(value_param.clone())));
+                        did_remove_type = true;
                     } else {
+                        did_remove_type = true;
                         continue;
                     }
                 } else {
@@ -1775,47 +1814,295 @@ fn reconcile_has_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TU
                             key_name.clone(),
                             (false, Arc::new(value_param.clone())),
                         )]));
+                        did_remove_type = true;
                     } else {
+                        did_remove_type = true;
                         continue;
                     }
                 }
+
+                acceptable_types.push(atomic);
             }
             TAtomic::TVec {
-                known_items,
-                type_param,
+                ref mut known_items,
+                ref mut type_param,
                 ..
             } => {
                 if let DictKey::Int(i) = key_name {
                     if let Some(known_items) = known_items {
                         if let Some(known_item) = known_items.get_mut(&(*i as usize)) {
-                            *known_item = (false, known_item.1.clone());
+                            if known_item.0 {
+                                *known_item = (false, known_item.1.clone());
+                                did_remove_type = true;
+                            }
                         } else if !type_param.is_nothing() {
                             known_items.insert(*i as usize, (false, type_param.clone()));
+                            did_remove_type = true;
                         } else {
+                            did_remove_type = true;
                             continue;
                         }
                     } else {
                         if !type_param.is_nothing() {
                             *known_items =
                                 Some(BTreeMap::from([(*i as usize, (false, type_param.clone()))]));
-                        } else {
-                            continue;
+                            did_remove_type = true;
                         }
                     }
+
+                    acceptable_types.push(atomic);
+                } else {
+                    did_remove_type = true;
                 }
             }
-            _ => (),
+            TAtomic::TMixed | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TNamedObject { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            _ => {
+                did_remove_type = true;
+            }
         }
-
-        filtered_types.push(atomic);
     }
 
-    let existing_var_type = TUnion {
-        types: filtered_types,
-        ..existing_var_type.clone()
-    };
+    if !did_remove_type || acceptable_types.is_empty() {
+        // every type was removed, this is an impossible assertion
+        if let Some(key) = key {
+            if let Some(pos) = pos {
+                let old_var_type_string =
+                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
 
-    existing_var_type
+                trigger_issue_for_impossible(
+                    tast_info,
+                    statements_analyzer,
+                    &old_var_type_string,
+                    &key,
+                    assertion,
+                    !did_remove_type,
+                    negated,
+                    pos,
+                    suppressed_issues,
+                );
+            }
+        }
+
+        if acceptable_types.is_empty() {
+            return get_nothing();
+        }
+    }
+
+    new_var_type.types = acceptable_types;
+
+    new_var_type
+}
+
+fn reconcile_has_nonnull_entry_for_key(
+    assertion: &Assertion,
+    existing_var_type: &TUnion,
+    key: Option<&String>,
+    key_name: &DictKey,
+    negated: bool,
+    possibly_undefined: bool,
+    tast_info: &mut TastInfo,
+    statements_analyzer: &StatementsAnalyzer,
+    pos: Option<&Pos>,
+    suppressed_issues: &FxHashMap<String, usize>,
+) -> TUnion {
+    let mut did_remove_type = possibly_undefined;
+
+    let mut new_var_type = existing_var_type.clone();
+
+    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    let mut acceptable_types = vec![];
+
+    for mut atomic in existing_var_types {
+        match atomic {
+            TAtomic::TDict {
+                ref mut known_items,
+                ref mut params,
+                ..
+            } => {
+                if let Some(known_items) = known_items {
+                    if let Some(known_item) = known_items.get_mut(key_name) {
+                        let nonnull = subtract_null(
+                            assertion,
+                            &known_item.1,
+                            None,
+                            negated,
+                            tast_info,
+                            statements_analyzer,
+                            None,
+                            &mut ReconciliationStatus::Ok,
+                            suppressed_issues,
+                        );
+
+                        if known_item.0 {
+                            *known_item = (false, Arc::new(nonnull));
+                            did_remove_type = true;
+                        } else if &*known_item.1 != &nonnull {
+                            known_item.1 = Arc::new(nonnull);
+                            did_remove_type = true;
+                        }
+                    } else if let Some((_, value_param)) = params {
+                        let nonnull = subtract_null(
+                            assertion,
+                            &value_param,
+                            None,
+                            negated,
+                            tast_info,
+                            statements_analyzer,
+                            None,
+                            &mut ReconciliationStatus::Ok,
+                            suppressed_issues,
+                        );
+                        known_items.insert(key_name.clone(), (false, Arc::new(nonnull)));
+                        did_remove_type = true;
+                    } else {
+                        did_remove_type = true;
+                        continue;
+                    }
+                } else {
+                    if let Some((_, value_param)) = params {
+                        let nonnull = subtract_null(
+                            assertion,
+                            &value_param,
+                            None,
+                            negated,
+                            tast_info,
+                            statements_analyzer,
+                            None,
+                            &mut ReconciliationStatus::Ok,
+                            suppressed_issues,
+                        );
+                        *known_items = Some(BTreeMap::from([(
+                            key_name.clone(),
+                            (false, Arc::new(nonnull)),
+                        )]));
+                        did_remove_type = true;
+                    } else {
+                        did_remove_type = true;
+                        continue;
+                    }
+                }
+
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TVec {
+                ref mut known_items,
+                ref mut type_param,
+                ..
+            } => {
+                if let DictKey::Int(i) = key_name {
+                    if let Some(known_items) = known_items {
+                        if let Some(known_item) = known_items.get_mut(&(*i as usize)) {
+                            let nonnull = subtract_null(
+                                assertion,
+                                &known_item.1,
+                                None,
+                                negated,
+                                tast_info,
+                                statements_analyzer,
+                                None,
+                                &mut ReconciliationStatus::Ok,
+                                suppressed_issues,
+                            );
+
+                            if known_item.0 {
+                                *known_item = (false, nonnull);
+                                did_remove_type = true;
+                            } else if &known_item.1 != &nonnull {
+                                known_item.1 = nonnull;
+                                did_remove_type = true;
+                            }
+                        } else if !type_param.is_nothing() {
+                            let nonnull = subtract_null(
+                                assertion,
+                                &type_param,
+                                None,
+                                negated,
+                                tast_info,
+                                statements_analyzer,
+                                None,
+                                &mut ReconciliationStatus::Ok,
+                                suppressed_issues,
+                            );
+                            known_items.insert(*i as usize, (false, nonnull));
+                            did_remove_type = true;
+                        } else {
+                            did_remove_type = true;
+                            continue;
+                        }
+                    } else {
+                        if !type_param.is_nothing() {
+                            let nonnull = subtract_null(
+                                assertion,
+                                &type_param,
+                                None,
+                                negated,
+                                tast_info,
+                                statements_analyzer,
+                                None,
+                                &mut ReconciliationStatus::Ok,
+                                suppressed_issues,
+                            );
+                            *known_items = Some(BTreeMap::from([(*i as usize, (false, nonnull))]));
+                            did_remove_type = true;
+                        }
+                    }
+
+                    acceptable_types.push(atomic);
+                } else {
+                    did_remove_type = true;
+                }
+            }
+            TAtomic::TMixed | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TNamedObject { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            _ => {
+                did_remove_type = true;
+            }
+        }
+    }
+
+    if !did_remove_type || acceptable_types.is_empty() {
+        // every type was removed, this is an impossible assertion
+        if let Some(key) = key {
+            if let Some(pos) = pos {
+                let old_var_type_string =
+                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+
+                trigger_issue_for_impossible(
+                    tast_info,
+                    statements_analyzer,
+                    &old_var_type_string,
+                    &key,
+                    assertion,
+                    !did_remove_type,
+                    negated,
+                    pos,
+                    suppressed_issues,
+                );
+            }
+        }
+
+        if acceptable_types.is_empty() {
+            return get_nothing();
+        }
+    }
+
+    new_var_type.types = acceptable_types;
+
+    new_var_type
 }
 
 pub(crate) fn get_acceptable_type(

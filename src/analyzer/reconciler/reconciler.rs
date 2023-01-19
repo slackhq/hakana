@@ -34,7 +34,7 @@ pub(crate) enum ReconciliationStatus {
 pub(crate) fn reconcile_keyed_types(
     new_types: &BTreeMap<String, Vec<Vec<Assertion>>>,
     // types we can complain about
-    active_new_types: BTreeMap<String, FxHashMap<usize, Vec<Assertion>>>,
+    mut active_new_types: BTreeMap<String, FxHashSet<usize>>,
     context: &mut ScopeContext,
     changed_var_ids: &mut FxHashSet<String>,
     referenced_var_ids: &FxHashSet<String>,
@@ -55,7 +55,7 @@ pub(crate) fn reconcile_keyed_types(
 
     let mut new_types = new_types.clone();
 
-    add_nested_assertions(&mut new_types, context);
+    add_nested_assertions(&mut new_types, &mut active_new_types, context);
 
     let codebase = statements_analyzer.get_codebase();
 
@@ -445,17 +445,22 @@ fn adjust_array_type(
 
 fn add_nested_assertions(
     new_types: &mut BTreeMap<String, Vec<Vec<Assertion>>>,
+    active_new_types: &mut BTreeMap<String, FxHashSet<usize>>,
     context: &mut ScopeContext,
 ) {
     lazy_static! {
         static ref INTEGER_REGEX: Regex = Regex::new("^[0-9]+$").unwrap();
     }
 
-    for (nk, new_type) in new_types.clone() {
+    let mut keys_to_remove = vec![];
+
+    'outer: for (nk, new_type) in new_types.clone() {
         if nk.contains("[") || nk.contains("->") {
             if new_type[0][0] == Assertion::IsEqualIsset || new_type[0][0] == Assertion::IsIsset {
                 let mut key_parts = break_up_path_into_parts(&nk);
                 key_parts.reverse();
+
+                let mut nesting = 0;
 
                 let mut base_key = key_parts.pop().unwrap();
 
@@ -488,12 +493,6 @@ fn add_nested_assertions(
 
                         let entry = new_types.entry(base_key.clone()).or_insert_with(Vec::new);
 
-                        entry.push(vec![if array_key.contains("'") {
-                            Assertion::HasStringArrayAccess
-                        } else {
-                            Assertion::HasIntOrStringArrayAccess
-                        }]);
-
                         let new_key = if array_key.starts_with("'") {
                             Some(DictKey::String(
                                 array_key[1..(array_key.len() - 1)].to_string(),
@@ -510,10 +509,30 @@ fn add_nested_assertions(
                         };
 
                         if let Some(new_key) = new_key {
-                            entry.push(vec![Assertion::HasArrayKey(new_key)]);
+                            entry.push(vec![Assertion::HasNonnullEntryForKey(new_key)]);
+                            if key_parts.is_empty() {
+                                keys_to_remove.push(nk.clone());
+
+                                if nesting == 0 {
+                                    active_new_types.remove(&nk);
+                                    active_new_types
+                                        .entry(base_key.clone())
+                                        .or_insert_with(FxHashSet::default)
+                                        .insert(entry.len() - 1);
+                                }
+
+                                break 'outer;
+                            }
+                        } else {
+                            entry.push(vec![if array_key.contains("'") {
+                                Assertion::HasStringArrayAccess
+                            } else {
+                                Assertion::HasIntOrStringArrayAccess
+                            }]);
                         }
 
                         base_key = new_base_key;
+                        nesting += 1;
                         continue;
                     }
 
@@ -538,6 +557,8 @@ fn add_nested_assertions(
             }
         }
     }
+
+    new_types.retain(|k, _| !keys_to_remove.contains(k));
 }
 
 fn break_up_path_into_parts(path: &String) -> Vec<String> {
@@ -762,6 +783,7 @@ fn get_value_for_key(
                             let known_item = known_item.clone();
 
                             new_base_type_candidate = (*known_item.1).clone();
+
                             if known_item.0 {
                                 *possibly_undefined = true;
                             }
@@ -805,7 +827,10 @@ fn get_value_for_key(
 
                         if let Some(known_item) = known_item {
                             new_base_type_candidate = known_item.1.clone();
-                            *possibly_undefined = known_item.0;
+
+                            if known_item.0 {
+                                *possibly_undefined = true;
+                            }
                         } else {
                             new_base_type_candidate =
                                 get_value_param(&existing_key_type_part, codebase).unwrap();

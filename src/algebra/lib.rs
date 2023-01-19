@@ -295,7 +295,7 @@ pub fn get_truths_from_formula(
     cond_referenced_var_ids: &mut FxHashSet<String>,
 ) -> (
     BTreeMap<String, Vec<Vec<Assertion>>>,
-    BTreeMap<String, FxHashMap<usize, Vec<Assertion>>>,
+    BTreeMap<String, FxHashSet<usize>>,
 ) {
     let mut truths = BTreeMap::new();
 
@@ -333,11 +333,8 @@ pub fn get_truths_from_formula(
                     if creating_conditional_id == clause.creating_conditional_id {
                         active_truths
                             .entry(var_id.clone())
-                            .or_insert_with(FxHashMap::default)
-                            .insert(
-                                truths.get(var_id).unwrap().len() - 1,
-                                vec![possible_type.clone()],
-                            );
+                            .or_insert_with(FxHashSet::default)
+                            .insert(truths.get(var_id).unwrap().len() - 1);
                     }
                 }
             } else {
@@ -365,8 +362,8 @@ pub fn get_truths_from_formula(
                         if creating_conditional_id == clause.creating_conditional_id {
                             active_truths
                                 .entry(var_id.clone())
-                                .or_insert_with(FxHashMap::default)
-                                .insert(truths.get(var_id).unwrap().len() - 1, things_vec.clone());
+                                .or_insert_with(FxHashSet::default)
+                                .insert(truths.get(var_id).unwrap().len() - 1);
                         }
                     }
                 }

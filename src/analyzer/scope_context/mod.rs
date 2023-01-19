@@ -260,9 +260,11 @@ impl ScopeContext {
             }
 
             for (key, _) in &c.possibilities {
-                if changed_var_ids.contains(key) {
-                    rejected_clauses.push(c.clone());
-                    continue 'outer;
+                for changed_var_id in changed_var_ids {
+                    if changed_var_id == key || var_has_root(key, changed_var_id) {
+                        rejected_clauses.push(c.clone());
+                        continue 'outer;
+                    }
                 }
             }
 

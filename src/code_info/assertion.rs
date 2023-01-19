@@ -31,6 +31,8 @@ pub enum Assertion {
     NotInArray(TUnion),
     HasArrayKey(DictKey),
     DoesNotHaveArrayKey(DictKey),
+    HasNonnullEntryForKey(DictKey),
+    DoesNotHaveNonnullEntryForKey(DictKey),
     NonEmptyCountable(bool),
     EmptyCountable,
     HasExactCount(usize),
@@ -70,6 +72,12 @@ impl Assertion {
             Assertion::DoesNotHaveArrayKey(key) => {
                 "!=has-array-key-".to_string() + key.to_string(interner).as_str()
             }
+            Assertion::HasNonnullEntryForKey(key) => {
+                "=has-nonnull-entry-for-".to_string() + key.to_string(interner).as_str()
+            }
+            Assertion::DoesNotHaveNonnullEntryForKey(key) => {
+                "!=has-nonnull-entry-for-".to_string() + key.to_string(interner).as_str()
+            }
             Assertion::InArray(union) => "=in-array-".to_string() + &union.get_id(interner),
             Assertion::NotInArray(union) => "!=in-array-".to_string() + &union.get_id(interner),
             Assertion::NonEmptyCountable(negatable) => {
@@ -101,6 +109,7 @@ impl Assertion {
             | Assertion::ArrayKeyDoesNotExist
             | Assertion::DoesNotHaveArrayKey(_)
             | Assertion::DoesNotHaveExactCount(_)
+            | Assertion::DoesNotHaveNonnullEntryForKey(_)
             | Assertion::EmptyCountable => true,
 
             _ => false,
@@ -207,6 +216,14 @@ impl Assertion {
                 Assertion::HasArrayKey(other_str) => other_str == str,
                 _ => false,
             },
+            Assertion::HasNonnullEntryForKey(str) => match other {
+                Assertion::DoesNotHaveNonnullEntryForKey(other_str) => other_str == str,
+                _ => false,
+            },
+            Assertion::DoesNotHaveNonnullEntryForKey(str) => match other {
+                Assertion::HasNonnullEntryForKey(other_str) => other_str == str,
+                _ => false,
+            },
             Assertion::InArray(union) => match other {
                 Assertion::NotInArray(other_union) => other_union == union,
                 _ => false,
@@ -275,6 +292,12 @@ impl Assertion {
             Assertion::DoesNotHaveExactCount(size) => Assertion::HasExactCount(*size),
             Assertion::HasArrayKey(str) => Assertion::DoesNotHaveArrayKey(str.clone()),
             Assertion::DoesNotHaveArrayKey(str) => Assertion::HasArrayKey(str.clone()),
+            Assertion::HasNonnullEntryForKey(str) => {
+                Assertion::DoesNotHaveNonnullEntryForKey(str.clone())
+            }
+            Assertion::DoesNotHaveNonnullEntryForKey(str) => {
+                Assertion::HasNonnullEntryForKey(str.clone())
+            }
 
             // these are just generated within the reconciler,
             // so their negations are meaningless

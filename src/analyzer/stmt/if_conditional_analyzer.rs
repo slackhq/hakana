@@ -254,8 +254,6 @@ pub(crate) fn analyze<'a>(
 
     cond_referenced_var_ids.extend(newish_var_ids);
 
-    let assigned_in_conditional_var_ids = FxHashMap::default();
-
     IfConditionalScope {
         if_body_context: if_context.unwrap(),
         post_if_context,
@@ -265,7 +263,6 @@ pub(crate) fn analyze<'a>(
             old_outer_context
         },
         cond_referenced_var_ids,
-        assigned_in_conditional_var_ids,
     }
 }
 

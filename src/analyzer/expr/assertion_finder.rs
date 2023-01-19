@@ -1,6 +1,7 @@
 use super::expression_identifier::{get_dim_id, get_var_id};
 use crate::{formula_generator::AssertionContext, typed_ast::TastInfo};
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind},
@@ -283,12 +284,21 @@ fn scrape_shapes_isset(
                         );
 
                         if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
-                            if_types.insert(
-                                format!("{}[{}]", shape_name, dim_id),
-                                vec![vec![if negated {
-                                    Assertion::IsNotIsset
+                            let dict_key = if dim_id.starts_with("'") {
+                                DictKey::String(dim_id[1..(dim_id.len() - 1)].to_string())
+                            } else {
+                                if let Ok(arraykey_value) = dim_id.parse::<u32>() {
+                                    DictKey::Int(arraykey_value)
                                 } else {
-                                    Assertion::IsIsset
+                                    panic!("bad int key {}", dim_id);
+                                }
+                            };
+                            if_types.insert(
+                                shape_name,
+                                vec![vec![if negated {
+                                    Assertion::DoesNotHaveNonnullEntryForKey(dict_key)
+                                } else {
+                                    Assertion::HasNonnullEntryForKey(dict_key)
                                 }]],
                             );
                         }

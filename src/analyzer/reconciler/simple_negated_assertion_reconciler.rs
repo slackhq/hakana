@@ -263,6 +263,9 @@ pub(crate) fn reconcile(
         Assertion::DoesNotHaveArrayKey(key_name) => {
             Some(reconcile_no_array_key(existing_var_type, key_name))
         }
+        Assertion::DoesNotHaveNonnullEntryForKey(key_name) => Some(
+            reconcile_no_nonnull_entry_for_key(existing_var_type, key_name),
+        ),
         Assertion::NotInArray(typed_value) => Some(reconcile_not_in_array(
             statements_analyzer.get_codebase(),
             assertion,
@@ -1789,6 +1792,38 @@ fn reconcile_not_in_array(
 }
 
 fn reconcile_no_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TUnion {
+    let mut existing_var_type = existing_var_type.clone();
+
+    for atomic in existing_var_type.types.iter_mut() {
+        if let TAtomic::TDict { known_items, .. } = atomic {
+            let mut all_known_items_removed = false;
+            if let Some(known_items_inner) = known_items {
+                if let Some(known_item) = known_items_inner.remove(key_name) {
+                    if !known_item.0 {
+                        // impossible to not have this key
+                        // todo emit issue
+                    }
+
+                    if known_items_inner.len() == 0 {
+                        all_known_items_removed = true;
+                    }
+                } else {
+                    // todo emit issue
+                }
+            } else {
+                // do nothing
+            }
+
+            if all_known_items_removed {
+                *known_items = None;
+            }
+        }
+    }
+
+    existing_var_type
+}
+
+fn reconcile_no_nonnull_entry_for_key(existing_var_type: &TUnion, key_name: &DictKey) -> TUnion {
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_type.types.iter_mut() {
