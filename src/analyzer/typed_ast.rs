@@ -112,14 +112,14 @@ impl TastInfo {
             return;
         }
 
-        if issue.can_fix {
-            self.fix_issue(&issue);
+        if issue.can_fix && !issue.fixme_added {
+            issue.fixme_added = self.add_issue_fixme(&issue);
         }
 
         self.add_issue(issue);
     }
 
-    fn fix_issue(&mut self, issue: &Issue) {
+    fn add_issue_fixme(&mut self, issue: &Issue) -> bool {
         if let Some(insertion_start) = &issue.pos.insertion_start {
             self.replacements.insert(
                 (insertion_start.0, insertion_start.0),
@@ -133,6 +133,10 @@ impl TastInfo {
                     .to_string(),
                 ),
             );
+
+            true
+        } else {
+            false
         }
     }
 
@@ -354,7 +358,7 @@ impl TastInfo {
     pub fn bubble_up_issue(&mut self, issue: Issue) {
         if self.recording_level == 0 {
             if issue.can_fix {
-                self.fix_issue(&issue);
+                self.add_issue_fixme(&issue);
             }
 
             *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;

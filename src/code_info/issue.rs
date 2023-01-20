@@ -191,6 +191,7 @@ pub struct Issue {
     pub description: String,
     pub pos: HPos,
     pub can_fix: bool,
+    pub fixme_added: bool,
 }
 
 impl Issue {
@@ -200,6 +201,7 @@ impl Issue {
             description,
             pos,
             can_fix: false,
+            fixme_added: false,
         }
     }
 
