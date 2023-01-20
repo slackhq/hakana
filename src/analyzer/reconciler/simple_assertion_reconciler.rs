@@ -1875,7 +1875,32 @@ fn reconcile_has_array_key(
                     did_remove_type = true;
                 }
             }
-            TAtomic::TMixed | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset => {
+            TAtomic::TGenericParam { ref as_type, .. } => {
+                if as_type.is_mixed() {
+                    acceptable_types.push(atomic);
+                } else {
+                    let atomic = atomic.replace_template_extends(reconcile_has_array_key(
+                        assertion,
+                        &as_type,
+                        None,
+                        key_name,
+                        negated,
+                        possibly_undefined,
+                        tast_info,
+                        statements_analyzer,
+                        None,
+                        suppressed_issues,
+                    ));
+
+                    acceptable_types.push(atomic);
+                }
+                did_remove_type = true;
+            }
+
+            TAtomic::TMixed
+            | TAtomic::TMixedWithFlags(..)
+            | TAtomic::TMixedFromLoopIsset
+            | TAtomic::TTypeAlias { .. } => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }
@@ -2104,8 +2129,6 @@ fn reconcile_has_nonnull_entry_for_key(
             }
             TAtomic::TGenericParam { ref as_type, .. } => {
                 if as_type.is_mixed() {
-                    let atomic = atomic.replace_template_extends(get_null());
-
                     acceptable_types.push(atomic);
                 } else {
                     let atomic =
@@ -2126,7 +2149,10 @@ fn reconcile_has_nonnull_entry_for_key(
                 }
                 did_remove_type = true;
             }
-            TAtomic::TMixed | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset => {
+            TAtomic::TMixed
+            | TAtomic::TMixedWithFlags(..)
+            | TAtomic::TMixedFromLoopIsset
+            | TAtomic::TTypeAlias { .. } => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }

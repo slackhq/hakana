@@ -322,6 +322,12 @@ impl TastInfo {
                         | IssueKind::PossiblyUndefinedIntArrayOffset => return true,
                         _ => {}
                     },
+                    4249 | 4250 => match &issue_kind {
+                        IssueKind::RedundantKeyCheck | IssueKind::ImpossibleKeyCheck => {
+                            return true
+                        }
+                        _ => {}
+                    },
                     _ => {}
                 }
             }

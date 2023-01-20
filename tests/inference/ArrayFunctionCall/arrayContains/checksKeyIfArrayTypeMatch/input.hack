@@ -1,10 +1,14 @@
 function checkVecArrayKeyExistsInt(vec<string> $arr): int
 {
-    if (C\contains_key($arr , 1)) {
+    if (C\contains_key($arr, 1)) {
         return 0;
     }
 
-    if (C\contains_key($arr , "s")) {
+    if (C\contains_key($arr, "s")) {
+        return 0;
+    }
+
+    if (!C\contains_key($arr, "t")) {
         return 0;
     }
 
@@ -13,11 +17,15 @@ function checkVecArrayKeyExistsInt(vec<string> $arr): int
 
 function checkDictArrayKeyExistsInt(dict<string, string> $arr): int
 {
-    if (C\contains_key($arr , "test")) {
+    if (C\contains_key($arr, "test")) {
         return 0;
     }
 
-    if (C\contains_key($arr , 1)) {
+    if (C\contains_key($arr, 1)) {
+        return 0;
+    }
+
+    if (!C\contains_key($arr, 2)) {
         return 0;
     }
 

@@ -1165,7 +1165,7 @@ fn get_impossible_issue(
             format!("{} is never null", key),
             statements_analyzer.get_hpos(&pos),
         ),
-        Assertion::HasArrayKey(key) => Issue::new(
+        Assertion::HasArrayKey(key) | Assertion::DoesNotHaveArrayKey(key) => Issue::new(
             IssueKind::ImpossibleKeyCheck,
             format!(
                 "Type {} never has key {}",
@@ -1222,7 +1222,7 @@ fn get_redundant_issue(
             ),
             statements_analyzer.get_hpos(&pos),
         ),
-        Assertion::HasArrayKey(key) => Issue::new(
+        Assertion::HasArrayKey(key) | Assertion::DoesNotHaveArrayKey(key) => Issue::new(
             IssueKind::RedundantKeyCheck,
             format!(
                 "Type {} always has entry {}",

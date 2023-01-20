@@ -12,7 +12,10 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_type::{get_mixed_any, get_nothing, get_null, intersect_union_types};
+use hakana_type::{
+    get_mixed_any, get_nothing, get_null, intersect_union_types,
+    type_comparator::union_type_comparator, wrap_atomic,
+};
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 
@@ -260,9 +263,18 @@ pub(crate) fn reconcile(
         Assertion::ArrayKeyDoesNotExist => {
             return Some(get_nothing());
         }
-        Assertion::DoesNotHaveArrayKey(key_name) => {
-            Some(reconcile_no_array_key(existing_var_type, key_name))
-        }
+        Assertion::DoesNotHaveArrayKey(key_name) => Some(reconcile_no_array_key(
+            statements_analyzer.get_codebase(),
+            assertion,
+            existing_var_type,
+            key,
+            pos,
+            key_name,
+            negated,
+            tast_info,
+            statements_analyzer,
+            suppressed_issues,
+        )),
         Assertion::DoesNotHaveNonnullEntryForKey(key_name) => Some(
             reconcile_no_nonnull_entry_for_key(existing_var_type, key_name),
         ),
@@ -1791,36 +1803,161 @@ fn reconcile_not_in_array(
     get_mixed_any()
 }
 
-fn reconcile_no_array_key(existing_var_type: &TUnion, key_name: &DictKey) -> TUnion {
-    let mut existing_var_type = existing_var_type.clone();
+fn reconcile_no_array_key(
+    codebase: &CodebaseInfo,
+    assertion: &Assertion,
+    existing_var_type: &TUnion,
+    key: Option<&String>,
+    pos: Option<&Pos>,
+    key_name: &DictKey,
+    negated: bool,
+    tast_info: &mut TastInfo,
+    statements_analyzer: &StatementsAnalyzer,
+    suppressed_issues: &FxHashMap<String, usize>,
+) -> TUnion {
+    let mut did_remove_type = existing_var_type.possibly_undefined_from_try;
 
-    for atomic in existing_var_type.types.iter_mut() {
-        if let TAtomic::TDict { known_items, .. } = atomic {
-            let mut all_known_items_removed = false;
-            if let Some(known_items_inner) = known_items {
-                if let Some(known_item) = known_items_inner.remove(key_name) {
-                    if !known_item.0 {
-                        // impossible to not have this key
-                        // todo emit issue
-                    }
+    let mut new_var_type = existing_var_type.clone();
 
-                    if known_items_inner.len() == 0 {
-                        all_known_items_removed = true;
+    let existing_var_types = new_var_type.types.drain(..).collect::<Vec<_>>();
+
+    let mut acceptable_types = vec![];
+
+    for mut atomic in existing_var_types {
+        match atomic {
+            TAtomic::TDict {
+                ref mut known_items,
+                ref mut params,
+                ..
+            } => {
+                if let Some(known_items) = known_items {
+                    if let Some(known_item) = known_items.get(key_name) {
+                        if known_item.0 {
+                            known_items.remove(key_name);
+                            did_remove_type = true;
+                        }
+                    } else if let Some((key_param, _)) = params {
+                        if union_type_comparator::can_expression_types_be_identical(
+                            statements_analyzer.get_codebase(),
+                            &wrap_atomic(match key_name {
+                                DictKey::Int(_) => TAtomic::TInt,
+                                DictKey::String(_) => TAtomic::TString,
+                                DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
+                                    enum_name: *a,
+                                    member_name: *b,
+                                    constraint_type: None,
+                                },
+                            }),
+                            key_param,
+                            false,
+                        ) {
+                            did_remove_type = true;
+                        }
                     }
                 } else {
-                    // todo emit issue
+                    if let Some((key_param, _)) = params {
+                        if union_type_comparator::can_expression_types_be_identical(
+                            statements_analyzer.get_codebase(),
+                            &wrap_atomic(match key_name {
+                                DictKey::Int(_) => TAtomic::TInt,
+                                DictKey::String(_) => TAtomic::TString,
+                                DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
+                                    enum_name: *a,
+                                    member_name: *b,
+                                    constraint_type: None,
+                                },
+                            }),
+                            key_param,
+                            false,
+                        ) {
+                            did_remove_type = true;
+                        }
+                    }
                 }
-            } else {
-                // do nothing
+
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TVec {
+                ref mut known_items,
+                ref mut type_param,
+                ..
+            } => {
+                if let DictKey::Int(i) = key_name {
+                    if let Some(known_items) = known_items {
+                        if let Some(known_item) = known_items.get(&(*i as usize)) {
+                            if known_item.0 {
+                                known_items.remove(&(*i as usize));
+                                did_remove_type = true;
+                            }
+                        } else if !type_param.is_nothing() {
+                            did_remove_type = true;
+                        }
+                    } else {
+                        if !type_param.is_nothing() {
+                            did_remove_type = true;
+                        }
+                    }
+                }
+
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TGenericParam { ref as_type, .. } => {
+                if as_type.is_mixed() {
+                    acceptable_types.push(atomic);
+                } else {
+                    let atomic = atomic.replace_template_extends(reconcile_no_array_key(
+                        codebase,
+                        assertion,
+                        &as_type,
+                        None,
+                        None,
+                        key_name,
+                        negated,
+                        tast_info,
+                        statements_analyzer,
+                        suppressed_issues,
+                    ));
+
+                    acceptable_types.push(atomic);
+                }
+                did_remove_type = true;
             }
 
-            if all_known_items_removed {
-                *known_items = None;
+            TAtomic::TMixed
+            | TAtomic::TMixedWithFlags(..)
+            | TAtomic::TMixedFromLoopIsset
+            | TAtomic::TTypeAlias { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TNamedObject { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TKeyset { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            _ => {
+                did_remove_type = true;
             }
         }
     }
 
-    existing_var_type
+    get_acceptable_type(
+        acceptable_types,
+        did_remove_type,
+        key,
+        pos,
+        &existing_var_type,
+        statements_analyzer,
+        tast_info,
+        assertion,
+        negated,
+        suppressed_issues,
+        &mut ReconciliationStatus::Empty,
+        new_var_type,
+    )
 }
 
 fn reconcile_no_nonnull_entry_for_key(existing_var_type: &TUnion, key_name: &DictKey) -> TUnion {
