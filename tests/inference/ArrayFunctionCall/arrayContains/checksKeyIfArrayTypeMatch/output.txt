@@ -1,3 +1,2 @@
-ERROR: InvalidContainsCheck - input.hack:7:9 - Second arg of HH\Lib\C\contains_key expects type int, saw string(s)
-ERROR: ImpossibleTypeComparison - input.hack:7:9 - Type vec<string> is never =has-array-key-'s'
-ERROR: InvalidContainsCheck - input.hack:20:9 - Second arg of HH\Lib\C\contains_key expects type string, saw int(1)
+ERROR: ImpossibleKeyCheck - input.hack:7:9 - Type vec<string> never has key 's'
+ERROR: ImpossibleKeyCheck - input.hack:20:9 - Type dict<string,string> never has key 1

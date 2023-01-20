@@ -112,7 +112,10 @@ pub(crate) fn analyze(
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentFunction,
-                format!("Function {} is not defined", codebase.interner.lookup(&name)),
+                format!(
+                    "Function {} is not defined",
+                    codebase.interner.lookup(&name)
+                ),
                 statements_analyzer.get_hpos(&expr.0 .0),
             ),
             statements_analyzer.get_config(),
@@ -271,34 +274,32 @@ pub(crate) fn analyze(
             {
                 let container_type = tast_info.get_expr_type(expr.2[0].1.pos()).cloned();
 
-                let dim_var_id = expression_identifier::get_dim_id(
-                    &expr.2[1].1,
-                    Some(statements_analyzer.get_codebase()),
-                    resolved_names,
-                );
-
                 if let Some(expr_var_id) = expr_var_id {
-                    if let Some(mut dim_var_id) = dim_var_id {
-                        if dim_var_id.starts_with("'") {
-                            dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
-                            tast_info.if_true_assertions.insert(
-                                (pos.start_offset(), pos.end_offset()),
-                                FxHashMap::from_iter([(
-                                    format!("{}", expr_var_id),
-                                    vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
-                                )]),
-                            );
-                        } else if let aast::Expr_::Int(boxed) = &expr.2[1].1 .2 {
-                            tast_info.if_true_assertions.insert(
-                                (pos.start_offset(), pos.end_offset()),
-                                FxHashMap::from_iter([(
-                                    expr_var_id.clone(),
-                                    vec![Assertion::HasArrayKey(DictKey::Int(
-                                        boxed.parse::<u32>().unwrap(),
-                                    ))],
-                                )]),
-                            );
-                        } else {
+                    if let aast::Expr_::String(boxed) = &expr.2[1].1 .2 {
+                        let dim_var_id = boxed.to_string();
+                        tast_info.if_true_assertions.insert(
+                            (pos.start_offset(), pos.end_offset()),
+                            FxHashMap::from_iter([(
+                                expr_var_id.clone(),
+                                vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
+                            )]),
+                        );
+                    } else if let aast::Expr_::Int(boxed) = &expr.2[1].1 .2 {
+                        tast_info.if_true_assertions.insert(
+                            (pos.start_offset(), pos.end_offset()),
+                            FxHashMap::from_iter([(
+                                expr_var_id.clone(),
+                                vec![Assertion::HasArrayKey(DictKey::Int(
+                                    boxed.parse::<u32>().unwrap(),
+                                ))],
+                            )]),
+                        );
+                    } else {
+                        if let Some(dim_var_id) = expression_identifier::get_dim_id(
+                            &expr.2[1].1,
+                            Some(statements_analyzer.get_codebase()),
+                            resolved_names,
+                        ) {
                             tast_info.if_true_assertions.insert(
                                 (pos.start_offset(), pos.end_offset()),
                                 FxHashMap::from_iter([(

@@ -749,20 +749,36 @@ pub(crate) fn handle_array_access_on_dict(
                     return params.1.clone();
                 }
 
-                // oh no!
-                tast_info.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::UndefinedStringArrayOffset,
-                        format!(
-                            "Invalid dict fetch on {} using key {}",
-                            dict.get_id(Some(&codebase.interner)),
-                            dict_key.to_string(Some(&codebase.interner))
+                if !context.inside_isset {
+                    // oh no!
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::UndefinedStringArrayOffset,
+                            format!(
+                                "Invalid dict fetch on {} using key {}",
+                                dict.get_id(Some(&codebase.interner)),
+                                dict_key.to_string(Some(&codebase.interner))
+                            ),
+                            statements_analyzer.get_hpos(&pos),
                         ),
-                        statements_analyzer.get_hpos(&pos),
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                } else {
+                    tast_info.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::ImpossibleNonnullEntryCheck,
+                            format!(
+                                "Type {} does not have a nonnull entry for {}",
+                                dict.get_id(Some(&codebase.interner)),
+                                dict_key.to_string(Some(&codebase.interner))
+                            ),
+                            statements_analyzer.get_hpos(&pos),
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
 
                 // since we're emitting a very specific error
                 // we don't want to emit another error afterwards

@@ -18,7 +18,9 @@ use hakana_type::{
     get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
     get_mixed_dict, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing, get_null, get_num,
     get_object, get_scalar, get_string, get_true, intersect_union_types,
-    type_comparator::{atomic_type_comparator, type_comparison_result::TypeComparisonResult},
+    type_comparator::{
+        atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
+    },
     wrap_atomic,
 };
 use oxidized::ast_defs::Pos;
@@ -1809,12 +1811,30 @@ fn reconcile_has_array_key(
                         continue;
                     }
                 } else {
-                    if let Some((_, value_param)) = params {
-                        *known_items = Some(BTreeMap::from([(
-                            key_name.clone(),
-                            (false, Arc::new(value_param.clone())),
-                        )]));
+                    if let Some((key_param, value_param)) = params {
                         did_remove_type = true;
+
+                        if union_type_comparator::can_expression_types_be_identical(
+                            statements_analyzer.get_codebase(),
+                            &wrap_atomic(match key_name {
+                                DictKey::Int(_) => TAtomic::TInt,
+                                DictKey::String(_) => TAtomic::TString,
+                                DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
+                                    enum_name: *a,
+                                    member_name: *b,
+                                    constraint_type: None,
+                                },
+                            }),
+                            key_param,
+                            false,
+                        ) {
+                            *known_items = Some(BTreeMap::from([(
+                                key_name.clone(),
+                                (false, Arc::new(value_param.clone())),
+                            )]));
+                        } else {
+                            continue;
+                        }
                     } else {
                         did_remove_type = true;
                         continue;
@@ -1860,6 +1880,10 @@ fn reconcile_has_array_key(
                 acceptable_types.push(atomic);
             }
             TAtomic::TNamedObject { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TKeyset { .. } => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }
@@ -1967,23 +1991,41 @@ fn reconcile_has_nonnull_entry_for_key(
                         continue;
                     }
                 } else {
-                    if let Some((_, value_param)) = params {
-                        let nonnull = subtract_null(
-                            assertion,
-                            &value_param,
-                            None,
-                            negated,
-                            tast_info,
-                            statements_analyzer,
-                            None,
-                            &mut ReconciliationStatus::Ok,
-                            suppressed_issues,
-                        );
-                        *known_items = Some(BTreeMap::from([(
-                            key_name.clone(),
-                            (false, Arc::new(nonnull)),
-                        )]));
+                    if let Some((key_param, value_param)) = params {
                         did_remove_type = true;
+
+                        if union_type_comparator::can_expression_types_be_identical(
+                            statements_analyzer.get_codebase(),
+                            &wrap_atomic(match key_name {
+                                DictKey::Int(_) => TAtomic::TInt,
+                                DictKey::String(_) => TAtomic::TString,
+                                DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
+                                    enum_name: *a,
+                                    member_name: *b,
+                                    constraint_type: None,
+                                },
+                            }),
+                            key_param,
+                            false,
+                        ) {
+                            let nonnull = subtract_null(
+                                assertion,
+                                &value_param,
+                                None,
+                                negated,
+                                tast_info,
+                                statements_analyzer,
+                                None,
+                                &mut ReconciliationStatus::Ok,
+                                suppressed_issues,
+                            );
+                            *known_items = Some(BTreeMap::from([(
+                                key_name.clone(),
+                                (false, Arc::new(nonnull)),
+                            )]));
+                        } else {
+                            continue;
+                        }
                     } else {
                         did_remove_type = true;
                         continue;
@@ -2060,6 +2102,30 @@ fn reconcile_has_nonnull_entry_for_key(
                     did_remove_type = true;
                 }
             }
+            TAtomic::TGenericParam { ref as_type, .. } => {
+                if as_type.is_mixed() {
+                    let atomic = atomic.replace_template_extends(get_null());
+
+                    acceptable_types.push(atomic);
+                } else {
+                    let atomic =
+                        atomic.replace_template_extends(reconcile_has_nonnull_entry_for_key(
+                            assertion,
+                            &as_type,
+                            None,
+                            key_name,
+                            negated,
+                            possibly_undefined,
+                            tast_info,
+                            statements_analyzer,
+                            None,
+                            suppressed_issues,
+                        ));
+
+                    acceptable_types.push(atomic);
+                }
+                did_remove_type = true;
+            }
             TAtomic::TMixed | TAtomic::TMixedWithFlags(..) | TAtomic::TMixedFromLoopIsset => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
@@ -2067,6 +2133,16 @@ fn reconcile_has_nonnull_entry_for_key(
             TAtomic::TNamedObject { .. } => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
+            }
+            TAtomic::TKeyset { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TString | TAtomic::TStringWithFlags(..) => {
+                if let DictKey::Int(_) = key_name {
+                    acceptable_types.push(atomic);
+                }
+                did_remove_type = true;
             }
             _ => {
                 did_remove_type = true;

@@ -313,7 +313,8 @@ impl TastInfo {
                     },
                     4321 | 4108 => match &issue_kind {
                         IssueKind::UndefinedStringArrayOffset
-                        | IssueKind::UndefinedIntArrayOffset => return true,
+                        | IssueKind::UndefinedIntArrayOffset
+                        | IssueKind::ImpossibleNonnullEntryCheck => return true,
                         _ => {}
                     },
                     4165 => match &issue_kind {

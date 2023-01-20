@@ -472,9 +472,14 @@ fn add_nested_assertions(
                     base_key += key_parts.pop().unwrap().as_str();
                 }
 
-                if !context.vars_in_scope.contains_key(&base_key)
-                    || context.vars_in_scope.get(&base_key).unwrap().is_nullable()
+                let base_key_set = if let Some(base_key_type) = context.vars_in_scope.get(&base_key)
                 {
+                    !base_key_type.is_nullable()
+                } else {
+                    false
+                };
+
+                if !base_key_set {
                     if !new_types.contains_key(&base_key) {
                         new_types.insert(base_key.clone(), vec![vec![Assertion::IsEqualIsset]]);
                     } else {
@@ -510,10 +515,11 @@ fn add_nested_assertions(
 
                         if let Some(new_key) = new_key {
                             entry.push(vec![Assertion::HasNonnullEntryForKey(new_key)]);
+
                             if key_parts.is_empty() {
                                 keys_to_remove.push(nk.clone());
 
-                                if nesting == 0 {
+                                if nesting == 0 && base_key_set {
                                     active_new_types.remove(&nk);
                                     active_new_types
                                         .entry(base_key.clone())
@@ -1093,6 +1099,7 @@ pub(crate) fn trigger_issue_for_impossible(
         tast_info.maybe_add_issue(
             if not_operator {
                 get_impossible_issue(
+                    assertion,
                     &assertion_string,
                     key,
                     statements_analyzer,
@@ -1101,6 +1108,7 @@ pub(crate) fn trigger_issue_for_impossible(
                 )
             } else {
                 get_redundant_issue(
+                    &assertion,
                     &assertion_string,
                     key,
                     statements_analyzer,
@@ -1115,6 +1123,7 @@ pub(crate) fn trigger_issue_for_impossible(
         tast_info.maybe_add_issue(
             if not_operator {
                 get_redundant_issue(
+                    &assertion,
                     &assertion_string,
                     key,
                     statements_analyzer,
@@ -1123,6 +1132,7 @@ pub(crate) fn trigger_issue_for_impossible(
                 )
             } else {
                 get_impossible_issue(
+                    assertion,
                     &assertion_string,
                     key,
                     statements_analyzer,
@@ -1137,21 +1147,40 @@ pub(crate) fn trigger_issue_for_impossible(
 }
 
 fn get_impossible_issue(
+    assertion: &Assertion,
     assertion_string: &String,
     key: &String,
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     old_var_type_string: &String,
 ) -> Issue {
-    match assertion_string.as_str() {
-        "null" => Issue::new(
+    match assertion {
+        Assertion::Truthy | Assertion::Falsy => Issue::new(
+            IssueKind::ImpossibleTruthinessCheck,
+            format!("Type {} is never {}", old_var_type_string, assertion_string),
+            statements_analyzer.get_hpos(&pos),
+        ),
+        Assertion::IsType(TAtomic::TNull) | Assertion::IsNotType(TAtomic::TNull) => Issue::new(
             IssueKind::ImpossibleNullTypeComparison,
             format!("{} is never null", key),
             statements_analyzer.get_hpos(&pos),
         ),
-        "truthy" | "falsy" => Issue::new(
-            IssueKind::ImpossibleTruthinessCheck,
-            format!("Type {} is never {}", old_var_type_string, assertion_string),
+        Assertion::HasArrayKey(key) => Issue::new(
+            IssueKind::ImpossibleKeyCheck,
+            format!(
+                "Type {} never has key {}",
+                old_var_type_string,
+                key.to_string(Some(&statements_analyzer.get_codebase().interner))
+            ),
+            statements_analyzer.get_hpos(&pos),
+        ),
+        Assertion::HasNonnullEntryForKey(dict_key) => Issue::new(
+            IssueKind::ImpossibleNonnullEntryCheck,
+            format!(
+                "Type {} does not have a nonnull entry for {}",
+                old_var_type_string,
+                dict_key.to_string(Some(&statements_analyzer.get_codebase().interner))
+            ),
             statements_analyzer.get_hpos(&pos),
         ),
         _ => Issue::new(
@@ -1166,6 +1195,7 @@ fn get_impossible_issue(
 }
 
 fn get_redundant_issue(
+    assertion: &Assertion,
     assertion_string: &String,
     key: &String,
     statements_analyzer: &StatementsAnalyzer,
@@ -1178,23 +1208,42 @@ fn get_redundant_issue(
         old_var_type_string.clone()
     };
 
-    match assertion_string.as_str() {
-        "nonnull" | "nonnull-from-any" => Issue::new(
-            IssueKind::RedundantNonnullTypeComparison,
-            format!("{} is always nonnull", key),
-            statements_analyzer.get_hpos(&pos),
-        ),
-        "isset" => Issue::new(
+    match assertion {
+        Assertion::IsIsset | Assertion::IsEqualIsset => Issue::new(
             IssueKind::RedundantIssetCheck,
             "Unnecessary isset check".to_string(),
             statements_analyzer.get_hpos(&pos),
         ),
-        "truthy" | "falsy" => Issue::new(
+        Assertion::Truthy | Assertion::Falsy => Issue::new(
             IssueKind::RedundantTruthinessCheck,
             format!(
                 "Type {} is always {}",
                 old_var_type_string, assertion_string
             ),
+            statements_analyzer.get_hpos(&pos),
+        ),
+        Assertion::HasArrayKey(key) => Issue::new(
+            IssueKind::RedundantKeyCheck,
+            format!(
+                "Type {} always has entry {}",
+                old_var_type_string,
+                key.to_string(Some(&statements_analyzer.get_codebase().interner))
+            ),
+            statements_analyzer.get_hpos(&pos),
+        ),
+        Assertion::HasNonnullEntryForKey(key) => Issue::new(
+            IssueKind::RedundantNonnullEntryCheck,
+            format!(
+                "Type {} always has entry {}",
+                old_var_type_string,
+                key.to_string(Some(&statements_analyzer.get_codebase().interner))
+            ),
+            statements_analyzer.get_hpos(&pos),
+        ),
+        Assertion::IsType(TAtomic::TMixedWithFlags(_, _, _, true))
+        | Assertion::IsNotType(TAtomic::TMixedWithFlags(_, _, _, true)) => Issue::new(
+            IssueKind::RedundantNonnullTypeComparison,
+            format!("{} is always nonnull", key),
             statements_analyzer.get_hpos(&pos),
         ),
         _ => Issue::new(
