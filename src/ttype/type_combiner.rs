@@ -1151,7 +1151,15 @@ fn adjust_key_value_dict_params(
         DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
             enum_name: *a,
             member_name: *b,
-            constraint_type: None,
+            constraint_type: if let Some(classlike_info) = codebase.classlike_infos.get(a) {
+                if let Some(enum_constraint) = &classlike_info.enum_constraint {
+                    Some(enum_constraint.clone())
+                } else {
+                    None
+                }
+            } else {
+                None
+            },
         },
     });
 
