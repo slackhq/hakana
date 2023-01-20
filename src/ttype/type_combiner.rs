@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     t_atomic::{DictKey, TAtomic},
+    t_union::TUnion,
     StrId,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -583,41 +584,45 @@ fn scrape_type_properties(
             let mut has_defined_keys = false;
 
             for (candidate_item_name, (cu, candidate_item_type)) in known_items {
-                combination.dict_entries.insert(
-                    candidate_item_name.clone(),
-                    if let Some((eu, existing_type)) =
-                        combination.dict_entries.get(candidate_item_name)
-                    {
-                        (
-                            *eu || *cu,
-                            if candidate_item_type != existing_type {
-                                Arc::new(combine_union_types(
-                                    existing_type,
-                                    candidate_item_type,
-                                    codebase,
-                                    overwrite_empty_array,
-                                ))
-                            } else {
-                                existing_type.clone()
-                            },
-                        )
-                    } else {
-                        if let Some((_, ref mut existing_value_param)) =
-                            combination.dict_type_params
-                        {
-                            *existing_value_param = combine_union_types(
-                                existing_value_param,
+                let new_item_value_type = if let Some((eu, existing_type)) =
+                    combination.dict_entries.get(candidate_item_name)
+                {
+                    (
+                        *eu || *cu,
+                        if candidate_item_type != existing_type {
+                            Arc::new(combine_union_types(
+                                existing_type,
                                 candidate_item_type,
                                 codebase,
                                 overwrite_empty_array,
-                            );
-                            continue;
+                            ))
                         } else {
-                            let new_type = candidate_item_type.clone();
-                            (has_existing_entries || *cu, new_type)
-                        }
-                    },
-                );
+                            existing_type.clone()
+                        },
+                    )
+                } else {
+                    if let Some((ref mut existing_key_param, ref mut existing_value_param)) =
+                        combination.dict_type_params
+                    {
+                        adjust_key_value_dict_params(
+                            existing_value_param,
+                            candidate_item_type,
+                            codebase,
+                            overwrite_empty_array,
+                            candidate_item_name,
+                            existing_key_param,
+                        );
+
+                        continue;
+                    } else {
+                        let new_type = candidate_item_type.clone();
+                        (has_existing_entries || *cu, new_type)
+                    }
+                };
+
+                combination
+                    .dict_entries
+                    .insert(candidate_item_name.clone(), new_item_value_type);
 
                 possibly_undefined_entries.remove(candidate_item_name);
 
@@ -651,32 +656,13 @@ fn scrape_type_properties(
                     if let Some((ref mut existing_key_param, ref mut existing_value_param)) =
                         combination.dict_type_params
                     {
-                        *existing_value_param = combine_union_types(
+                        adjust_key_value_dict_params(
                             existing_value_param,
                             entry_type,
                             codebase,
                             overwrite_empty_array,
-                        );
-
-                        let new_key_type = wrap_atomic(match key {
-                            DictKey::Int(value) => TAtomic::TLiteralInt {
-                                value: *value as i64,
-                            },
-                            DictKey::String(value) => TAtomic::TLiteralString {
-                                value: value.clone(),
-                            },
-                            DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
-                                enum_name: *a,
-                                member_name: *b,
-                                constraint_type: None,
-                            },
-                        });
-
-                        *existing_key_param = combine_union_types(
+                            key,
                             existing_key_param,
-                            &new_key_type,
-                            codebase,
-                            overwrite_empty_array,
                         );
                     }
                 }
@@ -1138,6 +1124,43 @@ fn scrape_type_properties(
     }
 
     combination.value_types.insert(type_key, atomic);
+}
+
+fn adjust_key_value_dict_params(
+    existing_value_param: &mut TUnion,
+    entry_type: &Arc<TUnion>,
+    codebase: &CodebaseInfo,
+    overwrite_empty_array: bool,
+    key: &DictKey,
+    existing_key_param: &mut TUnion,
+) {
+    *existing_value_param = combine_union_types(
+        existing_value_param,
+        entry_type,
+        codebase,
+        overwrite_empty_array,
+    );
+
+    let new_key_type = wrap_atomic(match key {
+        DictKey::Int(value) => TAtomic::TLiteralInt {
+            value: *value as i64,
+        },
+        DictKey::String(value) => TAtomic::TLiteralString {
+            value: value.clone(),
+        },
+        DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
+            enum_name: *a,
+            member_name: *b,
+            constraint_type: None,
+        },
+    });
+
+    *existing_key_param = combine_union_types(
+        existing_key_param,
+        &new_key_type,
+        codebase,
+        overwrite_empty_array,
+    );
 }
 
 fn merge_array_subtype(
