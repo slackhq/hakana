@@ -12,4 +12,3 @@ oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
 naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/naming" }
 positioned_by_ref_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/api/cargo/positioned_by_ref_parser" }
 ocamlrep = { path = "../../third-party/hhvm/hphp/hack/src/ocamlrep" }
-bumpalo = "1.1.0"
