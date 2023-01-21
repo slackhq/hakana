@@ -92,7 +92,7 @@ import { ScannerAndAnalyzer } from "../pkg/js_interop";
             var text = response.results.map(
               function (issue) {
                 let message = (issue.severity === 'error' ? 'ERROR' : 'INFO') + ': '
-                  + '<a href="' + issue.link + '" target="_blank">' + issue.type + '</a> - ' + issue.line_from + ':'
+                  + issue.type + ' - ' + issue.line_from + ':'
                   + issue.column_from + ' - ' + escapeHtml(issue.message);
 
                 if (issue.other_references) {

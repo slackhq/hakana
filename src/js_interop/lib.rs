@@ -51,7 +51,6 @@ impl ScannerAndAnalyzer {
                             "column_from": issue.pos.start_column,
                             "column_to": issue.pos.end_column,
                             "shortcode": 0,
-                            "link": "https://hakana.dev/issue",
                             "taint_trace": serde_json::Value::Null,
                             "other_references": serde_json::Value::Null,
                         }));
