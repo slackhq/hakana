@@ -26,11 +26,9 @@ impl SourceType {
     }
 }
 
-#[derive(
-    Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString, Default,
-)]
+#[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum SinkType {
-    #[default] HtmlTag,
+    HtmlTag,
     Sql,
     Shell,
     FileSystem,
@@ -44,6 +42,12 @@ pub enum SinkType {
     Logging,
     Output,
     Custom(String),
+}
+
+impl Default for SinkType {
+    fn default() -> Self {
+        SinkType::HtmlTag
+    }
 }
 
 const PAIRS: [(SourceType, SinkType); 32] = [
