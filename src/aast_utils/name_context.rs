@@ -26,7 +26,7 @@ impl NameResolutionContext {
 }
 
 #[derive(Clone, Debug)]
-pub struct NameContext {
+pub struct NameContext<'a> {
     name_resolution_contexts: Vec<NameResolutionContext>,
     namespace_name: Option<String>,
     pub symbol_name: Option<StrId>,
@@ -36,10 +36,10 @@ pub struct NameContext {
     pub in_constant_id: bool,
     pub in_xhp_id: bool,
     pub in_member_id: bool,
-    pub generic_params: Vec<String>,
+    pub generic_params: Vec<&'a String>,
 }
 
-impl NameContext {
+impl NameContext<'_> {
     pub fn new(interner: &mut ThreadedInterner) -> Self {
         Self {
             name_resolution_contexts: vec![NameResolutionContext::new(interner)],
@@ -108,15 +108,11 @@ impl NameContext {
     pub fn add_alias(
         &mut self,
         interner: &mut ThreadedInterner,
-        mut name: String,
+        name: &str,
         alias_name: &String,
         alias_kind: &NsKind,
     ) {
         let current_context = self.name_resolution_contexts.last_mut().unwrap();
-
-        if name.starts_with("\\") {
-            name = name[1..].to_string();
-        }
 
         let alias_name = interner.intern_str(&alias_name);
         let name = interner.intern_str(&name);
@@ -200,7 +196,7 @@ impl NameContext {
             _ => {}
         }
 
-        if self.generic_params.contains(name) {
+        if self.generic_params.contains(&name) {
             return interner.intern_str(name);
         }
 

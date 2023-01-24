@@ -146,10 +146,10 @@ pub struct Uses {
     pub symbol_member_uses: FxHashMap<(StrId, StrId), Vec<(StrId, StrId)>>,
 }
 
-pub fn scope_names(
-    program: &aast::Program<(), ()>,
+pub fn scope_names<'ast>(
+    program: &'ast aast::Program<(), ()>,
     interner: &mut ThreadedInterner,
-    mut name_context: NameContext,
+    mut name_context: NameContext<'ast>,
 ) -> (FxHashMap<usize, StrId>, Uses) {
     let mut scanner = Scanner {
         interner,
