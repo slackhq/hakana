@@ -331,11 +331,11 @@ fn get_reference_type(
         };
     }
 
-    if let Some(defining_entities) = type_context.template_type_map.get(type_name) {
-        return get_template_type(defining_entities, type_name);
-    }
-
     let resolved_name = resolved_names.get(&applied_type.0.start_offset()).unwrap();
+
+    if let Some(defining_entities) = type_context.template_type_map.get(resolved_name) {
+        return get_template_type(defining_entities, resolved_name);
+    }
 
     TAtomic::TReference {
         name: resolved_name.clone(),
@@ -349,7 +349,7 @@ fn get_reference_type(
 
 fn get_template_type(
     defining_entities: &FxHashMap<StrId, Arc<TUnion>>,
-    type_name: &String,
+    type_name: &StrId,
 ) -> TAtomic {
     let (defining_entity, as_type) = defining_entities.iter().next().unwrap();
 
@@ -374,8 +374,10 @@ pub fn get_type_from_hint(
         Hint_::Happly(id, extra_info) => {
             let applied_type = &id.1;
 
-            if let Some(type_name) = type_context.template_supers.get(applied_type) {
-                return Some(type_name.clone());
+            if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                if let Some(type_name) = type_context.template_supers.get(resolved_name) {
+                    return Some(type_name.clone());
+                }
             }
 
             match applied_type.as_str() {

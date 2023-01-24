@@ -112,19 +112,19 @@ pub enum TAtomic {
     // .2 => TNonspecificLiteralString
     TStringWithFlags(bool, bool, bool),
     TGenericParam {
-        param_name: String,
+        param_name: StrId,
         as_type: TUnion,
         defining_entity: StrId,
         from_class: bool,
         extra_types: Option<FxHashMap<String, TAtomic>>,
     },
     TGenericClassname {
-        param_name: String,
+        param_name: StrId,
         as_type: Box<crate::t_atomic::TAtomic>,
         defining_entity: StrId,
     },
     TGenericTypename {
-        param_name: String,
+        param_name: StrId,
         defining_entity: StrId,
     },
     TTrue,
@@ -447,7 +447,11 @@ impl TAtomic {
                 ..
             } => {
                 let mut str = String::new();
-                str += param_name.as_str();
+                if let Some(interner) = interner {
+                    str += interner.lookup(param_name);
+                } else {
+                    str += param_name.0.to_string().as_str();
+                };
                 str += ":";
                 if let Some(interner) = interner {
                     str += interner.lookup(defining_entity);
@@ -463,7 +467,11 @@ impl TAtomic {
             } => {
                 let mut str = String::new();
                 str += "classname<";
-                str += param_name.as_str();
+                if let Some(interner) = interner {
+                    str += interner.lookup(param_name);
+                } else {
+                    str += param_name.0.to_string().as_str();
+                }
                 str += ":";
                 if let Some(interner) = interner {
                     str += interner.lookup(defining_entity);
@@ -480,7 +488,11 @@ impl TAtomic {
             } => {
                 let mut str = String::new();
                 str += "typename<";
-                str += param_name.as_str();
+                if let Some(interner) = interner {
+                    str += interner.lookup(param_name);
+                } else {
+                    str += param_name.0.to_string().as_str();
+                }
                 str += ":";
                 if let Some(interner) = interner {
                     str += interner.lookup(defining_entity);
@@ -660,7 +672,7 @@ impl TAtomic {
                 ..
             } => {
                 let mut str = String::new();
-                str += param_name.as_str();
+                str += param_name.0.to_string().as_str();
                 str += ":";
                 str += defining_entity.0.to_string().as_str();
                 return str;
@@ -672,7 +684,7 @@ impl TAtomic {
             } => {
                 let mut str = String::new();
                 str += "classname<";
-                str += param_name.as_str();
+                str += param_name.0.to_string().as_str();
                 str += ":";
                 str += defining_entity.0.to_string().as_str();
                 str += ">";
@@ -685,7 +697,7 @@ impl TAtomic {
             } => {
                 let mut str = String::new();
                 str += "typename<";
-                str += param_name.as_str();
+                str += param_name.0.to_string().as_str();
                 str += ":";
                 str += defining_entity.0.to_string().as_str();
                 str += ">";

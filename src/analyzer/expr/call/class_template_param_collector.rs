@@ -15,7 +15,7 @@ pub(crate) fn collect(
     static_class_storage: &ClassLikeInfo,
     lhs_type_part: Option<&TAtomic>, // default None
     self_call: bool,                 // default false
-) -> Option<IndexMap<String, FxHashMap<StrId, TUnion>>> {
+) -> Option<IndexMap<StrId, FxHashMap<StrId, TUnion>>> {
     let template_types = &class_storage.template_types;
 
     if template_types.is_empty() {
@@ -183,9 +183,9 @@ pub(crate) fn resolve_template_param(
 fn expand_type(
     codebase: &CodebaseInfo,
     input_type_extends: &Arc<TUnion>,
-    e: &FxHashMap<StrId, IndexMap<String, Arc<TUnion>>>,
+    e: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
     static_classlike_name: &StrId,
-    static_template_types: &IndexMap<String, FxHashMap<StrId, Arc<TUnion>>>,
+    static_template_types: &IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
 ) -> Vec<TAtomic> {
     let mut output_type_extends = Vec::new();
 

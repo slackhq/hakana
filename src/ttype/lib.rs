@@ -640,14 +640,14 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TString { .. } => "string".to_string(),
-        TAtomic::TGenericParam { param_name, .. } => param_name.clone(),
+        TAtomic::TGenericParam { param_name, .. } => codebase.interner.lookup(param_name).to_string(),
         TAtomic::TGenericClassname {
             param_name,
             defining_entity,
             ..
         } => format!(
             "classname<{}:{}>",
-            param_name,
+            codebase.interner.lookup(param_name),
             codebase.interner.lookup(defining_entity)
         ),
         TAtomic::TGenericTypename {
@@ -656,7 +656,7 @@ pub fn get_atomic_syntax_type(
             ..
         } => format!(
             "typename<{}:{}>",
-            param_name,
+            codebase.interner.lookup(param_name),
             codebase.interner.lookup(defining_entity)
         ),
         TAtomic::TTrue { .. } => "bool".to_string(),

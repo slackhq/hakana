@@ -710,11 +710,7 @@ fn handle_template_param_standin(
 
     let mut replacement_type = template_type.clone();
 
-    let param_name_key = if normalized_key.contains("&") {
-        normalized_key.clone()
-    } else {
-        param_name.clone()
-    };
+    let param_name_key = param_name.clone();
 
     let mut new_extra_types = FxHashMap::default();
 
@@ -1359,8 +1355,8 @@ fn handle_template_param_type_standin(
 }
 
 fn template_types_contains<'a>(
-    template_types: &'a IndexMap<String, FxHashMap<StrId, Arc<TUnion>>>,
-    param_name: &String,
+    template_types: &'a IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    param_name: &StrId,
     defining_entity: &StrId,
 ) -> Option<&'a Arc<TUnion>> {
     if let Some(mapped_classes) = template_types.get(param_name) {
@@ -1729,7 +1725,7 @@ pub fn get_mapped_generic_type_params(
 
 pub fn get_extended_templated_types<'a>(
     atomic_type: &'a TAtomic,
-    extends: &'a FxHashMap<StrId, IndexMap<String, Arc<TUnion>>>,
+    extends: &'a FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
 ) -> Vec<&'a TAtomic> {
     let mut extra_added_types = Vec::new();
 
@@ -1761,8 +1757,8 @@ pub fn get_extended_templated_types<'a>(
 }
 
 pub(crate) fn get_root_template_type(
-    lower_bounds: &IndexMap<String, FxHashMap<StrId, Vec<TemplateBound>>>,
-    param_name: &String,
+    lower_bounds: &IndexMap<StrId, FxHashMap<StrId, Vec<TemplateBound>>>,
+    param_name: &StrId,
     defining_entity: &StrId,
     mut visited_entities: FxHashSet<StrId>,
     codebase: &CodebaseInfo,

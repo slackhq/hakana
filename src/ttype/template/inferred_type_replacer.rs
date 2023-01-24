@@ -34,7 +34,7 @@ pub fn replace(
             ..
         } = &atomic_type
         {
-            let key = atomic_type.get_key();
+            let key = param_name;
 
             let template_type = replace_template_param(
                 &template_result.lower_bounds,
@@ -47,7 +47,7 @@ pub fn replace(
             );
 
             if let Some(template_type) = template_type {
-                keys_to_unset.insert(key);
+                keys_to_unset.insert(key.clone());
 
                 for template_type_part in template_type.types {
                     new_types.push(template_type_part);
@@ -100,8 +100,7 @@ pub fn replace(
                 }
 
                 if let Some(class_template_type) = class_template_type {
-                    let key = atomic_type.get_key();
-                    keys_to_unset.insert(key);
+                    keys_to_unset.insert(param_name.clone());
                     new_types.push(class_template_type);
                 }
             }
@@ -152,9 +151,7 @@ pub fn replace(
                 }
 
                 if let Some(class_template_type) = class_template_type {
-                    let key = atomic_type.get_key();
-
-                    keys_to_unset.insert(key);
+                    keys_to_unset.insert(param_name.clone());
                     new_types.push(class_template_type);
                 }
             }
@@ -175,13 +172,13 @@ pub fn replace(
 }
 
 fn replace_template_param(
-    inferred_lower_bounds: &IndexMap<String, FxHashMap<StrId, Vec<TemplateBound>>>,
-    param_name: &String,
+    inferred_lower_bounds: &IndexMap<StrId, FxHashMap<StrId, Vec<TemplateBound>>>,
+    param_name: &StrId,
     defining_entity: &StrId,
     codebase: &CodebaseInfo,
     as_type: &TUnion,
     extra_types: &Option<FxHashMap<String, TAtomic>>,
-    key: &String,
+    key: &StrId,
 ) -> Option<TUnion> {
     let mut template_type = None;
     let traversed_type = standin_type_replacer::get_root_template_type(

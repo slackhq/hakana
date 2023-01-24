@@ -822,7 +822,7 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
 
 fn extend_type(
     type_: &Arc<TUnion>,
-    template_extended_params: &FxHashMap<StrId, IndexMap<String, Arc<TUnion>>>,
+    template_extended_params: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
 ) -> Arc<TUnion> {
     if !type_.has_template() {
         return type_.clone();

@@ -210,17 +210,24 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let mut generic_variance = FxHashMap::default();
 
+        let mut type_context = TypeResolutionContext::new();
+
+        for type_param_node in typedef.tparams.iter() {
+            let param_name = self
+                .resolved_names
+                .get(&type_param_node.name.0.start_offset())
+                .unwrap();
+            type_context.template_type_map.insert(
+                *param_name,
+                FxHashMap::from_iter([(type_name.clone(), Arc::new(get_mixed_any()))]),
+            );
+        }
+
         for (i, param) in typedef.tparams.iter().enumerate() {
             let constraint = param.constraints.first();
 
             let constraint_type = if let Some(k) = constraint {
-                get_type_from_hint(
-                    &k.1 .1,
-                    None,
-                    &TypeResolutionContext::new(),
-                    &self.resolved_names,
-                )
-                .unwrap()
+                get_type_from_hint(&k.1 .1, None, &type_context, &self.resolved_names).unwrap()
             } else {
                 get_mixed_any()
             };
@@ -245,7 +252,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 }
             }
 
-            template_type_map.insert(param.name.1.clone(), h);
+            let param_name = self
+                .resolved_names
+                .get(&param.name.0.start_offset())
+                .unwrap();
+
+            template_type_map.insert(*param_name, h);
         }
 
         let mut definition_location = HPos::new(&typedef.span, self.file_source.file_path, None);

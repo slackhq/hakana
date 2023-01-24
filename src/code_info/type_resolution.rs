@@ -9,8 +9,8 @@ use crate::{t_union::TUnion, StrId};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TypeResolutionContext {
-    pub template_type_map: IndexMap<String, FxHashMap<StrId, Arc<TUnion>>>,
-    pub template_supers: FxHashMap<String, TUnion>,
+    pub template_type_map: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    pub template_supers: FxHashMap<StrId, TUnion>,
 }
 
 impl TypeResolutionContext {

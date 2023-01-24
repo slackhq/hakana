@@ -36,6 +36,7 @@ pub struct NameContext {
     pub in_constant_id: bool,
     pub in_xhp_id: bool,
     pub in_member_id: bool,
+    pub generic_params: Vec<String>,
 }
 
 impl NameContext {
@@ -50,6 +51,7 @@ impl NameContext {
             in_member_id: false,
             symbol_name: None,
             member_name: None,
+            generic_params: vec![],
         }
     }
 
@@ -196,6 +198,10 @@ impl NameContext {
                 return interner.intern(name.clone());
             }
             _ => {}
+        }
+
+        if self.generic_params.contains(name) {
+            return interner.intern(name.clone());
         }
 
         let resolved_name = self.resolve_alias(interner, &name, alias_kind, uses);

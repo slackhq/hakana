@@ -77,7 +77,7 @@ pub struct FunctionLikeInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: IndexMap<String, FxHashMap<StrId, Arc<TUnion>>>,
+    pub template_types: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
 
     pub assertions: Option<FxHashMap<usize, Assertion>>,
 
@@ -135,7 +135,7 @@ pub struct FunctionLikeInfo {
 
     pub type_resolution_context: Option<TypeResolutionContext>,
 
-    pub where_constraints: Vec<(String, TUnion)>,
+    pub where_constraints: Vec<(StrId, TUnion)>,
 }
 
 impl FunctionLikeInfo {

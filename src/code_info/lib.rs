@@ -1,6 +1,7 @@
 pub mod aliases;
 pub mod analysis_result;
 pub mod assertion;
+pub mod ast_signature;
 pub mod attribute_info;
 pub mod class_constant_info;
 pub mod class_type_alias;
@@ -8,6 +9,7 @@ pub mod classlike_info;
 pub mod code_location;
 pub mod codebase_info;
 pub mod data_flow;
+pub mod diff;
 pub mod enum_case_info;
 pub mod file_info;
 pub mod function_context;
@@ -25,8 +27,6 @@ pub mod t_union;
 pub mod taint;
 pub mod type_definition_info;
 pub mod type_resolution;
-pub mod ast_signature;
-pub mod diff;
 
 use std::{
     collections::BTreeMap,
@@ -175,10 +175,14 @@ impl ThreadedInterner {
         {
             id = self.parent.lock().unwrap().intern(path.clone());
         }
-        let index = self.map.insert_full(path, id).0;
+        let index = self.map.insert_full(path.clone(), id).0;
         self.reverse_map.insert(id, index);
 
         id
+    }
+
+    pub fn get(&mut self, path: &String) -> &StrId {
+        self.map.get(path).unwrap()
     }
 
     pub fn lookup(&self, id: StrId) -> &str {

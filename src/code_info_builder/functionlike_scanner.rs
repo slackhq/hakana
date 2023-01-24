@@ -240,13 +240,20 @@ pub(crate) fn get_functionlike(
         let fn_id = interner.intern(fn_id);
 
         for type_param_node in tparams.iter() {
+            let param_name = resolved_names
+                .get(&type_param_node.name.0.start_offset())
+                .unwrap();
             type_context.template_type_map.insert(
-                type_param_node.name.1.clone(),
+                *param_name,
                 FxHashMap::from_iter([(fn_id.clone(), Arc::new(get_mixed_any()))]),
             );
         }
 
         for type_param_node in tparams.iter() {
+            let param_name = resolved_names
+                .get(&type_param_node.name.0.start_offset())
+                .unwrap();
+
             let mut template_as_type = None;
 
             for (constraint_type, constraint_hint) in &type_param_node.constraints {
@@ -273,7 +280,7 @@ pub(crate) fn get_functionlike(
                     .unwrap();
 
                     super_type.types.push(TAtomic::TGenericParam {
-                        param_name: type_param_node.name.1.clone(),
+                        param_name: *param_name,
                         as_type: if let Some(template_as_type) = &template_as_type {
                             template_as_type.clone()
                         } else {
@@ -284,18 +291,16 @@ pub(crate) fn get_functionlike(
                         extra_types: None,
                     });
 
-                    template_supers.insert(type_param_node.name.1.clone(), super_type);
+                    template_supers.insert(*param_name, super_type);
                 }
             }
 
-            functionlike_info
-                .template_types
-                .insert(type_param_node.name.1.clone(), {
-                    FxHashMap::from_iter([(
-                        fn_id.clone(),
-                        Arc::new(template_as_type.unwrap_or(get_mixed_any())),
-                    )])
-                });
+            functionlike_info.template_types.insert(*param_name, {
+                FxHashMap::from_iter([(
+                    fn_id.clone(),
+                    Arc::new(template_as_type.unwrap_or(get_mixed_any())),
+                )])
+            });
         }
 
         for where_hint in where_constraints {

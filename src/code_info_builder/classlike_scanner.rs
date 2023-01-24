@@ -72,8 +72,9 @@ pub(crate) fn scan(
         };
 
         for type_param_node in classlike_node.tparams.iter() {
+            let param_name = resolved_names.get(&type_param_node.name.0.start_offset()).unwrap();
             type_context.template_type_map.insert(
-                type_param_node.name.1.clone(),
+                *param_name,
                 FxHashMap::from_iter([(class_name.clone(), Arc::new(get_mixed_any()))]),
             );
         }
@@ -105,13 +106,13 @@ pub(crate) fn scan(
                 get_mixed_any()
             };
 
-            storage
-                .template_types
-                .insert(type_param_node.name.1.clone(), {
-                    let mut h = FxHashMap::default();
-                    h.insert(class_name.clone(), Arc::new(template_as_type));
-                    h
-                });
+            let param_name = resolved_names.get(&type_param_node.name.0.start_offset()).unwrap();
+            
+            storage.template_types.insert(*param_name, {
+                let mut h = FxHashMap::default();
+                h.insert(class_name.clone(), Arc::new(template_as_type));
+                h
+            });
 
             match type_param_node.variance {
                 ast_defs::Variance::Covariant => {

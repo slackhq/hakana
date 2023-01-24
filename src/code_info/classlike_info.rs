@@ -126,7 +126,7 @@ pub struct ClassLikeInfo {
      * (i.e. the same as the class name). This allows operations with the same-named template defined
      * across multiple classes to not run into trouble.
      */
-    pub template_types: IndexMap<String, FxHashMap<StrId, Arc<TUnion>>>,
+    pub template_types: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
 
     pub generic_variance: FxHashMap<usize, Variance>,
 
@@ -151,7 +151,7 @@ pub struct ClassLikeInfo {
      *     ]
      * ]
      */
-    pub template_extended_params: FxHashMap<StrId, IndexMap<String, Arc<TUnion>>>,
+    pub template_extended_params: FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
 
     pub template_extended_count: u32,
 

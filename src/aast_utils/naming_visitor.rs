@@ -64,9 +64,18 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.resolved_names.insert(c.name.0.start_offset(), p);
 
+        for type_param_node in &c.tparams {
+            nc.generic_params.push(type_param_node.name.1.clone());
+            self.resolved_names.insert(
+                type_param_node.name.0.start_offset(),
+                self.interner.intern(type_param_node.name.1.clone()),
+            );
+        }
+
         nc.symbol_name = Some(p);
         let result = c.recurse(nc, self);
         nc.symbol_name = None;
+        nc.generic_params = vec![];
 
         result
     }
@@ -82,6 +91,14 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         };
 
         self.resolved_names.insert(t.name.0.start_offset(), p);
+
+        for type_param_node in &t.tparams {
+            nc.generic_params.push(type_param_node.name.1.clone());
+            self.resolved_names.insert(
+                type_param_node.name.0.start_offset(),
+                self.interner.intern(type_param_node.name.1.clone()),
+            );
+        }
 
         nc.symbol_name = Some(p);
         let result = t.recurse(nc, self);
@@ -310,11 +327,20 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.resolved_names.insert(f.name.0.start_offset(), p);
 
+        for type_param_node in &f.fun.tparams {
+            nc.generic_params.push(type_param_node.name.1.clone());
+            self.resolved_names.insert(
+                type_param_node.name.0.start_offset(),
+                self.interner.intern(type_param_node.name.1.clone()),
+            );
+        }
+
         nc.symbol_name = Some(p);
 
         let result = f.recurse(nc, self);
 
         nc.symbol_name = None;
+        nc.generic_params = vec![];
 
         result
     }
@@ -324,9 +350,23 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.resolved_names.insert(m.name.0.start_offset(), p);
 
+        let original_param_count = nc.generic_params.len();
+
+        for type_param_node in &m.tparams {
+            nc.generic_params.push(type_param_node.name.1.clone());
+            self.resolved_names.insert(
+                type_param_node.name.0.start_offset(),
+                self.interner.intern(type_param_node.name.1.clone()),
+            );
+        }
+
         nc.member_name = Some(p);
         let result = m.recurse(nc, self);
         nc.member_name = None;
+
+        if !m.tparams.is_empty() {
+            nc.generic_params.truncate(original_param_count);
+        }
 
         result
     }
