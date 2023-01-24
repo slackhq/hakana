@@ -1,0 +1,1 @@
+function foo(typename $foo, typename<string> $bar): void {}

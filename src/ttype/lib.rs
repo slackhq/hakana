@@ -717,5 +717,6 @@ pub fn get_atomic_syntax_type(
             *is_valid = false;
             "_".to_string()
         }
+        TAtomic::TResource => "resource".to_string(),
     }
 }

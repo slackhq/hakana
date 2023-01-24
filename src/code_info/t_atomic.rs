@@ -149,6 +149,7 @@ pub enum TAtomic {
         class_name: Option<StrId>,
         member_name: StrId,
     },
+    TResource,
 }
 
 impl TAtomic {
@@ -570,6 +571,7 @@ impl TAtomic {
                     }
                 }
             }
+            TAtomic::TResource => "resource".to_string(),
         }
     }
 
@@ -606,6 +608,7 @@ impl TAtomic {
             | TAtomic::TTrue { .. }
             | TAtomic::TObject
             | TAtomic::TScalar
+            | TAtomic::TResource
             | TAtomic::TReference { .. }
             | TAtomic::TArraykey { .. }
             | TAtomic::TBool { .. }

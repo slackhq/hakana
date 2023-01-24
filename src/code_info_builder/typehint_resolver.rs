@@ -80,14 +80,10 @@ fn get_classname_type_from_hint(
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
-    if let Hint_::Happly(id, type_params) = &*hint.1 {
-        let as_type = get_reference_type(
-            id,
-            type_params,
-            classlike_name,
-            type_context,
-            resolved_names,
-        );
+    if let Some(inner_type) =
+        get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
+    {
+        let as_type = inner_type.get_single_owned();
 
         if let TAtomic::TGenericParam {
             param_name,
@@ -95,17 +91,18 @@ fn get_classname_type_from_hint(
             ..
         } = &as_type
         {
-            return TAtomic::TGenericClassname {
+            TAtomic::TGenericClassname {
                 param_name: param_name.clone(),
                 defining_entity: defining_entity.clone(),
                 as_type: Box::new(as_type),
-            };
-        }
-        TAtomic::TClassname {
-            as_type: Box::new(as_type),
+            }
+        } else {
+            TAtomic::TClassname {
+                as_type: Box::new(as_type),
+            }
         }
     } else {
-        TAtomic::TMixed
+        TAtomic::TMixedWithFlags(true, false, false, false)
     }
 }
 
@@ -115,30 +112,24 @@ fn get_typename_type_from_hint(
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
-    if let Hint_::Happly(id, type_params) = &*hint.1 {
-        let as_type = get_reference_type(
-            id,
-            type_params,
-            classlike_name,
-            type_context,
-            resolved_names,
-        );
-
+    if let Some(inner_type) =
+        get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
+    {
         if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
             ..
-        } = as_type
+        } = inner_type.get_single_owned()
         {
-            return TAtomic::TGenericTypename {
+            TAtomic::TGenericTypename {
                 param_name,
                 defining_entity,
-            };
+            }
+        } else {
+            TAtomic::TMixedWithFlags(true, false, false, false)
         }
-
-        TAtomic::TMixed
     } else {
-        TAtomic::TMixed
+        TAtomic::TMixedWithFlags(true, false, false, false)
     }
 }
 
@@ -401,7 +392,7 @@ pub fn get_type_from_hint(
                 "void" => TAtomic::TVoid,
                 "num" => TAtomic::TNum,
                 "mixed" => TAtomic::TMixed,
-                "dynamic" => TAtomic::TMixedWithFlags(true, false, false, false),
+                "dynamic" => TAtomic::TMixed,
                 "vec" | "HH\\varray" | "varray" => {
                     if let Some(first) = extra_info.first() {
                         get_vec_type_from_hint(first, classlike_name, type_context, resolved_names)
@@ -421,24 +412,56 @@ pub fn get_type_from_hint(
                     type_context,
                     resolved_names,
                 ),
-                "keyset" => get_keyset_type_from_hint(
-                    extra_info.first().unwrap(),
-                    classlike_name,
-                    type_context,
-                    resolved_names,
-                ),
-                "classname" => get_classname_type_from_hint(
-                    extra_info.first().unwrap(),
-                    classlike_name,
-                    type_context,
-                    resolved_names,
-                ),
-                "typename" => get_typename_type_from_hint(
-                    extra_info.first().unwrap(),
-                    classlike_name,
-                    type_context,
-                    resolved_names,
-                ),
+                "keyset" => {
+                    if let Some(param) = extra_info.first() {
+                        get_keyset_type_from_hint(
+                            param,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                        )
+                    } else {
+                        TAtomic::TKeyset {
+                            type_param: get_mixed_any(),
+                        }
+                    }
+                }
+                "classname" => {
+                    if let Some(param) = extra_info.first() {
+                        get_classname_type_from_hint(
+                            param,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                        )
+                    } else {
+                        get_reference_type(
+                            id,
+                            extra_info,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                        )
+                    }
+                }
+                "typename" => {
+                    if let Some(param) = extra_info.first() {
+                        get_typename_type_from_hint(
+                            param,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                        )
+                    } else {
+                        get_reference_type(
+                            id,
+                            extra_info,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                        )
+                    }
+                }
                 "vec_or_dict" | "varray_or_darray" => {
                     types.push(TAtomic::TVec {
                         known_items: None,
@@ -458,7 +481,7 @@ pub fn get_type_from_hint(
                         shape_name: None,
                     }
                 }
-                "resource" => TAtomic::TMixed,
+                "resource" => TAtomic::TResource,
                 "_" => TAtomic::TPlaceholder,
                 "HH\\FIXME\\MISSING_RETURN_TYPE" | "\\HH\\FIXME\\MISSING_RETURN_TYPE" => {
                     return None;
