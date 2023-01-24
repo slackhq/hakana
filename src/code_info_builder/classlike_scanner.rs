@@ -124,7 +124,7 @@ pub(crate) fn scan(
                 ast_defs::Variance::Invariant => {
                     // default, do nothing
 
-                    if class_name == &interner.intern("HH\\Vector".to_string()) {
+                    if class_name == &interner.intern_str("HH\\Vector") {
                         // cheat here for vectors
                         storage.generic_variance.insert(i, Variance::Covariant);
                     } else {
@@ -252,7 +252,7 @@ pub(crate) fn scan(
             }
 
             // We inherit from this class so methods like `coerce` works
-            let enum_class = interner.intern("HH\\BuiltinEnumClass".to_string());
+            let enum_class = interner.intern_str("HH\\BuiltinEnumClass");
 
             storage.direct_parent_class = Some(enum_class);
             storage.all_parent_classes.insert(enum_class);
@@ -363,7 +363,7 @@ pub(crate) fn scan(
             storage.kind = SymbolKind::Enum;
 
             // We inherit from this class so methods like `coerce` works
-            let enum_class = interner.intern("HH\\BuiltinEnum".to_string());
+            let enum_class = interner.intern_str("HH\\BuiltinEnum");
 
             storage.direct_parent_class = Some(enum_class.clone());
             storage.all_parent_classes.insert(enum_class.clone());
@@ -485,8 +485,8 @@ pub(crate) fn scan(
 
     storage.specialize_instance = true;
 
-    let codegen_id = interner.intern("Codegen".to_string());
-    let sealed_id = interner.intern("__Sealed".to_string());
+    let codegen_id = interner.intern_str("Codegen");
+    let sealed_id = interner.intern_str("__Sealed");
 
     for user_attribute in &classlike_node.user_attributes {
         let name = resolved_names

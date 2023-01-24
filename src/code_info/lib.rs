@@ -166,6 +166,21 @@ impl ThreadedInterner {
         }
     }
 
+    pub fn intern_str(&mut self, path: &str) -> StrId {
+        if let Some(id) = self.map.get(path) {
+            return *id;
+        }
+
+        let id;
+        {
+            id = self.parent.lock().unwrap().intern(path.to_string());
+        }
+        let index = self.map.insert_full(path.to_string(), id).0;
+        self.reverse_map.insert(id, index);
+
+        id
+    }
+
     pub fn intern(&mut self, path: String) -> StrId {
         if let Some(id) = self.map.get(&path) {
             return *id;
@@ -175,14 +190,10 @@ impl ThreadedInterner {
         {
             id = self.parent.lock().unwrap().intern(path.clone());
         }
-        let index = self.map.insert_full(path.clone(), id).0;
+        let index = self.map.insert_full(path, id).0;
         self.reverse_map.insert(id, index);
 
         id
-    }
-
-    pub fn get(&mut self, path: &String) -> &StrId {
-        self.map.get(path).unwrap()
     }
 
     pub fn lookup(&self, id: StrId) -> &str {

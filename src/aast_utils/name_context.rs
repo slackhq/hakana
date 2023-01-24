@@ -109,7 +109,7 @@ impl NameContext {
         &mut self,
         interner: &mut ThreadedInterner,
         mut name: String,
-        alias_name: String,
+        alias_name: &String,
         alias_kind: &NsKind,
     ) {
         let current_context = self.name_resolution_contexts.last_mut().unwrap();
@@ -118,8 +118,8 @@ impl NameContext {
             name = name[1..].to_string();
         }
 
-        let alias_name = interner.intern(alias_name);
-        let name = interner.intern(name);
+        let alias_name = interner.intern_str(&alias_name);
+        let name = interner.intern_str(&name);
 
         match alias_kind {
             NsKind::NSClass => {
@@ -164,12 +164,12 @@ impl NameContext {
     ) -> StrId {
         // fully qualified names are already resolved
         if name.starts_with("\\") {
-            return interner.intern(name[1..].to_string());
+            return interner.intern_str(&name[1..]);
         }
 
         // XHP names preceded by : are already resolved
         if name.starts_with(":") {
-            return interner.intern(name[1..].replace(":", "\\"));
+            return interner.intern_str(&name[1..].replace(":", "\\"));
         }
 
         match name.as_str() {
@@ -195,13 +195,13 @@ impl NameContext {
             | "__ReturnDisposable"
             | "__Sealed"
             | "__Soft" => {
-                return interner.intern(name.clone());
+                return interner.intern_str(name);
             }
             _ => {}
         }
 
         if self.generic_params.contains(name) {
-            return interner.intern(name.clone());
+            return interner.intern_str(name);
         }
 
         let resolved_name = self.resolve_alias(interner, &name, alias_kind, uses);
@@ -212,7 +212,7 @@ impl NameContext {
         }
 
         match self.get_namespace_name() {
-            None => interner.intern(name.clone()),
+            None => interner.intern_str(name),
             Some(inner_name) => interner.intern(format!("{}\\{}", inner_name, name)),
         }
     }
@@ -227,10 +227,10 @@ impl NameContext {
         let existing_context = self.name_resolution_contexts.last().unwrap();
 
         let parts: Vec<&str> = name.split('\\').collect();
-        let first_part = parts.get(0).unwrap().to_string();
+        let first_part = parts.get(0).unwrap();
 
         if parts.len() > 1 {
-            let alias = if first_part == "namespace" {
+            let alias = if *first_part == "namespace" {
                 return Some(interner.intern(format!(
                     "{}\\{}",
                     self.get_namespace_name().as_ref().unwrap(),
@@ -239,7 +239,7 @@ impl NameContext {
             } else {
                 existing_context
                     .namespace_aliases
-                    .get(&interner.intern(first_part))
+                    .get(&interner.intern_str(first_part))
             };
 
             // resolve aliases for qualified names, always against class alias table
@@ -255,7 +255,7 @@ impl NameContext {
                 return Some(resolved_qualified_alias);
             }
         } else {
-            let first_part = interner.intern(first_part);
+            let first_part = interner.intern_str(first_part);
 
             let alias = match alias_kind {
                 NsKind::NSClass | NsKind::NSClassAndNamespace => {

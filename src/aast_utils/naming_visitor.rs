@@ -33,7 +33,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             }
             aast::Def::NamespaceUse(uses) => {
                 for (ns_kind, name, alias_name) in uses {
-                    nc.add_alias(self.interner, name.1.clone(), alias_name.1.clone(), ns_kind);
+                    nc.add_alias(self.interner, name.1.clone(), &alias_name.1, ns_kind);
                 }
             }
             _ => {}
@@ -68,7 +68,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             nc.generic_params.push(type_param_node.name.1.clone());
             self.resolved_names.insert(
                 type_param_node.name.0.start_offset(),
-                self.interner.intern(type_param_node.name.1.clone()),
+                self.interner.intern_str(&type_param_node.name.1),
             );
         }
 
@@ -96,7 +96,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             nc.generic_params.push(type_param_node.name.1.clone());
             self.resolved_names.insert(
                 type_param_node.name.0.start_offset(),
-                self.interner.intern(type_param_node.name.1.clone()),
+                self.interner.intern_str(&type_param_node.name.1),
             );
         }
 
@@ -331,7 +331,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             nc.generic_params.push(type_param_node.name.1.clone());
             self.resolved_names.insert(
                 type_param_node.name.0.start_offset(),
-                self.interner.intern(type_param_node.name.1.clone()),
+                self.interner.intern_str(&type_param_node.name.1),
             );
         }
 
@@ -356,7 +356,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             nc.generic_params.push(type_param_node.name.1.clone());
             self.resolved_names.insert(
                 type_param_node.name.0.start_offset(),
-                self.interner.intern(type_param_node.name.1.clone()),
+                self.interner.intern_str(&type_param_node.name.1),
             );
         }
 
