@@ -637,117 +637,184 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {
-                let mut param_type = param_type.clone();
-                let calling_class = context.function_context.calling_class.as_ref();
-
-                for reference in &param_type.get_all_references() {
-                    if let Some(member_id) = reference.1 {
-                        match context.function_context.calling_functionlike_id {
-                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                tast_info
-                                    .symbol_references
-                                    .add_symbol_reference_to_class_member(
+                for type_node in param_type.get_all_child_nodes() {
+                    match type_node {
+                        hakana_reflection_info::t_union::TypeNode::Atomic(atomic) => match atomic {
+                            TAtomic::TReference { name, .. }
+                            | TAtomic::TClosureAlias {
+                                id: FunctionLikeIdentifier::Function(name),
+                            } => match context.function_context.calling_functionlike_id {
+                                Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                                    tast_info.symbol_references.add_symbol_reference_to_symbol(
                                         calling_function,
-                                        (reference.0, member_id),
+                                        *name,
                                         true,
                                     );
-                            }
-                            Some(FunctionLikeIdentifier::Method(
-                                calling_classlike,
-                                calling_function,
-                            )) => {
-                                tast_info
-                                    .symbol_references
-                                    .add_class_member_reference_to_class_member(
-                                        (calling_classlike, calling_function),
-                                        (reference.0, member_id),
-                                        true,
-                                    );
-                            }
-                            _ => {}
-                        }
-                    } else {
-                        match context.function_context.calling_functionlike_id {
-                            Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                tast_info.symbol_references.add_symbol_reference_to_symbol(
+                                }
+                                Some(FunctionLikeIdentifier::Method(
+                                    calling_classlike,
                                     calling_function,
-                                    reference.0,
-                                    true,
-                                );
+                                )) => {
+                                    tast_info
+                                        .symbol_references
+                                        .add_class_member_reference_to_symbol(
+                                            (calling_classlike, calling_function),
+                                            *name,
+                                            true,
+                                        );
+                                }
+                                _ => {}
+                            },
+
+                            TAtomic::TEnumLiteralCase {
+                                enum_name: name,
+                                member_name,
+                                ..
                             }
-                            Some(FunctionLikeIdentifier::Method(
-                                calling_classlike,
-                                calling_function,
-                            )) => {
-                                tast_info
-                                    .symbol_references
-                                    .add_class_member_reference_to_symbol(
-                                        (calling_classlike, calling_function),
-                                        reference.0,
-                                        true,
-                                    );
-                            }
+                            | TAtomic::TClosureAlias {
+                                id: FunctionLikeIdentifier::Method(name, member_name),
+                            } => match context.function_context.calling_functionlike_id {
+                                Some(FunctionLikeIdentifier::Function(calling_function)) => {
+                                    tast_info
+                                        .symbol_references
+                                        .add_symbol_reference_to_class_member(
+                                            calling_function,
+                                            (*name, *member_name),
+                                            true,
+                                        );
+                                }
+                                Some(FunctionLikeIdentifier::Method(
+                                    calling_classlike,
+                                    calling_function,
+                                )) => {
+                                    tast_info
+                                        .symbol_references
+                                        .add_class_member_reference_to_class_member(
+                                            (calling_classlike, calling_function),
+                                            (*name, *member_name),
+                                            true,
+                                        );
+                                }
+                                _ => {}
+                            },
+                            TAtomic::TClassTypeConstant {
+                                class_type,
+                                member_name,
+                            } => match class_type.as_ref() {
+                                TAtomic::TNamedObject { name, .. }
+                                | TAtomic::TReference { name, .. } => {
+                                    match context.function_context.calling_functionlike_id {
+                                        Some(FunctionLikeIdentifier::Function(
+                                            calling_function,
+                                        )) => {
+                                            tast_info
+                                                .symbol_references
+                                                .add_symbol_reference_to_class_member(
+                                                    calling_function,
+                                                    (*name, *member_name),
+                                                    true,
+                                                );
+                                        }
+                                        Some(FunctionLikeIdentifier::Method(
+                                            calling_classlike,
+                                            calling_function,
+                                        )) => {
+                                            tast_info
+                                                .symbol_references
+                                                .add_class_member_reference_to_class_member(
+                                                    (calling_classlike, calling_function),
+                                                    (*name, *member_name),
+                                                    true,
+                                                );
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                _ => {}
+                            },
                             _ => {}
-                        }
+                        },
+                        _ => {}
                     }
                 }
 
-                type_expander::expand_union(
-                    self.file_analyzer.get_codebase(),
-                    &mut param_type,
-                    &TypeExpansionOptions {
-                        self_class: calling_class.clone(),
-                        static_class_type: if let Some(calling_class) = calling_class {
-                            StaticClassType::Name(calling_class)
-                        } else {
-                            StaticClassType::None
-                        },
-                        evaluate_class_constants: true,
-                        evaluate_conditional_types: true,
-                        function_is_final: if let Some(method_info) =
-                            &functionlike_storage.method_info
-                        {
-                            method_info.is_final
-                        } else {
-                            false
-                        },
-                        expand_generic: true,
-                        expand_templates: true,
-                        file_path: Some(statements_analyzer.get_file_path()),
+                let mut has_any = false;
 
-                        ..Default::default()
-                    },
-                    &mut tast_info.data_flow_graph,
-                );
-                param_type
-            } else {
-                get_mixed_any()
-            };
-
-            for type_node in param_type.get_all_child_nodes() {
-                match type_node {
-                    hakana_reflection_info::t_union::TypeNode::Atomic(TAtomic::TReference {
-                        name,
-                        ..
-                    }) => {
+                if param_type.is_mixed_with_any(&mut has_any) {
+                    if has_any {
                         tast_info.add_issue(Issue::new(
-                            IssueKind::NonExistentClasslike,
-                            format!(
-                                "Class, enum or interface {} cannot be found",
-                                statements_analyzer.get_codebase().interner.lookup(name)
-                            ),
+                            IssueKind::UnrecognizedType,
+                            "Hakana does not understand this type".to_string(),
                             if let Some(type_location) = &param.signature_type_location {
                                 type_location.clone()
                             } else {
                                 param.location.clone().unwrap()
                             },
                         ));
-
-                        return false;
                     }
-                    _ => {}
+
+                    param_type.clone()
+                } else {
+                    let mut param_type = param_type.clone();
+                    let calling_class = context.function_context.calling_class.as_ref();
+
+                    type_expander::expand_union(
+                        self.file_analyzer.get_codebase(),
+                        &mut param_type,
+                        &TypeExpansionOptions {
+                            self_class: calling_class.clone(),
+                            static_class_type: if let Some(calling_class) = calling_class {
+                                StaticClassType::Name(calling_class)
+                            } else {
+                                StaticClassType::None
+                            },
+                            evaluate_class_constants: true,
+                            evaluate_conditional_types: true,
+                            function_is_final: if let Some(method_info) =
+                                &functionlike_storage.method_info
+                            {
+                                method_info.is_final
+                            } else {
+                                false
+                            },
+                            expand_generic: true,
+                            expand_templates: true,
+                            file_path: Some(statements_analyzer.get_file_path()),
+
+                            ..Default::default()
+                        },
+                        &mut tast_info.data_flow_graph,
+                    );
+
+                    for type_node in param_type.get_all_child_nodes() {
+                        match type_node {
+                            hakana_reflection_info::t_union::TypeNode::Atomic(
+                                TAtomic::TReference { name, .. },
+                            ) => {
+                                tast_info.add_issue(Issue::new(
+                                    IssueKind::NonExistentClasslike,
+                                    format!(
+                                        "Class, enum or interface {} cannot be found",
+                                        statements_analyzer.get_codebase().interner.lookup(name)
+                                    ),
+                                    if let Some(type_location) = &param.signature_type_location {
+                                        type_location.clone()
+                                    } else {
+                                        param.location.clone().unwrap()
+                                    },
+                                ));
+
+                                return false;
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    param_type
                 }
-            }
+            } else {
+                get_mixed_any()
+            };
 
             let param_node = &params[i];
 

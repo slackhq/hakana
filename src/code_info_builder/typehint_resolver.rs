@@ -351,13 +351,12 @@ fn get_template_type(
     defining_entities: &FxHashMap<StrId, Arc<TUnion>>,
     type_name: &String,
 ) -> TAtomic {
-    let as_type = defining_entities.values().next().unwrap().clone();
-    let defining_entity = defining_entities.keys().next().unwrap().clone();
+    let (defining_entity, as_type) = defining_entities.iter().next().unwrap();
 
     return TAtomic::TGenericParam {
         param_name: type_name.clone(),
-        as_type: (*as_type).clone(),
-        defining_entity,
+        as_type: (**as_type).clone(),
+        defining_entity: *defining_entity,
         from_class: false,
         extra_types: None,
     };

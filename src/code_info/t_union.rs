@@ -3,7 +3,7 @@ use crate::{
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
     t_atomic::{populate_atomic_type, DictKey, TAtomic},
-    Interner, StrId,
+    Interner,
 };
 use core::panic;
 use itertools::Itertools;
@@ -682,16 +682,6 @@ impl TUnion {
         self.types
             .iter()
             .all(|t| t.is_json_compatible(banned_type_aliases))
-    }
-
-    pub fn get_all_references(&self) -> Vec<(StrId, Option<StrId>)> {
-        let mut all_references = vec![];
-
-        for atomic in &self.types {
-            all_references.extend(atomic.get_all_references())
-        }
-
-        all_references
     }
 }
 

@@ -102,6 +102,7 @@ pub enum IssueKind {
     UnrecognizedBinaryOp,
     UnrecognizedExpression,
     UnrecognizedStatement,
+    UnrecognizedType,
     UnrecognizedUnaryOp,
     UnusedAssignment,
     UnusedAssignmentInClosure,
