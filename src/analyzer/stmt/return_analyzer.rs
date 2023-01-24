@@ -515,14 +515,7 @@ fn handle_dataflow(
 
         for at in &inferred_type.types {
             if let Some(shape_name) = at.get_shape_name() {
-                let shape_name_id = if let Some(shape_name_id) = codebase.interner.get(shape_name) {
-                    shape_name_id
-                } else {
-                    // this happens with class constant types
-                    break;
-                };
-
-                if let Some(t) = codebase.type_definitions.get(&shape_name_id) {
+                if let Some(t) = codebase.type_definitions.get(&shape_name) {
                     if t.shape_field_taints.is_some() {
                         return;
                     }

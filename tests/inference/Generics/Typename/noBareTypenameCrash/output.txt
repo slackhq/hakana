@@ -1,1 +1,0 @@
-ERROR: UnrecognizedType - input.hack:1:29 - Hakana does not understand this type

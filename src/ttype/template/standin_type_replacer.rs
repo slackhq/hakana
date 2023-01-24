@@ -198,6 +198,10 @@ fn handle_atomic_standin(
                     input_type,
                     input_arg_offset,
                     calling_class,
+                    calling_function,
+                    true,
+                    add_lower_bound,
+                    bound_equality_classlike,
                     depth,
                     was_single,
                 );
@@ -646,6 +650,29 @@ fn replace_atomic(
                 template_result,
                 codebase,
                 if let Some(TAtomic::TClassname {
+                    as_type: input_as_type,
+                }) = input_type
+                {
+                    Some(*input_as_type)
+                } else {
+                    None
+                },
+                input_arg_offset,
+                calling_class,
+                calling_function,
+                replace,
+                add_lower_bound,
+                depth,
+            ));
+
+            return atomic_type;
+        }
+        TAtomic::TTypename { ref mut as_type } => {
+            *as_type = Box::new(replace_atomic(
+                &as_type,
+                template_result,
+                codebase,
+                if let Some(TAtomic::TTypename {
                     as_type: input_as_type,
                 }) = input_type
                 {
@@ -1234,15 +1261,21 @@ fn handle_template_param_type_standin(
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
+    calling_function: Option<&FunctionLikeIdentifier>,
+    replace: bool,
+    add_lower_bound: bool,
+    bound_equality_classlike: Option<&String>,
     depth: usize,
     was_single: bool,
 ) -> Vec<TAtomic> {
     if let TAtomic::TGenericTypename {
         defining_entity,
+        as_type,
         param_name,
         ..
     } = atomic_type
     {
+        let mut atomic_type_as = *as_type.clone();
         if let Some(calling_class) = calling_class {
             if defining_entity == calling_class {
                 return vec![atomic_type.clone()];
@@ -1264,24 +1297,26 @@ fn handle_template_param_type_standin(
 
             for input_atomic_type in &input_type.types {
                 if let TAtomic::TLiteralClassname { name } = input_atomic_type {
-                    valid_input_atomic_types.push(TAtomic::TTypeAlias {
-                        name: name.clone(),
-                        type_params: None,
-                        as_type: None,
-                    });
+                    if let Some(typedefinition_info) = codebase.type_definitions.get(name) {
+                        valid_input_atomic_types
+                            .extend(typedefinition_info.actual_type.clone().types);
+                    }
                 } else if let TAtomic::TGenericTypename {
                     param_name,
+                    as_type,
                     defining_entity,
                     ..
                 } = input_atomic_type
                 {
                     valid_input_atomic_types.push(TAtomic::TGenericParam {
                         param_name: param_name.clone(),
-                        as_type: get_mixed_any(),
+                        as_type: wrap_atomic(*as_type.clone()),
                         defining_entity: defining_entity.clone(),
                         from_class: false,
                         extra_types: None,
                     });
+                } else if let TAtomic::TTypename { .. } = input_atomic_type {
+                    valid_input_atomic_types.push(atomic_type_as.clone());
                 }
             }
 
@@ -1291,6 +1326,29 @@ fn handle_template_param_type_standin(
                 Some(get_mixed_any())
             } else {
                 None
+            };
+
+            // sometimes templated class-strings can contain nested templates
+            // in the as type that need to be resolved as well.
+
+            let as_type_union = self::replace(
+                &TUnion::new(vec![atomic_type_as.clone()]),
+                template_result,
+                codebase,
+                &generic_param,
+                input_arg_offset,
+                calling_class,
+                calling_function,
+                replace,
+                add_lower_bound,
+                bound_equality_classlike,
+                depth,
+            );
+
+            atomic_type_as = if as_type_union.is_single() {
+                as_type_union.get_single().clone()
+            } else {
+                TAtomic::TObject
             };
 
             if let Some(generic_param) = generic_param {
@@ -1336,16 +1394,29 @@ fn handle_template_param_type_standin(
                 .unwrap();
 
             for template_atomic_type in &template_type.types {
-                if let TAtomic::TNamedObject { .. } | TAtomic::TObject = &template_atomic_type {
-                    atomic_types.push(TAtomic::TClassname {
-                        as_type: Box::new(template_atomic_type.clone()),
-                    });
-                }
+                atomic_types.push(TAtomic::TClassname {
+                    as_type: Box::new(template_atomic_type.clone()),
+                });
             }
         }
 
         if atomic_types.is_empty() {
-            atomic_types.push(TAtomic::TString);
+            if let TAtomic::TGenericParam {
+                param_name,
+                defining_entity,
+                ..
+            } = &atomic_type_as
+            {
+                atomic_types.push(TAtomic::TGenericTypename {
+                    param_name: param_name.clone(),
+                    as_type: Box::new(atomic_type_as.clone()),
+                    defining_entity: defining_entity.clone(),
+                });
+            } else {
+                atomic_types.push(TAtomic::TTypename {
+                    as_type: Box::new(atomic_type_as),
+                });
+            }
         }
 
         atomic_types
@@ -1512,7 +1583,7 @@ fn find_matching_atomic_types_for_template(
                     base_type,
                     normalized_key,
                     codebase,
-                    &wrap_atomic((**as_type).clone()),
+                    as_type,
                 ));
             }
             TAtomic::TEnumClassLabel {

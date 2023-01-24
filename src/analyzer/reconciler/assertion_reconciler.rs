@@ -380,14 +380,14 @@ pub(crate) fn intersect_atomic_with_atomic(
                 ..
             },
             _,
-        ) => return intersect_atomic_with_atomic(type_1_as, type_2_atomic, codebase),
+        ) => return intersect_atomic_with_atomic(type_1_as.get_single(), type_2_atomic, codebase),
         (
             _,
             TAtomic::TTypeAlias {
                 as_type: Some(type_2_as),
                 ..
             },
-        ) => return intersect_atomic_with_atomic(type_1_atomic, type_2_as, codebase),
+        ) => return intersect_atomic_with_atomic(type_1_atomic, type_2_as.get_single(), codebase),
         (
             TAtomic::TNamedObject {
                 name: type_1_name, ..

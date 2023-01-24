@@ -221,6 +221,9 @@ fn expand_atomic(
         return;
     } else if let TAtomic::TClassname {
         ref mut as_type, ..
+    }
+    | TAtomic::TTypename {
+        ref mut as_type, ..
     } = return_type_part
     {
         let mut atomic_return_type_parts = vec![];
@@ -381,7 +384,7 @@ fn expand_atomic(
 
                                 data_flow_graph.add_node(shape_node);
                             }
-                            *shape_name = Some(codebase.interner.lookup(type_name).to_string());
+                            *shape_name = Some((*type_name, None));
                         };
                     }
                     v
@@ -417,9 +420,7 @@ fn expand_atomic(
 
                 expand_union(codebase, &mut definition_as_type, options, data_flow_graph);
 
-                if definition_as_type.is_single() {
-                    *as_type = Some(Box::new(definition_as_type.get_single_owned()));
-                }
+                *as_type = Some(definition_as_type);
             }
         }
 
@@ -481,11 +482,7 @@ fn expand_atomic(
                             ..
                         } = v
                         {
-                            *shape_name = Some(format!(
-                                "{}::{}",
-                                codebase.interner.lookup(class_name),
-                                codebase.interner.lookup(member_name),
-                            ));
+                            *shape_name = Some((*class_name, Some(*member_name)));
                         };
                         v
                     }));

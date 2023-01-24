@@ -117,37 +117,44 @@ pub fn replace(
                 .get(defining_entity)
             {
                 let template_type = get_most_specific_type_from_bounds(bounds, codebase);
+
                 let mut class_template_type = None;
 
                 for template_type_part in &template_type.types {
                     if template_type_part.is_mixed() {
-                        class_template_type = Some(TAtomic::TString);
-                    } else if let TAtomic::TNamedObject { .. } = template_type_part {
-                        class_template_type = Some(TAtomic::TClassname {
-                            as_type: Box::new(template_type_part.clone()),
+                        class_template_type = Some(TAtomic::TTypename {
+                            as_type: Box::new(TAtomic::TObject),
+                        });
+                    } else if let TAtomic::TDict {
+                        shape_name: Some((type_name, None)),
+                        ..
+                    }
+                    | TAtomic::TTypeAlias {
+                        name: type_name, ..
+                    } = template_type_part
+                    {
+                        class_template_type = Some(TAtomic::TTypename {
+                            as_type: Box::new(TAtomic::TTypeAlias {
+                                name: *type_name,
+                                type_params: None,
+                                as_type: None,
+                            }),
                         });
                     } else if let TAtomic::TGenericParam {
+                        as_type,
                         param_name,
                         defining_entity,
                         ..
                     } = template_type_part
                     {
-                        class_template_type = Some(TAtomic::TGenericTypename {
+                        let first_atomic_type = as_type.get_single();
+
+                        class_template_type = Some(TAtomic::TGenericClassname {
                             param_name: param_name.clone(),
+                            as_type: Box::new(first_atomic_type.clone()),
                             defining_entity: defining_entity.clone(),
                         })
-                    } else if let TAtomic::TTypeAlias { .. } = template_type_part {
-                        class_template_type = Some(template_type_part.clone());
                     }
-                    // else if let TAtomic::TDict {
-                    //     shape_name: Some(shape_name),
-                    //     ..
-                    // } = template_type_part
-                    // {
-                    //     class_template_type = Some(TAtomic::TLiteralClassname {
-                    //         name: shape_name.clone(),
-                    //     });
-                    // }
                 }
 
                 if let Some(class_template_type) = class_template_type {

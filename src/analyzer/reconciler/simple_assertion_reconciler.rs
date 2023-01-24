@@ -53,6 +53,7 @@ pub(crate) fn reconcile(
                         | TAtomic::TArraykey { .. }
                         | TAtomic::TBool { .. }
                         | TAtomic::TClassname { .. }
+                        | TAtomic::TTypename { .. }
                         | TAtomic::TFalse
                         | TAtomic::TFloat
                         | TAtomic::TInt { .. }
@@ -1046,6 +1047,7 @@ fn intersect_string(
             TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TClassname { .. }
+            | TAtomic::TTypename { .. }
             | TAtomic::TStringWithFlags(..)
             | TAtomic::TString { .. } => {
                 acceptable_types.push(atomic.clone());

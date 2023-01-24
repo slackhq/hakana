@@ -375,7 +375,7 @@ fn adjust_array_type(
             ..
         } = base_atomic_type
         {
-            *base_atomic_type = (**as_type).clone();
+            *base_atomic_type = as_type.get_single().clone();
         }
 
         match base_atomic_type {
@@ -768,7 +768,7 @@ fn get_value_for_key(
                         ..
                     } = existing_key_type_part
                     {
-                        existing_key_type_part = *as_type.clone();
+                        existing_key_type_part = as_type.get_single().clone();
                     }
 
                     let mut new_base_type_candidate;

@@ -519,6 +519,14 @@ pub fn get_atomic_syntax_type(
             str += ">";
             str
         }
+        TAtomic::TTypename { as_type, .. } => {
+            let as_string = get_atomic_syntax_type(as_type, codebase, is_valid);
+            let mut str = String::new();
+            str += "typename<";
+            str += as_string.as_str();
+            str += ">";
+            str
+        }
         TAtomic::TDict {
             params,
             known_items,
@@ -526,7 +534,15 @@ pub fn get_atomic_syntax_type(
             ..
         } => {
             if let Some(shape_name) = shape_name {
-                return shape_name.clone();
+                return if let Some(shape_member_name) = &shape_name.1 {
+                    format!(
+                        "{}::{}",
+                        codebase.interner.lookup(&shape_name.0),
+                        codebase.interner.lookup(shape_member_name)
+                    )
+                } else {
+                    codebase.interner.lookup(&shape_name.0).to_string()
+                };
             }
 
             if let Some(known_items) = known_items {
@@ -640,7 +656,9 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TString { .. } => "string".to_string(),
-        TAtomic::TGenericParam { param_name, .. } => codebase.interner.lookup(param_name).to_string(),
+        TAtomic::TGenericParam { param_name, .. } => {
+            codebase.interner.lookup(param_name).to_string()
+        }
         TAtomic::TGenericClassname {
             param_name,
             defining_entity,

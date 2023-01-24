@@ -3,7 +3,7 @@ use crate::{
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
     t_atomic::{populate_atomic_type, DictKey, TAtomic},
-    Interner,
+    Interner, StrId,
 };
 use core::panic;
 use itertools::Itertools;
@@ -628,7 +628,7 @@ impl TUnion {
                     type_params: Some(_),
                 } => {
                     if name == &interner.get("HH\\Lib\\Regex\\Pattern").unwrap() {
-                        if let TAtomic::TLiteralString { value, .. } = &**as_type {
+                        if let TAtomic::TLiteralString { value, .. } = as_type.get_single() {
                             Some(value.clone())
                         } else {
                             None
@@ -678,7 +678,7 @@ impl TUnion {
         !self.populated && self.types.iter().any(|v| v.needs_population())
     }
 
-    pub fn is_json_compatible(&self, banned_type_aliases: &Vec<&str>) -> bool {
+    pub fn is_json_compatible(&self, banned_type_aliases: &Vec<StrId>) -> bool {
         self.types
             .iter()
             .all(|t| t.is_json_compatible(banned_type_aliases))
@@ -747,7 +747,11 @@ pub fn populate_union_type(
 
     for atomic in types.iter_mut() {
         if let TAtomic::TClassname { ref mut as_type }
+        | TAtomic::TTypename { ref mut as_type }
         | TAtomic::TGenericClassname {
+            ref mut as_type, ..
+        }
+        | TAtomic::TGenericTypename {
             ref mut as_type, ..
         } = atomic
         {

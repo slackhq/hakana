@@ -742,15 +742,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                 if param_type.is_mixed_with_any(&mut has_any) {
                     if has_any {
-                        tast_info.add_issue(Issue::new(
-                            IssueKind::UnrecognizedType,
-                            "Hakana does not understand this type".to_string(),
-                            if let Some(type_location) = &param.signature_type_location {
-                                type_location.clone()
-                            } else {
-                                param.location.clone().unwrap()
-                            },
-                        ));
+                        if let Some(type_location) = &param.signature_type_location {
+                            tast_info.add_issue(Issue::new(
+                                IssueKind::UnrecognizedType,
+                                "Hakana does not understand this type".to_string(),
+                                type_location.clone(),
+                            ));
+                        }
                     }
 
                     param_type.clone()

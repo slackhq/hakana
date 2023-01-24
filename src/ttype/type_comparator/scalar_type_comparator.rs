@@ -320,7 +320,9 @@ pub fn is_contained_by(
             container_is_nonempty,
             container_is_nonspecific_literal,
         ) => match input_type_part {
-            TAtomic::TLiteralClassname { .. } | TAtomic::TClassname { .. } => {
+            TAtomic::TLiteralClassname { .. }
+            | TAtomic::TClassname { .. }
+            | TAtomic::TTypename { .. } => {
                 return true;
             }
             TAtomic::TStringWithFlags(
@@ -356,7 +358,9 @@ pub fn is_contained_by(
     if matches!(input_type_part, TAtomic::TStringWithFlags(false, true, _))
         && matches!(
             container_type_part,
-            TAtomic::TLiteralClassname { .. } | TAtomic::TClassname { .. }
+            TAtomic::TLiteralClassname { .. }
+                | TAtomic::TClassname { .. }
+                | TAtomic::TTypename { .. }
         )
     {
         atomic_comparison_result.type_coerced = Some(true);
@@ -384,12 +388,38 @@ pub fn is_contained_by(
         }
     }
 
-    // Foo::class into classname<Bar>
+    if let TAtomic::TTypename {
+        as_type: container_name,
+        ..
+    } = container_type_part
+    {
+        if let TAtomic::TTypename {
+            as_type: input_name,
+            ..
+        } = input_type_part
+        {
+            return atomic_type_comparator::is_contained_by(
+                codebase,
+                input_name,
+                container_name,
+                inside_assertion,
+                atomic_comparison_result,
+            );
+        }
+    }
+
+    // Foo::class into classname<Bar> or typename<Bar>
     if let TAtomic::TClassname {
+        as_type: container_name,
+    }
+    | TAtomic::TTypename {
+        as_type: container_name,
+    }
+    | TAtomic::TGenericClassname {
         as_type: container_name,
         ..
     }
-    | TAtomic::TGenericClassname {
+    | TAtomic::TGenericTypename {
         as_type: container_name,
         ..
     } = container_type_part
@@ -403,6 +433,8 @@ pub fn is_contained_by(
                     name: input_name.clone(),
                     base_type: None,
                 }
+            } else if let Some(typedef_info) = codebase.type_definitions.get(input_name) {
+                typedef_info.actual_type.clone().get_single_owned()
             } else {
                 TAtomic::TNamedObject {
                     name: input_name.clone(),
@@ -412,6 +444,7 @@ pub fn is_contained_by(
                     remapped_params: false,
                 }
             };
+
             return atomic_type_comparator::is_contained_by(
                 codebase,
                 &input_type,

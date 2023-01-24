@@ -85,7 +85,7 @@ pub(crate) fn analyze(
                     non_empty: true,
                     shape_name: None,
                 })]),
-                as_type: Some(Box::new(TAtomic::TLiteralString { value: inner_text })),
+                as_type: Some(wrap_atomic(TAtomic::TLiteralString { value: inner_text })),
             })
         } else {
             inner_type

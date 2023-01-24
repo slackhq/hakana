@@ -48,7 +48,7 @@ pub enum TAtomic {
         known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
         params: Option<(TUnion, TUnion)>,
         non_empty: bool,
-        shape_name: Option<String>,
+        shape_name: Option<(StrId, Option<StrId>)>,
     },
     TEnum {
         name: StrId,
@@ -120,18 +120,22 @@ pub enum TAtomic {
     },
     TGenericClassname {
         param_name: StrId,
-        as_type: Box<crate::t_atomic::TAtomic>,
         defining_entity: StrId,
+        as_type: Box<crate::t_atomic::TAtomic>,
     },
     TGenericTypename {
         param_name: StrId,
         defining_entity: StrId,
+        as_type: Box<crate::t_atomic::TAtomic>,
     },
     TTrue,
     TTypeAlias {
         name: StrId,
         type_params: Option<Vec<TUnion>>,
-        as_type: Option<Box<TAtomic>>,
+        as_type: Option<TUnion>,
+    },
+    TTypename {
+        as_type: Box<self::TAtomic>,
     },
     TVec {
         known_items: Option<BTreeMap<usize, (bool, TUnion)>>,
@@ -164,6 +168,13 @@ impl TAtomic {
                 str += ">";
                 return str;
             }
+            TAtomic::TTypename { as_type, .. } => {
+                let mut str = String::new();
+                str += "typename<";
+                str += (&*as_type).get_id(interner).as_str();
+                str += ">";
+                return str;
+            }
             TAtomic::TDict {
                 params,
                 known_items,
@@ -171,7 +182,23 @@ impl TAtomic {
                 ..
             } => {
                 if let Some(shape_name) = shape_name {
-                    return format!("shape-from({})", shape_name);
+                    return if let Some(interner) = interner {
+                        if let Some(shape_member_name) = &shape_name.1 {
+                            format!(
+                                "shape-from({}::{})",
+                                interner.lookup(&shape_name.0),
+                                interner.lookup(shape_member_name)
+                            )
+                        } else {
+                            format!("shape-from({})", interner.lookup(&shape_name.0),)
+                        }
+                    } else {
+                        if let Some(shape_member_name) = &shape_name.1 {
+                            format!("shape-from({}::{})", shape_name.0 .0, shape_member_name.0)
+                        } else {
+                            format!("shape-from({})", shape_name.0 .0)
+                        }
+                    };
                 }
 
                 let mut str = String::new();
@@ -599,6 +626,13 @@ impl TAtomic {
                 str += ">";
                 return str;
             }
+            TAtomic::TTypename { as_type, .. } => {
+                let mut str = String::new();
+                str += "typename<";
+                str += (&*as_type).get_key().as_str();
+                str += ">";
+                return str;
+            }
             TAtomic::TFalse { .. }
             | TAtomic::TFloat { .. }
             | TAtomic::TClosure { .. }
@@ -840,9 +874,12 @@ impl TAtomic {
         }
     }
 
-    pub fn get_shape_name(&self) -> Option<&String> {
+    pub fn get_shape_name(&self) -> Option<&StrId> {
         match self {
-            TAtomic::TDict { shape_name, .. } => shape_name.as_ref(),
+            TAtomic::TDict {
+                shape_name: Some((shape_name, None)),
+                ..
+            } => Some(shape_name),
             _ => None,
         }
     }
@@ -858,6 +895,7 @@ impl TAtomic {
             | TAtomic::TArraykey { .. }
             | TAtomic::TBool { .. }
             | TAtomic::TClassname { .. }
+            | TAtomic::TTypename { .. }
             | TAtomic::TFalse { .. }
             | TAtomic::TFloat { .. }
             | TAtomic::TInt { .. }
@@ -878,6 +916,7 @@ impl TAtomic {
             TAtomic::TArraykey { .. }
             | TAtomic::TBool { .. }
             | TAtomic::TClassname { .. }
+            | TAtomic::TTypename { .. }
             | TAtomic::TFalse { .. }
             | TAtomic::TFloat { .. }
             | TAtomic::TInt { .. }
@@ -910,6 +949,7 @@ impl TAtomic {
             | TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TClassname { .. }
+            | TAtomic::TTypename { .. }
             | TAtomic::TGenericClassname { .. }
             | TAtomic::TGenericTypename { .. }
             | TAtomic::TStringWithFlags { .. } => true,
@@ -924,6 +964,7 @@ impl TAtomic {
             TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TClassname { .. }
+            | TAtomic::TTypename { .. }
             | TAtomic::TGenericClassname { .. }
             | TAtomic::TGenericTypename { .. }
             | TAtomic::TStringWithFlags { .. } => true,
@@ -1024,7 +1065,8 @@ impl TAtomic {
             | &TAtomic::TObject { .. }
             | &TAtomic::TClosure { .. }
             | &TAtomic::TLiteralClassname { .. }
-            | &TAtomic::TClassname { .. } => true,
+            | &TAtomic::TClassname { .. }
+            | &TAtomic::TTypename { .. } => true,
             &TAtomic::TNamedObject { name, .. } => match interner.lookup(name) {
                 "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" => false,
                 _ => true,
@@ -1165,7 +1207,9 @@ impl TAtomic {
     pub fn needs_population(&self) -> bool {
         match self {
             TAtomic::TGenericClassname { .. }
+            | TAtomic::TGenericTypename { .. }
             | TAtomic::TClassname { .. }
+            | TAtomic::TTypename { .. }
             | TAtomic::TDict { .. }
             | TAtomic::TClosure { .. }
             | TAtomic::TKeyset { .. }
@@ -1347,7 +1391,7 @@ impl TAtomic {
                 type_params: Some(_),
             } => {
                 if name == &interner.get("HH\\Lib\\Regex\\Pattern").unwrap() {
-                    if let TAtomic::TLiteralString { value, .. } = &**as_type {
+                    if let TAtomic::TLiteralString { value, .. } = as_type.get_single() {
                         Some(value.clone())
                     } else {
                         None
@@ -1367,7 +1411,7 @@ impl TAtomic {
         }
     }
 
-    pub(crate) fn is_json_compatible(&self, banned_type_aliases: &Vec<&str>) -> bool {
+    pub(crate) fn is_json_compatible(&self, banned_type_aliases: &Vec<StrId>) -> bool {
         if self.is_some_scalar() {
             return true;
         }
@@ -1399,8 +1443,8 @@ impl TAtomic {
                 shape_name,
                 ..
             } => {
-                if let Some(shape_name) = shape_name {
-                    if banned_type_aliases.contains(&shape_name.as_str()) {
+                if let Some((shape_name, None)) = shape_name {
+                    if banned_type_aliases.contains(&shape_name) {
                         return false;
                     }
                 }
@@ -1552,13 +1596,13 @@ impl HasTypeNodes for TAtomic {
                 match as_type {
                     None => {}
                     Some(as_type) => {
-                        nodes.push(TypeNode::Atomic(as_type));
+                        nodes.push(TypeNode::Union(as_type));
                     }
                 };
 
                 nodes
             }
-            TAtomic::TClassname { as_type } => {
+            TAtomic::TClassname { as_type } | TAtomic::TTypename { as_type } => {
                 vec![TypeNode::Atomic(&as_type)]
             }
             _ => vec![],
@@ -1759,7 +1803,7 @@ pub fn populate_atomic_type(
                 // println!("Uknown symbol {}", name);
             }
         }
-        TAtomic::TClassname { as_type } => {
+        TAtomic::TClassname { as_type } | TAtomic::TTypename { as_type } => {
             populate_atomic_type(
                 as_type,
                 codebase_symbols,

@@ -743,7 +743,7 @@ pub fn is_contained_by(
         if let Some(as_type) = as_type {
             return is_contained_by(
                 codebase,
-                as_type,
+                as_type.get_single(),
                 container_type_part,
                 inside_assertion,
                 atomic_comparison_result,
@@ -762,7 +762,7 @@ pub(crate) fn can_be_identical<'a>(
 ) -> bool {
     while let TAtomic::TTypeAlias { as_type, name, .. } = type1_part {
         if let Some(as_type) = as_type {
-            type1_part = as_type;
+            type1_part = as_type.get_single();
         } else if inside_assertion {
             let type_alias_info = codebase.type_definitions.get(name).unwrap();
             type1_part = type_alias_info.actual_type.get_single();
@@ -773,7 +773,7 @@ pub(crate) fn can_be_identical<'a>(
 
     while let TAtomic::TTypeAlias { as_type, name, .. } = type2_part {
         if let Some(as_type) = as_type {
-            type2_part = as_type;
+            type2_part = as_type.get_single();
         } else if inside_assertion {
             let type_alias_info = codebase.type_definitions.get(name).unwrap();
             type2_part = type_alias_info.actual_type.get_single();

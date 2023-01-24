@@ -115,18 +115,23 @@ fn get_typename_type_from_hint(
     if let Some(inner_type) =
         get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
     {
+        let as_type = inner_type.get_single_owned();
+
         if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
             ..
-        } = inner_type.get_single_owned()
+        } = &as_type
         {
             TAtomic::TGenericTypename {
-                param_name,
-                defining_entity,
+                param_name: param_name.clone(),
+                defining_entity: defining_entity.clone(),
+                as_type: Box::new(as_type),
             }
         } else {
-            TAtomic::TMixedWithFlags(true, false, false, false)
+            TAtomic::TTypename {
+                as_type: Box::new(as_type),
+            }
         }
     } else {
         TAtomic::TMixedWithFlags(true, false, false, false)

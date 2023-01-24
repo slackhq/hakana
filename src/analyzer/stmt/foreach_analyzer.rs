@@ -228,7 +228,7 @@ fn check_iterator_type(
             ..
         } = iterator_atomic_type
         {
-            iterator_atomic_type = (*as_type).clone();
+            iterator_atomic_type = as_type.get_single().clone();
         }
 
         match &iterator_atomic_type {

@@ -83,7 +83,7 @@ pub(crate) fn analyze(
         ..
     } = &lhs_type_part
     {
-        lhs_type_part = as_type;
+        lhs_type_part = as_type.get_single();
     }
 
     let codebase = statements_analyzer.get_codebase();
