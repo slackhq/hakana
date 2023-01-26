@@ -8,6 +8,7 @@ use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::FnEffect;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
@@ -25,6 +26,7 @@ use hakana_reflection_info::StrId;
 use hakana_reflection_info::ThreadedInterner;
 use hakana_type::get_mixed_any;
 use oxidized::aast;
+use oxidized::aast::Stmt;
 use oxidized::ast::UserAttribute;
 use oxidized::ast_defs;
 use oxidized::ast_defs::Pos;
@@ -68,6 +70,7 @@ pub(crate) fn scan_method(
         Some(&m.name.0),
         &m.tparams,
         &m.params,
+        &m.body.fb_ast,
         &m.ret,
         &m.fun_kind,
         &m.user_attributes,
@@ -206,6 +209,7 @@ pub(crate) fn get_functionlike(
     name_pos: Option<&Pos>,
     tparams: &Vec<aast::Tparam<(), ()>>,
     params: &Vec<aast::FunParam<(), ()>>,
+    stmts: &Vec<Stmt<(), ()>>,
     ret: &aast::TypeHint<()>,
     fun_kind: &ast_defs::FunKind,
     user_attributes: &Vec<UserAttribute>,
@@ -470,9 +474,64 @@ pub(crate) fn get_functionlike(
         functionlike_info.specialize_call = true;
     }
 
+    if stmts.len() == 1 {
+        let stmt = &stmts[0];
+
+        if let Some(function_id) = get_async_version(stmt, resolved_names, interner) {
+            functionlike_info.async_version = Some(function_id);
+        }
+    }
+
     // todo light inference based on function body contents
 
     functionlike_info
+}
+
+fn get_async_version(
+    stmt: &Stmt<(), ()>,
+    resolved_names: &FxHashMap<usize, StrId>,
+    interner: &mut ThreadedInterner,
+) -> Option<FunctionLikeIdentifier> {
+    if let aast::Stmt_::Expr(expr) = &stmt.1 {
+        if let aast::Expr_::Call(call) = &expr.2 {
+            if let aast::Expr_::Id(boxed_id) = &call.0 .2 {
+                if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset()) {
+                    if interner.lookup(*fn_id) == "HH\\Asio\\join" && call.2.len() == 1 {
+                        match &call.2[0].1 .2 {
+                            aast::Expr_::Call(call) => {
+                                if let aast::Expr_::Id(boxed_id) = &call.0 .2 {
+                                    if let Some(fn_id) =
+                                        resolved_names.get(&boxed_id.0.start_offset())
+                                    {
+                                        return Some(FunctionLikeIdentifier::Function(*fn_id));
+                                    }
+                                }
+                            }
+                            aast::Expr_::ClassConst(boxed) => {
+                                let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
+
+                                if let aast::ClassId_::CIexpr(lhs_expr) = &class_id.2 {
+                                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                                        if let Some(class_name) =
+                                            resolved_names.get(&id.0.start_offset())
+                                        {
+                                            return Some(FunctionLikeIdentifier::Method(
+                                                *class_name,
+                                                interner.intern(rhs_expr.1.clone()),
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return None;
 }
 
 pub(crate) fn adjust_location_from_comments(

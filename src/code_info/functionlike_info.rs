@@ -14,7 +14,7 @@ use crate::{
     t_union::TUnion,
     taint::{SinkType, SourceType},
     type_resolution::TypeResolutionContext,
-    StrId,
+    StrId, function_context::FunctionLikeIdentifier,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,6 +136,14 @@ pub struct FunctionLikeInfo {
     pub type_resolution_context: Option<TypeResolutionContext>,
 
     pub where_constraints: Vec<(StrId, TUnion)>,
+
+    /*
+     * Stores a reference to the Asynchronous version of this function.
+     * If a function body is just a one-line
+     *   return HH\Asio\join(some_other_function(...));
+     * then the id for the other function is stored here
+     */
+    pub async_version: Option<FunctionLikeIdentifier>,
 }
 
 impl FunctionLikeInfo {
@@ -173,6 +181,7 @@ impl FunctionLikeInfo {
             ignore_taints_if_true: false,
             type_resolution_context: None,
             where_constraints: vec![],
+            async_version: None,
         }
     }
 }

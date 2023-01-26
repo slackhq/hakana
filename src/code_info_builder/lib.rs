@@ -634,6 +634,7 @@ impl<'a> Scanner<'a> {
             name_pos,
             &fun.tparams,
             &fun.params,
+            &fun.body.fb_ast,
             &fun.ret,
             &fun.fun_kind,
             &fun.user_attributes,
