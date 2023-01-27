@@ -144,17 +144,20 @@ pub(crate) fn analyze(
         }
     }
 
-    let mut stmt_type = tast_info.get_expr_type(&pos.clone()).cloned();
+    let mut stmt_type = tast_info.get_rc_expr_type(&pos).cloned();
 
     if has_nullsafe_null {
         if let Some(ref mut stmt_type) = stmt_type {
             if !stmt_type.is_nullable_mixed() {
-                *stmt_type = add_union_type(
-                    stmt_type.to_owned(),
+                let mut stmt_type_inner = (**stmt_type).clone();
+                stmt_type_inner = add_union_type(
+                    stmt_type_inner,
                     &get_null(),
                     statements_analyzer.get_codebase(),
                     false,
                 );
+
+                *stmt_type = Rc::new(stmt_type_inner);
             }
         }
     } else if nullsafe {
@@ -168,7 +171,7 @@ pub(crate) fn analyze(
     if let Some(var_id) = &var_id {
         context.vars_in_scope.insert(
             var_id.to_owned(),
-            Rc::new(stmt_type.unwrap_or(get_mixed_any())),
+            stmt_type.unwrap_or(Rc::new(get_mixed_any())),
         );
     }
 
