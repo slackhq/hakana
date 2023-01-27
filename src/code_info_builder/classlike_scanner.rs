@@ -65,6 +65,8 @@ pub(crate) fn scan(
     storage.uses_position = uses_position;
     storage.namespace_position = namespace_position;
 
+    storage.is_production_code = file_source.is_production_code;
+
     if !classlike_node.tparams.is_empty() {
         let mut type_context = TypeResolutionContext {
             template_type_map: IndexMap::new(),
@@ -72,7 +74,9 @@ pub(crate) fn scan(
         };
 
         for type_param_node in classlike_node.tparams.iter() {
-            let param_name = resolved_names.get(&type_param_node.name.0.start_offset()).unwrap();
+            let param_name = resolved_names
+                .get(&type_param_node.name.0.start_offset())
+                .unwrap();
             type_context.template_type_map.insert(
                 *param_name,
                 FxHashMap::from_iter([(class_name.clone(), Arc::new(get_mixed_any()))]),
@@ -106,8 +110,10 @@ pub(crate) fn scan(
                 get_mixed_any()
             };
 
-            let param_name = resolved_names.get(&type_param_node.name.0.start_offset()).unwrap();
-            
+            let param_name = resolved_names
+                .get(&type_param_node.name.0.start_offset())
+                .unwrap();
+
             storage.template_types.insert(*param_name, {
                 let mut h = FxHashMap::default();
                 h.insert(class_name.clone(), Arc::new(template_as_type));

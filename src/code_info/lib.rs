@@ -44,6 +44,7 @@ pub struct FileSource {
     pub file_path: StrId,
     pub file_path_actual: String,
     pub file_contents: String,
+    pub is_production_code: bool,
     pub hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
     pub comments: Vec<(Pos, Comment)>,
 }

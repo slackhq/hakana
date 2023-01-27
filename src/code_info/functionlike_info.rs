@@ -144,6 +144,8 @@ pub struct FunctionLikeInfo {
      * then the id for the other function is stored here
      */
     pub async_version: Option<FunctionLikeIdentifier>,
+
+    pub is_production_code: bool,
 }
 
 impl FunctionLikeInfo {
@@ -182,6 +184,7 @@ impl FunctionLikeInfo {
             type_resolution_context: None,
             where_constraints: vec![],
             async_version: None,
+            is_production_code: true,
         }
     }
 }

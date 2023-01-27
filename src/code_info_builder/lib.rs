@@ -649,6 +649,8 @@ impl<'a> Scanner<'a> {
             is_anonymous,
         );
 
+        functionlike_storage.is_production_code = self.file_source.is_production_code;
+
         functionlike_storage.user_defined = self.user_defined && !is_anonymous;
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
         functionlike_storage

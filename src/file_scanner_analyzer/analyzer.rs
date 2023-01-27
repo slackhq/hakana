@@ -210,6 +210,7 @@ fn analyze_file(
     };
 
     let file_source = FileSource {
+        is_production_code: true,
         file_path_actual: target_name,
         file_path,
         hh_fixmes: aast.1.fixmes,

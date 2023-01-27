@@ -191,6 +191,8 @@ pub struct ClassLikeInfo {
 
     pub uses_position: Option<(usize, usize)>,
     pub namespace_position: Option<(usize, usize)>,
+
+    pub is_production_code: bool,
 }
 
 impl ClassLikeInfo {
@@ -254,6 +256,7 @@ impl ClassLikeInfo {
             child_classlikes: None,
             uses_position: None,
             namespace_position: None,
+            is_production_code: true,
         }
     }
 }

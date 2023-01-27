@@ -28,6 +28,7 @@ pub struct Config {
     pub issues_to_fix: FxHashSet<IssueKind>,
     pub graph_kind: GraphKind,
     pub ignore_files: Vec<String>,
+    pub test_files: Vec<String>,
     pub ignore_issue_files: FxHashMap<IssueKind, Vec<String>>,
     pub ignore_all_issues_in_files: Vec<String>,
     pub security_config: SecurityConfig,
@@ -68,6 +69,7 @@ impl Config {
             migration_symbols: FxHashSet::default(),
             graph_kind: GraphKind::FunctionBody,
             ignore_files: Vec::new(),
+            test_files: Vec::new(),
             ignore_issue_files: FxHashMap::default(),
             ignore_all_issues_in_files: vec![],
             security_config: SecurityConfig::new(),
@@ -90,6 +92,12 @@ impl Config {
 
         self.ignore_files = json_config
             .ignore_files
+            .into_iter()
+            .map(|v| format!("{}/{}", cwd, v))
+            .collect();
+
+        self.test_files = json_config
+            .test_files
             .into_iter()
             .map(|v| format!("{}/{}", cwd, v))
             .collect();

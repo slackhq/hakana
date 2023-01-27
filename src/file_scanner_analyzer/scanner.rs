@@ -268,6 +268,12 @@ pub(crate) fn scan_files(
             group_size = 1;
         }
 
+        let test_patterns = config
+            .test_files
+            .iter()
+            .map(|ignore_file| glob::Pattern::new(ignore_file).unwrap())
+            .collect::<Vec<_>>();
+
         for (i, str_path) in files_to_scan.into_iter().enumerate() {
             let group = i % group_size;
             path_groups
@@ -295,6 +301,7 @@ pub(crate) fn scan_files(
                     &mut new_interner,
                     empty_name_context.clone(),
                     analyze_map.contains(*str_path),
+                    !test_patterns.iter().any(|p| p.matches(&str_path)),
                     verbosity,
                 ) {
                     file_resolved_names
@@ -345,6 +352,7 @@ pub(crate) fn scan_files(
                 let resolved_names = resolved_names.clone();
 
                 let config = config.clone();
+                let test_patterns = test_patterns.clone();
 
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
@@ -361,6 +369,7 @@ pub(crate) fn scan_files(
                             &mut new_interner,
                             empty_name_context.clone(),
                             analyze_map.contains(str_path),
+                            !test_patterns.iter().any(|p| p.matches(&str_path)),
                             verbosity,
                         ) {
                             local_resolved_names.insert((*str_path).clone(), file_resolved_names);
@@ -455,6 +464,7 @@ pub(crate) fn scan_file(
     interner: &mut ThreadedInterner,
     empty_name_context: NameContext,
     user_defined: bool,
+    is_production_code: bool,
     verbosity: Verbosity,
 ) -> Result<FxHashMap<usize, StrId>, ParserError> {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
@@ -484,6 +494,7 @@ pub(crate) fn scan_file(
         codebase,
         all_custom_issues,
         FileSource {
+            is_production_code,
             file_path_actual: target_name.clone(),
             file_path: interned_file_path,
             hh_fixmes: aast.1.fixmes,

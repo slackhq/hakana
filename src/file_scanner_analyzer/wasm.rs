@@ -102,6 +102,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &mut threaded_interner,
             empty_name_context.clone(),
             false,
+            false,
             Verbosity::Quiet,
         )
         .unwrap();
@@ -117,6 +118,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &mut threaded_interner,
             empty_name_context.clone(),
             false,
+            false,
             Verbosity::Quiet,
         )
         .unwrap();
@@ -130,6 +132,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
             &mut codebase,
             &mut threaded_interner,
             empty_name_context.clone(),
+            false,
             false,
             Verbosity::Quiet,
         )
@@ -186,6 +189,7 @@ pub fn scan_single_file(
         codebase,
         &FxHashSet::default(),
         FileSource {
+            is_production_code: true,
             file_path_actual: path.clone(),
             file_path,
             hh_fixmes: aast.1.fixmes,
@@ -230,6 +234,7 @@ pub fn analyze_single_file(
     };
 
     let file_source = FileSource {
+        is_production_code: true,
         file_path_actual: path.clone(),
         file_path,
         hh_fixmes: aast.1.fixmes,

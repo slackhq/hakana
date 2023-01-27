@@ -14,6 +14,8 @@ pub struct JsonConfig {
     pub security_analysis: JsonSecurityConfig,
     #[serde(default)]
     pub allowed_issues: Vec<String>,
+    #[serde(default)]
+    pub test_files: Vec<String>,
 }
 
 #[derive(Deserialize, Debug, Default)]

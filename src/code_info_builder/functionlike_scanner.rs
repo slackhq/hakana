@@ -85,6 +85,8 @@ pub(crate) fn scan_method(
         false,
     );
 
+    functionlike_info.is_production_code = file_source.is_production_code;
+
     let mut classlike_storage = codebase.classlike_infos.get_mut(&classlike_name).unwrap();
 
     let mut method_info = MethodInfo::new();
