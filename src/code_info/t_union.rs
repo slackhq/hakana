@@ -6,13 +6,16 @@ use crate::{
     Interner, StrId,
 };
 use core::panic;
+use derivative::Derivative;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Derivative)]
+#[derivative(Hash)]
 pub struct TUnion {
     pub types: Vec<TAtomic>,
+    #[derivative(Hash = "ignore")]
     pub parent_nodes: FxHashMap<String, DataFlowNode>,
     pub had_template: bool,
 
@@ -297,7 +300,7 @@ impl TUnion {
                 }
 
                 if let Some(extra_types) = extra_types {
-                    for (_, extra_type) in extra_types {
+                    for extra_type in extra_types {
                         if let TAtomic::TGenericParam { .. } = extra_type {
                             return true;
                         }
@@ -317,7 +320,7 @@ impl TUnion {
 
             if let TAtomic::TNamedObject { extra_types, .. } = atomic {
                 if let Some(extra_types) = extra_types {
-                    for (_, extra_type) in extra_types {
+                    for extra_type in extra_types {
                         if let TAtomic::TGenericParam { .. } = extra_type {
                             return true;
                         }

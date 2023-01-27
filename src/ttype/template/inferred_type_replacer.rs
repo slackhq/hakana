@@ -184,7 +184,7 @@ fn replace_template_param(
     defining_entity: &StrId,
     codebase: &CodebaseInfo,
     as_type: &TUnion,
-    extra_types: &Option<FxHashMap<String, TAtomic>>,
+    extra_types: &Option<Vec<TAtomic>>,
     key: &StrId,
 ) -> Option<TUnion> {
     let mut template_type = None;

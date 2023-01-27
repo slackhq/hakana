@@ -2,6 +2,7 @@ use std::hash::Hasher;
 
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use derivative::Derivative;
 
 use crate::{
     t_atomic::{DictKey, TAtomic},
@@ -11,7 +12,8 @@ use crate::{
 };
 use core::hash::Hash;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Derivative)]
+#[derivative(Hash)]
 pub enum Assertion {
     Any,
     IsType(TAtomic),
@@ -39,14 +41,8 @@ pub enum Assertion {
     DoesNotHaveExactCount(usize),
     IgnoreTaints,
     DontIgnoreTaints,
-    RemoveTaints(String, FxHashSet<SinkType>),
-    DontRemoveTaints(String, FxHashSet<SinkType>),
-}
-
-impl Hash for Assertion {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.to_string(None).hash(state)
-    }
+    RemoveTaints(String, #[derivative(Hash = "ignore")] FxHashSet<SinkType>),
+    DontRemoveTaints(String, #[derivative(Hash = "ignore")] FxHashSet<SinkType>),
 }
 
 impl Assertion {
@@ -97,6 +93,12 @@ impl Assertion {
             Assertion::RemoveTaints(key, _) => "remove-some-taints-".to_string() + key,
             Assertion::DontRemoveTaints(key, _) => "!remove-some-taints-".to_string() + key,
         }
+    }
+
+    pub fn to_hash(&self) -> u64 {
+        let mut state = rustc_hash::FxHasher::default();
+        self.to_string(None).hash(&mut state);
+        state.finish()
     }
 
     pub fn has_negation(&self) -> bool {

@@ -398,7 +398,7 @@ pub fn is_contained_by(
     } = input_type_part
     {
         if let Some(input_extra_types) = input_extra_types {
-            for (_, input_extra_type) in input_extra_types {
+            for input_extra_type in input_extra_types {
                 if is_contained_by(
                     codebase,
                     input_extra_type,

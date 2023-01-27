@@ -743,10 +743,10 @@ fn handle_template_param_standin(
 
     let param_name_key = param_name.clone();
 
-    let mut new_extra_types = FxHashMap::default();
+    let mut new_extra_types = vec![];
 
     if let Some(extra_types) = extra_types {
-        for (_, extra_type) in extra_types {
+        for extra_type in extra_types {
             let extra_type_union = self::replace(
                 &TUnion::new(vec![extra_type.clone()]),
                 template_result,
@@ -765,7 +765,7 @@ fn handle_template_param_standin(
                 let extra_type = extra_type_union.get_single().clone();
 
                 if let TAtomic::TNamedObject { .. } | TAtomic::TGenericParam { .. } = extra_type {
-                    new_extra_types.insert(extra_type.get_key(), extra_type);
+                    new_extra_types.push(extra_type);
                 }
             }
         }

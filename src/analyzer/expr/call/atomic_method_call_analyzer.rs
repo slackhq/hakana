@@ -71,7 +71,7 @@ pub(crate) fn analyze(
             lhs_type_part = as_type.get_single();
 
             if let Some(extra_types) = extra_types {
-                for (_, _) in extra_types {
+                for _ in extra_types {
                     //lhs_type_part.add_intersection_type(extra_type.clone());
                 }
             }
@@ -99,7 +99,7 @@ pub(crate) fn analyze(
             let mut classlike_names = vec![*classlike_name];
 
             if let Some(extra_types) = extra_types {
-                for (_, extra_atomic_type) in extra_types {
+                for extra_atomic_type in extra_types {
                     if let TAtomic::TNamedObject {
                         name: extra_classlike_name,
                         ..

@@ -11,23 +11,17 @@ pub(crate) fn is_shallowly_contained_by(
     atomic_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
     let mut intersection_input_types = input_type_part.get_intersection_types();
-    intersection_input_types.0.extend(
-        intersection_input_types
-            .1
-            .iter()
-            .map(|(k, v)| (k.clone(), v)),
-    );
+    intersection_input_types
+        .0
+        .extend(intersection_input_types.1.iter());
 
     let mut intersection_container_types = container_type_part.get_intersection_types();
-    intersection_container_types.0.extend(
-        intersection_container_types
-            .1
-            .iter()
-            .map(|(k, v)| (k.clone(), v)),
-    );
+    intersection_container_types
+        .0
+        .extend(intersection_container_types.1.iter());
 
-    'outer: for (_, intersection_container_type) in intersection_container_types.0.iter() {
-        for (_, intersection_input_type) in intersection_input_types.0.iter() {
+    'outer: for intersection_container_type in intersection_container_types.0.iter() {
+        for intersection_input_type in intersection_input_types.0.iter() {
             if is_intersection_shallowly_contained_by(
                 codebase,
                 intersection_input_type,

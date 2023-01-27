@@ -87,7 +87,7 @@ pub(crate) fn get_formula(
                             var_id.clone(),
                             orred_types
                                 .into_iter()
-                                .map(|a| (a.to_string(None), a))
+                                .map(|a| (a.to_hash(), a))
                                 .collect::<IndexMap<_, _>>(),
                         );
                         map
@@ -118,7 +118,7 @@ pub(crate) fn get_formula(
             let mut map = BTreeMap::new();
             map.insert(
                 conditional_ref,
-                IndexMap::from([(Assertion::Truthy.to_string(None), Assertion::Truthy)]),
+                IndexMap::from([(Assertion::Truthy.to_hash(), Assertion::Truthy)]),
             );
             map
         },

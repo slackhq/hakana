@@ -7,8 +7,8 @@ use crate::{
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };
 use crate::{Interner, StrId};
+use derivative::Derivative;
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, sync::Arc};
 
@@ -35,7 +35,8 @@ impl DictKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
+#[derivative(Hash)]
 pub enum TAtomic {
     TArraykey {
         from_any: bool,
@@ -57,6 +58,7 @@ pub enum TAtomic {
     TFalse,
     TFloat,
     TClosure {
+        #[derivative(Hash = "ignore")]
         params: Vec<FunctionLikeParameter>,
         return_type: Option<TUnion>,
         effects: Option<u8>,
@@ -94,7 +96,7 @@ pub enum TAtomic {
         name: StrId,
         type_params: Option<Vec<TUnion>>,
         is_this: bool,
-        extra_types: Option<FxHashMap<String, TAtomic>>,
+        extra_types: Option<Vec<TAtomic>>,
         remapped_params: bool,
     },
     TObject,
@@ -116,7 +118,7 @@ pub enum TAtomic {
         as_type: TUnion,
         defining_entity: StrId,
         from_class: bool,
-        extra_types: Option<FxHashMap<String, TAtomic>>,
+        extra_types: Option<Vec<TAtomic>>,
     },
     TGenericClassname {
         param_name: StrId,
@@ -390,7 +392,7 @@ impl TAtomic {
                         "&".to_string()
                             + extra_types
                                 .iter()
-                                .map(|(_, atomic)| atomic.get_id(interner))
+                                .map(|atomic| atomic.get_id(interner))
                                 .join("&")
                                 .as_str()
                     } else {
@@ -1233,11 +1235,9 @@ impl TAtomic {
         } = self
         {
             if let Some(extra_types) = extra_types {
-                extra_types.insert(atomic.get_key(), atomic);
+                extra_types.push(atomic);
             } else {
-                let mut map = FxHashMap::default();
-                map.insert(atomic.get_key(), atomic);
-                *extra_types = Some(map);
+                *extra_types = Some(vec![atomic]);
             }
         }
     }
@@ -1260,9 +1260,7 @@ impl TAtomic {
         clone
     }
 
-    pub fn get_intersection_types(
-        &self,
-    ) -> (FxHashMap<String, &TAtomic>, FxHashMap<String, TAtomic>) {
+    pub fn get_intersection_types(&self) -> (Vec<&TAtomic>, Vec<TAtomic>) {
         match self {
             TAtomic::TNamedObject {
                 extra_types: Some(extra_types),
@@ -1272,10 +1270,10 @@ impl TAtomic {
                 extra_types: Some(extra_types),
                 ..
             } => {
-                let mut intersection_types = FxHashMap::default();
-                intersection_types.insert(self.get_key(), self);
-                intersection_types.extend(extra_types.iter().map(|(k, v)| (k.clone(), v)));
-                return (intersection_types, FxHashMap::default());
+                let mut intersection_types = vec![];
+                intersection_types.push(self);
+                intersection_types.extend(extra_types);
+                return (intersection_types, vec![]);
             }
             _ => {
                 if let TAtomic::TGenericParam { as_type, .. } = self {
@@ -1286,7 +1284,7 @@ impl TAtomic {
                             ..
                         } = as_atomic
                         {
-                            let mut new_intersection_types = FxHashMap::default();
+                            let mut new_intersection_types = vec![];
                             let intersection_types = as_atomic.get_intersection_types();
                             new_intersection_types.extend(intersection_types.1);
                             let mut type_part = self.clone();
@@ -1296,16 +1294,14 @@ impl TAtomic {
                             {
                                 *as_type = extends_as_type.clone();
                             }
-                            new_intersection_types.insert(type_part.get_key(), type_part);
+                            new_intersection_types.push(type_part);
 
                             return (intersection_types.0, new_intersection_types);
                         }
                     }
                 }
 
-                let mut intersection_types = FxHashMap::default();
-                intersection_types.insert(self.get_key(), self);
-                return (intersection_types, FxHashMap::default());
+                return (vec![self], vec![]);
             }
         };
     }

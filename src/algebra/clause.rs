@@ -6,7 +6,6 @@ use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::Interner;
 use indexmap::IndexMap;
 use rustc_hash::FxHashSet;
-use xxhash_rust;
 
 #[derive(Clone, Debug, Eq)]
 pub struct Clause {
@@ -25,7 +24,7 @@ pub struct Clause {
     //
     // represents the formula
     // !$a || $b || $c !== null || is_string($d) || is_int($d)
-    pub possibilities: BTreeMap<String, IndexMap<String, Assertion>>,
+    pub possibilities: BTreeMap<String, IndexMap<u64, Assertion>>,
 
     pub wedge: bool,
     pub reconcilable: bool,
@@ -47,7 +46,7 @@ impl Hash for Clause {
 
 impl Clause {
     pub fn new(
-        possibilities: BTreeMap<String, IndexMap<String, Assertion>>,
+        possibilities: BTreeMap<String, IndexMap<u64, Assertion>>,
         creating_conditional_id: (usize, usize),
         creating_object_id: (usize, usize),
         wedge: Option<bool>,
@@ -73,7 +72,7 @@ impl Clause {
         let hash = get_hash(&possibilities, creating_object_id, wedge, reconcilable);
 
         return Clause {
-            possibilities: possibilities,
+            possibilities,
             creating_conditional_id,
             creating_object_id,
             wedge,
@@ -113,7 +112,7 @@ impl Clause {
     pub fn add_possibility(
         &self,
         var_id: String,
-        new_possibility: IndexMap<String, Assertion>,
+        new_possibility: IndexMap<u64, Assertion>,
     ) -> Clause {
         let mut possibilities = self.possibilities.clone();
 
@@ -245,7 +244,7 @@ impl Clause {
 
 #[inline]
 fn get_hash(
-    possibilities: &BTreeMap<String, IndexMap<String, Assertion>>,
+    possibilities: &BTreeMap<String, IndexMap<u64, Assertion>>,
     creating_object_id: (usize, usize),
     wedge: bool,
     reconcilable: bool,
@@ -258,21 +257,18 @@ fn get_hash(
         .try_into()
         .unwrap()
     } else {
-        xxhash_rust::xxh3::xxh3_64(
-            &possibilities
-                .iter()
-                .map(|(k, v)| {
-                    k.clone()
-                        + "="
-                        + v.iter()
-                            .map(|(k, _)| k.clone())
-                            .collect::<Vec<_>>()
-                            .join("||")
-                            .as_str()
-                })
-                .collect::<Vec<_>>()
-                .join(",")
-                .as_bytes(),
-        )
+        let mut hasher = rustc_hash::FxHasher::default();
+
+        for possibility in possibilities {
+            possibility.0.hash(&mut hasher);
+            0.hash(&mut hasher);
+
+            for i in possibility.1.keys() {
+                i.hash(&mut hasher);
+                1.hash(&mut hasher);
+            }
+        }
+
+        hasher.finish()
     }
 }

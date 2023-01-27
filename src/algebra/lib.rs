@@ -129,7 +129,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
         for (clause_var, var_possibilities) in &clause_a.possibilities {
             let only_type = &var_possibilities.values().next().unwrap();
             let negated_clause_type = only_type.get_negation();
-            let negated_string = negated_clause_type.to_string(None);
+            let negated_hash = negated_clause_type.to_hash();
 
             for clause_b in &unique_clauses {
                 if clause_a == clause_b || !clause_b.reconcilable || clause_b.wedge {
@@ -138,10 +138,10 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
                 if let Some(matching_clause_possibilities) = clause_b.possibilities.get(clause_var)
                 {
-                    if matching_clause_possibilities.contains_key(&negated_string) {
+                    if matching_clause_possibilities.contains_key(&negated_hash) {
                         let mut clause_var_possibilities = matching_clause_possibilities.clone();
 
-                        clause_var_possibilities.retain(|k, _| k != &negated_string);
+                        clause_var_possibilities.retain(|k, _| k != &negated_hash);
 
                         removed_clauses.insert(clause_b.clone());
 
@@ -395,7 +395,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
                 let mut seed_clause_possibilities = BTreeMap::new();
                 seed_clause_possibilities.insert(
                     var.clone(),
-                    IndexMap::from([(impossible_type.to_string(None), impossible_type.clone())]),
+                    IndexMap::from([(impossible_type.to_hash(), impossible_type.clone())]),
                 );
 
                 let seed_clause = Clause::new(
@@ -455,7 +455,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
                     new_clause_possibilities
                         .entry(var.clone())
                         .or_insert_with(IndexMap::new)
-                        .insert(impossible_type.to_string(None), impossible_type);
+                        .insert(impossible_type.to_hash(), impossible_type);
 
                     new_clauses.push(Clause::new(
                         new_clause_possibilities,

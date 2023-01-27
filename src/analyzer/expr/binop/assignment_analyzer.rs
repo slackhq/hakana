@@ -585,7 +585,7 @@ fn analyze_assignment_to_variable(
                     let mut possibilities = BTreeMap::new();
                     possibilities.insert(
                         var_id.clone(),
-                        IndexMap::from([(Assertion::Falsy.to_string(None), Assertion::Falsy)]),
+                        IndexMap::from([(Assertion::Falsy.to_hash(), Assertion::Falsy)]),
                     );
 
                     let assignment_clauses = if let Ok(assignment_clauses) =
