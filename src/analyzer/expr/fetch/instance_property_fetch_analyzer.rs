@@ -158,6 +158,8 @@ pub(crate) fn analyze(
                 );
 
                 *stmt_type = Rc::new(stmt_type_inner);
+
+                tast_info.set_rc_expr_type(pos, stmt_type.clone());
             }
         }
     } else if nullsafe {
