@@ -1,7 +1,7 @@
 use crate::{
-    add_union_type, combine_optional_union_types, get_arrayish_params, get_mixed_any,
-    get_mixed_maybe_from_loop, get_value_param, intersect_union_types, is_array_container,
-    type_combiner,
+    add_union_type, combine_optional_union_types, get_arrayish_params, get_arraykey, get_mixed,
+    get_mixed_any, get_mixed_maybe_from_loop, get_value_param, intersect_union_types,
+    is_array_container, type_combiner,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
     type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
@@ -312,13 +312,17 @@ fn replace_atomic(
                     ));
                 }
             } else {
-                let input_params = if let Some(TAtomic::TDict { .. }) = &input_type {
-                    get_arrayish_params(&input_type.unwrap(), codebase)
-                } else {
-                    None
-                };
-
                 if let Some(params) = params {
+                    let input_params = if let Some(TAtomic::TDict { .. }) = &input_type {
+                        if !params.0.is_arraykey() || !params.1.is_mixed() {
+                            get_arrayish_params(&input_type.unwrap(), codebase)
+                        } else {
+                            Some((get_arraykey(false), get_mixed()))
+                        }
+                    } else {
+                        None
+                    };
+
                     params.0 = self::replace(
                         &params.0,
                         template_result,

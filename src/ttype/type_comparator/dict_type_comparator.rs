@@ -1,4 +1,4 @@
-use crate::get_arrayish_params;
+use crate::{get_arrayish_params, get_arraykey, get_mixed};
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 use super::{
@@ -114,8 +114,13 @@ pub(crate) fn is_contained_by(
                     }
                 }
             } else {
-                let input_params = get_arrayish_params(input_type_part, codebase).unwrap();
                 let container_params = get_arrayish_params(container_type_part, codebase).unwrap();
+                let input_params =
+                    if !container_params.0.is_arraykey() || !container_params.1.is_mixed() {
+                        get_arrayish_params(input_type_part, codebase).unwrap()
+                    } else {
+                        (get_arraykey(false), get_mixed())
+                    };
 
                 let mut nested_comparison_result = TypeComparisonResult::new();
 
