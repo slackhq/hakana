@@ -319,6 +319,11 @@ pub fn init(
                         .required(false)
                         .help("Whether to show debug output"),
                 )
+                .arg(
+                    arg!(--"repeat" <COUNT>)
+                        .required(false)
+                        .help("How many times to repeat the test (useful for profiling)"),
+                )
                 .arg(arg!(<TEST> "The test to run"))
                 .arg_required_else_help(true),
         )
@@ -774,12 +779,18 @@ pub fn init(
             }
         }
         Some(("test", sub_matches)) => {
+            let repeat = if let Some(val) = sub_matches.value_of("repeat").map(|f| f.to_string()) {
+                val.parse::<u8>().unwrap()
+            } else {
+                0
+            };
             test_runner.run_test(
                 sub_matches.value_of("TEST").expect("required").to_string(),
                 verbosity,
                 !sub_matches.is_present("no-cache"),
                 &mut had_error,
                 header,
+                repeat,
             );
         }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachabe!()

@@ -24,6 +24,7 @@ pub trait TestRunner {
         use_cache: bool,
         had_error: &mut bool,
         build_checksum: &str,
+        repeat: u8,
     ) {
         let test_folders = get_all_test_folders(test_or_test_dir);
 
@@ -35,36 +36,38 @@ pub trait TestRunner {
             None
         };
 
-        for test_folder in test_folders {
-            let cache_dir = format!("{}/.hakana_cache", test_folder);
+        for _ in 0..(repeat + 1) {
+            for test_folder in test_folders.clone() {
+                let cache_dir = format!("{}/.hakana_cache", test_folder);
 
-            if !Path::new(&cache_dir).is_dir() && fs::create_dir(&cache_dir).is_err() {
-                panic!("could not create aast cache directory");
-            }
+                if !Path::new(&cache_dir).is_dir() && fs::create_dir(&cache_dir).is_err() {
+                    panic!("could not create aast cache directory");
+                }
 
-            let needs_fresh_codebase =
-                test_folder.contains("xhp") || test_folder.contains("/diff/");
+                let needs_fresh_codebase =
+                    test_folder.contains("xhp") || test_folder.contains("/diff/");
 
-            let test_result = self.run_test_in_dir(
-                test_folder,
-                verbosity,
-                if use_cache { Some(&cache_dir) } else { None },
-                had_error,
-                &mut test_diagnostics,
-                build_checksum,
-                if let Some(starter_codebase) = &starter_codebase {
-                    if needs_fresh_codebase {
-                        None
+                let test_result = self.run_test_in_dir(
+                    test_folder,
+                    verbosity,
+                    if use_cache { Some(&cache_dir) } else { None },
+                    had_error,
+                    &mut test_diagnostics,
+                    build_checksum,
+                    if let Some(starter_codebase) = &starter_codebase {
+                        if needs_fresh_codebase {
+                            None
+                        } else {
+                            Some(starter_codebase.clone())
+                        }
                     } else {
-                        Some(starter_codebase.clone())
-                    }
-                } else {
-                    None
-                },
-            );
+                        None
+                    },
+                );
 
-            print!("{}", test_result);
-            io::stdout().flush().unwrap();
+                print!("{}", test_result);
+                io::stdout().flush().unwrap();
+            }
         }
 
         println!(

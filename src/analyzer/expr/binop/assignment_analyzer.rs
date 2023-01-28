@@ -590,16 +590,15 @@ fn analyze_assignment_to_variable(
 
                     let assignment_clauses = if let Ok(assignment_clauses) =
                         hakana_algebra::combine_ored_clauses(
-                            &vec![Clause::new(
+                            vec![Clause::new(
                                 possibilities,
                                 var_object_id,
                                 var_object_id,
                                 None,
                                 None,
                                 None,
-                                None,
                             )],
-                            &right_clauses.into_iter().map(|v| (*v).clone()).collect(),
+                            right_clauses.into_iter().map(|v| (*v).clone()).collect(),
                             cond_object_id,
                         ) {
                         assignment_clauses.into_iter().map(|v| Rc::new(v)).collect()

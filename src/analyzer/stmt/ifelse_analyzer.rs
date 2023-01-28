@@ -432,7 +432,6 @@ pub(crate) fn remove_clauses_with_mixed_vars(
                             Some(true),
                             None,
                             None,
-                            None,
                         );
                     }
                 }

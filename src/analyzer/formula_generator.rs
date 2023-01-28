@@ -37,7 +37,6 @@ pub(crate) fn get_formula(
     if let aast::Expr_::Binop(expr) = &conditional.2 {
         if let Some(clauses) = handle_binop(
             conditional_object_id,
-            creating_object_id,
             &expr.0,
             &expr.1,
             &expr.2,
@@ -53,7 +52,6 @@ pub(crate) fn get_formula(
     if let aast::Expr_::Unop(expr) = &conditional.2 {
         if let Some(clauses) = handle_uop(
             conditional_object_id,
-            creating_object_id,
             &expr.0,
             &expr.1,
             assertion_context,
@@ -97,7 +95,6 @@ pub(crate) fn get_formula(
                     Some(false),
                     Some(true),
                     Some(has_equality),
-                    None,
                 ))
             }
         }
@@ -127,13 +124,12 @@ pub(crate) fn get_formula(
         None,
         None,
         None,
-        None,
     )])
 }
 
+#[inline]
 fn handle_binop(
     conditional_object_id: (usize, usize),
-    _creating_object_id: (usize, usize),
     bop: &Bop,
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
@@ -143,74 +139,26 @@ fn handle_binop(
     inside_negation: bool,
 ) -> Option<Result<Vec<Clause>, String>> {
     if let oxidized::ast::Bop::Ampamp = bop {
-        let left_clauses = get_formula(
+        return Some(handle_and(
             conditional_object_id,
-            (left.pos().start_offset(), left.pos().end_offset()),
             left,
-            assertion_context,
-            tast_info,
-            cache,
-            inside_negation,
-        );
-
-        if let Err(_) = left_clauses {
-            return Some(left_clauses);
-        }
-
-        let right_clauses = get_formula(
-            conditional_object_id,
-            (right.pos().start_offset(), right.pos().end_offset()),
             right,
             assertion_context,
             tast_info,
             cache,
             inside_negation,
-        );
-
-        if let Err(_) = right_clauses {
-            return Some(right_clauses);
-        }
-
-        let mut left_clauses = left_clauses.unwrap();
-
-        left_clauses.extend(right_clauses.unwrap());
-
-        return Some(Ok(left_clauses));
+        ));
     }
 
     if let oxidized::ast::Bop::Barbar = bop {
-        let left_clauses = get_formula(
+        return Some(handle_or(
             conditional_object_id,
-            (left.pos().start_offset(), left.pos().end_offset()),
             left,
-            assertion_context,
-            tast_info,
-            cache,
-            inside_negation,
-        );
-
-        if let Err(_) = left_clauses {
-            return Some(left_clauses);
-        }
-
-        let right_clauses = get_formula(
-            conditional_object_id,
-            (right.pos().start_offset(), right.pos().end_offset()),
             right,
             assertion_context,
             tast_info,
             cache,
             inside_negation,
-        );
-
-        if let Err(_) = right_clauses {
-            return Some(right_clauses);
-        }
-
-        return Some(hakana_algebra::combine_ored_clauses(
-            &left_clauses.unwrap(),
-            &right_clauses.unwrap(),
-            conditional_object_id,
         ));
     }
 
@@ -224,9 +172,98 @@ fn handle_binop(
     None
 }
 
+#[inline]
+fn handle_or(
+    conditional_object_id: (usize, usize),
+    left: &aast::Expr<(), ()>,
+    right: &aast::Expr<(), ()>,
+    assertion_context: &AssertionContext,
+    tast_info: &mut TastInfo,
+    cache: bool,
+    inside_negation: bool,
+) -> Result<Vec<Clause>, String> {
+    let left_clauses = get_formula(
+        conditional_object_id,
+        (left.pos().start_offset(), left.pos().end_offset()),
+        left,
+        assertion_context,
+        tast_info,
+        cache,
+        inside_negation,
+    );
+
+    if let Err(_) = left_clauses {
+        return left_clauses;
+    }
+
+    let right_clauses = get_formula(
+        conditional_object_id,
+        (right.pos().start_offset(), right.pos().end_offset()),
+        right,
+        assertion_context,
+        tast_info,
+        cache,
+        inside_negation,
+    );
+
+    if let Err(_) = right_clauses {
+        return right_clauses;
+    }
+
+    hakana_algebra::combine_ored_clauses(
+        left_clauses.unwrap(),
+        right_clauses.unwrap(),
+        conditional_object_id,
+    )
+}
+
+#[inline]
+fn handle_and(
+    conditional_object_id: (usize, usize),
+    left: &aast::Expr<(), ()>,
+    right: &aast::Expr<(), ()>,
+    assertion_context: &AssertionContext,
+    tast_info: &mut TastInfo,
+    cache: bool,
+    inside_negation: bool,
+) -> Result<Vec<Clause>, String> {
+    let left_clauses = get_formula(
+        conditional_object_id,
+        (left.pos().start_offset(), left.pos().end_offset()),
+        left,
+        assertion_context,
+        tast_info,
+        cache,
+        inside_negation,
+    );
+
+    if let Err(_) = left_clauses {
+        return left_clauses;
+    }
+
+    let right_clauses = get_formula(
+        conditional_object_id,
+        (right.pos().start_offset(), right.pos().end_offset()),
+        right,
+        assertion_context,
+        tast_info,
+        cache,
+        inside_negation,
+    );
+
+    if let Err(_) = right_clauses {
+        return right_clauses;
+    }
+
+    let mut left_clauses = left_clauses.unwrap();
+    left_clauses.extend(right_clauses.unwrap());
+
+    return Ok(left_clauses);
+}
+
+#[inline]
 fn handle_uop(
     conditional_object_id: (usize, usize),
-    _creating_object_id: (usize, usize),
     uop: &oxidized::ast::Uop,
     expr: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
@@ -237,25 +274,17 @@ fn handle_uop(
     if let oxidized::ast::Uop::Unot = uop {
         if let aast::Expr_::Binop(inner_expr) = &expr.2 {
             if let oxidized::ast::Bop::Barbar = inner_expr.0 {
-                return Some(self::get_formula(
-                    conditional_object_id,
+                return Some(self::handle_and(
                     conditional_object_id,
                     &aast::Expr(
                         (),
                         expr.pos().clone(),
-                        aast::Expr_::Binop(Box::new((
-                            Bop::Ampamp,
-                            aast::Expr(
-                                (),
-                                expr.pos().clone(),
-                                aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.1.clone()))),
-                            ),
-                            aast::Expr(
-                                (),
-                                expr.pos().clone(),
-                                aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.2.clone()))),
-                            ),
-                        ))),
+                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.1.clone()))),
+                    ),
+                    &aast::Expr(
+                        (),
+                        expr.pos().clone(),
+                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.2.clone()))),
                     ),
                     assertion_context,
                     tast_info,
@@ -265,25 +294,17 @@ fn handle_uop(
             }
 
             if let oxidized::ast::Bop::Ampamp = inner_expr.0 {
-                return Some(self::get_formula(
+                return Some(self::handle_or(
                     conditional_object_id,
-                    (expr.pos().start_offset(), expr.pos().end_offset()),
                     &aast::Expr(
                         (),
                         expr.pos().clone(),
-                        aast::Expr_::Binop(Box::new((
-                            Bop::Barbar,
-                            aast::Expr(
-                                (),
-                                expr.pos().clone(),
-                                aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.1.clone()))),
-                            ),
-                            aast::Expr(
-                                (),
-                                expr.pos().clone(),
-                                aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.2.clone()))),
-                            ),
-                        ))),
+                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.1.clone()))),
+                    ),
+                    &aast::Expr(
+                        (),
+                        expr.pos().clone(),
+                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.2.clone()))),
                     ),
                     assertion_context,
                     tast_info,

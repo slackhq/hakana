@@ -274,7 +274,6 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
                             None,
                             None,
                             None,
-                            None,
                         );
 
                         removed_clauses.insert(conflict_clause);
@@ -314,20 +313,10 @@ pub fn get_truths_from_formula(
             if possible_types.len() == 1 {
                 let possible_type = possible_types.values().next().unwrap();
 
-                let redeffed_vars_contains = if let Some(redefined_vars) = &clause.redefined_vars {
-                    redefined_vars.contains(var_id)
-                } else {
-                    false
-                };
-
-                if !redeffed_vars_contains {
-                    truths
-                        .entry(var_id.clone())
-                        .or_insert_with(Vec::new)
-                        .push(vec![possible_type.clone()]);
-                } else {
-                    truths.insert(var_id.clone(), vec![vec![possible_type.clone()]]);
-                }
+                truths
+                    .entry(var_id.clone())
+                    .or_insert_with(Vec::new)
+                    .push(vec![possible_type.clone()]);
 
                 if let Some(creating_conditional_id) = creating_conditional_id {
                     if creating_conditional_id == clause.creating_conditional_id {
@@ -405,7 +394,6 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
                     None,
                     None,
                     None,
-                    None,
                 );
 
                 seed_clauses.push(seed_clause);
@@ -464,7 +452,6 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
                         Some(false),
                         Some(true),
                         Some(true),
-                        None,
                     ));
 
                     complexity += 1;
@@ -485,8 +472,8 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
 }
 
 pub fn combine_ored_clauses(
-    left_clauses: &Vec<Clause>,
-    right_clauses: &Vec<Clause>,
+    left_clauses: Vec<Clause>,
+    right_clauses: Vec<Clause>,
     conditional_object_id: (usize, usize),
 ) -> Result<Vec<Clause>, String> {
     let mut clauses = vec![];
@@ -494,7 +481,10 @@ pub fn combine_ored_clauses(
     let mut all_wedges = true;
     let mut has_wedge = false;
 
-    let upper_bound_output = left_clauses.len() * right_clauses.len();
+    let left_clauses_len = left_clauses.len();
+    let right_clauses_len = right_clauses.len();
+
+    let upper_bound_output = left_clauses_len * right_clauses_len;
 
     if upper_bound_output > 2048 {
         return Err("too many clauses".to_string());
@@ -504,8 +494,8 @@ pub fn combine_ored_clauses(
         return Ok(vec![]);
     }
 
-    for left_clause in left_clauses {
-        for right_clause in right_clauses {
+    for left_clause in &left_clauses {
+        for right_clause in &right_clauses {
             all_wedges = all_wedges && (left_clause.wedge && right_clause.wedge);
             has_wedge = has_wedge || (left_clause.wedge && right_clause.wedge);
         }
@@ -519,12 +509,11 @@ pub fn combine_ored_clauses(
             Some(true),
             None,
             None,
-            None,
         )]);
     }
 
     for left_clause in left_clauses {
-        'right: for right_clause in right_clauses {
+        'right: for right_clause in &right_clauses {
             if left_clause.wedge && right_clause.wedge {
                 // handled below
                 continue;
@@ -570,8 +559,8 @@ pub fn combine_ored_clauses(
 
             let is_generated = right_clause.generated
                 || left_clause.generated
-                || left_clauses.len() > 1
-                || right_clauses.len() > 1;
+                || left_clauses_len > 1
+                || right_clauses_len > 1;
 
             clauses.push(Clause::new(
                 possibilities,
@@ -580,7 +569,6 @@ pub fn combine_ored_clauses(
                 Some(false),
                 Some(can_reconcile),
                 Some(is_generated),
-                None,
             ))
         }
     }
@@ -591,7 +579,6 @@ pub fn combine_ored_clauses(
             conditional_object_id,
             conditional_object_id,
             Some(true),
-            None,
             None,
             None,
         ));
@@ -627,7 +614,6 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
             Some(true),
             None,
             None,
-            None,
         )]);
     }
 
@@ -650,7 +636,6 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
             Some(true),
             None,
             None,
-            None,
         )]);
     }
 
@@ -665,7 +650,6 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
             (n2, n2),
             (n2, n2),
             Some(true),
-            None,
             None,
             None,
         )]);

@@ -70,7 +70,6 @@ pub(crate) fn analyze(
             Some(true),
             None,
             None,
-            None,
         ));
     }
 

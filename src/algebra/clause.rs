@@ -5,7 +5,6 @@ use std::num::Wrapping;
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::Interner;
 use indexmap::IndexMap;
-use rustc_hash::FxHashSet;
 
 #[derive(Clone, Debug, Eq)]
 pub struct Clause {
@@ -29,7 +28,6 @@ pub struct Clause {
     pub wedge: bool,
     pub reconcilable: bool,
     pub generated: bool,
-    pub redefined_vars: Option<FxHashSet<String>>,
 }
 
 impl PartialEq for Clause {
@@ -52,7 +50,6 @@ impl Clause {
         wedge: Option<bool>,
         reconcilable: Option<bool>,
         generated: Option<bool>,
-        redefined_vars: Option<FxHashSet<String>>,
     ) -> Clause {
         let reconcilable = match reconcilable {
             None => true,
@@ -78,7 +75,6 @@ impl Clause {
             wedge,
             reconcilable,
             generated,
-            redefined_vars,
             hash,
         };
     }
@@ -105,7 +101,6 @@ impl Clause {
             wedge: self.wedge,
             reconcilable: self.reconcilable,
             generated: self.generated,
-            redefined_vars: self.redefined_vars.clone(),
         });
     }
 
@@ -131,7 +126,6 @@ impl Clause {
             wedge: self.wedge,
             reconcilable: self.reconcilable,
             generated: self.generated,
-            redefined_vars: self.redefined_vars.clone(),
         };
     }
 
