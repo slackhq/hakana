@@ -24,7 +24,7 @@ pub trait TestRunner {
         use_cache: bool,
         had_error: &mut bool,
         build_checksum: &str,
-        repeat: u8,
+        repeat: u16,
     ) {
         let test_folders = get_all_test_folders(test_or_test_dir);
 

@@ -780,7 +780,7 @@ pub fn init(
         }
         Some(("test", sub_matches)) => {
             let repeat = if let Some(val) = sub_matches.value_of("repeat").map(|f| f.to_string()) {
-                val.parse::<u8>().unwrap()
+                val.parse::<u16>().unwrap()
             } else {
                 0
             };
