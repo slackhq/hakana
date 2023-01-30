@@ -1,8 +1,7 @@
 use crate::functionlike_identifier::FunctionLikeIdentifier;
 use crate::symbol_references::{ReferenceSource, SymbolReferences};
 use crate::{
-    classlike_info::Variance,
-    codebase_info::{symbols::SymbolKind, CodebaseInfo, Symbols},
+    codebase_info::{symbols::SymbolKind, Symbols},
     functionlike_parameter::FunctionLikeParameter,
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };
@@ -740,43 +739,6 @@ impl TAtomic {
                 return str;
             }
             TAtomic::TPlaceholder => "_".to_string(),
-        }
-    }
-
-    pub fn get_combiner_key(&self, codebase: &CodebaseInfo) -> String {
-        match self {
-            TAtomic::TNamedObject {
-                name, type_params, ..
-            } => match type_params {
-                None => codebase.interner.lookup(name).to_string(),
-                Some(type_params) => {
-                    let covariants =
-                        if let Some(classlike_storage) = codebase.classlike_infos.get(name) {
-                            &classlike_storage.generic_variance
-                        } else {
-                            return self.get_key();
-                        };
-
-                    let mut str = String::new();
-                    str += codebase.interner.lookup(name);
-                    str += "<";
-                    str += type_params
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, tunion)| {
-                            if let Some(Variance::Covariant) = covariants.get(&i) {
-                                "*".to_string()
-                            } else {
-                                tunion.get_key()
-                            }
-                        })
-                        .join(", ")
-                        .as_str();
-                    str += ">";
-                    return str;
-                }
-            },
-            _ => self.get_key(),
         }
     }
 

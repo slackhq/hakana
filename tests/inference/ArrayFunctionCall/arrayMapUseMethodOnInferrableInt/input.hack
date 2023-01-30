@@ -1,1 +1,1 @@
-$a = array_map(($i) ==> { return $i->foo(); }, vec[1, 2, 3, 4]);
+$a = array_map(($i) ==> { return $i->foo(); }, vec[1]);

@@ -48,7 +48,7 @@ pub(crate) struct TypeCombination {
     pub mixed_from_loop_isset: Option<bool>,
 
     pub literal_strings: FxHashMap<String, TAtomic>,
-    pub literal_ints: FxHashMap<String, TAtomic>,
+    pub literal_ints: FxHashMap<i64, TAtomic>,
 
     pub class_string_types: FxHashMap<String, TAtomic>,
 
