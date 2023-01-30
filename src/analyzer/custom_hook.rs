@@ -91,7 +91,6 @@ pub trait InternalHook {
         inferred_return_type: &mut Option<TUnion>,
         codebase: &CodebaseInfo,
         statements_analyzer: &StatementsAnalyzer,
-        expected_type_id: String,
     ) -> bool {
         false
     }
