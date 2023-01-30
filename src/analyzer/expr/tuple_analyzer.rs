@@ -13,7 +13,8 @@ use hakana_reflection_info::{
 };
 use hakana_type::{get_mixed_any, get_nothing, wrap_atomic};
 use oxidized::{aast, ast_defs::Pos};
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
+
 use std::collections::BTreeMap;
 
 pub(crate) fn analyze(
@@ -23,7 +24,7 @@ pub(crate) fn analyze(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> bool {
-    let mut parent_nodes = FxHashMap::default();
+    let mut parent_nodes = FxHashSet::default();
 
     let mut known_items = BTreeMap::new();
     for (i, value_expr) in tuple_fields.iter().enumerate() {
@@ -50,7 +51,7 @@ pub(crate) fn analyze(
             i,
             value_expr,
         ) {
-            parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node);
+            parent_nodes.insert(new_parent_node);
         }
 
         known_items.insert(i, (false, value_item_type));
@@ -98,7 +99,7 @@ fn add_tuple_value_dataflow(
 
     // TODO add taint event dispatches
 
-    for (_, parent_node) in value_type.parent_nodes.iter() {
+    for parent_node in value_type.parent_nodes.iter() {
         tast_info.data_flow_graph.add_path(
             parent_node,
             &new_parent_node,

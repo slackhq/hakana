@@ -155,7 +155,7 @@ pub(crate) fn analyze(
                     types: FxHashSet::from_iter([SinkType::Output]),
                 };
 
-                for (_, parent_node) in &expr_type.parent_nodes {
+                for parent_node in &expr_type.parent_nodes {
                     tast_info.data_flow_graph.add_path(
                         parent_node,
                         &xml_body_taint,
@@ -180,7 +180,7 @@ pub(crate) fn analyze(
                     types: FxHashSet::from_iter([SinkType::HtmlTag, SinkType::Output]),
                 };
 
-                for (_, parent_node) in &expr_type.parent_nodes {
+                for parent_node in &expr_type.parent_nodes {
                     tast_info.data_flow_graph.add_path(
                         parent_node,
                         &xml_body_taint,

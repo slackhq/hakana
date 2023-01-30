@@ -8,15 +8,15 @@ use crate::{
 use core::panic;
 use derivative::Derivative;
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
+use std::hash::{Hash, Hasher};
+
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, Derivative)]
-#[derivative(Hash)]
 pub struct TUnion {
     pub types: Vec<TAtomic>,
-    #[derivative(Hash = "ignore")]
-    pub parent_nodes: FxHashMap<String, DataFlowNode>,
+    pub parent_nodes: FxHashSet<DataFlowNode>,
     pub had_template: bool,
 
     // Whether or not the data in this type could have references to it.
@@ -35,6 +35,15 @@ pub struct TUnion {
     pub has_mutations: bool,
 
     pub populated: bool,
+}
+
+impl Hash for TUnion {
+    // for hashing we only care about the types, not anything else
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for t in &self.types {
+            t.hash(state);
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -60,7 +69,7 @@ impl TUnion {
     pub fn new(types: Vec<TAtomic>) -> TUnion {
         TUnion {
             types: types,
-            parent_nodes: FxHashMap::default(),
+            parent_nodes: FxHashSet::default(),
             had_template: false,
             reference_free: false,
             possibly_undefined_from_try: false,
@@ -157,7 +166,9 @@ impl TUnion {
     }
 
     pub fn is_placeholder(&self) -> bool {
-        self.types.iter().all(|t| matches!(t, TAtomic::TPlaceholder))
+        self.types
+            .iter()
+            .all(|t| matches!(t, TAtomic::TPlaceholder))
     }
 
     pub fn is_true(&self) -> bool {
@@ -684,16 +695,7 @@ impl PartialEq for TUnion {
             }
         }
 
-        if self.parent_nodes.len() != other.parent_nodes.len()
-            || !self
-                .parent_nodes
-                .keys()
-                .all(|k| other.parent_nodes.contains_key(k))
-        {
-            return false;
-        }
-
-        true
+        self.parent_nodes == other.parent_nodes
     }
 }
 

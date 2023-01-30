@@ -675,9 +675,7 @@ fn add_dataflow(
         data_flow_graph.add_node(function_call_node.clone());
     }
 
-    stmt_type
-        .parent_nodes
-        .insert(function_call_node.get_id().clone(), function_call_node);
+    stmt_type.parent_nodes.insert(function_call_node);
 
     stmt_type
 }

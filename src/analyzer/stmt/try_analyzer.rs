@@ -188,9 +188,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_hpos(&catch.1 .0),
         );
 
-        catch_type
-            .parent_nodes
-            .insert(new_parent_node.get_id().clone(), new_parent_node);
+        catch_type.parent_nodes.insert(new_parent_node);
 
         catch_context
             .vars_in_scope

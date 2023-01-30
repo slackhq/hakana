@@ -18,7 +18,7 @@ use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 use crate::{
     expr::{expression_identifier, fetch::array_fetch_analyzer},
@@ -377,10 +377,9 @@ fn add_array_assignment_dataflow(
 
     let old_parent_nodes = parent_expr_type.parent_nodes.clone();
 
-    parent_expr_type.parent_nodes =
-        FxHashMap::from_iter([(parent_node.get_id().clone(), parent_node.clone())]);
+    parent_expr_type.parent_nodes = FxHashSet::from_iter([parent_node.clone()]);
 
-    for (_, old_parent_node) in old_parent_nodes {
+    for old_parent_node in old_parent_nodes {
         tast_info.data_flow_graph.add_path(
             &old_parent_node,
             &parent_node,
@@ -392,7 +391,7 @@ fn add_array_assignment_dataflow(
 
     let codebase = statements_analyzer.get_codebase();
 
-    for (_, child_parent_node) in &child_expr_type.parent_nodes {
+    for child_parent_node in &child_expr_type.parent_nodes {
         if !key_values.is_empty() {
             for key_value in key_values {
                 let key_value = match key_value {

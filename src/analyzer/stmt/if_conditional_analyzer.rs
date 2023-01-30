@@ -335,7 +335,7 @@ pub(crate) fn add_branch_dataflow(
                 statements_analyzer.get_hpos(cond.pos()),
             );
 
-            for (_, parent_node) in &conditional_type.parent_nodes {
+            for parent_node in &conditional_type.parent_nodes {
                 tast_info.data_flow_graph.add_path(
                     &parent_node,
                     &branch_node,

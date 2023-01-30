@@ -16,7 +16,7 @@ use hakana_type::{
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
 };
 use oxidized::{aast, ast_defs::Pos};
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 use crate::{expr::expression_identifier, typed_ast::TastInfo};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -228,7 +228,7 @@ pub(crate) fn add_array_fetch_dataflow(
                 }
             }
 
-            for (_, parent_node) in stmt_var_type.parent_nodes.iter() {
+            for parent_node in stmt_var_type.parent_nodes.iter() {
                 tast_info.data_flow_graph.add_path(
                     parent_node,
                     &new_parent_node,
@@ -255,14 +255,10 @@ pub(crate) fn add_array_fetch_dataflow(
                 }
             }
 
-            value_type
-                .parent_nodes
-                .insert(new_parent_node.get_id().clone(), new_parent_node.clone());
+            value_type.parent_nodes.insert(new_parent_node.clone());
 
             if let Some(array_key_node) = &array_key_node {
-                key_type
-                    .parent_nodes
-                    .insert(array_key_node.get_id().clone(), array_key_node.clone());
+                key_type.parent_nodes.insert(array_key_node.clone());
             }
         }
     }
@@ -500,7 +496,7 @@ pub(crate) fn get_array_access_type_given_offset(
     if !has_valid_expected_offset {
         let mut mixed_with_any = false;
         if offset_type.is_mixed_with_any(&mut mixed_with_any) {
-            for (_, origin) in &offset_type.parent_nodes {
+            for origin in &offset_type.parent_nodes {
                 tast_info.data_flow_graph.add_mixed_data(origin, stmt.2);
             }
 
@@ -923,7 +919,7 @@ pub(crate) fn handle_array_access_on_mixed(
     stmt_type: Option<TUnion>,
 ) -> TUnion {
     if !context.inside_isset {
-        for (_, origin) in &mixed_union.parent_nodes {
+        for origin in &mixed_union.parent_nodes {
             tast_info.data_flow_graph.add_mixed_data(origin, pos);
         }
 
@@ -977,7 +973,7 @@ pub(crate) fn handle_array_access_on_mixed(
             );
             tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
-            for (_, parent_node) in stmt_var_type.parent_nodes.iter() {
+            for parent_node in stmt_var_type.parent_nodes.iter() {
                 tast_info.data_flow_graph.add_path(
                     parent_node,
                     &new_parent_node,
@@ -988,10 +984,7 @@ pub(crate) fn handle_array_access_on_mixed(
             }
             if let Some(stmt_type) = stmt_type {
                 let mut stmt_type_new = stmt_type.clone();
-                stmt_type_new.parent_nodes = FxHashMap::from_iter([(
-                    new_parent_node.get_id().clone(),
-                    new_parent_node.clone(),
-                )]);
+                stmt_type_new.parent_nodes = FxHashSet::from_iter([new_parent_node.clone()]);
             }
         }
     }

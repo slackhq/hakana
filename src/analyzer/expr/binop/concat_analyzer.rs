@@ -64,7 +64,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                 }
             }
 
-            for (_, old_parent_node) in &expr_type.parent_nodes {
+            for old_parent_node in &expr_type.parent_nodes {
                 tast_info.data_flow_graph.add_path(
                     old_parent_node,
                     &decision_node,
@@ -92,9 +92,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         get_string()
     };
 
-    result_type
-        .parent_nodes
-        .insert(decision_node.get_id().clone(), decision_node.clone());
+    result_type.parent_nodes.insert(decision_node.clone());
 
     // todo handle more string type combinations
 

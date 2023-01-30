@@ -6,7 +6,7 @@ use hakana_reflection_info::StrId;
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::expr::binop::assignment_analyzer;
 use crate::expr::call_analyzer::get_generic_param_for_offset;
@@ -1008,8 +1008,7 @@ fn handle_possibly_matching_inout_param(
             Some(statements_analyzer.get_hpos(function_call_pos)),
         );
 
-        inout_type.parent_nodes =
-            FxHashMap::from_iter([(out_node.get_id().clone(), out_node.clone())]);
+        inout_type.parent_nodes = FxHashSet::from_iter([out_node.clone()]);
 
         tast_info.data_flow_graph.add_node(out_node);
     } else {

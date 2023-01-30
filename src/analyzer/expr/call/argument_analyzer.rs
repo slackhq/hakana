@@ -129,7 +129,7 @@ fn get_unpacked_type(
                 type_param
             }
             TAtomic::TMixedWithFlags(true, ..) => {
-                for (_, origin) in &arg_value_type.parent_nodes {
+                for origin in &arg_value_type.parent_nodes {
                     tast_info.data_flow_graph.add_mixed_data(origin, pos);
                 }
 
@@ -151,7 +151,7 @@ fn get_unpacked_type(
             TAtomic::TMixedWithFlags(_, true, _, _)
             | TAtomic::TMixedWithFlags(_, _, _, true)
             | TAtomic::TMixed => {
-                for (_, origin) in &arg_value_type.parent_nodes {
+                for origin in &arg_value_type.parent_nodes {
                     tast_info.data_flow_graph.add_mixed_data(origin, pos);
                 }
 
@@ -250,7 +250,7 @@ pub(crate) fn verify_type(
 
     let mut mixed_from_any = false;
     if input_type.is_mixed_with_any(&mut mixed_from_any) {
-        for (_, origin) in &input_type.parent_nodes {
+        for origin in &input_type.parent_nodes {
             tast_info
                 .data_flow_graph
                 .add_mixed_data(origin, input_expr.pos());
@@ -717,7 +717,7 @@ fn add_dataflow(
         )
     };
 
-    for (_, parent_node) in &input_type.parent_nodes {
+    for parent_node in &input_type.parent_nodes {
         data_flow_graph.add_path(
             parent_node,
             &argument_value_node,

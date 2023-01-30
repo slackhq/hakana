@@ -1,6 +1,5 @@
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use indexmap::IndexMap;
-use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -182,9 +181,7 @@ pub(crate) fn analyze(
                 statements_analyzer.get_hpos(assign_var.pos()),
             );
 
-            assign_value_type
-                .parent_nodes
-                .insert(assignment_node.get_id().clone(), assignment_node);
+            assign_value_type.parent_nodes.insert(assignment_node);
         };
     }
 
@@ -488,14 +485,14 @@ pub(crate) fn add_dataflow_to_assignment(
     }
 
     let parent_nodes = &assignment_type.parent_nodes;
-    let mut new_parent_nodes = FxHashMap::default();
+    let mut new_parent_nodes = FxHashSet::default();
 
     let new_parent_node =
         DataFlowNode::get_for_assignment(var_id.clone(), statements_analyzer.get_hpos(var_pos));
     data_flow_graph.add_node(new_parent_node.clone());
-    new_parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node.clone());
+    new_parent_nodes.insert(new_parent_node.clone());
 
-    for (_, parent_node) in parent_nodes {
+    for parent_node in parent_nodes {
         data_flow_graph.add_path(
             parent_node,
             &new_parent_node,

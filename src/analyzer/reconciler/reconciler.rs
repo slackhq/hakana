@@ -90,7 +90,7 @@ pub(crate) fn reconcile_keyed_types(
                                     statements_analyzer.get_hpos(pos),
                                 );
 
-                                for (_, old_parent_node) in &existing_var_type.parent_nodes {
+                                for old_parent_node in &existing_var_type.parent_nodes {
                                     tast_info.data_flow_graph.add_path(
                                         old_parent_node,
                                         &new_parent_node,
@@ -102,10 +102,8 @@ pub(crate) fn reconcile_keyed_types(
 
                                 let mut existing_var_type_inner = (**existing_var_type).clone();
 
-                                existing_var_type_inner.parent_nodes = FxHashMap::from_iter([(
-                                    new_parent_node.get_id().clone(),
-                                    new_parent_node.clone(),
-                                )]);
+                                existing_var_type_inner.parent_nodes =
+                                    FxHashSet::from_iter([new_parent_node.clone()]);
 
                                 *existing_var_type = Rc::new(existing_var_type_inner);
 
@@ -253,7 +251,7 @@ pub(crate) fn reconcile_keyed_types(
                         statements_analyzer.get_hpos(pos),
                     );
 
-                    for (_, parent_node) in &before_adjustment.parent_nodes {
+                    for parent_node in &before_adjustment.parent_nodes {
                         tast_info.data_flow_graph.add_path(
                             parent_node,
                             &scalar_check_node,
@@ -263,10 +261,7 @@ pub(crate) fn reconcile_keyed_types(
                         );
                     }
 
-                    result_type.parent_nodes = FxHashMap::from_iter([(
-                        scalar_check_node.get_id().clone(),
-                        scalar_check_node.clone(),
-                    )]);
+                    result_type.parent_nodes = FxHashSet::from_iter([scalar_check_node.clone()]);
 
                     tast_info.data_flow_graph.add_node(scalar_check_node);
                 } else {

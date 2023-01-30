@@ -18,7 +18,7 @@ use oxidized::{
     ast_defs::Pos,
     tast::{KvcKind, VcKind},
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
@@ -29,7 +29,7 @@ pub(crate) struct ArrayCreationInfo {
     item_key_atomic_types: Vec<TAtomic>,
     item_value_atomic_types: Vec<TAtomic>,
     known_items: Vec<(TAtomic, TUnion)>,
-    parent_nodes: FxHashMap<String, DataFlowNode>,
+    parent_nodes: FxHashSet<DataFlowNode>,
     effects: u8,
 }
 
@@ -38,7 +38,7 @@ impl ArrayCreationInfo {
         Self {
             item_key_atomic_types: Vec::new(),
             item_value_atomic_types: Vec::new(),
-            parent_nodes: FxHashMap::default(),
+            parent_nodes: FxHashSet::default(),
             known_items: Vec::new(),
             effects: 0,
         }
@@ -478,7 +478,7 @@ fn add_array_value_dataflow(
 
         // TODO add taint event dispatches
 
-        for (_, parent_node) in value_type.parent_nodes.iter() {
+        for parent_node in value_type.parent_nodes.iter() {
             tast_info.data_flow_graph.add_path(
                 parent_node,
                 &new_parent_node,
@@ -510,9 +510,7 @@ fn add_array_value_dataflow(
             );
         }
 
-        array_creation_info
-            .parent_nodes
-            .insert(new_parent_node.get_id().clone(), new_parent_node);
+        array_creation_info.parent_nodes.insert(new_parent_node);
     }
 }
 
@@ -543,7 +541,7 @@ fn add_array_key_dataflow(
             None
         };
 
-        for (_, parent_node) in key_item_type.parent_nodes.iter() {
+        for parent_node in key_item_type.parent_nodes.iter() {
             tast_info.data_flow_graph.add_path(
                 parent_node,
                 &new_parent_node,
@@ -575,8 +573,6 @@ fn add_array_key_dataflow(
             );
         }
 
-        array_creation_info
-            .parent_nodes
-            .insert(new_parent_node.get_id().clone(), new_parent_node);
+        array_creation_info.parent_nodes.insert(new_parent_node);
     }
 }

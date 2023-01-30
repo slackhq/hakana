@@ -29,7 +29,8 @@ use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_compara
 use itertools::Itertools;
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
+
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
@@ -243,8 +244,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     &statements_analyzer.get_codebase().interner,
                 );
 
-                this_type.parent_nodes =
-                    FxHashMap::from_iter([(new_call_node.get_id().clone(), new_call_node)]);
+                this_type.parent_nodes = FxHashSet::from_iter([new_call_node]);
             }
 
             context
@@ -448,7 +448,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             &statements_analyzer.get_codebase().interner,
                         );
 
-                        for (_, parent_node) in &this_type.parent_nodes {
+                        for parent_node in &this_type.parent_nodes {
                             tast_info.data_flow_graph.add_path(
                                 parent_node,
                                 &new_call_node,
@@ -937,9 +937,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     tast_info.data_flow_graph.add_node(argument_node);
                 }
 
-                param_type
-                    .parent_nodes
-                    .insert(new_parent_node.get_id().clone(), new_parent_node);
+                param_type.parent_nodes.insert(new_parent_node);
 
                 let config = statements_analyzer.get_config();
 

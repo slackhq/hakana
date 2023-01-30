@@ -1,4 +1,5 @@
 use core::panic;
+use std::hash::{Hash, Hasher};
 
 use crate::method_identifier::MethodIdentifier;
 use crate::Interner;
@@ -54,6 +55,19 @@ pub enum DataFlowNode {
         pos: Option<HPos>,
         types: FxHashSet<SinkType>,
     },
+}
+
+impl Hash for DataFlowNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match &self {
+            DataFlowNode::Vertex { id, .. }
+            | DataFlowNode::VariableUseSource { id, .. }
+            | DataFlowNode::VariableUseSink { id, .. }
+            | DataFlowNode::DataSource { id, .. }
+            | DataFlowNode::TaintSource { id, .. }
+            | DataFlowNode::TaintSink { id, .. } => id.hash(state),
+        }
+    }
 }
 
 impl DataFlowNode {

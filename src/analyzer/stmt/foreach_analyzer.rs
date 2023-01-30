@@ -549,7 +549,7 @@ fn check_iterator_type(
             statements_analyzer.get_hpos(pos),
         );
 
-        for (_, parent_node) in &iterator_type.parent_nodes {
+        for parent_node in &iterator_type.parent_nodes {
             tast_info.data_flow_graph.add_path(
                 &parent_node,
                 &foreach_node,

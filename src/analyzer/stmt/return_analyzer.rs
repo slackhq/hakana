@@ -222,7 +222,7 @@ pub(crate) fn analyze(
                     return;
                 }
 
-                for (_, origin) in &inferred_return_type.parent_nodes {
+                for origin in &inferred_return_type.parent_nodes {
                     tast_info.data_flow_graph.add_mixed_data(origin, &stmt.0);
                 }
 
@@ -469,7 +469,7 @@ pub(crate) fn handle_inout_at_return(
 
                 tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
-                for (_, parent_node) in &context_type.parent_nodes {
+                for parent_node in &context_type.parent_nodes {
                     tast_info.data_flow_graph.add_path(
                         parent_node,
                         &new_parent_node,
@@ -498,7 +498,7 @@ fn handle_dataflow(
             statements_analyzer.get_hpos(return_expr.pos()),
         );
 
-        for (_, parent_node) in &inferred_type.parent_nodes {
+        for parent_node in &inferred_type.parent_nodes {
             data_flow_graph.add_path(&parent_node, &return_node, PathKind::Default, None, None);
         }
         data_flow_graph.add_node(return_node);
@@ -529,7 +529,7 @@ fn handle_dataflow(
             None,
         );
 
-        for (_, parent_node) in &inferred_type.parent_nodes {
+        for parent_node in &inferred_type.parent_nodes {
             data_flow_graph.add_path(
                 &parent_node,
                 &method_node,

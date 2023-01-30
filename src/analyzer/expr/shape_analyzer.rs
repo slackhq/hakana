@@ -17,7 +17,7 @@ use oxidized::{
     aast,
     ast_defs::{Pos, ShapeFieldName},
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 use std::{collections::BTreeMap, sync::Arc};
 
 pub(crate) fn analyze(
@@ -29,7 +29,7 @@ pub(crate) fn analyze(
 ) -> bool {
     let codebase = statements_analyzer.get_codebase();
 
-    let mut parent_nodes = FxHashMap::default();
+    let mut parent_nodes = FxHashSet::default();
 
     let mut effects = 0;
 
@@ -138,7 +138,7 @@ pub(crate) fn analyze(
                 },
                 value_expr,
             ) {
-                parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node);
+                parent_nodes.insert(new_parent_node);
             }
 
             known_items.insert(name, (false, Arc::new(value_item_type)));
@@ -191,7 +191,7 @@ fn add_shape_value_dataflow(
 
     // TODO add taint event dispatches
 
-    for (_, parent_node) in value_type.parent_nodes.iter() {
+    for parent_node in value_type.parent_nodes.iter() {
         tast_info.data_flow_graph.add_path(
             parent_node,
             &new_parent_node,

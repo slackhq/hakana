@@ -20,7 +20,7 @@ use oxidized::{
     aast,
     ast_defs::{self, Pos},
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     expr::{
@@ -307,7 +307,7 @@ fn handle_shapes_static_method(
                             statements_analyzer.get_hpos(&call_expr.1[0].1.pos()),
                         );
 
-                        for (_, parent_node) in &expr_type.parent_nodes {
+                        for parent_node in &expr_type.parent_nodes {
                             tast_info.data_flow_graph.add_path(
                                 parent_node,
                                 &assignment_node,
@@ -317,10 +317,7 @@ fn handle_shapes_static_method(
                             );
                         }
 
-                        new_type.parent_nodes = FxHashMap::from_iter([(
-                            assignment_node.get_id().clone(),
-                            assignment_node.clone(),
-                        )]);
+                        new_type.parent_nodes = FxHashSet::from_iter([assignment_node.clone()]);
 
                         tast_info.data_flow_graph.add_node(assignment_node);
 

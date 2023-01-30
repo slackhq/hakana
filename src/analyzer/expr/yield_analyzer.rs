@@ -51,7 +51,7 @@ pub(crate) fn analyze(
                 statements_analyzer.get_hpos(pos),
             );
 
-            for (_, parent_node) in &inferred_type.parent_nodes {
+            for parent_node in &inferred_type.parent_nodes {
                 tast_info.data_flow_graph.add_path(
                     &parent_node,
                     &return_node,

@@ -14,7 +14,7 @@ use hakana_type::type_expander;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::wrap_atomic;
 use oxidized::aast;
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -103,8 +103,7 @@ pub(crate) fn analyze(
 
         tast_info.data_flow_graph.add_node(application_node.clone());
 
-        closure_type.parent_nodes =
-            FxHashMap::from_iter([(application_node.get_id().clone(), application_node)]);
+        closure_type.parent_nodes = FxHashSet::from_iter([application_node]);
     }
 
     tast_info.expr_types.insert(

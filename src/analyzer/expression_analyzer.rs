@@ -36,7 +36,7 @@ use hakana_type::{
 use oxidized::ast::Field;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -365,7 +365,7 @@ pub(crate) fn analyze(
         aast::Expr_::String2(exprs) => {
             let mut all_literals = true;
 
-            let mut parent_nodes = FxHashMap::default();
+            let mut parent_nodes = FxHashSet::default();
 
             for (offset, inner_expr) in exprs.iter().enumerate() {
                 if !expression_analyzer::analyze(
@@ -395,7 +395,7 @@ pub(crate) fn analyze(
                         all_literals = false;
                     }
 
-                    for (_, parent_node) in &expr_part_type.parent_nodes {
+                    for parent_node in &expr_part_type.parent_nodes {
                         tast_info.data_flow_graph.add_path(
                             parent_node,
                             &new_parent_node,
@@ -416,7 +416,7 @@ pub(crate) fn analyze(
                     all_literals = false;
                 }
 
-                parent_nodes.insert(new_parent_node.get_id().clone(), new_parent_node);
+                parent_nodes.insert(new_parent_node);
             }
 
             let mut string_type = if all_literals {
@@ -738,10 +738,7 @@ fn analyze_function_pointer(
                 tast_info.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentClasslike,
-                        format!(
-                            "Unknown classlike {}",
-                            codebase.interner.lookup(class_name)
-                        ),
+                        format!("Unknown classlike {}", codebase.interner.lookup(class_name)),
                         statements_analyzer.get_hpos(&expr.pos()),
                     ),
                     statements_analyzer.get_config(),
@@ -782,11 +779,9 @@ pub(crate) fn add_decision_dataflow(
         .expr_types
         .get(&(lhs_expr.1.start_offset(), lhs_expr.1.end_offset()))
     {
-        cond_type
-            .parent_nodes
-            .insert(decision_node.get_id().clone(), decision_node.clone());
+        cond_type.parent_nodes.insert(decision_node.clone());
 
-        for (_, old_parent_node) in &lhs_type.parent_nodes {
+        for old_parent_node in &lhs_type.parent_nodes {
             tast_info.data_flow_graph.add_path(
                 old_parent_node,
                 &decision_node,
@@ -802,11 +797,9 @@ pub(crate) fn add_decision_dataflow(
             .expr_types
             .get(&(rhs_expr.1.start_offset(), rhs_expr.1.end_offset()))
         {
-            cond_type
-                .parent_nodes
-                .insert(decision_node.get_id().clone(), decision_node.clone());
+            cond_type.parent_nodes.insert(decision_node.clone());
 
-            for (_, old_parent_node) in &rhs_type.parent_nodes {
+            for old_parent_node in &rhs_type.parent_nodes {
                 tast_info.data_flow_graph.add_path(
                     old_parent_node,
                     &decision_node,

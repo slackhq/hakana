@@ -176,11 +176,9 @@ pub(crate) fn assign_arithmetic_type(
         .expr_types
         .get(&(lhs_expr.1.start_offset(), lhs_expr.1.end_offset()))
     {
-        cond_type
-            .parent_nodes
-            .insert(decision_node.get_id().clone(), decision_node.clone());
+        cond_type.parent_nodes.insert(decision_node.clone());
 
-        for (_, old_parent_node) in &lhs_type.parent_nodes {
+        for old_parent_node in &lhs_type.parent_nodes {
             tast_info.data_flow_graph.add_path(
                 old_parent_node,
                 &decision_node,
@@ -195,11 +193,9 @@ pub(crate) fn assign_arithmetic_type(
         .expr_types
         .get(&(rhs_expr.1.start_offset(), rhs_expr.1.end_offset()))
     {
-        cond_type
-            .parent_nodes
-            .insert(decision_node.get_id().clone(), decision_node.clone());
+        cond_type.parent_nodes.insert(decision_node.clone());
 
-        for (_, old_parent_node) in &rhs_type.parent_nodes {
+        for old_parent_node in &rhs_type.parent_nodes {
             tast_info.data_flow_graph.add_path(
                 old_parent_node,
                 &decision_node,

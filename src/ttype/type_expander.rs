@@ -105,11 +105,9 @@ pub fn expand_union(
         }
     }
 
-    return_type.parent_nodes.extend(
-        extra_data_flow_nodes
-            .into_iter()
-            .map(|n| (n.get_id().clone(), n)),
-    );
+    return_type
+        .parent_nodes
+        .extend(extra_data_flow_nodes);
 }
 
 fn expand_atomic(

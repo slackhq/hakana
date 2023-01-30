@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use hakana_reflection_info::StrId;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
@@ -270,7 +270,7 @@ fn add_dataflow(
                     &statements_analyzer.get_codebase().interner,
                 );
 
-                for (_, this_parent_node) in &var_type.parent_nodes {
+                for this_parent_node in &var_type.parent_nodes {
                     data_flow_graph.add_path(
                         this_parent_node,
                         &before_construct_node,
@@ -291,10 +291,7 @@ fn add_dataflow(
 
                 let mut var_type_inner = (**var_type).clone();
 
-                var_type_inner.parent_nodes = FxHashMap::from_iter([(
-                    after_construct_node.get_id().clone(),
-                    after_construct_node.clone(),
-                )]);
+                var_type_inner.parent_nodes = FxHashSet::from_iter([after_construct_node.clone()]);
 
                 data_flow_graph.add_node(after_construct_node);
 
@@ -317,7 +314,7 @@ fn add_dataflow(
                         &codebase.interner,
                     );
 
-                    for (_, parent_node) in &context_type.parent_nodes {
+                    for parent_node in &context_type.parent_nodes {
                         data_flow_graph.add_path(
                             &parent_node,
                             &this_before_method_node,
@@ -352,8 +349,7 @@ fn add_dataflow(
 
                     let mut context_type_inner = (**context_type).clone();
 
-                    context_type_inner.parent_nodes =
-                        FxHashMap::from_iter([(var_node.get_id().clone(), var_node.clone())]);
+                    context_type_inner.parent_nodes = FxHashSet::from_iter([var_node.clone()]);
 
                     *context_type = Rc::new(context_type_inner);
 
@@ -376,8 +372,7 @@ fn add_dataflow(
 
         data_flow_graph.add_node(method_call_node.clone());
 
-        return_type_candidate.parent_nodes =
-            FxHashMap::from_iter([(method_call_node.get_id().clone(), method_call_node.clone())]);
+        return_type_candidate.parent_nodes = FxHashSet::from_iter([method_call_node.clone()]);
     }
 
     return_type_candidate

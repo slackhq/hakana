@@ -178,14 +178,14 @@ impl DataFlowGraph {
             for child_node in child_nodes {
                 visited_child_ids.insert(child_node.get_id().clone());
 
-                let mut new_parent_nodes = vec![];
+                let mut new_parent_nodes = FxHashSet::default();
                 let mut has_visited_a_parent_already = false;
 
                 if let Some(backward_edges) = self.backward_edges.get(child_node.get_id()) {
                     for from_id in backward_edges {
                         if let Some(node) = self.vertices.get(from_id) {
                             if !visited_child_ids.contains(from_id) {
-                                new_parent_nodes.push(node.clone());
+                                new_parent_nodes.insert(node.clone());
                             } else {
                                 has_visited_a_parent_already = true;
                             }

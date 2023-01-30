@@ -96,7 +96,7 @@ pub(crate) fn analyze(
         }
 
         if class_type.is_mixed() {
-            for (_, origin) in &class_type.parent_nodes {
+            for origin in &class_type.parent_nodes {
                 tast_info.data_flow_graph.add_mixed_data(origin, pos);
             }
         }

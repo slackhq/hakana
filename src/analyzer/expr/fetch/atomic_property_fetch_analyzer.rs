@@ -22,7 +22,7 @@ use hakana_type::{
 };
 use indexmap::IndexMap;
 use oxidized::{aast::Expr, ast_defs::Pos};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -416,7 +416,7 @@ fn add_property_dataflow(
             );
 
             if let Some(var_type) = var_type {
-                for (_, parent_node) in var_type.parent_nodes.iter() {
+                for parent_node in var_type.parent_nodes.iter() {
                     tast_info.data_flow_graph.add_path(
                         parent_node,
                         &var_node,
@@ -427,8 +427,7 @@ fn add_property_dataflow(
                 }
 
                 let mut stmt_type = stmt_type.clone();
-                stmt_type.parent_nodes =
-                    FxHashMap::from_iter([(property_node.get_id().clone(), property_node.clone())]);
+                stmt_type.parent_nodes = FxHashSet::from_iter([property_node.clone()]);
 
                 return stmt_type;
             }
@@ -510,10 +509,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
 
     let mut stmt_type = stmt_type.clone();
 
-    stmt_type.parent_nodes = FxHashMap::from_iter([(
-        localized_property_node.get_id().clone(),
-        localized_property_node.clone(),
-    )]);
+    stmt_type.parent_nodes = FxHashSet::from_iter([localized_property_node.clone()]);
 
     stmt_type
 }

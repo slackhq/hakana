@@ -218,7 +218,7 @@ pub(crate) fn analyze_regular_assignment(
         let mut mixed_with_any = false;
         if lhs_type.is_mixed_with_any(&mut mixed_with_any) {
             if mixed_with_any {
-                for (_, origin) in &lhs_type.parent_nodes {
+                for origin in &lhs_type.parent_nodes {
                     tast_info
                         .data_flow_graph
                         .add_mixed_data(origin, expr.1.pos());
@@ -564,7 +564,7 @@ fn add_instance_property_assignment_dataflow(
         None,
         None,
     );
-    for (_, parent_node) in assignment_value_type.parent_nodes.iter() {
+    for parent_node in assignment_value_type.parent_nodes.iter() {
         tast_info.data_flow_graph.add_path(
             parent_node,
             &property_node,
@@ -577,9 +577,7 @@ fn add_instance_property_assignment_dataflow(
     if let Some(stmt_var_type) = stmt_var_type {
         let mut stmt_type_inner = (**stmt_var_type).clone();
 
-        stmt_type_inner
-            .parent_nodes
-            .insert(var_node.get_id().clone(), var_node.clone());
+        stmt_type_inner.parent_nodes.insert(var_node.clone());
 
         *stmt_var_type = Rc::new(stmt_type_inner);
     }
@@ -639,7 +637,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         },
     );
 
-    for (_, parent_node) in assignment_value_type.parent_nodes.iter() {
+    for parent_node in assignment_value_type.parent_nodes.iter() {
         tast_info.data_flow_graph.add_path(
             parent_node,
             &localized_property_node,
