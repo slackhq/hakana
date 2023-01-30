@@ -399,8 +399,29 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 }
             }
 
+            //let start_t = std::time::Instant::now();
+
             completed_analysis =
                 statements_analyzer.analyze(&fb_ast, &mut tast_info, context, &mut None);
+
+            // let end_t = start_t.elapsed();
+
+            // if let Some(functionlike_id) = &context.function_context.calling_functionlike_id {
+            //     if fb_ast.len() > 1 {
+            //         let first_line = fb_ast[0].0.line() as u64;
+
+            //         let last_line = fb_ast.last().unwrap().0.to_raw_span().end.line();
+
+            //         if last_line - first_line > 10 && last_line - first_line < 100000 {
+            //             println!(
+            //                 "{}\t{}\t{}",
+            //                 functionlike_id.to_string(&statements_analyzer.get_codebase().interner),
+            //                 last_line - first_line,
+            //                 end_t.as_micros() as u64 / (last_line - first_line)
+            //             );
+            //         }
+            //     }
+            // }
 
             if !context.has_returned {
                 handle_inout_at_return(
