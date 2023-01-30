@@ -5,8 +5,10 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
+use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
+use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_type::get_mixed_any;
 use hakana_type::template::TemplateResult;
@@ -61,7 +63,19 @@ pub(crate) fn analyze(
 
             let mut lambda_storage =
                 FunctionLikeInfo::new(*closure_id, statements_analyzer.get_hpos(pos));
-            lambda_storage.params = closure_params.clone();
+            lambda_storage.params = closure_params
+                .iter()
+                .map(|fn_param| {
+                    let mut param = FunctionLikeParameter::new(
+                        "".to_string(),
+                        HPos::new(expr.0.pos(), *statements_analyzer.get_file_path(), None),
+                    );
+                    param.signature_type = fn_param.signature_type.clone();
+                    param.is_inout = fn_param.is_inout;
+                    param.is_variadic = fn_param.is_variadic;
+                    param
+                })
+                .collect();
             lambda_storage.return_type = closure_return_type.clone();
             lambda_storage.effects = FnEffect::from_u8(effects);
 

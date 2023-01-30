@@ -8,6 +8,7 @@ use hakana_reflection_info::{
         path::{PathExpressionKind, PathKind},
     },
     functionlike_info::FunctionLikeInfo,
+    functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
     StrId,
@@ -105,9 +106,7 @@ pub fn expand_union(
         }
     }
 
-    return_type
-        .parent_nodes
-        .extend(extra_data_flow_nodes);
+    return_type.parent_nodes.extend(extra_data_flow_nodes);
 }
 
 fn expand_atomic(
@@ -546,20 +545,24 @@ fn get_expanded_closure(
         params: functionlike_info
             .params
             .iter()
-            .map(|param| {
-                let mut param = param.clone();
-                if let Some(ref mut t) = param.signature_type {
+            .map(|param| FnParameter {
+                signature_type: if let Some(t) = &param.signature_type {
+                    let mut t = t.clone();
                     expand_union(
                         codebase,
-                        t,
+                        &mut t,
                         &TypeExpansionOptions {
                             ..Default::default()
                         },
                         data_flow_graph,
                     );
-                }
-
-                param
+                    Some(t)
+                } else {
+                    None
+                },
+                is_inout: param.is_inout,
+                is_variadic: param.is_variadic,
+                is_optional: param.is_optional,
             })
             .collect(),
         return_type: if let Some(return_type) = &functionlike_info.return_type {

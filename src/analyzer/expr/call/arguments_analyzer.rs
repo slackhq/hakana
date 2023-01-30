@@ -1004,7 +1004,7 @@ fn handle_possibly_matching_inout_param(
         let out_node = DataFlowNode::get_for_method_argument_out(
             functionlike_id.to_string(&codebase.interner),
             argument_offset,
-            functionlike_param.location.clone(),
+            Some(functionlike_param.location.clone()),
             Some(statements_analyzer.get_hpos(function_call_pos)),
         );
 

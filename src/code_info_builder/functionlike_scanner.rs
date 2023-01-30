@@ -589,7 +589,10 @@ fn convert_param_nodes(
     param_nodes
         .iter()
         .map(|param_node| {
-            let mut param = FunctionLikeParameter::new(param_node.name.clone());
+            let mut param = FunctionLikeParameter::new(
+                param_node.name.clone(),
+                HPos::new(&param_node.pos, file_source.file_path, None),
+            );
 
             param.is_variadic = param_node.is_variadic;
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
@@ -658,7 +661,6 @@ fn convert_param_nodes(
             }
             param.promoted_property = param_node.visibility.is_some();
             param.is_optional = param_node.expr.is_some();
-            param.location = Some(HPos::new(&param_node.pos, file_source.file_path, None));
             param
         })
         .collect()

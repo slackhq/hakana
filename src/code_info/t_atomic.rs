@@ -1,8 +1,8 @@
 use crate::functionlike_identifier::FunctionLikeIdentifier;
+use crate::functionlike_parameter::FnParameter;
 use crate::symbol_references::{ReferenceSource, SymbolReferences};
 use crate::{
     codebase_info::{symbols::SymbolKind, Symbols},
-    functionlike_parameter::FunctionLikeParameter,
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };
 use crate::{Interner, StrId};
@@ -57,8 +57,7 @@ pub enum TAtomic {
     TFalse,
     TFloat,
     TClosure {
-        #[derivative(Hash = "ignore")]
-        params: Vec<FunctionLikeParameter>,
+        params: Vec<FnParameter>,
         return_type: Option<TUnion>,
         effects: Option<u8>,
         closure_id: StrId,

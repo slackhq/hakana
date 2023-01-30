@@ -3,6 +3,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
+use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_type::{get_arraykey, get_mixed_any};
@@ -18,7 +19,10 @@ pub(crate) fn analyze(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> bool {
-    let echo_param = FunctionLikeParameter::new("var".to_string());
+    let echo_param = FunctionLikeParameter::new(
+        "var".to_string(),
+        HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
+    );
 
     for (i, (_, arg_expr)) in args.iter().enumerate() {
         expression_analyzer::analyze(statements_analyzer, arg_expr, tast_info, context, &mut None);

@@ -27,7 +27,7 @@ pub struct FunctionLikeParameter {
 
     pub default_type: Option<DefaultType>,
 
-    pub location: Option<HPos>,
+    pub location: HPos,
 
     pub signature_type_location: Option<HPos>,
 
@@ -55,7 +55,7 @@ pub struct FunctionLikeParameter {
 }
 
 impl FunctionLikeParameter {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: String, location: HPos) -> Self {
         Self {
             name,
             is_inout: false,
@@ -63,7 +63,7 @@ impl FunctionLikeParameter {
             is_optional: false,
             is_nullable: false,
             default_type: None,
-            location: None,
+            location,
             signature_type_location: None,
             is_variadic: false,
             taint_sinks: None,
@@ -75,4 +75,12 @@ impl FunctionLikeParameter {
             removed_taints_when_returning_true: None,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+pub struct FnParameter {
+    pub signature_type: Option<TUnion>,
+    pub is_inout: bool,
+    pub is_variadic: bool,
+    pub is_optional: bool,
 }

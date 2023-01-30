@@ -1,4 +1,4 @@
-use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
+use hakana_reflection_info::functionlike_parameter::FnParameter;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
@@ -229,32 +229,38 @@ fn get_function_type_from_hints(
         .iter()
         .enumerate()
         .map(|(i, param_type)| {
-            let mut param = FunctionLikeParameter::new("".to_string());
             let param_info = function_info.param_info.get(i).unwrap();
 
-            param.is_variadic = false;
-            param.is_inout = if let Some(param_info) = param_info {
-                matches!(param_info.kind, ParamKind::Pinout(_))
-            } else {
-                false
-            };
-            param.signature_type =
-                get_type_from_hint(&param_type.1, classlike_name, type_context, resolved_names);
-
-            param
+            FnParameter {
+                is_inout: if let Some(param_info) = param_info {
+                    matches!(param_info.kind, ParamKind::Pinout(_))
+                } else {
+                    false
+                },
+                signature_type: get_type_from_hint(
+                    &param_type.1,
+                    classlike_name,
+                    type_context,
+                    resolved_names,
+                ),
+                is_variadic: false,
+                is_optional: false,
+            }
         })
         .collect::<Vec<_>>();
 
     if let Some(variadic_type) = &function_info.variadic_ty {
-        let mut param = FunctionLikeParameter::new("".to_string());
-
-        param.is_variadic = true;
-        param.signature_type = get_type_from_hint(
-            &variadic_type.1,
-            classlike_name,
-            type_context,
-            resolved_names,
-        );
+        let param = FnParameter {
+            is_inout: false,
+            signature_type: get_type_from_hint(
+                &variadic_type.1,
+                classlike_name,
+                type_context,
+                resolved_names,
+            ),
+            is_variadic: true,
+            is_optional: false,
+        };
 
         params.push(param);
     }

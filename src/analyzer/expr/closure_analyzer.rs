@@ -8,10 +8,11 @@ use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
+use hakana_reflection_info::functionlike_parameter::FnParameter;
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_type::type_expander;
 use hakana_type::type_expander::TypeExpansionOptions;
+use hakana_type::type_expander;
 use hakana_type::wrap_atomic;
 use oxidized::aast;
 use rustc_hash::FxHashSet;
@@ -71,7 +72,16 @@ pub(crate) fn analyze(
     let closure_id = format!("{}:{}", fun.span.filename(), fun.span.start_offset());
 
     let mut closure_type = wrap_atomic(TAtomic::TClosure {
-        params: lambda_storage.params,
+        params: lambda_storage
+            .params
+            .into_iter()
+            .map(|param| FnParameter {
+                signature_type: param.signature_type,
+                is_inout: param.is_inout,
+                is_variadic: param.is_variadic,
+                is_optional: param.is_optional,
+            })
+            .collect(),
         return_type: lambda_storage.return_type,
         effects: lambda_storage.effects.to_u8(),
         closure_id: statements_analyzer

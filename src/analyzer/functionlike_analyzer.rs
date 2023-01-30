@@ -827,7 +827,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                     if let Some(type_location) = &param.signature_type_location {
                                         type_location.clone()
                                     } else {
-                                        param.location.clone().unwrap()
+                                        param.location.clone()
                                     },
                                 ));
 
@@ -864,18 +864,16 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 });
             }
 
-            if let Some(param_pos) = &param.location {
-                let new_parent_node = if let GraphKind::WholeProgram(_) =
-                    &tast_info.data_flow_graph.kind
-                {
-                    DataFlowNode::get_for_assignment(param.name.clone(), param_pos.clone())
+            let new_parent_node =
+                if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                    DataFlowNode::get_for_assignment(param.name.clone(), param.location.clone())
                 } else {
                     let id = format!(
                         "{}-{}:{}-{}",
                         param.name,
-                        interner.lookup(&param_pos.file_path),
-                        param_pos.start_offset,
-                        param_pos.end_offset
+                        interner.lookup(&param.location.file_path),
+                        param.location.start_offset,
+                        param.location.end_offset
                     );
 
                     DataFlowNode::VariableUseSource {
@@ -894,65 +892,64 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             }
                         },
                         id,
-                        pos: param_pos.clone(),
+                        pos: param.location.clone(),
                         name: param.name.clone(),
                     }
                 };
 
-                if !param.promoted_property {
-                    if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
-                        tast_info.data_flow_graph.add_node(new_parent_node.clone());
-                    }
+            if !param.promoted_property {
+                if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
+                    tast_info.data_flow_graph.add_node(new_parent_node.clone());
                 }
+            }
 
-                tast_info.data_flow_graph.add_node(new_parent_node.clone());
+            tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
-                if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-                    let calling_id =
-                        if let Some(id) = &context.function_context.calling_functionlike_id {
-                            id.clone()
-                        } else {
-                            context
-                                .function_context
-                                .calling_functionlike_id
-                                .clone()
-                                .unwrap()
-                        };
+            if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                let calling_id = if let Some(id) = &context.function_context.calling_functionlike_id
+                {
+                    id.clone()
+                } else {
+                    context
+                        .function_context
+                        .calling_functionlike_id
+                        .clone()
+                        .unwrap()
+                };
 
-                    let argument_node = DataFlowNode::get_for_method_argument(
-                        calling_id.to_string(&self.get_codebase().interner),
-                        i,
-                        param.location.clone(),
-                        None,
-                    );
+                let argument_node = DataFlowNode::get_for_method_argument(
+                    calling_id.to_string(&self.get_codebase().interner),
+                    i,
+                    Some(param.location.clone()),
+                    None,
+                );
 
-                    tast_info.data_flow_graph.add_path(
-                        &argument_node,
-                        &new_parent_node,
-                        PathKind::Default,
-                        None,
-                        None,
-                    );
+                tast_info.data_flow_graph.add_path(
+                    &argument_node,
+                    &new_parent_node,
+                    PathKind::Default,
+                    None,
+                    None,
+                );
 
-                    tast_info.data_flow_graph.add_node(argument_node);
-                }
+                tast_info.data_flow_graph.add_node(argument_node);
+            }
 
-                param_type.parent_nodes.insert(new_parent_node);
+            param_type.parent_nodes.insert(new_parent_node);
 
-                let config = statements_analyzer.get_config();
+            let config = statements_analyzer.get_config();
 
-                for hook in &config.hooks {
-                    hook.handle_functionlike_param(
-                        tast_info,
-                        FunctionLikeParamData {
-                            context,
-                            config,
-                            param_type: &param_type,
-                            param_node,
-                            codebase: statements_analyzer.get_codebase(),
-                        },
-                    );
-                }
+            for hook in &config.hooks {
+                hook.handle_functionlike_param(
+                    tast_info,
+                    FunctionLikeParamData {
+                        context,
+                        config,
+                        param_type: &param_type,
+                        param_node,
+                        codebase: statements_analyzer.get_codebase(),
+                    },
+                );
             }
 
             context
