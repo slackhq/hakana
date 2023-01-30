@@ -6,6 +6,7 @@ use crate::typed_ast::TastInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::issue::IssueKind;
@@ -148,11 +149,13 @@ pub(crate) fn analyze(
                 "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p" => true,
                 _ => false,
             } {
-                let xml_body_taint = DataFlowNode::TaintSink {
+                let xml_body_taint = DataFlowNode {
                     id: element_name.to_string(),
-                    label: element_name.to_string(),
-                    pos: None,
-                    types: FxHashSet::from_iter([SinkType::Output]),
+                    kind: DataFlowNodeKind::TaintSink {
+                        pos: None,
+                        label: element_name.to_string(),
+                        types: FxHashSet::from_iter([SinkType::Output]),
+                    },
                 };
 
                 for parent_node in &expr_type.parent_nodes {
@@ -173,11 +176,13 @@ pub(crate) fn analyze(
                 "Facebook\\XHP\\HTML\\style" | "Facebook\\XHP\\HTML\\script" => true,
                 _ => false,
             } {
-                let xml_body_taint = DataFlowNode::TaintSink {
+                let xml_body_taint = DataFlowNode {
                     id: element_name.to_string(),
-                    label: element_name.to_string(),
-                    pos: None,
-                    types: FxHashSet::from_iter([SinkType::HtmlTag, SinkType::Output]),
+                    kind: DataFlowNodeKind::TaintSink {
+                        pos: None,
+                        label: element_name.to_string(),
+                        types: FxHashSet::from_iter([SinkType::HtmlTag, SinkType::Output]),
+                    },
                 };
 
                 for parent_node in &expr_type.parent_nodes {
@@ -485,11 +490,13 @@ fn add_xml_attribute_dataflow(
                 }
             }
 
-            let xml_attribute_taint = DataFlowNode::TaintSink {
+            let xml_attribute_taint = DataFlowNode {
                 id: label.clone(),
-                label,
-                pos: None,
-                types: taints,
+                kind: DataFlowNodeKind::TaintSink {
+                    pos: None,
+                    label,
+                    types: taints,
+                },
             };
 
             tast_info.data_flow_graph.add_node(xml_attribute_taint);

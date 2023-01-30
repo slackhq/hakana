@@ -1,5 +1,5 @@
 use super::{
-    node::DataFlowNode,
+    node::{DataFlowNode, DataFlowNodeKind},
     path::{DataFlowPath, PathExpressionKind, PathKind},
 };
 use crate::taint::SinkType;
@@ -47,9 +47,8 @@ impl DataFlowGraph {
     }
 
     pub fn add_node(&mut self, node: DataFlowNode) {
-        match &node {
-            DataFlowNode::Vertex {
-                id,
+        match &node.kind {
+            DataFlowNodeKind::Vertex {
                 unspecialized_id,
                 specialization_key,
                 ..
@@ -70,15 +69,15 @@ impl DataFlowGraph {
                     }
                 }
 
-                self.vertices.insert(id.clone(), node);
+                self.vertices.insert(node.id.clone(), node);
             }
-            DataFlowNode::TaintSource { id, .. }
-            | DataFlowNode::VariableUseSource { id, .. }
-            | DataFlowNode::DataSource { id, .. } => {
-                self.sources.insert(id.clone(), node);
+            DataFlowNodeKind::TaintSource { .. }
+            | DataFlowNodeKind::VariableUseSource { .. }
+            | DataFlowNodeKind::DataSource { .. } => {
+                self.sources.insert(node.id.clone(), node);
             }
-            DataFlowNode::TaintSink { id, .. } | DataFlowNode::VariableUseSink { id, .. } => {
-                self.sinks.insert(id.clone(), node);
+            DataFlowNodeKind::TaintSink { .. } | DataFlowNodeKind::VariableUseSink { .. } => {
+                self.sinks.insert(node.id.clone(), node);
             }
         };
     }

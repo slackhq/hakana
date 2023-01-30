@@ -3,7 +3,11 @@ use crate::{
     statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
-    data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
+    data_flow::{
+        graph::GraphKind,
+        node::{DataFlowNode, DataFlowNodeKind},
+        path::PathKind,
+    },
     issue::{Issue, IssueKind},
     t_union::TUnion,
     taint::SourceType,
@@ -81,17 +85,19 @@ pub(crate) fn get_type_for_superglobal(
             let mut var_type = get_mixed_dict();
 
             let taint_pos = statements_analyzer.get_hpos(pos);
-            let taint_source = DataFlowNode::TaintSource {
+            let taint_source = DataFlowNode {
                 id: format!(
                     "${}:{}:{}",
                     name, taint_pos.file_path.0, taint_pos.start_offset
                 ),
-                label: format!("${}", name.clone()),
-                pos: None,
-                types: if name == "_GET" || name == "_REQUEST" {
-                    FxHashSet::from_iter([SourceType::UriRequestHeader])
-                } else {
-                    FxHashSet::from_iter([SourceType::NonUriRequestHeader])
+                kind: DataFlowNodeKind::TaintSource {
+                    pos: None,
+                    label: format!("${}", name.clone()),
+                    types: if name == "_GET" || name == "_REQUEST" {
+                        FxHashSet::from_iter([SourceType::UriRequestHeader])
+                    } else {
+                        FxHashSet::from_iter([SourceType::NonUriRequestHeader])
+                    },
                 },
             };
 
@@ -121,9 +127,11 @@ fn add_dataflow_to_variable(
 
     if data_flow_graph.kind == GraphKind::FunctionBody {
         if context.inside_general_use || context.inside_throw || context.inside_isset {
-            let assignment_node = DataFlowNode::VariableUseSink {
+            let assignment_node = DataFlowNode {
                 id: lid.1 .1.to_string(),
-                pos: statements_analyzer.get_hpos(pos),
+                kind: DataFlowNodeKind::VariableUseSink {
+                    pos: statements_analyzer.get_hpos(pos),
+                },
             };
 
             data_flow_graph.add_node(assignment_node.clone());

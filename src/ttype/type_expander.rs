@@ -4,7 +4,7 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::{
         graph::DataFlowGraph,
-        node::DataFlowNode,
+        node::{DataFlowNode, DataFlowNodeKind},
         path::{PathExpressionKind, PathKind},
     },
     functionlike_info::FunctionLikeInfo,
@@ -342,7 +342,7 @@ fn expand_atomic(
                                 let shape_node = DataFlowNode::new(
                                     codebase.interner.lookup(type_name).to_string(),
                                     codebase.interner.lookup(type_name).to_string(),
-                                    None,
+                                    Some(type_definition.location.clone()),
                                     None,
                                 );
 
@@ -352,11 +352,13 @@ fn expand_atomic(
                                         codebase.interner.lookup(type_name),
                                         field_name.to_string(Some(&codebase.interner))
                                     );
-                                    let field_node = DataFlowNode::TaintSource {
+                                    let field_node = DataFlowNode {
                                         id: label.clone(),
-                                        label,
-                                        pos: None,
-                                        types: taints.clone(),
+                                        kind: DataFlowNodeKind::TaintSource {
+                                            pos: Some(taints.0.clone()),
+                                            label,
+                                            types: taints.1.clone(),
+                                        },
                                     };
 
                                     data_flow_graph.add_path(

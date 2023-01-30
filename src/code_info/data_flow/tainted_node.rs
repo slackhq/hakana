@@ -1,4 +1,7 @@
-use super::{node::DataFlowNode, path::PathKind};
+use super::{
+    node::{DataFlowNode, DataFlowNodeKind},
+    path::PathKind,
+};
 
 use core::panic;
 use std::{collections::BTreeSet, sync::Arc};
@@ -69,15 +72,14 @@ impl TaintedNode {
     }
 
     pub fn from(node: &DataFlowNode) -> Self {
-        match node {
-            DataFlowNode::Vertex {
-                id,
+        match &node.kind {
+            DataFlowNodeKind::Vertex {
+                pos,
                 unspecialized_id,
                 label,
-                pos,
                 specialization_key,
             } => TaintedNode {
-                id: id.clone(),
+                id: node.id.clone(),
                 unspecialized_id: unspecialized_id.clone(),
                 label: label.clone(),
                 pos: if let Some(p) = &pos {
@@ -92,12 +94,7 @@ impl TaintedNode {
                 specialized_calls: FxHashMap::default(),
                 taint_sources: FxHashSet::default(),
             },
-            DataFlowNode::TaintSource {
-                id,
-                label,
-                pos,
-                types,
-            } => {
+            DataFlowNodeKind::TaintSource { pos, label, types } => {
                 let mut sinks = FxHashSet::default();
 
                 for source_type in types {
@@ -105,7 +102,7 @@ impl TaintedNode {
                 }
 
                 TaintedNode {
-                    id: id.clone(),
+                    id: node.id.clone(),
                     unspecialized_id: None,
                     label: label.clone(),
                     pos: if let Some(p) = &pos {
@@ -121,13 +118,8 @@ impl TaintedNode {
                     taint_sources: types.clone(),
                 }
             }
-            DataFlowNode::TaintSink {
-                id,
-                label,
-                pos,
-                types,
-            } => TaintedNode {
-                id: id.clone(),
+            DataFlowNodeKind::TaintSink { pos, label, types } => TaintedNode {
+                id: node.id.clone(),
                 unspecialized_id: None,
                 label: label.clone(),
                 pos: if let Some(p) = &pos {
@@ -142,13 +134,12 @@ impl TaintedNode {
                 path_types: Vec::new(),
                 specialized_calls: FxHashMap::default(),
             },
-            DataFlowNode::DataSource {
-                id,
-                label,
+            DataFlowNodeKind::DataSource {
                 pos,
+                label,
                 target_id,
             } => TaintedNode {
-                id: id.clone(),
+                id: node.id.clone(),
                 unspecialized_id: None,
                 label: label.clone(),
                 pos: Some(Arc::new(pos.clone())),

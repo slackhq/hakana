@@ -1,6 +1,6 @@
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
@@ -661,11 +661,13 @@ fn add_dataflow(
         }
 
         if !functionlike_storage.taint_source_types.is_empty() {
-            let function_call_node_source = DataFlowNode::TaintSource {
+            let function_call_node_source = DataFlowNode {
                 id: function_call_node.get_id().clone(),
-                label: function_call_node.get_label().clone(),
-                pos: function_call_node.get_pos().clone(),
-                types: functionlike_storage.taint_source_types.clone(),
+                kind: DataFlowNodeKind::TaintSource {
+                    pos: function_call_node.get_pos().clone(),
+                    label: function_call_node.get_label().clone(),
+                    types: functionlike_storage.taint_source_types.clone(),
+                },
             };
             data_flow_graph.add_node(function_call_node_source);
         }

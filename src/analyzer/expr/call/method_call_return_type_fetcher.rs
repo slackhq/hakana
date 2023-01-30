@@ -4,7 +4,7 @@ use hakana_reflection_info::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::data_flow::graph::GraphKind;
-use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -361,11 +361,13 @@ fn add_dataflow(
         }
 
         if !functionlike_storage.taint_source_types.is_empty() {
-            let method_call_node_source = DataFlowNode::TaintSource {
+            let method_call_node_source = DataFlowNode {
                 id: method_call_node.get_id().clone(),
-                label: method_call_node.get_label().clone(),
-                pos: method_call_node.get_pos().clone(),
-                types: functionlike_storage.taint_source_types.clone(),
+                kind: DataFlowNodeKind::TaintSource {
+                    pos: method_call_node.get_pos().clone(),
+                    label: method_call_node.get_label().clone(),
+                    types: functionlike_storage.taint_source_types.clone(),
+                },
             };
             data_flow_graph.add_node(method_call_node_source);
         }

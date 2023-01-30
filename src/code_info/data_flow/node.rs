@@ -1,4 +1,3 @@
-use core::panic;
 use std::hash::{Hash, Hasher};
 
 use crate::method_identifier::MethodIdentifier;
@@ -19,54 +18,47 @@ pub enum VariableSourceKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DataFlowNode {
+pub struct DataFlowNode {
+    pub id: String,
+    pub kind: DataFlowNodeKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DataFlowNodeKind {
     Vertex {
-        id: String,
+        pos: Option<HPos>,
         unspecialized_id: Option<String>,
         label: String,
-        pos: Option<HPos>,
         specialization_key: Option<String>,
     },
     VariableUseSource {
-        kind: VariableSourceKind,
-        id: String,
-        name: String,
         pos: HPos,
+        kind: VariableSourceKind,
+        label: String,
     },
     VariableUseSink {
-        id: String,
         pos: HPos,
     },
     DataSource {
-        id: String,
-        label: String,
         pos: HPos,
+        label: String,
         target_id: String,
     },
     TaintSource {
-        id: String,
-        label: String,
         pos: Option<HPos>,
+        label: String,
         types: FxHashSet<SourceType>,
     },
     TaintSink {
-        id: String,
-        label: String,
         pos: Option<HPos>,
+        label: String,
         types: FxHashSet<SinkType>,
     },
 }
 
 impl Hash for DataFlowNode {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match &self {
-            DataFlowNode::Vertex { id, .. }
-            | DataFlowNode::VariableUseSource { id, .. }
-            | DataFlowNode::VariableUseSink { id, .. }
-            | DataFlowNode::DataSource { id, .. }
-            | DataFlowNode::TaintSource { id, .. }
-            | DataFlowNode::TaintSink { id, .. } => id.hash(state),
-        }
+        self.id.hash(state)
     }
 }
 
@@ -86,12 +78,14 @@ impl DataFlowNode {
             id += specialization_key.as_str();
         }
 
-        DataFlowNode::Vertex {
+        DataFlowNode {
             id,
-            unspecialized_id,
-            label,
-            pos,
-            specialization_key,
+            kind: DataFlowNodeKind::Vertex {
+                pos,
+                unspecialized_id,
+                label,
+                specialization_key,
+            },
         }
     }
 
@@ -211,9 +205,11 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::VariableUseSink {
+        Self {
             id,
-            pos: assignment_location,
+            kind: DataFlowNodeKind::VariableUseSink {
+                pos: assignment_location,
+            },
         }
     }
 
@@ -226,11 +222,13 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::VariableUseSource {
-            kind: VariableSourceKind::Default,
+        Self {
             id,
-            pos: assignment_location,
-            name: label,
+            kind: DataFlowNodeKind::VariableUseSource {
+                pos: assignment_location,
+                kind: VariableSourceKind::Default,
+                label,
+            },
         }
     }
 
@@ -257,48 +255,41 @@ impl DataFlowNode {
         )
     }
 
-    pub fn get_for_method_reference(method_id: String, pos: HPos) -> Self {
+    pub fn get_for_method_reference(method_id: String, pos: Option<HPos>) -> Self {
         Self::new(
             format!("fnref-{}", method_id),
             format!("{}()", method_id),
-            Some(pos),
+            pos,
             None,
         )
     }
 
     #[inline]
     pub fn get_id(&self) -> &String {
-        match self {
-            DataFlowNode::Vertex { id, .. }
-            | DataFlowNode::TaintSource { id, .. }
-            | DataFlowNode::TaintSink { id, .. }
-            | DataFlowNode::VariableUseSource { id, .. }
-            | DataFlowNode::VariableUseSink { id, .. }
-            | DataFlowNode::DataSource { id, .. } => id,
-        }
+        &self.id
     }
 
     #[inline]
     pub fn get_label(&self) -> &String {
-        match self {
-            DataFlowNode::Vertex { label, .. }
-            | DataFlowNode::TaintSource { label, .. }
-            | DataFlowNode::TaintSink { label, .. }
-            | DataFlowNode::DataSource { label, .. }
-            | DataFlowNode::VariableUseSource { id: label, .. }
-            | DataFlowNode::VariableUseSink { id: label, .. } => label,
+        match &self.kind {
+            DataFlowNodeKind::Vertex { label, .. }
+            | DataFlowNodeKind::TaintSource { label, .. }
+            | DataFlowNodeKind::TaintSink { label, .. }
+            | DataFlowNodeKind::DataSource { label, .. } => label,
+            DataFlowNodeKind::VariableUseSource { .. }
+            | DataFlowNodeKind::VariableUseSink { .. } => &self.id,
         }
     }
 
     #[inline]
     pub fn get_pos(&self) -> &Option<HPos> {
-        match self {
-            DataFlowNode::Vertex { pos, .. }
-            | DataFlowNode::TaintSource { pos, .. }
-            | DataFlowNode::TaintSink { pos, .. } => pos,
-            DataFlowNode::VariableUseSource { .. }
-            | DataFlowNode::VariableUseSink { .. }
-            | DataFlowNode::DataSource { .. } => {
+        match &self.kind {
+            DataFlowNodeKind::Vertex { pos, .. }
+            | DataFlowNodeKind::TaintSource { pos, .. }
+            | DataFlowNodeKind::TaintSink { pos, .. } => pos,
+            DataFlowNodeKind::VariableUseSource { .. }
+            | DataFlowNodeKind::VariableUseSink { .. }
+            | DataFlowNodeKind::DataSource { .. } => {
                 panic!()
             }
         }

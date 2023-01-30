@@ -1,4 +1,4 @@
-use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::Interner;
 use rustc_hash::FxHashSet;
 use std::sync::Arc;
@@ -65,7 +65,7 @@ pub fn find_connections(
     let sources = graph
         .sources
         .iter()
-        .filter(|(_, v)| matches!(v, DataFlowNode::DataSource { .. }))
+        .filter(|(_, v)| matches!(v.kind, DataFlowNodeKind::DataSource { .. }))
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
@@ -363,8 +363,8 @@ fn get_child_nodes(
 
             if match_sinks {
                 if let Some(sink) = graph.sinks.get(to_id) {
-                    match sink {
-                        DataFlowNode::TaintSink { types, .. } => {
+                    match &sink.kind {
+                        DataFlowNodeKind::TaintSink { types, .. } => {
                             let mut matching_taints = types.clone();
                             matching_taints.retain(|t| new_taints.contains(t));
 

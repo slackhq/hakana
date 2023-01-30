@@ -320,6 +320,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         .unwrap(),
                 ) == "Hakana\\SpecialTypes\\LiteralString"
             }),
+            location: definition_location,
         };
 
         let shape_source_attribute = typedef
@@ -366,7 +367,17 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             }
                         }
 
-                        shape_sources.insert(name.clone(), source_types);
+                        shape_sources.insert(
+                            name.clone(),
+                            (
+                                HPos::new(
+                                    shape_source_attribute.name.pos(),
+                                    self.file_source.file_path,
+                                    None,
+                                ),
+                                source_types,
+                            ),
+                        );
                     }
                 }
             }

@@ -11,8 +11,8 @@ use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::functionlike_parameter::FnParameter;
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::type_expander;
+use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::wrap_atomic;
 use oxidized::aast;
 use rustc_hash::FxHashSet;
@@ -94,7 +94,7 @@ pub(crate) fn analyze(
     if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         let application_node = DataFlowNode::get_for_method_reference(
             closure_id.clone(),
-            statements_analyzer.get_hpos(expr.pos()),
+            Some(statements_analyzer.get_hpos(expr.pos())),
         );
 
         let closure_return_node = DataFlowNode::get_for_method_return(

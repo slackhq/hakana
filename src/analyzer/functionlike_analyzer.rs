@@ -14,7 +14,7 @@ use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
-use hakana_reflection_info::data_flow::node::{DataFlowNode, VariableSourceKind};
+use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind, VariableSourceKind};
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
@@ -864,19 +864,23 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 });
             }
 
-            let new_parent_node =
-                if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-                    DataFlowNode::get_for_assignment(param.name.clone(), param.location.clone())
-                } else {
-                    let id = format!(
-                        "{}-{}:{}-{}",
-                        param.name,
-                        interner.lookup(&param.location.file_path),
-                        param.location.start_offset,
-                        param.location.end_offset
-                    );
+            let new_parent_node = if let GraphKind::WholeProgram(_) =
+                &tast_info.data_flow_graph.kind
+            {
+                DataFlowNode::get_for_assignment(param.name.clone(), param.location.clone())
+            } else {
+                let id = format!(
+                    "{}-{}:{}-{}",
+                    param.name,
+                    interner.lookup(&param.location.file_path),
+                    param.location.start_offset,
+                    param.location.end_offset
+                );
 
-                    DataFlowNode::VariableUseSource {
+                DataFlowNode {
+                    id,
+                    kind: DataFlowNodeKind::VariableUseSource {
+                        pos: param.location.clone(),
                         kind: if param.is_inout {
                             VariableSourceKind::InoutParam
                         } else {
@@ -891,11 +895,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                 VariableSourceKind::PrivateParam
                             }
                         },
-                        id,
-                        pos: param.location.clone(),
-                        name: param.name.clone(),
-                    }
-                };
+                        label: param.name.clone(),
+                    },
+                }
+            };
 
             if !param.promoted_property {
                 if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
@@ -972,14 +975,9 @@ fn report_unused_expressions(
     let mut unused_variable_nodes = vec![];
 
     for node in &unused_source_nodes {
-        match node {
-            DataFlowNode::VariableUseSource {
-                kind,
-                id,
-                pos,
-                name,
-            } => {
-                if name.starts_with("$_") {
+        match &node.kind {
+            DataFlowNodeKind::VariableUseSource { kind, label, pos } => {
+                if label.starts_with("$_") {
                     continue;
                 }
 
@@ -988,7 +986,7 @@ fn report_unused_expressions(
                         tast_info.maybe_add_issue(
                             Issue::new(
                                 IssueKind::UnusedParameter,
-                                "Unused param ".to_string() + id.as_str(),
+                                "Unused param ".to_string() + node.id.as_str(),
                                 pos.clone(),
                             ),
                             statements_analyzer.get_config(),
@@ -1017,7 +1015,7 @@ fn report_unused_expressions(
                                 );
 
                                 tast_info.maybe_add_issue(
-                                    if name == "$$" {
+                                    if label == "$$" {
                                         Issue::new(
                                             IssueKind::UnusedPipeVariable,
                                             "The pipe data in this expression is not used anywhere"
@@ -1029,14 +1027,14 @@ fn report_unused_expressions(
                                             IssueKind::UnusedAssignmentInClosure,
                                             format!(
                                                 "Assignment to {} is unused in this closure ",
-                                                name
+                                                label
                                             ),
                                             pos.clone(),
                                         )
                                     } else {
                                         Issue::new(
                                             IssueKind::UnusedAssignment,
-                                            format!("Assignment to {} is unused", name),
+                                            format!("Assignment to {} is unused", label),
                                             pos.clone(),
                                         )
                                     },

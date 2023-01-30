@@ -7,7 +7,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
-use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
@@ -706,9 +706,11 @@ fn add_dataflow(
     // TODO add plugin hooks for adding/removing taints
 
     let argument_value_node = if data_flow_graph.kind == GraphKind::FunctionBody {
-        DataFlowNode::VariableUseSink {
+        DataFlowNode {
             id: "call to ".to_string() + functionlike_id.to_string(&codebase.interner).as_str(),
-            pos: statements_analyzer.get_hpos(input_expr.pos()),
+            kind: DataFlowNodeKind::VariableUseSink {
+                pos: statements_analyzer.get_hpos(input_expr.pos()),
+            },
         }
     } else {
         DataFlowNode::get_for_assignment(
@@ -751,12 +753,15 @@ fn add_dataflow(
         );
 
         if !taints.is_empty() {
-            let method_node_sink = DataFlowNode::TaintSink {
+            let method_node_sink = DataFlowNode {
                 id: method_node.get_id().clone(),
-                label: method_node.get_label().clone(),
-                pos: method_node.get_pos().clone(),
-                types: taints.into_iter().collect(),
+                kind: DataFlowNodeKind::TaintSink {
+                    label: method_node.get_label().clone(),
+                    pos: method_node.get_pos().clone(),
+                    types: taints.into_iter().collect(),
+                },
             };
+
             data_flow_graph.add_node(method_node_sink);
         }
 

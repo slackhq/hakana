@@ -6,7 +6,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    classlike_info::Variance, t_atomic::DictKey, t_union::TUnion, taint::SourceType, StrId,
+    classlike_info::Variance, code_location::HPos, t_atomic::DictKey, t_union::TUnion,
+    taint::SourceType, StrId,
 };
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -28,7 +29,8 @@ pub struct TypeDefinitionInfo {
 
     pub generic_variance: FxHashMap<usize, Variance>,
 
-    pub shape_field_taints: Option<FxHashMap<DictKey, FxHashSet<SourceType>>>,
+    pub shape_field_taints: Option<FxHashMap<DictKey, (HPos, FxHashSet<SourceType>)>>,
 
     pub is_literal_string: bool,
+    pub location: HPos,
 }
