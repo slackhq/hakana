@@ -145,54 +145,23 @@ impl TUnion {
     }
 
     pub fn is_float(&self) -> bool {
-        for atomic in &self.types {
-            let no_int = match atomic {
-                TAtomic::TFloat { .. } => false,
-                _ => true,
-            };
+        self.types.iter().all(|t| matches!(t, TAtomic::TFloat))
+    }
 
-            if no_int {
-                return false;
-            }
-        }
-
-        return true;
+    pub fn is_bool(&self) -> bool {
+        self.types.iter().all(|t| matches!(t, TAtomic::TBool))
     }
 
     pub fn is_nothing(&self) -> bool {
-        for atomic in &self.types {
-            if let &TAtomic::TNothing = atomic {
-                return true;
-            }
-
-            return false;
-        }
-
-        return false;
+        self.types.iter().all(|t| matches!(t, TAtomic::TNothing))
     }
 
     pub fn is_placeholder(&self) -> bool {
-        for atomic in &self.types {
-            if let &TAtomic::TPlaceholder = atomic {
-                return true;
-            }
-
-            return false;
-        }
-
-        return false;
+        self.types.iter().all(|t| matches!(t, TAtomic::TPlaceholder))
     }
 
     pub fn is_true(&self) -> bool {
-        for atomic in &self.types {
-            if let &TAtomic::TTrue { .. } = atomic {
-                return true;
-            }
-
-            return false;
-        }
-
-        return false;
+        self.types.iter().all(|t| matches!(t, TAtomic::TTrue))
     }
 
     pub fn is_mixed(&self) -> bool {

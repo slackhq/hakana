@@ -548,7 +548,7 @@ fn analyze_assignment_to_variable(
         &context,
     );
 
-    if assign_value_type.get_id(Some(&statements_analyzer.get_codebase().interner)) == "bool" {
+    if assign_value_type.is_bool() {
         if let Some(source_expr) = source_expr {
             if matches!(source_expr.2, aast::Expr_::Binop(..)) {
                 // todo support $a = !($b || $c)

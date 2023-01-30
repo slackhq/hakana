@@ -484,7 +484,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut inferred_return_type = None;
 
         if let Some(expected_return_type) = &functionlike_storage.return_type {
-            let expected_type_id = expected_return_type.get_id(Some(&codebase.interner));
+            let expected_type_id = if !config.hooks.is_empty() {
+                Some(expected_return_type.get_id(Some(&codebase.interner)))
+            } else {
+                None
+            };
             let mut expected_return_type = expected_return_type.clone();
             type_expander::expand_union(
                 statements_analyzer.get_codebase(),
@@ -513,18 +517,22 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             let config = statements_analyzer.get_config();
 
-            let return_result_handled = config.hooks.iter().any(|hook| {
-                hook.after_functionlike_analysis(
-                    context,
-                    functionlike_storage,
-                    completed_analysis,
-                    &mut tast_info,
-                    &mut inferred_return_type,
-                    codebase,
-                    statements_analyzer,
-                    expected_type_id.clone(),
-                )
-            });
+            let return_result_handled = if let Some(expected_type_id) = &expected_type_id {
+                config.hooks.iter().any(|hook| {
+                    hook.after_functionlike_analysis(
+                        context,
+                        functionlike_storage,
+                        completed_analysis,
+                        &mut tast_info,
+                        &mut inferred_return_type,
+                        codebase,
+                        statements_analyzer,
+                        expected_type_id.clone(),
+                    )
+                })
+            } else {
+                false
+            };
 
             if !return_result_handled {
                 if !tast_info.inferred_return_types.is_empty() {
