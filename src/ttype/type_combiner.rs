@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{sync::Arc, collections::BTreeMap};
 
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
@@ -584,45 +584,44 @@ fn scrape_type_properties(
             let mut has_defined_keys = false;
 
             for (candidate_item_name, (cu, candidate_item_type)) in known_items {
-                let new_item_value_type = if let Some((eu, existing_type)) =
-                    combination.dict_entries.get(candidate_item_name)
+                if let Some((eu, existing_type)) =
+                    combination.dict_entries.get_mut(candidate_item_name)
                 {
-                    (
-                        *eu || *cu,
-                        if candidate_item_type != existing_type {
-                            Arc::new(combine_union_types(
-                                existing_type,
-                                candidate_item_type,
-                                codebase,
-                                overwrite_empty_array,
-                            ))
-                        } else {
-                            existing_type.clone()
-                        },
-                    )
-                } else {
-                    if let Some((ref mut existing_key_param, ref mut existing_value_param)) =
-                        combination.dict_type_params
-                    {
-                        adjust_key_value_dict_params(
-                            existing_value_param,
+                    if *cu {
+                        *eu = true;
+                    }
+                    if candidate_item_type != existing_type {
+                        *existing_type = Arc::new(combine_union_types(
+                            existing_type,
                             candidate_item_type,
                             codebase,
                             overwrite_empty_array,
-                            candidate_item_name,
-                            existing_key_param,
-                        );
-
-                        continue;
-                    } else {
-                        let new_type = candidate_item_type.clone();
-                        (has_existing_entries || *cu, new_type)
+                        ));
                     }
-                };
+                } else {
+                    let new_item_value_type =
+                        if let Some((ref mut existing_key_param, ref mut existing_value_param)) =
+                            combination.dict_type_params
+                        {
+                            adjust_key_value_dict_params(
+                                existing_value_param,
+                                candidate_item_type,
+                                codebase,
+                                overwrite_empty_array,
+                                candidate_item_name,
+                                existing_key_param,
+                            );
 
-                combination
-                    .dict_entries
-                    .insert(candidate_item_name.clone(), new_item_value_type);
+                            continue;
+                        } else {
+                            let new_type = candidate_item_type.clone();
+                            (has_existing_entries || *cu, new_type)
+                        };
+
+                    combination
+                        .dict_entries
+                        .insert(candidate_item_name.clone(), new_item_value_type);
+                };
 
                 possibly_undefined_entries.remove(candidate_item_name);
 
