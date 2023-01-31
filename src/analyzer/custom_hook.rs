@@ -44,6 +44,10 @@ pub struct AfterArgAnalysisData<'a> {
 }
 
 pub trait InternalHook {
+    fn get_migration_name(&self) -> Option<&str> {
+        None
+    }
+
     // This hook is run after analysing every AST statement
     #[allow(unused_variables)]
     fn after_stmt_analysis(

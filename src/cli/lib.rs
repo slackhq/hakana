@@ -613,7 +613,21 @@ pub fn init(
             let migration_source = sub_matches.value_of("symbols").unwrap().to_string();
 
             let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
-            config.hooks = migration_hooks;
+            config.hooks = migration_hooks
+                .into_iter()
+                .filter(|m| {
+                    if let Some(name) = m.get_migration_name() {
+                        migration_name == name
+                    } else {
+                        false
+                    }
+                })
+                .collect();
+
+            if config.hooks.is_empty() {
+                println!("Migration {} not recognised", migration_name);
+                exit(1);
+            }
 
             let config_path = config_path.unwrap();
 
