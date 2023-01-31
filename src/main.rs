@@ -1,11 +1,7 @@
-#[cfg(not(target_env = "msvc"))]
-#[cfg(not(all(target_arch = "x86_64", target_os = "macos")))]
-use tikv_jemallocator::Jemalloc;
+use mimalloc::MiMalloc;
 
-#[cfg(not(target_env = "msvc"))]
-#[cfg(not(all(target_arch = "x86_64", target_os = "macos")))]
 #[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
+static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() {
     let build_timestamp = env!("VERGEN_BUILD_TIMESTAMP");
