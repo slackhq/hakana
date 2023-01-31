@@ -279,8 +279,10 @@ fn find_files_in_dir(
         .sort_by_file_path(|a, b| a.file_name().cmp(&b.file_name()))
         .follow_links(true);
     walker_builder.git_ignore(false);
-    walker_builder.filter_entry(move |f| !ignore_dirs.contains(f.path().to_str().unwrap()));
-    walker_builder.add_ignore(Path::new(".git"));
+    walker_builder.filter_entry(move |f| {
+        let p = f.path().to_str().unwrap();
+        !ignore_dirs.contains(p) && !p.contains("/.")
+    });
 
     let walker = walker_builder.build().into_iter().filter_map(|e| e.ok());
 
