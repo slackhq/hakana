@@ -4,7 +4,6 @@ use hakana_algebra::Clause;
 use hakana_reflection_info::function_context::FunctionContext;
 use hakana_reflection_info::{assertion::Assertion, t_union::TUnion};
 use oxidized::ast_defs::Pos;
-use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -13,8 +12,6 @@ use crate::{
     stmt::control_analyzer::BreakContext,
     typed_ast::TastInfo,
 };
-
-use lazy_static::lazy_static;
 
 pub mod control_action;
 pub mod if_scope;
@@ -479,11 +476,22 @@ impl ScopeContext {
     }
 
     pub(crate) fn has_variable(&mut self, var_name: &String) -> bool {
-        lazy_static! {
-            static ref EXTRANEOUS_REGEX: Regex = Regex::new("(->|\\[).*$").unwrap();
+        let chars: Vec<_> = var_name.chars().collect();
+        let char_count = chars.len();
+
+        let mut i = 0;
+
+        while i < char_count {
+            let ichar = *chars.get(i).unwrap();
+
+            if let '[' | '-' = ichar {
+                break;
+            }
+
+            i += 1;
         }
 
-        let stripped_var = EXTRANEOUS_REGEX.replace(var_name, "");
+        let stripped_var = var_name[0..i].to_string();
 
         if stripped_var != "$this" || var_name != &stripped_var {
             self.cond_referenced_var_ids.insert(var_name.clone());
