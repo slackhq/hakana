@@ -1,6 +1,6 @@
 use crate::{Interner, StrId};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct MethodIdentifier(pub StrId, pub StrId);
 
 impl MethodIdentifier {

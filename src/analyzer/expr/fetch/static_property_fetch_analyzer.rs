@@ -1,4 +1,3 @@
-use super::class_constant_fetch_analyzer::get_id_name;
 use super::{
     atomic_property_fetch_analyzer::add_unspecialized_property_fetch_dataflow,
     instance_property_fetch_analyzer,
@@ -6,6 +5,7 @@ use super::{
 use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_type::type_expander::TypeExpansionOptions;

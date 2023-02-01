@@ -1,6 +1,7 @@
 use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::StrId;
@@ -15,7 +16,7 @@ use oxidized::{
     aast::{self, ClassId},
     ast_defs::Pos,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -129,47 +130,6 @@ pub(crate) fn analyze(
     return true;
 }
 
-pub(crate) fn get_id_name(
-    id: &Box<oxidized::ast_defs::Id>,
-    calling_class: &Option<StrId>,
-    codebase: &CodebaseInfo,
-    is_static: &mut bool,
-    resolved_names: &FxHashMap<usize, StrId>,
-) -> Option<StrId> {
-    Some(match id.1.as_str() {
-        "self" => {
-            let self_name = if let Some(calling_class) = calling_class {
-                calling_class
-            } else {
-                return None;
-            };
-
-            self_name.clone()
-        }
-        "parent" => {
-            let self_name = if let Some(calling_class) = calling_class {
-                calling_class
-            } else {
-                return None;
-            };
-
-            let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-            classlike_storage.direct_parent_class.clone().unwrap()
-        }
-        "static" => {
-            *is_static = true;
-            let self_name = if let Some(calling_class) = calling_class {
-                calling_class
-            } else {
-                return None;
-            };
-
-            self_name.clone()
-        }
-        _ => resolved_names.get(&id.0.start_offset()).unwrap().clone(),
-    })
-}
-
 fn analyse_known_class_constant(
     codebase: &CodebaseInfo,
     tast_info: &mut TastInfo,
@@ -191,10 +151,7 @@ fn analyse_known_class_constant(
             if const_name == "class" {
                 Issue::new(
                     IssueKind::NonExistentType,
-                    format!(
-                        "Unknown class {}",
-                        codebase.interner.lookup(classlike_name)
-                    ),
+                    format!("Unknown class {}", codebase.interner.lookup(classlike_name)),
                     statements_analyzer.get_hpos(&pos),
                 )
             } else {

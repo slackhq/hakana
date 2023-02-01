@@ -1,6 +1,7 @@
 pub mod aliases;
 pub mod analysis_result;
 pub mod assertion;
+pub mod ast;
 pub mod ast_signature;
 pub mod attribute_info;
 pub mod class_constant_info;

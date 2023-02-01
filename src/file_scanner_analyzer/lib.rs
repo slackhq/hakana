@@ -22,7 +22,6 @@ use scanner::{scan_files, ScanFilesResult};
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
 use unused_symbols::find_unused_definitions;

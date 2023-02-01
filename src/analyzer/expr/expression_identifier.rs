@@ -1,10 +1,8 @@
-use hakana_reflection_info::{codebase_info::CodebaseInfo, StrId};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, StrId, ast::get_id_name};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::FileSource;
 use oxidized::{aast, ast_defs};
-
-use super::fetch::class_constant_fetch_analyzer::get_id_name;
 
 // gets a var id from a simple variable
 pub fn get_var_id(

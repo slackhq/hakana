@@ -369,6 +369,11 @@ impl CodebaseInfo {
         None
     }
 
+    #[inline]
+    pub fn get_declaring_method(&self, method_id: &MethodIdentifier) -> Option<&FunctionLikeInfo> {
+        self.get_method(&self.get_declaring_method_id(method_id))
+    }
+
     pub fn extend(&mut self, other: CodebaseInfo) {
         self.classlike_infos.extend(other.classlike_infos);
         self.functionlike_infos.extend(other.functionlike_infos);

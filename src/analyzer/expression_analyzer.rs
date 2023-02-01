@@ -2,7 +2,6 @@ use std::rc::Rc;
 
 use crate::custom_hook::AfterExprAnalysisData;
 use crate::expr::call::new_analyzer;
-use crate::expr::fetch::class_constant_fetch_analyzer::get_id_name;
 use crate::expr::fetch::{
     array_fetch_analyzer, class_constant_fetch_analyzer, instance_property_fetch_analyzer,
     static_property_fetch_analyzer,
@@ -18,6 +17,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
+use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;

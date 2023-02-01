@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use hakana_reflection_info::{
+    ast::get_id_name,
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
@@ -15,7 +16,7 @@ use oxidized::{
     tast::Pos,
 };
 
-use crate::{expr::fetch::class_constant_fetch_analyzer::get_id_name, typed_ast::TastInfo};
+use crate::typed_ast::TastInfo;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 

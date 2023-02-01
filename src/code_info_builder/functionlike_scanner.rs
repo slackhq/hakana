@@ -476,11 +476,17 @@ pub(crate) fn get_functionlike(
         functionlike_info.specialize_call = true;
     }
 
-    if stmts.len() == 1 {
+    if stmts.len() == 1 && !functionlike_info.is_async {
         let stmt = &stmts[0];
 
-        if let Some(function_id) = get_async_version(stmt, resolved_names, interner) {
-            functionlike_info.async_version = Some(function_id);
+        if let aast::Stmt_::Return(expr) = &stmt.1 {
+            if let Some(expr) = expr.as_ref() {
+                if let Some(function_id) =
+                    get_async_version(expr, resolved_names, &functionlike_info.params, interner)
+                {
+                    functionlike_info.async_version = Some(function_id);
+                }
+            }
         }
     }
 
@@ -490,23 +496,27 @@ pub(crate) fn get_functionlike(
 }
 
 fn get_async_version(
-    stmt: &Stmt<(), ()>,
+    expr: &oxidized::ast::Expr,
     resolved_names: &FxHashMap<usize, StrId>,
+    params: &Vec<FunctionLikeParameter>,
     interner: &mut ThreadedInterner,
 ) -> Option<FunctionLikeIdentifier> {
-    if let aast::Stmt_::Expr(expr) = &stmt.1 {
-        if let aast::Expr_::Call(call) = &expr.2 {
-            if let aast::Expr_::Id(boxed_id) = &call.0 .2 {
-                if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset()) {
-                    if interner.lookup(*fn_id) == "HH\\Asio\\join" && call.2.len() == 1 {
-                        match &call.2[0].1 .2 {
-                            aast::Expr_::Call(call) => {
-                                if let aast::Expr_::Id(boxed_id) = &call.0 .2 {
-                                    if let Some(fn_id) =
-                                        resolved_names.get(&boxed_id.0.start_offset())
-                                    {
-                                        return Some(FunctionLikeIdentifier::Function(*fn_id));
-                                    }
+    if let aast::Expr_::Call(call) = &expr.2 {
+        if let aast::Expr_::Id(boxed_id) = &call.0 .2 {
+            if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset()) {
+                if interner.lookup(*fn_id) == "HH\\Asio\\join" && call.2.len() == 1 {
+                    let first_join_expr = &call.2[0].1;
+
+                    if let aast::Expr_::Call(call) = &first_join_expr.2 {
+                        if !is_async_call_is_same_as_sync(&call.2, params) {
+                            return None;
+                        }
+
+                        match &call.0 .2 {
+                            aast::Expr_::Id(boxed_id) => {
+                                if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset())
+                                {
+                                    return Some(FunctionLikeIdentifier::Function(*fn_id));
                                 }
                             }
                             aast::Expr_::ClassConst(boxed) => {
@@ -534,6 +544,27 @@ fn get_async_version(
     }
 
     return None;
+}
+
+fn is_async_call_is_same_as_sync(
+    call_args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+    params: &Vec<FunctionLikeParameter>,
+) -> bool {
+    for (offset, (_, call_arg_expr)) in call_args.iter().enumerate() {
+        if let aast::Expr_::Lvar(id) = &call_arg_expr.2 {
+            if let Some(param) = params.get(offset) {
+                if param.name != id.1 .1 {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    true
 }
 
 pub(crate) fn adjust_location_from_comments(
