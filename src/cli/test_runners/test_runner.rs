@@ -307,7 +307,7 @@ pub trait TestRunner {
             fs::create_dir(&cache_dir).unwrap();
         }
 
-        let workdir_base = dir.clone() + "/.workdir";
+        let workdir_base = dir.clone() + "/workdir";
 
         copy_recursively(dir.clone() + "/a", workdir_base.clone()).unwrap();
 
