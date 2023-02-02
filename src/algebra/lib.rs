@@ -5,7 +5,6 @@ use hakana_reflection_info::assertion::Assertion;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use rand::Rng;
-use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 use std::hash::Hash;
@@ -327,33 +326,24 @@ pub fn get_truths_from_formula(
                     }
                 }
             } else {
-                let mut things_that_can_be_said = FxHashMap::default();
-
-                for (_, assertion) in possible_types {
-                    things_that_can_be_said.insert(assertion.to_string(None), assertion);
+                if clause.generated {
+                    cond_referenced_var_ids.remove(var_id);
                 }
 
-                if !things_that_can_be_said.is_empty()
-                    && things_that_can_be_said.len() == possible_types.len()
-                {
-                    if clause.generated {
-                        cond_referenced_var_ids.remove(var_id);
-                    }
-
-                    let things_vec = things_that_can_be_said
+                truths.insert(
+                    var_id.clone(),
+                    vec![possible_types
                         .into_iter()
                         .map(|(_, v)| v.clone())
-                        .collect::<Vec<Assertion>>();
+                        .collect::<Vec<_>>()],
+                );
 
-                    truths.insert(var_id.clone(), vec![things_vec.clone()]);
-
-                    if let Some(creating_conditional_id) = creating_conditional_id {
-                        if creating_conditional_id == clause.creating_conditional_id {
-                            active_truths
-                                .entry(var_id.clone())
-                                .or_insert_with(FxHashSet::default)
-                                .insert(truths.get(var_id).unwrap().len() - 1);
-                        }
+                if let Some(creating_conditional_id) = creating_conditional_id {
+                    if creating_conditional_id == clause.creating_conditional_id {
+                        active_truths
+                            .entry(var_id.clone())
+                            .or_insert_with(FxHashSet::default)
+                            .insert(truths.get(var_id).unwrap().len() - 1);
                     }
                 }
             }
