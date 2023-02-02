@@ -36,12 +36,15 @@ pub struct FunctionContext {
 
     pub is_static: bool,
 
+    pub is_async: bool,
+
     pub calling_functionlike_id: Option<FunctionLikeIdentifier>,
     pub pure: bool,
 
     pub mutation_free: bool,
 
     pub external_mutation_free: bool,
+    
 }
 
 impl FunctionContext {
@@ -62,6 +65,7 @@ impl FunctionContext {
             initialized_methods: None,
             is_static: false,
             calling_functionlike_id: None,
+            is_async: false,
         }
     }
 

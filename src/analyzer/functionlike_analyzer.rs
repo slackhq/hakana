@@ -353,6 +353,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         analysis_result: &mut AnalysisResult,
         parent_tast_info: Option<&mut TastInfo>,
     ) -> (Option<TUnion>, u8) {
+        context.function_context.is_async = functionlike_storage.is_async;
+
         let mut tast_info = TastInfo::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             statements_analyzer.get_file_analyzer().get_file_source(),
