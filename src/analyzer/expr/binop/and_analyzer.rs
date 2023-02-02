@@ -137,11 +137,11 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         right_context = left_context.clone()
     }
 
-    let partiioned_clauses = ScopeContext::remove_reconciled_clause_refs(
+    let partitioned_clauses = ScopeContext::remove_reconciled_clause_refs(
         &left_clauses.into_iter().map(|v| Rc::new(v)).collect(),
         &changed_var_ids,
     );
-    right_context.clauses = partiioned_clauses.0;
+    right_context.clauses = partitioned_clauses.0;
 
     if !expression_analyzer::analyze(
         statements_analyzer,
@@ -186,7 +186,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
             if_body_context
                 .reconciled_expression_clauses
-                .extend(partiioned_clauses.1);
+                .extend(partitioned_clauses.1);
 
             if_body_context.allow_taints = right_context.allow_taints;
         } else {
