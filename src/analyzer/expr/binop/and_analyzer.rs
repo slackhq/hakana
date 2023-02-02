@@ -138,7 +138,11 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     }
 
     let partitioned_clauses = ScopeContext::remove_reconciled_clause_refs(
-        &left_clauses.into_iter().map(|v| Rc::new(v)).collect(),
+        &{
+            let mut c = left_context.clauses.clone();
+            c.extend(left_clauses.into_iter().map(|v| Rc::new(v)));
+            c
+        },
         &changed_var_ids,
     );
     right_context.clauses = partitioned_clauses.0;
