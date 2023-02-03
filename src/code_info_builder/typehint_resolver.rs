@@ -533,10 +533,9 @@ pub fn get_type_from_hint(
             get_function_type_from_hints(hint_fun, classlike_name, type_context, resolved_names)
         }
         Hint_::Haccess(class, type_names) => {
-            let mut inner_type =
-                get_type_from_hint(&class.1, classlike_name, type_context, resolved_names)
-                    .unwrap()
-                    .get_single_owned();
+            let mut inner_type = get_type_from_hint(&class.1, None, type_context, resolved_names)
+                .unwrap()
+                .get_single_owned();
 
             for type_id in type_names {
                 inner_type = TAtomic::TClassTypeConstant {

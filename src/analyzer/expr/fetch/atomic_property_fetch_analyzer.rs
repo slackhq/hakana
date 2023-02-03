@@ -211,7 +211,7 @@ fn get_class_property_type(
             &mut class_property_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),
-                static_class_type: StaticClassType::Name(&declaring_class_storage.name),
+                static_class_type: StaticClassType::Object(&lhs_type_part),
                 parent_class: parent_class.as_ref(),
                 file_path: Some(
                     &statements_analyzer
