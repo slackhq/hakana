@@ -13,7 +13,9 @@ use crate::{
 };
 
 use super::{
-    atomic_method_call_analyzer::AtomicMethodCallAnalysisResult,
+    atomic_method_call_analyzer::{
+        handle_method_call_on_named_object, AtomicMethodCallAnalysisResult,
+    },
     existing_atomic_method_call_analyzer,
 };
 
@@ -41,8 +43,44 @@ pub(crate) fn analyze(
     result: &mut AtomicMethodCallAnalysisResult,
 ) {
     let classlike_name = match &lhs_type_part {
-        TAtomic::TNamedObject { name, .. } => {
-            // todo check class name and register usage
+        TAtomic::TNamedObject {
+            name, extra_types, ..
+        } => {
+            match &expr.0 .2 {
+                aast::ClassId_::CIexpr(lhs_expr) => {
+                    if !matches!(&lhs_expr.2, aast::Expr_::Id(_)) {
+                        handle_method_call_on_named_object(
+                            result,
+                            name,
+                            extra_types,
+                            &None,
+                            tast_info,
+                            statements_analyzer,
+                            pos,
+                            (
+                                lhs_expr,
+                                &aast::Expr::new(
+                                    (),
+                                    expr.1 .0.clone(),
+                                    aast::Expr_::Id(Box::new(oxidized::ast::Id(
+                                        expr.0 .1.clone(),
+                                        expr.1 .1.clone(),
+                                    ))),
+                                ),
+                                &expr.2,
+                                &expr.3,
+                                &expr.4,
+                            ),
+                            lhs_type_part,
+                            context,
+                            if_body_context,
+                        );
+                        return;
+                    }
+                }
+                _ => {}
+            }
+
             name.clone()
         }
         TAtomic::TClassname { as_type, .. } | TAtomic::TGenericClassname { as_type, .. } => {
