@@ -78,6 +78,10 @@ pub(crate) fn find_unused_definitions(
                 );
 
                 if config.can_add_issue(&issue) {
+                    *analysis_result
+                        .issue_counts
+                        .entry(issue.kind.clone())
+                        .or_insert(0) += 1;
                     analysis_result
                         .emitted_issues
                         .entry(file_path.to_string())
@@ -141,6 +145,10 @@ pub(crate) fn find_unused_definitions(
                 }
 
                 if config.can_add_issue(&issue) {
+                    *analysis_result
+                        .issue_counts
+                        .entry(issue.kind.clone())
+                        .or_insert(0) += 1;
                     analysis_result
                         .emitted_issues
                         .entry(file_path.to_string())
@@ -237,6 +245,10 @@ pub(crate) fn find_unused_definitions(
                         }
 
                         if config.can_add_issue(&issue) {
+                            *analysis_result
+                                .issue_counts
+                                .entry(issue.kind.clone())
+                                .or_insert(0) += 1;
                             analysis_result
                                 .emitted_issues
                                 .entry(file_path.to_string())
