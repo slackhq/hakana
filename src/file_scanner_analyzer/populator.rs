@@ -611,29 +611,11 @@ fn inherit_methods_from_parent(
 
     for (method_name, declaring_class) in &parent_storage.inheritable_method_ids {
         if *method_name != StrId::construct() || parent_storage.preserve_constructor_signature {
-            if matches!(parent_storage.kind, SymbolKind::Trait) {
-                let declaring_class_storage =
-                    codebase.classlike_infos.get(declaring_class).unwrap();
-
-                if let Some(functionlike_storage) = declaring_class_storage.methods.get(method_name)
-                {
-                    if let Some(method_info) = &functionlike_storage.method_info {
-                        if method_info.is_abstract {
-                            storage
-                                .overridden_method_ids
-                                .entry(method_name.clone())
-                                .or_insert_with(FxHashSet::default)
-                                .insert(declaring_class.clone());
-                        }
-                    }
-                }
-            } else {
-                storage
-                    .overridden_method_ids
-                    .entry(method_name.clone())
-                    .or_insert_with(FxHashSet::default)
-                    .insert(declaring_class.clone());
-            }
+            storage
+                .overridden_method_ids
+                .entry(method_name.clone())
+                .or_insert_with(FxHashSet::default)
+                .insert(declaring_class.clone());
 
             if let Some(map) = storage.overridden_method_ids.get_mut(method_name) {
                 map.extend(

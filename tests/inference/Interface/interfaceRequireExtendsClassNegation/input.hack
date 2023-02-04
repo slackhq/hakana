@@ -1,4 +1,6 @@
-abstract class Node {}
+abstract class Node {
+    public static function bar(): void {}
+}
 
 interface HasFooNode {
     require extends Node;
@@ -12,7 +14,8 @@ class FooNode extends Node implements HasFooNode {
 
 function takes_node(Node $node): void {
     if ($node is HasFooNode) {
-        // do nothing
+        $node::foo();
+        $node::bar();
     }
 
     echo $node;
