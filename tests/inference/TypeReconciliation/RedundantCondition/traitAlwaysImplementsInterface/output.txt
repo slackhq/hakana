@@ -1,0 +1,1 @@
+ERROR: RedundantTypeComparison - input.hack:7:13 - Type T&static is always I

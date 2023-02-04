@@ -107,6 +107,14 @@ impl CodebaseInfo {
     }
 
     #[inline]
+    pub fn class_or_trait_exists(&self, fq_class_name: &StrId) -> bool {
+        match self.symbols.all.get(fq_class_name) {
+            Some(SymbolKind::Class | SymbolKind::EnumClass | SymbolKind::Trait) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
     pub fn interface_exists(&self, fq_class_name: &StrId) -> bool {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Interface) => true,

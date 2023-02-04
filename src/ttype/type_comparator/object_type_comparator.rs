@@ -156,7 +156,7 @@ fn is_intersection_shallowly_contained_by(
         return true;
     }
 
-    if codebase.class_exists(input_name) {
+    if codebase.class_or_trait_exists(input_name) {
         if codebase.class_or_interface_exists(container_name)
             && codebase.class_extends_or_implements(input_name, container_name)
         {
