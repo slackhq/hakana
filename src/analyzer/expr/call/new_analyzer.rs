@@ -151,6 +151,8 @@ fn analyze_atomic(
     result: &mut AtomicMethodCallAnalysisResult,
 ) {
     let mut from_static = false;
+    let mut from_classname = false;
+
     let classlike_name = match &lhs_type_part {
         TAtomic::TNamedObject { name, is_this, .. } => {
             from_static = *is_this;
@@ -160,7 +162,8 @@ fn analyze_atomic(
         TAtomic::TClassname { as_type, .. } | TAtomic::TGenericClassname { as_type, .. } => {
             let as_type = *as_type.clone();
             if let TAtomic::TNamedObject { name, .. } = as_type {
-                // todo check class name and register usage
+                from_classname = true;
+
                 name
             } else {
                 tast_info.maybe_add_issue(
@@ -222,6 +225,7 @@ fn analyze_atomic(
         if_body_context,
         classlike_name,
         from_static,
+        from_classname,
         can_extend,
         result,
     )
@@ -241,6 +245,7 @@ fn analyze_named_constructor(
     if_body_context: &mut Option<ScopeContext>,
     classlike_name: StrId,
     from_static: bool,
+    from_classname: bool,
     can_extend: bool,
     result: &mut AtomicMethodCallAnalysisResult,
 ) {
@@ -490,6 +495,19 @@ fn analyze_named_constructor(
         remapped_params: false,
     });
 
+    if from_classname {
+        let descendants = codebase.get_all_descendants(&classlike_name);
+
+        for descendant_class in descendants {
+            tast_info
+                .symbol_references
+                .add_reference_to_overridden_class_member(
+                    &context.function_context,
+                    (descendant_class.clone(), StrId::construct()),
+                );
+        }
+    }
+
     if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         result_type = add_dataflow(
             statements_analyzer,
@@ -498,6 +516,7 @@ fn analyze_named_constructor(
             &declaring_method_id,
             codebase.get_method(&declaring_method_id),
             storage.specialize_instance,
+            from_classname,
             tast_info,
             pos,
         );
@@ -517,6 +536,7 @@ fn add_dataflow<'a>(
     method_id: &MethodIdentifier,
     functionlike_storage: Option<&'a FunctionLikeInfo>,
     specialize_instance: bool,
+    from_classname: bool,
     tast_info: &mut TastInfo,
     call_pos: &Pos,
 ) -> TUnion {
@@ -529,6 +549,8 @@ fn add_dataflow<'a>(
             return return_type_candidate;
         }
     }
+
+    let codebase = statements_analyzer.get_codebase();
 
     let new_call_node = DataFlowNode::get_for_this_after_method(
         method_id,
@@ -548,6 +570,31 @@ fn add_dataflow<'a>(
     data_flow_graph.add_node(new_call_node.clone());
 
     return_type_candidate.parent_nodes = FxHashSet::from_iter([new_call_node.clone()]);
+
+    if from_classname {
+        let descendants = codebase.get_all_descendants(&method_id.0);
+
+        for descendant_class in descendants {
+            let new_call_node = DataFlowNode::get_for_this_after_method(
+                &MethodIdentifier(descendant_class, method_id.1),
+                if let Some(functionlike_storage) = functionlike_storage {
+                    functionlike_storage.return_type_location.clone()
+                } else {
+                    None
+                },
+                if specialize_instance {
+                    Some(statements_analyzer.get_hpos(call_pos))
+                } else {
+                    None
+                },
+                &codebase.interner,
+            );
+
+            data_flow_graph.add_node(new_call_node.clone());
+
+            return_type_candidate.parent_nodes.insert(new_call_node);
+        }
+    }
 
     return_type_candidate
 }

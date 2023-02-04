@@ -372,6 +372,19 @@ impl CodebaseInfo {
         None
     }
 
+    pub fn get_all_descendants(&self, classlike_name: &StrId) -> FxHashSet<StrId> {
+        let mut base_set = FxHashSet::default();
+
+        if let Some(classlike_descendants) = self.classlike_descendants.get(classlike_name) {
+            base_set.extend(classlike_descendants);
+            for classlike_descendant in classlike_descendants {
+                base_set.extend(self.get_all_descendants(classlike_descendant));
+            }
+        }
+
+        base_set
+    }
+
     #[inline]
     pub fn get_declaring_method(&self, method_id: &MethodIdentifier) -> Option<&FunctionLikeInfo> {
         self.get_method(&self.get_declaring_method_id(method_id))
