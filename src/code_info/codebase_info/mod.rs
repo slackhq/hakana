@@ -26,9 +26,12 @@ pub struct CodebaseInfo {
     pub constant_infos: FxHashMap<StrId, ConstantInfo>,
     pub closures_in_files: FxHashMap<String, FxHashSet<StrId>>,
     pub const_files: FxHashMap<String, FxHashSet<StrId>>,
-    pub classlike_descendents: FxHashMap<StrId, FxHashSet<StrId>>,
+    pub classlike_descendants: FxHashMap<StrId, FxHashSet<StrId>>,
     pub files: FxHashMap<StrId, FileInfo>,
+
+    /* Symbols that have already been checked on a previous Hakana run */
     pub safe_symbols: FxHashSet<StrId>,
+    /* Symbol members that have already been checked on a previous Hakana run */
     pub safe_symbol_members: FxHashSet<(StrId, StrId)>,
 }
 
@@ -44,7 +47,7 @@ impl CodebaseInfo {
             constant_infos: FxHashMap::default(),
             closures_in_files: FxHashMap::default(),
             const_files: FxHashMap::default(),
-            classlike_descendents: FxHashMap::default(),
+            classlike_descendants: FxHashMap::default(),
             interner: Interner::default(),
             files: FxHashMap::default(),
             safe_symbols: FxHashSet::default(),

@@ -195,7 +195,7 @@ pub fn populate_codebase(
 
     all_classlike_descendants.retain(|k, _| !interner.lookup(k).starts_with("HH\\"));
 
-    codebase.classlike_descendents = all_classlike_descendants;
+    codebase.classlike_descendants = all_classlike_descendants;
 }
 
 fn populate_functionlike_storage(
