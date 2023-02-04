@@ -664,22 +664,34 @@ impl TAtomic {
             TAtomic::TStringWithFlags(..) => "string".to_string(),
 
             TAtomic::TNamedObject {
-                name, type_params, ..
-            } => match type_params {
-                None => name.0.to_string(),
-                Some(type_params) => {
-                    let mut str = String::new();
-                    str += name.0.to_string().as_str();
-                    str += "<";
-                    str += type_params
-                        .into_iter()
-                        .map(|tunion| tunion.get_key())
-                        .join(", ")
-                        .as_str();
-                    str += ">";
-                    return str;
+                name,
+                type_params,
+                extra_types,
+                ..
+            } => {
+                let mut start = match type_params {
+                    None => name.0.to_string(),
+                    Some(type_params) => {
+                        let mut str = String::new();
+                        str += name.0.to_string().as_str();
+                        str += "<";
+                        str += type_params
+                            .into_iter()
+                            .map(|tunion| tunion.get_key())
+                            .join(", ")
+                            .as_str();
+                        str += ">";
+                        return str;
+                    }
+                };
+
+                if let Some(extra_types) = extra_types {
+                    start += "&";
+                    start += &extra_types.iter().map(|a| a.get_key()).join("&");
                 }
-            },
+
+                start
+            }
 
             TAtomic::TTypeAlias {
                 name, type_params, ..

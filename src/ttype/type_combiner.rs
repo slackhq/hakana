@@ -13,6 +13,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{
     combine_union_types, get_int,
     type_combination::{self, TypeCombination},
+    type_comparator::{object_type_comparator, type_comparison_result::TypeComparisonResult},
     wrap_atomic,
 };
 
@@ -852,6 +853,7 @@ fn scrape_type_properties(
     if let TAtomic::TNamedObject {
         name: ref fq_class_name,
         type_params: None,
+        ref extra_types,
         ..
     } = atomic
     {
@@ -884,9 +886,35 @@ fn scrape_type_properties(
         for (key, named_object) in combination.value_types.iter() {
             if let TAtomic::TNamedObject {
                 name: existing_name,
+                extra_types: existing_extra_types,
                 ..
             } = &named_object
             {
+                if extra_types.is_some() || existing_extra_types.is_some() {
+                    if object_type_comparator::is_shallowly_contained_by(
+                        codebase,
+                        &existing_type,
+                        &atomic,
+                        false,
+                        &mut TypeComparisonResult::new(),
+                    ) {
+                        types_to_remove.push(codebase.interner.lookup(existing_name).to_string());
+                        continue;
+                    }
+
+                    if object_type_comparator::is_shallowly_contained_by(
+                        codebase,
+                        &atomic,
+                        &existing_type,
+                        false,
+                        &mut TypeComparisonResult::new(),
+                    ) {
+                        return;
+                    }
+
+                    continue;
+                }
+
                 let existing_symbol_type =
                     if let Some(symbol_type) = codebase.symbols.all.get(&existing_name) {
                         symbol_type
