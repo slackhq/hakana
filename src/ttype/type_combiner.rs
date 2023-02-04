@@ -868,6 +868,7 @@ fn scrape_type_properties(
         let symbol_type = if let Some(symbol_type) = codebase.symbols.all.get(&fq_class_name) {
             symbol_type
         } else {
+            combination.value_types.insert(atomic.get_key(), atomic);
             return;
         };
 
@@ -875,6 +876,7 @@ fn scrape_type_properties(
             symbol_type,
             SymbolKind::EnumClass | SymbolKind::Class | SymbolKind::Enum | SymbolKind::Interface
         ) {
+            combination.value_types.insert(atomic.get_key(), atomic);
             return;
         }
 
@@ -883,12 +885,12 @@ fn scrape_type_properties(
 
         let mut types_to_remove = Vec::new();
 
-        for (key, named_object) in combination.value_types.iter() {
+        for (key, existing_type) in &combination.value_types {
             if let TAtomic::TNamedObject {
                 name: existing_name,
                 extra_types: existing_extra_types,
                 ..
-            } = &named_object
+            } = &existing_type
             {
                 if extra_types.is_some() || existing_extra_types.is_some() {
                     if object_type_comparator::is_shallowly_contained_by(
