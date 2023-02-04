@@ -1,0 +1,1 @@
+ERROR: InvalidArgument - input.hack:18:10 - Argument 1 of echo expects arraykey, different type Node provided

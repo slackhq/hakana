@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use hakana_reflection_info::{
     classlike_info::Variance,
-    codebase_info::CodebaseInfo,
+    codebase_info::{symbols::SymbolKind, CodebaseInfo},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
     StrId,
@@ -863,22 +863,41 @@ fn scrape_type_properties(
             return;
         }
 
-        if !codebase.class_or_interface_or_enum_exists(&fq_class_name) {
-            combination.value_types.insert(atomic.get_key(), atomic);
+        let symbol_type = if let Some(symbol_type) = codebase.symbols.all.get(&fq_class_name) {
+            symbol_type
+        } else {
+            return;
+        };
 
+        if !matches!(
+            symbol_type,
+            SymbolKind::EnumClass | SymbolKind::Class | SymbolKind::Enum | SymbolKind::Interface
+        ) {
             return;
         }
 
-        let is_class = codebase.class_exists(&fq_class_name);
+        let is_class = matches!(symbol_type, SymbolKind::EnumClass | SymbolKind::Class);
+        let is_interface = matches!(symbol_type, SymbolKind::Interface);
 
         let mut types_to_remove = Vec::new();
+
         for (key, named_object) in combination.value_types.iter() {
             if let TAtomic::TNamedObject {
                 name: existing_name,
                 ..
             } = &named_object
             {
-                if codebase.class_exists(existing_name) {
+                let existing_symbol_type =
+                    if let Some(symbol_type) = codebase.symbols.all.get(&existing_name) {
+                        symbol_type
+                    } else {
+                        continue;
+                    };
+
+                if matches!(
+                    existing_symbol_type,
+                    SymbolKind::EnumClass | SymbolKind::Class
+                ) {
                     // remove subclasses
                     if codebase.class_extends_or_implements(existing_name, fq_class_name) {
                         types_to_remove.push(key.clone());
@@ -890,8 +909,13 @@ fn scrape_type_properties(
                         if codebase.class_or_trait_extends(fq_class_name, existing_name) {
                             return;
                         }
+                    } else if is_interface {
+                        // if covered by a parent class
+                        if codebase.interface_extends(fq_class_name, existing_name) {
+                            return;
+                        }
                     }
-                } else {
+                } else if matches!(existing_symbol_type, SymbolKind::Interface) {
                     if codebase.interface_extends(existing_name, fq_class_name) {
                         types_to_remove.push(codebase.interner.lookup(existing_name).to_string());
                         continue;
@@ -902,7 +926,7 @@ fn scrape_type_properties(
                         if codebase.class_or_trait_implements(fq_class_name, existing_name) {
                             return;
                         }
-                    } else {
+                    } else if is_interface {
                         if codebase.interface_extends(fq_class_name, existing_name) {
                             return;
                         }
