@@ -1,22 +1,27 @@
 abstract class Node {}
 
-interface HasFooNode {
-    public function foo(): void;
+interface IHasDefault {
+    public function isDefault(mixed $v): bool;
+    public function getDefault(): mixed;
 }
 
-trait HasFooNodeTrait implements HasFooNode {
-    public function foo(): void {}
+trait HasDefault implements IHasDefault {
+    public function isDefault(mixed $v): bool {
+        return static::getDefault() == $v;
+    }
 }
 
 class FooNode extends Node {
-    use HasFooNodeTrait;
+    use HasDefault;
     
-    public function foo(): void {}
+    public function getDefault(): mixed {
+        return '';
+    }
 }
 
 function takes_node(Node $node): void {
-    if ($node is HasFooNode) {
-        $node->foo();
+    if ($node is IHasDefault && $node->isDefault('')) {
+        $node->getDefault();
     }
 }
 

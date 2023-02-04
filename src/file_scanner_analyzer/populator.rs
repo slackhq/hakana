@@ -660,7 +660,7 @@ fn inherit_methods_from_parent(
         // traits can pass down methods from other traits,
         // but not from their require extends/implements parents
         if !matches!(storage.kind, SymbolKind::Trait)
-            || matches!(parent_storage.kind, SymbolKind::Trait)
+            || !storage.required_classlikes.contains(&parent_storage.name)
         {
             storage
                 .inheritable_method_ids

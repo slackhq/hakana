@@ -70,6 +70,11 @@ pub struct ClassLikeInfo {
     pub direct_parent_class: Option<StrId>,
 
     /**
+     * A trait can require extending classes and interfaces
+     */
+    pub required_classlikes: FxHashSet<StrId>,
+
+    /**
      * Parent classes
      */
     pub all_parent_classes: FxHashSet<StrId>,
@@ -224,6 +229,7 @@ impl ClassLikeInfo {
             declaring_property_ids: FxHashMap::default(),
             direct_parent_class: None,
             direct_parent_interfaces: FxHashSet::default(),
+            required_classlikes: FxHashSet::default(),
             inheritable_method_ids: FxHashMap::default(),
             enum_cases: None,
             enum_type: None,

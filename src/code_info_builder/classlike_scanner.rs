@@ -576,12 +576,12 @@ fn handle_reqs(
                 aast::RequireKind::RequireExtends => {
                     storage.direct_parent_class = Some(require_name.clone());
                     storage.all_parent_classes.insert(require_name.clone());
+                    storage.required_classlikes.insert(require_name.clone());
                 }
                 aast::RequireKind::RequireImplements => {
-                    storage
-                        .direct_parent_interfaces
-                        .insert(require_name.clone());
-                    storage.all_parent_interfaces.insert(require_name.clone());
+                    storage.direct_class_interfaces.insert(require_name.clone());
+                    storage.all_class_interfaces.insert(require_name.clone());
+                    storage.required_classlikes.insert(require_name.clone());
                 }
                 aast::RequireKind::RequireClass => todo!(),
             };
