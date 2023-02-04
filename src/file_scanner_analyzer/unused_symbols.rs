@@ -1,10 +1,12 @@
 use hakana_analyzer::config::Config;
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
-use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::classlike_info::ClassLikeInfo;
+use hakana_reflection_info::codebase_info::symbols::SymbolKind;
+use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::StrId;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -160,13 +162,26 @@ pub(crate) fn find_unused_definitions(
                     if !referenced_class_members.contains(&pair)
                         && !referenced_overridden_class_members.contains(&pair)
                     {
-                        if let Some(parent_elements) =
-                            classlike_info.overridden_method_ids.get(method_name_ptr)
-                        {
-                            for parent_element in parent_elements {
-                                if referenced_class_members
-                                    .contains(&(*parent_element, *method_name_ptr))
-                                {
+                        if has_upstream_method_call(
+                            classlike_info,
+                            method_name_ptr,
+                            &referenced_class_members,
+                        ) {
+                            continue;
+                        }
+
+                        for trait_user in get_trait_users(
+                            classlike_name,
+                            &codebase.symbols,
+                            &codebase.classlike_descendants,
+                        ) {
+                            if let Some(classlike_info) = codebase.classlike_infos.get(&trait_user)
+                            {
+                                if has_upstream_method_call(
+                                    classlike_info,
+                                    method_name_ptr,
+                                    &referenced_class_members,
+                                ) {
                                     continue 'inner;
                                 }
                             }
@@ -233,4 +248,43 @@ pub(crate) fn find_unused_definitions(
             }
         }
     }
+}
+
+fn has_upstream_method_call(
+    classlike_info: &ClassLikeInfo,
+    method_name_ptr: &StrId,
+    referenced_class_members: &FxHashSet<&(StrId, StrId)>,
+) -> bool {
+    if let Some(parent_elements) = classlike_info.overridden_method_ids.get(method_name_ptr) {
+        for parent_element in parent_elements {
+            if referenced_class_members.contains(&(*parent_element, *method_name_ptr)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+fn get_trait_users(
+    classlike_name: &StrId,
+    symbols: &Symbols,
+    all_classlike_descendants: &FxHashMap<StrId, FxHashSet<StrId>>,
+) -> FxHashSet<StrId> {
+    let mut base_set = FxHashSet::default();
+
+    if let Some(SymbolKind::Trait) = symbols.all.get(classlike_name) {
+        if let Some(classlike_descendants) = all_classlike_descendants.get(classlike_name) {
+            base_set.extend(classlike_descendants);
+            for classlike_descendant in classlike_descendants {
+                base_set.extend(get_trait_users(
+                    classlike_descendant,
+                    symbols,
+                    all_classlike_descendants,
+                ));
+            }
+        }
+    }
+
+    base_set
 }
