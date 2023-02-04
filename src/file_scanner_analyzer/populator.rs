@@ -8,7 +8,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::symbol_references::{ReferenceSource, SymbolReferences};
 use hakana_reflection_info::t_atomic::{populate_atomic_type, TAtomic};
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
-use hakana_reflection_info::{Interner, StrId};
+use hakana_reflection_info::{method_info, Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -628,24 +628,33 @@ fn inherit_methods_from_parent(
             }
         }
 
-        if let Some(implementing_class) = storage.declaring_method_ids.get(method_name) {
-            let implementing_class_storage = if implementing_class == &storage.name {
-                &storage
-            } else {
-                codebase.classlike_infos.get(implementing_class).unwrap()
-            };
+        if let Some(existing_declaring_class) = storage.declaring_method_ids.get(method_name) {
+            if existing_declaring_class != declaring_class {
+                let existing_declaring_class_storage = if existing_declaring_class == &storage.name
+                {
+                    &storage
+                } else {
+                    codebase
+                        .classlike_infos
+                        .get(existing_declaring_class)
+                        .unwrap()
+                };
 
-            if let Some(functionlike_storage) = implementing_class_storage.methods.get(method_name)
-            {
-                if let Some(method_info) = &functionlike_storage.method_info {
-                    if !method_info.is_abstract {
-                        continue;
-                    }
-
-                    if let Some(functionlike_storage) = storage.methods.get(method_name) {
+                if !matches!(existing_declaring_class_storage.kind, SymbolKind::Interface) {
+                    if let Some(functionlike_storage) =
+                        existing_declaring_class_storage.methods.get(method_name)
+                    {
                         if let Some(method_info) = &functionlike_storage.method_info {
-                            if method_info.is_abstract {
+                            if !method_info.is_abstract {
                                 continue;
+                            }
+
+                            if let Some(functionlike_storage) = storage.methods.get(method_name) {
+                                if let Some(method_info) = &functionlike_storage.method_info {
+                                    if method_info.is_abstract {
+                                        continue;
+                                    }
+                                }
                             }
                         }
                     }
