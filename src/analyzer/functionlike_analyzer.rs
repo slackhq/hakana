@@ -236,15 +236,17 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 remapped_params: false,
             });
 
-            if classlike_storage.specialize_instance {
-                let new_call_node = DataFlowNode::get_for_this_before_method(
-                    &MethodIdentifier(classlike_storage.name.clone(), method_name.clone()),
-                    functionlike_storage.return_type_location.clone(),
-                    None,
-                    &statements_analyzer.get_codebase().interner,
-                );
+            if let GraphKind::WholeProgram(_) = &analysis_result.program_dataflow_graph.kind {
+                if classlike_storage.specialize_instance {
+                    let new_call_node = DataFlowNode::get_for_this_before_method(
+                        &MethodIdentifier(classlike_storage.name.clone(), method_name.clone()),
+                        functionlike_storage.return_type_location.clone(),
+                        None,
+                        &statements_analyzer.get_codebase().interner,
+                    );
 
-                this_type.parent_nodes = FxHashSet::from_iter([new_call_node]);
+                    this_type.parent_nodes = FxHashSet::from_iter([new_call_node]);
+                }
             }
 
             context
