@@ -386,6 +386,24 @@ pub fn is_contained_by(
                 atomic_comparison_result,
             );
         }
+
+        if let TAtomic::TGenericClassname {
+            as_type: input_as_type,
+            ..
+        }
+        | TAtomic::TGenericTypename {
+            as_type: input_as_type,
+            ..
+        } = input_type_part
+        {
+            return atomic_type_comparator::is_contained_by(
+                codebase,
+                &input_as_type,
+                container_name,
+                inside_assertion,
+                atomic_comparison_result,
+            );
+        }
     }
 
     if let TAtomic::TTypename {
@@ -401,6 +419,24 @@ pub fn is_contained_by(
             return atomic_type_comparator::is_contained_by(
                 codebase,
                 input_name,
+                container_name,
+                inside_assertion,
+                atomic_comparison_result,
+            );
+        }
+
+        if let TAtomic::TGenericClassname {
+            as_type: input_as_type,
+            ..
+        }
+        | TAtomic::TGenericTypename {
+            as_type: input_as_type,
+            ..
+        } = input_type_part
+        {
+            return atomic_type_comparator::is_contained_by(
+                codebase,
+                &input_as_type,
                 container_name,
                 inside_assertion,
                 atomic_comparison_result,
@@ -469,13 +505,35 @@ pub fn is_contained_by(
         }
     }
 
-    if let TAtomic::TGenericTypename { .. } = container_type_part {
+    if let TAtomic::TGenericTypename {
+        as_type: container_name,
+        ..
+    } = container_type_part
+    {
         if let TAtomic::TLiteralClassname {
             name: input_name, ..
         } = input_type_part
         {
             return codebase.class_or_interface_exists(input_name)
                 || codebase.typedef_exists(input_name);
+        }
+
+        if let TAtomic::TGenericClassname {
+            as_type: input_as_type,
+            ..
+        }
+        | TAtomic::TGenericTypename {
+            as_type: input_as_type,
+            ..
+        } = input_type_part
+        {
+            return atomic_type_comparator::is_contained_by(
+                codebase,
+                &input_as_type,
+                container_name,
+                inside_assertion,
+                atomic_comparison_result,
+            );
         }
     }
 

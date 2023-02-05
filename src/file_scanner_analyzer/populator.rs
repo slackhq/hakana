@@ -8,7 +8,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::symbol_references::{ReferenceSource, SymbolReferences};
 use hakana_reflection_info::t_atomic::{populate_atomic_type, TAtomic};
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
-use hakana_reflection_info::{method_info, Interner, StrId};
+use hakana_reflection_info::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
