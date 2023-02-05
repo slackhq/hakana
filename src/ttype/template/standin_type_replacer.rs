@@ -1302,8 +1302,16 @@ fn handle_template_param_type_standin(
             for input_atomic_type in &input_type.types {
                 if let TAtomic::TLiteralClassname { name } = input_atomic_type {
                     if let Some(typedefinition_info) = codebase.type_definitions.get(name) {
-                        valid_input_atomic_types
-                            .extend(typedefinition_info.actual_type.clone().types);
+                        if typedefinition_info.newtype_file.is_some() {
+                            valid_input_atomic_types.push(TAtomic::TTypeAlias {
+                                name: *name,
+                                type_params: None,
+                                as_type: typedefinition_info.as_type.clone(),
+                            });
+                        } else {
+                            valid_input_atomic_types
+                                .extend(typedefinition_info.actual_type.clone().types);
+                        }
                     }
                 } else if let TAtomic::TGenericTypename {
                     param_name,

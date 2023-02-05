@@ -125,11 +125,7 @@ pub fn replace(
                         class_template_type = Some(TAtomic::TTypename {
                             as_type: Box::new(TAtomic::TObject),
                         });
-                    } else if let TAtomic::TDict {
-                        shape_name: Some((type_name, None)),
-                        ..
-                    }
-                    | TAtomic::TTypeAlias {
+                    } else if let TAtomic::TTypeAlias {
                         name: type_name, ..
                     } = template_type_part
                     {
