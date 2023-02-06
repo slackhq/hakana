@@ -23,7 +23,6 @@ use super::{arguments_analyzer::evaluate_arbitrary_param, existing_atomic_method
 pub(crate) struct AtomicMethodCallAnalysisResult {
     pub return_type: Option<TUnion>,
     pub has_valid_method_call_type: bool,
-    pub has_mixed_method_call: bool,
     pub existent_method_ids: FxHashSet<String>,
 }
 
@@ -32,7 +31,6 @@ impl AtomicMethodCallAnalysisResult {
         Self {
             return_type: None,
             has_valid_method_call_type: false,
-            has_mixed_method_call: false,
             existent_method_ids: FxHashSet::default(),
         }
     }
@@ -58,35 +56,10 @@ pub(crate) fn analyze(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-    mut lhs_type_part: &TAtomic,
+    lhs_type_part: &TAtomic,
     lhs_var_id: &Option<String>,
     result: &mut AtomicMethodCallAnalysisResult,
 ) {
-    if let TAtomic::TGenericParam {
-        as_type,
-        extra_types,
-        ..
-    } = &lhs_type_part
-    {
-        if !as_type.is_mixed() && as_type.is_single() {
-            lhs_type_part = as_type.get_single();
-
-            if let Some(extra_types) = extra_types {
-                for _ in extra_types {
-                    //lhs_type_part.add_intersection_type(extra_type.clone());
-                }
-            }
-
-            result.has_mixed_method_call = true;
-        }
-    } else if let TAtomic::TTypeAlias {
-        as_type: Some(as_type),
-        ..
-    } = &lhs_type_part
-    {
-        lhs_type_part = as_type.get_single();
-    }
-
     let codebase = statements_analyzer.get_codebase();
 
     match &lhs_type_part {

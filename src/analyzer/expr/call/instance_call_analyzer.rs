@@ -101,15 +101,30 @@ pub(crate) fn analyze(
             }
         }
 
-        for lhs_atomic_type in &class_type.types {
-            if let TAtomic::TNull = lhs_atomic_type {
-                continue; // handled above
-            }
+        let mut class_types = class_type.types.iter().collect::<Vec<_>>();
 
-            if let TAtomic::TFalse = lhs_atomic_type {
-                if class_type.ignore_falsable_issues {
+        while let Some(lhs_atomic_type) = class_types.pop() {
+            match lhs_atomic_type {
+                TAtomic::TNull => {
+                    continue; // handled above
+                }
+                TAtomic::TFalse => {
+                    if class_type.ignore_falsable_issues {
+                        continue;
+                    }
+                }
+                TAtomic::TGenericParam { as_type, .. } => {
+                    class_types.extend(&as_type.types);
                     continue;
                 }
+                TAtomic::TTypeAlias {
+                    as_type: Some(as_type),
+                    ..
+                } => {
+                    class_types.extend(&as_type.types);
+                    continue;
+                }
+                _ => (),
             }
 
             atomic_method_call_analyzer::analyze(
