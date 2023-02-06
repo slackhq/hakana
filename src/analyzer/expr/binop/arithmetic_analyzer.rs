@@ -1,3 +1,6 @@
+use std::rc::Rc;
+
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -27,10 +30,22 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
     expression_analyzer::analyze(statements_analyzer, right, tast_info, context, &mut None);
 
     let fallback = get_mixed_any();
-    let e1_type = match tast_info.get_expr_type(&left.1) {
+    let e1_type = match tast_info.get_rc_expr_type(&left.1).cloned() {
         Some(var_type) => var_type,
-        None => &fallback,
+        None => Rc::new(fallback.clone()),
     };
+
+    if e1_type.is_mixed() {
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::MixedOperand,
+                "Operand has a mixed type".to_string(),
+                statements_analyzer.get_hpos(&left.1),
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+    }
 
     let e1_var_id = if context.inside_loop {
         expression_identifier::get_var_id(
@@ -44,10 +59,22 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
         None
     };
 
-    let e2_type = match tast_info.get_expr_type(&right.1) {
+    let e2_type = match tast_info.get_rc_expr_type(&right.1).cloned() {
         Some(var_type) => var_type,
-        None => &fallback,
+        None => Rc::new(fallback),
     };
+
+    if e2_type.is_mixed() {
+        tast_info.maybe_add_issue(
+            Issue::new(
+                IssueKind::MixedOperand,
+                "Operand has a mixed type".to_string(),
+                statements_analyzer.get_hpos(&right.1),
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+    }
 
     let e2_var_id = if context.inside_loop {
         expression_identifier::get_var_id(

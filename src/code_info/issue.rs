@@ -52,6 +52,7 @@ pub enum IssueKind {
     MixedArrayAssignment,
     MixedArrayOffset,
     MixedMethodCall,
+    MixedOperand,
     MixedPropertyAssignment,
     MixedPropertyTypeCoercion,
     MixedReturnStatement,
