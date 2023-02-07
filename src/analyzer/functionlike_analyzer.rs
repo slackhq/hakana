@@ -471,7 +471,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let config = statements_analyzer.get_config();
 
         if config.find_unused_expressions && parent_tast_info.is_none() {
-            report_unused_expressions(&mut tast_info, config, fb_ast, statements_analyzer);
+            report_unused_expressions(
+                &mut tast_info,
+                config,
+                fb_ast,
+                statements_analyzer,
+                &context.function_context.calling_functionlike_id,
+            );
         }
 
         if config.remove_fixmes && parent_tast_info.is_none() {
@@ -770,6 +776,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                 IssueKind::UnrecognizedType,
                                 "Hakana does not understand this type".to_string(),
                                 type_location.clone(),
+                                &context.function_context.calling_functionlike_id,
                             ));
                         }
                     }
@@ -823,6 +830,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                     } else {
                                         param.location.clone()
                                     },
+                                    &context.function_context.calling_functionlike_id,
                                 ));
 
                                 return false;
@@ -963,6 +971,7 @@ fn report_unused_expressions(
     config: &Config,
     fb_ast: &Vec<aast::Stmt<(), ()>>,
     statements_analyzer: &StatementsAnalyzer,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
 ) {
     let unused_source_nodes = check_variables_used(&tast_info.data_flow_graph);
 
@@ -982,6 +991,7 @@ fn report_unused_expressions(
                                 IssueKind::UnusedParameter,
                                 "Unused param ".to_string() + node.id.as_str(),
                                 pos.clone(),
+                                calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
                             statements_analyzer.get_file_path_actual(),
@@ -1015,6 +1025,7 @@ fn report_unused_expressions(
                                             "The pipe data in this expression is not used anywhere"
                                                 .to_string(),
                                             pos.clone(),
+                                            calling_functionlike_id,
                                         )
                                     } else if unused_closure_variable {
                                         Issue::new(
@@ -1024,12 +1035,14 @@ fn report_unused_expressions(
                                                 label
                                             ),
                                             pos.clone(),
+                                            calling_functionlike_id,
                                         )
                                     } else {
                                         Issue::new(
                                             IssueKind::UnusedAssignment,
                                             format!("Assignment to {} is unused", label),
                                             pos.clone(),
+                                            calling_functionlike_id,
                                         )
                                     },
                                     statements_analyzer.get_config(),

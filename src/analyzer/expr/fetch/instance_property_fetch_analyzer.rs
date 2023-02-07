@@ -121,6 +121,7 @@ pub(crate) fn analyze(
                             IssueKind::PossiblyNullPropertyFetch,
                             "Unsafe property access on null".to_string(),
                             statements_analyzer.get_hpos(&expr.0.pos()),
+                            &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),

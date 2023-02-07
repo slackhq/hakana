@@ -67,7 +67,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         }
 
         if let Some(cond_type) = tast_info.get_expr_type(left.pos()).cloned() {
-            handle_paradoxical_condition(statements_analyzer, tast_info, left.pos(), &cond_type);
+            handle_paradoxical_condition(
+                statements_analyzer,
+                tast_info,
+                left.pos(),
+                &context.function_context.calling_functionlike_id,
+                &cond_type,
+            );
         }
 
         let cloned_vars = context.vars_in_scope.clone();
@@ -236,7 +242,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     }
 
     if let Some(cond_type) = tast_info.get_expr_type(right.pos()).cloned() {
-        handle_paradoxical_condition(statements_analyzer, tast_info, right.pos(), &cond_type);
+        handle_paradoxical_condition(
+            statements_analyzer,
+            tast_info,
+            right.pos(),
+            &context.function_context.calling_functionlike_id,
+            &cond_type,
+        );
     }
 
     let _right_referenced_var_ids = right_context.cond_referenced_var_ids.clone();

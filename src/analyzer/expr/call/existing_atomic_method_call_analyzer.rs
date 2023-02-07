@@ -485,6 +485,7 @@ fn handle_defined_shape_idx(
                     dim_var_id, expr_var_id, dim_var_id
                 ),
                 statements_analyzer.get_hpos(&pos),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             &statements_analyzer

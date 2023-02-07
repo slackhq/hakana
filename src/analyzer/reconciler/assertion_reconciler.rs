@@ -7,8 +7,9 @@ use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
-    Interner, StrId,
+    assertion::Assertion, codebase_info::CodebaseInfo,
+    functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion, Interner,
+    StrId,
 };
 use hakana_type::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
@@ -28,6 +29,7 @@ pub(crate) fn reconcile(
     tast_info: &mut TastInfo,
     inside_loop: bool,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     can_report_issues: bool,
     failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
@@ -57,6 +59,7 @@ pub(crate) fn reconcile(
             tast_info,
             old_var_type_string,
             if can_report_issues { pos } else { None },
+            calling_functionlike_id,
             failed_reconciliation,
             negated,
             suppressed_issues,
@@ -72,6 +75,7 @@ pub(crate) fn reconcile(
         tast_info,
         statements_analyzer,
         if can_report_issues { pos } else { None },
+        calling_functionlike_id,
         failed_reconciliation,
         negated,
         inside_loop,
@@ -103,6 +107,7 @@ pub(crate) fn reconcile(
                             true,
                             negated,
                             pos,
+                            calling_functionlike_id,
                             suppressed_issues,
                         );
                     }
@@ -116,6 +121,7 @@ pub(crate) fn reconcile(
                         false,
                         negated,
                         pos,
+                        calling_functionlike_id,
                         suppressed_issues,
                     );
                 }

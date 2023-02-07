@@ -315,29 +315,7 @@ impl ScopeContext {
                 }
             }
 
-            let keep_clause = if let Some(possibilities) = clause.possibilities.get(remove_var_id) {
-                if possibilities.len() == 1 {
-                    let assertion = possibilities.values().next().unwrap();
-
-                    if let Assertion::IsType(assertion_type) = assertion {
-                        if let Some(new_type) = new_type {
-                            if new_type.is_single() {
-                                new_type.get_single() == assertion_type
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            } else {
-                true
-            };
+            let keep_clause = should_keep_clause(&clause, remove_var_id, new_type);
 
             if keep_clause {
                 clauses_to_keep.push(clause.clone())
@@ -370,6 +348,7 @@ impl ScopeContext {
                                 tast_info,
                                 false,
                                 None,
+                                &None,
                                 false,
                                 &mut reconciler::ReconciliationStatus::Ok,
                                 false,
@@ -498,6 +477,30 @@ impl ScopeContext {
         }
 
         self.vars_in_scope.contains_key(var_name)
+    }
+}
+
+fn should_keep_clause(
+    clause: &Rc<Clause>,
+    remove_var_id: &String,
+    new_type: Option<&TUnion>,
+) -> bool {
+    if let Some(possibilities) = clause.possibilities.get(remove_var_id) {
+        if possibilities.len() == 1 {
+            let assertion = possibilities.values().next().unwrap();
+
+            if let Assertion::IsType(assertion_type) = assertion {
+                if let Some(new_type) = new_type {
+                    if new_type.is_single() {
+                        return new_type.get_single() == assertion_type;
+                    }
+                }
+            }
+        }
+
+        false
+    } else {
+        true
     }
 }
 

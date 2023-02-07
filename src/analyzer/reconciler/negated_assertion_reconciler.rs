@@ -6,7 +6,8 @@ use super::{
 use crate::typed_ast::TastInfo;
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::{
-    assertion::Assertion, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion, StrId,
+    assertion::Assertion, codebase_info::CodebaseInfo,
+    functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion, StrId,
 };
 use hakana_type::{get_nothing, get_placeholder, wrap_atomic};
 use hakana_type::{
@@ -28,6 +29,7 @@ pub(crate) fn reconcile(
     tast_info: &mut TastInfo,
     old_var_type_string: String,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -47,6 +49,7 @@ pub(crate) fn reconcile(
             tast_info,
             old_var_type_string,
             pos,
+            calling_functionlike_id,
             negated,
             suppressed_issues,
         );
@@ -60,6 +63,7 @@ pub(crate) fn reconcile(
         statements_analyzer,
         tast_info,
         pos,
+        calling_functionlike_id,
         failed_reconciliation,
         negated,
         suppressed_issues,
@@ -97,6 +101,7 @@ pub(crate) fn reconcile(
                         true,
                         negated,
                         pos,
+                        calling_functionlike_id,
                         suppressed_issues,
                     );
                 }
@@ -119,6 +124,7 @@ pub(crate) fn reconcile(
                         false,
                         negated,
                         pos,
+                        calling_functionlike_id,
                         suppressed_issues,
                     );
                 }
@@ -263,6 +269,7 @@ fn handle_literal_negated_equality(
     tast_info: &mut TastInfo,
     old_var_type_string: String,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     negated: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -478,6 +485,7 @@ fn handle_literal_negated_equality(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }

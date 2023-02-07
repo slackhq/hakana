@@ -331,6 +331,7 @@ pub(crate) fn analyze_case(
             &case_clauses,
             tast_info,
             case_cond.unwrap().pos(),
+            &context.function_context.calling_functionlike_id,
         );
 
         entry_clauses.extend(case_clauses.clone());
@@ -537,6 +538,7 @@ pub(crate) fn handle_non_returning_case(
                         "All possible case statements have been met, default is impossible here"
                             .to_string(),
                         statements_analyzer.get_hpos(&case_pos),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),

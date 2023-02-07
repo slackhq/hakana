@@ -7,6 +7,7 @@ use crate::{
 };
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
+    functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     t_union::TUnion,
 };
@@ -247,7 +248,13 @@ pub(crate) fn analyze<'a>(
         .collect::<FxHashSet<_>>();
 
     if let Some(cond_type) = tast_info.get_expr_type(cond.pos()).cloned() {
-        handle_paradoxical_condition(statements_analyzer, tast_info, cond.pos(), &cond_type);
+        handle_paradoxical_condition(
+            statements_analyzer,
+            tast_info,
+            cond.pos(),
+            &outer_context.function_context.calling_functionlike_id,
+            &cond_type,
+        );
     }
 
     cond_referenced_var_ids.retain(|k| !assigned_in_conditional_var_ids.contains_key(k));
@@ -356,6 +363,7 @@ pub(crate) fn handle_paradoxical_condition(
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
     pos: &Pos,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     expr_type: &TUnion,
 ) {
     if expr_type.is_always_falsy() {
@@ -367,6 +375,7 @@ pub(crate) fn handle_paradoxical_condition(
                     expr_type.get_id(Some(&statements_analyzer.get_codebase().interner))
                 ),
                 statements_analyzer.get_hpos(&pos),
+                calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
@@ -380,6 +389,7 @@ pub(crate) fn handle_paradoxical_condition(
                     expr_type.get_id(Some(&statements_analyzer.get_codebase().interner))
                 ),
                 statements_analyzer.get_hpos(&pos),
+                calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),

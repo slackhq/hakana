@@ -225,7 +225,7 @@ pub fn analyze_single_file(
                 pos.file_path = file_path;
                 analysis_result.emitted_issues.insert(
                     path.clone(),
-                    vec![Issue::new(IssueKind::InvalidHackFile, message, pos)],
+                    vec![Issue::new(IssueKind::InvalidHackFile, message, pos, &None)],
                 );
 
                 return Ok(analysis_result);

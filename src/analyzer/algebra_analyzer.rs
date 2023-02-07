@@ -4,6 +4,7 @@ use hakana_algebra::Clause;
 
 use hakana_reflection_info::{
     assertion::Assertion,
+    functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
 };
 use oxidized::ast::Pos;
@@ -19,6 +20,7 @@ pub(crate) fn check_for_paradox(
     formula_2: &Vec<Clause>,
     tast_info: &mut TastInfo,
     pos: &Pos,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
 ) {
     let negated_formula_2 = hakana_algebra::negate_formula(formula_2.clone());
 
@@ -56,6 +58,7 @@ pub(crate) fn check_for_paradox(
                         "has already been asserted"
                     ),
                     statements_analyzer.get_hpos(&pos),
+                    calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 &statements_analyzer
@@ -140,6 +143,7 @@ pub(crate) fn check_for_paradox(
                             IssueKind::ParadoxicalCondition,
                             paradox_message,
                             statements_analyzer.get_hpos(&pos),
+                            calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),

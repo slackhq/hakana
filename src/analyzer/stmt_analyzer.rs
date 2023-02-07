@@ -219,6 +219,7 @@ pub(crate) fn analyze(
                     IssueKind::UnrecognizedStatement,
                     "Unrecognized statement".to_string(),
                     statements_analyzer.get_hpos(&stmt.0),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),

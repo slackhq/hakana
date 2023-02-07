@@ -46,6 +46,7 @@ pub(crate) fn analyze(
                         IssueKind::UndefinedVariable,
                         format!("Cannot find referenced variable {}", &lid.1 .1),
                         statements_analyzer.get_hpos(&pos),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),

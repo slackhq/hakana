@@ -11,6 +11,7 @@ use crate::{
 use hakana_reflection_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
+    functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
@@ -36,6 +37,7 @@ pub(crate) fn reconcile(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
     inside_loop: bool,
@@ -70,6 +72,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -90,6 +93,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -111,6 +115,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -132,6 +137,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -153,6 +159,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -167,6 +174,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     suppressed_issues,
                 ));
@@ -180,6 +188,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     suppressed_issues,
                 ));
@@ -193,6 +202,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -212,6 +222,7 @@ pub(crate) fn reconcile(
                         tast_info,
                         statements_analyzer,
                         pos,
+                        calling_functionlike_id,
                         failed_reconciliation,
                         assertion.has_equality(),
                         suppressed_issues,
@@ -233,6 +244,7 @@ pub(crate) fn reconcile(
                         tast_info,
                         statements_analyzer,
                         pos,
+                        calling_functionlike_id,
                         failed_reconciliation,
                         assertion.has_equality(),
                         suppressed_issues,
@@ -248,6 +260,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -262,6 +275,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -276,6 +290,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -291,6 +306,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -306,6 +322,7 @@ pub(crate) fn reconcile(
                     tast_info,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
@@ -329,6 +346,7 @@ pub(crate) fn reconcile(
             tast_info,
             statements_analyzer,
             pos,
+            calling_functionlike_id,
             failed_reconciliation,
             suppressed_issues,
         )),
@@ -341,6 +359,7 @@ pub(crate) fn reconcile(
             tast_info,
             statements_analyzer,
             pos,
+            calling_functionlike_id,
             failed_reconciliation,
             suppressed_issues,
             inside_loop,
@@ -353,6 +372,7 @@ pub(crate) fn reconcile(
             tast_info,
             statements_analyzer,
             pos,
+            calling_functionlike_id,
             failed_reconciliation,
             suppressed_issues,
             false,
@@ -365,6 +385,7 @@ pub(crate) fn reconcile(
             tast_info,
             statements_analyzer,
             pos,
+            calling_functionlike_id,
             failed_reconciliation,
             suppressed_issues,
             true,
@@ -385,6 +406,7 @@ pub(crate) fn reconcile(
             tast_info,
             statements_analyzer,
             pos,
+            calling_functionlike_id,
             failed_reconciliation,
             suppressed_issues,
             typed_value,
@@ -399,6 +421,7 @@ pub(crate) fn reconcile(
             tast_info,
             statements_analyzer,
             pos,
+            calling_functionlike_id,
             suppressed_issues,
         )),
         Assertion::HasNonnullEntryForKey(key_name) => Some(reconcile_has_nonnull_entry_for_key(
@@ -411,6 +434,7 @@ pub(crate) fn reconcile(
             tast_info,
             statements_analyzer,
             pos,
+            calling_functionlike_id,
             suppressed_issues,
         )),
         Assertion::NonEmptyCountable(_) => Some(reconcile_non_empty_countable(
@@ -421,6 +445,7 @@ pub(crate) fn reconcile(
             tast_info,
             statements_analyzer,
             pos,
+            calling_functionlike_id,
             failed_reconciliation,
             suppressed_issues,
             false,
@@ -433,6 +458,7 @@ pub(crate) fn reconcile(
             tast_info,
             statements_analyzer,
             pos,
+            calling_functionlike_id,
             failed_reconciliation,
             suppressed_issues,
             false,
@@ -450,6 +476,7 @@ pub(crate) fn intersect_null(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -483,6 +510,7 @@ pub(crate) fn intersect_null(
                         tast_info,
                         statements_analyzer,
                         None,
+                        calling_functionlike_id,
                         failed_reconciliation,
                         suppressed_issues,
                     ));
@@ -525,6 +553,7 @@ pub(crate) fn intersect_null(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -548,6 +577,7 @@ fn intersect_object(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -576,6 +606,7 @@ fn intersect_object(
                     tast_info,
                     statements_analyzer,
                     None,
+                    calling_functionlike_id,
                     failed_reconciliation,
                     is_equality,
                     suppressed_issues,
@@ -605,6 +636,7 @@ fn intersect_object(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -628,6 +660,7 @@ fn intersect_vec(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -694,6 +727,7 @@ fn intersect_vec(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -717,6 +751,7 @@ fn intersect_keyset(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -774,6 +809,7 @@ fn intersect_keyset(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -798,6 +834,7 @@ fn intersect_dict(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -829,6 +866,7 @@ fn intersect_dict(
                         tast_info,
                         statements_analyzer,
                         None,
+                        calling_functionlike_id,
                         failed_reconciliation,
                         is_equality,
                         suppressed_issues,
@@ -899,6 +937,7 @@ fn intersect_dict(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -922,6 +961,7 @@ fn intersect_arraykey(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -955,6 +995,7 @@ fn intersect_arraykey(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -978,6 +1019,7 @@ fn intersect_num(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -1011,6 +1053,7 @@ fn intersect_num(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -1035,6 +1078,7 @@ fn intersect_string(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -1093,6 +1137,7 @@ fn intersect_string(
                         tast_info,
                         statements_analyzer,
                         None,
+                        calling_functionlike_id,
                         failed_reconciliation,
                         is_equality,
                         suppressed_issues,
@@ -1148,6 +1193,7 @@ fn intersect_string(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -1172,6 +1218,7 @@ fn intersect_int(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -1207,6 +1254,7 @@ fn intersect_int(
                         tast_info,
                         statements_analyzer,
                         None,
+                        calling_functionlike_id,
                         failed_reconciliation,
                         is_equality,
                         suppressed_issues,
@@ -1267,6 +1315,7 @@ fn intersect_int(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -1290,6 +1339,7 @@ fn reconcile_truthy(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1322,6 +1372,7 @@ fn reconcile_truthy(
                         tast_info,
                         statements_analyzer,
                         None,
+                        calling_functionlike_id,
                         &mut template_failed_reconciliation,
                         suppressed_issues,
                     ));
@@ -1365,6 +1416,7 @@ fn reconcile_truthy(
         did_remove_type,
         key,
         pos,
+        calling_functionlike_id,
         &existing_var_type,
         statements_analyzer,
         tast_info,
@@ -1385,6 +1437,7 @@ fn reconcile_isset(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     inside_loop: bool,
@@ -1431,6 +1484,7 @@ fn reconcile_isset(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -1467,6 +1521,7 @@ fn reconcile_non_empty_countable(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
@@ -1548,6 +1603,7 @@ fn reconcile_non_empty_countable(
                         !did_remove_type,
                         negated,
                         pos,
+                        calling_functionlike_id,
                         suppressed_issues,
                     );
                 }
@@ -1575,6 +1631,7 @@ fn reconcile_exactly_countable(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
@@ -1653,6 +1710,7 @@ fn reconcile_exactly_countable(
                         !did_remove_type,
                         negated,
                         pos,
+                        calling_functionlike_id,
                         suppressed_issues,
                     );
                 }
@@ -1678,6 +1736,7 @@ fn reconcile_array_access(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     allow_int_key: bool,
@@ -1717,6 +1776,7 @@ fn reconcile_array_access(
                     false,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -1742,6 +1802,7 @@ fn reconcile_in_array(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     _failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     typed_value: &TUnion,
@@ -1763,6 +1824,7 @@ fn reconcile_in_array(
                 true,
                 negated,
                 pos,
+                calling_functionlike_id,
                 suppressed_issues,
             );
         }
@@ -1781,6 +1843,7 @@ fn reconcile_has_array_key(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let mut did_remove_type = possibly_undefined;
@@ -1891,6 +1954,7 @@ fn reconcile_has_array_key(
                         tast_info,
                         statements_analyzer,
                         None,
+                        calling_functionlike_id,
                         suppressed_issues,
                     ));
 
@@ -1936,6 +2000,7 @@ fn reconcile_has_array_key(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -1961,6 +2026,7 @@ fn reconcile_has_nonnull_entry_for_key(
     tast_info: &mut TastInfo,
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let mut did_remove_type = possibly_undefined;
@@ -1988,6 +2054,7 @@ fn reconcile_has_nonnull_entry_for_key(
                             tast_info,
                             statements_analyzer,
                             None,
+                            calling_functionlike_id,
                             &mut ReconciliationStatus::Ok,
                             suppressed_issues,
                         );
@@ -2008,6 +2075,7 @@ fn reconcile_has_nonnull_entry_for_key(
                             tast_info,
                             statements_analyzer,
                             None,
+                            calling_functionlike_id,
                             &mut ReconciliationStatus::Ok,
                             suppressed_issues,
                         );
@@ -2043,6 +2111,7 @@ fn reconcile_has_nonnull_entry_for_key(
                                 tast_info,
                                 statements_analyzer,
                                 None,
+                                calling_functionlike_id,
                                 &mut ReconciliationStatus::Ok,
                                 suppressed_issues,
                             );
@@ -2077,6 +2146,7 @@ fn reconcile_has_nonnull_entry_for_key(
                                 tast_info,
                                 statements_analyzer,
                                 None,
+                                calling_functionlike_id,
                                 &mut ReconciliationStatus::Ok,
                                 suppressed_issues,
                             );
@@ -2097,6 +2167,7 @@ fn reconcile_has_nonnull_entry_for_key(
                                 tast_info,
                                 statements_analyzer,
                                 None,
+                                calling_functionlike_id,
                                 &mut ReconciliationStatus::Ok,
                                 suppressed_issues,
                             );
@@ -2116,6 +2187,7 @@ fn reconcile_has_nonnull_entry_for_key(
                                 tast_info,
                                 statements_analyzer,
                                 None,
+                                calling_functionlike_id,
                                 &mut ReconciliationStatus::Ok,
                                 suppressed_issues,
                             );
@@ -2144,6 +2216,7 @@ fn reconcile_has_nonnull_entry_for_key(
                             tast_info,
                             statements_analyzer,
                             None,
+                            calling_functionlike_id,
                             suppressed_issues,
                         ));
 
@@ -2194,6 +2267,7 @@ fn reconcile_has_nonnull_entry_for_key(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }
@@ -2214,6 +2288,7 @@ pub(crate) fn get_acceptable_type(
     did_remove_type: bool,
     key: Option<&String>,
     pos: Option<&Pos>,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     existing_var_type: &TUnion,
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
@@ -2238,6 +2313,7 @@ pub(crate) fn get_acceptable_type(
                     !did_remove_type,
                     negated,
                     pos,
+                    calling_functionlike_id,
                     suppressed_issues,
                 );
             }

@@ -127,6 +127,7 @@ pub(crate) fn analyze(
         &if_clauses,
         tast_info,
         stmt.0.pos(),
+        &context.function_context.calling_functionlike_id,
     );
 
     let if_clauses = hakana_algebra::simplify_cnf(if_clauses.iter().collect());

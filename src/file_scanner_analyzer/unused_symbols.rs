@@ -3,6 +3,7 @@ use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
+use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::StrId;
@@ -75,6 +76,7 @@ pub(crate) fn find_unused_definitions(
                         codebase.interner.lookup(&function_name)
                     ),
                     pos.clone(),
+                    &Some(FunctionLikeIdentifier::Function(*function_name)),
                 );
 
                 if config.can_add_issue(&issue) {
@@ -125,6 +127,7 @@ pub(crate) fn find_unused_definitions(
                         codebase.interner.lookup(classlike_name)
                     ),
                     pos.clone(),
+                    &Some(FunctionLikeIdentifier::Function(*classlike_name)),
                 );
 
                 if config.migration_symbols.contains(&(
@@ -225,6 +228,10 @@ pub(crate) fn find_unused_definitions(
                                         codebase.interner.lookup(method_name_ptr)
                                     ),
                                     functionlike_storage.name_location.clone().unwrap(),
+                                    &Some(FunctionLikeIdentifier::Method(
+                                        *classlike_name,
+                                        *method_name_ptr,
+                                    )),
                                 )
                             } else {
                                 Issue::new(
@@ -235,6 +242,10 @@ pub(crate) fn find_unused_definitions(
                                         codebase.interner.lookup(method_name_ptr)
                                     ),
                                     functionlike_storage.name_location.clone().unwrap(),
+                                    &Some(FunctionLikeIdentifier::Method(
+                                        *classlike_name,
+                                        *method_name_ptr,
+                                    )),
                                 )
                             };
 

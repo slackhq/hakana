@@ -120,6 +120,7 @@ pub(crate) fn analyze(
                             .join(", ")
                     ),
                     statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
@@ -338,6 +339,7 @@ fn analyze_xhp_attribute_assignment(
                         codebase.interner.lookup(element_name)
                     ),
                     statements_analyzer.get_hpos(&attribute_name_pos),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),

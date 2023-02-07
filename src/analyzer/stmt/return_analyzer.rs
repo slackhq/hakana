@@ -56,6 +56,7 @@ pub(crate) fn analyze(
                         "This function call evaluates to nothing — likely calling a noreturn function"
                             .to_string(),
                         statements_analyzer.get_hpos(&return_expr.1),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(), statements_analyzer.get_file_path_actual()
                 );
@@ -214,6 +215,7 @@ pub(crate) fn analyze(
                                     .to_string(interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
+                            &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
@@ -240,6 +242,7 @@ pub(crate) fn analyze(
                             inferred_return_type.get_id(Some(interner))
                         ),
                         statements_analyzer.get_hpos(&return_expr.1),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
@@ -264,6 +267,7 @@ pub(crate) fn analyze(
                                 .to_string(interner)
                         ),
                         statements_analyzer.get_hpos(&return_expr.1),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
@@ -300,6 +304,7 @@ pub(crate) fn analyze(
                                 context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
+                            &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual());
@@ -321,6 +326,7 @@ pub(crate) fn analyze(
                                         context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
                                     ),
                                     statements_analyzer.get_hpos(&return_expr.1),
+                                    &context.function_context.calling_functionlike_id,
                                 ),
                                 statements_analyzer.get_config(),
                                 statements_analyzer.get_file_path_actual()
@@ -340,6 +346,7 @@ pub(crate) fn analyze(
                                     context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
                                 ),
                                 statements_analyzer.get_hpos(&return_expr.1),
+                                &context.function_context.calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
                             statements_analyzer.get_file_path_actual()
@@ -362,6 +369,7 @@ pub(crate) fn analyze(
                                     .to_string(interner)
                             ),
                             statements_analyzer.get_hpos(&return_expr.1),
+                            &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
@@ -382,6 +390,7 @@ pub(crate) fn analyze(
                         inferred_return_type.get_id(Some(interner)),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual());
@@ -402,6 +411,7 @@ pub(crate) fn analyze(
                         inferred_return_type.get_id(Some(interner)),
                     ),
                     statements_analyzer.get_hpos(&return_expr.1),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual());
@@ -429,6 +439,7 @@ pub(crate) fn analyze(
                         .to_string(interner)
                 ),
                 statements_analyzer.get_hpos(&stmt.0),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),

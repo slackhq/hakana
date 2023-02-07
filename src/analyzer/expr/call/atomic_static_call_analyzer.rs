@@ -118,6 +118,7 @@ pub(crate) fn analyze(
                         IssueKind::MixedMethodCall,
                         "Method called on unknown object".to_string(),
                         statements_analyzer.get_hpos(&pos),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
@@ -142,6 +143,7 @@ pub(crate) fn analyze(
                     &expr.1 .1
                 ),
                 statements_analyzer.get_hpos(&pos),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),

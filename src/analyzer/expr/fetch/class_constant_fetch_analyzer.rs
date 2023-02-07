@@ -94,6 +94,7 @@ pub(crate) fn analyze(
                                             codebase.interner.lookup(classlike_name)
                                         ),
                                         statements_analyzer.get_hpos(&pos),
+                                        &context.function_context.calling_functionlike_id,
                                     ),
                                     statements_analyzer.get_config(),
                                     statements_analyzer.get_file_path_actual(),
@@ -153,6 +154,7 @@ fn analyse_known_class_constant(
                     IssueKind::NonExistentType,
                     format!("Unknown class {}", codebase.interner.lookup(classlike_name)),
                     statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
                 )
             } else {
                 Issue::new(
@@ -162,6 +164,7 @@ fn analyse_known_class_constant(
                         codebase.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
                 )
             },
             statements_analyzer.get_config(),
@@ -210,6 +213,7 @@ fn analyse_known_class_constant(
                     const_name
                 ),
                 statements_analyzer.get_hpos(&pos),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
@@ -236,6 +240,7 @@ fn analyse_known_class_constant(
                     codebase.interner.lookup(&const_name),
                 ),
                 statements_analyzer.get_hpos(&pos),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),

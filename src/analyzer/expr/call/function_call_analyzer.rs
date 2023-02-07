@@ -117,6 +117,7 @@ pub(crate) fn analyze(
                     codebase.interner.lookup(&name)
                 ),
                 statements_analyzer.get_hpos(&expr.0 .0),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
@@ -268,6 +269,7 @@ pub(crate) fn analyze(
                     &pos,
                     false,
                     &real_name.to_string(),
+                    &context.function_context.calling_functionlike_id,
                 );
             } else if real_name == "HH\\Lib\\C\\contains_key"
                 || real_name == "HH\\Lib\\Dict\\contains_key"
@@ -320,6 +322,7 @@ pub(crate) fn analyze(
                                 &pos,
                                 true,
                                 &real_name.to_string(),
+                                &context.function_context.calling_functionlike_id,
                             );
                         }
                     }
@@ -548,6 +551,7 @@ fn check_array_key_or_value_type(
     pos: &Pos,
     is_key: bool,
     function_name: &String,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
 ) {
     let mut has_valid_container_type = false;
     let mut error_message = None;
@@ -588,6 +592,7 @@ fn check_array_key_or_value_type(
                         IssueKind::InvalidContainsCheck,
                         error_message,
                         statements_analyzer.get_hpos(&pos),
+                        &calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),

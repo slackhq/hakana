@@ -263,6 +263,7 @@ fn get_child_nodes(
                             IssueKind::TaintedData(t.clone()),
                             message,
                             (**generated_source.pos.as_ref().unwrap()).clone(),
+                            &None,
                         ));
                     }
                 }
@@ -331,6 +332,7 @@ fn get_child_nodes(
                                 IssueKind::TaintedData(t.clone()),
                                 message,
                                 (**generated_source.pos.as_ref().unwrap()).clone(),
+                                &None,
                             ));
                         }
                     }
@@ -394,6 +396,7 @@ fn get_child_nodes(
                                                 IssueKind::TaintedData(matching_taint.clone()),
                                                 message,
                                                 (**issue_pos).clone(),
+                                                &None,
                                             ));
                                         }
                                     }

@@ -197,10 +197,11 @@ fn analyze_file(
                             end_column: 0,
                             insertion_start: None,
                         },
+                        &None,
                     ),
                     ParserError::SyntaxError { message, mut pos } => {
                         pos.file_path = file_path;
-                        Issue::new(IssueKind::InvalidHackFile, message, pos)
+                        Issue::new(IssueKind::InvalidHackFile, message, pos, &None)
                     }
                 }],
             );

@@ -74,6 +74,7 @@ pub(crate) fn analyze(
                     codebase.interner.lookup(&classlike_name)
                 ),
                 statements_analyzer.get_hpos(&pos),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
@@ -139,6 +140,7 @@ pub(crate) fn analyze(
                     prop_name,
                 ),
                 statements_analyzer.get_hpos(&pos),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
@@ -187,6 +189,7 @@ pub(crate) fn analyze(
                     codebase.interner.lookup(&property_id.1)
                 ),
                 statements_analyzer.get_hpos(&pos),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),

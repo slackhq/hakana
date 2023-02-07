@@ -59,6 +59,7 @@ impl<'a> StatementsAnalyzer<'a> {
                             IssueKind::UnevaluatedCode,
                             "Unused code after return/throw/continue".to_string(),
                             self.get_hpos(&stmt.0),
+                            &context.function_context.calling_functionlike_id,
                         ),
                         self.get_config(),
                         self.get_file_path_actual(),

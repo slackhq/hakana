@@ -42,7 +42,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     }
 
     if let Some(cond_type) = tast_info.get_expr_type(left.pos()).cloned() {
-        handle_paradoxical_condition(statements_analyzer, tast_info, left.pos(), &cond_type);
+        handle_paradoxical_condition(
+            statements_analyzer,
+            tast_info,
+            left.pos(),
+            &context.function_context.calling_functionlike_id,
+            &cond_type,
+        );
     }
 
     let left_cond_id = (left.pos().start_offset(), left.pos().end_offset());
@@ -158,7 +164,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     }
 
     if let Some(cond_type) = tast_info.get_expr_type(right.pos()).cloned() {
-        handle_paradoxical_condition(statements_analyzer, tast_info, right.pos(), &cond_type);
+        handle_paradoxical_condition(
+            statements_analyzer,
+            tast_info,
+            right.pos(),
+            &context.function_context.calling_functionlike_id,
+            &cond_type,
+        );
     }
 
     context.cond_referenced_var_ids = left_context.cond_referenced_var_ids;

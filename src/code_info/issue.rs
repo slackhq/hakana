@@ -4,7 +4,9 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-use crate::{code_location::HPos, taint::SinkType};
+use crate::{
+    code_location::HPos, function_context::FunctionLikeIdentifier, taint::SinkType, StrId,
+};
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum IssueKind {
@@ -194,13 +196,24 @@ pub struct Issue {
     pub pos: HPos,
     pub can_fix: bool,
     pub fixme_added: bool,
+    pub symbol: (StrId, StrId),
 }
 
 impl Issue {
-    pub fn new(kind: IssueKind, description: String, pos: HPos) -> Self {
+    pub fn new(
+        kind: IssueKind,
+        description: String,
+        pos: HPos,
+        calling_functionlike_id: &Option<FunctionLikeIdentifier>,
+    ) -> Self {
         Self {
             kind,
             description,
+            symbol: match calling_functionlike_id {
+                Some(FunctionLikeIdentifier::Function(id)) => (*id, StrId::empty()),
+                Some(FunctionLikeIdentifier::Method(a, b)) => (*a, *b),
+                None => (pos.file_path, StrId::empty()),
+            },
             pos,
             can_fix: false,
             fixme_added: false,

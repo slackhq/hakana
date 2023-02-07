@@ -171,6 +171,7 @@ fn analyze_atomic(
                         IssueKind::MixedMethodCall,
                         "Method called on unknown object".to_string(),
                         statements_analyzer.get_hpos(&pos),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
@@ -205,6 +206,7 @@ fn analyze_atomic(
                         IssueKind::MixedMethodCall,
                         "Method called on unknown object".to_string(),
                         statements_analyzer.get_hpos(&pos),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
@@ -261,6 +263,7 @@ fn analyze_named_constructor(
                     codebase.interner.lookup(&classlike_name)
                 ),
                 statements_analyzer.get_hpos(&pos),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),

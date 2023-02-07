@@ -11,6 +11,7 @@ macro_rules! intersect_simple {
         $tast_info:expr,
         $statements_analyzer:expr,
         $pos:expr,
+        $calling_functionlike_id:expr,
         $failed_reconciliation:expr,
         $is_equality:expr,
         $suppressed_issues:expr,
@@ -41,6 +42,7 @@ macro_rules! intersect_simple {
                             !did_remove_type,
                             $negated,
                             loc,
+                            $calling_functionlike_id,
                             $suppressed_issues,
                         );
                     }

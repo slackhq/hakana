@@ -96,6 +96,7 @@ pub(crate) fn analyze(
                         codebase.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
@@ -121,6 +122,7 @@ pub(crate) fn analyze(
                             )
                         },
                         statements_analyzer.get_hpos(&expr.0 .1),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
@@ -148,6 +150,7 @@ pub(crate) fn analyze(
                             )
                         },
                         statements_analyzer.get_hpos(&expr.0 .1),
+                        &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
@@ -215,6 +218,7 @@ pub(crate) fn handle_method_call_on_named_object(
                         codebase.interner.lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
@@ -237,6 +241,7 @@ pub(crate) fn handle_method_call_on_named_object(
                         &boxed.1
                     ),
                     statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
@@ -256,6 +261,7 @@ pub(crate) fn handle_method_call_on_named_object(
                         &boxed.1
                     ),
                     statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),

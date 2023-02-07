@@ -128,6 +128,7 @@ pub(crate) fn analyze(
         &if_clauses,
         tast_info,
         expr.0.pos(),
+        &context.function_context.calling_functionlike_id,
     );
 
     let mut ternary_clauses = if_clauses.clone();
@@ -267,6 +268,7 @@ pub(crate) fn analyze(
             tast_info,
             context.inside_loop,
             None,
+            &None,
             false,
             &mut reconciler::ReconciliationStatus::Ok,
             false,

@@ -8,6 +8,7 @@ use hakana_reflection_info::{
     assertion::Assertion,
     codebase_info::CodebaseInfo,
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
+    functionlike_identifier::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
@@ -186,6 +187,7 @@ pub(crate) fn reconcile_keyed_types(
                     tast_info,
                     inside_loop,
                     Some(pos),
+                    &context.function_context.calling_functionlike_id,
                     can_report_issues
                         && if referenced_var_ids.contains(key) && active_new_types.contains_key(key)
                         {
@@ -1063,6 +1065,7 @@ pub(crate) fn trigger_issue_for_impossible(
     redundant: bool,
     negated: bool,
     pos: &Pos,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     _suppressed_issues: &FxHashMap<String, usize>,
 ) {
     let mut assertion_string =
@@ -1099,6 +1102,7 @@ pub(crate) fn trigger_issue_for_impossible(
                     key,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     old_var_type_string,
                 )
             } else {
@@ -1108,6 +1112,7 @@ pub(crate) fn trigger_issue_for_impossible(
                     key,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     old_var_type_string,
                 )
             },
@@ -1123,6 +1128,7 @@ pub(crate) fn trigger_issue_for_impossible(
                     key,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     old_var_type_string,
                 )
             } else {
@@ -1132,6 +1138,7 @@ pub(crate) fn trigger_issue_for_impossible(
                     key,
                     statements_analyzer,
                     pos,
+                    calling_functionlike_id,
                     old_var_type_string,
                 )
             },
@@ -1147,6 +1154,7 @@ fn get_impossible_issue(
     key: &String,
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     old_var_type_string: &String,
 ) -> Issue {
     match assertion {
@@ -1154,11 +1162,13 @@ fn get_impossible_issue(
             IssueKind::ImpossibleTruthinessCheck,
             format!("Type {} is never {}", old_var_type_string, assertion_string),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
         Assertion::IsType(TAtomic::TNull) | Assertion::IsNotType(TAtomic::TNull) => Issue::new(
             IssueKind::ImpossibleNullTypeComparison,
             format!("{} is never null", key),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
         Assertion::HasArrayKey(key) | Assertion::DoesNotHaveArrayKey(key) => Issue::new(
             IssueKind::ImpossibleKeyCheck,
@@ -1168,6 +1178,7 @@ fn get_impossible_issue(
                 key.to_string(Some(&statements_analyzer.get_codebase().interner))
             ),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
         Assertion::HasNonnullEntryForKey(dict_key) => Issue::new(
             IssueKind::ImpossibleNonnullEntryCheck,
@@ -1177,6 +1188,7 @@ fn get_impossible_issue(
                 dict_key.to_string(Some(&statements_analyzer.get_codebase().interner))
             ),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
         _ => Issue::new(
             IssueKind::ImpossibleTypeComparison,
@@ -1185,6 +1197,7 @@ fn get_impossible_issue(
                 old_var_type_string, &assertion_string
             ),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
     }
 }
@@ -1195,6 +1208,7 @@ fn get_redundant_issue(
     key: &String,
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     old_var_type_string: &String,
 ) -> Issue {
     let old_var_type_string = if old_var_type_string.len() > 50 {
@@ -1208,6 +1222,7 @@ fn get_redundant_issue(
             IssueKind::RedundantIssetCheck,
             "Unnecessary isset check".to_string(),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
         Assertion::Truthy | Assertion::Falsy => Issue::new(
             IssueKind::RedundantTruthinessCheck,
@@ -1216,6 +1231,7 @@ fn get_redundant_issue(
                 old_var_type_string, assertion_string
             ),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
         Assertion::HasArrayKey(key) | Assertion::DoesNotHaveArrayKey(key) => Issue::new(
             IssueKind::RedundantKeyCheck,
@@ -1225,6 +1241,7 @@ fn get_redundant_issue(
                 key.to_string(Some(&statements_analyzer.get_codebase().interner))
             ),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
         Assertion::HasNonnullEntryForKey(key) => Issue::new(
             IssueKind::RedundantNonnullEntryCheck,
@@ -1234,12 +1251,14 @@ fn get_redundant_issue(
                 key.to_string(Some(&statements_analyzer.get_codebase().interner))
             ),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
         Assertion::IsType(TAtomic::TMixedWithFlags(_, _, _, true))
         | Assertion::IsNotType(TAtomic::TMixedWithFlags(_, _, _, true)) => Issue::new(
             IssueKind::RedundantNonnullTypeComparison,
             format!("{} is always nonnull", key),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
         _ => Issue::new(
             IssueKind::RedundantTypeComparison,
@@ -1248,6 +1267,7 @@ fn get_redundant_issue(
                 old_var_type_string, assertion_string
             ),
             statements_analyzer.get_hpos(&pos),
+            &calling_functionlike_id,
         ),
     }
 }

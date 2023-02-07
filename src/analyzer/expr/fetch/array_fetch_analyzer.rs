@@ -292,6 +292,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     extended_var_id.clone().unwrap_or("".to_string())
                 ),
                 statements_analyzer.get_hpos(&stmt.2),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
@@ -307,6 +308,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     extended_var_id.clone().unwrap_or("".to_string())
                 ),
                 statements_analyzer.get_hpos(&stmt.2),
+                &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
@@ -416,6 +418,7 @@ pub(crate) fn get_array_access_type_given_offset(
                                 IssueKind::PossiblyNullArrayAccess,
                                 "Unsafe array access on null".to_string(),
                                 statements_analyzer.get_hpos(&stmt.0.pos()),
+                                &context.function_context.calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
                             statements_analyzer.get_file_path_actual(),
@@ -513,6 +516,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         offset_type.get_id(Some(&codebase.interner))
                     ),
                     statements_analyzer.get_hpos(&stmt.2),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
@@ -527,6 +531,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         offset_type.get_id(Some(&codebase.interner))
                     ),
                     statements_analyzer.get_hpos(&stmt.2),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
@@ -607,6 +612,7 @@ pub(crate) fn handle_array_access_on_vec(
                                 val
                             ),
                             statements_analyzer.get_hpos(&pos),
+                            &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
@@ -627,6 +633,7 @@ pub(crate) fn handle_array_access_on_vec(
                                 index.to_string()
                             ),
                             statements_analyzer.get_hpos(&pos),
+                            &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
@@ -728,6 +735,7 @@ pub(crate) fn handle_array_access_on_dict(
                                     dict_key.to_string(Some(&codebase.interner))
                                 ),
                                 statements_analyzer.get_hpos(&pos),
+                                &context.function_context.calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
                             statements_analyzer.get_file_path_actual(),
@@ -756,6 +764,7 @@ pub(crate) fn handle_array_access_on_dict(
                                 dict_key.to_string(Some(&codebase.interner))
                             ),
                             statements_analyzer.get_hpos(&pos),
+                            &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
@@ -770,6 +779,7 @@ pub(crate) fn handle_array_access_on_dict(
                                 dict_key.to_string(Some(&codebase.interner))
                             ),
                             statements_analyzer.get_hpos(&pos),
+                            &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
@@ -839,6 +849,7 @@ pub(crate) fn handle_array_access_on_dict(
                                     dict_key.to_string(Some(&codebase.interner))
                                 ),
                                 statements_analyzer.get_hpos(&pos),
+                                &context.function_context.calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
                             statements_analyzer.get_file_path_actual(),
@@ -937,6 +948,7 @@ pub(crate) fn handle_array_access_on_mixed(
                         mixed.get_id(Some(&statements_analyzer.get_codebase().interner))
                     ),
                     statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
@@ -955,6 +967,7 @@ pub(crate) fn handle_array_access_on_mixed(
                         mixed.get_id(None)
                     ),
                     statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
