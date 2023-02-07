@@ -256,10 +256,11 @@ pub trait TestRunner {
             };
 
             if if let Some(expected_output) = &expected_output {
-                if expected_output.trim() == test_output.join("").trim() {
+                if expected_output == test_output.join("").trim() {
                     true
                 } else {
-                    test_output.len() == 1
+                    expected_output != ""
+                        && test_output.len() == 1
                         && expected_output
                             .as_bytes()
                             .iter()
@@ -395,7 +396,8 @@ pub trait TestRunner {
             if expected_output.trim() == test_output.join("").trim() {
                 true
             } else {
-                test_output.len() == 1
+                expected_output != ""
+                    && test_output.len() == 1
                     && expected_output
                         .as_bytes()
                         .iter()

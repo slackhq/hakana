@@ -80,7 +80,13 @@ pub(crate) fn mark_safe_symbols_from_diff(
             if let Some(mut existing_issues) =
                 load_cached_existing_issues(existing_issues_path, true, verbosity)
             {
-                update_issues_from_diff(&mut existing_issues, interner, codebase_diff);
+                update_issues_from_diff(
+                    &mut existing_issues,
+                    interner,
+                    codebase_diff,
+                    &invalid_symbols,
+                    &invalid_symbol_members,
+                );
                 cached_analysis.existing_issues = existing_issues;
             }
         }
@@ -95,9 +101,21 @@ fn update_issues_from_diff(
     existing_issues: &mut BTreeMap<String, Vec<Issue>>,
     interner: &mut Interner,
     codebase_diff: CodebaseDiff,
+    invalid_symbols: &FxHashSet<StrId>,
+    invalid_symbol_members: &FxHashSet<(StrId, StrId)>,
 ) {
     for (existing_file, file_issues) in existing_issues.iter_mut() {
         let file_id = &interner.intern(existing_file.clone());
+
+        file_issues.retain(|issue| {
+            !invalid_symbols.contains(&issue.symbol.0)
+                && !invalid_symbol_members.contains(&issue.symbol)
+                && &issue.symbol.0 != file_id
+        });
+
+        if file_issues.is_empty() {
+            continue;
+        }
 
         let diff_map = codebase_diff
             .diff_map
