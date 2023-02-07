@@ -33,7 +33,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
     if let Some(existing_references) =
         load_cached_existing_references(references_path.as_ref().unwrap(), true, verbosity)
     {
-        let (invalid_symbols, invalid_symbol_members, partially_invalid_symbols) =
+        let (invalid_symbols_and_members, partially_invalid_symbols) =
             existing_references.get_invalid_symbols(&codebase_diff);
 
         let mut cached_analysis = CachedAnalysis::default();
@@ -42,15 +42,15 @@ pub(crate) fn mark_safe_symbols_from_diff(
 
         for keep_symbol in &codebase_diff.keep {
             if !keep_symbol.1.is_empty() {
-                if !invalid_symbols.contains(&keep_symbol.0)
-                    && !invalid_symbol_members.contains(&(keep_symbol.0, keep_symbol.1))
+                if !invalid_symbols_and_members.contains(&(keep_symbol.0, StrId::empty()))
+                    && !invalid_symbols_and_members.contains(&keep_symbol)
                 {
                     cached_analysis
                         .safe_symbol_members
                         .insert((keep_symbol.0, keep_symbol.1));
                 }
             } else {
-                if !invalid_symbols.contains(&keep_symbol.0) {
+                if !invalid_symbols_and_members.contains(&keep_symbol) {
                     cached_analysis.safe_symbols.insert(keep_symbol.0);
                 }
             }
@@ -58,14 +58,14 @@ pub(crate) fn mark_safe_symbols_from_diff(
 
         cached_analysis
             .symbol_references
-            .remove_references_from_invalid_symbols(&invalid_symbols, &invalid_symbol_members);
+            .remove_references_from_invalid_symbols(&invalid_symbols_and_members);
 
         let invalid_files = codebase
             .files
             .iter()
             .filter(|(_, file_info)| {
                 file_info.ast_nodes.iter().any(|node| {
-                    invalid_symbols.contains(&node.name)
+                    invalid_symbols_and_members.contains(&(node.name, StrId::empty()))
                         || partially_invalid_symbols.contains(&node.name)
                 })
             })
@@ -84,8 +84,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
                     &mut existing_issues,
                     interner,
                     codebase_diff,
-                    &invalid_symbols,
-                    &invalid_symbol_members,
+                    &invalid_symbols_and_members,
                 );
                 cached_analysis.existing_issues = existing_issues;
             }
@@ -101,16 +100,13 @@ fn update_issues_from_diff(
     existing_issues: &mut BTreeMap<String, Vec<Issue>>,
     interner: &mut Interner,
     codebase_diff: CodebaseDiff,
-    invalid_symbols: &FxHashSet<StrId>,
-    invalid_symbol_members: &FxHashSet<(StrId, StrId)>,
+    invalid_symbols_and_members: &FxHashSet<(StrId, StrId)>,
 ) {
     for (existing_file, file_issues) in existing_issues.iter_mut() {
         let file_id = &interner.intern(existing_file.clone());
 
         file_issues.retain(|issue| {
-            !invalid_symbols.contains(&issue.symbol.0)
-                && !invalid_symbol_members.contains(&issue.symbol)
-                && &issue.symbol.0 != file_id
+            !invalid_symbols_and_members.contains(&issue.symbol) && &issue.symbol.0 != file_id
         });
 
         if file_issues.is_empty() {

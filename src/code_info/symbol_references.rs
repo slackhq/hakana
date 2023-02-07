@@ -14,42 +14,16 @@ pub enum ReferenceSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SymbolReferences {
-    // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
-    // (class method, enum case, class property etc)
-    pub symbol_references_to_members: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
-
-    // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
-    // (class method, enum case, class property etc) from their signature
-    pub symbol_references_to_members_in_signature: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
+    // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
+    pub symbol_references_to_symbols: FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
-    pub symbol_references_to_symbols: FxHashMap<StrId, FxHashSet<StrId>>,
-
-    // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
-    // from that symbol's signature (e.g. a function return type, or class implements)
-    pub symbol_references_to_symbols_in_signature: FxHashMap<StrId, FxHashSet<StrId>>,
-
-    // A lookup table of all classlike members that reference another classlike member
-    pub classlike_member_references_to_members:
+    pub symbol_references_to_symbols_in_signature:
         FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
-
-    // A lookup table of all classlike members that reference another classlike member
-    pub classlike_member_references_to_members_in_signature:
-        FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
-
-    // A lookup table of all classlike members that reference another symbol
-    pub classlike_member_references_to_symbols: FxHashMap<(StrId, StrId), FxHashSet<StrId>>,
-
-    // A lookup table of all classlike members that reference another symbol
-    pub classlike_member_references_to_symbols_in_signature:
-        FxHashMap<(StrId, StrId), FxHashSet<StrId>>,
 
     // A lookup table of all symbols (classes, functions, enums etc) that reference a classlike member
     // (class method, enum case, class property etc)
-    pub symbol_references_to_overridden_members: FxHashMap<StrId, FxHashSet<(StrId, StrId)>>,
-
-    // A lookup table of all classlike members that reference another classlike member
-    pub classlike_member_references_to_overridden_members:
+    pub symbol_references_to_overridden_members:
         FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>>,
 
     // A lookup table used for getting all the functions that reference a method's return value
@@ -61,17 +35,10 @@ pub struct SymbolReferences {
 impl SymbolReferences {
     pub fn new() -> Self {
         Self {
-            symbol_references_to_members: FxHashMap::default(),
             symbol_references_to_symbols: FxHashMap::default(),
-            classlike_member_references_to_members: FxHashMap::default(),
-            classlike_member_references_to_symbols: FxHashMap::default(),
-            functionlike_references_to_functionlike_returns: FxHashMap::default(),
-            symbol_references_to_overridden_members: FxHashMap::default(),
-            classlike_member_references_to_overridden_members: FxHashMap::default(),
-            symbol_references_to_members_in_signature: FxHashMap::default(),
             symbol_references_to_symbols_in_signature: FxHashMap::default(),
-            classlike_member_references_to_members_in_signature: FxHashMap::default(),
-            classlike_member_references_to_symbols_in_signature: FxHashMap::default(),
+            symbol_references_to_overridden_members: FxHashMap::default(),
+            functionlike_references_to_functionlike_returns: FxHashMap::default(),
         }
     }
 
@@ -88,13 +55,13 @@ impl SymbolReferences {
         );
 
         if in_signature {
-            self.symbol_references_to_members_in_signature
-                .entry(referencing_symbol)
+            self.symbol_references_to_symbols_in_signature
+                .entry((referencing_symbol, StrId::empty()))
                 .or_insert_with(FxHashSet::default)
                 .insert(class_member);
         } else {
-            self.symbol_references_to_members
-                .entry(referencing_symbol)
+            self.symbol_references_to_symbols
+                .entry((referencing_symbol, StrId::empty()))
                 .or_insert_with(FxHashSet::default)
                 .insert(class_member);
         }
@@ -108,14 +75,14 @@ impl SymbolReferences {
     ) {
         if in_signature {
             self.symbol_references_to_symbols_in_signature
-                .entry(referencing_symbol)
+                .entry((referencing_symbol, StrId::empty()))
                 .or_insert_with(FxHashSet::default)
-                .insert(symbol);
+                .insert((symbol, StrId::empty()));
         } else {
             self.symbol_references_to_symbols
-                .entry(referencing_symbol)
+                .entry((referencing_symbol, StrId::empty()))
                 .or_insert_with(FxHashSet::default)
-                .insert(symbol);
+                .insert((symbol, StrId::empty()));
         }
     }
 
@@ -132,12 +99,12 @@ impl SymbolReferences {
         );
 
         if in_signature {
-            self.classlike_member_references_to_members_in_signature
+            self.symbol_references_to_symbols_in_signature
                 .entry(referencing_class_member)
                 .or_insert_with(FxHashSet::default)
                 .insert(class_member);
         } else {
-            self.classlike_member_references_to_members
+            self.symbol_references_to_symbols
                 .entry(referencing_class_member)
                 .or_insert_with(FxHashSet::default)
                 .insert(class_member);
@@ -157,15 +124,15 @@ impl SymbolReferences {
         );
 
         if in_signature {
-            self.classlike_member_references_to_symbols_in_signature
+            self.symbol_references_to_symbols_in_signature
                 .entry(referencing_class_member)
                 .or_insert_with(FxHashSet::default)
-                .insert(symbol);
+                .insert((symbol, StrId::empty()));
         } else {
-            self.classlike_member_references_to_symbols
+            self.symbol_references_to_symbols
                 .entry(referencing_class_member)
                 .or_insert_with(FxHashSet::default)
-                .insert(symbol);
+                .insert((symbol, StrId::empty()));
         }
     }
 
@@ -208,12 +175,12 @@ impl SymbolReferences {
             match referencing_functionlike {
                 FunctionLikeIdentifier::Function(function_name) => {
                     self.symbol_references_to_overridden_members
-                        .entry(function_name.clone())
+                        .entry((*function_name, StrId::empty()))
                         .or_insert_with(FxHashSet::default)
                         .insert(class_member);
                 }
                 FunctionLikeIdentifier::Method(class_name, function_name) => {
-                    self.classlike_member_references_to_overridden_members
+                    self.symbol_references_to_overridden_members
                         .entry((class_name.clone(), function_name.clone()))
                         .or_insert_with(FxHashSet::default)
                         .insert(class_member);
@@ -221,7 +188,7 @@ impl SymbolReferences {
             }
         } else if let Some(calling_class) = &function_context.calling_class {
             self.symbol_references_to_overridden_members
-                .entry(calling_class.clone())
+                .entry((*calling_class, StrId::empty()))
                 .or_insert_with(FxHashSet::default)
                 .insert(class_member);
         }
@@ -262,36 +229,8 @@ impl SymbolReferences {
     }
 
     pub fn extend(&mut self, other: Self) {
-        for (k, v) in other.symbol_references_to_members {
-            self.symbol_references_to_members
-                .entry(k)
-                .or_insert_with(FxHashSet::default)
-                .extend(v);
-        }
-
         for (k, v) in other.symbol_references_to_symbols {
             self.symbol_references_to_symbols
-                .entry(k)
-                .or_insert_with(FxHashSet::default)
-                .extend(v);
-        }
-
-        for (k, v) in other.classlike_member_references_to_symbols {
-            self.classlike_member_references_to_symbols
-                .entry(k)
-                .or_insert_with(FxHashSet::default)
-                .extend(v);
-        }
-
-        for (k, v) in other.classlike_member_references_to_members {
-            self.classlike_member_references_to_members
-                .entry(k)
-                .or_insert_with(FxHashSet::default)
-                .extend(v);
-        }
-
-        for (k, v) in other.symbol_references_to_members_in_signature {
-            self.symbol_references_to_members_in_signature
                 .entry(k)
                 .or_insert_with(FxHashSet::default)
                 .extend(v);
@@ -304,75 +243,26 @@ impl SymbolReferences {
                 .extend(v);
         }
 
-        for (k, v) in other.classlike_member_references_to_symbols_in_signature {
-            self.classlike_member_references_to_symbols_in_signature
-                .entry(k)
-                .or_insert_with(FxHashSet::default)
-                .extend(v);
-        }
-
-        for (k, v) in other.classlike_member_references_to_members_in_signature {
-            self.classlike_member_references_to_members_in_signature
-                .entry(k)
-                .or_insert_with(FxHashSet::default)
-                .extend(v);
-        }
-
         for (k, v) in other.symbol_references_to_overridden_members {
             self.symbol_references_to_overridden_members
                 .entry(k)
                 .or_insert_with(FxHashSet::default)
                 .extend(v);
         }
-
-        for (k, v) in other.classlike_member_references_to_overridden_members {
-            self.classlike_member_references_to_overridden_members
-                .entry(k)
-                .or_insert_with(FxHashSet::default)
-                .extend(v);
-        }
     }
 
-    pub fn get_referenced_symbols(&self) -> FxHashSet<&StrId> {
-        let mut referenced_symbols = FxHashSet::default();
+    pub fn get_referenced_symbols_and_members(&self) -> FxHashSet<&(StrId, StrId)> {
+        let mut referenced_symbols_and_members = FxHashSet::default();
 
         for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols {
-            referenced_symbols.extend(symbol_references_to_symbols);
+            referenced_symbols_and_members.extend(symbol_references_to_symbols);
         }
 
         for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols_in_signature {
-            referenced_symbols.extend(symbol_references_to_symbols);
+            referenced_symbols_and_members.extend(symbol_references_to_symbols);
         }
 
-        referenced_symbols
-    }
-
-    pub fn get_referenced_class_members(&self) -> FxHashSet<&(StrId, StrId)> {
-        let mut referenced_class_members = FxHashSet::default();
-
-        for (_, symbol_references_to_class_members) in &self.symbol_references_to_members {
-            referenced_class_members.extend(symbol_references_to_class_members);
-        }
-
-        for (_, class_member_references_to_class_members) in
-            &self.classlike_member_references_to_members
-        {
-            referenced_class_members.extend(class_member_references_to_class_members);
-        }
-
-        for (_, symbol_references_to_class_members) in
-            &self.symbol_references_to_members_in_signature
-        {
-            referenced_class_members.extend(symbol_references_to_class_members);
-        }
-
-        for (_, class_member_references_to_class_members) in
-            &self.classlike_member_references_to_members_in_signature
-        {
-            referenced_class_members.extend(class_member_references_to_class_members);
-        }
-
-        referenced_class_members
+        referenced_symbols_and_members
     }
 
     pub fn get_referenced_overridden_class_members(&self) -> FxHashSet<&(StrId, StrId)> {
@@ -383,23 +273,13 @@ impl SymbolReferences {
             referenced_class_members.extend(symbol_references_to_class_members);
         }
 
-        for (_, class_member_references_to_class_members) in
-            &self.classlike_member_references_to_overridden_members
-        {
-            referenced_class_members.extend(class_member_references_to_class_members);
-        }
-
         referenced_class_members
     }
 
     pub fn get_invalid_symbols(
         &self,
         codebase_diff: &CodebaseDiff,
-    ) -> (
-        FxHashSet<StrId>,
-        FxHashSet<(StrId, StrId)>,
-        FxHashSet<StrId>,
-    ) {
+    ) -> (FxHashSet<(StrId, StrId)>, FxHashSet<StrId>) {
         let mut invalid_symbols = FxHashSet::default();
         let mut invalid_symbol_members = FxHashSet::default();
 
@@ -416,82 +296,44 @@ impl SymbolReferences {
 
             seen_symbols.insert(new_invalid_symbol);
 
-            let (changed_symbol, changed_symbol_member) = new_invalid_symbol;
-
-            if !changed_symbol_member.is_empty() {
+            if !new_invalid_symbol.1.is_empty() {
                 for (referencing_member, referenced_members) in
-                    &self.classlike_member_references_to_members_in_signature
+                    &self.symbol_references_to_symbols_in_signature
                 {
-                    if referenced_members.contains(&(changed_symbol, changed_symbol_member)) {
+                    if referenced_members.contains(&new_invalid_symbol) {
                         new_invalid_symbols.push((referencing_member.0, referencing_member.1));
                         invalid_symbol_members.insert(*referencing_member);
                     }
                 }
 
-                for (referencing_member, referenced_members) in
-                    &self.symbol_references_to_members_in_signature
-                {
-                    if referenced_members.contains(&(changed_symbol, changed_symbol_member)) {
-                        new_invalid_symbols.push((*referencing_member, StrId::empty()));
-                        invalid_symbols.insert(*referencing_member);
-                    }
-                }
-
-                invalid_symbol_members.insert((changed_symbol, changed_symbol_member));
+                invalid_symbol_members.insert(new_invalid_symbol);
             } else {
                 for (referencing_member, referenced_members) in
-                    &self.classlike_member_references_to_symbols_in_signature
+                    &self.symbol_references_to_symbols_in_signature
                 {
-                    if referenced_members.contains(&changed_symbol) {
-                        new_invalid_symbols
-                            .push((referencing_member.0, referencing_member.1));
+                    if referenced_members.contains(&new_invalid_symbol) {
+                        new_invalid_symbols.push((referencing_member.0, referencing_member.1));
                         invalid_symbol_members.insert(*referencing_member);
                     }
                 }
 
-                for (referencing_member, referenced_members) in
-                    &self.symbol_references_to_symbols_in_signature
-                {
-                    if referenced_members.contains(&changed_symbol) {
-                        new_invalid_symbols.push((*referencing_member, StrId::empty()));
-                        invalid_symbols.insert(*referencing_member);
-                    }
-                }
-
-                invalid_symbols.insert(changed_symbol);
+                invalid_symbols.insert((new_invalid_symbol.0, StrId::empty()));
             }
         }
 
         let mut invalid_symbol_bodies = FxHashSet::default();
-        let mut invalid_symbol_member_bodies = FxHashSet::default();
 
-        for invalid_symbol in &invalid_symbols {
-            for (referencing_member, referenced_members) in
-                &self.classlike_member_references_to_symbols
-            {
-                if referenced_members.contains(invalid_symbol) {
-                    invalid_symbol_member_bodies.insert(*referencing_member);
-                }
-            }
-
+        for invalid_symbol_member in &invalid_symbols {
             for (referencing_member, referenced_members) in &self.symbol_references_to_symbols {
-                if referenced_members.contains(invalid_symbol) {
+                if referenced_members.contains(&(invalid_symbol_member.0, invalid_symbol_member.1))
+                {
                     invalid_symbol_bodies.insert(*referencing_member);
                 }
             }
         }
 
         for invalid_symbol_member in &invalid_symbol_members {
-            for (referencing_member, referenced_members) in
-                &self.classlike_member_references_to_members
-            {
-                if referenced_members.contains(&(invalid_symbol_member.0, invalid_symbol_member.1))
-                {
-                    invalid_symbol_member_bodies.insert(*referencing_member);
-                }
-            }
-
-            for (referencing_member, referenced_members) in &self.symbol_references_to_members {
+            for (referencing_member, referenced_members) in &self.symbol_references_to_symbols {
                 if referenced_members.contains(&(invalid_symbol_member.0, invalid_symbol_member.1))
                 {
                     invalid_symbol_bodies.insert(*referencing_member);
@@ -500,7 +342,6 @@ impl SymbolReferences {
         }
 
         invalid_symbols.extend(invalid_symbol_bodies);
-        invalid_symbol_members.extend(invalid_symbol_member_bodies);
 
         let partially_invalid_symbols = invalid_symbol_members
             .iter()
@@ -511,38 +352,22 @@ impl SymbolReferences {
             if !keep_signature.1.is_empty() {
                 invalid_symbol_members.insert((keep_signature.0, keep_signature.1));
             } else {
-                invalid_symbols.insert(keep_signature.0);
+                invalid_symbols.insert(*keep_signature);
             }
         }
 
-        (
-            invalid_symbols,
-            invalid_symbol_members,
-            partially_invalid_symbols,
-        )
+        invalid_symbols.extend(invalid_symbol_members);
+
+        (invalid_symbols, partially_invalid_symbols)
     }
 
     pub fn remove_references_from_invalid_symbols(
         &mut self,
-        invalid_symbols: &FxHashSet<StrId>,
-        invalid_symbol_members: &FxHashSet<(StrId, StrId)>,
+        invalid_symbols_and_members: &FxHashSet<(StrId, StrId)>,
     ) {
-        self.symbol_references_to_members
-            .retain(|symbol, _| !invalid_symbols.contains(symbol));
-        self.symbol_references_to_members_in_signature
-            .retain(|symbol, _| !invalid_symbols.contains(symbol));
         self.symbol_references_to_symbols
-            .retain(|symbol, _| !invalid_symbols.contains(symbol));
+            .retain(|symbol, _| !invalid_symbols_and_members.contains(symbol));
         self.symbol_references_to_symbols_in_signature
-            .retain(|symbol, _| !invalid_symbols.contains(symbol));
-
-        self.classlike_member_references_to_members
-            .retain(|symbol, _| !invalid_symbol_members.contains(symbol));
-        self.classlike_member_references_to_members_in_signature
-            .retain(|symbol, _| !invalid_symbol_members.contains(symbol));
-        self.classlike_member_references_to_symbols
-            .retain(|symbol, _| !invalid_symbol_members.contains(symbol));
-        self.classlike_member_references_to_symbols_in_signature
-            .retain(|symbol, _| !invalid_symbol_members.contains(symbol));
+            .retain(|symbol, _| !invalid_symbols_and_members.contains(symbol));
     }
 }

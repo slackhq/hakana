@@ -17,10 +17,9 @@ pub(crate) fn find_unused_definitions(
     codebase: &CodebaseInfo,
     ignored_paths: &Option<FxHashSet<String>>,
 ) {
-    let referenced_symbols = analysis_result.symbol_references.get_referenced_symbols();
-    let referenced_class_members = analysis_result
+    let referenced_symbols_and_members = analysis_result
         .symbol_references
-        .get_referenced_class_members();
+        .get_referenced_symbols_and_members();
     let referenced_overridden_class_members = analysis_result
         .symbol_references
         .get_referenced_overridden_class_members();
@@ -41,7 +40,7 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            if !referenced_symbols.contains(function_name) {
+            if !referenced_symbols_and_members.contains(&(*function_name, StrId::empty())) {
                 if let Some(suppressed_issues) = &functionlike_info.suppressed_issues {
                     if suppressed_issues.contains_key(&IssueKind::UnusedFunction) {
                         continue;
@@ -119,7 +118,7 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            if !referenced_symbols.contains(classlike_name) {
+            if !referenced_symbols_and_members.contains(&(*classlike_name, StrId::empty())) {
                 let issue = Issue::new(
                     IssueKind::UnusedClass,
                     format!(
@@ -170,13 +169,13 @@ pub(crate) fn find_unused_definitions(
 
                     let pair = (classlike_name.clone(), *method_name_ptr);
 
-                    if !referenced_class_members.contains(&pair)
+                    if !referenced_symbols_and_members.contains(&pair)
                         && !referenced_overridden_class_members.contains(&pair)
                     {
                         if has_upstream_method_call(
                             classlike_info,
                             method_name_ptr,
-                            &referenced_class_members,
+                            &referenced_symbols_and_members,
                         ) {
                             continue;
                         }
@@ -191,7 +190,7 @@ pub(crate) fn find_unused_definitions(
                                 if has_upstream_method_call(
                                     classlike_info,
                                     method_name_ptr,
-                                    &referenced_class_members,
+                                    &referenced_symbols_and_members,
                                 ) {
                                     continue 'inner;
                                 }
