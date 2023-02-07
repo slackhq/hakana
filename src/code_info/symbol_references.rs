@@ -296,27 +296,22 @@ impl SymbolReferences {
 
             seen_symbols.insert(new_invalid_symbol);
 
-            if !new_invalid_symbol.1.is_empty() {
-                for (referencing_member, referenced_members) in
-                    &self.symbol_references_to_symbols_in_signature
-                {
-                    if referenced_members.contains(&new_invalid_symbol) {
-                        new_invalid_symbols.push((referencing_member.0, referencing_member.1));
+            for (referencing_member, referenced_members) in
+                &self.symbol_references_to_symbols_in_signature
+            {
+                if referenced_members.contains(&new_invalid_symbol) {
+                    new_invalid_symbols.push(*referencing_member);
+                    if !referencing_member.1.is_empty() {
                         invalid_symbol_members.insert(*referencing_member);
+                    } else {
+                        invalid_symbols.insert(*referencing_member);
                     }
                 }
+            }
 
+            if !new_invalid_symbol.1.is_empty() {
                 invalid_symbol_members.insert(new_invalid_symbol);
             } else {
-                for (referencing_member, referenced_members) in
-                    &self.symbol_references_to_symbols_in_signature
-                {
-                    if referenced_members.contains(&new_invalid_symbol) {
-                        new_invalid_symbols.push((referencing_member.0, referencing_member.1));
-                        invalid_symbol_members.insert(*referencing_member);
-                    }
-                }
-
                 invalid_symbols.insert((new_invalid_symbol.0, StrId::empty()));
             }
         }

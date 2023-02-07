@@ -1,0 +1,1 @@
+ERROR: UnusedFunction - functions.hack:1:10 - Unused function foo

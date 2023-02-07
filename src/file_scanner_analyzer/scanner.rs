@@ -287,10 +287,7 @@ pub(crate) fn scan_files(
             let mut new_interner = ThreadedInterner::new(interner.clone());
             let empty_name_context = NameContext::new(&mut new_interner);
 
-            let analyze_map = files_to_analyze
-                .clone()
-                .into_iter()
-                .collect::<FxHashSet<_>>();
+            let analyze_map = files_to_analyze.iter().collect::<FxHashSet<_>>();
 
             for (i, str_path) in path_groups[&0].iter().enumerate() {
                 let file_resolved_names = if let Ok(file_resolved_names) = scan_file(

@@ -124,10 +124,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         };
 
-        context.function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Function(
-            lambda_storage.name.clone(),
-        ));
-
         tast_info
             .closure_spans
             .push((stmt.span.start_offset(), stmt.span.end_offset()));

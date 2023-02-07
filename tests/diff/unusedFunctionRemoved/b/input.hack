@@ -1,6 +1,8 @@
-function foo(): void {}
-
 <<__EntryPoint>>
 function main(): void {
-    foo();
+    $a = () ==> {
+        //foo();
+    };
+    $a();
+    some_other_caller();
 }
