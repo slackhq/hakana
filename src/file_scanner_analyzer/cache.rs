@@ -34,24 +34,22 @@ pub(crate) fn load_cached_codebase(
             {
                 for ast_node in &file_storage.ast_nodes {
                     match codebase.symbols.all.get(&ast_node.name) {
-                        Some(kind) => match kind {
-                            SymbolKind::TypeDefinition => {
+                        Some(kind) => {
+                            if let SymbolKind::TypeDefinition = kind {
                                 codebase.type_definitions.remove(&ast_node.name);
-                            }
-                            SymbolKind::Function => {
-                                codebase.functionlike_infos.remove(&ast_node.name);
-                            }
-                            SymbolKind::Constant => {
-                                codebase.constant_infos.remove(&ast_node.name);
-                            }
-                            _ => {
+                            } else {
                                 codebase.classlike_infos.remove(&ast_node.name);
                             }
-                        },
-                        None => {}
+                            codebase.symbols.all.remove(&ast_node.name);
+                        }
+                        None => {
+                            if ast_node.is_function {
+                                codebase.functionlike_infos.remove(&ast_node.name);
+                            } else if ast_node.is_constant {
+                                codebase.constant_infos.remove(&ast_node.name);
+                            }
+                        }
                     }
-
-                    codebase.symbols.all.remove(&ast_node.name);
                 }
             }
 

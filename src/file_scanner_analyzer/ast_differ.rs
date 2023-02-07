@@ -199,7 +199,10 @@ pub(crate) fn calculate_trace(
 }
 
 fn is_equal(a_node: &DefSignatureNode, b_node: &DefSignatureNode, body_change: &mut bool) -> bool {
-    if a_node.name != b_node.name || a_node.signature_hash != b_node.signature_hash {
+    if a_node.name != b_node.name
+        || a_node.signature_hash != b_node.signature_hash
+        || a_node.is_function != b_node.is_function
+    {
         return false;
     }
 

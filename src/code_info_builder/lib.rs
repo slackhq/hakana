@@ -150,9 +150,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             children: Vec::new(),
             signature_hash: { position_insensitive_hash(gc).wrapping_add(uses_hash) },
             body_hash: None,
+            is_function: false,
+            is_constant: true,
         });
-
-        self.codebase.symbols.add_constant_name(name);
 
         self.codebase.constant_infos.insert(
             name,
@@ -278,6 +278,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             children: Vec::new(),
             signature_hash: { position_insensitive_hash(typedef).wrapping_add(uses_hash) },
             body_hash: None,
+            is_function: false,
+            is_constant: false,
         });
 
         let mut type_definition = TypeDefinitionInfo {
@@ -474,6 +476,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 signature_hash,
                 body_hash: Some(body_hash),
                 children: vec![],
+                is_function: true,
+                is_constant: false,
             });
         }
 
@@ -534,13 +538,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             children: Vec::new(),
             signature_hash,
             body_hash: Some(body_hash),
+            is_function: true,
+            is_constant: false,
         });
 
         self.codebase
             .functionlike_infos
             .insert(name.clone(), functionlike_storage);
-
-        self.codebase.symbols.add_function_name(name);
 
         c.function_name = Some(name);
 
@@ -756,11 +760,13 @@ pub fn collect_info_for_aast(
     };
     visit(&mut checker, &mut context, program).unwrap();
 
-    checker.codebase.files.insert(
-        file_path_id,
-        FileInfo {
-            closure_infos: checker.closures,
-            ast_nodes: checker.ast_nodes,
-        },
-    );
+    if user_defined {
+        checker.codebase.files.insert(
+            file_path_id,
+            FileInfo {
+                closure_infos: checker.closures,
+                ast_nodes: checker.ast_nodes,
+            },
+        );
+    }
 }

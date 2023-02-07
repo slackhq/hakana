@@ -435,6 +435,8 @@ pub(crate) fn scan(
         )
         .wrapping_add(uses_hash),
         body_hash: None,
+        is_function: false,
+        is_constant: false,
     };
 
     for trait_use in &classlike_node.uses {
@@ -734,6 +736,8 @@ fn visit_class_const_declaration(
         signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
+        is_function: false,
+        is_constant: true,
     });
 
     let const_storage = ConstantInfo {
@@ -807,6 +811,8 @@ fn visit_class_typeconst_declaration(
         signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
+        is_function: false,
+        is_constant: true,
     });
 
     classlike_storage.type_constants.insert(name, const_type);
@@ -866,6 +872,8 @@ fn visit_property_declaration(
         .wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
+        is_function: false,
+        is_constant: false,
     });
 
     let property_storage = PropertyInfo {
