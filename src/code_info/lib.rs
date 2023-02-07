@@ -54,35 +54,52 @@ pub struct FileSource {
 pub struct StrId(pub u32);
 
 impl StrId {
-    pub fn anonymous_fn() -> Self {
+    pub fn empty() -> Self {
         StrId(0)
     }
     pub fn this() -> Self {
         StrId(1)
     }
-    pub fn member_of() -> Self {
+    pub fn anonymous_fn() -> Self {
+        StrId(2)
+    }
+    pub fn isset() -> Self {
+        StrId(3)
+    }
+    pub fn unset() -> Self {
         StrId(4)
     }
-    pub fn construct() -> Self {
+    pub fn member_of() -> Self {
+        StrId(5)
+    }
+    pub fn echo() -> Self {
         StrId(6)
     }
-    pub fn data_attribute() -> Self {
+    pub fn construct() -> Self {
         StrId(7)
     }
-    pub fn aria_attribute() -> Self {
+    pub fn data_attribute() -> Self {
         StrId(8)
     }
-    pub fn any_array() -> Self {
+    pub fn aria_attribute() -> Self {
         StrId(9)
     }
-    pub fn keyed_container() -> Self {
+    pub fn any_array() -> Self {
         StrId(10)
     }
-    pub fn container() -> Self {
+    pub fn keyed_container() -> Self {
         StrId(11)
     }
-    pub fn php_incomplete_class() -> Self {
+    pub fn container() -> Self {
         StrId(12)
+    }
+    pub fn php_incomplete_class() -> Self {
+        StrId(13)
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0 == 0
     }
 }
 
@@ -102,8 +119,9 @@ impl Default for Interner {
 impl Interner {
     pub fn new() -> Self {
         let mut interner = Interner::default();
-        interner.intern("<anonymous function>".to_string());
+        interner.intern("".to_string());
         interner.intern("this".to_string());
+        interner.intern("<anonymous function>".to_string());
         interner.intern("isset".to_string());
         interner.intern("unset".to_string());
         interner.intern("HH\\MemberOf".to_string());

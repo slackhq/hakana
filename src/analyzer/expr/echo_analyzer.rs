@@ -6,6 +6,7 @@ use crate::typed_ast::TastInfo;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
+use hakana_reflection_info::StrId;
 use hakana_type::{get_arraykey, get_mixed_any};
 use oxidized::ast_defs::Pos;
 use oxidized::{aast, ast_defs};
@@ -33,13 +34,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             &arg_type.unwrap_or(get_mixed_any()),
             &get_arraykey(false),
-            &FunctionLikeIdentifier::Function(
-                statements_analyzer
-                    .get_codebase()
-                    .interner
-                    .get("echo")
-                    .unwrap(),
-            ),
+            &FunctionLikeIdentifier::Function(StrId::echo()),
             i,
             arg_expr,
             context,

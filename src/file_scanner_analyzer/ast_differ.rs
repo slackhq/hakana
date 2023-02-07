@@ -52,7 +52,7 @@ pub(crate) fn get_diff(
                         for class_diff_elem in class_diff {
                             match class_diff_elem {
                                 AstDiffElem::Keep(a_child, b_child) => {
-                                    keep.push((a.name, Some(a_child.name)));
+                                    keep.push((a.name, a_child.name));
 
                                     if b_child.start_offset != a_child.start_offset
                                         || b_child.start_line != a_child.start_line
@@ -69,27 +69,27 @@ pub(crate) fn get_diff(
                                 }
                                 AstDiffElem::KeepSignature(a_child, _) => {
                                     has_change = true;
-                                    keep_signature.push((a.name, Some(a_child.name)));
+                                    keep_signature.push((a.name, a_child.name));
                                     deletion_ranges
                                         .push((a_child.start_offset, a_child.end_offset));
                                 }
                                 AstDiffElem::Remove(child_node) => {
                                     has_change = true;
-                                    add_or_delete.push((a.name, Some(child_node.name)));
+                                    add_or_delete.push((a.name, child_node.name));
                                     deletion_ranges
                                         .push((child_node.start_offset, child_node.end_offset));
                                 }
                                 AstDiffElem::Add(child_node) => {
                                     has_change = true;
-                                    add_or_delete.push((a.name, Some(child_node.name)));
+                                    add_or_delete.push((a.name, child_node.name));
                                 }
                             }
                         }
 
                         if has_change {
-                            keep_signature.push((a.name, None));
+                            keep_signature.push((a.name, StrId::empty()));
                         } else {
-                            keep.push((a.name, None));
+                            keep.push((a.name, StrId::empty()));
 
                             if b.start_offset != a.start_offset || b.start_line != a.start_line {
                                 file_diffs.push((
@@ -102,15 +102,15 @@ pub(crate) fn get_diff(
                         }
                     }
                     AstDiffElem::KeepSignature(a, _) => {
-                        keep_signature.push((a.name, None));
+                        keep_signature.push((a.name, StrId::empty()));
                         deletion_ranges.push((a.start_offset, a.end_offset));
                     }
                     AstDiffElem::Remove(node) => {
-                        add_or_delete.push((node.name, None));
+                        add_or_delete.push((node.name, StrId::empty()));
                         deletion_ranges.push((node.start_offset, node.end_offset));
                     }
                     AstDiffElem::Add(node) => {
-                        add_or_delete.push((node.name, None));
+                        add_or_delete.push((node.name, StrId::empty()));
                     }
                 }
             }

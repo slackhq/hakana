@@ -418,13 +418,12 @@ impl SymbolReferences {
 
             let (changed_symbol, changed_symbol_member) = new_invalid_symbol;
 
-            if let Some(changed_symbol_member) = changed_symbol_member {
+            if !changed_symbol_member.is_empty() {
                 for (referencing_member, referenced_members) in
                     &self.classlike_member_references_to_members_in_signature
                 {
                     if referenced_members.contains(&(changed_symbol, changed_symbol_member)) {
-                        new_invalid_symbols
-                            .push((referencing_member.0, Some(referencing_member.1)));
+                        new_invalid_symbols.push((referencing_member.0, referencing_member.1));
                         invalid_symbol_members.insert(*referencing_member);
                     }
                 }
@@ -433,7 +432,7 @@ impl SymbolReferences {
                     &self.symbol_references_to_members_in_signature
                 {
                     if referenced_members.contains(&(changed_symbol, changed_symbol_member)) {
-                        new_invalid_symbols.push((*referencing_member, None));
+                        new_invalid_symbols.push((*referencing_member, StrId::empty()));
                         invalid_symbols.insert(*referencing_member);
                     }
                 }
@@ -445,7 +444,7 @@ impl SymbolReferences {
                 {
                     if referenced_members.contains(&changed_symbol) {
                         new_invalid_symbols
-                            .push((referencing_member.0, Some(referencing_member.1)));
+                            .push((referencing_member.0, referencing_member.1));
                         invalid_symbol_members.insert(*referencing_member);
                     }
                 }
@@ -454,7 +453,7 @@ impl SymbolReferences {
                     &self.symbol_references_to_symbols_in_signature
                 {
                     if referenced_members.contains(&changed_symbol) {
-                        new_invalid_symbols.push((*referencing_member, None));
+                        new_invalid_symbols.push((*referencing_member, StrId::empty()));
                         invalid_symbols.insert(*referencing_member);
                     }
                 }
@@ -509,8 +508,8 @@ impl SymbolReferences {
             .collect::<FxHashSet<_>>();
 
         for keep_signature in &codebase_diff.keep_signature {
-            if let Some(member_id) = keep_signature.1 {
-                invalid_symbol_members.insert((keep_signature.0, member_id));
+            if !keep_signature.1.is_empty() {
+                invalid_symbol_members.insert((keep_signature.0, keep_signature.1));
             } else {
                 invalid_symbols.insert(keep_signature.0);
             }

@@ -66,7 +66,7 @@ pub fn get_aast_for_path_and_contents(
                 return Err(match err {
                     aast_parser::Error::ParserFatal(err, pos) => ParserError::SyntaxError {
                         message: err.message.to_string(),
-                        pos: HPos::new(&pos, StrId(0), None),
+                        pos: HPos::new(&pos, StrId::anonymous_fn(), None),
                     },
                     _ => ParserError::NotAHackFile,
                 })
@@ -85,7 +85,7 @@ pub fn get_aast_for_path_and_contents(
         return Err(ParserError::SyntaxError {
             message: first_error.message.to_string(),
             pos: HPos {
-                file_path: StrId(0),
+                file_path: StrId::anonymous_fn(),
                 start_offset: first_error.start_offset,
                 end_offset: first_error.end_offset,
                 start_line: line_count,

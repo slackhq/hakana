@@ -41,13 +41,13 @@ pub(crate) fn mark_safe_symbols_from_diff(
         cached_analysis.symbol_references = existing_references;
 
         for keep_symbol in &codebase_diff.keep {
-            if let Some(member_id) = keep_symbol.1 {
+            if !keep_symbol.1.is_empty() {
                 if !invalid_symbols.contains(&keep_symbol.0)
-                    && !invalid_symbol_members.contains(&(keep_symbol.0, member_id))
+                    && !invalid_symbol_members.contains(&(keep_symbol.0, keep_symbol.1))
                 {
                     cached_analysis
                         .safe_symbol_members
-                        .insert((keep_symbol.0, member_id));
+                        .insert((keep_symbol.0, keep_symbol.1));
                 }
             } else {
                 if !invalid_symbols.contains(&keep_symbol.0) {
