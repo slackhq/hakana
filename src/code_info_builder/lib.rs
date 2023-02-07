@@ -540,6 +540,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .functionlike_infos
             .insert(name.clone(), functionlike_storage);
 
+        self.codebase.symbols.add_function_name(name);
+
         c.function_name = Some(name);
 
         let result = f.recurse(c, self);

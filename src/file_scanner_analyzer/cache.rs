@@ -50,6 +50,8 @@ pub(crate) fn load_cached_codebase(
                         },
                         None => {}
                     }
+
+                    codebase.symbols.all.remove(&ast_node.name);
                 }
             }
 
