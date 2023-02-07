@@ -8,12 +8,12 @@ function checkDictArrayKeyExistsInt(dict<string, Test> $arr, string $foobar): in
         return 0;
     }
 
-    if (C\contains($arr , "BAR")) {
+    if (C\contains($arr, "BAR")) {
         return 0;
     }
 
     $arr2 = dict["test" => Test::FOO];
-    if (C\contains($arr2 , $foobar)) {
+    if (C\contains($arr2, $foobar)) {
         return 0;
     }
 

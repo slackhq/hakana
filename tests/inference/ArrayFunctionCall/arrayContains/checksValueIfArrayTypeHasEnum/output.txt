@@ -1,0 +1,1 @@
+ERROR: InvalidContainsCheck - input.hack:11:9 - Second arg of HH\Lib\C\contains expects type Test, saw string(BAR)
