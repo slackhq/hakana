@@ -907,15 +907,16 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
             if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-                let calling_id = if let Some(id) = &context.function_context.calling_functionlike_id
-                {
-                    id.clone()
-                } else {
+                let functionlike_info = statements_analyzer.get_functionlike_info().unwrap();
+
+                let calling_id = if functionlike_info.method_info.is_some() {
                     context
                         .function_context
                         .calling_functionlike_id
                         .clone()
                         .unwrap()
+                } else {
+                    FunctionLikeIdentifier::Function(functionlike_info.name.clone())
                 };
 
                 let argument_node = DataFlowNode::get_for_method_argument(
