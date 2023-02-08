@@ -142,6 +142,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .collect(),
         );
 
+        context.function_context.calling_closure_id = Some(lambda_storage.name);
+
         statements_analyzer.set_function_info(&lambda_storage);
 
         let (inferred_return_type, effects) = self.analyze_functionlike(
@@ -907,17 +909,16 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
             if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-                let functionlike_info = statements_analyzer.get_functionlike_info().unwrap();
-
-                let calling_id = if functionlike_info.method_info.is_some() {
-                    context
-                        .function_context
-                        .calling_functionlike_id
-                        .clone()
-                        .unwrap()
-                } else {
-                    FunctionLikeIdentifier::Function(functionlike_info.name.clone())
-                };
+                let calling_id =
+                    if let Some(calling_closure_id) = context.function_context.calling_closure_id {
+                        FunctionLikeIdentifier::Function(calling_closure_id)
+                    } else {
+                        context
+                            .function_context
+                            .calling_functionlike_id
+                            .clone()
+                            .unwrap()
+                    };
 
                 let argument_node = DataFlowNode::get_for_method_argument(
                     calling_id.to_string(&self.get_codebase().interner),

@@ -185,7 +185,11 @@ pub(crate) fn analyze(
             return_expr,
             &inferred_return_type,
             &mut tast_info.data_flow_graph,
-            &context.function_context.calling_functionlike_id,
+            &if let Some(closure_id) = context.function_context.calling_closure_id {
+                FunctionLikeIdentifier::Function(closure_id)
+            } else {
+                context.function_context.calling_functionlike_id.unwrap()
+            },
             functionlike_storage,
         );
 
@@ -500,7 +504,7 @@ fn handle_dataflow(
     return_expr: &aast::Expr<(), ()>,
     inferred_type: &TUnion,
     data_flow_graph: &mut DataFlowGraph,
-    method_id: &Option<FunctionLikeIdentifier>,
+    functionlike_id: &FunctionLikeIdentifier,
     functionlike_storage: &FunctionLikeInfo,
 ) {
     if data_flow_graph.kind == GraphKind::FunctionBody {
@@ -535,7 +539,7 @@ fn handle_dataflow(
         }
 
         let method_node = DataFlowNode::get_for_method_return(
-            method_id.as_ref().unwrap().to_string(&codebase.interner),
+            functionlike_id.to_string(&codebase.interner),
             functionlike_storage.return_type_location.clone(),
             None,
         );
@@ -550,7 +554,7 @@ fn handle_dataflow(
             );
         }
 
-        if let Some(FunctionLikeIdentifier::Method(classlike_name, method_name)) = method_id {
+        if let FunctionLikeIdentifier::Method(classlike_name, method_name) = functionlike_id {
             if let Some(classlike_info) = codebase.classlike_infos.get(&classlike_name) {
                 if *method_name != StrId::construct() {
                     let mut all_parents = classlike_info

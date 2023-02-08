@@ -39,6 +39,9 @@ pub struct FunctionContext {
     pub is_async: bool,
 
     pub calling_functionlike_id: Option<FunctionLikeIdentifier>,
+
+    pub calling_closure_id: Option<StrId>,
+
     pub pure: bool,
 
     pub mutation_free: bool,
@@ -65,6 +68,7 @@ impl FunctionContext {
             initialized_methods: None,
             is_static: false,
             calling_functionlike_id: None,
+            calling_closure_id: None,
             is_async: false,
         }
     }
