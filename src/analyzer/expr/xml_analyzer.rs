@@ -453,7 +453,13 @@ fn add_xml_attribute_dataflow(
                     // do nothing
                 } else if element_name == "Facebook\\XHP\\HTML\\meta" && name == "content" {
                     // do nothing
-                } else if name == "id" || name == "class" || name == "lang" {
+                } else if name == "id"
+                    || name == "class"
+                    || name == "lang"
+                    || name == "title"
+                    || name == "alt"
+                    || name == "label"
+                {
                     // do nothing
                 } else if (element_name == "Facebook\\XHP\\HTML\\input"
                     || element_name == "Facebook\\XHP\\HTML\\option")
