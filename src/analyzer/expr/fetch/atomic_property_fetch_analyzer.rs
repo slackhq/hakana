@@ -171,7 +171,7 @@ pub(crate) fn analyze(
             pos,
             tast_info,
             classlike_storage,
-            class_property_type.clone(),
+            class_property_type,
             in_assignment,
             &property_id,
             lhs_var_id,
@@ -430,7 +430,7 @@ fn add_property_dataflow(
                 }
 
                 let mut stmt_type = stmt_type.clone();
-                stmt_type.parent_nodes = FxHashSet::from_iter([property_node.clone()]);
+                stmt_type.parent_nodes.insert(property_node.clone());
 
                 return stmt_type;
             }

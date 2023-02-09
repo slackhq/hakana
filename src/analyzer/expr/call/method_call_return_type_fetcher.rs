@@ -259,6 +259,32 @@ fn add_dataflow(
                     None
                 },
             );
+
+            for classlike_descendant in codebase.get_all_descendants(&method_id.0) {
+                let descendant_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
+                    classlike_descendant,
+                    declaring_method_id.1,
+                ));
+
+                let declaring_method_call_node = DataFlowNode::get_for_method_return(
+                    descendant_method_id.to_string(&codebase.interner),
+                    functionlike_storage.return_type_location.clone(),
+                    if functionlike_storage.specialize_call {
+                        Some(statements_analyzer.get_hpos(call_pos))
+                    } else {
+                        None
+                    },
+                );
+
+                data_flow_graph.add_node(declaring_method_call_node.clone());
+                data_flow_graph.add_path(
+                    &declaring_method_call_node,
+                    &method_call_node,
+                    PathKind::Default,
+                    added_taints.clone(),
+                    removed_taints.clone(),
+                );
+            }
         }
 
         if method_id.1 == StrId::construct() {

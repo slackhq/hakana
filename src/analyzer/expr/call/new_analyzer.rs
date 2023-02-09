@@ -303,6 +303,14 @@ fn analyze_named_constructor(
             false,
         );
 
+        let declaring_method_id = codebase.get_declaring_method_id(&method_id);
+
+        tast_info.symbol_references.add_reference_to_class_member(
+            &context.function_context,
+            (declaring_method_id.0, declaring_method_id.1),
+            false,
+        );
+
         let mut template_result = TemplateResult::new(
             if expr.1.is_empty() {
                 IndexMap::new()
