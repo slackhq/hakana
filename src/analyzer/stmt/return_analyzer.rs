@@ -185,7 +185,7 @@ pub(crate) fn analyze(
             return_expr,
             &inferred_return_type,
             &mut tast_info.data_flow_graph,
-            &if let Some(closure_id) = context.function_context.calling_closure_id {
+            &if let Some(closure_id) = context.calling_closure_id {
                 FunctionLikeIdentifier::Function(closure_id)
             } else {
                 context.function_context.calling_functionlike_id.unwrap()

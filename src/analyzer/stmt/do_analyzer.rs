@@ -27,11 +27,7 @@ pub(crate) fn analyze(
     do_context.break_types.push(BreakContext::Loop);
     do_context.inside_loop = true;
 
-    let mut loop_scope = Some({
-        let mut l = LoopScope::new(context.vars_in_scope.clone());
-        l.protected_var_ids = context.protected_var_ids.clone();
-        l
-    });
+    let mut loop_scope = Some(LoopScope::new(context.vars_in_scope.clone()));
 
     let mut mixed_var_ids = vec![];
 

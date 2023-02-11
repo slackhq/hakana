@@ -1,5 +1,4 @@
 use oxidized::aast;
-use rustc_hash::FxHashSet;
 
 use crate::{
     expression_analyzer,
@@ -36,7 +35,6 @@ pub(crate) fn analyze(
         }
     }
 
-    let assigned_var_ids = context.assigned_var_ids.clone();
     context.assigned_var_ids.extend(pre_assigned_var_ids);
 
     let while_true = stmt.0.is_empty() && matches!(stmt.1, None) && stmt.2.is_empty();
@@ -51,15 +49,7 @@ pub(crate) fn analyze(
     for_context.inside_loop = true;
     for_context.break_types.push(BreakContext::Loop);
 
-    let mut loop_scope = LoopScope::new(context.vars_in_scope.clone());
-
-    loop_scope.protected_var_ids = context.protected_var_ids.clone();
-    loop_scope.protected_var_ids.extend(
-        assigned_var_ids
-            .into_iter()
-            .map(|(k, _)| k)
-            .collect::<FxHashSet<_>>(),
-    );
+    let loop_scope = LoopScope::new(context.vars_in_scope.clone());
 
     let (analysis_result, _) = loop_analyzer::analyze(
         statements_analyzer,

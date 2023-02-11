@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
 use hakana_reflection_info::function_context::FunctionContext;
+use hakana_reflection_info::StrId;
 use hakana_reflection_info::{assertion::Assertion, t_union::TUnion};
 use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -107,11 +108,6 @@ pub struct ScopeContext {
     pub include_location: Option<Pos>,
 
     /**
-     * Variables assigned in loops that should not be overwritten
-     */
-    pub protected_var_ids: FxHashSet<String>,
-
-    /**
      * A list of clauses in Conjunctive Normal Form
      */
     pub clauses: Vec<Rc<Clause>>,
@@ -142,15 +138,17 @@ pub struct ScopeContext {
 
     pub function_context: FunctionContext,
 
-    pub inside_negation: bool,
+    pub calling_closure_id: Option<StrId>,
 
-    pub error_suppressing: bool,
+    pub inside_negation: bool,
 
     pub has_returned: bool,
 
     pub parent_conflicting_clause_vars: FxHashSet<String>,
 
     pub allow_taints: bool,
+
+    pub inside_async: bool,
 }
 
 impl ScopeContext {
@@ -172,22 +170,21 @@ impl ScopeContext {
             inside_try: false,
 
             inside_negation: false,
-
-            error_suppressing: false,
             has_returned: false,
             include_location: None,
             clauses: Vec::new(),
             reconciled_expression_clauses: Vec::new(),
 
-            protected_var_ids: FxHashSet::default(),
             branch_point: None,
             break_types: Vec::new(),
             inside_loop: false,
             case_scope: None,
             finally_scope: None,
             function_context,
+            calling_closure_id: None,
             parent_conflicting_clause_vars: FxHashSet::default(),
             allow_taints: true,
+            inside_async: false,
         }
     }
 

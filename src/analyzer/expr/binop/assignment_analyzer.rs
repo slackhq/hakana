@@ -226,11 +226,7 @@ pub(crate) fn analyze(
         // todo increment non-mixed count
     }
 
-    if let Some(var_id) = &var_id {
-        if context.protected_var_ids.contains(var_id) && assign_value_type.has_literal_value() {
-            // handle loop invalidation
-        }
-    }
+    // TODO: handle loop invalidation
 
     match &assign_var.2 {
         aast::Expr_::Lvar(_) => analyze_assignment_to_variable(

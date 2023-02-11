@@ -27,11 +27,7 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.get_codebase();
 
-    let mut loop_scope = Some({
-        let mut l = LoopScope::new(context.vars_in_scope.clone());
-        l.protected_var_ids = context.protected_var_ids.clone();
-        l
-    });
+    let mut loop_scope = Some(LoopScope::new(context.vars_in_scope.clone()));
 
     let (analysis_result, inner_loop_context) = loop_analyzer::analyze(
         statements_analyzer,

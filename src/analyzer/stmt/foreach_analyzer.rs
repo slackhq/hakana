@@ -141,9 +141,7 @@ pub(crate) fn analyze(
     )
     .ok();
 
-    let mut loop_scope = LoopScope::new(context.vars_in_scope.clone());
-
-    loop_scope.protected_var_ids = context.protected_var_ids.clone();
+    let loop_scope = LoopScope::new(context.vars_in_scope.clone());
 
     let (analysis_result, _) = loop_analyzer::analyze(
         statements_analyzer,
@@ -450,12 +448,6 @@ fn check_iterator_type(
                 value_type.as_ref(),
                 codebase,
             ));
-
-            if !context.function_context.pure {
-                // do purity stuff
-            } else {
-                // todo maybe emit impure method call issue?
-            }
         } else if let TAtomic::TNamedObject {
             name,
             type_params: Some(type_params),
@@ -520,12 +512,6 @@ fn check_iterator_type(
                     }
                 }
                 _ => {}
-            }
-
-            if !context.function_context.pure {
-                // do purity stuff
-            } else {
-                // todo maybe emit impure method call issue?
             }
         }
     }

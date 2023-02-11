@@ -142,7 +142,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .collect(),
         );
 
-        context.function_context.calling_closure_id = Some(lambda_storage.name);
+        context.calling_closure_id = Some(lambda_storage.name);
 
         statements_analyzer.set_function_info(&lambda_storage);
 
@@ -353,7 +353,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         analysis_result: &mut AnalysisResult,
         parent_tast_info: Option<&mut TastInfo>,
     ) -> (Option<TUnion>, u8) {
-        context.function_context.is_async = functionlike_storage.is_async;
+        context.inside_async = functionlike_storage.is_async;
 
         let mut tast_info = TastInfo::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
@@ -910,7 +910,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
                 let calling_id =
-                    if let Some(calling_closure_id) = context.function_context.calling_closure_id {
+                    if let Some(calling_closure_id) = context.calling_closure_id {
                         FunctionLikeIdentifier::Function(calling_closure_id)
                     } else {
                         context

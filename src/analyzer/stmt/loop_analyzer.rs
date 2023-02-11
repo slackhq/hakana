@@ -47,7 +47,6 @@ pub(crate) fn analyze<'a>(
         0
     };
 
-    let original_protected_var_ids = loop_parent_context.protected_var_ids.clone();
     let mut always_assigned_before_loop_body_vars = FxHashSet::default();
 
     let mut pre_condition_clauses = Vec::new();
@@ -118,8 +117,6 @@ pub(crate) fn analyze<'a>(
             );
         }
 
-        continue_context.protected_var_ids = loop_scope.clone().unwrap().protected_var_ids.clone();
-
         statements_analyzer.analyze(stmts, tast_info, &mut continue_context, loop_scope);
         update_loop_scope_contexts(
             loop_scope,
@@ -163,8 +160,6 @@ pub(crate) fn analyze<'a>(
 
         continue_context = loop_context.clone();
 
-        continue_context.protected_var_ids = loop_scope.as_ref().unwrap().protected_var_ids.clone();
-
         statements_analyzer.analyze(stmts, tast_info, &mut continue_context, loop_scope);
 
         update_loop_scope_contexts(
@@ -174,8 +169,6 @@ pub(crate) fn analyze<'a>(
             &original_parent_context,
             statements_analyzer,
         );
-
-        continue_context.protected_var_ids = original_protected_var_ids.clone();
 
         if is_do {
             inner_do_context = Some(continue_context.clone());
@@ -358,7 +351,6 @@ pub(crate) fn analyze<'a>(
             }
 
             continue_context.clauses = pre_loop_context.clauses.clone();
-            continue_context.protected_var_ids = loop_scope.clone().unwrap().protected_var_ids;
 
             clean_nodes(stmts, tast_info);
 
@@ -370,8 +362,6 @@ pub(crate) fn analyze<'a>(
                 &original_parent_context,
                 statements_analyzer,
             );
-
-            continue_context.protected_var_ids = original_protected_var_ids.clone();
 
             if is_do {
                 inner_do_context = Some(continue_context.clone());
