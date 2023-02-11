@@ -44,7 +44,6 @@ impl<'a> FileAnalyzer<'a> {
         program: &aast::Program<(), ()>,
         analysis_result: &mut AnalysisResult,
     ) {
-        let mut context = ScopeContext::new(FunctionContext::new());
         let mut tast_info = TastInfo::new(
             DataFlowGraph::new(self.analysis_config.graph_kind),
             &self.file_source,
@@ -61,6 +60,8 @@ impl<'a> FileAnalyzer<'a> {
             &type_resolution_context,
             Vec::new(),
         );
+
+        let mut context = ScopeContext::new(FunctionContext::new());
 
         for declaration in program {
             if declaration.is_namespace() {

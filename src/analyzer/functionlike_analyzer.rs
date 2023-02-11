@@ -16,7 +16,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind, VariableSourceKind};
 use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::function_context::{FunctionContext, FunctionLikeIdentifier};
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
@@ -46,7 +46,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     pub fn analyze_fun(
         &mut self,
         stmt: &aast::FunDef<(), ()>,
-        context: &mut ScopeContext,
         analysis_result: &mut AnalysisResult,
     ) {
         let resolved_names = self.file_analyzer.resolved_names.clone();
@@ -87,14 +86,16 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         statements_analyzer.set_function_info(&function_storage);
 
-        context.function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Function(
+        let mut function_context = FunctionContext::new();
+
+        function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Function(
             function_storage.name.clone(),
         ));
 
         self.analyze_functionlike(
             &mut statements_analyzer,
             &function_storage,
-            context,
+            ScopeContext::new(function_context),
             &stmt.fun.params,
             &stmt.fun.body.fb_ast,
             analysis_result,
@@ -105,7 +106,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     pub fn analyze_lambda(
         &mut self,
         stmt: &aast::Fun_<(), ()>,
-        context: &mut ScopeContext,
+        mut context: ScopeContext,
         tast_info: &mut TastInfo,
         analysis_result: &mut AnalysisResult,
         expr_pos: &Pos,
@@ -166,7 +167,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         &mut self,
         stmt: &aast::Method_<(), ()>,
         classlike_storage: &ClassLikeInfo,
-        context: &mut ScopeContext,
         analysis_result: &mut AnalysisResult,
     ) {
         if stmt.abstract_ {
@@ -204,6 +204,15 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 })
                 .collect(),
         );
+
+        let mut function_context = FunctionContext::new();
+        function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Method(
+            classlike_storage.name.clone(),
+            method_name.clone(),
+        ));
+        function_context.calling_class = Some(classlike_storage.name.clone());
+
+        let mut context = ScopeContext::new(function_context);
 
         if !stmt.static_ {
             let mut this_type = wrap_atomic(TAtomic::TNamedObject {
@@ -253,12 +262,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         }
 
         statements_analyzer.set_function_info(&functionlike_storage);
-
-        context.function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Method(
-            classlike_storage.name.clone(),
-            method_name.clone(),
-        ));
-        context.function_context.calling_class = Some(classlike_storage.name.clone());
 
         self.analyze_functionlike(
             &mut statements_analyzer,
@@ -347,7 +350,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         &mut self,
         statements_analyzer: &mut StatementsAnalyzer,
         functionlike_storage: &FunctionLikeInfo,
-        context: &mut ScopeContext,
+        mut context: ScopeContext,
         params: &Vec<aast::FunParam<(), ()>>,
         fb_ast: &Vec<aast::Stmt<(), ()>>,
         analysis_result: &mut AnalysisResult,
@@ -382,7 +385,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             params,
             functionlike_storage,
             &mut tast_info,
-            context,
+            &mut context,
             statements_analyzer,
         ) {
             if let Some(calling_class) = &context.function_context.calling_class {
@@ -396,7 +399,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         classlike_storage,
                         &mut tast_info,
                         functionlike_storage,
-                        context,
+                        &mut context,
                     );
                 }
             }
@@ -404,7 +407,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             //let start_t = std::time::Instant::now();
 
             completed_analysis =
-                statements_analyzer.analyze(&fb_ast, &mut tast_info, context, &mut None);
+                statements_analyzer.analyze(&fb_ast, &mut tast_info, &mut context, &mut None);
 
             // let end_t = start_t.elapsed();
 
@@ -429,7 +432,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 handle_inout_at_return(
                     functionlike_storage,
                     statements_analyzer,
-                    context,
+                    &mut context,
                     &mut tast_info,
                     None,
                 );
@@ -522,7 +525,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             let return_result_handled = config.hooks.iter().any(|hook| {
                 hook.after_functionlike_analysis(
-                    context,
+                    &mut context,
                     functionlike_storage,
                     completed_analysis,
                     &mut tast_info,
@@ -909,16 +912,15 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
             if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
-                let calling_id =
-                    if let Some(calling_closure_id) = context.calling_closure_id {
-                        FunctionLikeIdentifier::Function(calling_closure_id)
-                    } else {
-                        context
-                            .function_context
-                            .calling_functionlike_id
-                            .clone()
-                            .unwrap()
-                    };
+                let calling_id = if let Some(calling_closure_id) = context.calling_closure_id {
+                    FunctionLikeIdentifier::Function(calling_closure_id)
+                } else {
+                    context
+                        .function_context
+                        .calling_functionlike_id
+                        .clone()
+                        .unwrap()
+                };
 
                 let argument_node = DataFlowNode::get_for_method_argument(
                     calling_id.to_string(&self.get_codebase().interner),

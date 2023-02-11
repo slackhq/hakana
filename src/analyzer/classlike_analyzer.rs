@@ -62,9 +62,10 @@ impl<'a> ClassLikeAnalyzer<'a> {
                 .add_symbol_reference_to_symbol(name.clone(), trait_name.clone(), true);
         }
 
-        let mut class_context = ScopeContext::new(FunctionContext::new());
+        let mut function_context = FunctionContext::new();
+        function_context.calling_class = Some(name.clone());
 
-        class_context.function_context.calling_class = Some(name.clone());
+        let mut class_context = ScopeContext::new(function_context);
 
         let mut tast_info = TastInfo::new(
             DataFlowGraph::new(GraphKind::FunctionBody),
@@ -113,13 +114,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
             }
 
             let mut method_analyzer = FunctionLikeAnalyzer::new(self.file_analyzer);
-            let mut context = ScopeContext::new(FunctionContext::new());
-            method_analyzer.analyze_method(
-                method,
-                classlike_storage,
-                &mut context,
-                analysis_result,
-            );
+            method_analyzer.analyze_method(method, classlike_storage, analysis_result);
         }
     }
 }

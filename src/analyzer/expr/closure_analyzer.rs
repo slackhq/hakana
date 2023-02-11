@@ -25,12 +25,11 @@ pub(crate) fn analyze(
     expr: &aast::Expr<(), ()>,
 ) -> bool {
     let mut function_analyzer = FunctionLikeAnalyzer::new(statements_analyzer.get_file_analyzer());
-    let mut lambda_context = context.clone();
     let mut analysis_result =
         AnalysisResult::new(tast_info.data_flow_graph.kind, SymbolReferences::new());
     let mut lambda_storage = function_analyzer.analyze_lambda(
         fun,
-        &mut lambda_context,
+        context.clone(),
         tast_info,
         &mut analysis_result,
         expr.pos(),

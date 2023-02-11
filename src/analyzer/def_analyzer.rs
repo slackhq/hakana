@@ -24,8 +24,7 @@ pub(crate) fn analyze(
         aast::Def::Fun(_) => {
             let file_analyzer = scope_analyzer.get_file_analyzer();
             let mut function_analyzer = FunctionLikeAnalyzer::new(file_analyzer);
-            let mut context = ScopeContext::new(FunctionContext::new());
-            function_analyzer.analyze_fun(def.as_fun().unwrap(), &mut context, analysis_result);
+            function_analyzer.analyze_fun(def.as_fun().unwrap(), analysis_result);
         }
         aast::Def::Class(_) => {
             let file_analyzer = scope_analyzer.get_file_analyzer();
@@ -43,15 +42,17 @@ pub(crate) fn analyze(
             stmt_analyzer::analyze(statements_analyzer, boxed, tast_info, context, loop_scope);
         }
         aast::Def::Constant(boxed) => {
-            let mut context = ScopeContext::new(FunctionContext::new());
-
-            context.function_context.calling_class = Some(
+            let mut function_context = FunctionContext::new();
+            function_context.calling_class = Some(
                 *statements_analyzer
                     .get_file_analyzer()
                     .resolved_names
                     .get(&boxed.name.pos().start_offset())
                     .unwrap(),
             );
+
+            let mut context = ScopeContext::new(function_context);
+
             expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed.value,
