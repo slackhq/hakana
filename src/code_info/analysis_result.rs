@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Duration};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
@@ -24,6 +24,7 @@ pub struct AnalysisResult {
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
     pub issue_counts: FxHashMap<IssueKind, usize>,
+    pub time_in_analysis: Duration,
 }
 
 impl AnalysisResult {
@@ -38,6 +39,7 @@ impl AnalysisResult {
             program_dataflow_graph: DataFlowGraph::new(program_dataflow_graph_kind),
             issue_counts: FxHashMap::default(),
             symbol_references,
+            time_in_analysis: Duration::default(),
         }
     }
 

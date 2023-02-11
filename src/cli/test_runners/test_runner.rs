@@ -14,6 +14,7 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use walkdir::WalkDir;
 
 pub trait TestRunner {
@@ -35,6 +36,8 @@ pub trait TestRunner {
         } else {
             None
         };
+
+        let mut time_in_analysis = Duration::default();
 
         for _ in 0..(repeat + 1) {
             for test_folder in test_folders.clone() {
@@ -63,6 +66,7 @@ pub trait TestRunner {
                     } else {
                         None
                     },
+                    &mut time_in_analysis,
                 );
 
                 print!("{}", test_result);
@@ -70,8 +74,10 @@ pub trait TestRunner {
             }
         }
 
+        println!("\n\nTotal analysis time:  {:.2?}", time_in_analysis);
+
         println!(
-            "\n{}\n",
+            "\n{}",
             test_diagnostics
                 .into_iter()
                 .map(|(folder, diag)| format!("Unexpected output for {}:\n\n{}", folder, diag))
@@ -144,6 +150,7 @@ pub trait TestRunner {
         test_diagnostics: &mut Vec<(String, String)>,
         build_checksum: &str,
         starter_data: Option<(CodebaseInfo, Interner)>,
+        total_time_in_analysis: &mut Duration,
     ) -> String {
         if dir.contains("skipped-") || dir.contains("SKIPPED-") {
             return "S".to_string();
@@ -209,6 +216,8 @@ pub trait TestRunner {
 
             let result = result.unwrap();
 
+            *total_time_in_analysis += result.time_in_analysis;
+
             let output_contents = if let Some(file_replacements) =
                 result.replacements.get(&"input.hack".to_string())
             {
@@ -229,6 +238,8 @@ pub trait TestRunner {
         } else {
             let test_output = match result {
                 Ok(analysis_result) => {
+                    *total_time_in_analysis += analysis_result.time_in_analysis;
+
                     let mut output = vec![];
                     for (file_path, issues) in &analysis_result.emitted_issues {
                         for issue in issues {

@@ -202,6 +202,8 @@ pub fn scan_and_analyze(
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
 
+    analysis_result.time_in_analysis = elapsed;
+
     if let Some(references_path) = references_path {
         let mut symbols_file = fs::File::create(&references_path).unwrap();
         let serialized_symbol_references =
