@@ -141,14 +141,12 @@ pub(crate) fn analyze(
     )
     .ok();
 
-    let loop_scope = LoopScope::new(context.vars_in_scope.clone());
-
     let (analysis_result, _) = loop_analyzer::analyze(
         statements_analyzer,
         stmt.2,
         vec![],
         vec![],
-        &mut Some(loop_scope),
+        &mut LoopScope::new(context.vars_in_scope.clone()),
         &mut foreach_context,
         context,
         tast_info,

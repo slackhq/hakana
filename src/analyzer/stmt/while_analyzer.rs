@@ -27,7 +27,7 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.get_codebase();
 
-    let mut loop_scope = Some(LoopScope::new(context.vars_in_scope.clone()));
+    let mut loop_scope = LoopScope::new(context.vars_in_scope.clone());
 
     let (analysis_result, inner_loop_context) = loop_analyzer::analyze(
         statements_analyzer,
@@ -55,8 +55,6 @@ pub(crate) fn analyze(
             false
         }
     };
-
-    let loop_scope = &loop_scope.unwrap();
 
     let can_leave_loop = !while_true || loop_scope.final_actions.contains(&ControlAction::Break);
 

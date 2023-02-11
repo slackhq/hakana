@@ -27,7 +27,7 @@ pub(crate) fn analyze<'a>(
     stmts: &Vec<aast::Stmt<(), ()>>,
     pre_conditions: Vec<&aast::Expr<(), ()>>,
     post_expressions: Vec<&aast::Expr<(), ()>>,
-    loop_scope: &'a mut Option<LoopScope>,
+    loop_scope: &'a mut LoopScope,
     loop_context: &'a mut ScopeContext,
     loop_parent_context: &'a mut ScopeContext,
     tast_info: &'a mut TastInfo,
@@ -117,7 +117,15 @@ pub(crate) fn analyze<'a>(
             );
         }
 
-        statements_analyzer.analyze(stmts, tast_info, &mut continue_context, loop_scope);
+        let mut wrapped_loop_scope = Some(loop_scope.clone());
+
+        statements_analyzer.analyze(
+            stmts,
+            tast_info,
+            &mut continue_context,
+            &mut wrapped_loop_scope,
+        );
+        *loop_scope = wrapped_loop_scope.unwrap();
         update_loop_scope_contexts(
             loop_scope,
             loop_context,
@@ -160,7 +168,16 @@ pub(crate) fn analyze<'a>(
 
         continue_context = loop_context.clone();
 
-        statements_analyzer.analyze(stmts, tast_info, &mut continue_context, loop_scope);
+        let mut wrapped_loop_scope = Some(loop_scope.clone());
+
+        statements_analyzer.analyze(
+            stmts,
+            tast_info,
+            &mut continue_context,
+            &mut wrapped_loop_scope,
+        );
+
+        *loop_scope = wrapped_loop_scope.unwrap();
 
         update_loop_scope_contexts(
             loop_scope,
@@ -206,9 +223,7 @@ pub(crate) fn analyze<'a>(
         while i < assignment_depth {
             let mut vars_to_remove = Vec::new();
 
-            if let Some(loop_scope) = loop_scope {
-                loop_scope.iteration_count += 1;
-            }
+            loop_scope.iteration_count += 1;
 
             let mut has_changes = false;
 
@@ -354,7 +369,17 @@ pub(crate) fn analyze<'a>(
 
             clean_nodes(stmts, tast_info);
 
-            statements_analyzer.analyze(stmts, tast_info, &mut continue_context, loop_scope);
+            let mut wrapped_loop_scope = Some(loop_scope.clone());
+
+            statements_analyzer.analyze(
+                stmts,
+                tast_info,
+                &mut continue_context,
+                &mut wrapped_loop_scope,
+            );
+
+            *loop_scope = wrapped_loop_scope.unwrap();
+
             update_loop_scope_contexts(
                 loop_scope,
                 loop_context,
@@ -403,7 +428,7 @@ pub(crate) fn analyze<'a>(
         }
     }
 
-    let cloned_loop_scope = loop_scope.clone().unwrap();
+    let cloned_loop_scope = loop_scope.clone();
 
     let does_sometimes_break = cloned_loop_scope
         .final_actions
@@ -578,7 +603,6 @@ pub(crate) fn analyze<'a>(
     if always_enters_loop {
         let does_sometimes_continue = loop_scope
             .clone()
-            .unwrap()
             .final_actions
             .contains(&ControlAction::Continue);
 
@@ -741,14 +765,12 @@ fn apply_pre_condition_to_loop_context(
 }
 
 fn update_loop_scope_contexts(
-    loop_scope: &mut Option<LoopScope>,
+    loop_scope: &mut LoopScope,
     loop_context: &mut ScopeContext,
     continue_context: &mut ScopeContext,
     pre_outer_context: &ScopeContext,
     statements_analyzer: &StatementsAnalyzer,
 ) {
-    let loop_scope = loop_scope.as_mut().unwrap();
-
     if !loop_scope.final_actions.contains(&ControlAction::Continue) {
         loop_context.vars_in_scope = pre_outer_context.vars_in_scope.clone();
     } else {

@@ -39,17 +39,9 @@ pub(crate) fn analyze(
 
     let while_true = stmt.0.is_empty() && matches!(stmt.1, None) && stmt.2.is_empty();
 
-    let _pre_context = if while_true {
-        Some(context.clone())
-    } else {
-        None
-    };
-
     let mut for_context = context.clone();
     for_context.inside_loop = true;
     for_context.break_types.push(BreakContext::Loop);
-
-    let loop_scope = LoopScope::new(context.vars_in_scope.clone());
 
     let (analysis_result, _) = loop_analyzer::analyze(
         statements_analyzer,
@@ -60,7 +52,7 @@ pub(crate) fn analyze(
             vec![]
         },
         stmt.2.iter().collect::<Vec<_>>(),
-        &mut Some(loop_scope),
+        &mut LoopScope::new(context.vars_in_scope.clone()),
         &mut for_context,
         context,
         tast_info,

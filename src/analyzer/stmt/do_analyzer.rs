@@ -27,12 +27,11 @@ pub(crate) fn analyze(
     do_context.break_types.push(BreakContext::Loop);
     do_context.inside_loop = true;
 
-    let mut loop_scope = Some(LoopScope::new(context.vars_in_scope.clone()));
+    let mut loop_scope = LoopScope::new(context.vars_in_scope.clone());
 
     let mut mixed_var_ids = vec![];
 
-    let loop_scope_inner = loop_scope.as_ref().unwrap();
-    for (var_id, var_type) in &loop_scope_inner.parent_context_vars {
+    for (var_id, var_type) in &loop_scope.parent_context_vars {
         if var_type.is_mixed() {
             mixed_var_ids.push(var_id);
         }
