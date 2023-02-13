@@ -105,6 +105,8 @@ pub struct ScopeContext {
      */
     pub inside_assignment: bool,
 
+    pub inside_assignment_op: bool,
+
     pub include_location: Option<Pos>,
 
     /**
@@ -149,6 +151,8 @@ pub struct ScopeContext {
     pub allow_taints: bool,
 
     pub inside_async: bool,
+
+    pub for_loop_init_bounds: Option<(usize, usize)>,
 }
 
 impl ScopeContext {
@@ -167,6 +171,7 @@ impl ScopeContext {
             inside_return: false,
             inside_throw: false,
             inside_assignment: false,
+            inside_assignment_op: false,
             inside_try: false,
 
             inside_negation: false,
@@ -185,6 +190,7 @@ impl ScopeContext {
             parent_conflicting_clause_vars: FxHashSet::default(),
             allow_taints: true,
             inside_async: false,
+            for_loop_init_bounds: None,
         }
     }
 

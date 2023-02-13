@@ -73,7 +73,8 @@ impl DataFlowGraph {
             }
             DataFlowNodeKind::TaintSource { .. }
             | DataFlowNodeKind::VariableUseSource { .. }
-            | DataFlowNodeKind::DataSource { .. } => {
+            | DataFlowNodeKind::DataSource { .. }
+            | DataFlowNodeKind::ForLoopInit { .. } => {
                 self.sources.insert(node.id.clone(), node);
             }
             DataFlowNodeKind::TaintSink { .. } | DataFlowNodeKind::VariableUseSink { .. } => {
@@ -188,6 +189,8 @@ impl DataFlowGraph {
                             } else {
                                 has_visited_a_parent_already = true;
                             }
+                        } else if let Some(node) = self.sources.get(from_id) {
+                            origin_nodes.push(node.clone());
                         }
                     }
                 }

@@ -39,6 +39,11 @@ pub enum DataFlowNodeKind {
     VariableUseSink {
         pos: HPos,
     },
+    ForLoopInit {
+        var_name: String,
+        start_offset: usize,
+        end_offset: usize,
+    },
     DataSource {
         pos: HPos,
         label: String,
@@ -277,6 +282,7 @@ impl DataFlowNode {
             | DataFlowNodeKind::TaintSink { label, .. }
             | DataFlowNodeKind::DataSource { label, .. } => label,
             DataFlowNodeKind::VariableUseSource { .. }
+            | DataFlowNodeKind::ForLoopInit { .. }
             | DataFlowNodeKind::VariableUseSink { .. } => &self.id,
         }
     }
@@ -288,6 +294,7 @@ impl DataFlowNode {
             | DataFlowNodeKind::TaintSource { pos, .. }
             | DataFlowNodeKind::TaintSink { pos, .. } => pos,
             DataFlowNodeKind::VariableUseSource { .. }
+            | DataFlowNodeKind::ForLoopInit { .. }
             | DataFlowNodeKind::VariableUseSink { .. }
             | DataFlowNodeKind::DataSource { .. } => {
                 panic!()

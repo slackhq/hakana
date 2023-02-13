@@ -71,6 +71,7 @@ pub(crate) fn analyze(
         | oxidized::ast_defs::Uop::Udecr
         | oxidized::ast_defs::Uop::Upincr
         | oxidized::ast_defs::Uop::Updecr => {
+            context.inside_assignment_op = true;
             let analyzed_ok = expression_analyzer::analyze(
                 statements_analyzer,
                 &aast::Expr(
@@ -98,6 +99,7 @@ pub(crate) fn analyze(
                 context,
                 &mut None,
             );
+            context.inside_assignment_op = false;
 
             return analyzed_ok;
         }

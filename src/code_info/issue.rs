@@ -38,6 +38,7 @@ pub enum IssueKind {
     LessSpecificNestedArgumentType,
     LessSpecificNestedReturnStatement,
     LessSpecificReturnStatement,
+    ForLoopInvalidation,
     MethodCallOnNull,
     MissingRequiredXhpAttribute,
     MixedAnyArgument,

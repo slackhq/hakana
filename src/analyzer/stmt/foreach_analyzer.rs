@@ -29,6 +29,7 @@ pub(crate) fn analyze(
         &aast::AsExpr<(), ()>,
         &aast::Block<(), ()>,
     ),
+    pos: &ast_defs::Pos,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> bool {
@@ -130,6 +131,8 @@ pub(crate) fn analyze(
 
     let value_type = value_type.unwrap_or(get_mixed_any());
 
+    foreach_context.for_loop_init_bounds = Some((value_expr.pos().end_offset(), pos.end_offset()));
+
     assignment_analyzer::analyze(
         statements_analyzer,
         (&ast_defs::Bop::Eq(None), value_expr, None),
@@ -140,6 +143,8 @@ pub(crate) fn analyze(
         false,
     )
     .ok();
+
+    foreach_context.for_loop_init_bounds = None;
 
     let (analysis_result, _) = loop_analyzer::analyze(
         statements_analyzer,

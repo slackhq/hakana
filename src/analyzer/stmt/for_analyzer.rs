@@ -1,4 +1,4 @@
-use oxidized::aast;
+use oxidized::{aast, tast::Pos};
 
 use crate::{
     expression_analyzer,
@@ -17,11 +17,17 @@ pub(crate) fn analyze(
         &Vec<aast::Expr<(), ()>>,
         &aast::Block<(), ()>,
     ),
+    pos: &Pos,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> bool {
     let pre_assigned_var_ids = context.assigned_var_ids.clone();
     context.assigned_var_ids.clear();
+
+    if let Some(last_comparison_expr) = stmt.2.last() {
+        context.for_loop_init_bounds =
+            Some((last_comparison_expr.pos().end_offset(), pos.end_offset()));
+    }
 
     for init_expr in stmt.0 {
         if !expression_analyzer::analyze(
@@ -34,6 +40,8 @@ pub(crate) fn analyze(
             return false;
         }
     }
+
+    context.for_loop_init_bounds = None;
 
     context.assigned_var_ids.extend(pre_assigned_var_ids);
 

@@ -1,4 +1,5 @@
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
+use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use indexmap::IndexMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -60,7 +61,7 @@ pub(crate) fn analyze(
 
     //let removed_taints = Vec::new();
 
-    let mut extended_var_type = None;
+    let mut existing_var_type = None;
 
     if let Some(var_id) = &var_id {
         context.cond_referenced_var_ids.remove(var_id);
@@ -69,7 +70,7 @@ pub(crate) fn analyze(
             .insert(var_id.clone(), assign_var.pos().start_offset());
         context.possibly_assigned_var_ids.insert(var_id.clone());
 
-        extended_var_type = context.vars_in_scope.get(var_id).cloned();
+        existing_var_type = context.vars_in_scope.get(var_id).cloned();
     }
 
     if let Some(assign_value) = assign_value {
@@ -89,6 +90,8 @@ pub(crate) fn analyze(
             Bop::Eq(Some(assignment_type)) => {
                 let tast_expr_types = tast_info.expr_types.clone();
 
+                context.inside_assignment_op = true;
+
                 let analyzed_ok = expression_analyzer::analyze(
                     statements_analyzer,
                     &aast::Expr(
@@ -104,6 +107,8 @@ pub(crate) fn analyze(
                     context,
                     &mut None,
                 );
+
+                context.inside_assignment_op = false;
 
                 let new_expr_types = tast_info.expr_types.clone();
                 let expr_type = new_expr_types
@@ -181,22 +186,75 @@ pub(crate) fn analyze(
                 statements_analyzer.get_hpos(assign_var.pos()),
             );
 
+            tast_info.data_flow_graph.add_node(assignment_node.clone());
+
             assign_value_type.parent_nodes.insert(assignment_node);
+
+            if !context.inside_assignment_op && !var_id.starts_with("$_") {
+                if let Some((start_offset, end_offset)) = context.for_loop_init_bounds {
+                    let for_node = DataFlowNode {
+                        id: format!("for-init-{}-{}", start_offset, end_offset),
+                        kind: DataFlowNodeKind::ForLoopInit {
+                            start_offset,
+                            end_offset,
+                            var_name: var_id.clone(),
+                        },
+                    };
+
+                    tast_info.data_flow_graph.add_node(for_node.clone());
+
+                    assign_value_type.parent_nodes.insert(for_node);
+                }
+            }
         };
     }
 
-    if let Some((var_id, extended_var_type)) = if let Some(var_id) = &var_id {
-        if let Some(extended_var_type) = extended_var_type {
-            Some((var_id.clone(), extended_var_type))
-        } else {
-            None
+    if let (Some(var_id), Some(existing_var_type), Bop::Eq(None)) =
+        (&var_id, &existing_var_type, binop)
+    {
+        if context.inside_loop
+            && !context.inside_assignment_op
+            && context.for_loop_init_bounds.is_some()
+            && var_id != "$_"
+        {
+            let mut origin_nodes = vec![];
+
+            for parent_node in &existing_var_type.parent_nodes {
+                origin_nodes.extend(tast_info.data_flow_graph.get_origin_nodes(parent_node));
+            }
+
+            origin_nodes.retain(|n| match &n.kind {
+                DataFlowNodeKind::ForLoopInit {
+                    var_name,
+                    start_offset,
+                    end_offset,
+                } => {
+                    var_name == var_id
+                        && pos.start_offset() > *start_offset
+                        && pos.end_offset() < *end_offset
+                }
+                _ => false,
+            });
+
+            if !origin_nodes.is_empty() {
+                tast_info.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::ForLoopInvalidation,
+                        format!("{} was previously assigned in a for loop", var_id),
+                        statements_analyzer.get_hpos(&pos),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                )
+            }
         }
-    } else {
-        None
-    } {
+    }
+
+    if let (Some(var_id), Some(existing_var_type)) = (&var_id, &existing_var_type) {
         context.remove_descendants(
-            &var_id,
-            &extended_var_type,
+            var_id,
+            existing_var_type,
             Some(&assign_value_type),
             Some(statements_analyzer),
             tast_info,
@@ -225,8 +283,6 @@ pub(crate) fn analyze(
     } else {
         // todo increment non-mixed count
     }
-
-    // TODO: handle loop invalidation
 
     match &assign_var.2 {
         aast::Expr_::Lvar(_) => analyze_assignment_to_variable(

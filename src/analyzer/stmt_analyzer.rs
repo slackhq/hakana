@@ -96,6 +96,7 @@ pub(crate) fn analyze(
             if !for_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3),
+                &stmt.0,
                 tast_info,
                 context,
             ) {
@@ -106,6 +107,7 @@ pub(crate) fn analyze(
             if !foreach_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
+                &stmt.0,
                 tast_info,
                 context,
             ) {
