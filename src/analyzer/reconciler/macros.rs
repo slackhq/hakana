@@ -12,7 +12,6 @@ macro_rules! intersect_simple {
         $statements_analyzer:expr,
         $pos:expr,
         $calling_functionlike_id:expr,
-        $failed_reconciliation:expr,
         $is_equality:expr,
         $suppressed_issues:expr,
     ) => {
@@ -52,8 +51,6 @@ macro_rules! intersect_simple {
             if !acceptable_types.is_empty() {
                 return Some(TUnion::new(acceptable_types));
             }
-
-            *$failed_reconciliation = ReconciliationStatus::Empty;
 
             Some(get_nothing())
         }

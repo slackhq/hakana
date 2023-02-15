@@ -270,7 +270,6 @@ pub(crate) fn analyze(
             None,
             &None,
             false,
-            &mut reconciler::ReconciliationStatus::Ok,
             false,
             &FxHashMap::default(),
         );

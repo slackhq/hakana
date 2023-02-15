@@ -1,6 +1,5 @@
 use super::{
-    assertion_reconciler::intersect_atomic_with_atomic,
-    reconciler::{trigger_issue_for_impossible, ReconciliationStatus},
+    assertion_reconciler::intersect_atomic_with_atomic, reconciler::trigger_issue_for_impossible,
     simple_negated_assertion_reconciler,
 };
 use crate::typed_ast::TastInfo;
@@ -30,7 +29,6 @@ pub(crate) fn reconcile(
     old_var_type_string: String,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -64,7 +62,6 @@ pub(crate) fn reconcile(
         tast_info,
         pos,
         calling_functionlike_id,
-        failed_reconciliation,
         negated,
         suppressed_issues,
     );
@@ -129,8 +126,6 @@ pub(crate) fn reconcile(
                     );
                 }
             }
-
-            *failed_reconciliation = ReconciliationStatus::Empty;
 
             return get_nothing();
         }

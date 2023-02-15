@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use super::{
-    reconciler::{trigger_issue_for_impossible, ReconciliationStatus},
-    simple_negated_assertion_reconciler::subtract_null,
+    reconciler::trigger_issue_for_impossible, simple_negated_assertion_reconciler::subtract_null,
 };
 use crate::{
     intersect_simple, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
@@ -38,7 +37,6 @@ pub(crate) fn reconcile(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
     inside_loop: bool,
     suppressed_issues: &FxHashMap<String, usize>,
@@ -73,7 +71,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 );
@@ -94,7 +91,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 );
@@ -116,7 +112,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 );
@@ -138,7 +133,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 );
@@ -160,7 +154,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 );
@@ -175,7 +168,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     suppressed_issues,
                 ));
             }
@@ -189,7 +181,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     suppressed_issues,
                 ));
             }
@@ -203,7 +194,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -223,7 +213,6 @@ pub(crate) fn reconcile(
                         statements_analyzer,
                         pos,
                         calling_functionlike_id,
-                        failed_reconciliation,
                         assertion.has_equality(),
                         suppressed_issues,
                     ));
@@ -245,7 +234,6 @@ pub(crate) fn reconcile(
                         statements_analyzer,
                         pos,
                         calling_functionlike_id,
-                        failed_reconciliation,
                         assertion.has_equality(),
                         suppressed_issues,
                     ));
@@ -261,7 +249,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -276,7 +263,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -291,7 +277,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -307,7 +292,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -323,7 +307,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -347,7 +330,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
         )),
         Assertion::IsEqualIsset | Assertion::IsIsset => Some(reconcile_isset(
@@ -360,7 +342,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
             inside_loop,
         )),
@@ -373,7 +354,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
             false,
         )),
@@ -386,7 +366,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
             true,
         )),
@@ -407,7 +386,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
             typed_value,
         )),
@@ -446,7 +424,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
             false,
         )),
@@ -459,7 +436,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
             false,
             count,
@@ -477,7 +453,6 @@ pub(crate) fn intersect_null(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     if existing_var_type.is_mixed() {
@@ -511,7 +486,6 @@ pub(crate) fn intersect_null(
                         statements_analyzer,
                         None,
                         calling_functionlike_id,
-                        failed_reconciliation,
                         suppressed_issues,
                     ));
 
@@ -564,8 +538,6 @@ pub(crate) fn intersect_null(
         return TUnion::new(nullable_types);
     }
 
-    *failed_reconciliation = ReconciliationStatus::Empty;
-
     get_nothing()
 }
 
@@ -578,7 +550,6 @@ fn intersect_object(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -607,7 +578,6 @@ fn intersect_object(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
@@ -647,8 +617,6 @@ fn intersect_object(
         return TUnion::new(object_types);
     }
 
-    *failed_reconciliation = ReconciliationStatus::Empty;
-
     get_nothing()
 }
 
@@ -661,7 +629,6 @@ fn intersect_vec(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -738,8 +705,6 @@ fn intersect_vec(
         return TUnion::new(acceptable_types);
     }
 
-    *failed_reconciliation = ReconciliationStatus::Empty;
-
     get_nothing()
 }
 
@@ -752,7 +717,6 @@ fn intersect_keyset(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -820,8 +784,6 @@ fn intersect_keyset(
         return TUnion::new(acceptable_types);
     }
 
-    *failed_reconciliation = ReconciliationStatus::Empty;
-
     get_nothing()
 }
 
@@ -835,7 +797,6 @@ fn intersect_dict(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -867,7 +828,6 @@ fn intersect_dict(
                         statements_analyzer,
                         None,
                         calling_functionlike_id,
-                        failed_reconciliation,
                         is_equality,
                         suppressed_issues,
                     ));
@@ -948,8 +908,6 @@ fn intersect_dict(
         return TUnion::new(acceptable_types);
     }
 
-    *failed_reconciliation = ReconciliationStatus::Empty;
-
     get_nothing()
 }
 
@@ -962,7 +920,6 @@ fn intersect_arraykey(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1006,8 +963,6 @@ fn intersect_arraykey(
         return TUnion::new(acceptable_types);
     }
 
-    *failed_reconciliation = ReconciliationStatus::Empty;
-
     get_nothing()
 }
 
@@ -1020,7 +975,6 @@ fn intersect_num(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1064,8 +1018,6 @@ fn intersect_num(
         return TUnion::new(acceptable_types);
     }
 
-    *failed_reconciliation = ReconciliationStatus::Empty;
-
     get_nothing()
 }
 
@@ -1079,7 +1031,6 @@ fn intersect_string(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1138,7 +1089,6 @@ fn intersect_string(
                         statements_analyzer,
                         None,
                         calling_functionlike_id,
-                        failed_reconciliation,
                         is_equality,
                         suppressed_issues,
                     ));
@@ -1204,8 +1154,6 @@ fn intersect_string(
         return TUnion::new(acceptable_types);
     }
 
-    *failed_reconciliation = ReconciliationStatus::Empty;
-
     get_nothing()
 }
 
@@ -1219,7 +1167,6 @@ fn intersect_int(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1255,7 +1202,6 @@ fn intersect_int(
                         statements_analyzer,
                         None,
                         calling_functionlike_id,
-                        failed_reconciliation,
                         is_equality,
                         suppressed_issues,
                     ));
@@ -1326,8 +1272,6 @@ fn intersect_int(
         return TUnion::new(acceptable_types);
     }
 
-    *failed_reconciliation = ReconciliationStatus::Empty;
-
     get_nothing()
 }
 
@@ -1340,7 +1284,6 @@ fn reconcile_truthy(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let mut did_remove_type = existing_var_type.possibly_undefined_from_try;
@@ -1363,7 +1306,6 @@ fn reconcile_truthy(
 
             if let TAtomic::TGenericParam { as_type, .. } = &atomic {
                 if !as_type.is_mixed() {
-                    let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                     let atomic = atomic.replace_template_extends(reconcile_truthy(
                         assertion,
                         &as_type,
@@ -1373,7 +1315,6 @@ fn reconcile_truthy(
                         statements_analyzer,
                         None,
                         calling_functionlike_id,
-                        &mut template_failed_reconciliation,
                         suppressed_issues,
                     ));
 
@@ -1423,7 +1364,6 @@ fn reconcile_truthy(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -1438,7 +1378,6 @@ fn reconcile_isset(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     inside_loop: bool,
 ) -> TUnion {
@@ -1491,11 +1430,8 @@ fn reconcile_isset(
         }
 
         if acceptable_types.is_empty() {
-            *failed_reconciliation = ReconciliationStatus::Empty;
             return get_nothing();
         }
-
-        *failed_reconciliation = ReconciliationStatus::Redundant;
     }
 
     new_var_type.possibly_undefined_from_try = false;
@@ -1522,7 +1458,6 @@ fn reconcile_non_empty_countable(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
 ) -> TUnion {
@@ -1611,11 +1546,8 @@ fn reconcile_non_empty_countable(
         }
 
         if acceptable_types.is_empty() {
-            *failed_reconciliation = ReconciliationStatus::Empty;
             return get_nothing();
         }
-
-        *failed_reconciliation = ReconciliationStatus::Redundant;
     }
 
     new_var_type.types = acceptable_types;
@@ -1632,7 +1564,6 @@ fn reconcile_exactly_countable(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     recursive_check: bool,
     count: &usize,
@@ -1718,11 +1649,8 @@ fn reconcile_exactly_countable(
         }
 
         if existing_var_type.types.is_empty() {
-            *failed_reconciliation = ReconciliationStatus::Empty;
             return get_nothing();
         }
-
-        *failed_reconciliation = ReconciliationStatus::Redundant;
     }
 
     existing_var_type
@@ -1737,7 +1665,6 @@ fn reconcile_array_access(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     allow_int_key: bool,
 ) -> TUnion {
@@ -1783,11 +1710,8 @@ fn reconcile_array_access(
         }
 
         if new_var_type.types.is_empty() {
-            *failed_reconciliation = ReconciliationStatus::Empty;
             return get_nothing();
         }
-
-        *failed_reconciliation = ReconciliationStatus::Redundant;
     }
 
     new_var_type
@@ -1803,7 +1727,6 @@ fn reconcile_in_array(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    _failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     typed_value: &TUnion,
 ) -> TUnion {
@@ -2055,7 +1978,6 @@ fn reconcile_has_nonnull_entry_for_key(
                             statements_analyzer,
                             None,
                             calling_functionlike_id,
-                            &mut ReconciliationStatus::Ok,
                             suppressed_issues,
                         );
 
@@ -2076,7 +1998,6 @@ fn reconcile_has_nonnull_entry_for_key(
                             statements_analyzer,
                             None,
                             calling_functionlike_id,
-                            &mut ReconciliationStatus::Ok,
                             suppressed_issues,
                         );
                         known_items.insert(key_name.clone(), (false, Arc::new(nonnull)));
@@ -2112,7 +2033,6 @@ fn reconcile_has_nonnull_entry_for_key(
                                 statements_analyzer,
                                 None,
                                 calling_functionlike_id,
-                                &mut ReconciliationStatus::Ok,
                                 suppressed_issues,
                             );
                             *known_items = Some(BTreeMap::from([(
@@ -2147,7 +2067,6 @@ fn reconcile_has_nonnull_entry_for_key(
                                 statements_analyzer,
                                 None,
                                 calling_functionlike_id,
-                                &mut ReconciliationStatus::Ok,
                                 suppressed_issues,
                             );
 
@@ -2168,7 +2087,6 @@ fn reconcile_has_nonnull_entry_for_key(
                                 statements_analyzer,
                                 None,
                                 calling_functionlike_id,
-                                &mut ReconciliationStatus::Ok,
                                 suppressed_issues,
                             );
                             known_items.insert(*i as usize, (false, nonnull));
@@ -2188,7 +2106,6 @@ fn reconcile_has_nonnull_entry_for_key(
                                 statements_analyzer,
                                 None,
                                 calling_functionlike_id,
-                                &mut ReconciliationStatus::Ok,
                                 suppressed_issues,
                             );
                             *known_items = Some(BTreeMap::from([(*i as usize, (false, nonnull))]));
@@ -2295,7 +2212,6 @@ pub(crate) fn get_acceptable_type(
     assertion: &Assertion,
     negated: bool,
     suppressed_issues: &FxHashMap<String, usize>,
-    failed_reconciliation: &mut ReconciliationStatus,
     mut new_var_type: TUnion,
 ) -> TUnion {
     if acceptable_types.is_empty() || !did_remove_type {
@@ -2318,14 +2234,9 @@ pub(crate) fn get_acceptable_type(
                 );
             }
         }
-
-        if !did_remove_type {
-            *failed_reconciliation = ReconciliationStatus::Redundant;
-        }
     }
 
     if acceptable_types.is_empty() {
-        *failed_reconciliation = ReconciliationStatus::Empty;
         return get_nothing();
     }
 

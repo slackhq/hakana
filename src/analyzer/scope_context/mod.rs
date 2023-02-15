@@ -8,10 +8,8 @@ use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    reconciler::{assertion_reconciler, reconciler},
-    statements_analyzer::StatementsAnalyzer,
-    stmt::control_analyzer::BreakContext,
-    typed_ast::TastInfo,
+    reconciler::assertion_reconciler, statements_analyzer::StatementsAnalyzer,
+    stmt::control_analyzer::BreakContext, typed_ast::TastInfo,
 };
 
 pub mod control_action;
@@ -353,7 +351,6 @@ impl ScopeContext {
                                 None,
                                 &None,
                                 false,
-                                &mut reconciler::ReconciliationStatus::Ok,
                                 false,
                                 &FxHashMap::default(),
                             );

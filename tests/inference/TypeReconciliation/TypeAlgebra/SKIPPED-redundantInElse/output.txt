@@ -1,0 +1,1 @@
+RedundantTypeComparison - 8:10 - $a is not AChild has already been asserted

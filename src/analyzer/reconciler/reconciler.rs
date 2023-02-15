@@ -25,13 +25,6 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc, sync::Arc};
 
-#[derive(PartialEq)]
-pub(crate) enum ReconciliationStatus {
-    Ok,
-    Redundant,
-    Empty,
-}
-
 pub(crate) fn reconcile_keyed_types(
     new_types: &BTreeMap<String, Vec<Vec<Assertion>>>,
     // types we can complain about
@@ -170,8 +163,6 @@ pub(crate) fn reconcile_keyed_types(
 
         let before_adjustment = result_type.clone();
 
-        let mut failed_reconciliation = ReconciliationStatus::Ok;
-
         let mut i = 0;
 
         for new_type_part_parts in new_type_parts {
@@ -199,7 +190,6 @@ pub(crate) fn reconcile_keyed_types(
                         } else {
                             false
                         },
-                    &mut failed_reconciliation,
                     negated,
                     suppressed_issues,
                 );
@@ -298,10 +288,9 @@ pub(crate) fn reconcile_keyed_types(
                 }
             }
         }
+        changed_var_ids.insert(key.clone());
 
-        if type_changed || failed_reconciliation != ReconciliationStatus::Ok {
-            changed_var_ids.insert(key.clone());
-
+        if type_changed {
             if key != "$this" && !key.ends_with("]") {
                 let mut removable_keys = Vec::new();
                 for (new_key, _) in context.vars_in_scope.iter() {
@@ -320,8 +309,6 @@ pub(crate) fn reconcile_keyed_types(
                     context.vars_in_scope.remove(&new_key);
                 }
             }
-        } else if !has_negation && !has_falsyish && !has_isset {
-            changed_var_ids.insert(key.clone());
         }
 
         context

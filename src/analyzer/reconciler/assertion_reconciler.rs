@@ -1,6 +1,5 @@
 use super::{
-    negated_assertion_reconciler,
-    reconciler::{trigger_issue_for_impossible, ReconciliationStatus},
+    negated_assertion_reconciler, reconciler::trigger_issue_for_impossible,
     simple_assertion_reconciler,
 };
 use crate::{
@@ -20,7 +19,7 @@ use hakana_type::{
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashMap;
 
-pub(crate) fn reconcile(
+pub fn reconcile(
     assertion: &Assertion,
     existing_var_type: Option<&TUnion>,
     possibly_undefined: bool,
@@ -31,7 +30,6 @@ pub(crate) fn reconcile(
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     can_report_issues: bool,
-    failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -47,8 +45,6 @@ pub(crate) fn reconcile(
 
     let old_var_type_string = existing_var_type.get_id(Some(&codebase.interner));
 
-    *failed_reconciliation = ReconciliationStatus::Ok;
-
     if is_negation {
         return negated_assertion_reconciler::reconcile(
             assertion,
@@ -60,7 +56,6 @@ pub(crate) fn reconcile(
             old_var_type_string,
             if can_report_issues { pos } else { None },
             calling_functionlike_id,
-            failed_reconciliation,
             negated,
             suppressed_issues,
         );
@@ -76,7 +71,6 @@ pub(crate) fn reconcile(
         statements_analyzer,
         if can_report_issues { pos } else { None },
         calling_functionlike_id,
-        failed_reconciliation,
         negated,
         inside_loop,
         suppressed_issues,
@@ -87,12 +81,8 @@ pub(crate) fn reconcile(
     }
 
     if let Some(assertion_type) = assertion.get_type() {
-        let mut refined_type = refine_atomic_with_union(
-            statements_analyzer,
-            assertion_type,
-            existing_var_type,
-            failed_reconciliation,
-        );
+        let mut refined_type =
+            refine_atomic_with_union(statements_analyzer, assertion_type, existing_var_type);
 
         if let Some(key) = key {
             if let Some(pos) = pos {
@@ -148,7 +138,6 @@ pub(crate) fn refine_atomic_with_union(
     statements_analyzer: &StatementsAnalyzer,
     new_type: &TAtomic,
     existing_var_type: &TUnion,
-    failed_reconciliation: &mut ReconciliationStatus,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
 
@@ -162,8 +151,6 @@ pub(crate) fn refine_atomic_with_union(
 
             return intersection_type;
         }
-
-        *failed_reconciliation = ReconciliationStatus::Empty;
 
         return get_nothing();
     }

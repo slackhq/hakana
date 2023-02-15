@@ -1,7 +1,4 @@
-use super::{
-    reconciler::ReconciliationStatus,
-    simple_assertion_reconciler::{get_acceptable_type, intersect_null},
-};
+use super::simple_assertion_reconciler::{get_acceptable_type, intersect_null};
 use crate::{
     reconciler::reconciler::trigger_issue_for_impossible, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
@@ -30,7 +27,6 @@ pub(crate) fn reconcile(
     tast_info: &mut TastInfo,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     negated: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> Option<TUnion> {
@@ -48,7 +44,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -63,7 +58,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -78,7 +72,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -93,7 +86,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -108,7 +100,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -123,7 +114,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -138,7 +128,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -153,7 +142,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -173,7 +161,6 @@ pub(crate) fn reconcile(
                         statements_analyzer,
                         pos,
                         calling_functionlike_id,
-                        failed_reconciliation,
                         assertion.has_equality(),
                         suppressed_issues,
                     ));
@@ -189,7 +176,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -204,7 +190,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     suppressed_issues,
                 ));
             }
@@ -218,7 +203,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     suppressed_issues,
                 ));
             }
@@ -232,7 +216,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -247,7 +230,6 @@ pub(crate) fn reconcile(
                     statements_analyzer,
                     pos,
                     calling_functionlike_id,
-                    failed_reconciliation,
                     assertion.has_equality(),
                     suppressed_issues,
                 ));
@@ -266,7 +248,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
         )),
         Assertion::IsNotIsset => Some(reconcile_not_isset(
@@ -306,7 +287,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
             typed_value,
         )),
@@ -319,7 +299,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
         )),
         Assertion::DoesNotHaveExactCount(count) => Some(reconcile_not_exactly_countable(
@@ -331,7 +310,6 @@ pub(crate) fn reconcile(
             statements_analyzer,
             pos,
             calling_functionlike_id,
-            failed_reconciliation,
             suppressed_issues,
             count,
         )),
@@ -348,7 +326,6 @@ fn subtract_object(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -367,7 +344,6 @@ fn subtract_object(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_object(
                     assertion,
                     as_type,
@@ -377,7 +353,6 @@ fn subtract_object(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
@@ -411,7 +386,6 @@ fn subtract_object(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -426,7 +400,6 @@ fn subtract_vec(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -445,7 +418,6 @@ fn subtract_vec(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_vec(
                     assertion,
                     as_type,
@@ -455,7 +427,6 @@ fn subtract_vec(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
@@ -489,7 +460,6 @@ fn subtract_vec(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -503,7 +473,6 @@ fn subtract_keyset(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -522,7 +491,6 @@ fn subtract_keyset(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_keyset(
                     assertion,
                     as_type,
@@ -532,7 +500,6 @@ fn subtract_keyset(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
@@ -566,7 +533,6 @@ fn subtract_keyset(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -580,7 +546,6 @@ fn subtract_dict(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -599,7 +564,6 @@ fn subtract_dict(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_dict(
                     assertion,
                     as_type,
@@ -609,7 +573,6 @@ fn subtract_dict(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
@@ -643,7 +606,6 @@ fn subtract_dict(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -657,7 +619,6 @@ fn subtract_string(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -676,7 +637,6 @@ fn subtract_string(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_string(
                     assertion,
                     as_type,
@@ -686,7 +646,6 @@ fn subtract_string(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
@@ -751,7 +710,6 @@ fn subtract_string(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -765,7 +723,6 @@ fn subtract_int(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -784,7 +741,6 @@ fn subtract_int(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_int(
                     assertion,
                     as_type,
@@ -794,7 +750,6 @@ fn subtract_int(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
@@ -868,7 +823,6 @@ fn subtract_int(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -882,7 +836,6 @@ fn subtract_float(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -901,7 +854,6 @@ fn subtract_float(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = &atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let new_atomic = atomic.replace_template_extends(subtract_float(
                     assertion,
                     as_type,
@@ -911,7 +863,6 @@ fn subtract_float(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
@@ -970,7 +921,6 @@ fn subtract_float(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -984,7 +934,6 @@ fn subtract_num(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1003,7 +952,6 @@ fn subtract_num(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_num(
                     assertion,
                     as_type,
@@ -1013,15 +961,12 @@ fn subtract_num(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
 
-                if template_failed_reconciliation == ReconciliationStatus::Ok {
-                    existing_var_type.remove_type(&atomic);
-                    existing_var_type.types.push(atomic);
-                }
+                existing_var_type.remove_type(&atomic);
+                existing_var_type.types.push(atomic);
             }
 
             did_remove_type = true;
@@ -1067,14 +1012,9 @@ fn subtract_num(
                 );
             }
         }
-
-        if !did_remove_type {
-            *failed_reconciliation = ReconciliationStatus::Redundant;
-        }
     }
 
     if existing_var_type.types.is_empty() {
-        *failed_reconciliation = ReconciliationStatus::Empty;
         return get_nothing();
     }
 
@@ -1090,7 +1030,6 @@ fn subtract_arraykey(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1109,7 +1048,6 @@ fn subtract_arraykey(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_arraykey(
                     assertion,
                     as_type,
@@ -1119,15 +1057,12 @@ fn subtract_arraykey(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
 
-                if template_failed_reconciliation == ReconciliationStatus::Ok {
-                    existing_var_type.remove_type(&atomic);
-                    existing_var_type.types.push(atomic);
-                }
+                existing_var_type.remove_type(&atomic);
+                existing_var_type.types.push(atomic);
             } else {
                 did_remove_type = true;
             }
@@ -1175,14 +1110,9 @@ fn subtract_arraykey(
                 );
             }
         }
-
-        if !did_remove_type {
-            *failed_reconciliation = ReconciliationStatus::Redundant;
-        }
     }
 
     if existing_var_type.types.is_empty() {
-        *failed_reconciliation = ReconciliationStatus::Empty;
         return get_nothing();
     }
 
@@ -1198,7 +1128,6 @@ fn subtract_bool(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1217,7 +1146,6 @@ fn subtract_bool(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_bool(
                     assertion,
                     as_type,
@@ -1227,15 +1155,12 @@ fn subtract_bool(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
 
-                if template_failed_reconciliation == ReconciliationStatus::Ok {
-                    existing_var_type.remove_type(&atomic);
-                    existing_var_type.types.push(atomic);
-                }
+                existing_var_type.remove_type(&atomic);
+                existing_var_type.types.push(atomic);
             } else {
                 did_remove_type = true;
             }
@@ -1274,14 +1199,9 @@ fn subtract_bool(
                 );
             }
         }
-
-        if !did_remove_type {
-            *failed_reconciliation = ReconciliationStatus::Redundant;
-        }
     }
 
     if existing_var_type.types.is_empty() {
-        *failed_reconciliation = ReconciliationStatus::Empty;
         return get_nothing();
     }
 
@@ -1297,7 +1217,6 @@ pub(crate) fn subtract_null(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let mut did_remove_type = false;
@@ -1310,7 +1229,6 @@ pub(crate) fn subtract_null(
 
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = &atomic {
-            let mut template_failed_reconciliation = ReconciliationStatus::Ok;
             let new_atomic = atomic.replace_template_extends(subtract_null(
                 assertion,
                 &as_type,
@@ -1320,7 +1238,6 @@ pub(crate) fn subtract_null(
                 statements_analyzer,
                 None,
                 calling_functionlike_id,
-                &mut template_failed_reconciliation,
                 suppressed_issues,
             ));
 
@@ -1367,7 +1284,6 @@ pub(crate) fn subtract_null(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -1381,7 +1297,6 @@ fn subtract_false(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1400,7 +1315,6 @@ fn subtract_false(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_false(
                     assertion,
                     as_type,
@@ -1410,15 +1324,12 @@ fn subtract_false(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
 
-                if template_failed_reconciliation == ReconciliationStatus::Ok {
-                    existing_var_type.remove_type(&atomic);
-                    existing_var_type.types.push(atomic);
-                }
+                existing_var_type.remove_type(&atomic);
+                existing_var_type.types.push(atomic)
             } else {
                 did_remove_type = true;
             }
@@ -1450,14 +1361,9 @@ fn subtract_false(
                 );
             }
         }
-
-        if !did_remove_type {
-            *failed_reconciliation = ReconciliationStatus::Redundant;
-        }
     }
 
     if existing_var_type.types.is_empty() {
-        *failed_reconciliation = ReconciliationStatus::Empty;
         return get_nothing();
     }
 
@@ -1473,7 +1379,6 @@ fn subtract_true(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     is_equality: bool,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
@@ -1492,7 +1397,6 @@ fn subtract_true(
     for atomic in existing_var_types {
         if let TAtomic::TGenericParam { as_type, .. } = atomic {
             if !is_equality && !as_type.is_mixed() {
-                let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                 let atomic = atomic.replace_template_extends(subtract_true(
                     assertion,
                     as_type,
@@ -1502,15 +1406,12 @@ fn subtract_true(
                     statements_analyzer,
                     None,
                     calling_functionlike_id,
-                    &mut template_failed_reconciliation,
                     is_equality,
                     suppressed_issues,
                 ));
 
-                if template_failed_reconciliation == ReconciliationStatus::Ok {
-                    existing_var_type.remove_type(&atomic);
-                    existing_var_type.types.push(atomic);
-                }
+                existing_var_type.remove_type(&atomic);
+                existing_var_type.types.push(atomic);
             } else {
                 did_remove_type = true;
             }
@@ -1542,14 +1443,9 @@ fn subtract_true(
                 );
             }
         }
-
-        if !did_remove_type {
-            *failed_reconciliation = ReconciliationStatus::Redundant;
-        }
     }
 
     if existing_var_type.types.is_empty() {
-        *failed_reconciliation = ReconciliationStatus::Empty;
         return get_nothing();
     }
 
@@ -1565,7 +1461,6 @@ fn reconcile_falsy(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let mut did_remove_type = existing_var_type.possibly_undefined_from_try;
@@ -1588,7 +1483,6 @@ fn reconcile_falsy(
 
             if let TAtomic::TGenericParam { as_type, .. } = &atomic {
                 if !as_type.is_mixed() {
-                    let mut template_failed_reconciliation = ReconciliationStatus::Ok;
                     let atomic = atomic.replace_template_extends(reconcile_falsy(
                         assertion,
                         as_type,
@@ -1598,7 +1492,6 @@ fn reconcile_falsy(
                         statements_analyzer,
                         None,
                         calling_functionlike_id,
-                        &mut template_failed_reconciliation,
                         suppressed_issues,
                     ));
 
@@ -1662,7 +1555,6 @@ fn reconcile_falsy(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -1707,7 +1599,6 @@ fn reconcile_empty_countable(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
 ) -> TUnion {
     let mut did_remove_type = existing_var_type.possibly_undefined_from_try;
@@ -1766,7 +1657,6 @@ fn reconcile_empty_countable(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -1780,7 +1670,6 @@ fn reconcile_not_exactly_countable(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     count: &usize,
 ) -> TUnion {
@@ -1825,7 +1714,6 @@ fn reconcile_not_exactly_countable(
         assertion,
         negated,
         suppressed_issues,
-        failed_reconciliation,
         new_var_type,
     )
 }
@@ -1840,7 +1728,6 @@ fn reconcile_not_in_array(
     statements_analyzer: &StatementsAnalyzer,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
-    failed_reconciliation: &mut ReconciliationStatus,
     suppressed_issues: &FxHashMap<String, usize>,
     typed_value: &TUnion,
 ) -> TUnion {
@@ -1865,8 +1752,6 @@ fn reconcile_not_in_array(
                 suppressed_issues,
             );
         }
-
-        *failed_reconciliation = ReconciliationStatus::Empty;
     }
 
     get_mixed_any()
@@ -2027,7 +1912,6 @@ fn reconcile_no_array_key(
         assertion,
         negated,
         suppressed_issues,
-        &mut ReconciliationStatus::Empty,
         new_var_type,
     )
 }
