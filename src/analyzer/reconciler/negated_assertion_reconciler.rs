@@ -74,33 +74,58 @@ pub(crate) fn reconcile(
 
     let codebase = statements_analyzer.get_codebase();
 
-    if !is_equality {
-        if let Some(assertion_type) = assertion.get_type() {
-            subtract_complex_type(assertion_type, codebase, &mut existing_var_type);
-        }
-    } else if let Some(assertion_type) = assertion.get_type() {
-        // todo prevent complaining about $this assertions in traits
-
-        if let Some(key) = &key {
-            if let Some(pos) = pos {
-                if !union_type_comparator::can_expression_types_be_identical(
+    if let Some(assertion_type) = assertion.get_type() {
+        if !is_equality {
+            if let Some(assertion_type) = assertion.get_type() {
+                let mut has_changes = false;
+                subtract_complex_type(
+                    assertion_type,
                     codebase,
-                    &existing_var_type,
-                    &wrap_atomic(assertion_type.clone()),
-                    true,
-                ) {
-                    trigger_issue_for_impossible(
-                        tast_info,
-                        statements_analyzer,
-                        &old_var_type_string,
-                        key,
-                        assertion,
+                    &mut existing_var_type,
+                    &mut has_changes,
+                );
+
+                if !has_changes || existing_var_type.is_nothing() {
+                    if let Some(key) = &key {
+                        if let Some(pos) = pos {
+                            trigger_issue_for_impossible(
+                                tast_info,
+                                statements_analyzer,
+                                &old_var_type_string,
+                                key,
+                                assertion,
+                                !has_changes,
+                                negated,
+                                pos,
+                                calling_functionlike_id,
+                                suppressed_issues,
+                            );
+                        }
+                    }
+                }
+            }
+        } else {
+            if let Some(key) = &key {
+                if let Some(pos) = pos {
+                    if !union_type_comparator::can_expression_types_be_identical(
+                        codebase,
+                        &existing_var_type,
+                        &wrap_atomic(assertion_type.clone()),
                         true,
-                        negated,
-                        pos,
-                        calling_functionlike_id,
-                        suppressed_issues,
-                    );
+                    ) {
+                        trigger_issue_for_impossible(
+                            tast_info,
+                            statements_analyzer,
+                            &old_var_type_string,
+                            key,
+                            assertion,
+                            true,
+                            negated,
+                            pos,
+                            calling_functionlike_id,
+                            suppressed_issues,
+                        );
+                    }
                 }
             }
         }
@@ -138,19 +163,28 @@ fn subtract_complex_type(
     assertion_type: &TAtomic,
     codebase: &CodebaseInfo,
     existing_var_type: &mut TUnion,
+    can_be_disjunct: &mut bool,
 ) {
     let mut acceptable_types = vec![];
 
     let existing_atomic_types = existing_var_type.types.drain(..).collect::<Vec<_>>();
 
     for existing_atomic in existing_atomic_types {
+        if &existing_atomic == assertion_type {
+            *can_be_disjunct = true;
+
+            continue;
+        }
+
         if atomic_type_comparator::is_contained_by(
             codebase,
             &existing_atomic,
             assertion_type,
-            false,
+            true,
             &mut TypeComparisonResult::new(),
         ) {
+            *can_be_disjunct = true;
+
             // don't add as acceptable
             continue;
         }
@@ -159,10 +193,10 @@ fn subtract_complex_type(
             codebase,
             assertion_type,
             &existing_atomic,
-            false,
+            true,
             &mut TypeComparisonResult::new(),
         ) {
-            // todo set is_different property
+            *can_be_disjunct = true;
         }
 
         match (&existing_atomic, assertion_type) {
@@ -190,15 +224,34 @@ fn subtract_complex_type(
                                 &mut acceptable_types,
                             );
 
+                            *can_be_disjunct = true;
+
                             continue;
                         }
                     }
                 }
 
+                if (codebase.interface_exists(assertion_classlike_name)
+                    || codebase.interface_exists(existing_classlike_name))
+                    && assertion_classlike_name != existing_classlike_name
+                {
+                    *can_be_disjunct = true;
+                }
+
                 acceptable_types.push(existing_atomic);
             }
             (TAtomic::TDict { .. }, TAtomic::TDict { .. }) => {
+                *can_be_disjunct = true;
                 // todo subtract assertion dict from existing
+                acceptable_types.push(existing_atomic);
+            }
+            (TAtomic::TString | TAtomic::TStringWithFlags(..), TAtomic::TEnum { .. })
+            | (TAtomic::TEnum { .. }, TAtomic::TString | TAtomic::TStringWithFlags(..)) => {
+                *can_be_disjunct = true;
+                acceptable_types.push(existing_atomic);
+            }
+            (TAtomic::TEnum { .. }, TAtomic::TEnum { .. }) => {
+                *can_be_disjunct = true;
                 acceptable_types.push(existing_atomic);
             }
             _ => {
@@ -207,7 +260,9 @@ fn subtract_complex_type(
         }
     }
 
-    if acceptable_types.len() > 1 {
+    if acceptable_types.is_empty() {
+        acceptable_types.push(TAtomic::TNothing);
+    } else if acceptable_types.len() > 1 && *can_be_disjunct {
         acceptable_types = type_combiner::combine(acceptable_types, codebase, false);
     }
 
@@ -304,9 +359,9 @@ fn handle_literal_negated_equality(
                 }
             }
             TAtomic::TString => {
-                did_remove_type = true;
-
                 if let TAtomic::TLiteralString { value, .. } = assertion_type {
+                    did_remove_type = true;
+
                     if value == "" {
                         acceptable_types.push(TAtomic::TStringWithFlags(false, true, false));
                     } else {
@@ -317,9 +372,9 @@ fn handle_literal_negated_equality(
                 }
             }
             TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) => {
-                did_remove_type = true;
-
                 if let TAtomic::TLiteralString { value, .. } = assertion_type {
+                    did_remove_type = true;
+
                     if value == "" {
                         acceptable_types.push(TAtomic::TStringWithFlags(
                             false,
@@ -338,8 +393,7 @@ fn handle_literal_negated_equality(
                 ..
             } => {
                 if let TAtomic::TLiteralString { value, .. } = assertion_type {
-                    did_match_literal_type = true;
-                    if &value == &existing_value {
+                    if value == existing_value {
                         did_remove_type = true;
                     } else {
                         acceptable_types.push(existing_atomic_type);
@@ -358,10 +412,10 @@ fn handle_literal_negated_equality(
                     constraint_type,
                 } = assertion_type
                 {
+                    did_remove_type = true;
+
                     if enum_name == &existing_name {
                         let enum_storage = codebase.classlike_infos.get(enum_name).unwrap();
-
-                        did_remove_type = true;
 
                         for (cname, _) in &enum_storage.constants {
                             if cname != member_name {
@@ -470,7 +524,7 @@ fn handle_literal_negated_equality(
 
     if let Some(key) = &key {
         if let Some(pos) = pos {
-            if did_match_literal_type && (!did_remove_type || acceptable_types.is_empty()) {
+            if !did_remove_type || acceptable_types.is_empty() {
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,

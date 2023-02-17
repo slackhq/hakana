@@ -455,26 +455,7 @@ impl ScopeContext {
     }
 
     pub(crate) fn has_variable(&mut self, var_name: &String) -> bool {
-        let chars: Vec<_> = var_name.chars().collect();
-        let char_count = chars.len();
-
-        let mut i = 0;
-
-        while i < char_count {
-            let ichar = *chars.get(i).unwrap();
-
-            if let '[' | '-' = ichar {
-                break;
-            }
-
-            i += 1;
-        }
-
-        let stripped_var = var_name[0..i].to_string();
-
-        if stripped_var != "$this" || var_name != &stripped_var {
-            self.cond_referenced_var_ids.insert(var_name.clone());
-        }
+        self.cond_referenced_var_ids.insert(var_name.clone());
 
         self.vars_in_scope.contains_key(var_name)
     }

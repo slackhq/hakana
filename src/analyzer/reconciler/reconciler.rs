@@ -288,9 +288,10 @@ pub(crate) fn reconcile_keyed_types(
                 }
             }
         }
-        changed_var_ids.insert(key.clone());
 
         if type_changed {
+            changed_var_ids.insert(key.clone());
+
             if key != "$this" && !key.ends_with("]") {
                 let mut removable_keys = Vec::new();
                 for (new_key, _) in context.vars_in_scope.iter() {
@@ -309,6 +310,8 @@ pub(crate) fn reconcile_keyed_types(
                     context.vars_in_scope.remove(&new_key);
                 }
             }
+        } else if !has_negation && !has_falsyish && !has_isset {
+            changed_var_ids.insert(key.clone());
         }
 
         context

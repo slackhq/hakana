@@ -49,14 +49,17 @@ pub(crate) fn check_for_paradox(
                 })
             })
         {
+            let clause_string =
+                formula_2_clause.to_string(&statements_analyzer.get_codebase().interner);
+
             tast_info.maybe_add_issue(
                 Issue::new(
-                    IssueKind::RedundantTypeComparison,
-                    format!(
-                        "{} {}",
-                        formula_2_clause.to_string(&statements_analyzer.get_codebase().interner),
-                        "has already been asserted"
-                    ),
+                    if clause_string == "isset" {
+                        IssueKind::RedundantIssetCheck
+                    } else {
+                        IssueKind::RedundantTypeComparison
+                    },
+                    format!("{} {}", clause_string, "has already been asserted"),
                     statements_analyzer.get_hpos(&pos),
                     calling_functionlike_id,
                 ),

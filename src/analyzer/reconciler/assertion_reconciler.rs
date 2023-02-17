@@ -86,34 +86,36 @@ pub fn reconcile(
 
         if let Some(key) = key {
             if let Some(pos) = pos {
-                if &existing_var_type.types == &refined_type.types {
-                    if !assertion.has_equality() && !assertion_type.is_mixed() {
+                if can_report_issues {
+                    if &existing_var_type.types == &refined_type.types {
+                        if !assertion.has_equality() && !assertion_type.is_mixed() {
+                            trigger_issue_for_impossible(
+                                tast_info,
+                                statements_analyzer,
+                                &old_var_type_string,
+                                key,
+                                assertion,
+                                true,
+                                negated,
+                                pos,
+                                calling_functionlike_id,
+                                suppressed_issues,
+                            );
+                        }
+                    } else if refined_type.is_nothing() {
                         trigger_issue_for_impossible(
                             tast_info,
                             statements_analyzer,
                             &old_var_type_string,
                             key,
                             assertion,
-                            true,
+                            false,
                             negated,
                             pos,
                             calling_functionlike_id,
                             suppressed_issues,
                         );
                     }
-                } else if refined_type.is_nothing() {
-                    trigger_issue_for_impossible(
-                        tast_info,
-                        statements_analyzer,
-                        &old_var_type_string,
-                        key,
-                        assertion,
-                        false,
-                        negated,
-                        pos,
-                        calling_functionlike_id,
-                        suppressed_issues,
-                    );
                 }
             }
         }

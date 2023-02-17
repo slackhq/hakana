@@ -1,0 +1,1 @@
+ERROR: ImpossibleTypeComparison - input.hack:2:9 - Type string is never =int(5)

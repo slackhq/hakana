@@ -1,0 +1,1 @@
+ERROR: RedundantTypeComparison - input.hack:2:9 - Type vec<string> is always vec<_>
