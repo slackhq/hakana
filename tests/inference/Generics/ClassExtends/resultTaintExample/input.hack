@@ -28,14 +28,15 @@ function foo(): Result<string, string> {
 
 function bar(): void {
     $b = foo();
-    if ($b is ResultSuccess<_>) {
-        echo $b->get();
+    if ($b is ResultError<_>) {
+        echo $b->getError();
     }
 }
 
 function get_a_result(): Result<string, string> {
     if (rand(0, 1)) {
-        return new ResultError("bad");
+        /* HAKANA_IGNORE[PossiblyUndefinedStringArrayOffset] */
+        return new ResultError((string)$_GET['bad']);
     }
-    return new ResultSuccess($_GET['arr']);
+    return new ResultSuccess("good");
 }

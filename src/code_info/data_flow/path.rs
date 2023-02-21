@@ -10,7 +10,7 @@ pub enum ArrayDataKind {
     ArrayValue,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PathKind {
     Default,
     UnknownArrayFetch(ArrayDataKind),
@@ -24,6 +24,29 @@ pub enum PathKind {
     RemoveDictKey(String),
     RefineSymbol(StrId),
     ScalarTypeGuard,
+}
+
+impl std::fmt::Display for PathKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match &self {
+            PathKind::Default => std::fmt::Result::Ok(()),
+            PathKind::UnknownArrayFetch(_) | PathKind::ArrayFetch(_, _) => {
+                write!(f, "array-fetch")
+            }
+            PathKind::UnknownArrayAssignment(_) | PathKind::ArrayAssignment(_, _) => {
+                write!(f, "array-assignment")
+            }
+            PathKind::PropertyFetch(_, _) | PathKind::UnknownPropertyFetch => {
+                write!(f, "property-fetch")
+            }
+            PathKind::PropertyAssignment(_, _) | PathKind::UnknownPropertyAssignment => {
+                write!(f, "property-assignment")
+            }
+            PathKind::RemoveDictKey(_) => write!(f, "remove-dict-key"),
+            PathKind::RefineSymbol(_) => write!(f, "refine-symbol"),
+            PathKind::ScalarTypeGuard => write!(f, "scalar-type-guard"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

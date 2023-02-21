@@ -1,10 +1,12 @@
 class A {
     public function getUserId() : string {
-        return (string) $_GET["user_id"];
+        $user_id = (string) $_GET["user_id"];
+        return $user_id;
     }
 
     public function getAppendedUserId() : string {
-        return "aaaa" . $this->getUserId();
+        $appended = "aaaa" . $this->getUserId();
+        return $appended;
     }
 
     public function doDelete(AsyncMysqlConnection $conn) : void {

@@ -1,5 +1,6 @@
 function getName() : string {
-    return $_GET["name"] ?? "unknown";
+    $a = $_GET["name"] ?? "unknown";
+    return $a;
 }
 
 echo getName();

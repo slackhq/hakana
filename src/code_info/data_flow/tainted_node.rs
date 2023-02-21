@@ -52,7 +52,7 @@ impl TaintedNode {
                 "{} {} {}",
                 previous_source.get_trace(interner),
                 if let Some(path) = path {
-                    format!("--{:?}-->", path)
+                    format!("--{}-->", path)
                 } else {
                     "-->".to_string()
                 },

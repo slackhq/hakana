@@ -277,25 +277,26 @@ pub(crate) fn reconcile_keyed_types(
                         None
                     };
                     if let Some(narrowed_symbol) = narrowed_symbol {
-                        let scalar_check_node = DataFlowNode::get_for_assignment(
-                            key.clone(),
+                        let narrowing_node = DataFlowNode::get_for_assignment(
+                            key.clone()
+                                + " narrowed to "
+                                + &codebase.interner.lookup(narrowed_symbol),
                             statements_analyzer.get_hpos(pos),
                         );
 
                         for parent_node in &before_adjustment.parent_nodes {
                             tast_info.data_flow_graph.add_path(
                                 parent_node,
-                                &scalar_check_node,
+                                &narrowing_node,
                                 PathKind::RefineSymbol(*narrowed_symbol),
                                 None,
                                 None,
                             );
                         }
 
-                        result_type.parent_nodes =
-                            FxHashSet::from_iter([scalar_check_node.clone()]);
+                        result_type.parent_nodes = FxHashSet::from_iter([narrowing_node.clone()]);
 
-                        tast_info.data_flow_graph.add_node(scalar_check_node);
+                        tast_info.data_flow_graph.add_node(narrowing_node);
                     } else {
                         result_type.parent_nodes = before_adjustment.parent_nodes.clone();
                     }

@@ -538,21 +538,34 @@ fn handle_dataflow(
             }
         }
 
+        let return_expr_node = DataFlowNode::get_for_assignment(
+            "return".to_string(),
+            statements_analyzer.get_hpos(&return_expr.pos()),
+        );
+
+        for parent_node in &inferred_type.parent_nodes {
+            data_flow_graph.add_path(
+                &parent_node,
+                &return_expr_node,
+                PathKind::Default,
+                functionlike_storage.added_taints.clone(),
+                functionlike_storage.removed_taints.clone(),
+            );
+        }
+
         let method_node = DataFlowNode::get_for_method_return(
             functionlike_id.to_string(&codebase.interner),
             functionlike_storage.return_type_location.clone(),
             None,
         );
 
-        for parent_node in &inferred_type.parent_nodes {
-            data_flow_graph.add_path(
-                &parent_node,
-                &method_node,
-                PathKind::Default,
-                functionlike_storage.added_taints.clone(),
-                functionlike_storage.removed_taints.clone(),
-            );
-        }
+        data_flow_graph.add_path(
+            &return_expr_node,
+            &method_node,
+            PathKind::Default,
+            None,
+            None,
+        );
 
         if let FunctionLikeIdentifier::Method(classlike_name, method_name) = functionlike_id {
             if let Some(classlike_info) = codebase.classlike_infos.get(&classlike_name) {
@@ -588,6 +601,7 @@ fn handle_dataflow(
             }
         }
 
+        data_flow_graph.add_node(return_expr_node);
         data_flow_graph.add_node(method_node);
     }
 }
