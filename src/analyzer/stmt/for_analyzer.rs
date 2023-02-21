@@ -53,7 +53,7 @@ pub(crate) fn analyze(
 
     let (analysis_result, _) = loop_analyzer::analyze(
         statements_analyzer,
-        stmt.3,
+        &stmt.3.0,
         if let Some(cond_expr) = stmt.1 {
             vec![cond_expr]
         } else {

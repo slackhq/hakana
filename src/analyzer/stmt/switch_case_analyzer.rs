@@ -237,8 +237,8 @@ pub(crate) fn analyze_case(
             stmt.0 .1.clone(),
             aast::Stmt_::If(Box::new((
                 switch_scope.leftover_case_equality_expr.clone().unwrap(),
-                case_stmts,
-                vec![],
+                aast::Block(case_stmts),
+                aast::Block(vec![]),
             ))),
         )];
 

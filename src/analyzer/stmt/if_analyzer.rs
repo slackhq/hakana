@@ -109,14 +109,14 @@ pub(crate) fn analyze(
     if_context.assigned_var_ids.clear();
     if_context.possibly_assigned_var_ids.clear();
 
-    if !statements_analyzer.analyze(stmt.1, tast_info, if_context, loop_scope) {
+    if !statements_analyzer.analyze(&stmt.1.0, tast_info, if_context, loop_scope) {
         return false;
     }
 
     let final_actions = control_analyzer::get_control_actions(
         codebase,
         statements_analyzer.get_file_analyzer().resolved_names,
-        stmt.1,
+        &stmt.1.0,
         Some(tast_info),
         Vec::new(),
         true,

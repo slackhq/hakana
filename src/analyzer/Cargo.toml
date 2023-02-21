@@ -15,7 +15,7 @@ hakana-reflection-info = { path = "../code_info" }
 hakana-reflector = { path = "../code_info_builder" }
 parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }
 oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
-ocamlrep = { path = "../../third-party/hhvm/hphp/hack/src/ocamlrep" }
+ocamlrep = { version = "0.1.0", git = "https://github.com/muglug/ocamlrep/", branch = "main" }
 naming_special_names_rust = { path = "../../third-party/hhvm/hphp/hack/src/naming" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

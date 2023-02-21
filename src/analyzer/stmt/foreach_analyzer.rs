@@ -148,7 +148,7 @@ pub(crate) fn analyze(
 
     let (analysis_result, _) = loop_analyzer::analyze(
         statements_analyzer,
-        stmt.2,
+        &stmt.2.0,
         vec![],
         vec![],
         &mut LoopScope::new(context.vars_in_scope.clone()),

@@ -612,13 +612,11 @@ pub(crate) fn analyze(
         | aast::Expr_::Upcast(_)
         | aast::Expr_::ExpressionTree(_)
         | aast::Expr_::Lplaceholder(_)
-        | aast::Expr_::FunId(_)
-        | aast::Expr_::MethodId(_)
         | aast::Expr_::MethodCaller(_)
-        | aast::Expr_::SmethodId(_)
         | aast::Expr_::Pair(_)
         | aast::Expr_::ETSplice(_)
-        | aast::Expr_::Hole(_) => {
+        | aast::Expr_::Hole(_)
+        | aast::Expr_::Invalid(_) => {
             tast_info.maybe_add_issue(
                 Issue::new(
                     IssueKind::UnrecognizedExpression,

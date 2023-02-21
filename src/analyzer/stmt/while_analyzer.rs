@@ -31,7 +31,7 @@ pub(crate) fn analyze(
 
     let (analysis_result, inner_loop_context) = loop_analyzer::analyze(
         statements_analyzer,
-        stmt.1,
+        &stmt.1.0,
         get_and_expressions(stmt.0),
         vec![],
         &mut loop_scope,

@@ -167,7 +167,7 @@ pub(crate) fn analyze(
         }
         aast::Stmt_::Awaitall(boxed) => {
             analyze_awaitall(
-                boxed,
+                (&boxed.0, &boxed.1.0),
                 statements_analyzer,
                 tast_info,
                 context,
@@ -245,17 +245,17 @@ pub(crate) fn analyze(
 }
 
 fn analyze_awaitall(
-    boxed: &Box<(
-        Vec<(Option<oxidized::tast::Lid>, aast::Expr<(), ()>)>,
-        Vec<aast::Stmt<(), ()>>,
-    )>,
+    boxed: (
+        &Vec<(Option<oxidized::tast::Lid>, aast::Expr<(), ()>)>,
+        &Vec<aast::Stmt<(), ()>>,
+    ),
     statements_analyzer: &StatementsAnalyzer,
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
     stmt: &aast::Stmt<(), ()>,
     loop_scope: &mut Option<LoopScope>,
 ) {
-    for (assignment_id, expr) in &boxed.0 {
+    for (assignment_id, expr) in boxed.0 {
         expression_analyzer::analyze(statements_analyzer, expr, tast_info, context, &mut None);
 
         if let Some(assignment_id) = assignment_id {
@@ -304,7 +304,7 @@ fn analyze_awaitall(
         }
     }
 
-    for stmt in &boxed.1 {
+    for stmt in boxed.1 {
         analyze(statements_analyzer, &stmt, tast_info, context, loop_scope);
     }
 }

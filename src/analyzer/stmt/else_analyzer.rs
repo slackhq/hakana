@@ -76,7 +76,7 @@ pub(crate) fn analyze(
     let pre_possibly_assigned_var_ids = else_context.possibly_assigned_var_ids.clone();
     else_context.possibly_assigned_var_ids.clear();
 
-    if !statements_analyzer.analyze(stmts, tast_info, else_context, loop_scope) {
+    if !statements_analyzer.analyze(&stmts.0, tast_info, else_context, loop_scope) {
         return false;
     }
 
@@ -98,7 +98,7 @@ pub(crate) fn analyze(
         control_analyzer::get_control_actions(
             statements_analyzer.get_codebase(),
             statements_analyzer.get_file_analyzer().resolved_names,
-            stmts,
+            &stmts.0,
             Some(tast_info),
             Vec::new(),
             true,

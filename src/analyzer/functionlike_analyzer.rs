@@ -97,7 +97,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &function_storage,
             ScopeContext::new(function_context),
             &stmt.fun.params,
-            &stmt.fun.body.fb_ast,
+            &stmt.fun.body.fb_ast.0,
             analysis_result,
             None,
         );
@@ -152,7 +152,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &lambda_storage,
             context,
             &stmt.params,
-            &stmt.body.fb_ast,
+            &stmt.body.fb_ast.0,
             analysis_result,
             Some(tast_info),
         );
@@ -268,7 +268,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             functionlike_storage,
             context,
             &stmt.params,
-            &stmt.body.fb_ast,
+            &stmt.body.fb_ast.0,
             analysis_result,
             None,
         );

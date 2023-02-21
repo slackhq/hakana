@@ -94,7 +94,7 @@ pub(crate) fn analyze(
     if let Some(default_case) = stmt.2 {
         update_case_exit_map(
             codebase,
-            &default_case.1,
+            &default_case.1.0,
             tast_info,
             statements_analyzer.get_file_analyzer().resolved_names,
             &mut case_action_map,
@@ -107,7 +107,7 @@ pub(crate) fn analyze(
     for (i, case) in &cases {
         update_case_exit_map(
             codebase,
-            &case.1,
+            &case.1.0,
             tast_info,
             statements_analyzer.get_file_analyzer().resolved_names,
             &mut case_action_map,
@@ -164,7 +164,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             Some(&case.0),
             &case.0.pos(),
-            &case.1,
+            &case.1.0,
             &previous_empty_cases,
             tast_info,
             context,
@@ -200,7 +200,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             None,
             &default_case.0,
-            &default_case.1,
+            &default_case.1.0,
             &previous_empty_cases,
             tast_info,
             context,

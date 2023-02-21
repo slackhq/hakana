@@ -94,5 +94,6 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual(),
             );
         }
+        aast::Def::Package(_) => todo!(),
     }
 }

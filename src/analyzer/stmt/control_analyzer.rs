@@ -84,7 +84,7 @@ pub(crate) fn get_control_actions(
                 let if_statement_actions = get_control_actions(
                     codebase,
                     resolved_names,
-                    if_stmt.1,
+                    &if_stmt.1.0,
                     tast_info,
                     break_context.clone(),
                     return_is_exit,
@@ -99,7 +99,7 @@ pub(crate) fn get_control_actions(
                 let else_statement_actions = get_control_actions(
                     codebase,
                     resolved_names,
-                    if_stmt.2,
+                    &if_stmt.2.0,
                     tast_info,
                     break_context.clone(),
                     return_is_exit,
@@ -141,7 +141,7 @@ pub(crate) fn get_control_actions(
                 let loop_actions = get_control_actions(
                     codebase,
                     resolved_names,
-                    loop_stmts,
+                    &loop_stmts.0,
                     tast_info,
                     loop_break_context,
                     return_is_exit,
@@ -230,7 +230,7 @@ pub(crate) fn get_control_actions(
                     let case_actions = get_control_actions(
                         codebase,
                         resolved_names,
-                        inner_case_stmts,
+                        &inner_case_stmts.0,
                         tast_info,
                         switch_break_context.clone(),
                         return_is_exit,
@@ -268,7 +268,7 @@ pub(crate) fn get_control_actions(
                     let case_actions = get_control_actions(
                         codebase,
                         resolved_names,
-                        inner_case_stmts,
+                        &inner_case_stmts.0,
                         tast_info,
                         switch_break_context.clone(),
                         return_is_exit,
@@ -322,7 +322,7 @@ pub(crate) fn get_control_actions(
                 let try_stmt_actions = get_control_actions(
                     codebase,
                     resolved_names,
-                    stmt.0,
+                    &stmt.0.0,
                     tast_info,
                     break_context.clone(),
                     return_is_exit,
@@ -343,7 +343,7 @@ pub(crate) fn get_control_actions(
                         let catch_actions = get_control_actions(
                             codebase,
                             resolved_names,
-                            &catch.2,
+                            &catch.2.0,
                             tast_info,
                             break_context.clone(),
                             return_is_exit,
@@ -383,7 +383,7 @@ pub(crate) fn get_control_actions(
                     let finally_actions = get_control_actions(
                         codebase,
                         resolved_names,
-                        stmt.2,
+                        &stmt.2.0,
                         tast_info,
                         break_context.clone(),
                         return_is_exit,
@@ -405,7 +405,7 @@ pub(crate) fn get_control_actions(
                 let mut block_actions = get_control_actions(
                     codebase,
                     resolved_names,
-                    block_stmts,
+                    &block_stmts.0,
                     tast_info,
                     break_context.clone(),
                     return_is_exit,
@@ -425,7 +425,7 @@ pub(crate) fn get_control_actions(
                 let mut block_actions = get_control_actions(
                     codebase,
                     resolved_names,
-                    &boxed.1,
+                    &boxed.1.0,
                     tast_info,
                     break_context.clone(),
                     return_is_exit,

@@ -70,7 +70,7 @@ pub(crate) fn analyze(
 
     let (analysis_result, mut inner_loop_context) = loop_analyzer::analyze(
         statements_analyzer,
-        stmt.0,
+        &stmt.0.0,
         get_and_expressions(stmt.1),
         vec![],
         &mut loop_scope,
