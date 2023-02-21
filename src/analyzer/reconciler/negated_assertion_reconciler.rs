@@ -337,8 +337,10 @@ fn handle_literal_negated_equality(
 
     for existing_atomic_type in existing_var_types {
         match existing_atomic_type {
-            TAtomic::TInt { .. } => {
-                if let TAtomic::TLiteralInt { .. } = assertion_type {
+            TAtomic::TInt { .. } | TAtomic::TNum => {
+                if let TAtomic::TLiteralInt { .. } | TAtomic::TEnumLiteralCase { .. } =
+                    assertion_type
+                {
                     did_remove_type = true;
                 }
 
@@ -356,8 +358,18 @@ fn handle_literal_negated_equality(
                     }
                 }
             }
-            TAtomic::TString => {
-                if let TAtomic::TLiteralString { value, .. } = assertion_type {
+            TAtomic::TArraykey { .. } => {
+                if let TAtomic::TLiteralString { .. }
+                | TAtomic::TLiteralInt { .. }
+                | TAtomic::TEnumLiteralCase { .. } = assertion_type
+                {
+                    did_remove_type = true;
+                }
+
+                acceptable_types.push(existing_atomic_type);
+            }
+            TAtomic::TString => match assertion_type {
+                TAtomic::TLiteralString { value, .. } => {
                     did_remove_type = true;
 
                     if value == "" {
@@ -365,12 +377,18 @@ fn handle_literal_negated_equality(
                     } else {
                         acceptable_types.push(existing_atomic_type);
                     }
-                } else {
+                }
+                TAtomic::TEnumLiteralCase { .. } => {
+                    did_remove_type = true;
+
                     acceptable_types.push(existing_atomic_type);
                 }
-            }
-            TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) => {
-                if let TAtomic::TLiteralString { value, .. } = assertion_type {
+                _ => {
+                    acceptable_types.push(existing_atomic_type);
+                }
+            },
+            TAtomic::TStringWithFlags(_, _, is_nonspecific_literal) => match assertion_type {
+                TAtomic::TLiteralString { value, .. } => {
                     did_remove_type = true;
 
                     if value == "" {
@@ -382,34 +400,43 @@ fn handle_literal_negated_equality(
                     } else {
                         acceptable_types.push(existing_atomic_type);
                     }
-                } else {
+                }
+                TAtomic::TEnumLiteralCase { .. } => {
+                    did_remove_type = true;
                     acceptable_types.push(existing_atomic_type);
                 }
-            }
+                _ => {
+                    acceptable_types.push(existing_atomic_type);
+                }
+            },
             TAtomic::TLiteralString {
                 value: ref existing_value,
                 ..
-            } => {
-                if let TAtomic::TLiteralString { value, .. } = assertion_type {
+            } => match assertion_type {
+                TAtomic::TLiteralString { value, .. } => {
                     if value == existing_value {
                         did_remove_type = true;
                     } else {
                         acceptable_types.push(existing_atomic_type);
                     }
-                } else {
+                }
+                TAtomic::TEnumLiteralCase { .. } => {
+                    did_remove_type = true;
                     acceptable_types.push(existing_atomic_type);
                 }
-            }
+                _ => {
+                    acceptable_types.push(existing_atomic_type);
+                }
+            },
             TAtomic::TEnum {
                 name: existing_name,
                 ..
-            } => {
-                if let TAtomic::TEnumLiteralCase {
+            } => match assertion_type {
+                TAtomic::TEnumLiteralCase {
                     enum_name,
                     member_name,
                     constraint_type,
-                } = assertion_type
-                {
+                } => {
                     did_remove_type = true;
 
                     if enum_name == &existing_name {
@@ -427,11 +454,11 @@ fn handle_literal_negated_equality(
                     } else {
                         acceptable_types.push(existing_atomic_type);
                     }
-                } else if let TAtomic::TLiteralString {
+                }
+                TAtomic::TLiteralString {
                     value: assertion_value,
                     ..
-                } = assertion_type
-                {
+                } => {
                     let enum_storage = codebase.classlike_infos.get(&existing_name).unwrap();
                     let mut matched_string = false;
 
@@ -464,10 +491,48 @@ fn handle_literal_negated_equality(
                         acceptable_types.extend(member_enum_literals);
                         did_remove_type = true;
                     }
-                } else {
+                }
+                TAtomic::TLiteralInt {
+                    value: assertion_value,
+                    ..
+                } => {
+                    let enum_storage = codebase.classlike_infos.get(&existing_name).unwrap();
+                    let mut matched_string = false;
+
+                    let mut member_enum_literals = vec![];
+                    for (cname, const_info) in &enum_storage.constants {
+                        if let Some(inferred_type) = &const_info.inferred_type {
+                            if let Some(const_inferred_value) =
+                                inferred_type.get_single_literal_int_value()
+                            {
+                                if &const_inferred_value != assertion_value {
+                                    if let Some(constant_type) = codebase.get_class_constant_type(
+                                        &existing_name,
+                                        cname,
+                                        FxHashSet::default(),
+                                    ) {
+                                        member_enum_literals.push(constant_type.get_single_owned());
+                                    } else {
+                                        panic!("unrecognised constant type");
+                                    }
+                                } else {
+                                    matched_string = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if !matched_string {
+                        acceptable_types.push(existing_atomic_type);
+                    } else {
+                        acceptable_types.extend(member_enum_literals);
+                        did_remove_type = true;
+                    }
+                }
+                _ => {
                     acceptable_types.push(existing_atomic_type);
                 }
-            }
+            },
             TAtomic::TEnumLiteralCase {
                 enum_name: existing_name,
                 member_name: existing_member_name,
@@ -479,7 +544,6 @@ fn handle_literal_negated_equality(
                     ..
                 } = assertion_type
                 {
-
                     if enum_name == &existing_name && member_name == &existing_member_name {
                         did_remove_type = true;
                     } else {
@@ -510,6 +574,17 @@ fn handle_literal_negated_equality(
                 } else {
                     acceptable_types.push(existing_atomic_type);
                 }
+            }
+            TAtomic::TTypeAlias { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(existing_atomic_type);
+            }
+            TAtomic::TNamedObject { name, .. } => {
+                if name == StrId::xhp_child() {
+                    did_remove_type = true;
+                }
+
+                acceptable_types.push(existing_atomic_type);
             }
             _ => {
                 acceptable_types.push(existing_atomic_type);

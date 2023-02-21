@@ -96,6 +96,9 @@ impl StrId {
     pub fn php_incomplete_class() -> Self {
         StrId(13)
     }
+    pub fn xhp_child() -> Self {
+        StrId(14)
+    }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -133,6 +136,7 @@ impl Interner {
         interner.intern("HH\\KeyedContainer".to_string());
         interner.intern("HH\\Container".to_string());
         interner.intern("__PHP_Incomplete_Class".to_string());
+        interner.intern("XHPChild".to_string());
         interner
     }
 
