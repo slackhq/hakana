@@ -1043,7 +1043,7 @@ impl TAtomic {
             | &TAtomic::TClassname { .. }
             | &TAtomic::TTypename { .. } => true,
             &TAtomic::TNamedObject { name, .. } => match interner.lookup(name) {
-                "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" => false,
+                "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" | "HH\\Traversable" | "HH\\KeyedTraversable" => false,
                 _ => true,
             },
             &TAtomic::TLiteralInt { value, .. } => {
