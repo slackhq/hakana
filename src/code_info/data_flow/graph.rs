@@ -1,6 +1,6 @@
 use super::{
     node::{DataFlowNode, DataFlowNodeKind},
-    path::{DataFlowPath, PathExpressionKind, PathKind},
+    path::{DataFlowPath, ArrayDataKind, PathKind},
 };
 use crate::taint::SinkType;
 use oxidized::ast_defs::Pos;
@@ -93,7 +93,7 @@ impl DataFlowGraph {
     ) {
         if matches!(
             path_kind,
-            PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayKey)
+            PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey)
         ) {
             return;
         }

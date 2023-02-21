@@ -4,7 +4,7 @@ use hakana_reflection_info::{
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
-        path::{PathExpressionKind, PathKind},
+        path::{ArrayDataKind, PathKind},
     },
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
@@ -233,12 +233,12 @@ pub(crate) fn add_array_fetch_dataflow(
                     parent_node,
                     &new_parent_node,
                     if let Some(dim_value) = dim_value.clone() {
-                        PathKind::ExpressionFetch(
-                            PathExpressionKind::ArrayValue,
+                        PathKind::ArrayFetch(
+                            ArrayDataKind::ArrayValue,
                             dim_value.to_string(),
                         )
                     } else {
-                        PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayValue)
+                        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)
                     },
                     None,
                     None,
@@ -248,7 +248,7 @@ pub(crate) fn add_array_fetch_dataflow(
                     tast_info.data_flow_graph.add_path(
                         parent_node,
                         &array_key_node,
-                        PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayKey),
+                        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey),
                         None,
                         None,
                     );

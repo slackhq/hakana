@@ -6,7 +6,7 @@ use hakana_reflection_info::{
     data_flow::{
         graph::GraphKind,
         node::DataFlowNode,
-        path::{PathExpressionKind, PathKind},
+        path::{ArrayDataKind, PathKind},
     },
     t_atomic::TAtomic,
     t_union::TUnion,
@@ -103,7 +103,7 @@ fn add_tuple_value_dataflow(
         tast_info.data_flow_graph.add_path(
             parent_node,
             &new_parent_node,
-            PathKind::ExpressionAssignment(PathExpressionKind::ArrayValue, key_value.to_string()),
+            PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.to_string()),
             None,
             None,
         );

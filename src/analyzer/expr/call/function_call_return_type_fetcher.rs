@@ -1,7 +1,7 @@
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
-use hakana_reflection_info::data_flow::path::{PathExpressionKind, PathKind};
+use hakana_reflection_info::data_flow::path::{ArrayDataKind, PathKind};
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
@@ -771,7 +771,7 @@ fn get_special_argument_nodes(
                     (0, PathKind::Default),
                     (
                         1,
-                        PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayValue),
+                        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue),
                     ),
                 ],
                 None,
@@ -779,7 +779,7 @@ fn get_special_argument_nodes(
             "explode" | "preg_split" => (
                 vec![(
                     1,
-                    PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),
+                    PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 )],
                 None,
             ),
@@ -789,7 +789,7 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Regex\\every_match" => (
                 vec![(
                     0,
-                    PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),
+                    PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 )],
                 None,
             ),
@@ -798,7 +798,7 @@ fn get_special_argument_nodes(
                 vec![
                     (
                         0,
-                        PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayValue),
+                        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue),
                     ),
                     (1, PathKind::Default),
                 ],
@@ -816,7 +816,7 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Dict\\map_with_key_async" => (
                 vec![(
                     1,
-                    PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),
+                    PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 )],
                 None,
             ),
@@ -825,7 +825,7 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\C\\findx" => (
                 vec![(
                     0,
-                    PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayValue),
+                    PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue),
                 )],
                 None,
             ),
@@ -836,7 +836,7 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\C\\find_key" => (
                 vec![(
                     0,
-                    PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayKey),
+                    PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey),
                 )],
                 None,
             ),

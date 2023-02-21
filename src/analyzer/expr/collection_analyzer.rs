@@ -4,7 +4,7 @@ use hakana_reflection_info::{
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
-        path::{PathExpressionKind, PathKind},
+        path::{ArrayDataKind, PathKind},
     },
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
@@ -487,23 +487,23 @@ fn add_array_value_dataflow(
                         value: key_value, ..
                     } = key_item_single
                     {
-                        PathKind::ExpressionAssignment(
-                            PathExpressionKind::ArrayValue,
+                        PathKind::ArrayAssignment(
+                            ArrayDataKind::ArrayValue,
                             key_value.to_string(),
                         )
                     } else if let TAtomic::TLiteralString {
                         value: key_value, ..
                     } = key_item_single
                     {
-                        PathKind::ExpressionAssignment(
-                            PathExpressionKind::ArrayValue,
+                        PathKind::ArrayAssignment(
+                            ArrayDataKind::ArrayValue,
                             key_value.clone(),
                         )
                     } else {
-                        PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue)
+                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
                     }
                 } else {
-                    PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue)
+                    PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
                 },
                 None,
                 None,
@@ -550,23 +550,23 @@ fn add_array_key_dataflow(
                         value: key_value, ..
                     } = key_item_single
                     {
-                        PathKind::ExpressionAssignment(
-                            PathExpressionKind::ArrayKey,
+                        PathKind::ArrayAssignment(
+                            ArrayDataKind::ArrayKey,
                             key_value.to_string(),
                         )
                     } else if let TAtomic::TLiteralString {
                         value: key_value, ..
                     } = key_item_single
                     {
-                        PathKind::ExpressionAssignment(
-                            PathExpressionKind::ArrayKey,
+                        PathKind::ArrayAssignment(
+                            ArrayDataKind::ArrayKey,
                             key_value.clone(),
                         )
                     } else {
-                        PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayKey)
+                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey)
                     }
                 } else {
-                    PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayKey)
+                    PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey)
                 },
                 None,
                 None,

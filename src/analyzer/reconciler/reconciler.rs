@@ -221,6 +221,12 @@ pub(crate) fn reconcile_keyed_types(
             continue;
         }
 
+        let type_changed = if let Some(before_adjustment) = &before_adjustment {
+            &result_type != before_adjustment
+        } else {
+            true
+        };
+
         if let Some(before_adjustment) = &before_adjustment {
             if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
                 let mut has_scalar_restriction = false;
@@ -257,21 +263,47 @@ pub(crate) fn reconcile_keyed_types(
 
                     tast_info.data_flow_graph.add_node(scalar_check_node);
                 } else {
-                    result_type.parent_nodes = before_adjustment.parent_nodes.clone();
+                    let narrowed_symbol = if type_changed {
+                        if result_type.is_single() {
+                            if let TAtomic::TNamedObject { name, .. } = result_type.get_single() {
+                                Some(name)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    if let Some(narrowed_symbol) = narrowed_symbol {
+                        let scalar_check_node = DataFlowNode::get_for_assignment(
+                            key.clone(),
+                            statements_analyzer.get_hpos(pos),
+                        );
+
+                        for parent_node in &before_adjustment.parent_nodes {
+                            tast_info.data_flow_graph.add_path(
+                                parent_node,
+                                &scalar_check_node,
+                                PathKind::RefineSymbol(*narrowed_symbol),
+                                None,
+                                None,
+                            );
+                        }
+
+                        result_type.parent_nodes =
+                            FxHashSet::from_iter([scalar_check_node.clone()]);
+
+                        tast_info.data_flow_graph.add_node(scalar_check_node);
+                    } else {
+                        result_type.parent_nodes = before_adjustment.parent_nodes.clone();
+                    }
                 }
             } else {
                 result_type.parent_nodes = before_adjustment.parent_nodes.clone();
             }
         }
-
-        // TODO taint flow graph stuff
-        // if (($statements_analyzer->data_flow_graph instanceof TaintFlowGraph
-
-        let type_changed = if let Some(before_adjustment) = &before_adjustment {
-            &result_type != before_adjustment
-        } else {
-            true
-        };
 
         if key.ends_with("]") {
             if type_changed || !did_type_exist {

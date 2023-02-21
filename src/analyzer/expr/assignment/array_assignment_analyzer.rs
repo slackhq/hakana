@@ -5,7 +5,7 @@ use hakana_reflection_info::{
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
-        path::{PathExpressionKind, PathKind},
+        path::{ArrayDataKind, PathKind},
     },
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
@@ -430,7 +430,7 @@ fn add_array_assignment_dataflow(
                 tast_info.data_flow_graph.add_path(
                     &child_parent_node,
                     &parent_node,
-                    PathKind::ExpressionAssignment(PathExpressionKind::ArrayValue, key_value),
+                    PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value),
                     None,
                     None,
                 );
@@ -439,7 +439,7 @@ fn add_array_assignment_dataflow(
             tast_info.data_flow_graph.add_path(
                 &child_parent_node,
                 &parent_node,
-                PathKind::UnknownExpressionAssignment(PathExpressionKind::ArrayValue),
+                PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 None,
                 None,
             );

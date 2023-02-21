@@ -3,18 +3,22 @@ use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::data_flow::node::VariableSourceKind;
 use hakana_reflection_info::data_flow::path::PathKind;
+use oxidized::{
+    aast,
+    aast_visitor::{visit, AstParams, Node, Visitor},
+};
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use crate::dataflow::program_analyzer::should_ignore_fetch;
+use crate::dataflow::program_analyzer::{should_ignore_array_fetch, should_ignore_property_fetch};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_reflection_info::data_flow::path::PathExpressionKind;
+use hakana_reflection_info::data_flow::path::ArrayDataKind;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
 
@@ -107,27 +111,23 @@ fn get_variable_child_nodes(
                 continue;
             }
 
-            if should_ignore_fetch(
+            if should_ignore_array_fetch(
                 &path.kind,
-                &PathExpressionKind::ArrayKey,
+                &ArrayDataKind::ArrayKey,
                 &generated_source.path_types,
             ) {
                 continue;
             }
 
-            if should_ignore_fetch(
+            if should_ignore_array_fetch(
                 &path.kind,
-                &PathExpressionKind::ArrayValue,
+                &ArrayDataKind::ArrayValue,
                 &generated_source.path_types,
             ) {
                 continue;
             }
 
-            if should_ignore_fetch(
-                &path.kind,
-                &PathExpressionKind::Property,
-                &generated_source.path_types,
-            ) {
+            if should_ignore_property_fetch(&path.kind, &generated_source.path_types) {
                 continue;
             }
 
@@ -146,11 +146,6 @@ fn get_variable_child_nodes(
 
     Some(new_child_nodes)
 }
-
-use oxidized::{
-    aast,
-    aast_visitor::{visit, AstParams, Node, Visitor},
-};
 
 struct Scanner<'a> {
     pub unused_variable_nodes: &'a Vec<DataFlowNode>,

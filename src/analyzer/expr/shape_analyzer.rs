@@ -7,7 +7,7 @@ use hakana_reflection_info::{
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
         node::DataFlowNode,
-        path::{PathExpressionKind, PathKind},
+        path::{ArrayDataKind, PathKind},
     },
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
@@ -195,7 +195,7 @@ fn add_shape_value_dataflow(
         tast_info.data_flow_graph.add_path(
             parent_node,
             &new_parent_node,
-            PathKind::ExpressionAssignment(PathExpressionKind::ArrayValue, key_value.clone()),
+            PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.clone()),
             None,
             None,
         );

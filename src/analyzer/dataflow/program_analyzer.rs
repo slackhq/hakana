@@ -1,5 +1,6 @@
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::Interner;
+use hakana_reflection_info::StrId;
 use rustc_hash::FxHashSet;
 use std::sync::Arc;
 use std::time::Instant;
@@ -7,7 +8,7 @@ use std::time::Instant;
 use crate::config::Config;
 use crate::config::Verbosity;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
-use hakana_reflection_info::data_flow::path::PathExpressionKind;
+use hakana_reflection_info::data_flow::path::ArrayDataKind;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::data_flow::tainted_node::TaintedNode;
 use hakana_reflection_info::issue::Issue;
@@ -288,34 +289,34 @@ fn get_child_nodes(
             // if we're going through a scalar type guard and the last non-default path was
             // an array or property assignment, skip
             if let PathKind::ScalarTypeGuard = &path.kind {
-                let foo = has_recent_assignment(&generated_source.path_types);
-
-                if foo {
+                if has_recent_assignment(&generated_source.path_types) {
                     continue;
                 }
             }
 
-            if should_ignore_fetch(
+            if let PathKind::RefineSymbol(symbol_id) = &path.kind {
+                if has_unmatched_property_assignment(symbol_id, &generated_source.path_types) {
+                    continue;
+                }
+            }
+
+            if should_ignore_array_fetch(
                 &path.kind,
-                &PathExpressionKind::ArrayKey,
+                &ArrayDataKind::ArrayKey,
                 &generated_source.path_types,
             ) {
                 continue;
             }
 
-            if should_ignore_fetch(
+            if should_ignore_array_fetch(
                 &path.kind,
-                &PathExpressionKind::ArrayValue,
+                &ArrayDataKind::ArrayValue,
                 &generated_source.path_types,
             ) {
                 continue;
             }
 
-            if should_ignore_fetch(
-                &path.kind,
-                &PathExpressionKind::Property,
-                &generated_source.path_types,
-            ) {
+            if should_ignore_property_fetch(&path.kind, &generated_source.path_types) {
                 continue;
             }
 
@@ -434,8 +435,10 @@ fn has_recent_assignment(generated_path_types: &Vec<PathKind>) -> bool {
     let mut nesting = 0;
 
     for filtered_path in filtered_paths {
-        if let PathKind::ExpressionAssignment(_, _) | PathKind::UnknownExpressionAssignment(_) =
-            filtered_path
+        if let PathKind::ArrayAssignment(_, _)
+        | PathKind::UnknownArrayAssignment(_)
+        | PathKind::PropertyAssignment(_, _)
+        | PathKind::UnknownPropertyAssignment = filtered_path
         {
             if nesting == 0 {
                 return true;
@@ -444,7 +447,10 @@ fn has_recent_assignment(generated_path_types: &Vec<PathKind>) -> bool {
             nesting -= 1;
         }
 
-        if let PathKind::ExpressionFetch(_, _) | PathKind::UnknownExpressionFetch(_) = filtered_path
+        if let PathKind::ArrayFetch(_, _)
+        | PathKind::UnknownArrayFetch(_)
+        | PathKind::PropertyFetch(_, _)
+        | PathKind::UnknownPropertyFetch = filtered_path
         {
             nesting += 1;
         }
@@ -453,17 +459,58 @@ fn has_recent_assignment(generated_path_types: &Vec<PathKind>) -> bool {
     false
 }
 
-pub(crate) fn should_ignore_fetch(
+fn has_unmatched_property_assignment(symbol: &StrId, generated_path_types: &Vec<PathKind>) -> bool {
+    let filtered_paths = generated_path_types
+        .iter()
+        .rev()
+        .filter(|t| !matches!(t, PathKind::Default));
+
+    let mut nesting = 0;
+
+    for filtered_path in filtered_paths {
+        match filtered_path {
+            PathKind::PropertyAssignment(assignment_symbol, _) => {
+                if assignment_symbol == symbol {
+                    if nesting == 0 {
+                        return false;
+                    }
+
+                    nesting -= 1;
+                }
+            }
+            PathKind::UnknownPropertyAssignment => {
+                if nesting == 0 {
+                    return false;
+                }
+
+                nesting -= 1;
+            }
+            PathKind::PropertyFetch(fetch_symbol, _) => {
+                if fetch_symbol == symbol {
+                    nesting += 1;
+                }
+            }
+            PathKind::UnknownPropertyFetch => {
+                nesting += 1;
+            }
+            _ => (),
+        }
+    }
+
+    true
+}
+
+pub(crate) fn should_ignore_array_fetch(
     path_type: &PathKind,
-    match_type: &PathExpressionKind,
+    match_type: &ArrayDataKind,
     previous_path_types: &Vec<PathKind>,
 ) -> bool {
     // arraykey-fetch requires a matching arraykey-assignment at the same level
     // otherwise the tainting is not valid
     if match path_type {
-        PathKind::ExpressionFetch(inner_expression_type, _) => inner_expression_type == match_type,
-        PathKind::UnknownExpressionFetch(PathExpressionKind::ArrayKey) => {
-            match_type == &PathExpressionKind::ArrayValue
+        PathKind::ArrayFetch(inner_expression_type, _) => inner_expression_type == match_type,
+        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey) => {
+            match_type == &ArrayDataKind::ArrayValue
         }
         _ => false,
     } {
@@ -471,7 +518,7 @@ pub(crate) fn should_ignore_fetch(
 
         for previous_path_type in previous_path_types.iter().rev() {
             match &previous_path_type {
-                PathKind::UnknownExpressionAssignment(inner) => {
+                PathKind::UnknownArrayAssignment(inner) => {
                     if inner == match_type {
                         if fetch_nesting == 0 {
                             return false;
@@ -480,14 +527,14 @@ pub(crate) fn should_ignore_fetch(
                         fetch_nesting -= 1;
                     }
                 }
-                PathKind::ExpressionAssignment(inner, previous_assignment_value) => {
+                PathKind::ArrayAssignment(inner, previous_assignment_value) => {
                     if inner == match_type {
                         if fetch_nesting > 0 {
                             fetch_nesting -= 1;
                             continue;
                         }
 
-                        if let PathKind::ExpressionFetch(_, fetch_value) = &path_type {
+                        if let PathKind::ArrayFetch(_, fetch_value) = &path_type {
                             if fetch_value == previous_assignment_value {
                                 return false;
                             }
@@ -496,7 +543,7 @@ pub(crate) fn should_ignore_fetch(
                         return true;
                     }
                 }
-                PathKind::UnknownExpressionFetch(inner) | PathKind::ExpressionFetch(inner, _) => {
+                PathKind::UnknownArrayFetch(inner) | PathKind::ArrayFetch(inner, _) => {
                     if inner == match_type {
                         fetch_nesting += 1;
                     }
@@ -507,18 +554,59 @@ pub(crate) fn should_ignore_fetch(
     }
 
     if let PathKind::RemoveDictKey(key_name) = path_type {
-        if match_type == &PathExpressionKind::ArrayValue {
-            if let Some(PathKind::ExpressionAssignment(
-                PathExpressionKind::ArrayValue,
-                assigned_name,
-            )) = previous_path_types
-                .iter()
-                .filter(|t| !matches!(t, PathKind::Default))
-                .last()
+        if match_type == &ArrayDataKind::ArrayValue {
+            if let Some(PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, assigned_name)) =
+                previous_path_types
+                    .iter()
+                    .filter(|t| !matches!(t, PathKind::Default))
+                    .last()
             {
                 if assigned_name == key_name {
                     return true;
                 }
+            }
+        }
+    }
+
+    false
+}
+
+pub(crate) fn should_ignore_property_fetch(
+    path_type: &PathKind,
+    previous_path_types: &Vec<PathKind>,
+) -> bool {
+    // arraykey-fetch requires a matching arraykey-assignment at the same level
+    // otherwise the tainting is not valid
+    if let PathKind::PropertyFetch(_, _) = path_type {
+        let mut fetch_nesting = 0;
+
+        for previous_path_type in previous_path_types.iter().rev() {
+            match &previous_path_type {
+                PathKind::UnknownPropertyAssignment => {
+                    if fetch_nesting == 0 {
+                        return false;
+                    }
+
+                    fetch_nesting -= 1;
+                }
+                PathKind::PropertyAssignment(_, previous_assignment_value) => {
+                    if fetch_nesting > 0 {
+                        fetch_nesting -= 1;
+                        continue;
+                    }
+
+                    if let PathKind::PropertyFetch(_, fetch_value) = &path_type {
+                        if fetch_value == previous_assignment_value {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+                PathKind::UnknownPropertyFetch | PathKind::PropertyFetch(_, _) => {
+                    fetch_nesting += 1;
+                }
+                _ => {}
             }
         }
     }

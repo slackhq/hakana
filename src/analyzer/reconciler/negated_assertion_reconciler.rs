@@ -326,7 +326,6 @@ fn handle_literal_negated_equality(
     let assertion_type = assertion.get_type().unwrap();
 
     let mut did_remove_type = false;
-    let mut did_match_literal_type = false;
 
     let mut new_var_type = existing_var_type.clone();
 
@@ -350,7 +349,6 @@ fn handle_literal_negated_equality(
                 ..
             } => {
                 if let TAtomic::TLiteralInt { value, .. } = assertion_type {
-                    did_match_literal_type = true;
                     if value == &existing_value {
                         did_remove_type = true;
                     } else {
@@ -455,7 +453,6 @@ fn handle_literal_negated_equality(
                                     }
                                 } else {
                                     matched_string = true;
-                                    did_match_literal_type = true;
                                 }
                             }
                         }
@@ -482,7 +479,6 @@ fn handle_literal_negated_equality(
                     ..
                 } = assertion_type
                 {
-                    did_match_literal_type = true;
 
                     if enum_name == &existing_name && member_name == &existing_member_name {
                         did_remove_type = true;
@@ -491,7 +487,6 @@ fn handle_literal_negated_equality(
                     }
                 } else if let TAtomic::TLiteralString { value, .. } = &assertion_type {
                     let enum_storage = codebase.classlike_infos.get(&existing_name).unwrap();
-                    did_match_literal_type = true;
 
                     let mut matched_string = false;
 

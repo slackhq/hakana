@@ -2,23 +2,27 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
-use crate::taint::SinkType;
+use crate::{taint::SinkType, StrId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Display)]
-pub enum PathExpressionKind {
+pub enum ArrayDataKind {
     ArrayKey,
     ArrayValue,
-    Property,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Display)]
 pub enum PathKind {
     Default,
-    UnknownExpressionFetch(PathExpressionKind),
-    UnknownExpressionAssignment(PathExpressionKind),
-    ExpressionFetch(PathExpressionKind, String),
-    ExpressionAssignment(PathExpressionKind, String),
+    UnknownArrayFetch(ArrayDataKind),
+    UnknownArrayAssignment(ArrayDataKind),
+    ArrayFetch(ArrayDataKind, String),
+    ArrayAssignment(ArrayDataKind, String),
+    PropertyFetch(StrId, StrId),
+    PropertyAssignment(StrId, StrId),
+    UnknownPropertyFetch,
+    UnknownPropertyAssignment,
     RemoveDictKey(String),
+    RefineSymbol(StrId),
     ScalarTypeGuard,
 }
 

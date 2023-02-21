@@ -6,10 +6,7 @@ use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
-    data_flow::{
-        node::DataFlowNode,
-        path::{PathExpressionKind, PathKind},
-    },
+    data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     t_union::TUnion,
 };
@@ -383,8 +380,6 @@ fn add_property_dataflow(
     lhs_var_id: &Option<String>,
     expr_id: &Option<String>,
 ) -> TUnion {
-    let interner = &statements_analyzer.get_codebase().interner;
-
     if classlike_storage.specialize_instance {
         if let Some(lhs_var_id) = lhs_var_id {
             let var_type = tast_info
@@ -410,10 +405,7 @@ fn add_property_dataflow(
             tast_info.data_flow_graph.add_path(
                 &var_node,
                 &property_node,
-                PathKind::ExpressionFetch(
-                    PathExpressionKind::Property,
-                    interner.lookup(&property_id.1).to_string(),
-                ),
+                PathKind::PropertyFetch(property_id.0, property_id.1),
                 None,
                 None,
             );
@@ -490,10 +482,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         tast_info.data_flow_graph.add_path(
             &property_node,
             &localized_property_node,
-            PathKind::ExpressionAssignment(
-                PathExpressionKind::Property,
-                interner.lookup(&property_id.1).to_string(),
-            ),
+            PathKind::PropertyAssignment(property_id.0, property_id.1),
             None,
             None,
         );
@@ -501,10 +490,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         tast_info.data_flow_graph.add_path(
             &property_node,
             &localized_property_node,
-            PathKind::ExpressionFetch(
-                PathExpressionKind::Property,
-                interner.lookup(&property_id.1).to_string(),
-            ),
+            PathKind::PropertyFetch(property_id.0, property_id.1),
             None,
             None,
         );

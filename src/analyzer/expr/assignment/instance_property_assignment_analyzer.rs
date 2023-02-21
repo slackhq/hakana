@@ -2,11 +2,7 @@ use std::rc::Rc;
 
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
-    data_flow::{
-        graph::GraphKind,
-        node::DataFlowNode,
-        path::{PathExpressionKind, PathKind},
-    },
+    data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
@@ -567,10 +563,7 @@ fn add_instance_property_assignment_dataflow(
     tast_info.data_flow_graph.add_path(
         &property_node,
         &var_node,
-        PathKind::ExpressionAssignment(
-            PathExpressionKind::Property,
-            interner.lookup(&property_id.1).to_owned(),
-        ),
+        PathKind::PropertyAssignment(property_id.0, property_id.1),
         None,
         None,
     );
@@ -635,10 +628,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     tast_info.data_flow_graph.add_path(
         &localized_property_node,
         &property_node,
-        PathKind::ExpressionAssignment(
-            PathExpressionKind::Property,
-            codebase.interner.lookup(&property_id.1).to_string(),
-        ),
+        PathKind::PropertyAssignment(property_id.0, property_id.1),
         None,
         if removed_taints.is_empty() {
             None
@@ -678,10 +668,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
             tast_info.data_flow_graph.add_path(
                 &property_node,
                 &declaring_property_node,
-                PathKind::ExpressionAssignment(
-                    PathExpressionKind::Property,
-                    codebase.interner.lookup(&property_id.1).to_string(),
-                ),
+                PathKind::PropertyAssignment(property_id.0, property_id.1),
                 None,
                 None,
             );

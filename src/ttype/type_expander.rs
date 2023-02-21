@@ -5,7 +5,7 @@ use hakana_reflection_info::{
     data_flow::{
         graph::DataFlowGraph,
         node::{DataFlowNode, DataFlowNodeKind},
-        path::{PathExpressionKind, PathKind},
+        path::{ArrayDataKind, PathKind},
     },
     functionlike_info::FunctionLikeInfo,
     functionlike_parameter::FnParameter,
@@ -364,8 +364,8 @@ fn expand_atomic(
                                     data_flow_graph.add_path(
                                         &field_node,
                                         &shape_node,
-                                        PathKind::ExpressionAssignment(
-                                            PathExpressionKind::ArrayValue,
+                                        PathKind::ArrayAssignment(
+                                            ArrayDataKind::ArrayValue,
                                             match field_name {
                                                 DictKey::Int(i) => i.to_string(),
                                                 DictKey::String(k) => k.clone(),
