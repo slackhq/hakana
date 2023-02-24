@@ -1,10 +1,9 @@
 use hakana_reflection_info::code_location::StmtStart;
-use rustc_hash::FxHashMap;
 
 use crate::custom_hook::AfterStmtAnalysisData;
 use crate::expr::binop::assignment_analyzer;
-use crate::expression_analyzer::{self};
 
+use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
@@ -25,10 +24,6 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> bool {
-    if !tast_info.expr_types.len() > 10 {
-        tast_info.expr_types = FxHashMap::default();
-    }
-
     if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
         if current_stmt_offset.1 != stmt.0.line() {
             tast_info.current_stmt_offset = Some(StmtStart(
@@ -167,7 +162,7 @@ pub(crate) fn analyze(
         }
         aast::Stmt_::Awaitall(boxed) => {
             analyze_awaitall(
-                (&boxed.0, &boxed.1.0),
+                (&boxed.0, &boxed.1 .0),
                 statements_analyzer,
                 tast_info,
                 context,
