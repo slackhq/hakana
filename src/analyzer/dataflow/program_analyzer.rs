@@ -37,8 +37,8 @@ pub fn find_tainted_data(
     }
 
     // for (from_id, to) in &graph.forward_edges {
-    //     for (to_id, _) in to {
-    //         println!("{} -> {}", from_id, to_id);
+    //     for (to_id, path) in to {
+    //         println!("{} --{}--> {}", from_id, path.kind, to_id);
     //     }
     // }
 
@@ -435,24 +435,27 @@ fn has_recent_assignment(generated_path_types: &Vec<PathKind>) -> bool {
     let mut nesting = 0;
 
     for filtered_path in filtered_paths {
-        if let PathKind::ArrayAssignment(_, _)
-        | PathKind::UnknownArrayAssignment(_)
-        | PathKind::PropertyAssignment(_, _)
-        | PathKind::UnknownPropertyAssignment = filtered_path
-        {
-            if nesting == 0 {
-                return true;
+        match filtered_path {
+            PathKind::ArrayAssignment(_, _)
+            | PathKind::UnknownArrayAssignment(_)
+            | PathKind::PropertyAssignment(_, _)
+            | PathKind::UnknownPropertyAssignment => {
+                if nesting == 0 {
+                    return true;
+                }
+
+                nesting -= 1;
             }
-
-            nesting -= 1;
-        }
-
-        if let PathKind::ArrayFetch(_, _)
-        | PathKind::UnknownArrayFetch(_)
-        | PathKind::PropertyFetch(_, _)
-        | PathKind::UnknownPropertyFetch = filtered_path
-        {
-            nesting += 1;
+            PathKind::ArrayFetch(_, _)
+            | PathKind::UnknownArrayFetch(_)
+            | PathKind::PropertyFetch(_, _)
+            | PathKind::UnknownPropertyFetch => {
+                nesting += 1;
+            }
+            PathKind::Serialize => {
+                return false;
+            }
+            _ => (),
         }
     }
 
@@ -492,6 +495,9 @@ fn has_unmatched_property_assignment(symbol: &StrId, generated_path_types: &Vec<
             }
             PathKind::UnknownPropertyFetch => {
                 nesting += 1;
+            }
+            PathKind::Serialize => {
+                return false;
             }
             _ => (),
         }

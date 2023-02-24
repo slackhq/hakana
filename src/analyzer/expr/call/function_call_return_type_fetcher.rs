@@ -736,7 +736,6 @@ fn get_special_argument_nodes(
             | "chop"
             | "convert_uudecode"
             | "convert_uuencode"
-            | "json_encode"
             | "json_decode"
             | "base64_encode"
             | "base64_decode"
@@ -753,7 +752,8 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Keyset\\filter_async"
             | "HH\\Lib\\Vec\\slice"
             | "HH\\Lib\\Str\\slice" => (vec![(0, PathKind::Default)], None),
-            "var_dump" | "printf" => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
+            "json_encode" | "serialize" => (vec![(0, PathKind::Serialize)], None),
+            "var_dump" | "printf" => (vec![(0, PathKind::Serialize)], Some(PathKind::Serialize)),
             "sscanf" | "substr_replace" => {
                 (vec![(0, PathKind::Default), (1, PathKind::Default)], None)
             }
@@ -769,10 +769,7 @@ fn get_special_argument_nodes(
             "implode" | "join" => (
                 vec![
                     (0, PathKind::Default),
-                    (
-                        1,
-                        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue),
-                    ),
+                    (1, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
                 ],
                 None,
             ),
@@ -796,10 +793,7 @@ fn get_special_argument_nodes(
             "HH\\Lib\\Vec\\sort" => (vec![(0, PathKind::Default)], None),
             "HH\\Lib\\Str\\join" => (
                 vec![
-                    (
-                        0,
-                        PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue),
-                    ),
+                    (0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
                     (1, PathKind::Default),
                 ],
                 None,
@@ -823,10 +817,7 @@ fn get_special_argument_nodes(
             "HH\\Lib\\C\\first" | "HH\\Lib\\C\\firstx" | "HH\\Lib\\C\\last"
             | "HH\\Lib\\C\\lastx" | "HH\\Lib\\C\\onlyx" | "HH\\Lib\\C\\find"
             | "HH\\Lib\\C\\findx" => (
-                vec![(
-                    0,
-                    PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue),
-                )],
+                vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
                 None,
             ),
             "HH\\Lib\\C\\first_key"
@@ -834,10 +825,7 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\C\\last_key"
             | "HH\\Lib\\C\\last_keyx"
             | "HH\\Lib\\C\\find_key" => (
-                vec![(
-                    0,
-                    PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey),
-                )],
+                vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey))],
                 None,
             ),
             "HH\\Lib\\Dict\\merge" | "HH\\Lib\\Vec\\concat" | "HH\\Lib\\Keyset\\union" => {

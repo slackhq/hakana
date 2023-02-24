@@ -21,6 +21,7 @@ pub enum PathKind {
     PropertyAssignment(StrId, StrId),
     UnknownPropertyFetch,
     UnknownPropertyAssignment,
+    Serialize,
     RemoveDictKey(String),
     RefineSymbol(StrId),
     ScalarTypeGuard,
@@ -45,6 +46,7 @@ impl std::fmt::Display for PathKind {
             PathKind::RemoveDictKey(_) => write!(f, "remove-dict-key"),
             PathKind::RefineSymbol(_) => write!(f, "refine-symbol"),
             PathKind::ScalarTypeGuard => write!(f, "scalar-type-guard"),
+            PathKind::Serialize => write!(f, "serialize"),
         }
     }
 }
