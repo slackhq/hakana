@@ -15,6 +15,7 @@ pub enum VariableSourceKind {
     PrivateParam,
     NonPrivateParam,
     InoutParam,
+    ClosureParam,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

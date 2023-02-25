@@ -886,6 +886,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         pos: param.location.clone(),
                         kind: if param.is_inout {
                             VariableSourceKind::InoutParam
+                        } else if context.calling_closure_id.is_some() {
+                            VariableSourceKind::ClosureParam
                         } else {
                             if let Some(method_storage) = &functionlike_storage.method_info {
                                 match &method_storage.visibility {
@@ -989,7 +991,7 @@ fn report_unused_expressions(
                         tast_info.maybe_add_issue(
                             Issue::new(
                                 IssueKind::UnusedParameter,
-                                "Unused param ".to_string() + node.id.as_str(),
+                                "Unused param ".to_string() + label,
                                 pos.clone(),
                                 calling_functionlike_id,
                             ),
@@ -999,6 +1001,9 @@ fn report_unused_expressions(
                     }
                     VariableSourceKind::NonPrivateParam => {
                         // todo register public/private param
+                    }
+                    VariableSourceKind::ClosureParam => {
+                        // todo register closure param
                     }
                     VariableSourceKind::Default => {
                         if config.allow_issue_kind_in_file(
