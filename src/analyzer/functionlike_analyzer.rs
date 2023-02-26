@@ -12,6 +12,7 @@ use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
+use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind, VariableSourceKind};
@@ -478,6 +479,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 fb_ast,
                 statements_analyzer,
                 &context.function_context.calling_functionlike_id,
+                functionlike_storage,
             );
         }
 
@@ -974,6 +976,7 @@ fn report_unused_expressions(
     fb_ast: &Vec<aast::Stmt<(), ()>>,
     statements_analyzer: &StatementsAnalyzer,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
+    functionlike_storage: &FunctionLikeInfo,
 ) {
     let unused_source_nodes = check_variables_used(&tast_info.data_flow_graph);
     tast_info.current_stmt_offset = None;
@@ -989,6 +992,16 @@ fn report_unused_expressions(
 
                 match &kind {
                     VariableSourceKind::PrivateParam => {
+                        tast_info.expr_fixme_positions.insert(
+                            (pos.start_offset, pos.end_offset),
+                            StmtStart {
+                                offset: pos.start_offset,
+                                line: pos.start_line,
+                                column: pos.start_column,
+                                add_newline: functionlike_storage.has_multi_line_params(),
+                            },
+                        );
+
                         tast_info.maybe_add_issue(
                             Issue::new(
                                 IssueKind::UnusedParameter,

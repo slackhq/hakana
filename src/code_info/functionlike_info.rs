@@ -8,13 +8,14 @@ use crate::{
     assertion::Assertion,
     attribute_info::AttributeInfo,
     code_location::HPos,
+    function_context::FunctionLikeIdentifier,
     functionlike_parameter::FunctionLikeParameter,
     issue::IssueKind,
     method_info::MethodInfo,
     t_union::TUnion,
     taint::{SinkType, SourceType},
     type_resolution::TypeResolutionContext,
-    StrId, function_context::FunctionLikeIdentifier,
+    StrId,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -186,5 +187,19 @@ impl FunctionLikeInfo {
             async_version: None,
             is_production_code: true,
         }
+    }
+
+    pub fn has_multi_line_params(&self) -> bool {
+        let first_line = if let Some(name_location) = &self.name_location {
+            name_location.start_line
+        } else {
+            self.def_location.start_line
+        };
+
+        if let Some(last_param) = self.params.last() {
+            return last_param.location.start_line != first_line;
+        }
+
+        return true;
     }
 }

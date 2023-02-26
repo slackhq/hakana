@@ -42,12 +42,13 @@ pub(crate) fn analyze(
         };
 
         if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
-            if current_stmt_offset.1 != start_pos.line() {
-                *current_stmt_offset = StmtStart(
-                    start_pos.start_offset(),
-                    start_pos.line(),
-                    start_pos.to_raw_span().start.column() as usize,
-                );
+            if current_stmt_offset.line != start_pos.line() {
+                *current_stmt_offset = StmtStart {
+                    offset: start_pos.start_offset(),
+                    line: start_pos.line(),
+                    column: start_pos.to_raw_span().start.column() as usize,
+                    add_newline: true,
+                };
             }
         }
 

@@ -105,11 +105,7 @@ impl TastInfo {
         } else if let Some(current_stmt_offset) = self.current_stmt_offset {
             Some(current_stmt_offset)
         } else {
-            Some(StmtStart(
-                issue.pos.start_offset,
-                issue.pos.start_line,
-                issue.pos.start_column,
-            ))
+            None
         };
 
         issue.can_fix = config.add_fixmes && config.issues_to_fix.contains(&issue.kind);
@@ -128,13 +124,25 @@ impl TastInfo {
     fn add_issue_fixme(&mut self, issue: &Issue) -> bool {
         if let Some(insertion_start) = &issue.pos.insertion_start {
             self.replacements.insert(
-                (insertion_start.0, insertion_start.0),
+                (insertion_start.offset, insertion_start.offset),
                 Replacement::Substitute(
                     format!(
-                        "/* HAKANA_FIXME[{}] {} */\n{}",
+                        "/* HAKANA_FIXME[{}]{} */{}",
                         issue.kind.to_string(),
-                        issue.description,
-                        "\t".repeat(insertion_start.2)
+                        if let IssueKind::UnusedParameter
+                        | IssueKind::UnusedAssignment
+                        | IssueKind::UnusedFunction
+                        | IssueKind::UnusedPrivateMethod = issue.kind
+                        {
+                            "".to_string()
+                        } else {
+                            " ".to_string() + &issue.description
+                        },
+                        if insertion_start.add_newline {
+                            "\n".to_string() + &"\t".repeat(insertion_start.column)
+                        } else {
+                            " ".to_string()
+                        }
                     )
                     .to_string(),
                 ),

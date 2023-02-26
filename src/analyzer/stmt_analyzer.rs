@@ -25,19 +25,21 @@ pub(crate) fn analyze(
     loop_scope: &mut Option<LoopScope>,
 ) -> bool {
     if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
-        if current_stmt_offset.1 != stmt.0.line() {
-            tast_info.current_stmt_offset = Some(StmtStart(
-                stmt.0.start_offset(),
-                stmt.0.line(),
-                stmt.0.to_raw_span().start.column() as usize,
-            ));
+        if current_stmt_offset.line != stmt.0.line() {
+            tast_info.current_stmt_offset = Some(StmtStart {
+                offset: stmt.0.start_offset(),
+                line: stmt.0.line(),
+                column: stmt.0.to_raw_span().start.column() as usize,
+                add_newline: true,
+            });
         }
     } else {
-        tast_info.current_stmt_offset = Some(StmtStart(
-            stmt.0.start_offset(),
-            stmt.0.line(),
-            stmt.0.to_raw_span().start.column() as usize,
-        ));
+        tast_info.current_stmt_offset = Some(StmtStart {
+            offset: stmt.0.start_offset(),
+            line: stmt.0.line(),
+            column: stmt.0.to_raw_span().start.column() as usize,
+            add_newline: true,
+        });
     }
 
     match &stmt.1 {

@@ -1,5 +1,8 @@
 function foo(
-	/* HAKANA_FIXME[UnusedParameter] Unused param $a */
+	/* HAKANA_FIXME[UnusedParameter] */
 	string $a
 ): void {
+}
+
+function bar(/* HAKANA_FIXME[UnusedParameter] */ string $a): void {
 }

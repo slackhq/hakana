@@ -46,15 +46,16 @@ pub(crate) fn analyze(
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
     if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
-        if current_stmt_offset.1 != expr.1.line() {
+        if current_stmt_offset.line != expr.1.line() {
             if !matches!(expr.2, aast::Expr_::Xml(..)) {
-                *current_stmt_offset = StmtStart(
-                    expr.1.start_offset(),
-                    expr.1.line(),
-                    expr.1.to_raw_span().start.column() as usize,
-                );
+                *current_stmt_offset = StmtStart {
+                    offset: expr.1.start_offset(),
+                    line: expr.1.line(),
+                    column: expr.1.to_raw_span().start.column() as usize,
+                    add_newline: true,
+                };
             } else {
-                current_stmt_offset.1 = expr.1.line();
+                current_stmt_offset.line = expr.1.line();
             }
         }
 

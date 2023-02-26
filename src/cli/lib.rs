@@ -696,6 +696,8 @@ pub fn init(
 
             config.issues_to_fix.extend(issue_kinds_filter);
             config.hooks = analysis_hooks;
+            config.find_unused_expressions = true;
+            config.find_unused_definitions = true;
 
             let config_path = config_path.unwrap();
 

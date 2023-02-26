@@ -5,9 +5,14 @@ use crate::StrId;
 
 // offset, start line, start column
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct StmtStart(pub usize, pub usize, pub usize);
+pub struct StmtStart {
+    pub offset: usize,
+    pub line: usize,
+    pub column: usize,
+    pub add_newline: bool,
+}
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct HPos {
     pub file_path: StrId,
 

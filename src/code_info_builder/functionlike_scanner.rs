@@ -337,16 +337,22 @@ pub(crate) fn get_functionlike(
         .template_type_map
         .extend(functionlike_info.template_types.clone());
 
-    functionlike_info.params = convert_param_nodes(
-        codebase,
-        interner,
-        params,
-        resolved_names,
-        &type_context,
-        file_source,
-        all_custom_issues,
-        comments,
-    );
+    if !params.is_empty() {
+        functionlike_info.params = convert_param_nodes(
+            codebase,
+            interner,
+            params,
+            resolved_names,
+            &type_context,
+            file_source,
+            all_custom_issues,
+            comments
+                .iter()
+                .filter(|comment| comment.0.start_offset() > def_pos.start_offset())
+                .collect(),
+        );
+    }
+
     type_context.template_supers = template_supers;
     functionlike_info.return_type =
         get_type_from_optional_hint(ret.get_hint(), None, &type_context, resolved_names);
@@ -619,7 +625,7 @@ fn convert_param_nodes(
     type_context: &TypeResolutionContext,
     file_source: &FileSource,
     all_custom_issues: &FxHashSet<String>,
-    comments: &Vec<(Pos, Comment)>,
+    mut comments: Vec<&(Pos, Comment)>,
 ) -> Vec<FunctionLikeParameter> {
     param_nodes
         .iter()
@@ -636,12 +642,14 @@ fn convert_param_nodes(
             let mut suppressed_issues = FxHashMap::default();
 
             adjust_location_from_comments(
-                comments,
+                &comments.iter().map(|c| c.clone().clone()).collect(),
                 &mut location,
                 file_source,
                 &mut suppressed_issues,
                 all_custom_issues,
             );
+
+            comments.retain(|c| c.0.start_offset() > param_node.pos.end_offset());
 
             let mut param = FunctionLikeParameter::new(
                 param_node.name.clone(),
