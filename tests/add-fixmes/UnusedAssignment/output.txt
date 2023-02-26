@@ -1,0 +1,6 @@
+function foo(
+	dict<string, mixed> $arr
+): void {
+	/* HAKANA_FIXME[UnusedAssignment] */
+	$arr['foo'] = 'bar';
+}

@@ -1027,7 +1027,9 @@ fn report_unused_expressions(
                                 .interner
                                 .lookup(&pos.file_path),
                         ) {
-                            if config.issues_to_fix.contains(&IssueKind::UnusedAssignment) {
+                            if config.issues_to_fix.contains(&IssueKind::UnusedAssignment)
+                                && !config.add_fixmes
+                            {
                                 unused_variable_nodes.push(node.clone());
                             } else {
                                 let unused_closure_variable = tast_info.closure_spans.iter().any(
