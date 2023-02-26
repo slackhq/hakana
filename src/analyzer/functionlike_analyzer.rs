@@ -27,7 +27,7 @@ use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
 use itertools::Itertools;
-use oxidized::aast;
+use oxidized::{aast, tast};
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashSet;
 
@@ -829,7 +829,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                     if let Some(type_location) = &param.signature_type_location {
                                         type_location.clone()
                                     } else {
-                                        param.location.clone()
+                                        param.name_location.clone()
                                     },
                                     &context.function_context.calling_functionlike_id,
                                 ));
@@ -870,14 +870,14 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             let new_parent_node = if let GraphKind::WholeProgram(_) =
                 &tast_info.data_flow_graph.kind
             {
-                DataFlowNode::get_for_assignment(param.name.clone(), param.location.clone())
+                DataFlowNode::get_for_assignment(param.name.clone(), param.name_location.clone())
             } else {
                 let id = format!(
                     "{}-{}:{}-{}",
                     param.name,
-                    interner.lookup(&param.location.file_path),
-                    param.location.start_offset,
-                    param.location.end_offset
+                    interner.lookup(&param.name_location.file_path),
+                    param.name_location.start_offset,
+                    param.name_location.end_offset
                 );
 
                 DataFlowNode {
@@ -927,7 +927,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 let argument_node = DataFlowNode::get_for_method_argument(
                     calling_id.to_string(&self.get_codebase().interner),
                     i,
-                    Some(param.location.clone()),
+                    Some(param.name_location.clone()),
                     None,
                 );
 

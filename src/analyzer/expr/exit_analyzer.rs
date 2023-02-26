@@ -22,6 +22,7 @@ pub(crate) fn analyze(
     let echo_param = FunctionLikeParameter::new(
         "var".to_string(),
         HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
+        HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
     );
 
     for (i, (_, arg_expr)) in args.iter().enumerate() {

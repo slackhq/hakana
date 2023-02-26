@@ -472,13 +472,13 @@ pub(crate) fn handle_inout_at_return(
                                 .unwrap()
                                 .to_string(&statements_analyzer.get_codebase().interner),
                             i,
-                            Some(param.location.clone()),
+                            Some(param.name_location.clone()),
                             None,
                         )
                     } else {
                         DataFlowNode::get_for_variable_sink(
                             "out ".to_string() + param.name.as_str(),
-                            param.location.clone(),
+                            param.name_location.clone(),
                         )
                     };
 

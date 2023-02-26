@@ -1,8 +1,8 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashSet, FxHashMap};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{attribute_info::AttributeInfo, code_location::HPos, t_union::TUnion, taint::SinkType};
+use crate::{attribute_info::AttributeInfo, code_location::HPos, t_union::TUnion, taint::SinkType, issue::IssueKind};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnresolvedConstantComponent {}
@@ -29,6 +29,8 @@ pub struct FunctionLikeParameter {
 
     pub location: HPos,
 
+    pub name_location: HPos,
+
     pub signature_type_location: Option<HPos>,
 
     pub is_variadic: bool,
@@ -52,10 +54,12 @@ pub struct FunctionLikeParameter {
     pub promoted_property: bool,
 
     pub attributes: Vec<AttributeInfo>,
+
+    pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
 }
 
 impl FunctionLikeParameter {
-    pub fn new(name: String, location: HPos) -> Self {
+    pub fn new(name: String, location: HPos, name_location: HPos) -> Self {
         Self {
             name,
             is_inout: false,
@@ -64,6 +68,7 @@ impl FunctionLikeParameter {
             is_nullable: false,
             default_type: None,
             location,
+            name_location,
             signature_type_location: None,
             is_variadic: false,
             taint_sinks: None,
@@ -73,6 +78,7 @@ impl FunctionLikeParameter {
             promoted_property: false,
             attributes: Vec::new(),
             removed_taints_when_returning_true: None,
+            suppressed_issues: None,
         }
     }
 }

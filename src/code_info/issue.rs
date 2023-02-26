@@ -251,6 +251,10 @@ pub fn get_issue_from_comment(
                 _ => {}
             }
         }
+    } else if trimmed_text == "HHAST_FIXME[UnusedParameter]" {
+        return Some(Ok(IssueKind::UnusedParameter));
+    } else if trimmed_text == "HHAST_FIXME[UnusedVariable]" {
+        return Some(Ok(IssueKind::UnusedAssignment));
     }
 
     return None;

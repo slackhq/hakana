@@ -630,7 +630,7 @@ fn add_dataflow(
         functionlike_id.to_string(&codebase.interner),
         argument_offset,
         if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-            Some(function_param.location.clone())
+            Some(function_param.name_location.clone())
         } else {
             None
         },

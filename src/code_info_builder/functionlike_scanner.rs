@@ -344,6 +344,8 @@ pub(crate) fn get_functionlike(
         resolved_names,
         &type_context,
         file_source,
+        all_custom_issues,
+        comments,
     );
     type_context.template_supers = template_supers;
     functionlike_info.return_type =
@@ -616,14 +618,40 @@ fn convert_param_nodes(
     resolved_names: &FxHashMap<usize, StrId>,
     type_context: &TypeResolutionContext,
     file_source: &FileSource,
+    all_custom_issues: &FxHashSet<String>,
+    comments: &Vec<(Pos, Comment)>,
 ) -> Vec<FunctionLikeParameter> {
     param_nodes
         .iter()
         .map(|param_node| {
+            let mut location = HPos::new(&param_node.pos, file_source.file_path, None);
+
+            if let Some(param_type) = &param_node.type_hint.1 {
+                location.start_offset = param_type.0.start_offset();
+                location.start_line = param_type.0.line();
+                location.start_column =
+                    location.start_offset - param_type.0.to_start_and_end_lnum_bol_offset().0 .1;
+            }
+
+            let mut suppressed_issues = FxHashMap::default();
+
+            adjust_location_from_comments(
+                comments,
+                &mut location,
+                file_source,
+                &mut suppressed_issues,
+                all_custom_issues,
+            );
+
             let mut param = FunctionLikeParameter::new(
                 param_node.name.clone(),
+                location,
                 HPos::new(&param_node.pos, file_source.file_path, None),
             );
+
+            if !suppressed_issues.is_empty() {
+                param.suppressed_issues = Some(suppressed_issues);
+            }
 
             param.is_variadic = param_node.is_variadic;
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
