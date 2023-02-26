@@ -27,7 +27,7 @@ use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
 use itertools::Itertools;
-use oxidized::{aast, tast};
+use oxidized::aast;
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashSet;
 
@@ -976,6 +976,7 @@ fn report_unused_expressions(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
 ) {
     let unused_source_nodes = check_variables_used(&tast_info.data_flow_graph);
+    tast_info.current_stmt_offset = None;
 
     let mut unused_variable_nodes = vec![];
 

@@ -1,0 +1,5 @@
+function foo(
+	/* HAKANA_FIXME[UnusedParameter] Unused param $a */
+	string $a
+): void {
+}

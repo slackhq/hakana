@@ -102,8 +102,14 @@ impl TastInfo {
             .get(&(issue.pos.start_offset, issue.pos.end_offset))
         {
             Some(*expr_fixme_position)
+        } else if let Some(current_stmt_offset) = self.current_stmt_offset {
+            Some(current_stmt_offset)
         } else {
-            self.current_stmt_offset
+            Some(StmtStart(
+                issue.pos.start_offset,
+                issue.pos.start_line,
+                issue.pos.start_column,
+            ))
         };
 
         issue.can_fix = config.add_fixmes && config.issues_to_fix.contains(&issue.kind);
