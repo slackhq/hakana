@@ -10,12 +10,12 @@ function faa(int $i) : void {
 
 function bar(OtherInt $i) : void {
     if ($i === 0) {}
-    if (1 === $i) {}
+    if (1 === ($i as int)) {}
 }
 
 function baz(OtherInt $i) : void {
     if ($i === 0) {}
-    if (1 === $i) {}
+    if (1 === ($i as int)) {}
 }
 
 enum SomeInt: int as int {
