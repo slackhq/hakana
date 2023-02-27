@@ -50,7 +50,7 @@ impl Default for SinkType {
     }
 }
 
-const PAIRS: [(SourceType, SinkType); 32] = [
+const PAIRS: [(SourceType, SinkType); 31] = [
     // All the places we don't want GET data to go
     (SourceType::UriRequestHeader, SinkType::Sql),
     (SourceType::UriRequestHeader, SinkType::Shell),
@@ -69,7 +69,6 @@ const PAIRS: [(SourceType, SinkType); 32] = [
     (SourceType::RawUserData, SinkType::Shell),
     (SourceType::RawUserData, SinkType::FileSystem),
     (SourceType::RawUserData, SinkType::Unserialize),
-    (SourceType::RawUserData, SinkType::CurlHeader),
     (SourceType::RawUserData, SinkType::CurlUri),
     (SourceType::RawUserData, SinkType::HtmlAttribute),
     (SourceType::RawUserData, SinkType::HtmlAttributeUri),
