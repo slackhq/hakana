@@ -59,6 +59,19 @@ pub(crate) fn analyze(
         Some(statements_analyzer.get_codebase()),
     );
 
+    if statements_analyzer.get_config().add_fixmes {
+        if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
+            if current_stmt_offset.line != expr.1.pos().line() {
+                current_stmt_offset.line = expr.1.pos().line();
+            }
+
+            tast_info.expr_fixme_positions.insert(
+                (expr.1.pos().start_offset(), expr.1.pos().end_offset()),
+                *current_stmt_offset,
+            );
+        }
+    }
+
     //let removed_taints = Vec::new();
 
     let mut existing_var_type = None;

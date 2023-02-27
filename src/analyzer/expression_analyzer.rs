@@ -45,24 +45,26 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
-    if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
-        if current_stmt_offset.line != expr.1.line() {
-            if !matches!(expr.2, aast::Expr_::Xml(..)) {
-                *current_stmt_offset = StmtStart {
-                    offset: expr.1.start_offset(),
-                    line: expr.1.line(),
-                    column: expr.1.to_raw_span().start.column() as usize,
-                    add_newline: true,
-                };
-            } else {
-                current_stmt_offset.line = expr.1.line();
+    if statements_analyzer.get_config().add_fixmes {
+        if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
+            if current_stmt_offset.line != expr.1.line() {
+                if !matches!(expr.2, aast::Expr_::Xml(..)) {
+                    *current_stmt_offset = StmtStart {
+                        offset: expr.1.start_offset(),
+                        line: expr.1.line(),
+                        column: expr.1.to_raw_span().start.column() as usize,
+                        add_newline: true,
+                    };
+                } else {
+                    current_stmt_offset.line = expr.1.line();
+                }
             }
-        }
 
-        tast_info.expr_fixme_positions.insert(
-            (expr.1.start_offset(), expr.1.end_offset()),
-            *current_stmt_offset,
-        );
+            tast_info.expr_fixme_positions.insert(
+                (expr.1.start_offset(), expr.1.end_offset()),
+                *current_stmt_offset,
+            );
+        }
     }
 
     match &expr.2 {
