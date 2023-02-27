@@ -524,7 +524,7 @@ fn check_iterator_type(
             if let Some(ref mut value_type) = value_type {
                 add_array_fetch_dataflow(
                     statements_analyzer,
-                    expr,
+                    expr.pos(),
                     tast_info,
                     None,
                     value_type,

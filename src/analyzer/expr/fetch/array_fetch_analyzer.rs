@@ -121,7 +121,7 @@ pub(crate) fn analyze(
 
             add_array_fetch_dataflow(
                 statements_analyzer,
-                expr.0,
+                expr.0.pos(),
                 tast_info,
                 keyed_array_var_id.clone(),
                 &mut stmt_type,
@@ -153,7 +153,7 @@ pub(crate) fn add_array_fetch_dataflow_rc(
     let value_type_inner = Rc::make_mut(value_type);
     add_array_fetch_dataflow(
         statements_analyzer,
-        array_expr,
+        array_expr.pos(),
         tast_info,
         keyed_array_var_id,
         value_type_inner,
@@ -166,7 +166,7 @@ pub(crate) fn add_array_fetch_dataflow_rc(
  */
 pub(crate) fn add_array_fetch_dataflow(
     statements_analyzer: &StatementsAnalyzer,
-    array_expr: &aast::Expr<(), ()>,
+    array_expr_pos: &Pos,
     tast_info: &mut TastInfo,
     keyed_array_var_id: Option<String>,
     value_type: &mut TUnion,
@@ -180,7 +180,7 @@ pub(crate) fn add_array_fetch_dataflow(
 
     if let Some(stmt_var_type) = tast_info
         .expr_types
-        .get(&(array_expr.1.start_offset(), array_expr.1.end_offset()))
+        .get(&(array_expr_pos.start_offset(), array_expr_pos.end_offset()))
     {
         if !stmt_var_type.parent_nodes.is_empty() {
             // TODO Add events dispatchers
@@ -192,7 +192,7 @@ pub(crate) fn add_array_fetch_dataflow(
             };
             let new_parent_node = DataFlowNode::get_for_assignment(
                 node_name,
-                statements_analyzer.get_hpos(array_expr.pos()),
+                statements_analyzer.get_hpos(array_expr_pos),
             );
             tast_info.data_flow_graph.add_node(new_parent_node.clone());
 
@@ -220,7 +220,7 @@ pub(crate) fn add_array_fetch_dataflow(
                 if let None = dim_value {
                     let fetch_node = DataFlowNode::get_for_assignment(
                         "arraykey-fetch".to_string(),
-                        statements_analyzer.get_hpos(array_expr.pos()),
+                        statements_analyzer.get_hpos(array_expr_pos),
                     );
                     tast_info.data_flow_graph.add_node(fetch_node.clone());
                     array_key_node = Some(fetch_node);
@@ -233,10 +233,7 @@ pub(crate) fn add_array_fetch_dataflow(
                     parent_node,
                     &new_parent_node,
                     if let Some(dim_value) = dim_value.clone() {
-                        PathKind::ArrayFetch(
-                            ArrayDataKind::ArrayValue,
-                            dim_value.to_string(),
-                        )
+                        PathKind::ArrayFetch(ArrayDataKind::ArrayValue, dim_value.to_string())
                     } else {
                         PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)
                     },

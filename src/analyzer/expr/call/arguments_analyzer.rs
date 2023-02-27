@@ -758,7 +758,7 @@ fn handle_closure_arg(
                             if let Some(ref mut signature_type) = param_storage.signature_type {
                                 add_array_fetch_dataflow(
                                     statements_analyzer,
-                                    &args[0].1,
+                                    &args[0].1.pos(),
                                     tast_info,
                                     None,
                                     signature_type,
@@ -775,7 +775,7 @@ fn handle_closure_arg(
                             if let Some(ref mut signature_type) = param_storage.signature_type {
                                 add_array_fetch_dataflow(
                                     statements_analyzer,
-                                    &args[0].1,
+                                    &args[0].1.pos(),
                                     tast_info,
                                     None,
                                     signature_type,

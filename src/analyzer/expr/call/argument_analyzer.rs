@@ -90,15 +90,15 @@ pub(crate) fn check_argument_matches(
 
 fn get_unpacked_type(
     statements_analyzer: &StatementsAnalyzer,
-    arg_value_type: TUnion,
+    mut arg_value_type: TUnion,
     tast_info: &mut TastInfo,
     pos: &Pos,
     context: &mut ScopeContext,
 ) -> TUnion {
     let mut has_valid_expected_offset = false;
-    let mut inner_types = arg_value_type
-        .clone()
-        .types
+    let inner_types = arg_value_type.types.drain(..).collect::<Vec<_>>();
+
+    let mut inner_types = inner_types
         .into_iter()
         .map(|atomic_type| match atomic_type {
             TAtomic::TDict { .. } => handle_array_access_on_dict(
