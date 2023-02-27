@@ -1,6 +1,6 @@
 use crate::custom_hook::AfterArgAnalysisData;
 use crate::expr::fetch::array_fetch_analyzer::{
-    handle_array_access_on_dict, handle_array_access_on_vec,
+    add_array_fetch_dataflow, handle_array_access_on_dict, handle_array_access_on_vec,
 };
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
@@ -200,6 +200,15 @@ fn get_unpacked_type(
     for inner_type in &inner_types {
         result_type = add_union_type(result_type, inner_type, codebase, false);
     }
+
+    add_array_fetch_dataflow(
+        statements_analyzer,
+        pos,
+        tast_info,
+        None,
+        &mut result_type,
+        &mut get_arraykey(false),
+    );
 
     result_type
 }
