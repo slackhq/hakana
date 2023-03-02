@@ -771,20 +771,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     }
                 }
 
-                let mut has_any = false;
-
-                if param_type.is_mixed_with_any(&mut has_any) {
-                    if has_any {
-                        if let Some(type_location) = &param.signature_type_location {
-                            tast_info.add_issue(Issue::new(
-                                IssueKind::UnrecognizedType,
-                                "Hakana does not understand this type".to_string(),
-                                type_location.clone(),
-                                &context.function_context.calling_functionlike_id,
-                            ));
-                        }
-                    }
-
+                if param_type.is_mixed() {
                     param_type.clone()
                 } else {
                     let mut param_type = param_type.clone();

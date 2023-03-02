@@ -404,7 +404,7 @@ pub fn get_type_from_hint(
                 "void" => TAtomic::TVoid,
                 "num" => TAtomic::TNum,
                 "mixed" => TAtomic::TMixed,
-                "dynamic" => TAtomic::TMixed,
+                "dynamic" => TAtomic::TMixedWithFlags(true, false, false, false),
                 "vec" | "HH\\varray" | "varray" => {
                     if let Some(first) = extra_info.first() {
                         get_vec_type_from_hint(first, classlike_name, type_context, resolved_names)

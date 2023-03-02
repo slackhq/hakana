@@ -8,7 +8,7 @@ mod expression_analyzer;
 pub mod file_analyzer;
 mod formula_generator;
 mod functionlike_analyzer;
-mod reconciler;
+pub mod reconciler;
 pub mod scope_analyzer;
 pub mod scope_context;
 pub mod statements_analyzer;
