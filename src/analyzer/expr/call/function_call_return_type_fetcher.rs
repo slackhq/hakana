@@ -18,6 +18,7 @@ use hakana_type::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
+use std::f32::consts::E;
 use std::sync::Arc;
 
 use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;
@@ -454,11 +455,11 @@ fn handle_special_functions(
                 }
             }
 
-            Some(wrap_atomic(TAtomic::TStringWithFlags(
-                false,
-                false,
-                all_literals,
-            )))
+            Some(wrap_atomic(if all_literals {
+                TAtomic::TStringWithFlags(false, false, true)
+            } else {
+                TAtomic::TString
+            }))
         }
         "HH\\Lib\\Str\\split" => {
             let mut all_literals = true;
@@ -474,11 +475,11 @@ fn handle_special_functions(
                 }
             }
 
-            Some(get_vec(wrap_atomic(TAtomic::TStringWithFlags(
-                false,
-                false,
-                all_literals,
-            ))))
+            Some(get_vec(wrap_atomic(if all_literals {
+                TAtomic::TStringWithFlags(false, false, true)
+            } else {
+                TAtomic::TString
+            })))
         }
         "range" => {
             let mut all_ints = true;
