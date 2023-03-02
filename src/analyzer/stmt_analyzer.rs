@@ -1,4 +1,5 @@
 use hakana_reflection_info::code_location::StmtStart;
+use hakana_reflection_info::StrId;
 
 use crate::custom_hook::AfterStmtAnalysisData;
 use crate::expr::binop::assignment_analyzer;
@@ -52,6 +53,27 @@ pub(crate) fn analyze(
                 &mut None,
             ) {
                 return false;
+            }
+
+            if let aast::Expr_::Call(..) = &boxed.2 {
+                if let Some(expr_type) = tast_info.get_rc_expr_type(boxed.pos()).cloned() {
+                    for atomic_type in &expr_type.types {
+                        if let TAtomic::TNamedObject { name, .. } = atomic_type {
+                            if *name == StrId::awaitable() {
+                                tast_info.maybe_add_issue(
+                                    Issue::new(
+                                        IssueKind::UnusedAwaitable,
+                                        "This awaitable is never awaited".to_string(),
+                                        statements_analyzer.get_hpos(&stmt.0),
+                                        &context.function_context.calling_functionlike_id,
+                                    ),
+                                    statements_analyzer.get_config(),
+                                    statements_analyzer.get_file_path_actual(),
+                                );
+                            }
+                        }
+                    }
+                }
             }
         }
         aast::Stmt_::Return(_) => {
@@ -268,9 +290,7 @@ fn analyze_awaitall(
                         ..
                     } = inner
                     {
-                        if statements_analyzer.get_codebase().interner.lookup(name)
-                            == "HH\\Awaitable"
-                        {
+                        if name == &StrId::awaitable() {
                             let mut new = type_params.get(0).unwrap().clone();
 
                             new.parent_nodes = parent_nodes;

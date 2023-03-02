@@ -99,6 +99,9 @@ impl StrId {
     pub fn xhp_child() -> Self {
         StrId(14)
     }
+    pub fn awaitable() -> Self {
+        StrId(15)
+    }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -137,6 +140,7 @@ impl Interner {
         interner.intern("HH\\Container".to_string());
         interner.intern("__PHP_Incomplete_Class".to_string());
         interner.intern("XHPChild".to_string());
+        interner.intern("HH\\Awaitable".to_string());
         interner
     }
 

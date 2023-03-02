@@ -122,11 +122,7 @@ pub(crate) fn analyze(
     if functionlike_storage.is_async {
         let parent_nodes = inferred_return_type.parent_nodes.clone();
         inferred_return_type = wrap_atomic(TAtomic::TNamedObject {
-            name: statements_analyzer
-                .get_codebase()
-                .interner
-                .get("HH\\Awaitable")
-                .unwrap(),
+            name: StrId::awaitable(),
             type_params: Some(vec![inferred_return_type]),
             is_this: false,
             extra_types: None,

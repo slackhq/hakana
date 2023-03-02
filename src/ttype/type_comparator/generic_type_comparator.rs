@@ -138,7 +138,7 @@ pub(crate) fn is_contained_by(
         _ => panic!(),
     };
 
-    let awaitable_id = codebase.interner.get("HH\\Awaitable").unwrap();
+    let awaitable_id = StrId::awaitable();
 
     if input_name == &awaitable_id && container_name == &awaitable_id {
         if let (Some(input_param), Some(container_param)) =

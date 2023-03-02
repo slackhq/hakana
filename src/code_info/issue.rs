@@ -111,6 +111,7 @@ pub enum IssueKind {
     UnrecognizedUnaryOp,
     UnusedAssignment,
     UnusedAssignmentInClosure,
+    UnusedAwaitable,
     UnusedClass,
     UnusedFunction,
     UnusedInterface,

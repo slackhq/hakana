@@ -10,6 +10,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
+use hakana_reflection_info::StrId;
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::StmtStart;
@@ -565,7 +566,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     inferred_return_type = Some(if functionlike_storage.is_async {
                         wrap_atomic(TAtomic::TNamedObject {
-                            name: codebase.interner.get("HH\\Awaitable").unwrap(),
+                            name: StrId::awaitable(),
                             type_params: Some(vec![get_void()]),
                             is_this: false,
                             extra_types: None,
@@ -588,7 +589,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 inferred_return_type = Some(if functionlike_storage.is_async {
                     wrap_atomic(TAtomic::TNamedObject {
-                        name: codebase.interner.get("HH\\Awaitable").unwrap(),
+                        name: StrId::awaitable(),
                         type_params: Some(vec![get_void()]),
                         is_this: false,
                         extra_types: None,
