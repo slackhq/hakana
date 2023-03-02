@@ -15,6 +15,7 @@ pub enum IssueKind {
     EmptyBlock,
     FalsableReturnStatement,
     FalseArgument,
+    ImpossibleArrayAssignment,
     ImpossibleAssignment,
     ImpossibleKeyCheck,
     ImpossibleNonnullEntryCheck,

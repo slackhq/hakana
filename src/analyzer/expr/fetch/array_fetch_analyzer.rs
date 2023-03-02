@@ -937,6 +937,8 @@ pub(crate) fn handle_array_access_on_mixed(
                 Issue::new(
                     if let TAtomic::TMixedWithFlags(true, ..) = mixed {
                         IssueKind::MixedAnyArrayAssignment
+                    } else if let TAtomic::TNothing = mixed {
+                        IssueKind::ImpossibleArrayAssignment
                     } else {
                         IssueKind::MixedArrayAssignment
                     },
