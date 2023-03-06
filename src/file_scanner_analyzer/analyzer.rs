@@ -164,8 +164,6 @@ pub fn analyze_files(
         }
     }
 
-    std::fs::remove_dir_all(format!("{}/.hakana_ast_cache", config.root_dir)).ok();
-
     if let Some(bar) = &bar {
         bar.finish_and_clear();
     }

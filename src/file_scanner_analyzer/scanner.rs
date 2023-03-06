@@ -264,14 +264,6 @@ pub(crate) fn scan_files(
             println!("Scanning {} files", files_to_scan.len());
         }
 
-        let ast_cache_dir = format!("{}/.hakana_ast_cache", config.root_dir);
-
-        std::fs::remove_dir_all(&ast_cache_dir).ok();
-
-        if !Path::new(&ast_cache_dir).is_dir() && fs::create_dir(&ast_cache_dir).is_err() {
-            panic!("could not create ast cache directory");
-        }
-
         let mut group_size = threads as usize;
 
         let mut path_groups = FxHashMap::default();
