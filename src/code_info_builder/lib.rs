@@ -42,7 +42,7 @@ struct Context {
 struct Scanner<'a> {
     codebase: &'a mut CodebaseInfo,
     interner: &'a mut ThreadedInterner,
-    file_source: FileSource,
+    file_source: FileSource<'a>,
     resolved_names: &'a FxHashMap<usize, StrId>,
     all_custom_issues: &'a FxHashSet<String>,
     user_defined: bool,

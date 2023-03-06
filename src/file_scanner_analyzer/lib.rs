@@ -76,6 +76,7 @@ pub fn scan_and_analyze(
         file_statuses,
         resolved_names,
         codebase_diff,
+        asts,
     } = scan_files(
         &all_scanned_dirs,
         include_core_libs,
@@ -184,6 +185,7 @@ pub fn scan_and_analyze(
         files_to_analyze,
         arc_codebase.clone(),
         &resolved_names,
+        asts,
         config.clone(),
         &analysis_result,
         filter,

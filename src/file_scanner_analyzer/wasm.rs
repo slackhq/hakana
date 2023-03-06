@@ -192,8 +192,8 @@ pub fn scan_single_file(
             is_production_code: true,
             file_path_actual: path.clone(),
             file_path,
-            hh_fixmes: aast.1.fixmes,
-            comments: aast.1.comments,
+            hh_fixmes: &aast.1.fixmes,
+            comments: &aast.1.comments,
             file_contents: aast.2,
         },
         true,
@@ -237,8 +237,8 @@ pub fn analyze_single_file(
         is_production_code: true,
         file_path_actual: path.clone(),
         file_path,
-        hh_fixmes: aast.1.fixmes,
-        comments: aast.1.comments,
+        hh_fixmes: &aast.1.fixmes,
+        comments: &aast.1.comments,
         file_contents: "".to_string(),
     };
 

@@ -16,7 +16,7 @@ use rustc_hash::FxHashMap;
 
 #[derive(Clone)]
 pub struct FileAnalyzer<'a> {
-    file_source: FileSource,
+    file_source: FileSource<'a>,
     namespace_name: Option<String>,
     pub resolved_names: &'a FxHashMap<usize, StrId>,
     pub codebase: &'a CodebaseInfo,
@@ -25,7 +25,7 @@ pub struct FileAnalyzer<'a> {
 
 impl<'a> FileAnalyzer<'a> {
     pub fn new(
-        file_source: FileSource,
+        file_source: FileSource<'a>,
         resolved_names: &'a FxHashMap<usize, StrId>,
         codebase: &'a CodebaseInfo,
         analysis_config: &'a Config,

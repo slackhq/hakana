@@ -17,7 +17,7 @@ use oxidized::{
 use crate::{expr::assertion_finder, typed_ast::TastInfo};
 
 pub(crate) struct AssertionContext<'a> {
-    pub file_source: &'a FileSource,
+    pub file_source: &'a FileSource<'a>,
     pub resolved_names: &'a FxHashMap<usize, StrId>,
     pub codebase: Option<&'a CodebaseInfo>,
     pub this_class_name: Option<&'a StrId>,

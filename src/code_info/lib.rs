@@ -41,13 +41,13 @@ use rustc_hash::{self, FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
-pub struct FileSource {
+pub struct FileSource<'a> {
     pub file_path: StrId,
     pub file_path_actual: String,
     pub file_contents: String,
     pub is_production_code: bool,
-    pub hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
-    pub comments: Vec<(Pos, Comment)>,
+    pub hh_fixmes: &'a BTreeMap<isize, BTreeMap<isize, Pos>>,
+    pub comments: &'a Vec<(Pos, Comment)>,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
