@@ -68,7 +68,11 @@ pub(crate) fn analyze(
         tast_info.replacements.extend(replacements);
     }
 
-    let closure_id = format!("{}:{}", fun.span.filename(), fun.span.start_offset());
+    let closure_id = format!(
+        "{}:{}",
+        statements_analyzer.get_file_path().0,
+        fun.span.start_offset()
+    );
 
     let mut closure_type = wrap_atomic(TAtomic::TClosure {
         params: lambda_storage

@@ -575,7 +575,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
 
         if let Some(fun) = fun {
-            let function_id = format!("{}:{}", fun.span.filename(), fun.span.start_offset());
+            let function_id = format!("{}:{}", self.file_source.file_path.0, fun.span.start_offset());
 
             let name = self.interner.intern(function_id);
 

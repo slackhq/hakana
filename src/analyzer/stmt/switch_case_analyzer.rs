@@ -27,8 +27,6 @@ use crate::formula_generator;
 
 use super::control_analyzer::BreakContext;
 
-use ocamlrep::rc::RcOc;
-
 use oxidized::ast_defs;
 
 use oxidized;
@@ -171,7 +169,6 @@ pub(crate) fn analyze_case(
             } else {
                 let adjusted_pos = case_cond.pos().to_raw_span();
                 let adjusted_pos = Pos::from_lnum_bol_offset(
-                    RcOc::new(case_cond.pos().filename().clone()),
                     (
                         adjusted_pos.start.line() as usize,
                         adjusted_pos.start.beg_of_line() as usize,
@@ -215,13 +212,10 @@ pub(crate) fn analyze_case(
 
                 aast::Expr(
                     (),
-                    Pos::from_raw_span(
-                        RcOc::new(case_cond.pos().filename().clone()),
-                        PosSpanRaw {
-                            start: new_pos_start,
-                            end: new_pos_end,
-                        },
-                    ),
+                    Pos::from_raw_span(PosSpanRaw {
+                        start: new_pos_start,
+                        end: new_pos_end,
+                    }),
                     aast::Expr_::Binop(Box::new((
                         ast_defs::Bop::Barbar,
                         leftover_case_equality_expr.clone(),

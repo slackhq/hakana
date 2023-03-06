@@ -18,7 +18,6 @@ use hakana_type::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
-use std::f32::consts::E;
 use std::sync::Arc;
 
 use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;

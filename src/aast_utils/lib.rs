@@ -105,7 +105,7 @@ pub fn get_aast_for_path_and_contents(
             Comment::CmtLine(_) => {
                 let mut offsets = pos.to_start_and_end_lnum_bol_offset();
                 offsets.0 .2 -= 2;
-                *pos = Pos::from_lnum_bol_offset(rc_path.clone(), offsets.0, offsets.1);
+                *pos = Pos::from_lnum_bol_offset(offsets.0, offsets.1);
             }
             Comment::CmtBlock(text) => {
                 let mut offsets = pos.to_start_and_end_lnum_bol_offset();
@@ -119,7 +119,7 @@ pub fn get_aast_for_path_and_contents(
                     offsets.0 .1 = offsets.0 .2;
                 }
                 offsets.1 .2 += 1;
-                *pos = Pos::from_lnum_bol_offset(rc_path.clone(), offsets.0, offsets.1);
+                *pos = Pos::from_lnum_bol_offset(offsets.0, offsets.1);
             }
         }
     }

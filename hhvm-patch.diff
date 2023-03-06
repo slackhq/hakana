@@ -15,13 +15,14 @@ index e18d598acef..f6bcfff8735 100644
 +rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
 \ No newline at end of file
 diff --git a/hphp/hack/src/deps/rust/file_info_lib.rs b/hphp/hack/src/deps/rust/file_info_lib.rs
-index 6092c509de9..9087d61ce4f 100644
+index 6092c509de9..6c9bc532695 100644
 --- a/hphp/hack/src/deps/rust/file_info_lib.rs
 +++ b/hphp/hack/src/deps/rust/file_info_lib.rs
-@@ -17,9 +17,13 @@ mod s_set {
+@@ -16,10 +16,13 @@ mod s_set {
+ }
  
  use naming_types::KindOfType;
- use relative_path::RelativePath;
+-use relative_path::RelativePath;
 +#[cfg(unix)]
  use rusqlite::types::FromSql;
 +#[cfg(unix)]
@@ -32,7 +33,23 @@ index 6092c509de9..9087d61ce4f 100644
  use rusqlite::types::ValueRef;
  
  impl From<Mode> for parser_core_types::FileMode {
-@@ -94,6 +98,7 @@ impl From<NameType> for typing_deps_hash::DepType {
+@@ -49,15 +52,6 @@ impl std::cmp::PartialEq<Mode> for parser_core_types::FileMode {
+     }
+ }
+ 
+-impl Pos {
+-    pub fn path(&self) -> &RelativePath {
+-        match self {
+-            Pos::Full(pos) => pos.filename(),
+-            Pos::File(_, path) => path,
+-        }
+-    }
+-}
+-
+ impl From<KindOfType> for NameType {
+     fn from(kind: KindOfType) -> Self {
+         match kind {
+@@ -94,6 +88,7 @@ impl From<NameType> for typing_deps_hash::DepType {
      }
  }
  
@@ -40,7 +57,7 @@ index 6092c509de9..9087d61ce4f 100644
  impl FromSql for NameType {
      fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
          match value {
-@@ -117,6 +122,7 @@ impl FromSql for NameType {
+@@ -117,6 +112,7 @@ impl FromSql for NameType {
      }
  }
  
@@ -105,11 +122,126 @@ index 6972660fea5..574f249d9bb 100644
  use rusqlite::OptionalExtension;
  
  pub struct Names {
+diff --git a/hphp/hack/src/oxidized/manual/errors_impl.rs b/hphp/hack/src/oxidized/manual/errors_impl.rs
+index 7ccc591a940..f66c4470182 100644
+--- a/hphp/hack/src/oxidized/manual/errors_impl.rs
++++ b/hphp/hack/src/oxidized/manual/errors_impl.rs
+@@ -5,8 +5,6 @@
+ 
+ use std::cmp::Ordering;
+ 
+-use ocamlrep::rc::RcOc;
+-
+ use crate::errors::*;
+ use crate::message::Message;
+ use crate::pos::Pos;
+@@ -50,11 +48,6 @@ pub trait FileOrd {
+     fn cmp_file(&self, other: &Self) -> Ordering;
+ }
+ 
+-impl FileOrd for Pos {
+-    fn cmp_file(&self, other: &Self) -> Ordering {
+-        self.filename().cmp(other.filename())
+-    }
+-}
+ 
+ impl<PP: Ord + FileOrd, P: Ord + FileOrd> Ord for UserError<PP, P> {
+     // Intended to match the implementation of `compare` in `Errors.sort` in OCaml.
+@@ -122,10 +115,9 @@ impl Naming {
+ 
+     pub fn method_needs_visibility(first_token_p: Pos, name_p: Pos) -> Error {
+         // Create a zero width position at the start of the first token.
+-        let file = RcOc::clone(first_token_p.filename_rc_ref());
+         let mut p_span = first_token_p.to_raw_span();
+         p_span.end = p_span.start;
+-        let fix_pos = Pos::from_raw_span(file, p_span);
++        let fix_pos = Pos::from_raw_span(p_span);
+ 
+         UserError::new(
+             Self::MethodNeedsVisibility as isize,
 diff --git a/hphp/hack/src/oxidized_by_ref/manual/pos.rs b/hphp/hack/src/oxidized_by_ref/manual/pos.rs
-index b22f1419210..cefae086977 100644
+index b22f1419210..22476a61291 100644
 --- a/hphp/hack/src/oxidized_by_ref/manual/pos.rs
 +++ b/hphp/hack/src/oxidized_by_ref/manual/pos.rs
-@@ -124,7 +124,7 @@ impl<'a> Pos<'a> {
+@@ -19,27 +19,19 @@ use oxidized::pos_span_tiny::PosSpanTiny;
+ use serde::Deserialize;
+ use serde::Serialize;
+ 
+-use crate::relative_path::RelativePath;
+-
+ #[derive(Clone, Deserialize, Hash, Serialize, ToOcamlRep, FromOcamlRepIn)]
+ enum PosImpl<'a> {
+     Small {
+-        #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
+-        file: &'a RelativePath<'a>,
+         start: FilePosSmall,
+         end: FilePosSmall,
+     },
+     Large {
+-        #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
+-        file: &'a RelativePath<'a>,
+         #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
+         start: &'a FilePosLarge,
+         #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
+         end: &'a FilePosLarge,
+     },
+     Tiny {
+-        #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
+-        file: &'a RelativePath<'a>,
+         span: PosSpanTiny,
+     },
+ }
+@@ -56,7 +48,6 @@ arena_deserializer::impl_deserialize_in_arena!(Pos<'arena>);
+ impl arena_trait::TrivialDrop for Pos<'_> {}
+ 
+ const NONE: Pos<'_> = Pos(Tiny {
+-    file: RelativePath::empty(),
+     span: PosSpanTiny::make_dummy(),
+ });
+ 
+@@ -67,24 +58,23 @@ impl<'a> Pos<'a> {
+ 
+     pub fn is_none(&self) -> bool {
+         match self {
+-            Pos(PosImpl::Tiny { file, span }) => span.is_dummy() && file.is_empty(),
++            Pos(PosImpl::Tiny { span }) => span.is_dummy(),
+             _ => false,
+         }
+     }
+ 
+-    pub fn from_raw_span(b: &'a Bump, file: &'a RelativePath<'a>, span: PosSpanRaw) -> &'a Self {
++    pub fn from_raw_span(b: &'a Bump, span: PosSpanRaw) -> &'a Self {
+         if let Some(span) = PosSpanTiny::make(&span.start, &span.end) {
+-            return b.alloc(Pos(Tiny { file, span }));
++            return b.alloc(Pos(Tiny { span }));
+         }
+         let (lnum, bol, offset) = span.start.line_beg_offset();
+         if let Some(start) = FilePosSmall::from_lnum_bol_offset(lnum, bol, offset) {
+             let (lnum, bol, offset) = span.end.line_beg_offset();
+             if let Some(end) = FilePosSmall::from_lnum_bol_offset(lnum, bol, offset) {
+-                return b.alloc(Pos(Small { file, start, end }));
++                return b.alloc(Pos(Small { start, end }));
+             }
+         }
+         b.alloc(Pos(Large {
+-            file,
+             start: b.alloc(span.start),
+             end: b.alloc(span.end),
+         }))
+@@ -104,12 +94,6 @@ impl<'a> Pos<'a> {
+         }
+     }
+ 
+-    pub fn filename(&self) -> &'a RelativePath<'a> {
+-        match &self.0 {
+-            Small { file, .. } | Large { file, .. } | Tiny { file, .. } => file,
+-        }
+-    }
+-
+     /// Returns a closed interval that's incorrect for multi-line spans.
+     pub fn info_pos(&self) -> (usize, usize, usize) {
+         fn compute<P: FilePos>(pos_start: P, pos_end: P) -> (usize, usize, usize) {
+@@ -124,7 +108,7 @@ impl<'a> Pos<'a> {
              if start_minus1 == end {
                  end = start
              }
@@ -118,7 +250,7 @@ index b22f1419210..cefae086977 100644
          }
          match self.0 {
              Small { start, end, .. } => compute(start, end),
-@@ -144,7 +144,12 @@ impl<'a> Pos<'a> {
+@@ -144,7 +128,12 @@ impl<'a> Pos<'a> {
              Tiny { span, .. } => span.to_raw_span().end.line_column_beg(),
          }
          .0;
@@ -132,7 +264,7 @@ index b22f1419210..cefae086977 100644
      }
  
      pub fn info_raw(&self) -> (usize, usize) {
-@@ -153,9 +158,9 @@ impl<'a> Pos<'a> {
+@@ -153,72 +142,75 @@ impl<'a> Pos<'a> {
  
      pub fn line(&self) -> usize {
          match self.0 {
@@ -145,12 +277,17 @@ index b22f1419210..cefae086977 100644
          }
      }
  
-@@ -167,22 +172,32 @@ impl<'a> Pos<'a> {
+     pub fn from_lnum_bol_offset(
+         b: &'a Bump,
+-        file: &'a RelativePath<'a>,
+         start: (usize, usize, usize),
+         end: (usize, usize, usize),
      ) -> &'a Self {
          let (start_line, start_bol, start_offset) = start;
          let (end_line, end_bol, end_offset) = end;
 -        let start = FilePosLarge::from_lnum_bol_offset(start_line, start_bol, start_offset);
 -        let end = FilePosLarge::from_lnum_bol_offset(end_line, end_bol, end_offset);
+-        Self::from_raw_span(b, file, PosSpanRaw { start, end })
 +        let start = FilePosLarge::from_lnum_bol_offset(
 +            start_line as u64,
 +            start_bol as u64,
@@ -158,7 +295,7 @@ index b22f1419210..cefae086977 100644
 +        );
 +        let end =
 +            FilePosLarge::from_lnum_bol_offset(end_line as u64, end_bol as u64, end_offset as u64);
-         Self::from_raw_span(b, file, PosSpanRaw { start, end })
++        Self::from_raw_span(b, PosSpanRaw { start, end })
      }
  
      pub fn to_start_and_end_lnum_bol_offset(
@@ -182,7 +319,10 @@ index b22f1419210..cefae086977 100644
      }
  
      /// For single-line spans only.
-@@ -193,11 +208,15 @@ impl<'a> Pos<'a> {
+     pub fn from_line_cols_offset(
+         b: &'a Bump,
+-        file: &'a RelativePath<'a>,
+         line: usize,
          cols: Range<usize>,
          start_offset: usize,
      ) -> &'a Self {
@@ -200,9 +340,74 @@ index b22f1419210..cefae086977 100644
 +            cols.end as u64,
 +            (start_offset + (cols.end - cols.start)) as u64,
          );
-         Self::from_raw_span(b, file, PosSpanRaw { start, end })
+-        Self::from_raw_span(b, file, PosSpanRaw { start, end })
++        Self::from_raw_span(b, PosSpanRaw { start, end })
      }
-@@ -294,27 +313,30 @@ impl<'a> Pos<'a> {
+ 
+     pub fn btw_nocheck(b: &'a Bump, x1: &'a Self, x2: &'a Self) -> &'a Self {
+         let start = x1.to_raw_span().start;
+         let end = x2.to_raw_span().end;
+-        Self::from_raw_span(b, x1.filename(), PosSpanRaw { start, end })
++        Self::from_raw_span(b, PosSpanRaw { start, end })
+     }
+ 
+     pub fn btw(b: &'a Bump, x1: &'a Self, x2: &'a Self) -> Result<&'a Self, String> {
+-        let file1 = x1.filename();
+-        let file2 = x2.filename();
+-        if !std::ptr::eq(file1, file2) && file1 != file2 {
+-            // using string concatenation instead of format!,
+-            // it is not stable see T52404885
+-            Err(String::from("Position in separate files ")
+-                + &x1.filename().to_string()
+-                + " and "
+-                + &x2.filename().to_string())
+-        } else if x1.end_offset() > x2.end_offset() {
++        if x1.end_offset() > x2.end_offset() {
+             Err(String::from("btw: invalid positions")
+                 + &x1.end_offset().to_string()
+                 + "and"
+@@ -229,15 +221,6 @@ impl<'a> Pos<'a> {
+     }
+ 
+     pub fn merge(b: &'a Bump, x1: &'a Self, x2: &'a Self) -> Result<&'a Self, String> {
+-        let file1 = x1.filename();
+-        let file2 = x2.filename();
+-        if !std::ptr::eq(file1, file2) && file1 != file2 {
+-            // see comment above (T52404885)
+-            return Err(String::from("Position in separate files ")
+-                + &x1.filename().to_string()
+-                + " and "
+-                + &x2.filename().to_string());
+-        }
+         Ok(Self::merge_without_checking_filename(b, x1, x2))
+     }
+ 
+@@ -271,7 +254,7 @@ impl<'a> Pos<'a> {
+             span1.end
+         };
+ 
+-        Self::from_raw_span(b, x1.filename(), PosSpanRaw { start, end })
++        Self::from_raw_span(b, PosSpanRaw { start, end })
+     }
+ 
+     pub fn last_char(&'a self, b: &'a Bump) -> &'a Self {
+@@ -279,7 +262,7 @@ impl<'a> Pos<'a> {
+             self
+         } else {
+             let end = self.to_raw_span().end;
+-            Self::from_raw_span(b, self.filename(), PosSpanRaw { start: end, end })
++            Self::from_raw_span(b, PosSpanRaw { start: end, end })
+         }
+     }
+ 
+@@ -288,53 +271,50 @@ impl<'a> Pos<'a> {
+             self
+         } else {
+             let start = self.to_raw_span().start.with_column(0);
+-            Self::from_raw_span(b, self.filename(), PosSpanRaw { start, end: start })
++            Self::from_raw_span(b, PosSpanRaw { start, end: start })
+         }
+     }
  
      pub fn end_offset(&self) -> usize {
          match &self.0 {
@@ -227,13 +432,13 @@ index b22f1419210..cefae086977 100644
      }
  
      pub fn to_owned(&self) -> oxidized::pos::Pos {
-         let file = self.filename();
+-        let file = self.filename();
          let PosSpanRaw { start, end } = self.to_raw_span();
 +
 +        let start = start.line_beg_offset();
 +        let end = end.line_beg_offset();
          oxidized::pos::Pos::from_lnum_bol_offset(
-             ocamlrep::rc::RcOc::new(file.to_oxidized()),
+-            ocamlrep::rc::RcOc::new(file.to_oxidized()),
 -            start.line_beg_offset(),
 -            end.line_beg_offset(),
 +            (start.0 as usize, start.1 as usize, start.2 as usize),
@@ -241,8 +446,252 @@ index b22f1419210..cefae086977 100644
          )
      }
  }
+ 
+ impl<'a> Pos<'a> {
+     pub fn from_oxidized_in(pos: &oxidized::pos::Pos, arena: &'a Bump) -> &'a Self {
+-        let file = RelativePath::from_oxidized_in(pos.filename(), arena);
+         let (start, end) = pos.to_start_and_end_lnum_bol_offset();
+-        Self::from_lnum_bol_offset(arena, file, start, end)
++        Self::from_lnum_bol_offset(arena, start, end)
+     }
+ 
+     pub fn from_oxidized_with_file_in(
+         pos: &oxidized::pos::Pos,
+-        file: &'a RelativePath<'a>,
+         arena: &'a Bump,
+     ) -> &'a Self {
+-        debug_assert!(pos.filename().prefix() == file.prefix());
+-        debug_assert!(pos.filename().path() == file.path());
+         let (start, end) = pos.to_start_and_end_lnum_bol_offset();
+-        Self::from_lnum_bol_offset(arena, file, start, end)
++        Self::from_lnum_bol_offset(arena, start, end)
+     }
+ }
+ 
+@@ -342,7 +322,6 @@ impl std::fmt::Debug for Pos<'_> {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         fn do_fmt<P: FilePos>(
+             f: &mut std::fmt::Formatter<'_>,
+-            file: &RelativePath<'_>,
+             start: &P,
+             end: &P,
+         ) -> std::fmt::Result {
+@@ -355,25 +334,21 @@ impl std::fmt::Debug for Pos<'_> {
+             // positions. Depends upon RelativePath's implementation of Display
+             // also being single-line.
+             if start_line == end_line {
+-                write!(
+-                    f,
+-                    "Pos({}, {}:{}-{})",
+-                    &file, &start_line, &start_col, &end_col,
+-                )
++                write!(f, "Pos({}:{}-{})", &start_line, &start_col, &end_col,)
+             } else {
+                 write!(
+                     f,
+-                    "Pos({}, {}:{}-{}:{})",
+-                    &file, &start_line, &start_col, &end_line, &end_col,
++                    "Pos({}:{}-{}:{})",
++                    &start_line, &start_col, &end_line, &end_col,
+                 )
+             }
+         }
+         match &self.0 {
+-            Small { file, start, end } => do_fmt(f, file, start, end),
+-            Large { file, start, end } => do_fmt(f, file, *start, *end),
+-            Tiny { file, span } => {
++            Small { start, end } => do_fmt(f, start, end),
++            Large { start, end } => do_fmt(f, *start, *end),
++            Tiny { span } => {
+                 let PosSpanRaw { start, end } = span.to_raw_span();
+-                do_fmt(f, file, &start, &end)
++                do_fmt(f, &start, &end)
+             }
+         }
+     }
+@@ -383,11 +358,9 @@ impl std::fmt::Display for Pos<'_> {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         fn do_fmt<P: FilePos>(
+             f: &mut std::fmt::Formatter<'_>,
+-            file: &RelativePath<'_>,
+             start: P,
+             end: P,
+         ) -> std::fmt::Result {
+-            write!(f, "{}", file)?;
+             let (start_line, start_col, _) = start.line_column_beg();
+             let (end_line, end_col, _) = end.line_column_beg();
+             if start_line == end_line {
+@@ -397,11 +370,11 @@ impl std::fmt::Display for Pos<'_> {
+             }
+         }
+         match self.0 {
+-            Small { file, start, end } => do_fmt(f, file, start, end),
+-            Large { file, start, end } => do_fmt(f, file, *start, *end),
+-            Tiny { file, span } => {
++            Small { start, end } => do_fmt(f, start, end),
++            Large { start, end } => do_fmt(f, *start, *end),
++            Tiny { span } => {
+                 let PosSpanRaw { start, end } = span.to_raw_span();
+-                do_fmt(f, file, start, end)
++                do_fmt(f, start, end)
+             }
+         }
+     }
+@@ -410,9 +383,8 @@ impl std::fmt::Display for Pos<'_> {
+ impl Ord for Pos<'_> {
+     // Intended to match the implementation of `Pos.compare` in OCaml.
+     fn cmp(&self, other: &Pos<'_>) -> Ordering {
+-        self.filename()
+-            .cmp(other.filename())
+-            .then(self.start_offset().cmp(&other.start_offset()))
++        self.start_offset()
++            .cmp(&other.start_offset())
+             .then(self.end_offset().cmp(&other.end_offset()))
+     }
+ }
+@@ -455,14 +427,7 @@ pub struct PosString<'a>(&'a Pos<'a>);
+ impl std::fmt::Display for PosString<'_> {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         let (line, start, end) = self.0.info_pos();
+-        write!(
+-            f,
+-            "File {:?}, line {}, characters {}-{}:",
+-            self.0.filename().path(),
+-            line,
+-            start,
+-            end
+-        )
++        write!(f, "line {}, characters {}-{}:", line, start, end)
+     }
+ }
+ 
+@@ -484,112 +449,18 @@ mod tests {
+ 
+     fn make_pos<'a>(
+         b: &'a Bump,
+-        name: &'a RelativePath<'a>,
+         start: (usize, usize, usize),
+         end: (usize, usize, usize),
+     ) -> &'a Pos<'a> {
+-        b.alloc(Pos::from_lnum_bol_offset(b, name, start, end))
++        b.alloc(Pos::from_lnum_bol_offset(b, start, end))
+     }
+ 
+     #[test]
+     fn test_pos_is_none() {
+         let b = Bump::new();
+         assert!(Pos::none().is_none());
+-        let path_a = b.alloc(RelativePath::make(Prefix::Dummy, "a"));
+-        assert!(!Pos::from_lnum_bol_offset(&b, path_a, (0, 0, 0), (0, 0, 0)).is_none());
+-        let empty_path = b.alloc(RelativePath::make(Prefix::Dummy, ""));
+-        assert!(!Pos::from_lnum_bol_offset(&b, empty_path, (1, 0, 0), (0, 0, 0)).is_none());
+-    }
+-
+-    #[test]
+-    fn test_pos_string() {
+-        assert_eq!(
+-            Pos::none().string().to_string(),
+-            r#"File "", line 0, characters 0-0:"#
+-        );
+-        let b = Bump::new();
+-        let path = b.alloc(RelativePath::make(Prefix::Dummy, "a.php"));
+-        assert_eq!(
+-            Pos::from_lnum_bol_offset(&b, path, (5, 100, 117), (5, 100, 142))
+-                .string()
+-                .to_string(),
+-            r#"File "a.php", line 5, characters 18-42:"#
+-        );
+-    }
+-
+-    #[test]
+-    fn test_pos_merge() {
+-        let b = Bump::new();
+-        let test = |name, (exp_start, exp_end), ((fst_start, fst_end), (snd_start, snd_end))| {
+-            let path = b.alloc(RelativePath::make(Prefix::Dummy, "a"));
+-            assert_eq!(
+-                Ok(make_pos(&b, path, exp_start, exp_end)),
+-                Pos::merge(
+-                    &b,
+-                    make_pos(&b, path, fst_start, fst_end),
+-                    make_pos(&b, path, snd_start, snd_end)
+-                ),
+-                "{}",
+-                name
+-            );
+-
+-            // Run this again because we want to test that we get the same
+-            // result regardless of order.
+-            assert_eq!(
+-                Ok(make_pos(&b, path, exp_start, exp_end)),
+-                Pos::merge(
+-                    &b,
+-                    make_pos(&b, path, snd_start, snd_end),
+-                    make_pos(&b, path, fst_start, fst_end),
+-                ),
+-                "{} (reversed)",
+-                name
+-            );
+-        };
+-
+-        test(
+-            "basic test",
+-            ((0, 0, 0), (0, 0, 5)),
+-            (((0, 0, 0), (0, 0, 2)), ((0, 0, 2), (0, 0, 5))),
+-        );
+-
+-        test(
+-            "merge should work with gaps",
+-            ((0, 0, 0), (0, 0, 15)),
+-            (((0, 0, 0), (0, 0, 5)), ((0, 0, 10), (0, 0, 15))),
+-        );
+-
+-        test(
+-            "merge should work with overlaps",
+-            ((0, 0, 0), (0, 0, 15)),
+-            (((0, 0, 0), (0, 0, 12)), ((0, 0, 7), (0, 0, 15))),
+-        );
+-
+-        test(
+-            "merge should work between lines",
+-            ((0, 0, 0), (2, 20, 25)),
+-            (((0, 0, 0), (1, 10, 15)), ((1, 10, 20), (2, 20, 25))),
+-        );
+-
+-        assert_eq!(
+-            Err("Position in separate files |a and |b".to_string()),
+-            Pos::merge(
+-                &b,
+-                make_pos(
+-                    &b,
+-                    &RelativePath::make(Prefix::Dummy, "a"),
+-                    (0, 0, 0),
+-                    (0, 0, 0)
+-                ),
+-                make_pos(
+-                    &b,
+-                    &RelativePath::make(Prefix::Dummy, "b"),
+-                    (0, 0, 0),
+-                    (0, 0, 0)
+-                )
+-            ),
+-            "should reject merges with different filenames"
+-        );
++        assert!(!Pos::from_lnum_bol_offset(&b, (0, 0, 0), (0, 0, 0)).is_none());
++        assert!(!Pos::from_lnum_bol_offset(&b, (1, 0, 0), (0, 0, 0)).is_none());
+     }
+ 
+     #[test]
+@@ -599,7 +470,7 @@ mod tests {
+         let b = &bumpalo::Bump::new();
+         let hash = no_pos_hash::position_insensitive_hash;
+         let none = Pos::none();
+-        let pos = Pos::from_line_cols_offset(b, RelativePath::empty(), 2, 2..10, 17);
++        let pos = Pos::from_line_cols_offset(b, 2, 2..10, 17);
+ 
+         assert_eq!(hash(&Id(pos, "foo")), hash(&Id(pos, "foo")));
+         assert_eq!(hash(&Id(none, "foo")), hash(&Id(pos, "foo")));
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index b589bff13eb..2a61fce99ce 100644
+index b589bff13eb..abf8c06261d 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
 @@ -78,11 +78,11 @@ impl<'src> AastParser {
@@ -318,6 +767,15 @@ index b589bff13eb..2a61fce99ce 100644
                  error_peak,
                  arena_bytes: arena.allocated_bytes() as u64,
                  ..Default::default()
+@@ -318,7 +318,7 @@ impl<'src> AastParser {
+                     disable_hh_ignore_error: env.parser_options.po_disable_hh_ignore_error,
+                     allowed_decl_fixme_codes: &env.parser_options.po_allowed_decl_fixme_codes,
+                 };
+-            Ok(scourer.scour_comments(script))
++            Ok(scourer.scour_comments(script, indexed_source_text.source_text().file_path()))
+         } else {
+             Ok(ScouredComments {
+                 comments: Default::default(),
 diff --git a/hphp/hack/src/parser/core/lexer.rs b/hphp/hack/src/parser/core/lexer.rs
 index 8db2f3a3271..cadcc02dbbf 100644
 --- a/hphp/hack/src/parser/core/lexer.rs
@@ -331,6 +789,75 @@ index 8db2f3a3271..cadcc02dbbf 100644
                          return acc;
                      }
                      _ => {
+diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
+index 62b4b77ff1c..766a7de210c 100644
+--- a/hphp/hack/src/parser/lowerer/lowerer.rs
++++ b/hphp/hack/src/parser/lowerer/lowerer.rs
+@@ -3416,12 +3416,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+             let markup_hashbang = &c.hashbang;
+             let markup_suffix = &c.suffix;
+             let pos = p_pos(node, env);
+-            let f = pos.filename();
+             let expected_suffix_offset = if markup_hashbang.is_missing() {
+                 0
+             } else {
+                 markup_hashbang.width() + 1 /* for newline */
+             };
++            let f = env.source_text().file_path();
+             if (f.has_extension("hack") || f.has_extension("hackpartial"))
+                 && !(markup_suffix.is_missing())
+             {
+diff --git a/hphp/hack/src/parser/lowerer/scour_comment.rs b/hphp/hack/src/parser/lowerer/scour_comment.rs
+index ff83849e0b8..644c59be990 100644
+--- a/hphp/hack/src/parser/lowerer/scour_comment.rs
++++ b/hphp/hack/src/parser/lowerer/scour_comment.rs
+@@ -17,6 +17,7 @@ use parser_core_types::syntax_by_ref::syntax_variant_generated::SyntaxVariant::*
+ use parser_core_types::syntax_trait::SyntaxTrait;
+ use parser_core_types::trivia_kind::TriviaKind;
+ use regex::bytes::Regex;
++use relative_path::RelativePath;
+ use rescan_trivia::RescanTrivia;
+ 
+ /** The full fidelity parser considers all comments "simply" trivia. Some
+@@ -42,7 +43,11 @@ where
+     V: 'arena,
+     Syntax<'arena, T, V>: SyntaxTrait,
+ {
+-    pub fn scour_comments<'r>(&self, top_node: &'r Syntax<'arena, T, V>) -> ScouredComments
++    pub fn scour_comments<'r>(
++        &self,
++        top_node: &'r Syntax<'arena, T, V>,
++        file_path: &RelativePath,
++    ) -> ScouredComments
+     where
+         'r: 'arena,
+     {
+@@ -64,7 +69,7 @@ where
+                         let leading = t.scan_leading(self.source_text());
+                         let trailing = t.scan_trailing(self.source_text());
+                         for tr in leading.iter().chain(trailing.iter()) {
+-                            self.on_trivia(in_block, node, tr, &mut acc);
++                            self.on_trivia(in_block, node, tr, &mut acc, file_path);
+                         }
+                     }
+                     continue;
+@@ -85,6 +90,7 @@ where
+         node: &Syntax<'arena, T, V>,
+         t: &PositionedTrivium,
+         acc: &mut ScouredComments,
++        file_path: &RelativePath,
+     ) {
+         use relative_path::Prefix;
+         use TriviaKind::*;
+@@ -130,7 +136,7 @@ where
+                         Some(code) => {
+                             let code = std::str::from_utf8(code).unwrap();
+                             let code: isize = std::str::FromStr::from_str(code).unwrap();
+-                            let in_hhi = pos.filename().prefix() == Prefix::Hhi;
++                            let in_hhi = file_path.prefix() == Prefix::Hhi;
+                             if !(in_block
+                                 || in_hhi
+                                 || self.allowed_decl_fixme_codes.contains(&code))
 diff --git a/hphp/hack/src/utils/escaper/Cargo.toml b/hphp/hack/src/utils/escaper/Cargo.toml
 index 84ed3f72ed2..0505586258f 100644
 --- a/hphp/hack/src/utils/escaper/Cargo.toml
@@ -651,10 +1178,26 @@ index ce3bd4e0172..66579bfceab 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/pos_impl.rs b/hphp/hack/src/utils/rust/pos/pos_impl.rs
-index 4d7d570596d..9f22843e02b 100644
+index 4d7d570596d..0e06a57a4f1 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_impl.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_impl.rs
-@@ -25,16 +25,7 @@ use crate::file_pos_small::FilePosSmall;
+@@ -6,15 +6,11 @@
+ use std::borrow::Cow;
+ use std::cmp::Ordering;
+ use std::ops::Range;
+-use std::path::PathBuf;
+ 
+ use eq_modulo_pos::EqModuloPos;
+-use ocamlrep::rc::RcOc;
+ use ocamlrep::FromOcamlRep;
+ use ocamlrep::FromOcamlRepIn;
+ use ocamlrep::ToOcamlRep;
+-use relative_path::Prefix;
+-use relative_path::RelativePath;
+ use relative_path::RelativePathCtx;
+ use serde::Deserialize;
+ use serde::Serialize;
+@@ -25,43 +21,23 @@ use crate::file_pos_small::FilePosSmall;
  use crate::pos_span_raw::PosSpanRaw;
  use crate::pos_span_tiny::PosSpanTiny;
  
@@ -671,8 +1214,19 @@ index 4d7d570596d..9f22843e02b 100644
 +#[derive(Clone, Debug, Deserialize, Hash, FromOcamlRep, FromOcamlRepIn, ToOcamlRep, Serialize)]
  enum PosImpl {
      Small {
-         file: RcOc<RelativePath>,
-@@ -53,15 +44,7 @@ enum PosImpl {
+-        file: RcOc<RelativePath>,
+         start: FilePosSmall,
+         end: FilePosSmall,
+     },
+     Large {
+-        file: RcOc<RelativePath>,
+         start: Box<FilePosLarge>,
+         end: Box<FilePosLarge>,
+     },
+     Tiny {
+-        file: RcOc<RelativePath>,
+         span: PosSpanTiny,
+     },
      FromReason(Box<PosImpl>),
  }
  
@@ -689,7 +1243,75 @@ index 4d7d570596d..9f22843e02b 100644
  pub struct Pos(PosImpl);
  
  pub type PosR<'a> = &'a Pos;
-@@ -157,7 +140,7 @@ impl Pos {
+@@ -70,14 +46,13 @@ impl Pos {
+     pub fn make_none() -> Self {
+         // TODO: shiqicao make NONE static, lazy_static doesn't allow Rc
+         Pos(PosImpl::Tiny {
+-            file: RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from(""))),
+             span: PosSpanTiny::make_dummy(),
+         })
+     }
+ 
+     pub fn is_none(&self) -> bool {
+         match self {
+-            Pos(PosImpl::Tiny { file, span }) => span.is_dummy() && file.is_empty(),
++            Pos(PosImpl::Tiny { span }) => span.is_dummy(),
+             _ => false,
+         }
+     }
+@@ -88,19 +63,18 @@ impl Pos {
+         line0 != 1 || char0 != 1 || line1 != 1 || char1 != 1
+     }
+ 
+-    pub fn from_raw_span(file: RcOc<RelativePath>, span: PosSpanRaw) -> Self {
++    pub fn from_raw_span(span: PosSpanRaw) -> Self {
+         if let Some(span) = PosSpanTiny::make(&span.start, &span.end) {
+-            return Pos(PosImpl::Tiny { file, span });
++            return Pos(PosImpl::Tiny { span });
+         }
+         let (lnum, bol, offset) = span.start.line_beg_offset();
+         if let Some(start) = FilePosSmall::from_lnum_bol_offset(lnum, bol, offset) {
+             let (lnum, bol, offset) = span.end.line_beg_offset();
+             if let Some(end) = FilePosSmall::from_lnum_bol_offset(lnum, bol, offset) {
+-                return Pos(PosImpl::Small { file, start, end });
++                return Pos(PosImpl::Small { start, end });
+             }
+         }
+         Pos(PosImpl::Large {
+-            file,
+             start: Box::new(span.start),
+             end: Box::new(span.end),
+         })
+@@ -121,28 +95,6 @@ impl Pos {
+         }
+     }
+ 
+-    pub fn filename(&self) -> &RelativePath {
+-        self.filename_rc_ref()
+-    }
+-
+-    pub fn filename_rc_ref(&self) -> &RcOc<RelativePath> {
+-        match &self.0 {
+-            PosImpl::Small { file, .. }
+-            | PosImpl::Large { file, .. }
+-            | PosImpl::Tiny { file, .. } => file,
+-            PosImpl::FromReason(_p) => unimplemented!(),
+-        }
+-    }
+-
+-    fn into_filename(self) -> RcOc<RelativePath> {
+-        match self.0 {
+-            PosImpl::Small { file, .. }
+-            | PosImpl::Large { file, .. }
+-            | PosImpl::Tiny { file, .. } => file,
+-            PosImpl::FromReason(_p) => unimplemented!(),
+-        }
+-    }
+-
+     /// Returns a closed interval that's incorrect for multi-line spans.
+     pub fn info_pos(&self) -> (usize, usize, usize) {
+         fn compute<P: FilePos>(pos_start: &P, pos_end: &P) -> (usize, usize, usize) {
+@@ -157,7 +109,7 @@ impl Pos {
              if end == start_minus1 {
                  end = start
              }
@@ -698,7 +1320,7 @@ index 4d7d570596d..9f22843e02b 100644
          }
          match &self.0 {
              PosImpl::Small { start, end, .. } => compute(start, end),
-@@ -179,7 +162,7 @@ impl Pos {
+@@ -179,7 +131,7 @@ impl Pos {
              PosImpl::FromReason(_p) => unimplemented!(),
          }
          .0;
@@ -707,7 +1329,7 @@ index 4d7d570596d..9f22843e02b 100644
      }
  
      pub fn info_raw(&self) -> (usize, usize) {
-@@ -188,9 +171,9 @@ impl Pos {
+@@ -188,29 +140,30 @@ impl Pos {
  
      pub fn line(&self) -> usize {
          match &self.0 {
@@ -720,23 +1342,26 @@ index 4d7d570596d..9f22843e02b 100644
              PosImpl::FromReason(_p) => unimplemented!(),
          }
      }
-@@ -202,15 +185,23 @@ impl Pos {
-     ) -> Self {
+ 
+-    pub fn from_lnum_bol_offset(
+-        file: RcOc<RelativePath>,
+-        start: (usize, usize, usize),
+-        end: (usize, usize, usize),
+-    ) -> Self {
++    pub fn from_lnum_bol_offset(start: (usize, usize, usize), end: (usize, usize, usize)) -> Self {
          let (start_line, start_bol, start_offset) = start;
          let (end_line, end_bol, end_offset) = end;
 -        let start = FilePosLarge::from_lnum_bol_offset(start_line, start_bol, start_offset);
 -        let end = FilePosLarge::from_lnum_bol_offset(end_line, end_bol, end_offset);
+-        Self::from_raw_span(file, PosSpanRaw { start, end })
 +        let start = FilePosLarge::from_lnum_bol_offset(
 +            start_line as u64,
 +            start_bol as u64,
 +            start_offset as u64,
 +        );
-+        let end = FilePosLarge::from_lnum_bol_offset(
-+            end_line as u64,
-+            end_bol as u64,
-+            end_offset as u64,
-+        );
-         Self::from_raw_span(file, PosSpanRaw { start, end })
++        let end =
++            FilePosLarge::from_lnum_bol_offset(end_line as u64, end_bol as u64, end_offset as u64);
++        Self::from_raw_span(PosSpanRaw { start, end })
      }
  
      pub fn to_start_and_end_lnum_bol_offset(
@@ -747,7 +1372,7 @@ index 4d7d570596d..9f22843e02b 100644
              PosImpl::Small { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
              PosImpl::Large { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
              PosImpl::Tiny { span, .. } => {
-@@ -218,7 +209,12 @@ impl Pos {
+@@ -218,40 +171,41 @@ impl Pos {
                  (start.line_beg_offset(), end.line_beg_offset())
              }
              PosImpl::FromReason(_p) => unimplemented!(),
@@ -761,7 +1386,9 @@ index 4d7d570596d..9f22843e02b 100644
      }
  
      /// For single-line spans only.
-@@ -228,11 +224,15 @@ impl Pos {
+     pub fn from_line_cols_offset(
+-        file: RcOc<RelativePath>,
+         line: usize,
          cols: Range<usize>,
          start_offset: usize,
      ) -> Self {
@@ -779,9 +1406,80 @@ index 4d7d570596d..9f22843e02b 100644
 +            cols.end as u64,
 +            (start_offset + (cols.end - cols.start)) as u64,
          );
-         Self::from_raw_span(file, PosSpanRaw { start, end })
+-        Self::from_raw_span(file, PosSpanRaw { start, end })
++        Self::from_raw_span(PosSpanRaw { start, end })
      }
-@@ -321,18 +321,18 @@ impl Pos {
+ 
+     pub fn btw_nocheck(x1: Self, x2: Self) -> Self {
+         let start = x1.to_raw_span().start;
+         let end = x2.to_raw_span().end;
+-        Self::from_raw_span(x1.into_filename(), PosSpanRaw { start, end })
++        Self::from_raw_span(PosSpanRaw { start, end })
+     }
+ 
+     pub fn btw(x1: &Self, x2: &Self) -> Result<Self, String> {
+-        if x1.filename() != x2.filename() {
+-            // using string concatenation instead of format!,
+-            // it is not stable see T52404885
+-            Err(String::from("Position in separate files ")
+-                + &x1.filename().to_string()
+-                + " and "
+-                + &x2.filename().to_string())
+-        } else if x1.end_offset() > x2.end_offset() {
++        if x1.end_offset() > x2.end_offset() {
+             Err(String::from("btw: invalid positions")
+                 + &x1.end_offset().to_string()
+                 + "and"
+@@ -262,14 +216,6 @@ impl Pos {
+     }
+ 
+     pub fn merge(x1: &Self, x2: &Self) -> Result<Self, String> {
+-        if x1.filename() != x2.filename() {
+-            // see comment above (T52404885)
+-            return Err(String::from("Position in separate files ")
+-                + &x1.filename().to_string()
+-                + " and "
+-                + &x2.filename().to_string());
+-        }
+-
+         let span1 = x1.to_raw_span();
+         let span2 = x2.to_raw_span();
+ 
+@@ -289,10 +235,7 @@ impl Pos {
+             span2.end
+         };
+ 
+-        Ok(Self::from_raw_span(
+-            RcOc::clone(x1.filename_rc_ref()),
+-            PosSpanRaw { start, end },
+-        ))
++        Ok(Self::from_raw_span(PosSpanRaw { start, end }))
+     }
+ 
+     pub fn last_char(&self) -> Cow<'_, Self> {
+@@ -300,10 +243,7 @@ impl Pos {
+             Cow::Borrowed(self)
+         } else {
+             let end = self.to_raw_span().end;
+-            Cow::Owned(Self::from_raw_span(
+-                RcOc::clone(self.filename_rc_ref()),
+-                PosSpanRaw { start: end, end },
+-            ))
++            Cow::Owned(Self::from_raw_span(PosSpanRaw { start: end, end }))
+         }
+     }
+ 
+@@ -312,27 +252,24 @@ impl Pos {
+             Cow::Borrowed(self)
+         } else {
+             let start = self.to_raw_span().start.with_column(0);
+-            Cow::Owned(Self::from_raw_span(
+-                RcOc::clone(self.filename_rc_ref()),
+-                PosSpanRaw { start, end: start },
+-            ))
++            Cow::Owned(Self::from_raw_span(PosSpanRaw { start, end: start }))
+         }
+     }
  
      pub fn end_offset(&self) -> usize {
          match &self.0 {
@@ -806,10 +1504,97 @@ index 4d7d570596d..9f22843e02b 100644
              PosImpl::FromReason(_p) => unimplemented!(),
          }
      }
-@@ -478,22 +478,18 @@ mod tests {
-     #[test]
-     fn test_pos() {
-         assert!(Pos::make_none().is_none());
+@@ -342,11 +279,9 @@ impl std::fmt::Display for Pos {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         fn do_fmt<P: FilePos>(
+             f: &mut std::fmt::Formatter<'_>,
+-            file: &RelativePath,
+             start: &P,
+             end: &P,
+         ) -> std::fmt::Result {
+-            write!(f, "{}", file)?;
+             let (start_line, start_col, _) = start.line_column_beg();
+             let (end_line, end_col, _) = end.line_column_beg();
+             if start_line == end_line {
+@@ -356,15 +291,11 @@ impl std::fmt::Display for Pos {
+             }
+         }
+         match &self.0 {
+-            PosImpl::Small {
+-                file, start, end, ..
+-            } => do_fmt(f, file, start, end),
+-            PosImpl::Large {
+-                file, start, end, ..
+-            } => do_fmt(f, file, &**start, &**end),
+-            PosImpl::Tiny { file, span } => {
++            PosImpl::Small { start, end, .. } => do_fmt(f, start, end),
++            PosImpl::Large { start, end, .. } => do_fmt(f, &**start, &**end),
++            PosImpl::Tiny { span } => {
+                 let PosSpanRaw { start, end } = span.to_raw_span();
+-                do_fmt(f, file, &start, &end)
++                do_fmt(f, &start, &end)
+             }
+             PosImpl::FromReason(_p) => unimplemented!(),
+         }
+@@ -374,9 +305,8 @@ impl std::fmt::Display for Pos {
+ impl Ord for Pos {
+     // Intended to match the implementation of `Pos.compare` in OCaml.
+     fn cmp(&self, other: &Pos) -> Ordering {
+-        self.filename()
+-            .cmp(other.filename())
+-            .then(self.start_offset().cmp(&other.start_offset()))
++        self.start_offset()
++            .cmp(&other.start_offset())
+             .then(self.end_offset().cmp(&other.end_offset()))
+     }
+ }
+@@ -429,20 +359,10 @@ pub struct PosString<'a>(&'a Pos, Option<&'a RelativePathCtx>);
+ 
+ impl std::fmt::Display for PosString<'_> {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+-        let Self(pos, ctx) = self;
+-        let path = match ctx {
+-            Some(ctx) => pos.filename().to_absolute(ctx),
+-            None => pos.filename().path().to_owned(),
+-        };
++        let Self(pos, _) = self;
++
+         let (line, start, end) = pos.info_pos();
+-        write!(
+-            f,
+-            "File {:?}, line {}, characters {}-{}:",
+-            path.display(),
+-            line,
+-            start,
+-            end
+-        )
++        write!(f, "line {}, characters {}-{}:", line, start, end)
+     }
+ }
+ 
+@@ -457,7 +377,7 @@ pub mod map {
+ 
+ impl From<parser_core_types::indexed_source_text::Pos> for Pos {
+     fn from(pos: parser_core_types::indexed_source_text::Pos) -> Self {
+-        Self::from_lnum_bol_offset(pos.path, pos.start, pos.end)
++        Self::from_lnum_bol_offset(pos.start, pos.end)
+     }
+ }
+ 
+@@ -468,66 +388,7 @@ mod tests {
+     use super::*;
+ 
+     fn make_pos(name: &str, start: (usize, usize, usize), end: (usize, usize, usize)) -> Pos {
+-        Pos::from_lnum_bol_offset(
+-            RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from(name))),
+-            start,
+-            end,
+-        )
+-    }
+-
+-    #[test]
+-    fn test_pos() {
+-        assert!(Pos::make_none().is_none());
 -        assert!(
 -            !Pos::from_lnum_bol_offset(
 -                RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from("a"))),
@@ -826,18 +1611,41 @@ index 4d7d570596d..9f22843e02b 100644
 -            )
 -            .is_none(),
 -        );
-+        assert!(!Pos::from_lnum_bol_offset(
-+            RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from("a"))),
-+            (0, 0, 0),
-+            (0, 0, 0)
-+        )
-+        .is_none(),);
-+        assert!(!Pos::from_lnum_bol_offset(
-+            RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from(""))),
-+            (1, 0, 0),
-+            (0, 0, 0)
-+        )
-+        .is_none(),);
+-    }
+-
+-    #[test]
+-    fn test_pos_absolute() {
+-        let ctx = RelativePathCtx {
+-            dummy: PathBuf::from("dummy"),
+-            ..Default::default()
+-        };
+-        assert_eq!(
+-            Pos::make_none().absolute(&ctx).to_string(),
+-            r#"File "dummy/", line 0, characters 0-0:"#
+-        );
+-        let path = RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from("a.php")));
+-        assert_eq!(
+-            Pos::from_lnum_bol_offset(path, (5, 100, 117), (5, 100, 142))
+-                .absolute(&ctx)
+-                .to_string(),
+-            r#"File "dummy/a.php", line 5, characters 18-42:"#
+-        );
+-    }
+-
+-    #[test]
+-    fn test_pos_string() {
+-        assert_eq!(
+-            Pos::make_none().string().to_string(),
+-            r#"File "", line 0, characters 0-0:"#
+-        );
+-        let path = RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from("a.php")));
+-        assert_eq!(
+-            Pos::from_lnum_bol_offset(path, (5, 100, 117), (5, 100, 142))
+-                .string()
+-                .to_string(),
+-            r#"File "a.php", line 5, characters 18-42:"#
+-        );
++        Pos::from_lnum_bol_offset(start, end)
      }
  
      #[test]
