@@ -8,7 +8,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::symbol_references::{ReferenceSource, SymbolReferences};
 use hakana_reflection_info::t_atomic::{populate_atomic_type, TAtomic};
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
-use hakana_reflection_info::{Interner, StrId};
+use hakana_reflection_info::{Interner, StrId, STR_EMPTY};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -610,7 +610,7 @@ fn inherit_methods_from_parent(
     }
 
     for (method_name, declaring_class) in &parent_storage.inheritable_method_ids {
-        if *method_name != StrId::construct() || parent_storage.preserve_constructor_signature {
+        if *method_name != STR_EMPTY || parent_storage.preserve_constructor_signature {
             storage
                 .overridden_method_ids
                 .entry(method_name.clone())

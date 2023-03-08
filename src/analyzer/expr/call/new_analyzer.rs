@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::classlike_info::Variance;
-use hakana_reflection_info::StrId;
+use hakana_reflection_info::{StrId, STR_CONSTRUCT};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
@@ -514,7 +514,7 @@ fn analyze_named_constructor(
                 .symbol_references
                 .add_reference_to_overridden_class_member(
                     &context.function_context,
-                    (descendant_class.clone(), StrId::construct()),
+                    (descendant_class.clone(), STR_CONSTRUCT),
                 );
         }
     }

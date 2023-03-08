@@ -10,7 +10,6 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
-use hakana_reflection_info::StrId;
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::StmtStart;
@@ -25,6 +24,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
+use hakana_reflection_info::STR_AWAITABLE;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
@@ -566,7 +566,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     inferred_return_type = Some(if functionlike_storage.is_async {
                         wrap_atomic(TAtomic::TNamedObject {
-                            name: StrId::awaitable(),
+                            name: STR_AWAITABLE,
                             type_params: Some(vec![get_void()]),
                             is_this: false,
                             extra_types: None,
@@ -589,7 +589,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 inferred_return_type = Some(if functionlike_storage.is_async {
                     wrap_atomic(TAtomic::TNamedObject {
-                        name: StrId::awaitable(),
+                        name: STR_AWAITABLE,
                         type_params: Some(vec![get_void()]),
                         is_this: false,
                         extra_types: None,

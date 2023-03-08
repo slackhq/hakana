@@ -4,6 +4,9 @@ use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_reflection_info::StrId;
+use hakana_reflection_info::STR_ANONYMOUS_FN;
+use hakana_reflection_info::STR_MEMBER_OF;
+use hakana_reflection_info::STR_THIS;
 use hakana_type::*;
 use oxidized::aast::Hint;
 use oxidized::aast::Hint_;
@@ -274,7 +277,7 @@ fn get_function_type_from_hints(
             resolved_names,
         ),
         effects: None,
-        closure_id: StrId::anonymous_fn(),
+        closure_id: STR_ANONYMOUS_FN,
     }
 }
 
@@ -297,7 +300,7 @@ fn get_reference_type(
         let class_name = if let Some(classlike_name) = classlike_name {
             *classlike_name
         } else {
-            StrId::this()
+            STR_THIS
         };
 
         return TAtomic::TNamedObject {
@@ -336,7 +339,7 @@ fn get_reference_type(
 
     if type_name == "\\HH\\MemberOf" {
         return TAtomic::TTypeAlias {
-            name: StrId::member_of(),
+            name: STR_MEMBER_OF,
             type_params: Some(type_params),
             as_type: None,
         };

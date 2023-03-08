@@ -53,56 +53,26 @@ pub struct FileSource<'a> {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct StrId(pub u32);
 
-impl StrId {
-    pub fn empty() -> Self {
-        StrId(0)
-    }
-    pub fn this() -> Self {
-        StrId(1)
-    }
-    pub fn anonymous_fn() -> Self {
-        StrId(2)
-    }
-    pub fn isset() -> Self {
-        StrId(3)
-    }
-    pub fn unset() -> Self {
-        StrId(4)
-    }
-    pub fn member_of() -> Self {
-        StrId(5)
-    }
-    pub fn echo() -> Self {
-        StrId(6)
-    }
-    pub fn construct() -> Self {
-        StrId(7)
-    }
-    pub fn data_attribute() -> Self {
-        StrId(8)
-    }
-    pub fn aria_attribute() -> Self {
-        StrId(9)
-    }
-    pub fn any_array() -> Self {
-        StrId(10)
-    }
-    pub fn keyed_container() -> Self {
-        StrId(11)
-    }
-    pub fn container() -> Self {
-        StrId(12)
-    }
-    pub fn php_incomplete_class() -> Self {
-        StrId(13)
-    }
-    pub fn xhp_child() -> Self {
-        StrId(14)
-    }
-    pub fn awaitable() -> Self {
-        StrId(15)
-    }
+pub const STR_EMPTY: StrId = StrId(0);
+pub const STR_THIS: StrId = StrId(1);
+pub const STR_ANONYMOUS_FN: StrId = StrId(2);
+pub const STR_ISSET: StrId = StrId(3);
+pub const STR_UNSET: StrId = StrId(4);
+pub const STR_MEMBER_OF: StrId = StrId(5);
+pub const STR_ECHO: StrId = StrId(6);
+pub const STR_CONSTRUCT: StrId = StrId(7);
+pub const STR_DATA_ATTRIBUTE: StrId = StrId(8);
+pub const STR_ARIA_ATTRIBUTE: StrId = StrId(9);
+pub const STR_ANY_ARRAY: StrId = StrId(10);
+pub const STR_KEYED_CONTAINER: StrId = StrId(11);
+pub const STR_CONTAINER: StrId = StrId(12);
+pub const STR_PHP_INCOMPLETE_CLASS: StrId = StrId(13);
+pub const STR_XHP_CHILD: StrId = StrId(14);
+pub const STR_AWAITABLE: StrId = StrId(15);
+pub const STR_BUILTIN_ENUM: StrId = StrId(16);
+pub const STR_BUILTIN_ENUM_CLASS: StrId = StrId(17);
 
+impl StrId {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.0 == 0
@@ -141,6 +111,8 @@ impl Interner {
         interner.intern("__PHP_Incomplete_Class".to_string());
         interner.intern("XHPChild".to_string());
         interner.intern("HH\\Awaitable".to_string());
+        interner.intern("HH\\BuiltinEnum".to_string());
+        interner.intern("HH\\BuiltinEnumClass".to_string());
         interner
     }
 

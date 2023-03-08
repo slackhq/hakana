@@ -1,6 +1,5 @@
 use crate::scope_context::ScopeContext;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::StrId;
 use hakana_reflection_info::{
     data_flow::{
         graph::{DataFlowGraph, GraphKind},
@@ -12,6 +11,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_reflection_info::{STR_AWAITABLE, STR_CONSTRUCT};
 use hakana_type::{
     get_mixed_any, get_null, get_void,
     type_comparator::type_comparison_result::TypeComparisonResult,
@@ -122,7 +122,7 @@ pub(crate) fn analyze(
     if functionlike_storage.is_async {
         let parent_nodes = inferred_return_type.parent_nodes.clone();
         inferred_return_type = wrap_atomic(TAtomic::TNamedObject {
-            name: StrId::awaitable(),
+            name: STR_AWAITABLE,
             type_params: Some(vec![inferred_return_type]),
             is_this: false,
             extra_types: None,
@@ -565,7 +565,7 @@ fn handle_dataflow(
 
         if let FunctionLikeIdentifier::Method(classlike_name, method_name) = functionlike_id {
             if let Some(classlike_info) = codebase.classlike_infos.get(&classlike_name) {
-                if *method_name != StrId::construct() {
+                if *method_name != STR_CONSTRUCT {
                     let mut all_parents = classlike_info
                         .all_parent_classes
                         .iter()

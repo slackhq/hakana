@@ -24,6 +24,7 @@ use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_reflection_info::FileSource;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::ThreadedInterner;
+use hakana_reflection_info::STR_CONSTRUCT;
 use hakana_type::get_mixed_any;
 use oxidized::aast;
 use oxidized::aast::Stmt;
@@ -109,7 +110,7 @@ pub(crate) fn scan_method(
         .insert(method_name.clone(), classlike_name.clone());
 
     if !matches!(m.visibility, ast_defs::Visibility::Private)
-        || method_name != StrId::construct()
+        || method_name != STR_CONSTRUCT
         || matches!(classlike_storage.kind, SymbolKind::Trait)
     {
         classlike_storage

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use hakana_reflection_info::StrId;
+use hakana_reflection_info::STR_CONSTRUCT;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -287,7 +287,7 @@ fn add_dataflow(
             }
         }
 
-        if method_id.1 == StrId::construct() {
+        if method_id.1 == STR_CONSTRUCT {
             if let Some(var_type) = context.vars_in_scope.get_mut("$this") {
                 let before_construct_node = DataFlowNode::get_for_this_before_method(
                     method_id,

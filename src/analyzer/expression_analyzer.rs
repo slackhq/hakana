@@ -28,7 +28,7 @@ use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::StrId;
+use hakana_reflection_info::STR_AWAITABLE;
 use hakana_type::type_expander::get_closure_from_id;
 use hakana_type::{
     get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
@@ -488,7 +488,7 @@ pub(crate) fn analyze(
                     ..
                 } = atomic_type
                 {
-                    if name == StrId::awaitable() && type_params.len() == 1 {
+                    if name == STR_AWAITABLE && type_params.len() == 1 {
                         let mut inside_type = type_params.get(0).unwrap().clone();
                         inside_type
                             .parent_nodes

@@ -1,7 +1,7 @@
 use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
 
 use hakana_reflection_info::code_location::HPos;
-use hakana_reflection_info::{StrId, ThreadedInterner};
+use hakana_reflection_info::{StrId, ThreadedInterner, STR_ANONYMOUS_FN};
 use name_context::NameContext;
 use naming_visitor::Scanner;
 use ocamlrep::rc::RcOc;
@@ -66,7 +66,7 @@ pub fn get_aast_for_path_and_contents(
                 return Err(match err {
                     aast_parser::Error::ParserFatal(err, pos) => ParserError::SyntaxError {
                         message: err.message.to_string(),
-                        pos: HPos::new(&pos, StrId::anonymous_fn(), None),
+                        pos: HPos::new(&pos, STR_ANONYMOUS_FN, None),
                     },
                     _ => ParserError::NotAHackFile,
                 })
@@ -85,7 +85,7 @@ pub fn get_aast_for_path_and_contents(
         return Err(ParserError::SyntaxError {
             message: first_error.message.to_string(),
             pos: HPos {
-                file_path: StrId::anonymous_fn(),
+                file_path: STR_ANONYMOUS_FN,
                 start_offset: first_error.start_offset,
                 end_offset: first_error.end_offset,
                 start_line: line_count,

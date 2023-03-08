@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    StrId,
+    StrId, STR_AWAITABLE,
 };
 
 pub(crate) fn is_contained_by(
@@ -138,7 +138,7 @@ pub(crate) fn is_contained_by(
         _ => panic!(),
     };
 
-    let awaitable_id = StrId::awaitable();
+    let awaitable_id = STR_AWAITABLE;
 
     if input_name == &awaitable_id && container_name == &awaitable_id {
         if let (Some(input_param), Some(container_param)) =

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     diff::CodebaseDiff,
     function_context::{FunctionContext, FunctionLikeIdentifier},
-    StrId,
+    StrId, STR_EMPTY,
 };
 
 pub enum ReferenceSource {
@@ -56,12 +56,12 @@ impl SymbolReferences {
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
-                .entry((referencing_symbol, StrId::empty()))
+                .entry((referencing_symbol, STR_EMPTY))
                 .or_insert_with(FxHashSet::default)
                 .insert(class_member);
         } else {
             self.symbol_references_to_symbols
-                .entry((referencing_symbol, StrId::empty()))
+                .entry((referencing_symbol, STR_EMPTY))
                 .or_insert_with(FxHashSet::default)
                 .insert(class_member);
         }
@@ -75,14 +75,14 @@ impl SymbolReferences {
     ) {
         if in_signature {
             self.symbol_references_to_symbols_in_signature
-                .entry((referencing_symbol, StrId::empty()))
+                .entry((referencing_symbol, STR_EMPTY))
                 .or_insert_with(FxHashSet::default)
-                .insert((symbol, StrId::empty()));
+                .insert((symbol, STR_EMPTY));
         } else {
             self.symbol_references_to_symbols
-                .entry((referencing_symbol, StrId::empty()))
+                .entry((referencing_symbol, STR_EMPTY))
                 .or_insert_with(FxHashSet::default)
-                .insert((symbol, StrId::empty()));
+                .insert((symbol, STR_EMPTY));
         }
     }
 
@@ -127,12 +127,12 @@ impl SymbolReferences {
             self.symbol_references_to_symbols_in_signature
                 .entry(referencing_class_member)
                 .or_insert_with(FxHashSet::default)
-                .insert((symbol, StrId::empty()));
+                .insert((symbol, STR_EMPTY));
         } else {
             self.symbol_references_to_symbols
                 .entry(referencing_class_member)
                 .or_insert_with(FxHashSet::default)
-                .insert((symbol, StrId::empty()));
+                .insert((symbol, STR_EMPTY));
         }
     }
 
@@ -175,7 +175,7 @@ impl SymbolReferences {
             match referencing_functionlike {
                 FunctionLikeIdentifier::Function(function_name) => {
                     self.symbol_references_to_overridden_members
-                        .entry((*function_name, StrId::empty()))
+                        .entry((*function_name, STR_EMPTY))
                         .or_insert_with(FxHashSet::default)
                         .insert(class_member);
                 }
@@ -188,7 +188,7 @@ impl SymbolReferences {
             }
         } else if let Some(calling_class) = &function_context.calling_class {
             self.symbol_references_to_overridden_members
-                .entry((*calling_class, StrId::empty()))
+                .entry((*calling_class, STR_EMPTY))
                 .or_insert_with(FxHashSet::default)
                 .insert(class_member);
         }
@@ -312,7 +312,7 @@ impl SymbolReferences {
             if !new_invalid_symbol.1.is_empty() {
                 invalid_symbol_members.insert(new_invalid_symbol);
             } else {
-                invalid_symbols.insert((new_invalid_symbol.0, StrId::empty()));
+                invalid_symbols.insert((new_invalid_symbol.0, STR_EMPTY));
             }
         }
 

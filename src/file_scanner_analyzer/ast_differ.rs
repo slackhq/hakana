@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use hakana_reflection_info::{
-    ast_signature::DefSignatureNode, diff::CodebaseDiff, file_info::FileInfo, StrId,
+    ast_signature::DefSignatureNode, diff::CodebaseDiff, file_info::FileInfo, StrId, STR_EMPTY,
 };
 use rustc_hash::FxHashMap;
 
@@ -87,9 +87,9 @@ pub(crate) fn get_diff(
                         }
 
                         if has_change {
-                            keep_signature.push((a.name, StrId::empty()));
+                            keep_signature.push((a.name, STR_EMPTY));
                         } else {
-                            keep.push((a.name, StrId::empty()));
+                            keep.push((a.name, STR_EMPTY));
 
                             if b.start_offset != a.start_offset || b.start_line != a.start_line {
                                 file_diffs.push((
@@ -102,15 +102,15 @@ pub(crate) fn get_diff(
                         }
                     }
                     AstDiffElem::KeepSignature(a, _) => {
-                        keep_signature.push((a.name, StrId::empty()));
+                        keep_signature.push((a.name, STR_EMPTY));
                         deletion_ranges.push((a.start_offset, a.end_offset));
                     }
                     AstDiffElem::Remove(node) => {
-                        add_or_delete.push((node.name, StrId::empty()));
+                        add_or_delete.push((node.name, STR_EMPTY));
                         deletion_ranges.push((node.start_offset, node.end_offset));
                     }
                     AstDiffElem::Add(node) => {
-                        add_or_delete.push((node.name, StrId::empty()));
+                        add_or_delete.push((node.name, STR_EMPTY));
                     }
                 }
             }

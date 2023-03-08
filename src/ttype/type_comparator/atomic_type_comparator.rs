@@ -1,5 +1,5 @@
 use crate::{get_arrayish_params, get_value_param, wrap_atomic};
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, STR_BUILTIN_ENUM};
 
 use super::{
     closure_type_comparator, dict_type_comparator,
@@ -246,7 +246,7 @@ pub fn is_contained_by(
                 }
             }
             TAtomic::TEnum { .. } => {
-                return container_name == &codebase.interner.get("HH\\BuiltinEnum").unwrap();
+                return container_name == &STR_BUILTIN_ENUM;
             }
             _ => (),
         }

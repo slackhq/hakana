@@ -6,7 +6,7 @@ use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
-use hakana_reflection_info::StrId;
+use hakana_reflection_info::{StrId, STR_CONSTRUCT, STR_EMPTY};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -40,7 +40,7 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            if !referenced_symbols_and_members.contains(&(*function_name, StrId::empty())) {
+            if !referenced_symbols_and_members.contains(&(*function_name, STR_EMPTY)) {
                 if let Some(suppressed_issues) = &functionlike_info.suppressed_issues {
                     if suppressed_issues.contains_key(&IssueKind::UnusedFunction) {
                         continue;
@@ -118,7 +118,7 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            if !referenced_symbols_and_members.contains(&(*classlike_name, StrId::empty())) {
+            if !referenced_symbols_and_members.contains(&(*classlike_name, STR_EMPTY)) {
                 let issue = Issue::new(
                     IssueKind::UnusedClass,
                     format!(
@@ -159,7 +159,7 @@ pub(crate) fn find_unused_definitions(
                 }
             } else {
                 'inner: for (method_name_ptr, functionlike_storage) in &classlike_info.methods {
-                    if *method_name_ptr != StrId::construct() {
+                    if *method_name_ptr != STR_EMPTY {
                         let method_name = codebase.interner.lookup(method_name_ptr);
 
                         if method_name.starts_with("__") {
@@ -206,7 +206,7 @@ pub(crate) fn find_unused_definitions(
                         }
 
                         // allow one-liner private construct statements that prevent instantiation
-                        if *method_name_ptr == StrId::construct()
+                        if *method_name_ptr == STR_CONSTRUCT
                             && matches!(method_storage.visibility, MemberVisibility::Private)
                         {
                             let stmt_pos = &functionlike_storage.def_location;

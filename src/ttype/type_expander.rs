@@ -11,7 +11,7 @@ use hakana_reflection_info::{
     functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
+    StrId, STR_THIS,
 };
 use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
@@ -20,7 +20,7 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
-use crate::{template, type_combiner, wrap_atomic};
+use crate::{get_nothing, template, type_combiner, wrap_atomic};
 
 #[derive(Debug)]
 pub enum StaticClassType<'a, 'b> {
@@ -165,9 +165,9 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        if *name == StrId::this() {
+        if *name == STR_THIS {
             *name = match options.static_class_type {
-                StaticClassType::None => StrId::this(),
+                StaticClassType::None => STR_THIS,
                 StaticClassType::Name(this_name) => this_name.clone().clone(),
                 StaticClassType::Object(obj) => {
                     *skip_key = true;
@@ -400,7 +400,14 @@ fn expand_atomic(
                     for (k, v) in &type_definition.template_types {
                         let mut h = FxHashMap::default();
                         for (kk, _) in v {
-                            h.insert(kk.clone(), type_params.get(i).unwrap().clone());
+                            h.insert(
+                                kk.clone(),
+                                if let Some(t) = type_params.get(i) {
+                                    t.clone()
+                                } else {
+                                    get_nothing()
+                                },
+                            );
                         }
 
                         new_template_types.insert(k.clone(), h);

@@ -5,6 +5,7 @@ use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::StrId;
+use hakana_reflection_info::STR_EMPTY;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 
@@ -42,7 +43,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
 
         for keep_symbol in &codebase_diff.keep {
             if !keep_symbol.1.is_empty() {
-                if !invalid_symbols_and_members.contains(&(keep_symbol.0, StrId::empty()))
+                if !invalid_symbols_and_members.contains(&(keep_symbol.0, STR_EMPTY))
                     && !invalid_symbols_and_members.contains(&keep_symbol)
                 {
                     cached_analysis
@@ -65,7 +66,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
             .iter()
             .filter(|(_, file_info)| {
                 file_info.ast_nodes.iter().any(|node| {
-                    invalid_symbols_and_members.contains(&(node.name, StrId::empty()))
+                    invalid_symbols_and_members.contains(&(node.name, STR_EMPTY))
                         || partially_invalid_symbols.contains(&node.name)
                 })
             })

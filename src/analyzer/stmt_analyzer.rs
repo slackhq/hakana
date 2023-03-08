@@ -1,5 +1,5 @@
 use hakana_reflection_info::code_location::StmtStart;
-use hakana_reflection_info::StrId;
+use hakana_reflection_info::STR_AWAITABLE;
 
 use crate::custom_hook::AfterStmtAnalysisData;
 use crate::expr::binop::assignment_analyzer;
@@ -58,19 +58,21 @@ pub(crate) fn analyze(
             if let aast::Expr_::Call(..) = &boxed.2 {
                 if let Some(expr_type) = tast_info.get_rc_expr_type(boxed.pos()).cloned() {
                     for atomic_type in &expr_type.types {
-                        if let TAtomic::TNamedObject { name, .. } = atomic_type {
-                            if *name == StrId::awaitable() {
-                                tast_info.maybe_add_issue(
-                                    Issue::new(
-                                        IssueKind::UnusedAwaitable,
-                                        "This awaitable is never awaited".to_string(),
-                                        statements_analyzer.get_hpos(&stmt.0),
-                                        &context.function_context.calling_functionlike_id,
-                                    ),
-                                    statements_analyzer.get_config(),
-                                    statements_analyzer.get_file_path_actual(),
-                                );
-                            }
+                        if let TAtomic::TNamedObject {
+                            name: STR_AWAITABLE,
+                            ..
+                        } = atomic_type
+                        {
+                            tast_info.maybe_add_issue(
+                                Issue::new(
+                                    IssueKind::UnusedAwaitable,
+                                    "This awaitable is never awaited".to_string(),
+                                    statements_analyzer.get_hpos(&stmt.0),
+                                    &context.function_context.calling_functionlike_id,
+                                ),
+                                statements_analyzer.get_config(),
+                                statements_analyzer.get_file_path_actual(),
+                            );
                         }
                     }
                 }
@@ -285,17 +287,15 @@ fn analyze_awaitall(
                 if t.is_single() {
                     let inner = t.get_single();
                     if let TAtomic::TNamedObject {
-                        name,
+                        name: STR_AWAITABLE,
                         type_params: Some(type_params),
                         ..
                     } = inner
                     {
-                        if name == &StrId::awaitable() {
-                            let mut new = type_params.get(0).unwrap().clone();
+                        let mut new = type_params.get(0).unwrap().clone();
 
-                            new.parent_nodes = parent_nodes;
-                            assignment_type = Some(new)
-                        }
+                        new.parent_nodes = parent_nodes;
+                        assignment_type = Some(new)
                     }
                 }
             }

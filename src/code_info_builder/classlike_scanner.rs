@@ -14,7 +14,7 @@ use hakana_reflection_info::{
     property_info::{PropertyInfo, PropertyKind},
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
-    FileSource, StrId, ThreadedInterner,
+    FileSource, StrId, ThreadedInterner, STR_BUILTIN_ENUM, STR_BUILTIN_ENUM_CLASS,
 };
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use indexmap::IndexMap;
@@ -257,11 +257,8 @@ pub(crate) fn scan(
                 );
             }
 
-            // We inherit from this class so methods like `coerce` works
-            let enum_class = interner.intern_str("HH\\BuiltinEnumClass");
-
-            storage.direct_parent_class = Some(enum_class);
-            storage.all_parent_classes.insert(enum_class);
+            storage.direct_parent_class = Some(STR_BUILTIN_ENUM_CLASS);
+            storage.all_parent_classes.insert(STR_BUILTIN_ENUM_CLASS);
 
             let mut params = Vec::new();
 
@@ -368,11 +365,8 @@ pub(crate) fn scan(
         ClassishKind::Cenum => {
             storage.kind = SymbolKind::Enum;
 
-            // We inherit from this class so methods like `coerce` works
-            let enum_class = interner.intern_str("HH\\BuiltinEnum");
-
-            storage.direct_parent_class = Some(enum_class.clone());
-            storage.all_parent_classes.insert(enum_class.clone());
+            storage.direct_parent_class = Some(STR_BUILTIN_ENUM);
+            storage.all_parent_classes.insert(STR_BUILTIN_ENUM);
 
             let mut params = Vec::new();
 
@@ -413,7 +407,7 @@ pub(crate) fn scan(
 
             storage
                 .template_extended_offsets
-                .insert(enum_class.clone(), params);
+                .insert(STR_BUILTIN_ENUM, params);
 
             codebase
                 .symbols

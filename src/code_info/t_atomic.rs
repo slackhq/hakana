@@ -5,7 +5,9 @@ use crate::{
     codebase_info::{symbols::SymbolKind, Symbols},
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };
-use crate::{Interner, StrId};
+use crate::{
+    Interner, StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_PHP_INCOMPLETE_CLASS,
+};
 use derivative::Derivative;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -1043,7 +1045,11 @@ impl TAtomic {
             | &TAtomic::TClassname { .. }
             | &TAtomic::TTypename { .. } => true,
             &TAtomic::TNamedObject { name, .. } => match interner.lookup(name) {
-                "HH\\Container" | "HH\\KeyedContainer" | "HH\\AnyArray" | "HH\\Traversable" | "HH\\KeyedTraversable" => false,
+                "HH\\Container"
+                | "HH\\KeyedContainer"
+                | "HH\\AnyArray"
+                | "HH\\Traversable"
+                | "HH\\KeyedTraversable" => false,
                 _ => true,
             },
             &TAtomic::TLiteralInt { value, .. } => {
@@ -1395,9 +1401,9 @@ impl TAtomic {
                 name, type_params, ..
             } => {
                 if let Some(type_params) = type_params {
-                    if name == &StrId::any_array() || name == &StrId::keyed_container() {
+                    if name == &STR_ANY_ARRAY || name == &STR_KEYED_CONTAINER {
                         return type_params[1].is_json_compatible(banned_type_aliases);
-                    } else if name == &StrId::container() {
+                    } else if name == &STR_CONTAINER {
                         return type_params[0].is_json_compatible(banned_type_aliases);
                     }
                 }
@@ -1671,9 +1677,8 @@ pub fn populate_atomic_type(
         TAtomic::TTypeAlias {
             ref mut type_params,
             ..
-        } => match type_params {
-            None => {}
-            Some(type_params) => {
+        } => {
+            if let Some(type_params) = type_params {
                 for type_param in type_params {
                     populate_union_type(
                         type_param,
@@ -1683,7 +1688,7 @@ pub fn populate_atomic_type(
                     );
                 }
             }
-        },
+        }
         TAtomic::TVec {
             ref mut type_param,
             ref mut known_items,
@@ -1759,7 +1764,7 @@ pub fn populate_atomic_type(
                     }
                 };
             } else {
-                if *name == StrId::php_incomplete_class() {
+                if *name == STR_PHP_INCOMPLETE_CLASS {
                     *t_atomic = TAtomic::TNamedObject {
                         name: *name,
                         type_params: None,
