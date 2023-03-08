@@ -26,4 +26,5 @@ enum class Names: IHasName {
 
 function takesName(HH\MemberOf<Names, IHasName> $n): void {
     if ($n is HasName) {}
+    if ($n is HasName || $n is ConstName) {}
 }

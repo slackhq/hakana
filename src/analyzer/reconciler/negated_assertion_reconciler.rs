@@ -255,6 +255,21 @@ fn subtract_complex_type(
                 *can_be_disjunct = true;
                 acceptable_types.push(existing_atomic);
             }
+            (
+                TAtomic::TTypeAlias {
+                    as_type: Some(_), ..
+                },
+                _,
+            )
+            | (
+                _,
+                TAtomic::TTypeAlias {
+                    as_type: Some(_), ..
+                },
+            ) => {
+                *can_be_disjunct = true;
+                acceptable_types.push(existing_atomic);
+            }
             _ => {
                 acceptable_types.push(existing_atomic);
             }
