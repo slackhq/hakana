@@ -739,6 +739,9 @@ pub fn init(
             }
             config.allowed_issues = None;
 
+            config.find_unused_expressions = true;
+            config.find_unused_definitions = true;
+
             config.remove_fixmes = true;
 
             let result = hakana_workhorse::scan_and_analyze(

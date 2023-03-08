@@ -135,6 +135,7 @@ pub trait TestRunner {
             analysis_config.add_fixmes = true;
         } else if dir.contains("/remove-unused-fixmes/") {
             analysis_config.remove_fixmes = true;
+            analysis_config.find_unused_expressions = true;
         }
         analysis_config
     }
