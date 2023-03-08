@@ -14,7 +14,7 @@ use hakana_reflection_info::{
     property_info::{PropertyInfo, PropertyKind},
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
-    FileSource, StrId, ThreadedInterner, STR_BUILTIN_ENUM, STR_BUILTIN_ENUM_CLASS,
+    FileSource, StrId, ThreadedInterner, STR_BUILTIN_ENUM, STR_BUILTIN_ENUM_CLASS, STR_MEMBER_OF,
 };
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use indexmap::IndexMap;
@@ -262,13 +262,24 @@ pub(crate) fn scan(
 
             let mut params = Vec::new();
 
-            params.push(Arc::new(wrap_atomic(TAtomic::TNamedObject {
-                name: class_name.clone(),
-                type_params: None,
-                is_this: false,
-                extra_types: None,
-                remapped_params: false,
+            params.push(Arc::new(wrap_atomic(TAtomic::TTypeAlias {
+                name: STR_MEMBER_OF,
+                type_params: Some(vec![
+                    wrap_atomic(TAtomic::TNamedObject {
+                        name: class_name.clone(),
+                        type_params: None,
+                        is_this: false,
+                        extra_types: None,
+                        remapped_params: false,
+                    }),
+                    wrap_atomic(storage.enum_type.clone().unwrap()),
+                ]),
+                as_type: None,
             })));
+
+            storage
+                .template_extended_offsets
+                .insert(STR_BUILTIN_ENUM_CLASS, params);
         }
         ClassishKind::Cinterface => {
             storage.kind = SymbolKind::Interface;

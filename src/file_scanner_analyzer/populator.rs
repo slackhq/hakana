@@ -276,6 +276,17 @@ fn populate_classlike_storage(
         }
     }
 
+    for (_, param_types) in storage.template_extended_offsets.iter_mut() {
+        for param_type in param_types {
+            populate_union_type(
+                Arc::make_mut(param_type),
+                &codebase.symbols,
+                &ReferenceSource::Symbol(true, *classlike_name),
+                symbol_references,
+            );
+        }
+    }
+
     for trait_name in &storage.used_traits.clone() {
         populate_data_from_trait(
             &mut storage,
