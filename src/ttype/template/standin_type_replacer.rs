@@ -11,6 +11,7 @@ use hakana_reflection_info::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
+    STR_ENUM_CLASS_LABEL,
 };
 use hakana_reflection_info::{function_context::FunctionLikeIdentifier, StrId};
 use indexmap::IndexMap;
@@ -1608,7 +1609,7 @@ fn find_matching_atomic_types_for_template(
                     ..
                 } = base_type
                 {
-                    if base_name == &codebase.interner.get("HH\\EnumClass\\Label").unwrap() {
+                    if *base_name == STR_ENUM_CLASS_LABEL {
                         let enum_type = if let Some(class_name) = class_name {
                             TAtomic::TNamedObject {
                                 name: class_name.clone(),

@@ -3,13 +3,13 @@ use std::rc::Rc;
 use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
-use hakana_reflection_info::StrId;
 use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
+use hakana_reflection_info::{StrId, STR_STATIC};
 use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
 use hakana_type::{
@@ -64,7 +64,7 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.get_codebase();
 
-    if codebase.interner.lookup(&classlike_name) == "static" {
+    if classlike_name == STR_STATIC {
         classlike_name = context.function_context.calling_class.clone().unwrap();
     }
 

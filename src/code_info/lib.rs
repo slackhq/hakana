@@ -71,6 +71,9 @@ pub const STR_XHP_CHILD: StrId = StrId(14);
 pub const STR_AWAITABLE: StrId = StrId(15);
 pub const STR_BUILTIN_ENUM: StrId = StrId(16);
 pub const STR_BUILTIN_ENUM_CLASS: StrId = StrId(17);
+pub const STR_STATIC: StrId = StrId(18);
+pub const STR_FORMAT_STRING: StrId = StrId(19);
+pub const STR_ENUM_CLASS_LABEL: StrId = StrId(20);
 
 impl StrId {
     #[inline]
@@ -113,6 +116,9 @@ impl Interner {
         interner.intern("HH\\Awaitable".to_string());
         interner.intern("HH\\BuiltinEnum".to_string());
         interner.intern("HH\\BuiltinEnumClass".to_string());
+        interner.intern("static".to_string());
+        interner.intern("HH\\FormatString".to_string());
+        interner.intern("HH\\EnumClass\\Label".to_string());
         interner
     }
 
