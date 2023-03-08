@@ -472,7 +472,7 @@ pub(crate) fn analyze(
                 return false;
             }
 
-            let awaited_stmt_type = tast_info
+            let mut awaited_stmt_type = tast_info
                 .get_expr_type(boxed.pos())
                 .cloned()
                 .unwrap_or(get_mixed_any());
@@ -481,27 +481,37 @@ pub(crate) fn analyze(
                 .expr_effects
                 .insert((expr.1.start_offset(), expr.1.end_offset()), 7);
 
-            for atomic_type in awaited_stmt_type.types {
+            let awaited_types = awaited_stmt_type.types.drain(..).collect::<Vec<_>>();
+
+            let mut new_types = vec![];
+
+            for atomic_type in awaited_types {
                 if let TAtomic::TNamedObject {
-                    name,
-                    type_params: Some(type_params),
+                    name: STR_AWAITABLE,
+                    type_params: Some(ref type_params),
                     ..
                 } = atomic_type
                 {
-                    if name == STR_AWAITABLE && type_params.len() == 1 {
-                        let mut inside_type = type_params.get(0).unwrap().clone();
-                        inside_type
+                    if type_params.len() == 1 {
+                        let inside_type = type_params.get(0).unwrap().clone();
+                        awaited_stmt_type
                             .parent_nodes
-                            .extend(awaited_stmt_type.parent_nodes.clone());
-
-                        tast_info.expr_types.insert(
-                            (expr.1.start_offset(), expr.1.end_offset()),
-                            Rc::new(inside_type),
-                        );
-                        break;
+                            .extend(inside_type.parent_nodes);
+                        new_types.extend(inside_type.types);
+                    } else {
+                        new_types.push(atomic_type);
                     }
+                } else {
+                    new_types.push(atomic_type);
                 }
             }
+
+            awaited_stmt_type.types = new_types;
+
+            tast_info.expr_types.insert(
+                (expr.1.start_offset(), expr.1.end_offset()),
+                Rc::new(awaited_stmt_type),
+            );
         }
         aast::Expr_::FunctionPointer(boxed) => {
             analyze_function_pointer(statements_analyzer, boxed, context, tast_info, expr);
