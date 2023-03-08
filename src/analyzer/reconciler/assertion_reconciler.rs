@@ -373,14 +373,19 @@ pub(crate) fn intersect_atomic_with_atomic(
         (
             TAtomic::TTypeAlias {
                 as_type: Some(type_1_as),
-                ..
+                name,
+                type_params,
             },
             _,
         ) => {
-            return if let Some(_) =
-                intersect_atomic_with_atomic(type_2_atomic, type_1_as.get_single(), codebase)
+            return if let Some(intersected) =
+                intersect_union_with_atomic(codebase, type_1_as, type_2_atomic)
             {
-                Some(type_1_atomic.clone())
+                Some(TAtomic::TTypeAlias {
+                    name: *name,
+                    type_params: type_params.clone(),
+                    as_type: Some(intersected),
+                })
             } else {
                 None
             }
@@ -389,13 +394,18 @@ pub(crate) fn intersect_atomic_with_atomic(
             _,
             TAtomic::TTypeAlias {
                 as_type: Some(type_2_as),
-                ..
+                name,
+                type_params,
             },
         ) => {
-            return if let Some(_) =
-                intersect_atomic_with_atomic(type_1_atomic, type_2_as.get_single(), codebase)
+            return if let Some(intersected) =
+                intersect_union_with_atomic(codebase, type_2_as, type_1_atomic)
             {
-                Some(type_2_atomic.clone())
+                Some(TAtomic::TTypeAlias {
+                    name: *name,
+                    type_params: type_params.clone(),
+                    as_type: Some(intersected),
+                })
             } else {
                 None
             }
