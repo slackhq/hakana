@@ -617,7 +617,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
                 Some(dim_type)
             } else {
-                return array_expr.1;
+                Some(get_arraykey(true))
             };
 
             var_id_additions.push(
