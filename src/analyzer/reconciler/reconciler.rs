@@ -540,11 +540,12 @@ fn add_nested_assertions(
                                 keys_to_remove.push(nk.clone());
 
                                 if nesting == 0 && base_key_set {
-                                    active_new_types.remove(&nk);
-                                    active_new_types
-                                        .entry(base_key.clone())
-                                        .or_insert_with(FxHashSet::default)
-                                        .insert(entry.len() - 1);
+                                    if let Some(_) = active_new_types.remove(&nk) {
+                                        active_new_types
+                                            .entry(base_key.clone())
+                                            .or_insert_with(FxHashSet::default)
+                                            .insert(entry.len() - 1);
+                                    }
                                 }
 
                                 break 'outer;
