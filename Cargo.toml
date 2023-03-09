@@ -8,6 +8,7 @@ build = "build.rs"
 hakana-cli = { path = "src/cli" }
 hakana-analyzer = { path = "src/analyzer" }
 mimalloc = { version = "*", default-features = false }
+tokio = "1.26.0"
 
 [profile.release]
 debug = true

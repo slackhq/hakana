@@ -14,10 +14,13 @@ use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
 use test_runners::test_runner::TestRunner;
+use tower_lsp::{LspService, Server};
 
+use crate::lsp::Backend;
+pub mod lsp;
 pub mod test_runners;
 
-pub fn init(
+pub async fn init(
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     migration_hooks: Vec<Box<dyn CustomHook>>,
     header: &str,
@@ -308,6 +311,20 @@ pub fn init(
                 ),
         )
         .subcommand(
+            Command::new("lsp")
+                .about("Runs the language server")
+                .arg(
+                    arg!(--"debug")
+                        .required(false)
+                        .help("Whether to show debug output"),
+                )
+                .arg(
+                    arg!(--"threads" <PATH>)
+                        .required(false)
+                        .help("How many threads to use"),
+                ),
+        )
+        .subcommand(
             Command::new("test")
                 .about("Runs one or more Hakana tests")
                 .arg(
@@ -488,6 +505,13 @@ pub fn init(
                 verbosity,
                 header,
             );
+        }
+        Some(("lsp", _sub_matches)) => {
+            let stdin = tokio::io::stdin();
+            let stdout = tokio::io::stdout();
+
+            let (service, socket) = LspService::new(|client| Backend { client });
+            Server::new(stdin, stdout, socket).serve(service).await;
         }
         Some(("test", sub_matches)) => {
             let repeat = if let Some(val) = sub_matches.value_of("repeat").map(|f| f.to_string()) {
