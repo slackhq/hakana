@@ -14,6 +14,7 @@ use std::path::Path;
 use std::process::exit;
 use std::sync::Arc;
 use test_runners::test_runner::TestRunner;
+
 pub mod test_runners;
 
 pub fn init(
@@ -397,405 +398,96 @@ pub fn init(
 
     match matches.subcommand() {
         Some(("analyze", sub_matches)) => {
-            let filter = sub_matches.value_of("filter").map(|f| f.to_string());
-
-            let output_file = sub_matches.value_of("output").map(|f| f.to_string());
-
-            let ignored = sub_matches
-                .values_of("ignore")
-                .map(|values| values.map(|f| f.to_string()).collect::<FxHashSet<_>>());
-            let find_unused_expressions = sub_matches.is_present("find-unused-expressions");
-            let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
-            let show_mixed_function_counts = sub_matches.is_present("show-mixed-function-counts");
-            let show_symbol_map = sub_matches.is_present("show-symbol-map");
-            let ignore_mixed_issues = sub_matches.is_present("ignore-mixed-issues");
-            let show_issue_stats = sub_matches.is_present("show-issue-stats");
-            let do_ast_diff = sub_matches.is_present("diff");
-
-            let mut issue_kinds_filter = FxHashSet::default();
-
-            let filter_issue_strings = sub_matches
-                .values_of("show-issue")
-                .map(|values| values.collect::<FxHashSet<_>>());
-
-            if let Some(filter_issue_strings) = filter_issue_strings {
-                for filter_issue_string in filter_issue_strings {
-                    if let Ok(issue_kind) =
-                        IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
-                    {
-                        issue_kinds_filter.insert(issue_kind);
-                    } else {
-                        println!("Invalid issue type {}", filter_issue_string);
-                        exit(1);
-                    }
-                }
-            }
-
-            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
-            config.find_unused_expressions = find_unused_expressions;
-            config.find_unused_definitions = find_unused_definitions;
-            config.ignore_mixed_issues = ignore_mixed_issues;
-            config.ast_diff = do_ast_diff;
-
-            config.hooks = analysis_hooks;
-
-            let config_path = config_path.unwrap();
-
-            if config_path.exists() {
-                config.update_from_file(&cwd, config_path);
-            }
-
-            // do this after we've loaded from file, as they can be overridden
-            if !issue_kinds_filter.is_empty() {
-                config.allowed_issues = Some(issue_kinds_filter);
-            }
-
-            let result = hakana_workhorse::scan_and_analyze(
-                true,
-                Vec::new(),
-                filter,
-                ignored,
-                Arc::new(config),
-                if sub_matches.is_present("no-cache") {
-                    None
-                } else {
-                    Some(&cache_dir)
-                },
+            do_analysis(
+                sub_matches,
+                all_custom_issues,
+                &root_dir,
+                analysis_hooks,
+                config_path,
+                &cwd,
+                cache_dir,
                 threads,
                 verbosity,
-                &header,
-                None,
+                header,
+                &mut had_error,
             );
-
-            if let Ok(analysis_result) = result {
-                for (file_path, issues) in &analysis_result.emitted_issues {
-                    for issue in issues {
-                        had_error = true;
-                        println!("{}", issue.format(&file_path));
-                    }
-                }
-
-                if !had_error {
-                    println!("\nNo issues reported!\n");
-                }
-
-                if let Some(output_file) = output_file {
-                    write_output_files(output_file, &cwd, &analysis_result);
-                }
-
-                if show_issue_stats {
-                    let mut issues_by_kind = analysis_result
-                        .issue_counts
-                        .into_iter()
-                        .collect::<IndexMap<_, _>>();
-                    issues_by_kind.sort_by(|_, a, _, b| b.cmp(a));
-
-                    for (issue, count) in issues_by_kind {
-                        println!("{}\t{}", issue.to_string(), count);
-                    }
-                }
-
-                if show_symbol_map {
-                    println!("{:#?}", analysis_result.symbol_references);
-                }
-
-                if show_mixed_function_counts {
-                    let mut mixed_sources = analysis_result
-                        .mixed_source_counts
-                        .iter()
-                        .map(|(k, v)| format!("{}\t{}", k, v.len()))
-                        .collect::<Vec<_>>();
-
-                    mixed_sources.sort();
-
-                    println!("{}", mixed_sources.join("\n"));
-                }
-            }
         }
         Some(("security-check", sub_matches)) => {
-            let mut config = config::Config::new(cwd.clone(), all_custom_issues);
-            config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Taint);
-
-            let config_path = config_path.unwrap();
-
-            if config_path.exists() {
-                config.update_from_file(&cwd, config_path);
-            }
-            config.allowed_issues = None;
-
-            let output_file = sub_matches.value_of("output").map(|f| f.to_string());
-
-            config.security_config.max_depth =
-                if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
-                    val.parse::<u8>().unwrap()
-                } else {
-                    20
-                };
-
-            config.hooks = analysis_hooks;
-
-            let result = hakana_workhorse::scan_and_analyze(
-                true,
-                Vec::new(),
-                None,
-                None,
-                Arc::new(config),
-                None,
+            do_security_check(
+                &cwd,
+                all_custom_issues,
+                config_path,
+                sub_matches,
+                analysis_hooks,
                 threads,
                 verbosity,
-                &header,
-                None,
+                header,
+                &mut had_error,
             );
-            if let Ok(analysis_result) = result {
-                for (file_path, issues) in &analysis_result.emitted_issues {
-                    for issue in issues {
-                        had_error = true;
-                        println!("{}", issue.format(&file_path));
-                    }
-                }
-
-                if !had_error {
-                    println!("\nNo security issues found!\n");
-                }
-
-                if let Some(output_file) = output_file {
-                    write_output_files(output_file, &cwd, &analysis_result);
-                }
-            }
         }
         Some(("find-paths", sub_matches)) => {
-            let mut config = config::Config::new(cwd.clone(), all_custom_issues);
-            config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Query);
-
-            let config_path = config_path.unwrap();
-
-            if config_path.exists() {
-                config.update_from_file(&cwd, config_path);
-            }
-            config.allowed_issues = None;
-
-            config.security_config.max_depth =
-                if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
-                    val.parse::<u8>().unwrap()
-                } else {
-                    20
-                };
-
-            config.hooks = analysis_hooks;
-
-            let result = hakana_workhorse::scan_and_analyze(
-                true,
-                Vec::new(),
-                None,
-                None,
-                Arc::new(config),
-                None,
+            do_find_paths(
+                &cwd,
+                all_custom_issues,
+                config_path,
+                sub_matches,
+                analysis_hooks,
                 threads,
                 verbosity,
-                &header,
-                None,
+                header,
+                &mut had_error,
             );
-            if let Ok(analysis_result) = result {
-                for (file_path, issues) in analysis_result.emitted_issues {
-                    for issue in issues {
-                        had_error = true;
-                        println!("{}", issue.format(&file_path));
-                    }
-                }
-
-                if !had_error {
-                    println!("\nNo security issues found!\n");
-                }
-            }
         }
         Some(("migrate", sub_matches)) => {
-            let migration_name = sub_matches.value_of("migration").unwrap().to_string();
-            let migration_source = sub_matches.value_of("symbols").unwrap().to_string();
-
-            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
-            config.hooks = migration_hooks
-                .into_iter()
-                .filter(|m| {
-                    if let Some(name) = m.get_migration_name() {
-                        migration_name == name
-                    } else {
-                        false
-                    }
-                })
-                .collect();
-
-            if config.hooks.is_empty() {
-                println!("Migration {} not recognised", migration_name);
-                exit(1);
-            }
-
-            let config_path = config_path.unwrap();
-
-            if config_path.exists() {
-                config.update_from_file(&cwd, config_path);
-            }
-            config.allowed_issues = None;
-
-            let file_path = format!("{}/{}", cwd, migration_source);
-
-            let buf = fs::read_to_string(file_path.clone());
-
-            if let Ok(contents) = buf {
-                config.migration_symbols = contents
-                    .lines()
-                    .map(|v| (migration_name.clone(), v.to_string()))
-                    .collect();
-            } else {
-                println!(
-                    "\nERROR: File {} does not exist or could not be read\n",
-                    file_path
-                );
-                exit(1);
-            }
-
-            let result = hakana_workhorse::scan_and_analyze(
-                true,
-                Vec::new(),
-                None,
-                None,
-                Arc::new(config),
-                None,
+            do_migrate(
+                sub_matches,
+                &root_dir,
+                all_custom_issues,
+                migration_hooks,
+                config_path,
+                &cwd,
                 threads,
                 verbosity,
-                &header,
-                None,
+                header,
             );
-
-            if let Ok(analysis_result) = result {
-                update_files(analysis_result, &root_dir);
-            }
         }
         Some(("add-fixmes", sub_matches)) => {
-            let filter_issue_strings = sub_matches
-                .values_of("issue")
-                .map(|values| values.collect::<FxHashSet<_>>());
-
-            let mut issue_kinds_filter = FxHashSet::default();
-
-            if let Some(filter_issue_strings) = filter_issue_strings {
-                for filter_issue_string in filter_issue_strings {
-                    if let Ok(issue_kind) =
-                        IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
-                    {
-                        issue_kinds_filter.insert(issue_kind);
-                    } else {
-                        println!("Invalid issue type {}", filter_issue_string);
-                        exit(1);
-                    }
-                }
-            }
-
-            let filter = sub_matches.value_of("filter").map(|f| f.to_string());
-
-            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
-
-            config.issues_to_fix.extend(issue_kinds_filter);
-            config.hooks = analysis_hooks;
-            config.find_unused_expressions = true;
-            config.find_unused_definitions = true;
-
-            let config_path = config_path.unwrap();
-
-            if config_path.exists() {
-                config.update_from_file(&cwd, config_path);
-            }
-            config.allowed_issues = None;
-
-            config.add_fixmes = true;
-
-            let result = hakana_workhorse::scan_and_analyze(
-                true,
-                Vec::new(),
-                filter,
-                None,
-                Arc::new(config),
-                None,
+            do_add_fixmes(
+                sub_matches,
+                all_custom_issues,
+                &root_dir,
+                analysis_hooks,
+                config_path,
+                &cwd,
                 threads,
                 verbosity,
-                &header,
-                None,
+                header,
             );
-
-            if let Ok(analysis_result) = result {
-                update_files(analysis_result, &root_dir);
-            }
         }
         Some(("remove-unused-fixmes", sub_matches)) => {
-            let filter = sub_matches.value_of("filter").map(|f| f.to_string());
-
-            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
-
-            config.hooks = analysis_hooks;
-
-            let config_path = config_path.unwrap();
-
-            if config_path.exists() {
-                config.update_from_file(&cwd, config_path);
-            }
-            config.allowed_issues = None;
-
-            config.find_unused_expressions = true;
-            config.find_unused_definitions = true;
-
-            config.remove_fixmes = true;
-
-            let result = hakana_workhorse::scan_and_analyze(
-                true,
-                Vec::new(),
-                filter,
-                None,
-                Arc::new(config),
-                None,
+            do_remove_unused_fixmes(
+                sub_matches,
+                &root_dir,
+                all_custom_issues,
+                analysis_hooks,
+                config_path,
+                &cwd,
                 threads,
                 verbosity,
-                &header,
-                None,
+                header,
             );
-
-            if let Ok(analysis_result) = result {
-                update_files(analysis_result, &root_dir);
-            }
         }
         Some(("fix", sub_matches)) => {
-            let issue_name = sub_matches.value_of("issue").unwrap().to_string();
-            let issue_kind = IssueKind::from_str_custom(&issue_name, &all_custom_issues).unwrap();
-
-            let filter = sub_matches.value_of("filter").map(|f| f.to_string());
-
-            let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
-            config.find_unused_expressions = issue_kind.is_unused_expression();
-            config.find_unused_definitions = issue_kind.is_unused_definition();
-            config.issues_to_fix.insert(issue_kind);
-
-            let config_path = config_path.unwrap();
-
-            if config_path.exists() {
-                config.update_from_file(&cwd, config_path);
-            }
-
-            config.allowed_issues = None;
-
-            let result = hakana_workhorse::scan_and_analyze(
-                true,
-                Vec::new(),
-                filter,
-                None,
-                Arc::new(config),
-                None,
+            do_fix(
+                sub_matches,
+                all_custom_issues,
+                root_dir,
+                config_path,
+                cwd,
                 threads,
                 verbosity,
-                &header,
-                None,
+                header,
             );
-
-            if let Ok(analysis_result) = result {
-                update_files(analysis_result, &root_dir);
-            }
         }
         Some(("test", sub_matches)) => {
             let repeat = if let Some(val) = sub_matches.value_of("repeat").map(|f| f.to_string()) {
@@ -817,6 +509,485 @@ pub fn init(
 
     if had_error {
         exit(1);
+    }
+}
+
+fn do_fix(
+    sub_matches: &clap::ArgMatches,
+    all_custom_issues: FxHashSet<String>,
+    root_dir: String,
+    config_path: Option<&Path>,
+    cwd: String,
+    threads: u8,
+    verbosity: Verbosity,
+    header: &str,
+) {
+    let issue_name = sub_matches.value_of("issue").unwrap().to_string();
+    let issue_kind = IssueKind::from_str_custom(&issue_name, &all_custom_issues).unwrap();
+
+    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+
+    let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+    config.find_unused_expressions = issue_kind.is_unused_expression();
+    config.find_unused_definitions = issue_kind.is_unused_definition();
+    config.issues_to_fix.insert(issue_kind);
+
+    let config_path = config_path.unwrap();
+
+    if config_path.exists() {
+        config.update_from_file(&cwd, config_path);
+    }
+
+    config.allowed_issues = None;
+
+    let result = hakana_workhorse::scan_and_analyze(
+        true,
+        Vec::new(),
+        filter,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        verbosity,
+        &header,
+        None,
+    );
+
+    if let Ok(analysis_result) = result {
+        update_files(analysis_result, &root_dir);
+    }
+}
+
+fn do_remove_unused_fixmes(
+    sub_matches: &clap::ArgMatches,
+    root_dir: &String,
+    all_custom_issues: FxHashSet<String>,
+    analysis_hooks: Vec<Box<dyn CustomHook>>,
+    config_path: Option<&Path>,
+    cwd: &String,
+    threads: u8,
+    verbosity: Verbosity,
+    header: &str,
+) {
+    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+
+    let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+
+    config.hooks = analysis_hooks;
+
+    let config_path = config_path.unwrap();
+
+    if config_path.exists() {
+        config.update_from_file(cwd, config_path);
+    }
+    config.allowed_issues = None;
+
+    config.find_unused_expressions = true;
+    config.find_unused_definitions = true;
+
+    config.remove_fixmes = true;
+
+    let result = hakana_workhorse::scan_and_analyze(
+        true,
+        Vec::new(),
+        filter,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        verbosity,
+        &header,
+        None,
+    );
+
+    if let Ok(analysis_result) = result {
+        update_files(analysis_result, root_dir);
+    }
+}
+
+fn do_add_fixmes(
+    sub_matches: &clap::ArgMatches,
+    all_custom_issues: FxHashSet<String>,
+    root_dir: &String,
+    analysis_hooks: Vec<Box<dyn CustomHook>>,
+    config_path: Option<&Path>,
+    cwd: &String,
+    threads: u8,
+    verbosity: Verbosity,
+    header: &str,
+) {
+    let filter_issue_strings = sub_matches
+        .values_of("issue")
+        .map(|values| values.collect::<FxHashSet<_>>());
+
+    let mut issue_kinds_filter = FxHashSet::default();
+
+    if let Some(filter_issue_strings) = filter_issue_strings {
+        for filter_issue_string in filter_issue_strings {
+            if let Ok(issue_kind) =
+                IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
+            {
+                issue_kinds_filter.insert(issue_kind);
+            } else {
+                println!("Invalid issue type {}", filter_issue_string);
+                exit(1);
+            }
+        }
+    }
+
+    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+
+    let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+
+    config.issues_to_fix.extend(issue_kinds_filter);
+    config.hooks = analysis_hooks;
+    config.find_unused_expressions = true;
+    config.find_unused_definitions = true;
+
+    let config_path = config_path.unwrap();
+
+    if config_path.exists() {
+        config.update_from_file(cwd, config_path);
+    }
+    config.allowed_issues = None;
+
+    config.add_fixmes = true;
+
+    let result = hakana_workhorse::scan_and_analyze(
+        true,
+        Vec::new(),
+        filter,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        verbosity,
+        &header,
+        None,
+    );
+
+    if let Ok(analysis_result) = result {
+        update_files(analysis_result, root_dir);
+    }
+}
+
+fn do_migrate(
+    sub_matches: &clap::ArgMatches,
+    root_dir: &String,
+    all_custom_issues: FxHashSet<String>,
+    migration_hooks: Vec<Box<dyn CustomHook>>,
+    config_path: Option<&Path>,
+    cwd: &String,
+    threads: u8,
+    verbosity: Verbosity,
+    header: &str,
+) {
+    let migration_name = sub_matches.value_of("migration").unwrap().to_string();
+    let migration_source = sub_matches.value_of("symbols").unwrap().to_string();
+
+    let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+    config.hooks = migration_hooks
+        .into_iter()
+        .filter(|m| {
+            if let Some(name) = m.get_migration_name() {
+                migration_name == name
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    if config.hooks.is_empty() {
+        println!("Migration {} not recognised", migration_name);
+        exit(1);
+    }
+
+    let config_path = config_path.unwrap();
+
+    if config_path.exists() {
+        config.update_from_file(cwd, config_path);
+    }
+    config.allowed_issues = None;
+
+    let file_path = format!("{}/{}", cwd, migration_source);
+
+    let buf = fs::read_to_string(file_path.clone());
+
+    if let Ok(contents) = buf {
+        config.migration_symbols = contents
+            .lines()
+            .map(|v| (migration_name.clone(), v.to_string()))
+            .collect();
+    } else {
+        println!(
+            "\nERROR: File {} does not exist or could not be read\n",
+            file_path
+        );
+        exit(1);
+    }
+
+    let result = hakana_workhorse::scan_and_analyze(
+        true,
+        Vec::new(),
+        None,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        verbosity,
+        &header,
+        None,
+    );
+
+    if let Ok(analysis_result) = result {
+        update_files(analysis_result, root_dir);
+    }
+}
+
+fn do_find_paths(
+    cwd: &String,
+    all_custom_issues: FxHashSet<String>,
+    config_path: Option<&Path>,
+    sub_matches: &clap::ArgMatches,
+    analysis_hooks: Vec<Box<dyn CustomHook>>,
+    threads: u8,
+    verbosity: Verbosity,
+    header: &str,
+    had_error: &mut bool,
+) {
+    let mut config = config::Config::new(cwd.clone(), all_custom_issues);
+    config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Query);
+
+    let config_path = config_path.unwrap();
+
+    if config_path.exists() {
+        config.update_from_file(cwd, config_path);
+    }
+    config.allowed_issues = None;
+
+    config.security_config.max_depth =
+        if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
+            val.parse::<u8>().unwrap()
+        } else {
+            20
+        };
+
+    config.hooks = analysis_hooks;
+
+    let result = hakana_workhorse::scan_and_analyze(
+        true,
+        Vec::new(),
+        None,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        verbosity,
+        &header,
+        None,
+    );
+    if let Ok(analysis_result) = result {
+        for (file_path, issues) in analysis_result.emitted_issues {
+            for issue in issues {
+                *had_error = true;
+                println!("{}", issue.format(&file_path));
+            }
+        }
+
+        if !*had_error {
+            println!("\nNo security issues found!\n");
+        }
+    }
+}
+
+fn do_security_check(
+    cwd: &String,
+    all_custom_issues: FxHashSet<String>,
+    config_path: Option<&Path>,
+    sub_matches: &clap::ArgMatches,
+    analysis_hooks: Vec<Box<dyn CustomHook>>,
+    threads: u8,
+    verbosity: Verbosity,
+    header: &str,
+    had_error: &mut bool,
+) {
+    let mut config = config::Config::new(cwd.clone(), all_custom_issues);
+    config.graph_kind = GraphKind::WholeProgram(WholeProgramKind::Taint);
+
+    let config_path = config_path.unwrap();
+
+    if config_path.exists() {
+        config.update_from_file(cwd, config_path);
+    }
+    config.allowed_issues = None;
+
+    let output_file = sub_matches.value_of("output").map(|f| f.to_string());
+
+    config.security_config.max_depth =
+        if let Some(val) = sub_matches.value_of("max-depth").map(|f| f.to_string()) {
+            val.parse::<u8>().unwrap()
+        } else {
+            20
+        };
+
+    config.hooks = analysis_hooks;
+
+    let result = hakana_workhorse::scan_and_analyze(
+        true,
+        Vec::new(),
+        None,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        verbosity,
+        &header,
+        None,
+    );
+    if let Ok(analysis_result) = result {
+        for (file_path, issues) in &analysis_result.emitted_issues {
+            for issue in issues {
+                *had_error = true;
+                println!("{}", issue.format(&file_path));
+            }
+        }
+
+        if !*had_error {
+            println!("\nNo security issues found!\n");
+        }
+
+        if let Some(output_file) = output_file {
+            write_output_files(output_file, cwd, &analysis_result);
+        }
+    }
+}
+
+fn do_analysis(
+    sub_matches: &clap::ArgMatches,
+    all_custom_issues: FxHashSet<String>,
+    root_dir: &String,
+    analysis_hooks: Vec<Box<dyn CustomHook>>,
+    config_path: Option<&Path>,
+    cwd: &String,
+    cache_dir: String,
+    threads: u8,
+    verbosity: Verbosity,
+    header: &str,
+    had_error: &mut bool,
+) {
+    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+
+    let output_file = sub_matches.value_of("output").map(|f| f.to_string());
+
+    let ignored = sub_matches
+        .values_of("ignore")
+        .map(|values| values.map(|f| f.to_string()).collect::<FxHashSet<_>>());
+    let find_unused_expressions = sub_matches.is_present("find-unused-expressions");
+    let find_unused_definitions = sub_matches.is_present("find-unused-definitions");
+    let show_mixed_function_counts = sub_matches.is_present("show-mixed-function-counts");
+    let show_symbol_map = sub_matches.is_present("show-symbol-map");
+    let ignore_mixed_issues = sub_matches.is_present("ignore-mixed-issues");
+    let show_issue_stats = sub_matches.is_present("show-issue-stats");
+    let do_ast_diff = sub_matches.is_present("diff");
+
+    let mut issue_kinds_filter = FxHashSet::default();
+
+    let filter_issue_strings = sub_matches
+        .values_of("show-issue")
+        .map(|values| values.collect::<FxHashSet<_>>());
+
+    if let Some(filter_issue_strings) = filter_issue_strings {
+        for filter_issue_string in filter_issue_strings {
+            if let Ok(issue_kind) =
+                IssueKind::from_str_custom(filter_issue_string, &all_custom_issues)
+            {
+                issue_kinds_filter.insert(issue_kind);
+            } else {
+                println!("Invalid issue type {}", filter_issue_string);
+                exit(1);
+            }
+        }
+    }
+
+    let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+    config.find_unused_expressions = find_unused_expressions;
+    config.find_unused_definitions = find_unused_definitions;
+    config.ignore_mixed_issues = ignore_mixed_issues;
+    config.ast_diff = do_ast_diff;
+
+    config.hooks = analysis_hooks;
+
+    let config_path = config_path.unwrap();
+
+    if config_path.exists() {
+        config.update_from_file(cwd, config_path);
+    }
+
+    // do this after we've loaded from file, as they can be overridden
+    if !issue_kinds_filter.is_empty() {
+        config.allowed_issues = Some(issue_kinds_filter);
+    }
+
+    let result = hakana_workhorse::scan_and_analyze(
+        true,
+        Vec::new(),
+        filter,
+        ignored,
+        Arc::new(config),
+        if sub_matches.is_present("no-cache") {
+            None
+        } else {
+            Some(&cache_dir)
+        },
+        threads,
+        verbosity,
+        &header,
+        None,
+    );
+
+    if let Ok(analysis_result) = result {
+        for (file_path, issues) in &analysis_result.emitted_issues {
+            for issue in issues {
+                *had_error = true;
+                println!("{}", issue.format(&file_path));
+            }
+        }
+
+        if !*had_error {
+            println!("\nNo issues reported!\n");
+        }
+
+        if let Some(output_file) = output_file {
+            write_output_files(output_file, cwd, &analysis_result);
+        }
+
+        if show_issue_stats {
+            let mut issues_by_kind = analysis_result
+                .issue_counts
+                .into_iter()
+                .collect::<IndexMap<_, _>>();
+            issues_by_kind.sort_by(|_, a, _, b| b.cmp(a));
+
+            for (issue, count) in issues_by_kind {
+                println!("{}\t{}", issue.to_string(), count);
+            }
+        }
+
+        if show_symbol_map {
+            println!("{:#?}", analysis_result.symbol_references);
+        }
+
+        if show_mixed_function_counts {
+            let mut mixed_sources = analysis_result
+                .mixed_source_counts
+                .iter()
+                .map(|(k, v)| format!("{}\t{}", k, v.len()))
+                .collect::<Vec<_>>();
+
+            mixed_sources.sort();
+
+            println!("{}", mixed_sources.join("\n"));
+        }
     }
 }
 
