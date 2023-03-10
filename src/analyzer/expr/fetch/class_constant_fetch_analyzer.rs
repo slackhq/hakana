@@ -91,7 +91,7 @@ pub(crate) fn analyze(
                                         IssueKind::NonExistentClasslike,
                                         format!(
                                             "Unknown classlike {}",
-                                            codebase.interner.lookup(classlike_name)
+                                            statements_analyzer.get_interner().lookup(classlike_name)
                                         ),
                                         statements_analyzer.get_hpos(&pos),
                                         &context.function_context.calling_functionlike_id,
@@ -152,7 +152,7 @@ fn analyse_known_class_constant(
             if const_name == "class" {
                 Issue::new(
                     IssueKind::NonExistentType,
-                    format!("Unknown class {}", codebase.interner.lookup(classlike_name)),
+                    format!("Unknown class {}", statements_analyzer.get_interner().lookup(classlike_name)),
                     statements_analyzer.get_hpos(&pos),
                     &context.function_context.calling_functionlike_id,
                 )
@@ -161,7 +161,7 @@ fn analyse_known_class_constant(
                     IssueKind::NonExistentClasslike,
                     format!(
                         "Unknown classlike {}",
-                        codebase.interner.lookup(classlike_name)
+                        statements_analyzer.get_interner().lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(&pos),
                     &context.function_context.calling_functionlike_id,
@@ -201,7 +201,7 @@ fn analyse_known_class_constant(
         return Some(wrap_atomic(inner_object));
     }
 
-    let const_name = if let Some(const_name) = codebase.interner.get(&const_name) {
+    let const_name = if let Some(const_name) = statements_analyzer.get_interner().get(&const_name) {
         const_name
     } else {
         tast_info.maybe_add_issue(
@@ -209,7 +209,7 @@ fn analyse_known_class_constant(
                 IssueKind::NonExistentClassConstant,
                 format!(
                     "Unknown class constant {}::{}",
-                    codebase.interner.lookup(classlike_name),
+                    statements_analyzer.get_interner().lookup(classlike_name),
                     const_name
                 ),
                 statements_analyzer.get_hpos(&pos),
@@ -236,8 +236,8 @@ fn analyse_known_class_constant(
                 IssueKind::NonExistentClassConstant,
                 format!(
                     "Unknown class constant {}::{}",
-                    codebase.interner.lookup(classlike_name),
-                    codebase.interner.lookup(&const_name),
+                    statements_analyzer.get_interner().lookup(classlike_name),
+                    statements_analyzer.get_interner().lookup(&const_name),
                 ),
                 statements_analyzer.get_hpos(&pos),
                 &context.function_context.calling_functionlike_id,
@@ -253,6 +253,7 @@ fn analyse_known_class_constant(
     if let Some(ref mut class_constant_type) = class_constant_type {
         type_expander::expand_union(
             codebase,
+            &Some(statements_analyzer.get_interner()),
             class_constant_type,
             &TypeExpansionOptions {
                 evaluate_conditional_types: true,

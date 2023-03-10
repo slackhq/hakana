@@ -97,8 +97,7 @@ pub(crate) fn analyze_vals(
                     &pos,
                     wrap_atomic(TAtomic::TNamedObject {
                         name: statements_analyzer
-                            .get_codebase()
-                            .interner
+                            .get_interner()
                             .get("HH\\Vector")
                             .unwrap(),
                         type_params: Some(vec![get_mixed_any()]),
@@ -192,7 +191,10 @@ pub(crate) fn analyze_vals(
         }
         VcKind::Vector => {
             let mut new_vec = wrap_atomic(TAtomic::TNamedObject {
-                name: codebase.interner.get("HH\\Vector").unwrap(),
+                name: statements_analyzer
+                    .get_interner()
+                    .get("HH\\Vector")
+                    .unwrap(),
                 type_params: Some(vec![get_mixed_any()]),
                 is_this: false,
                 extra_types: None,
@@ -487,18 +489,12 @@ fn add_array_value_dataflow(
                         value: key_value, ..
                     } = key_item_single
                     {
-                        PathKind::ArrayAssignment(
-                            ArrayDataKind::ArrayValue,
-                            key_value.to_string(),
-                        )
+                        PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.to_string())
                     } else if let TAtomic::TLiteralString {
                         value: key_value, ..
                     } = key_item_single
                     {
-                        PathKind::ArrayAssignment(
-                            ArrayDataKind::ArrayValue,
-                            key_value.clone(),
-                        )
+                        PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.clone())
                     } else {
                         PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
                     }
@@ -550,18 +546,12 @@ fn add_array_key_dataflow(
                         value: key_value, ..
                     } = key_item_single
                     {
-                        PathKind::ArrayAssignment(
-                            ArrayDataKind::ArrayKey,
-                            key_value.to_string(),
-                        )
+                        PathKind::ArrayAssignment(ArrayDataKind::ArrayKey, key_value.to_string())
                     } else if let TAtomic::TLiteralString {
                         value: key_value, ..
                     } = key_item_single
                     {
-                        PathKind::ArrayAssignment(
-                            ArrayDataKind::ArrayKey,
-                            key_value.clone(),
-                        )
+                        PathKind::ArrayAssignment(ArrayDataKind::ArrayKey, key_value.clone())
                     } else {
                         PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey)
                     }

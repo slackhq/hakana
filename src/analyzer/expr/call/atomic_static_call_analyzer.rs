@@ -131,7 +131,7 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.get_codebase();
 
-    let method_name = codebase.interner.get(&expr.1 .1);
+    let method_name = statements_analyzer.get_interner().get(&expr.1 .1);
 
     if method_name.is_none() || !codebase.method_exists(&classlike_name, &method_name.unwrap()) {
         tast_info.maybe_add_issue(
@@ -139,7 +139,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentMethod,
                 format!(
                     "Method {}::{} does not exist",
-                    codebase.interner.lookup(&classlike_name),
+                    statements_analyzer.get_interner().lookup(&classlike_name),
                     &expr.1 .1
                 ),
                 statements_analyzer.get_hpos(&pos),

@@ -35,7 +35,7 @@ pub(crate) fn analyze(
 ) {
     let return_expr = stmt.1.as_return().unwrap();
 
-    let interner = &statements_analyzer.get_codebase().interner;
+    let interner = &statements_analyzer.get_interner();
 
     let mut inferred_return_type = if let Some(return_expr) = return_expr {
         context.inside_return = true;
@@ -100,6 +100,7 @@ pub(crate) fn analyze(
 
     type_expander::expand_union(
         statements_analyzer.get_codebase(),
+        &Some(statements_analyzer.get_interner()),
         &mut inferred_return_type,
         &TypeExpansionOptions {
             self_class: context.function_context.calling_class.as_ref(),
@@ -143,6 +144,7 @@ pub(crate) fn analyze(
 
         type_expander::expand_union(
             statements_analyzer.get_codebase(),
+            &Some(statements_analyzer.get_interner()),
             &mut expected_type,
             &TypeExpansionOptions {
                 self_class: context.function_context.calling_class.as_ref(),
@@ -421,8 +423,7 @@ pub(crate) fn analyze(
         && !functionlike_storage.has_yield
         && !functionlike_storage.is_async
         && statements_analyzer
-            .get_codebase()
-            .interner
+            .get_interner()
             .lookup(&functionlike_storage.name)
             != "__construct"
     {
@@ -466,7 +467,7 @@ pub(crate) fn handle_inout_at_return(
                                 .calling_functionlike_id
                                 .clone()
                                 .unwrap()
-                                .to_string(&statements_analyzer.get_codebase().interner),
+                                .to_string(&statements_analyzer.get_interner()),
                             i,
                             Some(param.name_location.clone()),
                             None,
@@ -550,7 +551,7 @@ fn handle_dataflow(
         }
 
         let method_node = DataFlowNode::get_for_method_return(
-            functionlike_id.to_string(&codebase.interner),
+            functionlike_id.to_string(&statements_analyzer.get_interner()),
             functionlike_storage.return_type_location.clone(),
             None,
         );
@@ -575,9 +576,12 @@ fn handle_dataflow(
                     for parent_classlike in all_parents {
                         if codebase.declaring_method_exists(&parent_classlike, &method_name) {
                             let new_sink = DataFlowNode::get_for_method_return(
-                                codebase.interner.lookup(parent_classlike).to_string()
+                                statements_analyzer
+                                    .get_interner()
+                                    .lookup(parent_classlike)
+                                    .to_string()
                                     + "::"
-                                    + codebase.interner.lookup(method_name),
+                                    + statements_analyzer.get_interner().lookup(method_name),
                                 None,
                                 None,
                             );

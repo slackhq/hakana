@@ -13,7 +13,7 @@ use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    Interner, StrId,
+    StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_XHP_CHILD,
 };
 use hakana_type::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
@@ -45,10 +45,10 @@ pub fn reconcile(
     let existing_var_type = if let Some(existing_var_type) = existing_var_type {
         existing_var_type
     } else {
-        return get_missing_type(assertion, inside_loop, &codebase.interner);
+        return get_missing_type(assertion, inside_loop);
     };
 
-    let old_var_type_string = existing_var_type.get_id(Some(&codebase.interner));
+    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
     if is_negation {
         return negated_assertion_reconciler::reconcile(
@@ -127,6 +127,7 @@ pub fn reconcile(
 
         type_expander::expand_union(
             codebase,
+            &Some(statements_analyzer.get_interner()),
             &mut refined_type,
             &TypeExpansionOptions {
                 expand_generic: true,
@@ -152,7 +153,7 @@ pub(crate) fn refine_atomic_with_union(
 
     if let Some(mut intersection_type) = intersection_type {
         for intersection_atomic_type in intersection_type.types.iter_mut() {
-            intersection_atomic_type.remove_placeholders(&codebase.interner);
+            intersection_atomic_type.remove_placeholders();
         }
 
         return intersection_type;
@@ -163,6 +164,7 @@ pub(crate) fn refine_atomic_with_union(
 
 fn intersect_union_with_atomic(
     codebase: &CodebaseInfo,
+
     existing_var_type: &TUnion,
     new_type: &TAtomic,
 ) -> Option<TUnion> {
@@ -420,20 +422,18 @@ pub(crate) fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            if codebase.interner.lookup(type_1_name) == "XHPChild" {
-                let type_2_name = codebase.interner.lookup(type_2_name);
-
-                if type_2_name == "HH\\KeyedContainer" {
+            if type_1_name == &STR_XHP_CHILD {
+                if type_2_name == &STR_KEYED_CONTAINER {
                     let mut atomic = TAtomic::TNamedObject {
-                        name: codebase.interner.get("HH\\AnyArray").unwrap(),
+                        name: STR_ANY_ARRAY,
                         type_params: type_2_params.clone(),
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
                     };
-                    atomic.remove_placeholders(&codebase.interner);
+                    atomic.remove_placeholders();
                     return Some(atomic);
-                } else if type_2_name == "HH\\Container" {
+                } else if type_2_name == &STR_CONTAINER {
                     let type_2_params = if let Some(type_2_params) = type_2_params {
                         Some(vec![get_arraykey(true), type_2_params[0].clone()])
                     } else {
@@ -441,13 +441,13 @@ pub(crate) fn intersect_atomic_with_atomic(
                     };
 
                     let mut atomic = TAtomic::TNamedObject {
-                        name: codebase.interner.get("HH\\AnyArray").unwrap(),
+                        name: STR_ANY_ARRAY,
                         type_params: type_2_params,
                         is_this: false,
                         extra_types: None,
                         remapped_params: false,
                     };
-                    atomic.remove_placeholders(&codebase.interner);
+                    atomic.remove_placeholders();
                     return Some(atomic);
                 }
             }
@@ -510,11 +510,9 @@ pub(crate) fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            let type_1_name = codebase.interner.lookup(type_1_name);
-
-            let (type_1_key_param, type_1_value_param) = if type_1_name == "HH\\Container" {
+            let (type_1_key_param, type_1_value_param) = if type_1_name == &STR_CONTAINER {
                 (get_arraykey(true), &type_1_params[0])
-            } else if type_1_name == "HH\\KeyedContainer" {
+            } else if type_1_name == &STR_KEYED_CONTAINER {
                 (type_1_params[0].clone(), &type_1_params[1])
             } else {
                 return None;
@@ -896,9 +894,7 @@ fn intersect_enumcase_with_string(
     let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
     if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
         if let Some(inferred_type) = &member_storage.inferred_type {
-            if let Some(inferred_value) =
-                inferred_type.get_single_literal_string_value(&codebase.interner)
-            {
+            if let Some(inferred_value) = inferred_type.get_single_literal_string_value() {
                 return Some(TAtomic::TLiteralString {
                     value: inferred_value,
                 });
@@ -952,6 +948,7 @@ fn intersect_contained_atomic_with_another(
     super_atomic: &TAtomic,
     sub_atomic: &TAtomic,
     codebase: &CodebaseInfo,
+
     generic_coercion: bool,
 ) -> Option<TAtomic> {
     if generic_coercion {
@@ -1004,7 +1001,7 @@ fn intersect_contained_atomic_with_another(
     Some(sub_atomic.clone())
 }
 
-fn get_missing_type(assertion: &Assertion, inside_loop: bool, interner: &Interner) -> TUnion {
+fn get_missing_type(assertion: &Assertion, inside_loop: bool) -> TUnion {
     if matches!(assertion, Assertion::IsIsset | Assertion::IsEqualIsset) {
         return get_mixed_maybe_from_loop(inside_loop);
     }
@@ -1018,7 +1015,7 @@ fn get_missing_type(assertion: &Assertion, inside_loop: bool, interner: &Interne
 
     if let Assertion::IsEqual(atomic) | Assertion::IsType(atomic) = assertion {
         let mut atomic = atomic.clone();
-        atomic.remove_placeholders(interner);
+        atomic.remove_placeholders();
         return wrap_atomic(atomic.clone());
     }
 

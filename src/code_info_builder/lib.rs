@@ -361,9 +361,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     for (name, (_, item_type)) in attribute_known_items {
                         let mut source_types = FxHashSet::default();
 
-                        if let Some(str) =
-                            item_type.get_single_literal_string_value(&self.codebase.interner)
-                        {
+                        if let Some(str) = item_type.get_single_literal_string_value() {
                             if let Some(source_type) = string_to_source_types(str) {
                                 source_types.insert(source_type);
                             }
@@ -575,7 +573,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
 
         if let Some(fun) = fun {
-            let function_id = format!("{}:{}", self.file_source.file_path.0, fun.span.start_offset());
+            let function_id = format!(
+                "{}:{}",
+                self.file_source.file_path.0,
+                fun.span.start_offset()
+            );
 
             let name = self.interner.intern(function_id);
 

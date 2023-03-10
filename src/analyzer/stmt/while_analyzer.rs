@@ -31,7 +31,7 @@ pub(crate) fn analyze(
 
     let (analysis_result, inner_loop_context) = loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.1.0,
+        &stmt.1 .0,
         get_and_expressions(stmt.0),
         vec![],
         &mut loop_scope,
@@ -50,7 +50,7 @@ pub(crate) fn analyze(
         true
     } else {
         if let Some(stmt_cond_type) = tast_info.get_expr_type(stmt.0.pos()) {
-            stmt_cond_type.is_always_truthy(&codebase.interner)
+            stmt_cond_type.is_always_truthy()
         } else {
             false
         }

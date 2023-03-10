@@ -83,7 +83,10 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
-        Some(statements_analyzer.get_codebase()),
+        Some((
+            statements_analyzer.get_codebase(),
+            statements_analyzer.get_interner(),
+        )),
     );
 
     let current_dim = analyze_nested_array_assignment(
@@ -389,8 +392,6 @@ fn add_array_assignment_dataflow(
         );
     }
 
-    let codebase = statements_analyzer.get_codebase();
-
     for child_parent_node in &child_expr_type.parent_nodes {
         if !key_values.is_empty() {
             for key_value in key_values {
@@ -406,23 +407,30 @@ fn add_array_assignment_dataflow(
                             .get_codebase()
                             .get_classconst_literal_value(enum_name, member_name)
                         {
-                            if let Some(value) =
-                                literal_value.get_literal_string_value(&codebase.interner)
-                            {
+                            if let Some(value) = literal_value.get_literal_string_value() {
                                 value
                             } else if let Some(value) = literal_value.get_literal_int_value() {
                                 value.to_string()
                             } else {
-                                println!("{},", key_value.get_id(Some(&codebase.interner)));
+                                println!(
+                                    "{},",
+                                    key_value.get_id(Some(&statements_analyzer.get_interner()))
+                                );
                                 panic!()
                             }
                         } else {
-                            println!("{},", key_value.get_id(Some(&codebase.interner)));
+                            println!(
+                                "{},",
+                                key_value.get_id(Some(&statements_analyzer.get_interner()))
+                            );
                             panic!();
                         }
                     }
                     _ => {
-                        println!("{},", key_value.get_id(Some(&codebase.interner)));
+                        println!(
+                            "{},",
+                            key_value.get_id(Some(&statements_analyzer.get_interner()))
+                        );
                         panic!()
                     }
                 };
@@ -623,7 +631,10 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             var_id_additions.push(
                 if let Some(dim_id) = expression_identifier::get_dim_id(
                     dim,
-                    Some(statements_analyzer.get_codebase()),
+                    Some((
+                        statements_analyzer.get_codebase(),
+                        statements_analyzer.get_interner(),
+                    )),
                     &statements_analyzer.get_file_analyzer().resolved_names,
                 ) {
                     format!("[{}]", dim_id)
@@ -633,7 +644,10 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                         context.function_context.calling_class.as_ref(),
                         statements_analyzer.get_file_analyzer().get_file_source(),
                         statements_analyzer.get_file_analyzer().resolved_names,
-                        Some(statements_analyzer.get_codebase()),
+                        Some((
+                            statements_analyzer.get_codebase(),
+                            statements_analyzer.get_interner(),
+                        )),
                     ) {
                         format!("[{}]", dim_id)
                     } else {
@@ -713,7 +727,10 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.get_file_analyzer().get_file_source(),
                     statements_analyzer.get_file_analyzer().resolved_names,
-                    Some(statements_analyzer.get_codebase()),
+                    Some((
+                        statements_analyzer.get_codebase(),
+                        statements_analyzer.get_interner(),
+                    )),
                 ),
                 &array_expr_offset_atomic_types,
             );
@@ -796,7 +813,10 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
-            Some(statements_analyzer.get_codebase()),
+            Some((
+                statements_analyzer.get_codebase(),
+                statements_analyzer.get_interner(),
+            )),
         ) {
             parent_array_var_id = Some(var_var_id.clone());
             Some(format!(

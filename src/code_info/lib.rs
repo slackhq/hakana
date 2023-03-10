@@ -72,8 +72,18 @@ pub const STR_AWAITABLE: StrId = StrId(15);
 pub const STR_BUILTIN_ENUM: StrId = StrId(16);
 pub const STR_BUILTIN_ENUM_CLASS: StrId = StrId(17);
 pub const STR_STATIC: StrId = StrId(18);
-pub const STR_FORMAT_STRING: StrId = StrId(19);
-pub const STR_ENUM_CLASS_LABEL: StrId = StrId(20);
+pub const STR_SELF: StrId = StrId(19);
+pub const STR_FORMAT_STRING: StrId = StrId(20);
+pub const STR_ENUM_CLASS_LABEL: StrId = StrId(21);
+pub const STR_TRAVERSABLE: StrId = StrId(22);
+pub const STR_KEYED_TRAVERSABLE: StrId = StrId(23);
+pub const STR_LIB_REGEX_PATTERN: StrId = StrId(24);
+pub const STR_ITERATOR: StrId = StrId(25);
+pub const STR_KEYED_ITERATOR: StrId = StrId(26);
+pub const STR_ASYNC_ITERATOR: StrId = StrId(27);
+pub const STR_ASYNC_KEYED_ITERATOR: StrId = StrId(28);
+pub const STR_SHAPES: StrId = StrId(29);
+pub const STR_STDCLASS: StrId = StrId(29);
 
 impl StrId {
     #[inline]
@@ -117,8 +127,18 @@ impl Interner {
         interner.intern("HH\\BuiltinEnum".to_string());
         interner.intern("HH\\BuiltinEnumClass".to_string());
         interner.intern("static".to_string());
+        interner.intern("self".to_string());
         interner.intern("HH\\FormatString".to_string());
         interner.intern("HH\\EnumClass\\Label".to_string());
+        interner.intern("HH\\Traversable".to_string());
+        interner.intern("HH\\KeyedTraversable".to_string());
+        interner.intern("HH\\Lib\\Regex\\Pattern".to_string());
+        interner.intern("HH\\Iterator".to_string());
+        interner.intern("HH\\KeyedIterator".to_string());
+        interner.intern("HH\\AsyncIterator".to_string());
+        interner.intern("HH\\AsyncKeyedIterator".to_string());
+        interner.intern("HH\\Shapes".to_string());
+        interner.intern("stdClass".to_string());
         interner
     }
 

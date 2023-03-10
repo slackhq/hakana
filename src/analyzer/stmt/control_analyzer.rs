@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::scope_context::control_action::ControlAction;
-use hakana_reflection_info::{codebase_info::CodebaseInfo, StrId};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId};
 use oxidized::aast;
 
 use crate::typed_ast::TastInfo;
@@ -14,6 +14,7 @@ pub enum BreakContext {
 
 pub(crate) fn get_control_actions(
     codebase: &CodebaseInfo,
+    interner: &Interner,
     resolved_names: &FxHashMap<usize, StrId>,
     stmts: &Vec<aast::Stmt<(), ()>>,
     tast_info: Option<&TastInfo>,
@@ -31,9 +32,13 @@ pub(crate) fn get_control_actions(
         match &stmt.1 {
             aast::Stmt_::Expr(boxed) => {
                 if let aast::Expr_::Call(call_expr) = &boxed.2 {
-                    if let Some(value) =
-                        handle_call(call_expr, resolved_names, codebase, &control_actions)
-                    {
+                    if let Some(value) = handle_call(
+                        call_expr,
+                        resolved_names,
+                        codebase,
+                        interner,
+                        &control_actions,
+                    ) {
                         return value;
                     }
                 }
@@ -83,8 +88,9 @@ pub(crate) fn get_control_actions(
 
                 let if_statement_actions = get_control_actions(
                     codebase,
+                    interner,
                     resolved_names,
-                    &if_stmt.1.0,
+                    &if_stmt.1 .0,
                     tast_info,
                     break_context.clone(),
                     return_is_exit,
@@ -98,8 +104,9 @@ pub(crate) fn get_control_actions(
 
                 let else_statement_actions = get_control_actions(
                     codebase,
+                    interner,
                     resolved_names,
-                    &if_stmt.2.0,
+                    &if_stmt.2 .0,
                     tast_info,
                     break_context.clone(),
                     return_is_exit,
@@ -140,6 +147,7 @@ pub(crate) fn get_control_actions(
 
                 let loop_actions = get_control_actions(
                     codebase,
+                    interner,
                     resolved_names,
                     &loop_stmts.0,
                     tast_info,
@@ -160,7 +168,7 @@ pub(crate) fn get_control_actions(
                         let stmt = stmt.1.as_while().unwrap();
 
                         if let Some(expr_type) = types.get_expr_type(&stmt.0 .1) {
-                            if expr_type.is_always_truthy(&codebase.interner) {
+                            if expr_type.is_always_truthy() {
                                 //infinite while loop that only return don't have an exit path
                                 let loop_only_ends = control_actions
                                     .iter()
@@ -184,7 +192,7 @@ pub(crate) fn get_control_actions(
 
                         if let Some(for_cond) = stmt.1 {
                             if let Some(expr_type) = types.get_expr_type(&for_cond.1) {
-                                if !expr_type.is_always_truthy(&codebase.interner) {
+                                if !expr_type.is_always_truthy() {
                                     is_infinite_loop = false
                                 }
                             } else {
@@ -229,6 +237,7 @@ pub(crate) fn get_control_actions(
 
                     let case_actions = get_control_actions(
                         codebase,
+                        interner,
                         resolved_names,
                         &inner_case_stmts.0,
                         tast_info,
@@ -267,6 +276,7 @@ pub(crate) fn get_control_actions(
 
                     let case_actions = get_control_actions(
                         codebase,
+                        interner,
                         resolved_names,
                         &inner_case_stmts.0,
                         tast_info,
@@ -321,8 +331,9 @@ pub(crate) fn get_control_actions(
 
                 let try_stmt_actions = get_control_actions(
                     codebase,
+                    interner,
                     resolved_names,
-                    &stmt.0.0,
+                    &stmt.0 .0,
                     tast_info,
                     break_context.clone(),
                     return_is_exit,
@@ -342,8 +353,9 @@ pub(crate) fn get_control_actions(
                     for catch in stmt.1 {
                         let catch_actions = get_control_actions(
                             codebase,
+                            interner,
                             resolved_names,
-                            &catch.2.0,
+                            &catch.2 .0,
                             tast_info,
                             break_context.clone(),
                             return_is_exit,
@@ -382,8 +394,9 @@ pub(crate) fn get_control_actions(
                 if stmt.2.len() > 0 {
                     let finally_actions = get_control_actions(
                         codebase,
+                        interner,
                         resolved_names,
-                        &stmt.2.0,
+                        &stmt.2 .0,
                         tast_info,
                         break_context.clone(),
                         return_is_exit,
@@ -404,6 +417,7 @@ pub(crate) fn get_control_actions(
             aast::Stmt_::Block(block_stmts) => {
                 let mut block_actions = get_control_actions(
                     codebase,
+                    interner,
                     resolved_names,
                     &block_stmts.0,
                     tast_info,
@@ -424,8 +438,9 @@ pub(crate) fn get_control_actions(
             aast::Stmt_::Awaitall(boxed) => {
                 let mut block_actions = get_control_actions(
                     codebase,
+                    interner,
                     resolved_names,
-                    &boxed.1.0,
+                    &boxed.1 .0,
                     tast_info,
                     break_context.clone(),
                     return_is_exit,
@@ -467,6 +482,7 @@ fn handle_call(
     )>,
     resolved_names: &FxHashMap<usize, StrId>,
     codebase: &CodebaseInfo,
+    interner: &Interner,
     control_actions: &FxHashSet<ControlAction>,
 ) -> Option<FxHashSet<ControlAction>> {
     match &call_expr.0 .2 {
@@ -500,7 +516,7 @@ fn handle_call(
                                 if let Some(classlike_storage) =
                                     codebase.classlike_infos.get(name_string)
                                 {
-                                    let method_name = codebase.interner.get(&boxed.1 .1);
+                                    let method_name = interner.get(&boxed.1 .1);
 
                                     if let Some(method_name) = method_name {
                                         if let Some(functionlike_storage) =

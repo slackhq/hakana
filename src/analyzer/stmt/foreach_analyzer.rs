@@ -15,6 +15,8 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    STR_ASYNC_ITERATOR, STR_ASYNC_KEYED_ITERATOR, STR_CONTAINER, STR_ITERATOR, STR_KEYED_CONTAINER,
+    STR_KEYED_ITERATOR, STR_TRAVERSABLE,
 };
 use hakana_type::{
     add_optional_union_type, add_union_type, combine_optional_union_types, get_arraykey, get_int,
@@ -67,7 +69,10 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
-        Some(statements_analyzer.get_codebase()),
+        Some((
+            statements_analyzer.get_codebase(),
+            statements_analyzer.get_interner(),
+        )),
     );
 
     let iterator_type = if let Some(stmt_expr_type) = tast_info.get_expr_type(stmt.0.pos()) {
@@ -148,7 +153,7 @@ pub(crate) fn analyze(
 
     let (analysis_result, _) = loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.2.0,
+        &stmt.2 .0,
         vec![],
         vec![],
         &mut LoopScope::new(context.vars_in_scope.clone()),
@@ -342,10 +347,8 @@ fn check_iterator_type(
                                             .get_codebase()
                                             .get_classconst_literal_value(&enum_name, &member_name)
                                         {
-                                            if let Some(value) = literal_value
-                                                .get_literal_string_value(
-                                                    &statements_analyzer.get_codebase().interner,
-                                                )
+                                            if let Some(value) =
+                                                literal_value.get_literal_string_value()
                                             {
                                                 key_param = add_union_type(
                                                     key_param,
@@ -457,8 +460,8 @@ fn check_iterator_type(
             ..
         } = iterator_atomic_type
         {
-            match codebase.interner.lookup(&name) {
-                "HH\\KeyedContainer" | "HH\\KeyedIterator" => {
+            match name {
+                STR_KEYED_CONTAINER | STR_KEYED_ITERATOR => {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
@@ -471,7 +474,7 @@ fn check_iterator_type(
                         codebase,
                     ));
                 }
-                "HH\\Container" | "HH\\Iterator" | "HH\\Traversable" => {
+                STR_CONTAINER | STR_ITERATOR | STR_TRAVERSABLE => {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
@@ -484,7 +487,7 @@ fn check_iterator_type(
                         codebase,
                     ));
                 }
-                "HH\\AsyncKeyedIterator" => {
+                STR_ASYNC_KEYED_ITERATOR => {
                     if is_async {
                         has_valid_iterator = true;
                         key_type = Some(combine_optional_union_types(
@@ -499,7 +502,7 @@ fn check_iterator_type(
                         ));
                     }
                 }
-                "HH\\AsyncIterator" => {
+                STR_ASYNC_ITERATOR => {
                     if is_async {
                         has_valid_iterator = true;
                         key_type = Some(combine_optional_union_types(

@@ -6,7 +6,8 @@ use crate::{
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };
 use crate::{
-    Interner, StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_PHP_INCOMPLETE_CLASS,
+    Interner, StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_KEYED_TRAVERSABLE,
+    STR_LIB_REGEX_PATTERN, STR_PHP_INCOMPLETE_CLASS, STR_TRAVERSABLE,
 };
 use derivative::Derivative;
 use itertools::Itertools;
@@ -1034,7 +1035,7 @@ impl TAtomic {
         panic!()
     }
 
-    pub fn is_truthy(&self, interner: &Interner) -> bool {
+    pub fn is_truthy(&self) -> bool {
         match &self {
             &TAtomic::TTrue { .. }
             | &TAtomic::TMixedWithFlags(_, true, _, _)
@@ -1044,12 +1045,12 @@ impl TAtomic {
             | &TAtomic::TLiteralClassname { .. }
             | &TAtomic::TClassname { .. }
             | &TAtomic::TTypename { .. } => true,
-            &TAtomic::TNamedObject { name, .. } => match interner.lookup(name) {
-                "HH\\Container"
-                | "HH\\KeyedContainer"
-                | "HH\\AnyArray"
-                | "HH\\Traversable"
-                | "HH\\KeyedTraversable" => false,
+            &TAtomic::TNamedObject { name, .. } => match name {
+                &STR_CONTAINER
+                | &STR_KEYED_CONTAINER
+                | &STR_ANY_ARRAY
+                | &STR_TRAVERSABLE
+                | &STR_KEYED_TRAVERSABLE => false,
                 _ => true,
             },
             &TAtomic::TLiteralInt { value, .. } => {
@@ -1285,7 +1286,7 @@ impl TAtomic {
         };
     }
 
-    pub fn remove_placeholders(&mut self, interner: &Interner) {
+    pub fn remove_placeholders(&mut self) {
         match self {
             TAtomic::TDict {
                 params: Some(ref mut params),
@@ -1316,10 +1317,9 @@ impl TAtomic {
                 ..
             } => {
                 if let Some(type_params) = type_params {
-                    let name = interner.lookup(name);
-                    if name == "HH\\KeyedContainer"
-                        || name == "HH\\AnyArray"
-                        || name == "HH\\KeyedTraversable"
+                    if name == &STR_KEYED_CONTAINER
+                        || name == &STR_ANY_ARRAY
+                        || name == &STR_KEYED_TRAVERSABLE
                     {
                         if let Some(key_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = key_param.get_single() {
@@ -1335,7 +1335,7 @@ impl TAtomic {
                                 )]);
                             }
                         }
-                    } else if name == "HH\\Container" || name == "HH\\Traversable" {
+                    } else if name == &STR_CONTAINER || name == &STR_TRAVERSABLE {
                         if let Some(value_param) = type_params.get_mut(0) {
                             if let TAtomic::TPlaceholder = value_param.get_single() {
                                 *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
@@ -1357,7 +1357,7 @@ impl TAtomic {
         }
     }
 
-    pub fn get_literal_string_value(&self, interner: &Interner) -> Option<String> {
+    pub fn get_literal_string_value(&self) -> Option<String> {
         match self {
             TAtomic::TLiteralString { value, .. } => Some(value.clone()),
             TAtomic::TTypeAlias {
@@ -1365,7 +1365,7 @@ impl TAtomic {
                 as_type: Some(as_type),
                 type_params: Some(_),
             } => {
-                if name == &interner.get("HH\\Lib\\Regex\\Pattern").unwrap() {
+                if name == &STR_LIB_REGEX_PATTERN {
                     if let TAtomic::TLiteralString { value, .. } = as_type.get_single() {
                         Some(value.clone())
                     } else {

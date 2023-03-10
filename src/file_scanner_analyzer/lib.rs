@@ -167,7 +167,6 @@ pub fn scan_and_analyze(
 
     populate_codebase(&mut codebase, &interner, &mut symbol_references);
 
-    codebase.interner = interner;
     codebase.safe_symbols = safe_symbols;
     codebase.safe_symbol_members = safe_symbol_members;
 
@@ -180,10 +179,12 @@ pub fn scan_and_analyze(
     let analysis_result = Arc::new(Mutex::new(analysis_result));
 
     let arc_codebase = Arc::new(codebase);
+    let arc_interner = Arc::new(interner);
 
     analyze_files(
         files_to_analyze,
         arc_codebase.clone(),
+        arc_interner.clone(),
         &resolved_names,
         asts,
         config.clone(),
@@ -220,12 +221,17 @@ pub fn scan_and_analyze(
     }
 
     let mut codebase = Arc::try_unwrap(arc_codebase).unwrap();
+    let interner = Arc::try_unwrap(arc_interner).unwrap();
 
     if config.find_unused_definitions {
-        find_unused_definitions(&mut analysis_result, &config, &codebase, &ignored_paths);
+        find_unused_definitions(
+            &mut analysis_result,
+            &config,
+            &codebase,
+            &interner,
+            &ignored_paths,
+        );
     }
-
-    let interner = codebase.interner;
 
     std::thread::spawn(move || {
         codebase.classlike_infos.clear();

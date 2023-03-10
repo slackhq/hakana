@@ -30,8 +30,9 @@ pub(crate) fn analyze(
     for catch in stmt.1.iter() {
         let catch_actions = control_analyzer::get_control_actions(
             codebase,
+            statements_analyzer.get_interner(),
             statements_analyzer.get_file_analyzer().resolved_names,
-            &catch.2.0,
+            &catch.2 .0,
             Some(tast_info),
             vec![],
             true,
@@ -56,7 +57,7 @@ pub(crate) fn analyze(
     let was_inside_try = context.inside_try;
     context.inside_try = true;
 
-    if !statements_analyzer.analyze(&stmt.0.0, tast_info, context, loop_scope) {
+    if !statements_analyzer.analyze(&stmt.0 .0, tast_info, context, loop_scope) {
         return false;
     }
 
@@ -84,8 +85,9 @@ pub(crate) fn analyze(
 
     let try_block_control_actions = control_analyzer::get_control_actions(
         codebase,
+        statements_analyzer.get_interner(),
         statements_analyzer.get_file_analyzer().resolved_names,
-        &stmt.0.0,
+        &stmt.0 .0,
         Some(tast_info),
         vec![],
         true,
@@ -197,13 +199,14 @@ pub(crate) fn analyze(
         let old_catch_assigned_var_ids = catch_context.assigned_var_ids.clone();
 
         catch_context.assigned_var_ids = FxHashMap::default();
-        statements_analyzer.analyze(&catch.2.0, tast_info, &mut catch_context, loop_scope);
+        statements_analyzer.analyze(&catch.2 .0, tast_info, &mut catch_context, loop_scope);
 
         // recalculate in case there's a nothing function call
         let catch_actions = control_analyzer::get_control_actions(
             codebase,
+            statements_analyzer.get_interner(),
             statements_analyzer.get_file_analyzer().resolved_names,
-            &catch.2.0,
+            &catch.2 .0,
             Some(tast_info),
             vec![],
             true,
@@ -288,7 +291,7 @@ pub(crate) fn analyze(
 
             finally_context.vars_in_scope = finally_scope.vars_in_scope;
 
-            statements_analyzer.analyze(&stmt.2.0, tast_info, context, loop_scope);
+            statements_analyzer.analyze(&stmt.2 .0, tast_info, context, loop_scope);
 
             finally_has_returned = finally_context.has_returned;
 

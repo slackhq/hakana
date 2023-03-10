@@ -39,11 +39,7 @@ pub(crate) fn analyze(
             &arg_type.unwrap_or(get_mixed_any()),
             &get_arraykey(false),
             &FunctionLikeIdentifier::Function(
-                statements_analyzer
-                    .get_codebase()
-                    .interner
-                    .get("exit")
-                    .unwrap(),
+                statements_analyzer.get_interner().get("exit").unwrap(),
             ),
             i,
             arg_expr,

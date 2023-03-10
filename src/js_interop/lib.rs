@@ -17,8 +17,6 @@ impl ScannerAndAnalyzer {
 
         let (mut codebase, interner) = get_single_file_codebase(vec![]);
 
-        codebase.interner = interner;
-
         Self { codebase }
     }
 

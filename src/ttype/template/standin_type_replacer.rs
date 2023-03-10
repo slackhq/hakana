@@ -1,7 +1,7 @@
 use crate::{
     add_union_type, combine_optional_union_types, get_arrayish_params, get_arraykey, get_mixed,
     get_mixed_any, get_mixed_maybe_from_loop, get_value_param, intersect_union_types,
-    is_array_container, type_combiner,
+    type_combiner,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
     type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
@@ -11,7 +11,8 @@ use hakana_reflection_info::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    STR_ENUM_CLASS_LABEL,
+    Interner, STR_ANY_ARRAY, STR_CONTAINER, STR_ENUM_CLASS_LABEL, STR_KEYED_CONTAINER,
+    STR_KEYED_TRAVERSABLE, STR_TRAVERSABLE,
 };
 use hakana_reflection_info::{function_context::FunctionLikeIdentifier, StrId};
 use indexmap::IndexMap;
@@ -24,6 +25,7 @@ pub fn replace(
     union_type: &TUnion,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
@@ -61,6 +63,7 @@ pub fn replace(
             atomic_type,
             template_result,
             codebase,
+            interner,
             &input_type,
             input_arg_offset,
             calling_class,
@@ -101,6 +104,7 @@ fn handle_atomic_standin(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
@@ -113,9 +117,9 @@ fn handle_atomic_standin(
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
     let normalized_key = if let TAtomic::TNamedObject { name, .. } = atomic_type {
-        codebase.interner.lookup(name).to_string()
+        name.0.to_string()
     } else if let TAtomic::TTypeAlias { name, .. } = atomic_type {
-        codebase.interner.lookup(name).to_string()
+        name.0.to_string()
     } else {
         atomic_type.get_key()
     };
@@ -137,6 +141,7 @@ fn handle_atomic_standin(
                 template_type,
                 template_result,
                 codebase,
+                interner,
                 input_type,
                 input_arg_offset,
                 calling_class,
@@ -166,6 +171,7 @@ fn handle_atomic_standin(
                     atomic_type,
                     template_result,
                     codebase,
+                    interner,
                     input_type,
                     input_arg_offset,
                     calling_class,
@@ -196,6 +202,7 @@ fn handle_atomic_standin(
                     atomic_type,
                     template_result,
                     codebase,
+                    interner,
                     input_type,
                     input_arg_offset,
                     calling_class,
@@ -230,6 +237,7 @@ fn handle_atomic_standin(
             atomic_type,
             template_result,
             codebase,
+            interner,
             None,
             input_arg_offset,
             calling_class,
@@ -249,6 +257,7 @@ fn handle_atomic_standin(
             atomic_type,
             template_result,
             codebase,
+            interner,
             Some(matching_atomic_type),
             input_arg_offset,
             calling_class,
@@ -266,6 +275,7 @@ fn replace_atomic(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     input_type: Option<TAtomic>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
@@ -302,6 +312,7 @@ fn replace_atomic(
                         property,
                         template_result,
                         codebase,
+                        interner,
                         &input_type_param,
                         input_arg_offset,
                         calling_class,
@@ -328,6 +339,7 @@ fn replace_atomic(
                         &params.0,
                         template_result,
                         codebase,
+                        interner,
                         &if let Some(input_params) = &input_params {
                             Some(input_params.0.clone())
                         } else {
@@ -346,6 +358,7 @@ fn replace_atomic(
                         &params.1,
                         template_result,
                         codebase,
+                        interner,
                         &if let Some(input_params) = &input_params {
                             Some(input_params.1.clone())
                         } else {
@@ -389,6 +402,7 @@ fn replace_atomic(
                         property,
                         template_result,
                         codebase,
+                        interner,
                         &input_type_param.cloned(),
                         input_arg_offset,
                         calling_class,
@@ -410,6 +424,7 @@ fn replace_atomic(
                     &type_param,
                     template_result,
                     codebase,
+                    interner,
                     &if let Some(input_param) = input_param {
                         Some(input_param)
                     } else {
@@ -434,6 +449,7 @@ fn replace_atomic(
                 &type_param,
                 template_result,
                 codebase,
+                interner,
                 &if let Some(TAtomic::TKeyset {
                     type_param: input_param,
                 }) = &input_type
@@ -467,6 +483,7 @@ fn replace_atomic(
                 {
                     Some(get_mapped_generic_type_params(
                         codebase,
+                        interner,
                         &input_type.clone().unwrap(),
                         name,
                         remapped_params,
@@ -489,15 +506,15 @@ fn replace_atomic(
                                 let (key_param, value_param) =
                                     get_arrayish_params(&input_inner, codebase).unwrap();
 
-                                match codebase.interner.lookup(name) {
-                                    "HH\\KeyedContainer" | "HH\\KeyedTraversable" => {
+                                match name {
+                                    &STR_KEYED_CONTAINER | &STR_KEYED_TRAVERSABLE => {
                                         if offset == 0 {
                                             Some(key_param)
                                         } else {
                                             Some(value_param)
                                         }
                                     }
-                                    "HH\\Container" | "HH\\Traversable" => Some(value_param),
+                                    &crate::STR_CONTAINER | &STR_TRAVERSABLE => Some(value_param),
                                     _ => None,
                                 }
                             }
@@ -512,6 +529,7 @@ fn replace_atomic(
                         type_param,
                         template_result,
                         codebase,
+                        interner,
                         &if let Some(mapped_type_params) = &mapped_type_params {
                             if let Some(matched) = mapped_type_params.get(offset).cloned() {
                                 Some(matched.1)
@@ -563,6 +581,7 @@ fn replace_atomic(
                         type_param,
                         template_result,
                         codebase,
+                        interner,
                         &if let Some(mapped_type_params) = &mapped_type_params {
                             mapped_type_params.get(offset).cloned()
                         } else {
@@ -609,6 +628,7 @@ fn replace_atomic(
                         &param_type,
                         template_result,
                         codebase,
+                        interner,
                         &input_type_param.clone(),
                         input_arg_offset,
                         calling_class,
@@ -628,6 +648,7 @@ fn replace_atomic(
                     &return_type,
                     template_result,
                     codebase,
+                    interner,
                     if let Some(TAtomic::TClosure {
                         return_type: input_return_type,
                         ..
@@ -654,6 +675,7 @@ fn replace_atomic(
                 &as_type,
                 template_result,
                 codebase,
+                interner,
                 if let Some(TAtomic::TClassname {
                     as_type: input_as_type,
                 }) = input_type
@@ -677,6 +699,7 @@ fn replace_atomic(
                 &as_type,
                 template_result,
                 codebase,
+                interner,
                 if let Some(TAtomic::TTypename {
                     as_type: input_as_type,
                 }) = input_type
@@ -707,6 +730,7 @@ fn handle_template_param_standin(
     template_type: &TUnion,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
@@ -736,7 +760,7 @@ fn handle_template_param_standin(
         }
     }
 
-    if &template_type.get_id(Some(&codebase.interner)) == normalized_key {
+    if &template_type.get_id(None) == normalized_key {
         return template_type.clone().types;
     }
 
@@ -752,6 +776,7 @@ fn handle_template_param_standin(
                 &TUnion::new(vec![extra_type.clone()]),
                 template_result,
                 codebase,
+                interner,
                 input_type,
                 input_arg_offset,
                 calling_class,
@@ -786,6 +811,7 @@ fn handle_template_param_standin(
         } else {
             type_expander::expand_union(
                 codebase,
+                interner,
                 &mut replacement_type,
                 &TypeExpansionOptions {
                     self_class: calling_class,
@@ -807,6 +833,7 @@ fn handle_template_param_standin(
                     &replacement_type,
                     template_result,
                     codebase,
+                    interner,
                     input_type,
                     input_arg_offset,
                     calling_class,
@@ -830,11 +857,12 @@ fn handle_template_param_standin(
                     if (calling_class.is_none()
                         || replacement_defining_entity != calling_class.unwrap())
                         && (calling_function.is_none()
-                            || codebase.interner.lookup(replacement_defining_entity)
-                                != format!(
-                                    "fn-{}",
-                                    calling_function.unwrap().to_string(&codebase.interner)
-                                ))
+                            || match calling_function.unwrap() {
+                                FunctionLikeIdentifier::Function(calling_function) => {
+                                    calling_function != replacement_defining_entity
+                                }
+                                FunctionLikeIdentifier::Method(_, _) => true,
+                            })
                     {
                         for nested_type_atomic in &replacement_as_type.types {
                             replacements_found = true;
@@ -857,6 +885,7 @@ fn handle_template_param_standin(
 
         type_expander::expand_union(
             codebase,
+            interner,
             &mut as_type,
             &TypeExpansionOptions {
                 self_class: calling_class,
@@ -877,6 +906,7 @@ fn handle_template_param_standin(
             &as_type,
             template_result,
             codebase,
+            interner,
             input_type,
             input_arg_offset,
             calling_class,
@@ -1087,6 +1117,7 @@ fn handle_template_param_class_standin(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
@@ -1167,6 +1198,7 @@ fn handle_template_param_class_standin(
                 &TUnion::new(vec![atomic_type_as.clone()]),
                 template_result,
                 codebase,
+                interner,
                 &generic_param,
                 input_arg_offset,
                 calling_class,
@@ -1263,6 +1295,7 @@ fn handle_template_param_type_standin(
     atomic_type: &TAtomic,
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     input_type: &Option<TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
@@ -1348,6 +1381,7 @@ fn handle_template_param_type_standin(
                 &TUnion::new(vec![atomic_type_as.clone()]),
                 template_result,
                 codebase,
+                interner,
                 &generic_param,
                 input_arg_offset,
                 calling_class,
@@ -1468,9 +1502,9 @@ fn find_matching_atomic_types_for_template(
 
     for atomic_input_type in &input_type.types {
         let input_key = &if let TAtomic::TNamedObject { name, .. } = atomic_input_type {
-            codebase.interner.lookup(name).to_string()
+            name.0.to_string()
         } else if let TAtomic::TTypeAlias { name, .. } = atomic_input_type {
-            codebase.interner.lookup(name).to_string()
+            name.0.to_string()
         } else {
             atomic_input_type.get_key()
         };
@@ -1488,9 +1522,11 @@ fn find_matching_atomic_types_for_template(
                 }
             }
             TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => {
-                if is_array_container(normalized_key) {
-                    matching_atomic_types.push(atomic_input_type.clone());
-                    continue;
+                if let TAtomic::TNamedObject { name, .. } = base_type {
+                    if is_array_container(name) {
+                        matching_atomic_types.push(atomic_input_type.clone());
+                        continue;
+                    }
                 }
             }
             TAtomic::TLiteralClassname {
@@ -1545,10 +1581,6 @@ fn find_matching_atomic_types_for_template(
                     let classlike_info = if let Some(c) = codebase.classlike_infos.get(input_name) {
                         c
                     } else {
-                        println!(
-                            "Cannot locate class {}",
-                            codebase.interner.lookup(input_name)
-                        );
                         matching_atomic_types.push(TAtomic::TObject);
                         continue;
                     };
@@ -1659,8 +1691,17 @@ fn find_matching_atomic_types_for_template(
     matching_atomic_types
 }
 
+fn is_array_container(name: &StrId) -> bool {
+    name == &STR_TRAVERSABLE
+        || name == &STR_KEYED_TRAVERSABLE
+        || name == &STR_CONTAINER
+        || name == &STR_KEYED_CONTAINER
+        || name == &STR_ANY_ARRAY
+}
+
 pub fn get_mapped_generic_type_params(
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     input_type_part: &TAtomic,
     container_name: &StrId,
     container_remapped_params: bool,
@@ -1793,6 +1834,7 @@ pub fn get_mapped_generic_type_params(
             .map(|mut v| {
                 type_expander::expand_union(
                     codebase,
+                    interner,
                     &mut v.1,
                     &TypeExpansionOptions {
                         ..Default::default()

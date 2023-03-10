@@ -8,7 +8,7 @@ use hakana_algebra::Clause;
 use hakana_reflection_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
 };
-use hakana_reflection_info::{FileSource, StrId};
+use hakana_reflection_info::{FileSource, StrId, Interner};
 use oxidized::{
     aast,
     ast::{Bop, Uop},
@@ -19,7 +19,7 @@ use crate::{expr::assertion_finder, typed_ast::TastInfo};
 pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource<'a>,
     pub resolved_names: &'a FxHashMap<usize, StrId>,
-    pub codebase: Option<&'a CodebaseInfo>,
+    pub codebase: Option<(&'a CodebaseInfo, &'a Interner)>,
     pub this_class_name: Option<&'a StrId>,
     pub type_resolution_context: &'a TypeResolutionContext,
     pub reference_source: ReferenceSource,

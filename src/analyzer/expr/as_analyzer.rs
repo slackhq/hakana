@@ -147,11 +147,14 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         populate_union_type(
             &mut hint_type,
             &codebase.symbols,
-            &context.function_context.get_reference_source(statements_analyzer.get_file_path()),
+            &context
+                .function_context
+                .get_reference_source(statements_analyzer.get_file_path()),
             &mut tast_info.symbol_references,
         );
         type_expander::expand_union(
             codebase,
+            &Some(statements_analyzer.get_interner()),
             &mut hint_type,
             &TypeExpansionOptions {
                 self_class: context.function_context.calling_class.as_ref(),
@@ -160,7 +163,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             &mut DataFlowGraph::new(GraphKind::FunctionBody),
         );
         for atomic_type in hint_type.types.iter_mut() {
-            atomic_type.remove_placeholders(&codebase.interner);
+            atomic_type.remove_placeholders();
         }
         hint_type.parent_nodes = ternary_type.parent_nodes;
         ternary_type = hint_type;

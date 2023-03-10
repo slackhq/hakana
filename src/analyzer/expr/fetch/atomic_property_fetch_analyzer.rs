@@ -56,7 +56,7 @@ pub(crate) fn analyze(
                     IssueKind::NonExistentClass,
                     format!(
                         "Cannot access property on undefined class {}",
-                        codebase.interner.lookup(classlike_name)
+                        statements_analyzer.get_interner().lookup(classlike_name)
                     ),
                     statements_analyzer.get_hpos(&pos),
                     &context.function_context.calling_functionlike_id,
@@ -71,7 +71,7 @@ pub(crate) fn analyze(
         }
     };
 
-    let prop_name = if let Some(prop_name) = codebase.interner.get(prop_name) {
+    let prop_name = if let Some(prop_name) = statements_analyzer.get_interner().get(prop_name) {
         prop_name
     } else {
         tast_info.maybe_add_issue(
@@ -79,7 +79,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Cannot access undefined property {}::${}",
-                    codebase.interner.lookup(&classlike_name),
+                    statements_analyzer.get_interner().lookup(&classlike_name),
                     prop_name,
                 ),
                 statements_analyzer.get_hpos(&pos),
@@ -98,8 +98,8 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Cannot access undefined property {}::${}",
-                    codebase.interner.lookup(&classlike_name),
-                    codebase.interner.lookup(&prop_name)
+                    statements_analyzer.get_interner().lookup(&classlike_name),
+                    statements_analyzer.get_interner().lookup(&prop_name)
                 ),
                 statements_analyzer.get_hpos(&pos),
                 &context.function_context.calling_functionlike_id,
@@ -208,6 +208,7 @@ fn get_class_property_type(
         let parent_class = declaring_class_storage.direct_parent_class.clone();
         type_expander::expand_union(
             codebase,
+            &Some(statements_analyzer.get_interner()),
             &mut class_property_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),
@@ -437,7 +438,7 @@ fn add_property_dataflow(
             tast_info,
             in_assignment,
             stmt_type,
-            &statements_analyzer.get_codebase().interner,
+            &statements_analyzer.get_interner(),
         );
 
         return stmt_type;

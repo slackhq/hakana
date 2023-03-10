@@ -1,7 +1,7 @@
+use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::typed_ast::TastInfo;
-use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
@@ -53,9 +53,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         if let Some(expr_type) = expr_type {
             all_literals = all_literals && expr_type.all_literals();
 
-            if let Some(str) = expr_type
-                .get_single_literal_string_value(&statements_analyzer.get_codebase().interner)
-            {
+            if let Some(str) = expr_type.get_single_literal_string_value() {
                 if str.contains("/") {
                     has_slash = true;
                 }

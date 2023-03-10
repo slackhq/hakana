@@ -5,7 +5,7 @@ use hakana_reflection_info::{
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
+    StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER,
 };
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -273,7 +273,7 @@ fn scrape_type_properties(
                 }
 
                 for (_, existing_value_type) in &combination.value_types {
-                    if !existing_value_type.is_truthy(&codebase.interner) {
+                    if !existing_value_type.is_truthy() {
                         combination.vanilla_mixed = true;
                         return;
                     }
@@ -354,7 +354,7 @@ fn scrape_type_properties(
 
         return;
     } else if combination.truthy_mixed.unwrap_or(false) {
-        if !atomic.is_truthy(&codebase.interner) {
+        if !atomic.is_truthy() {
             combination.truthy_mixed = Some(false);
             combination.vanilla_mixed = true;
         }
@@ -709,12 +709,13 @@ fn scrape_type_properties(
         ..
     } = atomic
     {
-        match codebase.interner.lookup(fq_class_name) {
-            "HH\\Container" => {
+        match fq_class_name {
+            &STR_CONTAINER => {
                 // dict<string, Foo>|Container<Bar> => Container<Foo|Bar>
                 if let Some(ref dict_types) = combination.dict_type_params {
-                    let container_value_type = if let Some((_, container_types)) =
-                        combination.object_type_params.get("HH\\Container")
+                    let container_value_type = if let Some((_, container_types)) = combination
+                        .object_type_params
+                        .get(&STR_CONTAINER.0.to_string())
                     {
                         combine_union_types(
                             container_types.get(0).unwrap(),
@@ -726,7 +727,7 @@ fn scrape_type_properties(
                         dict_types.1.clone()
                     };
                     combination.object_type_params.insert(
-                        "HH\\Container".to_string(),
+                        STR_CONTAINER.0.to_string(),
                         (fq_class_name.clone(), vec![container_value_type]),
                     );
 
@@ -736,8 +737,9 @@ fn scrape_type_properties(
 
                 // vec<Foo>|Container<Bar> => Container<Foo|Bar>
                 if let Some(ref value_param) = combination.vec_type_param {
-                    let container_value_type = if let Some((_, container_types)) =
-                        combination.object_type_params.get("HH\\Container")
+                    let container_value_type = if let Some((_, container_types)) = combination
+                        .object_type_params
+                        .get(&STR_CONTAINER.0.to_string())
                     {
                         combine_union_types(
                             container_types.get(0).unwrap(),
@@ -749,7 +751,7 @@ fn scrape_type_properties(
                         value_param.clone()
                     };
                     combination.object_type_params.insert(
-                        "HH\\Container".to_string(),
+                        STR_CONTAINER.0.to_string(),
                         (fq_class_name.clone(), vec![container_value_type]),
                     );
 
@@ -757,11 +759,13 @@ fn scrape_type_properties(
                 }
 
                 // KeyedContainer<string, Foo>|Container<Bar> = Container<Foo|Bar>
-                if let Some((_, keyed_container_types)) =
-                    combination.object_type_params.get("HH\\KeyedContainer")
+                if let Some((_, keyed_container_types)) = combination
+                    .object_type_params
+                    .get(&STR_KEYED_CONTAINER.0.to_string())
                 {
-                    let container_value_type = if let Some((_, container_types)) =
-                        combination.object_type_params.get("HH\\Container")
+                    let container_value_type = if let Some((_, container_types)) = combination
+                        .object_type_params
+                        .get(&STR_KEYED_CONTAINER.0.to_string())
                     {
                         combine_union_types(
                             container_types.get(0).unwrap(),
@@ -773,14 +777,16 @@ fn scrape_type_properties(
                         keyed_container_types.get(1).unwrap().clone()
                     };
                     combination.object_type_params.insert(
-                        "HH\\Container".to_string(),
+                        STR_CONTAINER.0.to_string(),
                         (fq_class_name.clone(), vec![container_value_type]),
                     );
 
-                    combination.object_type_params.remove("HH\\KeyedContainer");
+                    combination
+                        .object_type_params
+                        .remove(&STR_KEYED_CONTAINER.0.to_string());
                 }
             }
-            "HH\\KeyedContainer" | "HH\\AnyArray" => {
+            &STR_KEYED_CONTAINER | &STR_ANY_ARRAY => {
                 merge_array_subtype(combination, fq_class_name, codebase);
             }
             _ => {}
@@ -900,7 +906,7 @@ fn scrape_type_properties(
                         false,
                         &mut TypeComparisonResult::new(),
                     ) {
-                        types_to_remove.push(codebase.interner.lookup(existing_name).to_string());
+                        types_to_remove.push(existing_name.0.to_string());
                         continue;
                     }
 
@@ -947,7 +953,7 @@ fn scrape_type_properties(
                     }
                 } else if matches!(existing_symbol_type, SymbolKind::Interface) {
                     if codebase.interface_extends(existing_name, fq_class_name) {
-                        types_to_remove.push(codebase.interner.lookup(existing_name).to_string());
+                        types_to_remove.push(existing_name.0.to_string());
                         continue;
                     }
 
@@ -1215,11 +1221,11 @@ fn get_combiner_key(name: &StrId, type_params: &Vec<TUnion>, codebase: &Codebase
     let covariants = if let Some(classlike_storage) = codebase.classlike_infos.get(name) {
         &classlike_storage.generic_variance
     } else {
-        return codebase.interner.lookup(name).to_string();
+        return name.0.to_string();
     };
 
     let mut str = String::new();
-    str += codebase.interner.lookup(name);
+    str += &name.0.to_string();
     str += "<";
     str += type_params
         .into_iter()
@@ -1242,7 +1248,7 @@ fn merge_array_subtype(
     fq_class_name: &StrId,
     codebase: &CodebaseInfo,
 ) {
-    let fq_class_name_key = codebase.interner.lookup(fq_class_name).to_string();
+    let fq_class_name_key = fq_class_name.0.to_string();
     let keyed_container_types = combination.object_type_params.get(&fq_class_name_key);
     // dict<string, Foo>|KeyedContainer<int, Bar> => KeyedContainer<string|int, Foo|Bar>
     if let Some(ref dict_types) = combination.dict_type_params {

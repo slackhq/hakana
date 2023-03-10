@@ -13,7 +13,7 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::ReferenceSource;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
-use hakana_reflection_info::StrId;
+use hakana_reflection_info::{Interner, StrId};
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
@@ -103,7 +103,7 @@ impl<'a> StatementsAnalyzer<'a> {
         AssertionContext {
             file_source: self.get_file_analyzer().get_file_source(),
             resolved_names: self.get_file_analyzer().resolved_names,
-            codebase: Some(self.get_codebase()),
+            codebase: Some((self.get_codebase(), self.get_interner())),
             this_class_name,
             type_resolution_context: &self.type_resolution_context,
             reference_source: match calling_functionlike_id {
@@ -138,6 +138,10 @@ impl ScopeAnalyzer for StatementsAnalyzer<'_> {
 
     fn get_codebase(&self) -> &CodebaseInfo {
         self.file_analyzer.get_codebase()
+    }
+
+    fn get_interner(&self) -> &Interner {
+        &self.file_analyzer.interner
     }
 
     fn get_config(&self) -> &Config {

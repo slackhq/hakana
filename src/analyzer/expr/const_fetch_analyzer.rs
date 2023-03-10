@@ -34,7 +34,7 @@ pub(crate) fn analyze(
             get_mixed_any()
         }
     } else {
-        match codebase.interner.lookup(name) {
+        match statements_analyzer.get_interner().lookup(name) {
             "__FILE__" | "__DIR__" => get_string(),
             _ => get_mixed_any(),
         }
@@ -42,6 +42,7 @@ pub(crate) fn analyze(
 
     type_expander::expand_union(
         codebase,
+        &Some(statements_analyzer.get_interner()),
         &mut stmt_type,
         &TypeExpansionOptions {
             ..Default::default()

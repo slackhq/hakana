@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 
-use crate::{codebase_info::CodebaseInfo, StrId};
+use crate::{codebase_info::CodebaseInfo, Interner, StrId};
 
 pub fn get_id_name(
     id: &Box<oxidized::ast_defs::Id>,
@@ -47,6 +47,7 @@ pub fn get_id_str_name<'a>(
     id: &'a str,
     calling_class: &Option<StrId>,
     codebase: &'a CodebaseInfo,
+    interner: &'a Interner,
 ) -> Option<&'a str> {
     Some(match id {
         "self" => {
@@ -56,7 +57,7 @@ pub fn get_id_str_name<'a>(
                 return None;
             };
 
-            codebase.interner.lookup(self_name)
+            interner.lookup(self_name)
         }
         "parent" => {
             let self_name = if let Some(calling_class) = calling_class {
@@ -66,9 +67,7 @@ pub fn get_id_str_name<'a>(
             };
 
             let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-            codebase
-                .interner
-                .lookup(&classlike_storage.direct_parent_class.clone().unwrap())
+            interner.lookup(&classlike_storage.direct_parent_class.clone().unwrap())
         }
         "static" => {
             return None;

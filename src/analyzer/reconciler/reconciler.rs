@@ -12,7 +12,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
+    Interner, StrId, STR_CONTAINER, STR_KEYED_CONTAINER, STR_STDCLASS,
 };
 use hakana_type::{
     add_union_type, get_mixed_any, get_null, get_value_param,
@@ -143,6 +143,7 @@ pub(crate) fn reconcile_keyed_types(
         } else {
             get_value_for_key(
                 codebase,
+                statements_analyzer.get_interner(),
                 key.clone(),
                 context,
                 &mut added_var_ids,
@@ -280,7 +281,7 @@ pub(crate) fn reconcile_keyed_types(
                         let narrowing_node = DataFlowNode::get_for_assignment(
                             key.clone()
                                 + " narrowed to "
-                                + &codebase.interner.lookup(narrowed_symbol),
+                                + &statements_analyzer.get_interner().lookup(narrowed_symbol),
                             statements_analyzer.get_hpos(pos),
                         );
 
@@ -696,6 +697,7 @@ fn break_up_path_into_parts(path: &String) -> Vec<String> {
 
 fn get_value_for_key(
     codebase: &CodebaseInfo,
+    interner: &Interner,
     key: String,
     context: &mut ScopeContext,
     added_var_ids: &mut FxHashSet<String>,
@@ -738,13 +740,13 @@ fn get_value_for_key(
             let fq_class_name = base_key_parts[0].to_string();
             let const_name = base_key_parts[1].to_string();
 
-            let fq_class_name = &codebase.interner.get(fq_class_name.as_str()).unwrap();
+            let fq_class_name = &interner.get(fq_class_name.as_str()).unwrap();
 
             if !codebase.class_or_interface_exists(fq_class_name) {
                 return None;
             }
 
-            let class_constant = if let Some(const_name) = codebase.interner.get(&const_name) {
+            let class_constant = if let Some(const_name) = interner.get(&const_name) {
                 codebase.get_class_constant_type(fq_class_name, &const_name, FxHashSet::default())
             } else {
                 None
@@ -895,10 +897,9 @@ fn get_value_for_key(
                         ..
                     } = &existing_key_type_part
                     {
-                        let real_name = codebase.interner.lookup(name);
-                        match real_name {
-                            "HH\\KeyedContainer" | "HH\\Container" => {
-                                new_base_type_candidate = if real_name == "HH\\KeyedContainer" {
+                        match name {
+                            &STR_KEYED_CONTAINER | &STR_CONTAINER => {
+                                new_base_type_candidate = if name == &STR_KEYED_CONTAINER {
                                     type_params[1].clone()
                                 } else {
                                     type_params[0].clone()
@@ -983,7 +984,7 @@ fn get_value_for_key(
                         ..
                     } = existing_key_type_part
                     {
-                        if codebase.interner.lookup(&fq_class_name) == "stdClass" {
+                        if fq_class_name == STR_STDCLASS {
                             class_property_type = get_mixed_any();
                         } else if !codebase.class_or_interface_exists(&fq_class_name) {
                             class_property_type = get_mixed_any();
@@ -994,8 +995,9 @@ fn get_value_for_key(
                             } else {
                                 let maybe_class_property_type = get_property_type(
                                     &codebase,
+                                    interner,
                                     &fq_class_name,
-                                    &codebase.interner.get(&property_name).unwrap(),
+                                    &interner.get(&property_name).unwrap(),
                                     tast_info,
                                 );
 
@@ -1043,6 +1045,7 @@ fn get_value_for_key(
 
 fn get_property_type(
     codebase: &CodebaseInfo,
+    interner: &Interner,
     classlike_name: &StrId,
     property_name: &StrId,
     tast_info: &mut TastInfo,
@@ -1066,6 +1069,7 @@ fn get_property_type(
     if let Some(mut class_property_type) = class_property_type {
         type_expander::expand_union(
             codebase,
+            &Some(interner),
             &mut class_property_type,
             &TypeExpansionOptions {
                 self_class: Some(declaring_property_class),
@@ -1092,8 +1096,7 @@ pub(crate) fn trigger_issue_for_impossible(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     _suppressed_issues: &FxHashMap<String, usize>,
 ) {
-    let mut assertion_string =
-        assertion.to_string(Some(&statements_analyzer.get_codebase().interner));
+    let mut assertion_string = assertion.to_string(Some(&statements_analyzer.get_interner()));
     let mut not_operator = assertion_string.starts_with("!");
 
     if not_operator {
@@ -1199,7 +1202,7 @@ fn get_impossible_issue(
             format!(
                 "Type {} never has key {}",
                 old_var_type_string,
-                key.to_string(Some(&statements_analyzer.get_codebase().interner))
+                key.to_string(Some(&statements_analyzer.get_interner()))
             ),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
@@ -1209,7 +1212,7 @@ fn get_impossible_issue(
             format!(
                 "Type {} does not have a nonnull entry for {}",
                 old_var_type_string,
-                dict_key.to_string(Some(&statements_analyzer.get_codebase().interner))
+                dict_key.to_string(Some(&statements_analyzer.get_interner()))
             ),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
@@ -1262,7 +1265,7 @@ fn get_redundant_issue(
             format!(
                 "Type {} always has entry {}",
                 old_var_type_string,
-                key.to_string(Some(&statements_analyzer.get_codebase().interner))
+                key.to_string(Some(&statements_analyzer.get_interner()))
             ),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
@@ -1272,7 +1275,7 @@ fn get_redundant_issue(
             format!(
                 "Type {} always has entry {}",
                 old_var_type_string,
-                key.to_string(Some(&statements_analyzer.get_codebase().interner))
+                key.to_string(Some(&statements_analyzer.get_interner()))
             ),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,

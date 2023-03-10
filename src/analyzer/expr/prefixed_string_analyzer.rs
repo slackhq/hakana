@@ -1,4 +1,5 @@
 use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_reflection_info::STR_LIB_REGEX_PATTERN;
 
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::wrap_atomic;
@@ -15,7 +16,6 @@ use hakana_type::get_string;
 
 use crate::expression_analyzer;
 
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 
 use crate::typed_ast::TastInfo;
@@ -54,9 +54,7 @@ pub(crate) fn analyze(
     tast_info.expr_types.insert(
         (expr.1.start_offset(), expr.1.end_offset()),
         Rc::new(if boxed.0 == "re" {
-            let mut inner_text = inner_type
-                .get_single_literal_string_value(&statements_analyzer.get_codebase().interner)
-                .unwrap();
+            let mut inner_text = inner_type.get_single_literal_string_value().unwrap();
             let first_char = inner_text[0..1].to_string();
             let shape_fields;
             if let Some(last_pos) = inner_text.rfind(&first_char) {
@@ -70,11 +68,7 @@ pub(crate) fn analyze(
             }
 
             wrap_atomic(TAtomic::TTypeAlias {
-                name: statements_analyzer
-                    .get_codebase()
-                    .interner
-                    .get("HH\\Lib\\Regex\\Pattern")
-                    .unwrap(),
+                name: STR_LIB_REGEX_PATTERN,
                 type_params: Some(vec![wrap_atomic(TAtomic::TDict {
                     known_items: if !shape_fields.is_empty() {
                         Some(shape_fields)

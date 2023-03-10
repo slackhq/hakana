@@ -1,10 +1,7 @@
-use hakana_reflection_info::{codebase_info::CodebaseInfo, StrId};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId};
 use hakana_type::{combine_union_types, get_mixed_any};
 use indexmap::IndexMap;
-use oxidized::{
-    aast,
-    aast::Pos,
-};
+use oxidized::{aast, aast::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
@@ -22,7 +19,8 @@ use crate::{
 
 use super::{
     control_analyzer::{self, BreakContext},
-    if_conditional_analyzer::add_branch_dataflow, switch_case_analyzer::analyze_case,
+    if_conditional_analyzer::add_branch_dataflow,
+    switch_case_analyzer::analyze_case,
 };
 
 pub(crate) fn analyze(
@@ -55,7 +53,10 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
-        Some(statements_analyzer.get_codebase()),
+        Some((
+            statements_analyzer.get_codebase(),
+            statements_analyzer.get_interner(),
+        )),
     ) {
         switch_var_id
     } else {
@@ -94,7 +95,8 @@ pub(crate) fn analyze(
     if let Some(default_case) = stmt.2 {
         update_case_exit_map(
             codebase,
-            &default_case.1.0,
+            statements_analyzer.get_interner(),
+            &default_case.1 .0,
             tast_info,
             statements_analyzer.get_file_analyzer().resolved_names,
             &mut case_action_map,
@@ -107,7 +109,8 @@ pub(crate) fn analyze(
     for (i, case) in &cases {
         update_case_exit_map(
             codebase,
-            &case.1.0,
+            statements_analyzer.get_interner(),
+            &case.1 .0,
             tast_info,
             statements_analyzer.get_file_analyzer().resolved_names,
             &mut case_action_map,
@@ -164,7 +167,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             Some(&case.0),
             &case.0.pos(),
-            &case.1.0,
+            &case.1 .0,
             &previous_empty_cases,
             tast_info,
             context,
@@ -200,7 +203,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             None,
             &default_case.0,
-            &default_case.1.0,
+            &default_case.1 .0,
             &previous_empty_cases,
             tast_info,
             context,
@@ -254,6 +257,7 @@ pub(crate) fn analyze(
 
 fn update_case_exit_map(
     codebase: &CodebaseInfo,
+    interner: &Interner,
     case_stmts: &Vec<aast::Stmt<(), ()>>,
     tast_info: &mut TastInfo,
     resolved_names: &FxHashMap<usize, StrId>,
@@ -264,6 +268,7 @@ fn update_case_exit_map(
 ) {
     let case_actions = control_analyzer::get_control_actions(
         codebase,
+        interner,
         resolved_names,
         &case_stmts,
         Some(tast_info),

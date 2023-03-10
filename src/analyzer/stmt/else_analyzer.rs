@@ -97,6 +97,7 @@ pub(crate) fn analyze(
     let final_actions = if !stmts.is_empty() {
         control_analyzer::get_control_actions(
             statements_analyzer.get_codebase(),
+            statements_analyzer.get_interner(),
             statements_analyzer.get_file_analyzer().resolved_names,
             &stmts.0,
             Some(tast_info),

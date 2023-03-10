@@ -260,7 +260,7 @@ fn analyze_named_constructor(
                 IssueKind::NonExistentClass,
                 format!(
                     "Cannot call new on undefined class {}",
-                    codebase.interner.lookup(&classlike_name)
+                    statements_analyzer.get_interner().lookup(&classlike_name)
                 ),
                 statements_analyzer.get_hpos(&pos),
                 &context.function_context.calling_functionlike_id,
@@ -292,7 +292,7 @@ fn analyze_named_constructor(
 
     let mut generic_type_params = None;
 
-    let method_name = codebase.interner.get("__construct").unwrap();
+    let method_name = statements_analyzer.get_interner().get("__construct").unwrap();
     let method_id = MethodIdentifier(classlike_name.clone(), method_name);
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
@@ -575,7 +575,7 @@ fn add_dataflow<'a>(
         } else {
             None
         },
-        &statements_analyzer.get_codebase().interner,
+        &statements_analyzer.get_interner(),
     );
 
     data_flow_graph.add_node(new_call_node.clone());
@@ -598,7 +598,7 @@ fn add_dataflow<'a>(
                 } else {
                     None
                 },
-                &codebase.interner,
+                &statements_analyzer.get_interner(),
             );
 
             data_flow_graph.add_node(new_call_node.clone());

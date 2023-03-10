@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    StrId, STR_AWAITABLE,
+    StrId, STR_AWAITABLE, STR_KEYED_CONTAINER,
 };
 
 pub(crate) fn is_contained_by(
@@ -40,18 +40,10 @@ pub(crate) fn is_contained_by(
     };
 
     if !codebase.class_or_interface_or_enum_or_trait_exists(input_name) {
-        println!(
-            "Classlike {} does not exist",
-            codebase.interner.lookup(input_name)
-        );
         return false;
     }
 
     if !codebase.class_or_interface_or_enum_or_trait_exists(container_name) {
-        println!(
-            "Classlike {} does not exist",
-            codebase.interner.lookup(container_name)
-        );
         return false;
     }
 
@@ -90,6 +82,7 @@ pub(crate) fn is_contained_by(
                                 let mut v = (*v).clone();
                                 type_expander::expand_union(
                                     codebase,
+                                    &None,
                                     &mut v,
                                     &TypeExpansionOptions {
                                         ..Default::default()
@@ -125,6 +118,7 @@ pub(crate) fn is_contained_by(
 
     let input_type_params = template::standin_type_replacer::get_mapped_generic_type_params(
         codebase,
+        &None,
         input_type_part,
         container_name,
         *container_remapped_params,
@@ -251,9 +245,7 @@ pub(crate) fn compare_generic_params(
             }
         }
 
-        if input_name == &codebase.interner.get("HH\\KeyedContainer").unwrap()
-            && container_param_offset == 0
-        {
+        if input_name == &STR_KEYED_CONTAINER && container_param_offset == 0 {
             param_comparison_result.type_coerced_from_nested_mixed = Some(true);
         }
 

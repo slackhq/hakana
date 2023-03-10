@@ -56,7 +56,10 @@ pub(crate) fn analyze(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
-        Some(statements_analyzer.get_codebase()),
+        Some((
+            statements_analyzer.get_codebase(),
+            statements_analyzer.get_interner(),
+        )),
     );
 
     if statements_analyzer.get_config().add_fixmes {
@@ -435,7 +438,10 @@ fn analyze_list_assignment(
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
-            Some(statements_analyzer.get_codebase()),
+            Some((
+                statements_analyzer.get_codebase(),
+                statements_analyzer.get_interner(),
+            )),
         );
 
         if list_var_id.unwrap_or("".to_string()) == "$_" {
@@ -479,7 +485,7 @@ fn analyze_list_assignment(
                 ..
             } = assign_value_atomic_type
             {
-                if codebase.interner.lookup(name) == "HH\\Vector" {
+                if statements_analyzer.get_interner().lookup(name) == "HH\\Vector" {
                     type_params[0].clone()
                 } else {
                     get_nothing()
@@ -501,7 +507,10 @@ fn analyze_list_assignment(
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 statements_analyzer.get_file_analyzer().resolved_names,
-                Some(statements_analyzer.get_codebase()),
+                Some((
+                    statements_analyzer.get_codebase(),
+                    statements_analyzer.get_interner(),
+                )),
             );
 
             let keyed_array_var_id = if let Some(source_expr_id) = source_expr_id {

@@ -53,7 +53,7 @@ pub(crate) fn fetch(
         FunctionLikeIdentifier::Function(name) => {
             if let Some(t) = handle_special_functions(
                 statements_analyzer,
-                codebase.interner.lookup(name),
+                statements_analyzer.get_interner().lookup(name),
                 expr.2,
                 pos,
                 codebase,
@@ -74,11 +74,14 @@ pub(crate) fn fetch(
         if let Some(function_return_type) = &function_storage.return_type {
             if !function_storage.template_types.is_empty() {
                 if !function_storage.template_types.is_empty() {
-                    let fn_id = codebase
-                        .interner
+                    let fn_id = statements_analyzer
+                        .get_interner()
                         .get(
-                            format!("fn-{}", functionlike_id.to_string(&codebase.interner))
-                                .as_str(),
+                            format!(
+                                "fn-{}",
+                                functionlike_id.to_string(&statements_analyzer.get_interner())
+                            )
+                            .as_str(),
                         )
                         .unwrap();
                     for (template_name, _) in &function_storage.template_types {
@@ -102,6 +105,7 @@ pub(crate) fn fetch(
             {
                 type_expander::expand_union(
                     codebase,
+                    &Some(statements_analyzer.get_interner()),
                     &mut function_return_type,
                     &TypeExpansionOptions {
                         expand_templates: false,
@@ -119,6 +123,7 @@ pub(crate) fn fetch(
 
             type_expander::expand_union(
                 codebase,
+                &Some(statements_analyzer.get_interner()),
                 &mut function_return_type,
                 &TypeExpansionOptions {
                     expand_templates: false,
@@ -168,9 +173,7 @@ fn handle_special_functions(
         "HH\\global_get" => {
             if let Some((_, arg_expr)) = args.get(0) {
                 if let Some(expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
-                    if let Some(value) =
-                        expr_type.get_single_literal_string_value(&codebase.interner)
-                    {
+                    if let Some(value) = expr_type.get_single_literal_string_value() {
                         Some(variable_fetch_analyzer::get_type_for_superglobal(
                             statements_analyzer,
                             value,
@@ -391,7 +394,7 @@ fn handle_special_functions(
         "microtime" => {
             if let Some((_, arg_expr)) = args.get(0) {
                 if let Some(expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
-                    if expr_type.is_always_truthy(&codebase.interner) {
+                    if expr_type.is_always_truthy() {
                         Some(get_float())
                     } else if expr_type.is_always_falsy() {
                         Some(get_string())
@@ -572,8 +575,6 @@ fn add_dataflow(
     tast_info: &mut TastInfo,
     context: &mut ScopeContext,
 ) -> TUnion {
-    let codebase = statements_analyzer.get_codebase();
-
     // todo dispatch AddRemoveTaintsEvent
 
     //let added_taints = Vec::new();
@@ -588,7 +589,7 @@ fn add_dataflow(
     }
 
     let function_call_node = DataFlowNode::get_for_method_return(
-        functionlike_id.to_string(&codebase.interner),
+        functionlike_id.to_string(&statements_analyzer.get_interner()),
         if let Some(return_pos) = &functionlike_storage.return_type_location {
             Some(return_pos.clone())
         } else {
@@ -612,14 +613,14 @@ fn add_dataflow(
         }
 
         let (param_offsets, _variadic_path) =
-            get_special_argument_nodes(functionlike_id, &codebase.interner);
+            get_special_argument_nodes(functionlike_id, &statements_analyzer.get_interner());
         let added_removed_taints =
-            get_special_added_removed_taints(functionlike_id, &codebase.interner);
+            get_special_added_removed_taints(functionlike_id, &statements_analyzer.get_interner());
 
         for (param_offset, path_kind) in param_offsets {
             let argument_node = DataFlowNode::get_for_method_argument(
-                codebase
-                    .interner
+                statements_analyzer
+                    .get_interner()
                     .lookup(&functionlike_storage.name)
                     .to_string(),
                 param_offset,

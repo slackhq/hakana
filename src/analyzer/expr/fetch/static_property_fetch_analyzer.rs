@@ -71,7 +71,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentClass,
                 format!(
                     "Cannot access property on undefined class {}",
-                    codebase.interner.lookup(&classlike_name)
+                    statements_analyzer.get_interner().lookup(&classlike_name)
                 ),
                 statements_analyzer.get_hpos(&pos),
                 &context.function_context.calling_functionlike_id,
@@ -116,11 +116,11 @@ pub(crate) fn analyze(
 
     let var_id = format!(
         "{}::${}",
-        codebase.interner.lookup(&classlike_name),
+        statements_analyzer.get_interner().lookup(&classlike_name),
         prop_name
     );
 
-    let prop_name_id = codebase.interner.get(&prop_name);
+    let prop_name_id = statements_analyzer.get_interner().get(&prop_name);
 
     let property_id = if let Some(prop_name_id) = prop_name_id {
         (classlike_name.clone(), prop_name_id)
@@ -136,7 +136,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Property {}::${} is undefined",
-                    codebase.interner.lookup(&classlike_name),
+                    statements_analyzer.get_interner().lookup(&classlike_name),
                     prop_name,
                 ),
                 statements_analyzer.get_hpos(&pos),
@@ -166,7 +166,7 @@ pub(crate) fn analyze(
             tast_info,
             false,
             stmt_type,
-            &codebase.interner,
+            &statements_analyzer.get_interner(),
         );
 
         // we don't need to check anything since this variable is known in this scope
@@ -185,8 +185,8 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentProperty,
                 format!(
                     "Property {}::{} is undefined",
-                    codebase.interner.lookup(&classlike_name),
-                    codebase.interner.lookup(&property_id.1)
+                    statements_analyzer.get_interner().lookup(&classlike_name),
+                    statements_analyzer.get_interner().lookup(&property_id.1)
                 ),
                 statements_analyzer.get_hpos(&pos),
                 &context.function_context.calling_functionlike_id,
@@ -215,6 +215,7 @@ pub(crate) fn analyze(
         let mut inserted_type = property_type.clone();
         type_expander::expand_union(
             codebase,
+            &Some(statements_analyzer.get_interner()),
             &mut inserted_type,
             &TypeExpansionOptions {
                 self_class: Some(&declaring_class_storage.name),
@@ -238,7 +239,7 @@ pub(crate) fn analyze(
             tast_info,
             false,
             inserted_type,
-            &statements_analyzer.get_codebase().interner,
+            &statements_analyzer.get_interner(),
         );
 
         let rc = Rc::new(inserted_type.clone());

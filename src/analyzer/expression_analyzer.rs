@@ -171,7 +171,10 @@ pub(crate) fn analyze(
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 statements_analyzer.get_file_analyzer().resolved_names,
-                Some(statements_analyzer.get_codebase()),
+                Some((
+                    statements_analyzer.get_codebase(),
+                    statements_analyzer.get_interner(),
+                )),
             );
 
             if !array_fetch_analyzer::analyze(
@@ -555,11 +558,7 @@ pub(crate) fn analyze(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(wrap_atomic(TAtomic::TEnumClassLabel {
                     class_name,
-                    member_name: statements_analyzer
-                        .get_codebase()
-                        .interner
-                        .get(&boxed.1)
-                        .unwrap(),
+                    member_name: statements_analyzer.get_interner().get(&boxed.1).unwrap(),
                 })),
             );
         }
@@ -687,7 +686,7 @@ fn analyze_function_pointer(
                 _ => panic!("Unrecognised expression type for class constant reference"),
             };
 
-            let method_name = codebase.interner.get(&method_name.1);
+            let method_name = statements_analyzer.get_interner().get(&method_name.1);
 
             if let Some(method_name) = method_name {
                 FunctionLikeIdentifier::Method(class_name, method_name)
@@ -709,7 +708,10 @@ fn analyze_function_pointer(
                 tast_info.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentFunction,
-                        format!("Unknown function {}", codebase.interner.lookup(name)),
+                        format!(
+                            "Unknown function {}",
+                            statements_analyzer.get_interner().lookup(name)
+                        ),
                         statements_analyzer.get_hpos(&expr.pos()),
                         &context.function_context.calling_functionlike_id,
                     ),
@@ -750,7 +752,10 @@ fn analyze_function_pointer(
                 tast_info.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentClasslike,
-                        format!("Unknown classlike {}", codebase.interner.lookup(class_name)),
+                        format!(
+                            "Unknown classlike {}",
+                            statements_analyzer.get_interner().lookup(class_name)
+                        ),
                         statements_analyzer.get_hpos(&expr.pos()),
                         &context.function_context.calling_functionlike_id,
                     ),
@@ -763,7 +768,12 @@ fn analyze_function_pointer(
         }
     }
 
-    if let Some(closure) = get_closure_from_id(&id, codebase, &mut tast_info.data_flow_graph) {
+    if let Some(closure) = get_closure_from_id(
+        &id,
+        codebase,
+        &Some(statements_analyzer.get_interner()),
+        &mut tast_info.data_flow_graph,
+    ) {
         tast_info.expr_types.insert(
             (expr.1.start_offset(), expr.1.end_offset()),
             Rc::new(wrap_atomic(closure)),

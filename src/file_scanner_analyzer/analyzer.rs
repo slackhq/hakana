@@ -8,7 +8,7 @@ use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
-use hakana_reflection_info::{FileSource, StrId};
+use hakana_reflection_info::{FileSource, Interner, StrId};
 use indexmap::IndexMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast;
@@ -21,6 +21,7 @@ use std::sync::{Arc, Mutex};
 pub fn analyze_files(
     mut paths: Vec<String>,
     codebase: Arc<CodebaseInfo>,
+    interner: Arc<Interner>,
     resolved_names: &FxHashMap<String, FxHashMap<usize, StrId>>,
     asts: FxHashMap<StrId, Vec<u8>>,
     config: Arc<Config>,
@@ -89,6 +90,7 @@ pub fn analyze_files(
                     str_path,
                     cache_dir,
                     &codebase,
+                    &interner,
                     &config,
                     &mut new_analysis_result,
                     resolved_names,
@@ -110,6 +112,7 @@ pub fn analyze_files(
 
         for (_, path_group) in path_groups {
             let codebase = codebase.clone();
+            let interner = interner.clone();
 
             let pgc = path_group
                 .iter()
@@ -139,6 +142,7 @@ pub fn analyze_files(
                             str_path,
                             cache_dir_c.as_ref(),
                             &codebase,
+                            &interner,
                             &analysis_config,
                             &mut new_analysis_result,
                             resolved_names,
@@ -175,6 +179,7 @@ fn analyze_file(
     str_path: &String,
     cache_dir: Option<&String>,
     codebase: &Arc<CodebaseInfo>,
+    interner: &Interner,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<usize, StrId>,
@@ -187,7 +192,7 @@ fn analyze_file(
 
     let target_name = get_relative_path(str_path, &config.root_dir);
 
-    let file_path = codebase.interner.get(target_name.as_str()).unwrap();
+    let file_path = interner.get(target_name.as_str()).unwrap();
 
     let aast = if let Some(aast_result) = get_deserialized_ast(asts, file_path) {
         aast_result
@@ -234,7 +239,7 @@ fn analyze_file(
         file_contents: "".to_string(),
     };
     let mut file_analyzer =
-        file_analyzer::FileAnalyzer::new(file_source, &resolved_names, codebase, config);
+        file_analyzer::FileAnalyzer::new(file_source, &resolved_names, codebase, interner, config);
     file_analyzer.analyze(&aast.0, analysis_result);
 }
 

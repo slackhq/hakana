@@ -72,7 +72,7 @@ pub(crate) fn analyze(
 
     result
         .existent_method_ids
-        .insert(method_id.to_string(&codebase.interner));
+        .insert(method_id.to_string(&statements_analyzer.get_interner()));
 
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
@@ -111,8 +111,9 @@ pub(crate) fn analyze(
         }
     }
 
-    let class_template_params = if codebase.interner.lookup(&classlike_name) != "HH\\Vector"
-        || codebase.interner.lookup(method_name) != "fromItems"
+    let class_template_params = if statements_analyzer.get_interner().lookup(&classlike_name)
+        != "HH\\Vector"
+        || statements_analyzer.get_interner().lookup(method_name) != "fromItems"
     {
         class_template_param_collector::collect(
             codebase,
@@ -148,6 +149,7 @@ pub(crate) fn analyze(
                     &where_type,
                     &mut template_result,
                     statements_analyzer.get_codebase(),
+                    &Some(statements_analyzer.get_interner()),
                     &Some(template_type.clone()),
                     None,
                     None,
@@ -187,7 +189,7 @@ pub(crate) fn analyze(
         );
     }
 
-    if codebase.interner.lookup(&method_id.0) == "HH\\Shapes" {
+    if statements_analyzer.get_interner().lookup(&method_id.0) == "HH\\Shapes" {
         if let Some(value) = handle_shapes_static_method(
             &method_id,
             call_expr,
@@ -242,7 +244,7 @@ fn handle_shapes_static_method(
     pos: &Pos,
     codebase: &hakana_reflection_info::codebase_info::CodebaseInfo,
 ) -> Option<TUnion> {
-    match codebase.interner.lookup(&method_id.1) {
+    match statements_analyzer.get_interner().lookup(&method_id.1) {
         "keyExists" => {
             if call_expr.1.len() == 2 {
                 let expr_var_id = expression_identifier::get_var_id(
@@ -250,7 +252,10 @@ fn handle_shapes_static_method(
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.get_file_analyzer().get_file_source(),
                     statements_analyzer.get_file_analyzer().resolved_names,
-                    Some(statements_analyzer.get_codebase()),
+                    Some((
+                        statements_analyzer.get_codebase(),
+                        statements_analyzer.get_interner(),
+                    )),
                 );
 
                 let dim_var_id = expression_identifier::get_dim_id(
@@ -291,7 +296,10 @@ fn handle_shapes_static_method(
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.get_file_analyzer().get_file_source(),
                     statements_analyzer.get_file_analyzer().resolved_names,
-                    Some(statements_analyzer.get_codebase()),
+                    Some((
+                        statements_analyzer.get_codebase(),
+                        statements_analyzer.get_interner(),
+                    )),
                 );
                 let dim_var_id = expression_identifier::get_dim_id(
                     &call_expr.1[1].1,
@@ -483,7 +491,10 @@ fn handle_defined_shape_idx(
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
-        Some(statements_analyzer.get_codebase()),
+        Some((
+            statements_analyzer.get_codebase(),
+            statements_analyzer.get_interner(),
+        )),
     );
 
     let dim_var_id =

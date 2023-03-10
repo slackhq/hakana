@@ -23,7 +23,7 @@ function foo(vec<Result<string>> $arr, ResultSuccess<int> $b): void {
     $i = 0;
    
     foreach ($arr as $a) {
-        if ($a is ResultError) {
+        if ($a is ResultError<_>) {
             return;
         }
         echo $a->get();

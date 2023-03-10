@@ -11,7 +11,7 @@ use hakana_reflection_info::{
     functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId, STR_THIS,
+    Interner, StrId, STR_THIS,
 };
 use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
@@ -62,6 +62,8 @@ impl Default for TypeExpansionOptions<'_> {
 
 pub fn expand_union(
     codebase: &CodebaseInfo,
+    // interner is only used for data_flow_graph addition, so it's optional
+    interner: &Option<&Interner>,
     return_type: &mut TUnion,
     options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
@@ -77,6 +79,7 @@ pub fn expand_union(
         expand_atomic(
             return_type_part,
             codebase,
+            interner,
             &options,
             data_flow_graph,
             &mut skip_key,
@@ -112,6 +115,7 @@ pub fn expand_union(
 fn expand_atomic(
     return_type_part: &mut TAtomic,
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     options: &TypeExpansionOptions,
     data_flow_graph: &mut DataFlowGraph,
     skip_key: &mut bool,
@@ -125,13 +129,19 @@ fn expand_atomic(
     } = return_type_part
     {
         if let Some(params) = params {
-            expand_union(codebase, &mut params.0, options, data_flow_graph);
-            expand_union(codebase, &mut params.1, options, data_flow_graph);
+            expand_union(codebase, interner, &mut params.0, options, data_flow_graph);
+            expand_union(codebase, interner, &mut params.1, options, data_flow_graph);
         }
 
         if let Some(known_items) = known_items {
             for (_, (_, item_type)) in known_items {
-                expand_union(codebase, Arc::make_mut(item_type), options, data_flow_graph);
+                expand_union(
+                    codebase,
+                    interner,
+                    Arc::make_mut(item_type),
+                    options,
+                    data_flow_graph,
+                );
             }
         }
 
@@ -142,11 +152,11 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        expand_union(codebase, type_param, options, data_flow_graph);
+        expand_union(codebase, interner, type_param, options, data_flow_graph);
 
         if let Some(known_items) = known_items {
             for (_, (_, item_type)) in known_items {
-                expand_union(codebase, item_type, options, data_flow_graph);
+                expand_union(codebase, interner, item_type, options, data_flow_graph);
             }
         }
 
@@ -155,7 +165,7 @@ fn expand_atomic(
         ref mut type_param, ..
     } = return_type_part
     {
-        expand_union(codebase, type_param, options, data_flow_graph);
+        expand_union(codebase, interner, type_param, options, data_flow_graph);
 
         return;
     } else if let TAtomic::TNamedObject {
@@ -183,7 +193,7 @@ fn expand_atomic(
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(codebase, param_type, options, data_flow_graph);
+                expand_union(codebase, interner, param_type, options, data_flow_graph);
             }
         }
 
@@ -195,12 +205,12 @@ fn expand_atomic(
     } = return_type_part
     {
         if let Some(return_type) = return_type {
-            expand_union(codebase, return_type, options, data_flow_graph);
+            expand_union(codebase, interner, return_type, options, data_flow_graph);
         }
 
         for param in params {
             if let Some(ref mut param_type) = param.signature_type {
-                expand_union(codebase, param_type, options, data_flow_graph);
+                expand_union(codebase, interner, param_type, options, data_flow_graph);
             }
         }
     } else if let TAtomic::TGenericParam {
@@ -210,10 +220,8 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        let defining_entity_name = codebase.interner.lookup(defining_entity);
-        *from_class = !defining_entity_name.starts_with("fn-")
-            && !defining_entity_name.starts_with("typedef-");
-        expand_union(codebase, as_type, options, data_flow_graph);
+        *from_class = codebase.classlike_infos.contains_key(defining_entity);
+        expand_union(codebase, interner, as_type, options, data_flow_graph);
 
         return;
     } else if let TAtomic::TClassname {
@@ -227,6 +235,7 @@ fn expand_atomic(
         expand_atomic(
             as_type,
             codebase,
+            interner,
             options,
             data_flow_graph,
             &mut false,
@@ -246,7 +255,13 @@ fn expand_atomic(
     {
         if let Some(constraint_type) = constraint_type {
             let mut constraint_union = wrap_atomic((**constraint_type).clone());
-            expand_union(codebase, &mut constraint_union, options, data_flow_graph);
+            expand_union(
+                codebase,
+                interner,
+                &mut constraint_union,
+                options,
+                data_flow_graph,
+            );
             *constraint_type = Box::new(constraint_union.get_single_owned());
         }
 
@@ -260,7 +275,13 @@ fn expand_atomic(
         if let Some(enum_storage) = codebase.classlike_infos.get(name) {
             if let Some(storage_type) = &enum_storage.enum_type {
                 let mut constraint_union = wrap_atomic((*storage_type).clone());
-                expand_union(codebase, &mut constraint_union, options, data_flow_graph);
+                expand_union(
+                    codebase,
+                    interner,
+                    &mut constraint_union,
+                    options,
+                    data_flow_graph,
+                );
                 *base_type = Some(Box::new(constraint_union.get_single_owned()));
             } else {
                 *base_type = Some(Box::new(TAtomic::TArraykey { from_any: true }));
@@ -325,7 +346,13 @@ fn expand_atomic(
                 type_definition.actual_type.clone()
             };
 
-            expand_union(codebase, &mut untemplated_type, options, data_flow_graph);
+            expand_union(
+                codebase,
+                interner,
+                &mut untemplated_type,
+                options,
+                data_flow_graph,
+            );
 
             let expanded_types = untemplated_type
                 .types
@@ -338,10 +365,12 @@ fn expand_atomic(
                             ..
                         } = v
                         {
-                            if let Some(shape_field_taints) = &type_definition.shape_field_taints {
+                            if let (Some(shape_field_taints), Some(interner)) =
+                                (&type_definition.shape_field_taints, interner)
+                            {
                                 let shape_node = DataFlowNode::new(
-                                    codebase.interner.lookup(type_name).to_string(),
-                                    codebase.interner.lookup(type_name).to_string(),
+                                    interner.lookup(type_name).to_string(),
+                                    interner.lookup(type_name).to_string(),
                                     Some(type_definition.location.clone()),
                                     None,
                                 );
@@ -349,8 +378,8 @@ fn expand_atomic(
                                 for (field_name, taints) in shape_field_taints {
                                     let label = format!(
                                         "{}[{}]",
-                                        codebase.interner.lookup(type_name),
-                                        field_name.to_string(Some(&codebase.interner))
+                                        interner.lookup(type_name),
+                                        field_name.to_string(Some(&interner))
                                     );
                                     let field_node = DataFlowNode {
                                         id: label.clone(),
@@ -424,7 +453,13 @@ fn expand_atomic(
                     definition_as_type.clone()
                 };
 
-                expand_union(codebase, &mut definition_as_type, options, data_flow_graph);
+                expand_union(
+                    codebase,
+                    interner,
+                    &mut definition_as_type,
+                    options,
+                    data_flow_graph,
+                );
 
                 *as_type = Some(definition_as_type);
             }
@@ -432,7 +467,7 @@ fn expand_atomic(
 
         if let Some(type_params) = type_params {
             for param_type in type_params {
-                expand_union(codebase, param_type, options, data_flow_graph);
+                expand_union(codebase, interner, param_type, options, data_flow_graph);
             }
         }
 
@@ -446,6 +481,7 @@ fn expand_atomic(
         expand_atomic(
             class_type,
             codebase,
+            interner,
             options,
             data_flow_graph,
             &mut false,
@@ -478,7 +514,7 @@ fn expand_atomic(
                 };
 
                 if let Some(mut type_) = type_ {
-                    expand_union(codebase, &mut type_, options, data_flow_graph);
+                    expand_union(codebase, interner, &mut type_, options, data_flow_graph);
 
                     *skip_key = true;
                     new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
@@ -501,7 +537,7 @@ fn expand_atomic(
             }
         };
     } else if let TAtomic::TClosureAlias { id, .. } = &return_type_part {
-        if let Some(value) = get_closure_from_id(id, codebase, data_flow_graph) {
+        if let Some(value) = get_closure_from_id(id, codebase, interner, data_flow_graph) {
             *skip_key = true;
             new_return_type_parts.push(value);
             return;
@@ -512,6 +548,7 @@ fn expand_atomic(
 pub fn get_closure_from_id(
     id: &FunctionLikeIdentifier,
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     data_flow_graph: &mut DataFlowGraph,
 ) -> Option<TAtomic> {
     match id {
@@ -520,6 +557,7 @@ pub fn get_closure_from_id(
                 return Some(get_expanded_closure(
                     functionlike_info,
                     codebase,
+                    interner,
                     data_flow_graph,
                 ));
             }
@@ -536,6 +574,7 @@ pub fn get_closure_from_id(
                     return Some(get_expanded_closure(
                         functionlike_info,
                         codebase,
+                        interner,
                         data_flow_graph,
                     ));
                 }
@@ -548,6 +587,7 @@ pub fn get_closure_from_id(
 fn get_expanded_closure(
     functionlike_info: &FunctionLikeInfo,
     codebase: &CodebaseInfo,
+    interner: &Option<&Interner>,
     data_flow_graph: &mut DataFlowGraph,
 ) -> TAtomic {
     TAtomic::TClosure {
@@ -559,6 +599,7 @@ fn get_expanded_closure(
                     let mut t = t.clone();
                     expand_union(
                         codebase,
+                        interner,
                         &mut t,
                         &TypeExpansionOptions {
                             ..Default::default()
@@ -578,6 +619,7 @@ fn get_expanded_closure(
             let mut return_type = return_type.clone();
             expand_union(
                 codebase,
+                interner,
                 &mut return_type,
                 &TypeExpansionOptions {
                     ..Default::default()

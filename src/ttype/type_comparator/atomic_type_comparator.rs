@@ -1,7 +1,8 @@
 use crate::{get_arrayish_params, get_value_param, wrap_atomic};
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo, t_atomic::TAtomic, STR_ANY_ARRAY, STR_BUILTIN_ENUM, STR_CONTAINER,
-    STR_ENUM_CLASS_LABEL, STR_FORMAT_STRING, STR_KEYED_CONTAINER, STR_STATIC, STR_XHP_CHILD,
+    STR_ENUM_CLASS_LABEL, STR_FORMAT_STRING, STR_KEYED_CONTAINER, STR_SELF, STR_STATIC,
+    STR_XHP_CHILD,
 };
 
 use super::{
@@ -446,7 +447,7 @@ pub fn is_contained_by(
             ..
         } = container_type_part
         {
-            if codebase.interner.lookup(container_name) == "self" {
+            if container_name == &STR_SELF {
                 return true;
             }
         }

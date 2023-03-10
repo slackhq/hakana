@@ -39,6 +39,7 @@ pub(crate) fn analyze(
         if let Some(ref mut param_type) = param.signature_type {
             type_expander::expand_union(
                 statements_analyzer.get_codebase(),
+                &Some(statements_analyzer.get_interner()),
                 param_type,
                 &TypeExpansionOptions {
                     evaluate_conditional_types: true,
@@ -87,11 +88,7 @@ pub(crate) fn analyze(
             .collect(),
         return_type: lambda_storage.return_type,
         effects: lambda_storage.effects.to_u8(),
-        closure_id: statements_analyzer
-            .get_codebase()
-            .interner
-            .get(&closure_id)
-            .unwrap(),
+        closure_id: statements_analyzer.get_interner().get(&closure_id).unwrap(),
     });
 
     if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {

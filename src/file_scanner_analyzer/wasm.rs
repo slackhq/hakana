@@ -18,6 +18,7 @@ use crate::{HhiAsset, HslAsset};
 
 pub fn scan_and_analyze_single_file(
     codebase: &mut CodebaseInfo,
+    interner: &Interner,
     file_name: String,
     file_contents: String,
     find_unused_expressions: bool,
@@ -32,7 +33,7 @@ pub fn scan_and_analyze_single_file(
         GraphKind::FunctionBody
     };
 
-    let mut interner = ThreadedInterner::new(Arc::new(Mutex::new(codebase.interner.clone())));
+    let mut interner = ThreadedInterner::new(Arc::new(Mutex::new(interner.clone())));
 
     let resolved_names = if let Ok(resolved_names) = scan_single_file(
         codebase,
@@ -54,12 +55,11 @@ pub fn scan_and_analyze_single_file(
 
     populate_codebase(codebase, &interner, &mut symbol_references);
 
-    codebase.interner = interner;
-
     let mut analysis_result = analyze_single_file(
         file_name.clone(),
         file_contents.clone(),
         &codebase,
+        &interner,
         &resolved_names,
         &analysis_config,
     )?;
@@ -69,11 +69,11 @@ pub fn scan_and_analyze_single_file(
             &analysis_result.program_dataflow_graph,
             &analysis_config,
             Verbosity::Quiet,
-            &codebase.interner,
+            &interner,
         );
 
         for issue in issues {
-            let file_path = codebase.interner.lookup(&issue.pos.file_path);
+            let file_path = interner.lookup(&issue.pos.file_path);
             analysis_result
                 .emitted_issues
                 .entry(file_path.to_string())
@@ -207,6 +207,7 @@ pub fn analyze_single_file(
     path: String,
     file_contents: String,
     codebase: &CodebaseInfo,
+    interner: &Interner,
     resolved_names: &FxHashMap<usize, StrId>,
     analysis_config: &Config,
 ) -> std::result::Result<AnalysisResult, String> {
@@ -215,7 +216,7 @@ pub fn analyze_single_file(
     let mut analysis_result =
         AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
-    let file_path = codebase.interner.get(path.as_str()).unwrap();
+    let file_path = interner.get(path.as_str()).unwrap();
 
     let aast = match aast_result {
         Ok(aast) => aast,
@@ -242,8 +243,13 @@ pub fn analyze_single_file(
         file_contents: "".to_string(),
     };
 
-    let mut file_analyzer =
-        file_analyzer::FileAnalyzer::new(file_source, &resolved_names, codebase, analysis_config);
+    let mut file_analyzer = file_analyzer::FileAnalyzer::new(
+        file_source,
+        &resolved_names,
+        codebase,
+        interner,
+        analysis_config,
+    );
 
     file_analyzer.analyze(&aast.0, &mut analysis_result);
 

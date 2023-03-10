@@ -3,7 +3,7 @@ use crate::{
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
     t_atomic::{populate_atomic_type, DictKey, TAtomic},
-    Interner, StrId,
+    Interner, StrId, STR_LIB_REGEX_PATTERN,
 };
 use core::panic;
 use derivative::Derivative;
@@ -433,8 +433,8 @@ impl TUnion {
         })
     }
 
-    pub fn is_always_truthy(&self, interner: &Interner) -> bool {
-        self.types.iter().all(|atomic| atomic.is_truthy(interner))
+    pub fn is_always_truthy(&self) -> bool {
+        self.types.iter().all(|atomic| atomic.is_truthy())
     }
 
     pub fn is_always_falsy(&self) -> bool {
@@ -561,9 +561,9 @@ impl TUnion {
         }
     }
 
-    pub fn get_single_literal_string_value(&self, interner: &Interner) -> Option<String> {
+    pub fn get_single_literal_string_value(&self) -> Option<String> {
         if self.is_single() {
-            self.get_single().get_literal_string_value(interner)
+            self.get_single().get_literal_string_value()
         } else {
             None
         }
@@ -600,7 +600,7 @@ impl TUnion {
             .collect()
     }
 
-    pub fn get_literal_string_values(&self, interner: &Interner) -> Vec<Option<String>> {
+    pub fn get_literal_string_values(&self) -> Vec<Option<String>> {
         self.get_literal_strings()
             .into_iter()
             .map(|atom| match atom {
@@ -610,7 +610,7 @@ impl TUnion {
                     as_type: Some(as_type),
                     type_params: Some(_),
                 } => {
-                    if name == &interner.get("HH\\Lib\\Regex\\Pattern").unwrap() {
+                    if name == &STR_LIB_REGEX_PATTERN {
                         if let TAtomic::TLiteralString { value, .. } = as_type.get_single() {
                             Some(value.clone())
                         } else {

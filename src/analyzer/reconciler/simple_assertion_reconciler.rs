@@ -497,7 +497,7 @@ pub(crate) fn intersect_null(
                 name,
                 type_params: None,
                 ..
-            } => match statements_analyzer.get_codebase().interner.lookup(name) {
+            } => match statements_analyzer.get_interner().lookup(name) {
                 "XHPChild" => {
                     nullable_types.push(TAtomic::TNull);
                     did_remove_type = true;
@@ -516,7 +516,7 @@ pub(crate) fn intersect_null(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+                    existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
                 trigger_issue_for_impossible(
                     tast_info,
@@ -595,7 +595,7 @@ fn intersect_object(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+                    existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
                 trigger_issue_for_impossible(
                     tast_info,
@@ -649,7 +649,7 @@ fn intersect_vec(
                 ..
             } = atomic
             {
-                match statements_analyzer.get_codebase().interner.lookup(name) {
+                match statements_analyzer.get_interner().lookup(name) {
                     "HH\\Container" => {
                         acceptable_types.push(TAtomic::TVec {
                             type_param: typed_params.get(0).unwrap().clone(),
@@ -688,7 +688,7 @@ fn intersect_vec(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -737,7 +737,7 @@ fn intersect_keyset(
                 ..
             } = atomic
             {
-                match statements_analyzer.get_codebase().interner.lookup(name) {
+                match statements_analyzer.get_interner().lookup(name) {
                     "HH\\Container" => {
                         acceptable_types.push(TAtomic::TKeyset {
                             type_param: get_arraykey(true),
@@ -767,7 +767,7 @@ fn intersect_keyset(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -841,7 +841,7 @@ fn intersect_dict(
                     name, type_params, ..
                 } = atomic
                 {
-                    match statements_analyzer.get_codebase().interner.lookup(name) {
+                    match statements_analyzer.get_interner().lookup(name) {
                         "HH\\Container" => {
                             if let Some(typed_params) = type_params {
                                 acceptable_types.push(TAtomic::TDict {
@@ -891,7 +891,7 @@ fn intersect_dict(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -946,7 +946,7 @@ fn intersect_arraykey(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -1001,7 +1001,7 @@ fn intersect_num(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -1102,7 +1102,7 @@ fn intersect_string(
                 name,
                 type_params: None,
                 ..
-            } => match statements_analyzer.get_codebase().interner.lookup(name) {
+            } => match statements_analyzer.get_interner().lookup(name) {
                 "XHPChild" => {
                     acceptable_types.push(TAtomic::TString);
                     did_remove_type = true;
@@ -1137,7 +1137,7 @@ fn intersect_string(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -1255,7 +1255,7 @@ fn intersect_int(
                 trigger_issue_for_impossible(
                     tast_info,
                     statements_analyzer,
-                    &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
+                    &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
                     &key,
                     assertion,
                     !did_remove_type,
@@ -1299,9 +1299,7 @@ fn reconcile_truthy(
         // If not always truthy, we mark the check as not redundant.
         if atomic.is_falsy() {
             did_remove_type = true;
-        } else if !atomic.is_truthy(&statements_analyzer.get_codebase().interner)
-            || new_var_type.possibly_undefined_from_try
-        {
+        } else if !atomic.is_truthy() || new_var_type.possibly_undefined_from_try {
             did_remove_type = true;
 
             if let TAtomic::TGenericParam { as_type, .. } = &atomic {
@@ -1412,7 +1410,7 @@ fn reconcile_isset(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+                    existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
                 trigger_issue_for_impossible(
                     tast_info,
@@ -1526,8 +1524,8 @@ fn reconcile_non_empty_countable(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 if !recursive_check {
-                    let old_var_type_string = existing_var_type
-                        .get_id(Some(&statements_analyzer.get_codebase().interner));
+                    let old_var_type_string =
+                        existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
                     trigger_issue_for_impossible(
                         tast_info,
@@ -1568,8 +1566,7 @@ fn reconcile_exactly_countable(
     recursive_check: bool,
     count: &usize,
 ) -> TUnion {
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1678,13 +1675,10 @@ fn reconcile_array_access(
 
     new_var_type.types.retain(|atomic| {
         (allow_int_key
-            && atomic.is_array_accessible_with_int_or_string_key(
-                &statements_analyzer.get_codebase().interner,
-            ))
+            && atomic
+                .is_array_accessible_with_int_or_string_key(&statements_analyzer.get_interner()))
             || (!allow_int_key
-                && atomic.is_array_accessible_with_string_key(
-                    &statements_analyzer.get_codebase().interner,
-                ))
+                && atomic.is_array_accessible_with_string_key(&statements_analyzer.get_interner()))
     });
 
     if new_var_type.types.is_empty() {
@@ -1692,7 +1686,7 @@ fn reconcile_array_access(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+                    existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
                 trigger_issue_for_impossible(
                     tast_info,
@@ -1741,7 +1735,7 @@ fn reconcile_in_array(
             trigger_issue_for_impossible(
                 tast_info,
                 statements_analyzer,
-                &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
+                &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
                 &key,
                 assertion,
                 true,
@@ -1912,7 +1906,7 @@ fn reconcile_has_array_key(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+                    existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
                 trigger_issue_for_impossible(
                     tast_info,
@@ -2173,7 +2167,7 @@ fn reconcile_has_nonnull_entry_for_key(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+                    existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
                 trigger_issue_for_impossible(
                     tast_info,
@@ -2218,7 +2212,7 @@ pub(crate) fn get_acceptable_type(
         if let Some(ref key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
-                    existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+                    existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
                 trigger_issue_for_impossible(
                     tast_info,

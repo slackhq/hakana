@@ -159,7 +159,7 @@ pub fn is_contained_by(
                 for (_, const_storage) in &c.constants {
                     if let Some(inferred_enum_type) = &const_storage.inferred_type {
                         if let Some(inferred_value) =
-                            inferred_enum_type.get_single_literal_string_value(&codebase.interner)
+                            inferred_enum_type.get_single_literal_string_value()
                         {
                             if &inferred_value == input_value {
                                 return true;
@@ -234,7 +234,7 @@ pub fn is_contained_by(
                     &c.constants.get(member_name).unwrap().inferred_type
                 {
                     if let Some(inferred_value) =
-                        inferred_enum_type.get_single_literal_string_value(&codebase.interner)
+                        inferred_enum_type.get_single_literal_string_value()
                     {
                         if &inferred_value == input_value {
                             return true;

@@ -8,6 +8,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::populate_union_type,
 };
+use hakana_reflection_info::{StrId, STR_ISSET, STR_SHAPES};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::type_expander::{self, TypeExpansionOptions};
 use oxidized::{
@@ -54,16 +55,14 @@ pub(crate) fn scrape_assertions(
             let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
 
             if let Some(FunctionLikeIdentifier::Function(name)) = functionlike_id {
-                if let Some(codebase) = assertion_context.codebase {
-                    return scrape_function_assertions(
-                        &codebase.interner.lookup(&name),
-                        &call.2,
-                        &conditional.1,
-                        assertion_context,
-                        tast_info,
-                        inside_negation,
-                    );
-                }
+                return scrape_function_assertions(
+                    &name,
+                    &call.2,
+                    &conditional.1,
+                    assertion_context,
+                    tast_info,
+                    inside_negation,
+                );
             }
 
             if_types.extend(process_custom_assertions(conditional.pos(), tast_info));
@@ -203,7 +202,7 @@ fn get_is_assertions(
     )
     .unwrap();
 
-    if let Some(codebase) = assertion_context.codebase {
+    if let Some((codebase, _)) = assertion_context.codebase {
         populate_union_type(
             &mut is_type,
             &codebase.symbols,
@@ -212,6 +211,7 @@ fn get_is_assertions(
         );
         type_expander::expand_union(
             codebase,
+            &None,
             &mut is_type,
             &TypeExpansionOptions {
                 self_class: assertion_context.this_class_name,
@@ -265,10 +265,8 @@ fn scrape_shapes_isset(
             let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
 
             if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
-                if let Some(codebase) = assertion_context.codebase {
-                    if codebase.interner.lookup(&class_name) == "HH\\Shapes"
-                        && codebase.interner.lookup(&member_name) == "idx"
-                    {
+                if let Some((codebase, interner)) = assertion_context.codebase {
+                    if class_name == STR_SHAPES && interner.lookup(&member_name) == "idx" {
                         let shape_name = get_var_id(
                             &call.2[0].1,
                             assertion_context.this_class_name,
@@ -279,7 +277,7 @@ fn scrape_shapes_isset(
 
                         let dim_id = get_dim_id(
                             &call.2[1].1,
-                            assertion_context.codebase,
+                            Some((codebase, interner)),
                             assertion_context.resolved_names,
                         );
 
@@ -321,11 +319,11 @@ fn get_functionlike_id_from_call(
 ) -> Option<FunctionLikeIdentifier> {
     match &call.0 .2 {
         aast::Expr_::Id(boxed_id) => {
-            if let Some(codebase) = assertion_context.codebase {
+            if let Some((_, interner)) = assertion_context.codebase {
                 let name = if boxed_id.1 == "isset" {
-                    codebase.interner.get("isset").unwrap()
+                    STR_ISSET
                 } else if boxed_id.1 == "\\in_array" {
-                    codebase.interner.get("in_array").unwrap()
+                    interner.get("in_array").unwrap()
                 } else {
                     assertion_context
                         .resolved_names
@@ -340,7 +338,7 @@ fn get_functionlike_id_from_call(
             }
         }
         aast::Expr_::ClassConst(boxed) => {
-            if let Some(codebase) = assertion_context.codebase {
+            if let Some((_, interner)) = assertion_context.codebase {
                 let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
 
                 match &class_id.2 {
@@ -350,7 +348,7 @@ fn get_functionlike_id_from_call(
 
                             if let (Some(class_name), Some(method_name)) = (
                                 resolved_names.get(&id.0.start_offset()),
-                                codebase.interner.get(&rhs_expr.1),
+                                interner.get(&rhs_expr.1),
                             ) {
                                 Some(FunctionLikeIdentifier::Method(*class_name, method_name))
                             } else {
@@ -471,7 +469,7 @@ fn scrape_inequality_assertions(
 // }
 
 fn scrape_function_assertions(
-    function_name: &str,
+    function_name: &StrId,
     args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
     pos: &Pos,
     assertion_context: &AssertionContext,
@@ -494,7 +492,7 @@ fn scrape_function_assertions(
 
     let mut if_types = FxHashMap::default();
 
-    if function_name == "isset" {
+    if function_name == &STR_ISSET {
         let (first_arg, first_var_name, first_var_type) = firsts.unwrap();
         if let Some(first_var_name) = first_var_name {
             if let Some(first_var_type) = first_var_type {
@@ -511,13 +509,6 @@ fn scrape_function_assertions(
                     if_types.insert(first_var_name.clone(), vec![vec![Assertion::IsIsset]]);
                 }
             }
-        }
-    } else if function_name == "is_null" {
-        if let Some(first_var_name) = firsts.unwrap().1 {
-            if_types.insert(
-                first_var_name.clone(),
-                vec![vec![Assertion::IsType(TAtomic::TNull)]],
-            );
         }
     }
 

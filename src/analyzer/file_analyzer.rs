@@ -10,7 +10,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::function_context::FunctionContext;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
-use hakana_reflection_info::{FileSource, StrId};
+use hakana_reflection_info::{FileSource, Interner, StrId};
 use oxidized::aast;
 use rustc_hash::FxHashMap;
 
@@ -20,6 +20,7 @@ pub struct FileAnalyzer<'a> {
     namespace_name: Option<String>,
     pub resolved_names: &'a FxHashMap<usize, StrId>,
     pub codebase: &'a CodebaseInfo,
+    pub interner: &'a Interner,
     pub analysis_config: &'a Config,
 }
 
@@ -28,6 +29,7 @@ impl<'a> FileAnalyzer<'a> {
         file_source: FileSource<'a>,
         resolved_names: &'a FxHashMap<usize, StrId>,
         codebase: &'a CodebaseInfo,
+        interner: &'a Interner,
         analysis_config: &'a Config,
     ) -> Self {
         Self {
@@ -35,6 +37,7 @@ impl<'a> FileAnalyzer<'a> {
             namespace_name: None,
             resolved_names,
             codebase,
+            interner,
             analysis_config,
         }
     }
@@ -99,7 +102,7 @@ impl<'a> FileAnalyzer<'a> {
         update_analysis_result_with_tast(
             tast_info,
             analysis_result,
-            self.get_codebase().interner.lookup(
+            self.get_interner().lookup(
                 &statements_analyzer
                     .get_file_analyzer()
                     .get_file_source()
@@ -125,6 +128,10 @@ impl ScopeAnalyzer for FileAnalyzer<'_> {
 
     fn get_codebase(&self) -> &CodebaseInfo {
         self.codebase
+    }
+
+    fn get_interner(&self) -> &Interner {
+        &self.interner
     }
 
     fn get_config(&self) -> &Config {

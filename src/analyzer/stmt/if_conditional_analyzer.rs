@@ -372,7 +372,7 @@ pub(crate) fn handle_paradoxical_condition(
                 IssueKind::ImpossibleTruthinessCheck,
                 format!(
                     "Type {} is never truthy",
-                    expr_type.get_id(Some(&statements_analyzer.get_codebase().interner))
+                    expr_type.get_id(Some(&statements_analyzer.get_interner()))
                 ),
                 statements_analyzer.get_hpos(&pos),
                 calling_functionlike_id,
@@ -380,13 +380,13 @@ pub(crate) fn handle_paradoxical_condition(
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
         );
-    } else if expr_type.is_always_truthy(&statements_analyzer.get_codebase().interner) {
+    } else if expr_type.is_always_truthy() {
         tast_info.maybe_add_issue(
             Issue::new(
                 IssueKind::RedundantTruthinessCheck,
                 format!(
                     "Type {} is always truthy",
-                    expr_type.get_id(Some(&statements_analyzer.get_codebase().interner))
+                    expr_type.get_id(Some(&statements_analyzer.get_interner()))
                 ),
                 statements_analyzer.get_hpos(&pos),
                 calling_functionlike_id,

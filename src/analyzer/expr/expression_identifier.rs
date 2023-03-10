@@ -1,4 +1,4 @@
-use hakana_reflection_info::{codebase_info::CodebaseInfo, StrId, ast::get_id_name};
+use hakana_reflection_info::{ast::get_id_name, codebase_info::CodebaseInfo, Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::FileSource;
@@ -10,7 +10,7 @@ pub fn get_var_id(
     this_class_name: Option<&StrId>,
     source: &FileSource,
     resolved_names: &FxHashMap<usize, StrId>,
-    codebase: Option<&CodebaseInfo>,
+    codebase: Option<(&CodebaseInfo, &Interner)>,
 ) -> Option<String> {
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => Some(var_expr.1 .1.clone()),
@@ -32,7 +32,7 @@ pub fn get_var_id(
                 let class_name = match &boxed.0 .2 {
                     aast::ClassId_::CIexpr(inner_expr) => {
                         if let aast::Expr_::Id(id) = &inner_expr.2 {
-                            if let Some(codebase) = codebase {
+                            if let Some((codebase, _)) = codebase {
                                 get_id_name(
                                     id,
                                     &this_class_name.cloned(),
@@ -54,13 +54,13 @@ pub fn get_var_id(
                     return match &boxed.1 {
                         aast::ClassGetExpr::CGstring(str) => Some(format!(
                             "{}::{}",
-                            codebase.unwrap().interner.lookup(&class_name),
+                            codebase.unwrap().1.lookup(&class_name),
                             str.1
                         )),
                         aast::ClassGetExpr::CGexpr(rhs_expr) => match &rhs_expr.2 {
                             aast::Expr_::Lvar(rhs_var_expr) => Some(format!(
                                 "{}::${}",
-                                codebase.unwrap().interner.lookup(&class_name),
+                                codebase.unwrap().1.lookup(&class_name),
                                 rhs_var_expr.1 .1
                             )),
                             _ => None,
@@ -113,7 +113,7 @@ pub(crate) fn get_root_var_id(
 // and property fetches, which themselves can be nested
 pub(crate) fn get_dim_id(
     conditional: &aast::Expr<(), ()>,
-    codebase: Option<&CodebaseInfo>,
+    codebase: Option<(&CodebaseInfo, &Interner)>,
     resolved_names: &FxHashMap<usize, StrId>,
 ) -> Option<String> {
     match &conditional.2 {
@@ -121,7 +121,7 @@ pub(crate) fn get_dim_id(
         aast::Expr_::String(value) => Some(format!("'{}'", value.to_string())),
         aast::Expr_::Int(value) => Some(format!("{}", value.clone())),
         aast::Expr_::ClassConst(boxed) => {
-            if let Some(codebase) = codebase {
+            if let Some((codebase, interner)) = codebase {
                 match &boxed.0 .2 {
                     aast::ClassId_::CIexpr(lhs_expr) => {
                         if let aast::Expr_::Id(id) = &lhs_expr.2 {
@@ -139,13 +139,13 @@ pub(crate) fn get_dim_id(
 
                             let constant_type = codebase.get_class_constant_type(
                                 &classlike_name,
-                                &codebase.interner.get(&boxed.1 .1).unwrap(),
+                                &interner.get(&boxed.1 .1).unwrap(),
                                 FxHashSet::default(),
                             );
 
                             if let Some(constant_type) = constant_type {
-                                if let Some(constant_type_string) = constant_type
-                                    .get_single_literal_string_value(&codebase.interner)
+                                if let Some(constant_type_string) =
+                                    constant_type.get_single_literal_string_value()
                                 {
                                     return Some(format!("'{}'", constant_type_string));
                                 }

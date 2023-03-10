@@ -377,9 +377,7 @@ pub(crate) fn get_functionlike(
                     );
 
                     if let Some(attribute_param_type) = attribute_param_type {
-                        if let Some(str) =
-                            attribute_param_type.get_single_literal_string_value(&codebase.interner)
-                        {
+                        if let Some(str) = attribute_param_type.get_single_literal_string_value() {
                             if let Some(source_type) = string_to_source_types(str) {
                                 source_types.insert(source_type);
                             }
@@ -410,7 +408,7 @@ pub(crate) fn get_functionlike(
                     );
                     if let Some(attribute_param_type) = attribute_param_type {
                         attribute_param_type
-                            .get_literal_string_values(&codebase.interner)
+                            .get_literal_string_values()
                             .into_iter()
                             .for_each(|value| {
                                 if let Some(str) = value {
@@ -692,8 +690,8 @@ fn convert_param_nodes(
                             );
 
                             if let Some(attribute_param_type) = attribute_param_type {
-                                if let Some(str) = attribute_param_type
-                                    .get_single_literal_string_value(&codebase.interner)
+                                if let Some(str) =
+                                    attribute_param_type.get_single_literal_string_value()
                                 {
                                     sink_types.extend(string_to_sink_types(str));
                                 }
@@ -714,8 +712,8 @@ fn convert_param_nodes(
                             );
 
                             if let Some(attribute_param_type) = attribute_param_type {
-                                if let Some(str) = attribute_param_type
-                                    .get_single_literal_string_value(&codebase.interner)
+                                if let Some(str) =
+                                    attribute_param_type.get_single_literal_string_value()
                                 {
                                     removed_taints.extend(string_to_sink_types(str));
                                 }

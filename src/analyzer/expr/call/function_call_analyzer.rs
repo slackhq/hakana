@@ -93,11 +93,7 @@ pub(crate) fn analyze(
     }
 
     let name = if name == "\\in_array" {
-        statements_analyzer
-            .get_codebase()
-            .interner
-            .get("in_array")
-            .unwrap()
+        statements_analyzer.get_interner().get("in_array").unwrap()
     } else if let Some(fq_name) = resolved_names.get(&expr.0 .0.start_offset()) {
         fq_name.clone()
     } else {
@@ -114,7 +110,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentFunction,
                 format!(
                     "Function {} is not defined",
-                    codebase.interner.lookup(&name)
+                    statements_analyzer.get_interner().lookup(&name)
                 ),
                 statements_analyzer.get_hpos(&expr.0 .0),
                 &context.function_context.calling_functionlike_id,
@@ -237,7 +233,7 @@ pub(crate) fn analyze(
         context.has_returned = true;
     }
 
-    let real_name = codebase.interner.lookup(&name);
+    let real_name = statements_analyzer.get_interner().lookup(&name);
 
     match real_name {
         "HH\\invariant" => {
@@ -254,7 +250,10 @@ pub(crate) fn analyze(
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 resolved_names,
-                Some(statements_analyzer.get_codebase()),
+                Some((
+                    statements_analyzer.get_codebase(),
+                    statements_analyzer.get_interner(),
+                )),
             );
 
             if real_name == "HH\\Lib\\C\\contains" || real_name == "HH\\Lib\\Dict\\contains" {
@@ -299,7 +298,10 @@ pub(crate) fn analyze(
                     } else {
                         if let Some(dim_var_id) = expression_identifier::get_dim_id(
                             &expr.2[1].1,
-                            Some(statements_analyzer.get_codebase()),
+                            Some((
+                                statements_analyzer.get_codebase(),
+                                statements_analyzer.get_interner(),
+                            )),
                             resolved_names,
                         ) {
                             tast_info.if_true_assertions.insert(
@@ -335,7 +337,10 @@ pub(crate) fn analyze(
                     context.function_context.calling_class.as_ref(),
                     statements_analyzer.get_file_analyzer().get_file_source(),
                     resolved_names,
-                    Some(statements_analyzer.get_codebase()),
+                    Some((
+                        statements_analyzer.get_codebase(),
+                        statements_analyzer.get_interner(),
+                    )),
                 );
 
                 if let Some(expr_var_id) = second_arg_var_id {
@@ -360,7 +365,10 @@ pub(crate) fn analyze(
                         context.function_context.calling_class.as_ref(),
                         statements_analyzer.get_file_analyzer().get_file_source(),
                         resolved_names,
-                        Some(statements_analyzer.get_codebase()),
+                        Some((
+                            statements_analyzer.get_codebase(),
+                            statements_analyzer.get_interner(),
+                        )),
                     );
 
                     let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
@@ -370,9 +378,7 @@ pub(crate) fn analyze(
                     if let (Some(expr_var_id), Some(second_arg_type)) =
                         (expr_var_id, second_arg_type)
                     {
-                        if let Some(str) = second_arg_type.get_single_literal_string_value(
-                            &statements_analyzer.get_codebase().interner,
-                        ) {
+                        if let Some(str) = second_arg_type.get_single_literal_string_value() {
                             if str.len() > 1 && str != "http://" && str != "https://" {
                                 tast_info.if_true_assertions.insert(
                                     (pos.start_offset(), pos.end_offset()),
@@ -402,7 +408,10 @@ pub(crate) fn analyze(
                         context.function_context.calling_class.as_ref(),
                         statements_analyzer.get_file_analyzer().get_file_source(),
                         resolved_names,
-                        Some(statements_analyzer.get_codebase()),
+                        Some((
+                            statements_analyzer.get_codebase(),
+                            statements_analyzer.get_interner(),
+                        )),
                     );
 
                     let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
@@ -412,9 +421,7 @@ pub(crate) fn analyze(
                     if let (Some(expr_var_id), Some(second_arg_type)) =
                         (expr_var_id, second_arg_type)
                     {
-                        if let Some(str) = second_arg_type.get_single_literal_string_value(
-                            &statements_analyzer.get_codebase().interner,
-                        ) {
+                        if let Some(str) = second_arg_type.get_single_literal_string_value() {
                             let mut hashes_to_remove = FxHashSet::default();
 
                             if str.starts_with("^") {
@@ -577,8 +584,8 @@ fn check_array_key_or_value_type(
                         error_message = Some(format!(
                             "Second arg of {} expects type {}, saw {}",
                             function_name,
-                            param.get_id(Some(&codebase.interner)),
-                            arg_type.get_id(Some(&codebase.interner))
+                            param.get_id(Some(&statements_analyzer.get_interner())),
+                            arg_type.get_id(Some(&statements_analyzer.get_interner()))
                         ));
                     }
                 };

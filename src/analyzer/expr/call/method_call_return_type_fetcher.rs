@@ -40,12 +40,17 @@ pub(crate) fn fetch(
     let codebase = statements_analyzer.get_codebase();
 
     let mut return_type_candidate = if let Some(return_type) =
-        get_special_method_return(method_id, &statements_analyzer.get_codebase().interner)
+        get_special_method_return(method_id, &statements_analyzer.get_interner())
     {
         return_type
     } else {
         functionlike_storage.return_type.clone().unwrap_or(
-            if method_id.1 == codebase.interner.get("__toString").unwrap() {
+            if method_id.1
+                == statements_analyzer
+                    .get_interner()
+                    .get("__toString")
+                    .unwrap()
+            {
                 get_string()
             } else {
                 get_mixed_any()
@@ -58,8 +63,14 @@ pub(crate) fn fetch(
     let mut template_result = template_result.clone();
 
     if !functionlike_storage.template_types.is_empty() {
-        let fn_id = format!("fn-{}", declaring_method_id.to_string(&codebase.interner));
-        let fn_id = codebase.interner.get(fn_id.as_str()).unwrap();
+        let fn_id = format!(
+            "fn-{}",
+            declaring_method_id.to_string(&statements_analyzer.get_interner())
+        );
+        let fn_id = statements_analyzer
+            .get_interner()
+            .get(fn_id.as_str())
+            .unwrap();
         for (template_name, _) in &functionlike_storage.template_types {
             template_result
                 .lower_bounds
@@ -74,6 +85,7 @@ pub(crate) fn fetch(
     if !template_result.lower_bounds.is_empty() {
         type_expander::expand_union(
             codebase,
+            &Some(statements_analyzer.get_interner()),
             &mut return_type_candidate,
             &TypeExpansionOptions {
                 self_class: Some(&method_id.0),
@@ -94,6 +106,7 @@ pub(crate) fn fetch(
 
     type_expander::expand_union(
         codebase,
+        &Some(statements_analyzer.get_interner()),
         &mut return_type_candidate,
         &TypeExpansionOptions {
             self_class: Some(&method_id.0),
@@ -222,7 +235,7 @@ fn add_dataflow(
 
         if method_id != declaring_method_id {
             method_call_node = DataFlowNode::get_for_method_return(
-                method_id.to_string(&codebase.interner),
+                method_id.to_string(&statements_analyzer.get_interner()),
                 None,
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
@@ -232,7 +245,7 @@ fn add_dataflow(
             );
 
             let declaring_method_call_node = DataFlowNode::get_for_method_return(
-                declaring_method_id.to_string(&codebase.interner),
+                declaring_method_id.to_string(&statements_analyzer.get_interner()),
                 functionlike_storage.return_type_location.clone(),
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
@@ -251,7 +264,7 @@ fn add_dataflow(
             );
         } else {
             method_call_node = DataFlowNode::get_for_method_return(
-                method_id.to_string(&codebase.interner),
+                method_id.to_string(&statements_analyzer.get_interner()),
                 functionlike_storage.return_type_location.clone(),
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
@@ -267,7 +280,7 @@ fn add_dataflow(
                 ));
 
                 let declaring_method_call_node = DataFlowNode::get_for_method_return(
-                    descendant_method_id.to_string(&codebase.interner),
+                    descendant_method_id.to_string(&statements_analyzer.get_interner()),
                     functionlike_storage.return_type_location.clone(),
                     if functionlike_storage.specialize_call {
                         Some(statements_analyzer.get_hpos(call_pos))
@@ -293,7 +306,7 @@ fn add_dataflow(
                     method_id,
                     functionlike_storage.return_type_location.clone(),
                     Some(statements_analyzer.get_hpos(call_pos)),
-                    &statements_analyzer.get_codebase().interner,
+                    &statements_analyzer.get_interner(),
                 );
 
                 for this_parent_node in &var_type.parent_nodes {
@@ -312,7 +325,7 @@ fn add_dataflow(
                     method_id,
                     functionlike_storage.return_type_location.clone(),
                     Some(statements_analyzer.get_hpos(call_pos)),
-                    &statements_analyzer.get_codebase().interner,
+                    &statements_analyzer.get_interner(),
                 );
 
                 let mut var_type_inner = (**var_type).clone();
@@ -337,7 +350,7 @@ fn add_dataflow(
                         &declaring_method_id,
                         functionlike_storage.name_location.clone(),
                         Some(statements_analyzer.get_hpos(call_pos)),
-                        &codebase.interner,
+                        &statements_analyzer.get_interner(),
                     );
 
                     for parent_node in &context_type.parent_nodes {
@@ -362,7 +375,7 @@ fn add_dataflow(
                         &declaring_method_id,
                         functionlike_storage.name_location.clone(),
                         Some(statements_analyzer.get_hpos(call_pos)),
-                        &codebase.interner,
+                        &statements_analyzer.get_interner(),
                     );
 
                     data_flow_graph.add_path(

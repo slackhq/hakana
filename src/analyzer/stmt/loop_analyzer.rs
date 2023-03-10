@@ -88,6 +88,7 @@ pub(crate) fn analyze<'a>(
 
     let final_actions = control_analyzer::get_control_actions(
         codebase,
+        statements_analyzer.get_interner(),
         statements_analyzer.get_file_analyzer().resolved_names,
         stmts,
         Some(tast_info),

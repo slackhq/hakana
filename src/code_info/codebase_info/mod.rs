@@ -2,6 +2,7 @@ pub mod symbols;
 
 use self::symbols::SymbolKind;
 pub use self::symbols::Symbols;
+use crate::class_constant_info::ConstantInfo;
 use crate::classlike_info::ClassLikeInfo;
 use crate::file_info::FileInfo;
 use crate::functionlike_info::FunctionLikeInfo;
@@ -10,7 +11,6 @@ use crate::t_atomic::TAtomic;
 use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
 use crate::StrId;
-use crate::{class_constant_info::ConstantInfo, Interner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +20,6 @@ pub struct CodebaseInfo {
     pub functionlike_infos: FxHashMap<StrId, FunctionLikeInfo>,
     pub type_definitions: FxHashMap<StrId, TypeDefinitionInfo>,
     pub symbols: Symbols,
-    pub interner: Interner,
     pub infer_types_from_usage: bool,
     pub register_stub_files: bool,
     pub constant_infos: FxHashMap<StrId, ConstantInfo>,
@@ -48,7 +47,6 @@ impl CodebaseInfo {
             closures_in_files: FxHashMap::default(),
             const_files: FxHashMap::default(),
             classlike_descendants: FxHashMap::default(),
-            interner: Interner::default(),
             files: FxHashMap::default(),
             safe_symbols: FxHashSet::default(),
             safe_symbol_members: FxHashSet::default(),

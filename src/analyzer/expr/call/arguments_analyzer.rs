@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
-use hakana_reflection_info::StrId;
+use hakana_reflection_info::{Interner, StrId, STR_SHAPES};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
@@ -372,8 +372,8 @@ pub(crate) fn check_arguments_match(
         if function_param.is_inout {
             // First inout param for HH\Shapes::removeKey is already handled
             if if let FunctionLikeIdentifier::Method(classname, method_name) = functionlike_id {
-                codebase.interner.lookup(classname) != "HH\\Shapes"
-                    || codebase.interner.lookup(method_name) != "removeKey"
+                classname != &STR_SHAPES
+                    || statements_analyzer.get_interner().lookup(method_name) != "removeKey"
             } else {
                 true
             } {
@@ -429,7 +429,10 @@ pub(crate) fn check_arguments_match(
                     None,
                     statements_analyzer.get_file_analyzer().get_file_source(),
                     statements_analyzer.get_file_analyzer().resolved_names,
-                    Some(statements_analyzer.get_codebase()),
+                    Some((
+                        statements_analyzer.get_codebase(),
+                        statements_analyzer.get_interner(),
+                    )),
                 ) {
                     tast_info.if_true_assertions.insert(
                         (
@@ -510,6 +513,7 @@ fn adjust_param_type(
             class_generic_params,
             param_type,
             codebase,
+            statements_analyzer.get_interner(),
             &mut arg_value_type,
             argument_offset,
             context,
@@ -524,12 +528,15 @@ fn adjust_param_type(
                 &*param_type,
                 template_result,
                 statements_analyzer.get_codebase(),
+                &Some(statements_analyzer.get_interner()),
                 &Some(arg_value_type),
                 Some(argument_offset),
                 if let Some(calling_class) = &context.function_context.calling_class {
                     if !context.function_context.is_static {
                         if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id {
-                            if codebase.interner.lookup(method_name) == "__construct" {
+                            if statements_analyzer.get_interner().lookup(method_name)
+                                == "__construct"
+                            {
                                 None
                             } else {
                                 Some(&calling_class)
@@ -606,6 +613,7 @@ fn get_param_type(
 
             type_expander::expand_union(
                 codebase,
+                &Some(statements_analyzer.get_interner()),
                 &mut param_type,
                 &TypeExpansionOptions {
                     self_class: if let Some(classlike_storage) = class_storage {
@@ -689,6 +697,7 @@ fn handle_closure_arg(
         &param_type,
         &mut replace_template_result,
         codebase,
+        &Some(statements_analyzer.get_interner()),
         &None,
         None,
         None,
@@ -747,7 +756,7 @@ fn handle_closure_arg(
 
         if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
             if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
-                match codebase.interner.lookup(function_name) {
+                match statements_analyzer.get_interner().lookup(function_name) {
                     "HH\\Lib\\Vec\\map"
                     | "HH\\Lib\\Dict\\map"
                     | "HH\\Lib\\Keyset\\map"
@@ -799,6 +808,7 @@ fn map_class_generic_params(
     class_generic_params: &IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
+    interner: &Interner,
     arg_value_type: &mut TUnion,
     argument_offset: usize,
     context: &mut ScopeContext,
@@ -827,6 +837,7 @@ fn map_class_generic_params(
         &*param_type,
         &mut readonly_template_result,
         codebase,
+        &Some(interner),
         &Some(arg_value_type.clone()),
         Some(argument_offset),
         context.function_context.calling_class.as_ref(),
@@ -842,6 +853,7 @@ fn map_class_generic_params(
             &*arg_value_type,
             template_result,
             codebase,
+            &Some(interner),
             &Some(arg_value_type.clone()),
             Some(argument_offset),
             context.function_context.calling_class.as_ref(),
@@ -885,7 +897,10 @@ pub(crate) fn evaluate_arbitrary_param(
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
-            Some(statements_analyzer.get_codebase()),
+            Some((
+                statements_analyzer.get_codebase(),
+                statements_analyzer.get_interner(),
+            )),
         );
 
         if let Some(var_id) = var_id {
@@ -941,6 +956,7 @@ fn handle_possibly_matching_inout_param(
             &inout_type,
             template_result,
             codebase,
+            &Some(statements_analyzer.get_interner()),
             &if let Some(arg_type) = &arg_type {
                 Some(arg_type.clone())
             } else {
@@ -969,6 +985,7 @@ fn handle_possibly_matching_inout_param(
 
     type_expander::expand_union(
         codebase,
+        &Some(statements_analyzer.get_interner()),
         &mut inout_type,
         &TypeExpansionOptions {
             self_class: if let Some(classlike_storage) = classlike_storage {
@@ -1002,7 +1019,7 @@ fn handle_possibly_matching_inout_param(
 
     if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         let out_node = DataFlowNode::get_for_method_argument_out(
-            functionlike_id.to_string(&codebase.interner),
+            functionlike_id.to_string(&statements_analyzer.get_interner()),
             argument_offset,
             Some(functionlike_param.name_location.clone()),
             Some(statements_analyzer.get_hpos(function_call_pos)),
@@ -1168,6 +1185,7 @@ pub(crate) fn get_template_types_for_call(
                         let mut v = (*v).clone();
                         type_expander::expand_union(
                             codebase,
+                            &None,
                             &mut v,
                             &TypeExpansionOptions {
                                 self_class: appearing_class_name,

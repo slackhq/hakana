@@ -252,7 +252,6 @@ pub(crate) fn reconcile(
         )),
         Assertion::IsNotIsset => Some(reconcile_not_isset(
             existing_var_type,
-            statements_analyzer,
             possibly_undefined,
             key,
             pos,
@@ -941,8 +940,7 @@ fn subtract_num(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1037,8 +1035,7 @@ fn subtract_arraykey(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1135,8 +1132,7 @@ fn subtract_bool(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1258,7 +1254,7 @@ pub(crate) fn subtract_null(
             ..
         } = atomic
         {
-            match statements_analyzer.get_codebase().interner.lookup(&name) {
+            match statements_analyzer.get_interner().lookup(&name) {
                 "XHPChild" => {
                     did_remove_type = true;
                     acceptable_types.push(atomic);
@@ -1304,8 +1300,7 @@ fn subtract_false(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1386,8 +1381,7 @@ fn subtract_true(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string =
-        existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner));
+    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1474,9 +1468,7 @@ fn reconcile_falsy(
     for atomic in existing_var_types {
         // if any atomic in the union is either always falsy, we remove it.
         // If not always truthy, we mark the check as not redundant.
-        if atomic.is_truthy(&statements_analyzer.get_codebase().interner)
-            && !new_var_type.possibly_undefined_from_try
-        {
+        if atomic.is_truthy() && !new_var_type.possibly_undefined_from_try {
             did_remove_type = true;
         } else if !atomic.is_falsy() {
             did_remove_type = true;
@@ -1561,7 +1553,6 @@ fn reconcile_falsy(
 
 fn reconcile_not_isset(
     existing_var_type: &TUnion,
-    statements_analyzer: &StatementsAnalyzer,
     possibly_undefined: bool,
     key: Option<&String>,
     pos: Option<&Pos>,
@@ -1574,9 +1565,7 @@ fn reconcile_not_isset(
     if !existing_var_type.is_nullable() {
         if let Some(key) = key {
             if !key.contains("[")
-                && (!existing_var_type.is_mixed()
-                    || existing_var_type
-                        .is_always_truthy(&statements_analyzer.get_codebase().interner))
+                && (!existing_var_type.is_mixed() || existing_var_type.is_always_truthy())
             {
                 if let Some(_pos) = pos {
                     // todo do stuff
@@ -1615,7 +1604,7 @@ fn reconcile_empty_countable(
         if let TAtomic::TVec { .. } = atomic {
             did_remove_type = true;
 
-            if atomic.is_truthy(&statements_analyzer.get_codebase().interner) {
+            if atomic.is_truthy() {
                 // don't keep
             } else {
                 let new_atomic = TAtomic::TVec {
@@ -1629,7 +1618,7 @@ fn reconcile_empty_countable(
         } else if let TAtomic::TDict { .. } = atomic {
             did_remove_type = true;
 
-            if atomic.is_truthy(&statements_analyzer.get_codebase().interner) {
+            if atomic.is_truthy() {
                 // don't keep
             } else {
                 let new_atomic = TAtomic::TDict {
@@ -1742,7 +1731,7 @@ fn reconcile_not_in_array(
             trigger_issue_for_impossible(
                 tast_info,
                 statements_analyzer,
-                &existing_var_type.get_id(Some(&statements_analyzer.get_codebase().interner)),
+                &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
                 &key,
                 assertion,
                 true,

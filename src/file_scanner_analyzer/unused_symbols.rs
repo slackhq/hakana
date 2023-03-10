@@ -6,7 +6,7 @@ use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
-use hakana_reflection_info::{StrId, STR_CONSTRUCT, STR_EMPTY};
+use hakana_reflection_info::{StrId, STR_CONSTRUCT, STR_EMPTY, Interner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -15,6 +15,7 @@ pub(crate) fn find_unused_definitions(
     analysis_result: &mut AnalysisResult,
     config: &Arc<Config>,
     codebase: &CodebaseInfo,
+    interner: &Interner,
     ignored_paths: &Option<FxHashSet<String>>,
 ) {
     let referenced_symbols_and_members = analysis_result
@@ -30,7 +31,7 @@ pub(crate) fn find_unused_definitions(
             && !functionlike_info.generated
         {
             let pos = functionlike_info.name_location.as_ref().unwrap();
-            let file_path = codebase.interner.lookup(&pos.file_path);
+            let file_path = interner.lookup(&pos.file_path);
 
             if let Some(ignored_paths) = ignored_paths {
                 for ignored_path in ignored_paths {
@@ -53,12 +54,12 @@ pub(crate) fn find_unused_definitions(
 
                 if config.migration_symbols.contains(&(
                     "unused_symbol".to_string(),
-                    codebase.interner.lookup(function_name).to_string(),
+                    interner.lookup(function_name).to_string(),
                 )) {
                     let def_pos = &functionlike_info.def_location;
                     analysis_result
                         .replacements
-                        .entry(codebase.interner.lookup(&pos.file_path).to_string())
+                        .entry(interner.lookup(&pos.file_path).to_string())
                         .or_insert_with(BTreeMap::new)
                         .insert(
                             (def_pos.start_offset, def_pos.end_offset),
@@ -72,7 +73,7 @@ pub(crate) fn find_unused_definitions(
                     IssueKind::UnusedFunction,
                     format!(
                         "Unused function {}",
-                        codebase.interner.lookup(&function_name)
+                        interner.lookup(&function_name)
                     ),
                     pos.clone(),
                     &Some(FunctionLikeIdentifier::Function(*function_name)),
@@ -96,7 +97,7 @@ pub(crate) fn find_unused_definitions(
     'outer2: for (classlike_name, classlike_info) in &codebase.classlike_infos {
         if classlike_info.user_defined && !classlike_info.generated {
             let pos = &classlike_info.name_location;
-            let file_path = codebase.interner.lookup(&pos.file_path);
+            let file_path = interner.lookup(&pos.file_path);
 
             if let Some(ignored_paths) = ignored_paths {
                 for ignored_path in ignored_paths {
@@ -123,7 +124,7 @@ pub(crate) fn find_unused_definitions(
                     IssueKind::UnusedClass,
                     format!(
                         "Unused class, interface or enum {}",
-                        codebase.interner.lookup(classlike_name)
+                        interner.lookup(classlike_name)
                     ),
                     pos.clone(),
                     &Some(FunctionLikeIdentifier::Function(*classlike_name)),
@@ -131,12 +132,12 @@ pub(crate) fn find_unused_definitions(
 
                 if config.migration_symbols.contains(&(
                     "unused_symbol".to_string(),
-                    codebase.interner.lookup(classlike_name).to_string(),
+                    interner.lookup(classlike_name).to_string(),
                 )) {
                     let def_pos = &classlike_info.def_location;
                     analysis_result
                         .replacements
-                        .entry(codebase.interner.lookup(&pos.file_path).to_string())
+                        .entry(interner.lookup(&pos.file_path).to_string())
                         .or_insert_with(BTreeMap::new)
                         .insert(
                             (def_pos.start_offset, def_pos.end_offset),
@@ -160,7 +161,7 @@ pub(crate) fn find_unused_definitions(
             } else {
                 'inner: for (method_name_ptr, functionlike_storage) in &classlike_info.methods {
                     if *method_name_ptr != STR_EMPTY {
-                        let method_name = codebase.interner.lookup(method_name_ptr);
+                        let method_name = interner.lookup(method_name_ptr);
 
                         if method_name.starts_with("__") {
                             continue;
@@ -223,8 +224,8 @@ pub(crate) fn find_unused_definitions(
                                     IssueKind::UnusedPrivateMethod,
                                     format!(
                                         "Unused method {}::{}",
-                                        codebase.interner.lookup(classlike_name),
-                                        codebase.interner.lookup(method_name_ptr)
+                                        interner.lookup(classlike_name),
+                                        interner.lookup(method_name_ptr)
                                     ),
                                     functionlike_storage.name_location.clone().unwrap(),
                                     &Some(FunctionLikeIdentifier::Method(
@@ -237,8 +238,8 @@ pub(crate) fn find_unused_definitions(
                                     IssueKind::UnusedPublicOrProtectedMethod,
                                     format!(
                                         "Possibly-unused method {}::{}",
-                                        codebase.interner.lookup(classlike_name),
-                                        codebase.interner.lookup(method_name_ptr)
+                                        interner.lookup(classlike_name),
+                                        interner.lookup(method_name_ptr)
                                     ),
                                     functionlike_storage.name_location.clone().unwrap(),
                                     &Some(FunctionLikeIdentifier::Method(
@@ -248,7 +249,7 @@ pub(crate) fn find_unused_definitions(
                                 )
                             };
 
-                        let file_path = codebase.interner.lookup(&pos.file_path);
+                        let file_path = interner.lookup(&pos.file_path);
 
                         if !config.allow_issue_kind_in_file(&issue.kind, &file_path) {
                             continue;

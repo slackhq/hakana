@@ -4,7 +4,8 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
+    Interner, StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_KEYED_TRAVERSABLE,
+    STR_TRAVERSABLE,
 };
 use itertools::Itertools;
 use type_combiner::combine;
@@ -358,12 +359,12 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             name,
             type_params: Some(type_params),
             ..
-        } => match codebase.interner.lookup(name) {
-            "HH\\KeyedContainer" | "HH\\KeyedTraversable" | "HH\\AnyArray" => Some((
+        } => match name {
+            &STR_KEYED_CONTAINER | &STR_KEYED_TRAVERSABLE | &STR_ANY_ARRAY => Some((
                 type_params.get(0).unwrap().clone(),
                 type_params.get(1).unwrap().clone(),
             )),
-            "HH\\Container" | "HH\\Traversable" => {
+            &STR_CONTAINER | &STR_TRAVERSABLE => {
                 Some((get_arraykey(true), type_params.get(0).unwrap().clone()))
             }
             _ => None,
@@ -414,28 +415,21 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             name,
             type_params: Some(type_params),
             ..
-        } => match codebase.interner.lookup(name) {
-            "HH\\KeyedContainer" | "HH\\KeyedTraversable" | "HH\\AnyArray" => {
+        } => match name {
+            &STR_KEYED_CONTAINER | &STR_KEYED_TRAVERSABLE | &STR_ANY_ARRAY => {
                 Some(type_params.get(1).unwrap().clone())
             }
-            "HH\\Container" | "HH\\Traversable" => Some(type_params.get(0).unwrap().clone()),
+            &STR_CONTAINER | &STR_TRAVERSABLE => Some(type_params.get(0).unwrap().clone()),
             _ => None,
         },
         _ => None,
     }
 }
 
-pub fn is_array_container(name: &String) -> bool {
-    name == "HH\\Traversable"
-        || name == "HH\\KeyedTraversable"
-        || name == "HH\\Container"
-        || name == "HH\\KeyedContainer"
-        || name == "HH\\AnyArray"
-}
-
 pub fn get_union_syntax_type(
     union: &TUnion,
     codebase: &CodebaseInfo,
+    interner: &Interner,
     is_valid: &mut bool,
 ) -> String {
     let mut t_atomic_strings = FxHashSet::default();
@@ -450,7 +444,7 @@ pub fn get_union_syntax_type(
         }
 
         t_atomic_strings.insert({
-            let s = get_atomic_syntax_type(atomic, codebase, is_valid);
+            let s = get_atomic_syntax_type(atomic, codebase, interner, is_valid);
             if let TAtomic::TNamedObject {
                 name,
                 type_params: None,
@@ -478,7 +472,7 @@ pub fn get_union_syntax_type(
     if t_atomic_strings.len() != 1 && t_atomic_strings.len() == t_object_parents.len() {
         let flattened_parents = t_object_parents
             .into_iter()
-            .map(|(_, v)| codebase.interner.lookup(&v).to_string())
+            .map(|(_, v)| interner.lookup(&v).to_string())
             .collect::<FxHashSet<_>>();
 
         if flattened_parents.len() == 1 {
@@ -506,13 +500,14 @@ pub fn get_union_syntax_type(
 pub fn get_atomic_syntax_type(
     atomic: &TAtomic,
     codebase: &CodebaseInfo,
+    interner: &Interner,
     is_valid: &mut bool,
 ) -> String {
     match atomic {
         TAtomic::TArraykey { .. } => "arraykey".to_string(),
         TAtomic::TBool { .. } => "bool".to_string(),
         TAtomic::TClassname { as_type, .. } => {
-            let as_string = get_atomic_syntax_type(as_type, codebase, is_valid);
+            let as_string = get_atomic_syntax_type(as_type, codebase, interner, is_valid);
             let mut str = String::new();
             str += "classname<";
             str += as_string.as_str();
@@ -520,7 +515,7 @@ pub fn get_atomic_syntax_type(
             str
         }
         TAtomic::TTypename { as_type, .. } => {
-            let as_string = get_atomic_syntax_type(as_type, codebase, is_valid);
+            let as_string = get_atomic_syntax_type(as_type, codebase, interner, is_valid);
             let mut str = String::new();
             str += "typename<";
             str += as_string.as_str();
@@ -537,11 +532,11 @@ pub fn get_atomic_syntax_type(
                 return if let Some(shape_member_name) = &shape_name.1 {
                     format!(
                         "{}::{}",
-                        codebase.interner.lookup(&shape_name.0),
-                        codebase.interner.lookup(shape_member_name)
+                        interner.lookup(&shape_name.0),
+                        interner.lookup(shape_member_name)
                     )
                 } else {
-                    codebase.interner.lookup(&shape_name.0).to_string()
+                    interner.lookup(&shape_name.0).to_string()
                 };
             }
 
@@ -558,11 +553,11 @@ pub fn get_atomic_syntax_type(
                     for (property, (pu, property_type)) in known_items {
                         known_item_strings.push({
                             let property_type_string =
-                                get_union_syntax_type(property_type, codebase, is_valid);
+                                get_union_syntax_type(property_type, codebase, interner, is_valid);
                             format!(
                                 "{}'{}' => {}",
                                 if *pu { "?".to_string() } else { "".to_string() },
-                                property.to_string(Some(&codebase.interner)),
+                                property.to_string(Some(interner)),
                                 property_type_string
                             )
                         })
@@ -579,14 +574,14 @@ pub fn get_atomic_syntax_type(
             }
 
             return if let Some(params) = params {
-                let key_param = get_union_syntax_type(&params.0, codebase, is_valid);
-                let value_param = get_union_syntax_type(&params.1, codebase, is_valid);
+                let key_param = get_union_syntax_type(&params.0, codebase, interner, is_valid);
+                let value_param = get_union_syntax_type(&params.1, codebase, interner, is_valid);
                 format!("dict<{}, {}>", key_param, value_param)
             } else {
                 "dict<nothing, nothing>".to_string()
             };
         }
-        TAtomic::TEnum { name, .. } => codebase.interner.lookup(name).to_string(),
+        TAtomic::TEnum { name, .. } => interner.lookup(name).to_string(),
         TAtomic::TFalse { .. } => "bool".to_string(),
         TAtomic::TFloat { .. } => "float".to_string(),
         TAtomic::TClosure { .. } => {
@@ -605,41 +600,35 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TKeyset { type_param, .. } => {
-            let type_param = get_union_syntax_type(type_param, codebase, is_valid);
+            let type_param = get_union_syntax_type(type_param, codebase, interner, is_valid);
             format!("keyset<{}>", type_param)
         }
         TAtomic::TLiteralClassname { .. } => {
             *is_valid = false;
             "_".to_string()
         }
-        TAtomic::TEnumLiteralCase { enum_name, .. } => {
-            codebase.interner.lookup(enum_name).to_string()
-        }
+        TAtomic::TEnumLiteralCase { enum_name, .. } => interner.lookup(enum_name).to_string(),
         TAtomic::TLiteralInt { .. } => "int".to_string(),
         TAtomic::TLiteralString { .. } | TAtomic::TStringWithFlags(..) => "string".to_string(),
         TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => "mixed".to_string(),
         TAtomic::TNamedObject {
             name, type_params, ..
         } => match type_params {
-            None => codebase.interner.lookup(name).to_string(),
+            None => interner.lookup(name).to_string(),
             Some(type_params) => {
                 let mut param_strings = vec![];
                 for param in type_params {
-                    param_strings.push(get_union_syntax_type(param, codebase, is_valid));
+                    param_strings.push(get_union_syntax_type(param, codebase, interner, is_valid));
                 }
 
-                format!(
-                    "{}<{}>",
-                    codebase.interner.lookup(name),
-                    param_strings.join(", ")
-                )
+                format!("{}<{}>", interner.lookup(name), param_strings.join(", "))
             }
         },
         TAtomic::TTypeAlias {
             name, type_params, ..
         } => {
             if let None = type_params {
-                codebase.interner.lookup(name).to_string()
+                interner.lookup(name).to_string()
             } else {
                 *is_valid = false;
                 "_".to_string()
@@ -656,17 +645,15 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TString { .. } => "string".to_string(),
-        TAtomic::TGenericParam { param_name, .. } => {
-            codebase.interner.lookup(param_name).to_string()
-        }
+        TAtomic::TGenericParam { param_name, .. } => interner.lookup(param_name).to_string(),
         TAtomic::TGenericClassname {
             param_name,
             defining_entity,
             ..
         } => format!(
             "classname<{}:{}>",
-            codebase.interner.lookup(param_name),
-            codebase.interner.lookup(defining_entity)
+            interner.lookup(param_name),
+            interner.lookup(defining_entity)
         ),
         TAtomic::TGenericTypename {
             param_name,
@@ -674,8 +661,8 @@ pub fn get_atomic_syntax_type(
             ..
         } => format!(
             "typename<{}:{}>",
-            codebase.interner.lookup(param_name),
-            codebase.interner.lookup(defining_entity)
+            interner.lookup(param_name),
+            interner.lookup(defining_entity)
         ),
         TAtomic::TTrue { .. } => "bool".to_string(),
         TAtomic::TVec {
@@ -689,7 +676,8 @@ pub fn get_atomic_syntax_type(
                     let mut all_good = true;
                     for (i, (offset, (pu, t))) in known_items.iter().enumerate() {
                         if i == *offset && !pu {
-                            known_item_strings.push(get_union_syntax_type(t, codebase, is_valid))
+                            known_item_strings
+                                .push(get_union_syntax_type(t, codebase, interner, is_valid))
                         } else {
                             all_good = false;
                             break;
@@ -704,7 +692,7 @@ pub fn get_atomic_syntax_type(
 
             let type_param = get_value_param(atomic, codebase).unwrap();
 
-            let type_param = get_union_syntax_type(&type_param, codebase, is_valid);
+            let type_param = get_union_syntax_type(&type_param, codebase, interner, is_valid);
             format!("vec<{}>", type_param)
         }
         TAtomic::TVoid => "void".to_string(),
@@ -728,8 +716,8 @@ pub fn get_atomic_syntax_type(
             class_type,
             member_name,
         } => {
-            let lhs = get_atomic_syntax_type(class_type, codebase, is_valid);
-            format!("{}::{}", lhs, codebase.interner.lookup(member_name))
+            let lhs = get_atomic_syntax_type(class_type, codebase, interner, is_valid);
+            format!("{}::{}", lhs, interner.lookup(member_name))
         }
         TAtomic::TEnumClassLabel { .. } => {
             *is_valid = false;
