@@ -8,7 +8,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::populate_union_type,
 };
-use hakana_reflection_info::{StrId, STR_ISSET, STR_SHAPES};
+use hakana_reflection_info::{Interner, StrId, STR_ISSET, STR_SHAPES};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::type_expander::{self, TypeExpansionOptions};
 use oxidized::{
@@ -52,7 +52,15 @@ pub(crate) fn scrape_assertions(
             );
         }
         aast::Expr_::Call(call) => {
-            let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
+            let functionlike_id = get_functionlike_id_from_call(
+                call,
+                if let Some((_, interner)) = assertion_context.codebase {
+                    Some(interner)
+                } else {
+                    None
+                },
+                assertion_context.resolved_names,
+            );
 
             if let Some(FunctionLikeIdentifier::Function(name)) = functionlike_id {
                 return scrape_function_assertions(
@@ -262,7 +270,15 @@ fn scrape_shapes_isset(
 ) {
     match &var_expr.2 {
         aast::Expr_::Call(call) => {
-            let functionlike_id = get_functionlike_id_from_call(call, assertion_context);
+            let functionlike_id = get_functionlike_id_from_call(
+                call,
+                if let Some((_, interner)) = assertion_context.codebase {
+                    Some(interner)
+                } else {
+                    None
+                },
+                assertion_context.resolved_names,
+            );
 
             if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
                 if let Some((codebase, interner)) = assertion_context.codebase {
@@ -308,25 +324,25 @@ fn scrape_shapes_isset(
     }
 }
 
-fn get_functionlike_id_from_call(
+pub(crate) fn get_functionlike_id_from_call(
     call: &(
         aast::Expr<(), ()>,
         Vec<aast::Targ<()>>,
         Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
         Option<aast::Expr<(), ()>>,
     ),
-    assertion_context: &AssertionContext,
+    interner: Option<&Interner>,
+    resolved_names: &FxHashMap<usize, StrId>,
 ) -> Option<FunctionLikeIdentifier> {
     match &call.0 .2 {
         aast::Expr_::Id(boxed_id) => {
-            if let Some((_, interner)) = assertion_context.codebase {
+            if let Some(interner) = interner {
                 let name = if boxed_id.1 == "isset" {
                     STR_ISSET
                 } else if boxed_id.1 == "\\in_array" {
                     interner.get("in_array").unwrap()
                 } else {
-                    assertion_context
-                        .resolved_names
+                    resolved_names
                         .get(&boxed_id.0.start_offset())
                         .unwrap()
                         .clone()
@@ -338,13 +354,13 @@ fn get_functionlike_id_from_call(
             }
         }
         aast::Expr_::ClassConst(boxed) => {
-            if let Some((_, interner)) = assertion_context.codebase {
+            if let Some(interner) = interner {
                 let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
 
                 match &class_id.2 {
                     aast::ClassId_::CIexpr(lhs_expr) => {
                         if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                            let resolved_names = assertion_context.resolved_names;
+                            let resolved_names = resolved_names;
 
                             if let (Some(class_name), Some(method_name)) = (
                                 resolved_names.get(&id.0.start_offset()),
