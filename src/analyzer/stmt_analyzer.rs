@@ -1,7 +1,9 @@
 use hakana_reflection_info::code_location::StmtStart;
+use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::STR_AWAITABLE;
 
 use crate::custom_hook::AfterStmtAnalysisData;
+use crate::expr::assertion_finder::get_functionlike_id_from_call;
 use crate::expr::binop::assignment_analyzer;
 
 use crate::expression_analyzer;
@@ -55,7 +57,34 @@ pub(crate) fn analyze(
                 return false;
             }
 
-            if let aast::Expr_::Call(..) = &boxed.2 {
+            if let aast::Expr_::Call(boxed_call) = &boxed.2 {
+                let functionlike_id = get_functionlike_id_from_call(
+                    boxed_call,
+                    Some(statements_analyzer.get_interner()),
+                    statements_analyzer.get_file_analyzer().resolved_names,
+                );
+                if let Some(functionlike_id) = functionlike_id {
+                    if let FunctionLikeIdentifier::Function(function_id) = functionlike_id {
+                        let codebase = statements_analyzer.get_codebase();
+                        if let Some(functionlike_info) =
+                            codebase.functionlike_infos.get(&function_id)
+                        {
+                            if functionlike_info.must_use {
+                                tast_info.maybe_add_issue(
+                                    Issue::new(
+                                        IssueKind::UnusedFunctionCall,
+                                        "This function is annotated with MustUse but the returned value is not used".to_string(),
+                                        statements_analyzer.get_hpos(&stmt.0),
+                                        &context.function_context.calling_functionlike_id,
+                                    ),
+                                    statements_analyzer.get_config(),
+                                    statements_analyzer.get_file_path_actual(),
+                                );
+                            }
+                        }
+                    }
+                }
+
                 if let Some(expr_type) = tast_info.get_rc_expr_type(boxed.pos()).cloned() {
                     for atomic_type in &expr_type.types {
                         if let TAtomic::TNamedObject {
