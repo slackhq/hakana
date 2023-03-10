@@ -133,6 +133,7 @@ pub trait TestRunner {
                 .insert(IssueKind::from_str_custom(&issue_name, &FxHashSet::default()).unwrap());
 
             analysis_config.add_fixmes = true;
+            analysis_config.find_unused_expressions = true;
         } else if dir.contains("/remove-unused-fixmes/") {
             analysis_config.remove_fixmes = true;
             analysis_config.find_unused_expressions = true;

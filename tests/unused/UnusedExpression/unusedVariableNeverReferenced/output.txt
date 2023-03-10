@@ -1,0 +1,2 @@
+ERROR: UnusedStatement - input.hack:2:5 - Assignment to $a is unused, and this expression has no effect
+ERROR: UnusedStatement - input.hack:3:5 - Assignment to $b is unused, and this expression has no effect

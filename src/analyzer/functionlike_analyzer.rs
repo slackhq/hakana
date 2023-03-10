@@ -12,7 +12,7 @@ use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
-use hakana_reflection_info::code_location::StmtStart;
+use hakana_reflection_info::code_location::{HPos, StmtStart};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind, VariableSourceKind};
@@ -894,6 +894,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             }
                         },
                         label: param.name.clone(),
+                        pure: false,
                     },
                 }
             };
@@ -974,9 +975,46 @@ fn report_unused_expressions(
 
     let mut unused_variable_nodes = vec![];
 
-    for node in &unused_source_nodes {
+    for node in &unused_source_nodes.0 {
         match &node.kind {
-            DataFlowNodeKind::VariableUseSource { kind, label, pos } => {
+            DataFlowNodeKind::VariableUseSource {
+                kind,
+                label,
+                pos,
+                pure,
+            } => {
+                if label.starts_with("$_") {
+                    continue;
+                }
+
+                match &kind {
+                    VariableSourceKind::Default => {
+                        handle_unused_assignment(
+                            config,
+                            statements_analyzer,
+                            pos,
+                            &mut unused_variable_nodes,
+                            node,
+                            tast_info,
+                            label,
+                            calling_functionlike_id,
+                            pure,
+                        );
+                    }
+                    _ => {}
+                }
+            }
+            _ => {
+                panic!()
+            }
+        };
+    }
+
+    for node in &unused_source_nodes.1 {
+        match &node.kind {
+            DataFlowNodeKind::VariableUseSource {
+                kind, label, pos, ..
+            } => {
                 if label.starts_with("$_") {
                     continue;
                 }
@@ -1011,54 +1049,17 @@ fn report_unused_expressions(
                         // todo register closure param
                     }
                     VariableSourceKind::Default => {
-                        if config.allow_issue_kind_in_file(
-                            &IssueKind::UnusedAssignment,
-                            statements_analyzer.get_interner().lookup(&pos.file_path),
-                        ) {
-                            if config.issues_to_fix.contains(&IssueKind::UnusedAssignment)
-                                && !config.add_fixmes
-                            {
-                                unused_variable_nodes.push(node.clone());
-                            } else {
-                                let unused_closure_variable = tast_info.closure_spans.iter().any(
-                                    |(closure_start, closure_end)| {
-                                        &pos.start_offset > closure_start
-                                            && &pos.start_offset < closure_end
-                                    },
-                                );
-
-                                tast_info.maybe_add_issue(
-                                    if label == "$$" {
-                                        Issue::new(
-                                            IssueKind::UnusedPipeVariable,
-                                            "The pipe data in this expression is not used anywhere"
-                                                .to_string(),
-                                            pos.clone(),
-                                            calling_functionlike_id,
-                                        )
-                                    } else if unused_closure_variable {
-                                        Issue::new(
-                                            IssueKind::UnusedAssignmentInClosure,
-                                            format!(
-                                                "Assignment to {} is unused in this closure ",
-                                                label
-                                            ),
-                                            pos.clone(),
-                                            calling_functionlike_id,
-                                        )
-                                    } else {
-                                        Issue::new(
-                                            IssueKind::UnusedAssignment,
-                                            format!("Assignment to {} is unused", label),
-                                            pos.clone(),
-                                            calling_functionlike_id,
-                                        )
-                                    },
-                                    statements_analyzer.get_config(),
-                                    statements_analyzer.get_file_path_actual(),
-                                );
-                            }
-                        }
+                        handle_unused_assignment(
+                            config,
+                            statements_analyzer,
+                            pos,
+                            &mut unused_variable_nodes,
+                            node,
+                            tast_info,
+                            label,
+                            calling_functionlike_id,
+                            &false,
+                        );
                     }
                     VariableSourceKind::InoutParam => {
                         // do nothing
@@ -1078,6 +1079,78 @@ fn report_unused_expressions(
             &unused_variable_nodes,
             statements_analyzer,
         )
+    }
+}
+
+fn handle_unused_assignment(
+    config: &Config,
+    statements_analyzer: &StatementsAnalyzer,
+    pos: &HPos,
+    unused_variable_nodes: &mut Vec<DataFlowNode>,
+    node: &DataFlowNode,
+    tast_info: &mut TastInfo,
+    label: &String,
+    calling_functionlike_id: &Option<FunctionLikeIdentifier>,
+    pure: &bool,
+) {
+    if config.allow_issue_kind_in_file(
+        &IssueKind::UnusedAssignment,
+        statements_analyzer.get_interner().lookup(&pos.file_path),
+    ) {
+        let unused_closure_variable =
+            tast_info
+                .closure_spans
+                .iter()
+                .any(|(closure_start, closure_end)| {
+                    &pos.start_offset > closure_start && &pos.start_offset < closure_end
+                });
+
+        if (config.issues_to_fix.contains(&IssueKind::UnusedAssignment)
+            || (*pure && config.issues_to_fix.contains(&IssueKind::UnusedStatement)))
+            && !config.add_fixmes
+            && !unused_closure_variable
+        {
+            unused_variable_nodes.push(node.clone());
+        } else {
+            tast_info.maybe_add_issue(
+                if label == "$$" {
+                    Issue::new(
+                        IssueKind::UnusedPipeVariable,
+                        "The pipe data in this expression is not used anywhere".to_string(),
+                        pos.clone(),
+                        calling_functionlike_id,
+                    )
+                } else if unused_closure_variable {
+                    Issue::new(
+                        IssueKind::UnusedAssignmentInClosure,
+                        format!("Assignment to {} is unused in this closure ", label),
+                        pos.clone(),
+                        calling_functionlike_id,
+                    )
+                } else {
+                    if *pure {
+                        Issue::new(
+                            IssueKind::UnusedStatement,
+                            format!(
+                                "Assignment to {} is unused, and this expression has no effect",
+                                label
+                            ),
+                            pos.clone(),
+                            calling_functionlike_id,
+                        )
+                    } else {
+                        Issue::new(
+                            IssueKind::UnusedAssignment,
+                            format!("Assignment to {} is unused", label),
+                            pos.clone(),
+                            calling_functionlike_id,
+                        )
+                    }
+                },
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
     }
 }
 

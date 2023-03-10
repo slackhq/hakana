@@ -131,6 +131,7 @@ impl TastInfo {
                         issue.kind.to_string(),
                         if let IssueKind::UnusedParameter
                         | IssueKind::UnusedAssignment
+                        | IssueKind::UnusedStatement
                         | IssueKind::UnusedFunction
                         | IssueKind::UnusedPrivateMethod = issue.kind
                         {
@@ -174,7 +175,10 @@ impl TastInfo {
                 || hakana_fixme_or_ignores.0 == &(issue.pos.end_line - 1)
             {
                 for line_issue in hakana_fixme_or_ignores.1 {
-                    if line_issue.0 == issue.kind {
+                    if line_issue.0 == issue.kind
+                        || (line_issue.0 == IssueKind::UnusedAssignment
+                            && issue.kind == IssueKind::UnusedStatement)
+                    {
                         self.matched_ignore_positions
                             .insert((line_issue.1 .0, line_issue.1 .1));
 
@@ -438,6 +442,17 @@ impl TastInfo {
                     .unwrap_or(&0)
                 | effect,
         );
+    }
+
+    pub(crate) fn is_pure(&self, source_pos: &Pos) -> bool {
+        if let Some(expr_effect) = self
+            .expr_effects
+            .get(&(source_pos.start_offset(), source_pos.end_offset()))
+        {
+            expr_effect == &0
+        } else {
+            true
+        }
     }
 
     #[inline]

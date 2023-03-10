@@ -108,6 +108,7 @@ pub(crate) fn analyze(
                     .add_node(DataFlowNode::get_for_variable_source(
                         root_var_id.clone(),
                         statements_analyzer.get_hpos(root_array_expr.pos()),
+                        false,
                     ));
             }
         }

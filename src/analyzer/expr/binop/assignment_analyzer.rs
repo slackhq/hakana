@@ -609,6 +609,11 @@ fn analyze_assignment_to_variable(
                 .add_node(DataFlowNode::get_for_variable_source(
                     var_id.clone(),
                     statements_analyzer.get_hpos(var_expr.pos()),
+                    if let Some(source_expr) = source_expr {
+                        tast_info.is_pure(source_expr.pos())
+                    } else {
+                        false
+                    },
                 ));
         }
     }

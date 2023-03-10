@@ -22,7 +22,13 @@ use hakana_reflection_info::data_flow::path::ArrayDataKind;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
 
-pub fn check_variables_used(graph: &DataFlowGraph) -> Vec<DataFlowNode> {
+enum VariableUsage {
+    NeverReferenced,
+    ReferencedButNotUsed,
+    Used,
+}
+
+pub fn check_variables_used(graph: &DataFlowGraph) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
     let vars = graph
         .sources
         .iter()
@@ -46,17 +52,37 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> Vec<DataFlowNode> {
     // }
 
     let mut unused_nodes = Vec::new();
+    let mut unused_but_referenced_nodes = Vec::new();
 
     for (_, source_node) in vars {
-        if !is_variable_used(graph, source_node) {
-            unused_nodes.push(source_node.clone());
+        match is_variable_used(graph, source_node) {
+            VariableUsage::NeverReferenced => {
+                if let DataFlowNode {
+                    kind:
+                        DataFlowNodeKind::VariableUseSource {
+                            pure: true,
+                            kind: VariableSourceKind::Default,
+                            ..
+                        },
+                    ..
+                } = source_node
+                {
+                    unused_nodes.push(source_node.clone());
+                } else {
+                    unused_but_referenced_nodes.push(source_node.clone());
+                }
+            }
+            VariableUsage::ReferencedButNotUsed => {
+                unused_but_referenced_nodes.push(source_node.clone());
+            }
+            VariableUsage::Used => {}
         }
     }
 
-    unused_nodes
+    (unused_nodes, unused_but_referenced_nodes)
 }
 
-fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> bool {
+fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> VariableUsage {
     let mut visited_source_ids = FxHashSet::default();
 
     let mut sources = FxHashMap::default();
@@ -81,7 +107,7 @@ fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> bool {
             if let Some(child_nodes) = child_nodes {
                 new_child_nodes.extend(child_nodes);
             } else {
-                return true;
+                return VariableUsage::Used;
             }
         }
 
@@ -90,7 +116,11 @@ fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> bool {
         i += 1;
     }
 
-    false
+    if i == 1 {
+        VariableUsage::NeverReferenced
+    } else {
+        VariableUsage::ReferencedButNotUsed
+    }
 }
 
 fn get_variable_child_nodes(
@@ -327,7 +357,9 @@ impl VariableUseNode {
                     kind: VariableSourceKind::Default,
                     name: "".to_string(),
                 },
-                DataFlowNodeKind::VariableUseSource { kind, label, pos } => Self {
+                DataFlowNodeKind::VariableUseSource {
+                    kind, label, pos, ..
+                } => Self {
                     pos: Rc::new(pos.clone()),
                     path_types: Vec::new(),
                     kind: kind.clone(),

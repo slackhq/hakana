@@ -35,6 +35,7 @@ pub(crate) fn analyze(
         let parent_node = DataFlowNode::get_for_variable_source(
             "$$".to_string(),
             statements_analyzer.get_hpos(&expr.1.pos()),
+            false,
         );
 
         pipe_expr_type.parent_nodes.insert(parent_node.clone());

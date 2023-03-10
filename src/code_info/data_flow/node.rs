@@ -36,6 +36,7 @@ pub enum DataFlowNodeKind {
         pos: HPos,
         kind: VariableSourceKind,
         label: String,
+        pure: bool,
     },
     VariableUseSink {
         pos: HPos,
@@ -219,7 +220,7 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_for_variable_source(label: String, assignment_location: HPos) -> Self {
+    pub fn get_for_variable_source(label: String, assignment_location: HPos, pure: bool) -> Self {
         let id = format!(
             "{}-{}:{}-{}",
             label,
@@ -234,6 +235,7 @@ impl DataFlowNode {
                 pos: assignment_location,
                 kind: VariableSourceKind::Default,
                 label,
+                pure,
             },
         }
     }
