@@ -420,6 +420,9 @@ pub(crate) fn get_functionlike(
 
                 functionlike_info.removed_taints = Some(removed_types);
             }
+            "Hakana\\MustUse" => {
+                functionlike_info.must_use = true;
+            }
             "__EntryPoint" => {
                 functionlike_info.dynamically_callable = true;
                 functionlike_info.ignore_taint_path = true;

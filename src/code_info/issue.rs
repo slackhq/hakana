@@ -115,6 +115,7 @@ pub enum IssueKind {
     UnusedClass,
     UnusedStatement,
     UnusedFunction,
+    UnusedFunctionCall,
     UnusedInterface,
     UnusedParameter,
     UnusedPipeVariable,

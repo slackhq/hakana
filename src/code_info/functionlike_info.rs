@@ -92,6 +92,8 @@ pub struct FunctionLikeInfo {
 
     pub is_async: bool,
 
+    pub must_use: bool,
+
     pub mutation_free: bool,
 
     pub effects: FnEffect,
@@ -177,6 +179,7 @@ impl FunctionLikeInfo {
             attributes: Vec::new(),
             method_info: None,
             is_async: false,
+            must_use: false,
             ignore_taint_path: false,
             user_defined: false,
             dynamically_callable: false,
