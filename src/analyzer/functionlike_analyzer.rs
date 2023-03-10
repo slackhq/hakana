@@ -949,6 +949,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         param_type: &param_type,
                         param_node,
                         codebase: statements_analyzer.get_codebase(),
+                        interner: statements_analyzer.get_interner(),
                     },
                 );
             }

@@ -1,4 +1,5 @@
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::Interner;
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo, t_union::TUnion,
 };
@@ -30,6 +31,7 @@ pub struct FunctionLikeParamData<'a> {
     pub param_type: &'a TUnion,
     pub param_node: &'a aast::FunParam<(), ()>,
     pub codebase: &'a CodebaseInfo,
+    pub interner: &'a Interner,
 }
 
 pub struct AfterArgAnalysisData<'a> {
