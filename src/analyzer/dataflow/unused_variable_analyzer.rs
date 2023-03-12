@@ -260,12 +260,16 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                     ((span.start.beg_of_line() as usize) - 1, stmt.0.end_offset()),
                                     Replacement::Remove,
                                 );
+
+                                self.remove_fixme_comments(stmt, tast_info);
                             }
                         } else {
                             tast_info.replacements.insert(
                                 (stmt.0.start_offset(), boxed.2 .1.start_offset()),
                                 Replacement::Remove,
                             );
+
+                            self.remove_fixme_comments(stmt, tast_info);
 
                             // remove trailing array fetches
                             if let aast::Expr_::ArrayGet(array_get) = &boxed.2 .2 {
@@ -292,22 +296,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                     }
                                 }
                             }
-
-                            for (pos, comment) in self.comments {
-                                if pos.line() == stmt.0.line() {
-                                    match comment {
-                                        Comment::CmtBlock(block) => {
-                                            if block.trim() == "HHAST_FIXME[UnusedVariable]" {
-                                                tast_info.replacements.insert(
-                                                    (pos.start_offset(), stmt.0.start_offset()),
-                                                    Replacement::Remove,
-                                                );
-                                            }
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
                         }
                     }
                 }
@@ -315,6 +303,46 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
 
         stmt.recurse(tast_info, self)
+    }
+}
+
+impl<'a> Scanner<'a> {
+    fn remove_fixme_comments(&mut self, stmt: &aast::Stmt<(), ()>, tast_info: &mut TastInfo) {
+        for (comment_pos, comment) in self.comments {
+            if comment_pos.line() == stmt.0.line() {
+                match comment {
+                    Comment::CmtBlock(block) => {
+                        if block.trim() == "HHAST_FIXME[UnusedVariable]" {
+                            tast_info.replacements.insert(
+                                (comment_pos.start_offset(), stmt.0.start_offset()),
+                                Replacement::Remove,
+                            );
+                        }
+                    }
+                    _ => {}
+                }
+            } else if comment_pos.line() == stmt.0.line() - 1 {
+                match comment {
+                    Comment::CmtBlock(block) => {
+                        if let "HAKANA_FIXME[UnusedAssignment]"
+                        | "HAKANA_FIXME[UnusedAssignmentStatement]" = block.trim()
+                        {
+                            let stmt_start = stmt.0.to_raw_span().start;
+                            tast_info.replacements.insert(
+                                (
+                                    comment_pos.start_offset(),
+                                    (stmt_start.beg_of_line() as usize) - 1,
+                                ),
+                                Replacement::TrimPrecedingWhitespace(
+                                    comment_pos.to_raw_span().start.beg_of_line(),
+                                ),
+                            );
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 }
 
