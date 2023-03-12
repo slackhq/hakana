@@ -1,5 +1,5 @@
 function foo(): void {
-	/* HAKANA_FIXME[UnusedStatement] */
+	/* HAKANA_FIXME[UnusedAssignmentStatement] */
 	$a = 0;
 	if (rand(0, 1)) {
 		$a = 1;

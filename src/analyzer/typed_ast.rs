@@ -131,7 +131,7 @@ impl TastInfo {
                         issue.kind.to_string(),
                         if let IssueKind::UnusedParameter
                         | IssueKind::UnusedAssignment
-                        | IssueKind::UnusedStatement
+                        | IssueKind::UnusedAssignmentStatement
                         | IssueKind::UnusedFunction
                         | IssueKind::UnusedPrivateMethod = issue.kind
                         {
@@ -177,7 +177,7 @@ impl TastInfo {
                 for line_issue in hakana_fixme_or_ignores.1 {
                     if line_issue.0 == issue.kind
                         || (line_issue.0 == IssueKind::UnusedAssignment
-                            && issue.kind == IssueKind::UnusedStatement)
+                            && issue.kind == IssueKind::UnusedAssignmentStatement)
                     {
                         self.matched_ignore_positions
                             .insert((line_issue.1 .0, line_issue.1 .1));

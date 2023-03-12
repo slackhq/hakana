@@ -1107,7 +1107,7 @@ fn handle_unused_assignment(
                 });
 
         if (config.issues_to_fix.contains(&IssueKind::UnusedAssignment)
-            || (*pure && config.issues_to_fix.contains(&IssueKind::UnusedStatement)))
+            || (*pure && config.issues_to_fix.contains(&IssueKind::UnusedAssignmentStatement)))
             && !config.add_fixmes
             && !unused_closure_variable
         {
@@ -1131,7 +1131,7 @@ fn handle_unused_assignment(
                 } else {
                     if *pure {
                         Issue::new(
-                            IssueKind::UnusedStatement,
+                            IssueKind::UnusedAssignmentStatement,
                             format!(
                                 "Assignment to {} is unused, and this expression has no effect",
                                 label
