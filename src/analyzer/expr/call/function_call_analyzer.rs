@@ -1,14 +1,14 @@
 use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
+use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::StrId;
+use hakana_reflection_info::{StrId, EFFECT_WRITE_PROPS};
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{get_arrayish_params, get_void};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use crate::expr::call::arguments_analyzer;
-use crate::expr::call_analyzer::check_template_result;
+use crate::expr::call_analyzer::{apply_effects, check_template_result};
 use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_analyzer};
 use crate::reconciler::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -19,7 +19,7 @@ use crate::{expression_analyzer, formula_generator};
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
+use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::taint::SinkType;
 use hakana_type::template::TemplateResult;
@@ -155,49 +155,13 @@ pub(crate) fn analyze(
         pos,
     );
 
-    match function_storage.effects {
-        FnEffect::Some(stored_effects) => {
-            if stored_effects > crate::typed_ast::WRITE_PROPS {
-                tast_info
-                    .expr_effects
-                    .insert((pos.start_offset(), pos.end_offset()), stored_effects);
-            }
-        }
-        FnEffect::Arg(arg_offset) => {
-            if let Some((_, arg_expr)) = expr.2.get(arg_offset as usize) {
-                if let Some(arg_type) = tast_info
-                    .expr_types
-                    .get(&(arg_expr.pos().start_offset(), arg_expr.pos().end_offset()))
-                {
-                    for arg_atomic_type in &arg_type.types {
-                        if let TAtomic::TClosure { effects, .. } = arg_atomic_type {
-                            if let Some(evaluated_effects) = effects {
-                                tast_info.expr_effects.insert(
-                                    (pos.start_offset(), pos.end_offset()),
-                                    *evaluated_effects,
-                                );
-                            } else {
-                                tast_info
-                                    .expr_effects
-                                    .insert((pos.start_offset(), pos.end_offset()), 7);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        _ => (),
-    }
-
-    for arg in expr.2 {
-        tast_info.combine_effects(arg.1.pos(), pos, pos);
-    }
+    apply_effects(function_storage, tast_info, pos, &expr.2);
 
     if let Some(effects) = tast_info
         .expr_effects
         .get(&(pos.start_offset(), pos.end_offset()))
     {
-        if effects > &crate::typed_ast::WRITE_PROPS {
+        if effects > &EFFECT_WRITE_PROPS {
             context.remove_mutable_object_vars();
         }
     }
@@ -238,7 +202,7 @@ pub(crate) fn analyze(
     match real_name {
         "HH\\invariant" => {
             if let Some((_, first_arg)) = &expr.2.get(0) {
-                process_function_effects(first_arg, context, statements_analyzer, tast_info);
+                process_invariant(first_arg, context, statements_analyzer, tast_info);
             }
         }
         "HH\\Lib\\C\\contains_key"
@@ -472,7 +436,7 @@ pub(crate) fn analyze(
     true
 }
 
-fn process_function_effects(
+fn process_invariant(
     first_arg: &aast::Expr<(), ()>,
     context: &mut ScopeContext,
     statements_analyzer: &StatementsAnalyzer,

@@ -24,6 +24,7 @@ use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_reflection_info::FileSource;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::ThreadedInterner;
+use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_reflection_info::STR_CONSTRUCT;
 use hakana_type::get_mixed_any;
 use oxidized::aast;
@@ -453,7 +454,7 @@ pub(crate) fn get_functionlike(
     functionlike_info.is_async = fun_kind.is_async();
     functionlike_info.effects = if let Some(contexts) = contexts {
         if contexts.1.len() == 0 {
-            FnEffect::None
+            FnEffect::Pure
         } else if contexts.1.len() == 1 {
             let context = &contexts.1[0];
 
@@ -469,20 +470,20 @@ pub(crate) fn get_functionlike(
                     panic!()
                 }
             } else {
-                FnEffect::Some(7)
+                FnEffect::Some(EFFECT_IMPURE)
             }
         } else {
-            FnEffect::Some(7)
+            FnEffect::Some(EFFECT_IMPURE)
         }
     } else {
         if is_anonymous {
             FnEffect::Unknown
         } else {
-            FnEffect::Some(7)
+            FnEffect::Some(EFFECT_IMPURE)
         }
     };
 
-    if matches!(functionlike_info.effects, FnEffect::None) || !functionlike_id.contains("::") {
+    if matches!(functionlike_info.effects, FnEffect::Pure) || !functionlike_id.contains("::") {
         functionlike_info.specialize_call = true;
     }
 

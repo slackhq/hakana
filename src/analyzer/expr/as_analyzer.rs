@@ -5,6 +5,7 @@ use crate::{scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext};
 
 use crate::expression_analyzer;
 use crate::typed_ast::TastInfo;
+use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::t_union::populate_union_type;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
@@ -27,7 +28,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     tast_info
         .expr_effects
-        .insert((stmt_pos.start_offset(), stmt_pos.end_offset()), 7);
+        .insert((stmt_pos.start_offset(), stmt_pos.end_offset()), EFFECT_IMPURE);
 
     loop {
         match root_expr.2 {

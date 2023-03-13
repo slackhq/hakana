@@ -3,6 +3,9 @@ use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::data_flow::node::VariableSourceKind;
 use hakana_reflection_info::data_flow::path::PathKind;
+use hakana_reflection_info::EFFECT_PURE;
+use hakana_reflection_info::EFFECT_READ_GLOBALS;
+use hakana_reflection_info::EFFECT_READ_PROPS;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
@@ -220,10 +223,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         tast_info: &mut TastInfo,
         stmt: &aast::Stmt<(), ()>,
     ) -> Result<(), ()> {
-        if let aast::Stmt_::If(_) = &stmt.1 {
-            let span = stmt.0.to_raw_span();
-
-            if span.end.line() - span.start.line() <= 1 {
+        if let aast::Stmt_::If(boxed) = &stmt.1 {
+            if boxed.1 .0.len() == 1 || boxed.2 .0.len() == 1 {
                 self.in_single_block = true;
 
                 let result = stmt.recurse(tast_info, self);
@@ -250,26 +251,23 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             .get(&(boxed.2 .1.start_offset(), boxed.2 .1.end_offset()))
                             .unwrap_or(&0);
 
-                        if let crate::typed_ast::PURE
-                        | crate::typed_ast::READ_GLOBALS
-                        | crate::typed_ast::READ_PROPS = *expression_effects
+                        if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
+                            *expression_effects
                         {
                             if !self.in_single_block {
                                 let span = stmt.0.to_raw_span();
                                 tast_info.replacements.insert(
-                                    ((span.start.beg_of_line() as usize) - 1, stmt.0.end_offset()),
-                                    Replacement::Remove,
+                                    (stmt.0.start_offset(), stmt.0.end_offset()),
+                                    Replacement::TrimPrecedingWhitespace(span.start.beg_of_line()),
                                 );
 
-                                self.remove_fixme_comments(stmt, tast_info);
+                                self.remove_fixme_comments(stmt, tast_info, stmt.0.start_offset());
                             }
                         } else {
                             tast_info.replacements.insert(
                                 (stmt.0.start_offset(), boxed.2 .1.start_offset()),
                                 Replacement::Remove,
                             );
-
-                            self.remove_fixme_comments(stmt, tast_info);
 
                             // remove trailing array fetches
                             if let aast::Expr_::ArrayGet(array_get) = &boxed.2 .2 {
@@ -282,9 +280,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                         ))
                                         .unwrap_or(&0);
 
-                                    if let crate::typed_ast::PURE
-                                    | crate::typed_ast::READ_GLOBALS
-                                    | crate::typed_ast::READ_PROPS = *array_offset_effects
+                                    if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
+                                        *array_offset_effects
                                     {
                                         tast_info.replacements.insert(
                                             (
@@ -307,16 +304,25 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 }
 
 impl<'a> Scanner<'a> {
-    fn remove_fixme_comments(&mut self, stmt: &aast::Stmt<(), ()>, tast_info: &mut TastInfo) {
+    fn remove_fixme_comments(
+        &mut self,
+        stmt: &aast::Stmt<(), ()>,
+        tast_info: &mut TastInfo,
+        limit: usize,
+    ) {
         for (comment_pos, comment) in self.comments {
             if comment_pos.line() == stmt.0.line() {
                 match comment {
                     Comment::CmtBlock(block) => {
                         if block.trim() == "HHAST_FIXME[UnusedVariable]" {
                             tast_info.replacements.insert(
-                                (comment_pos.start_offset(), stmt.0.start_offset()),
-                                Replacement::Remove,
+                                (comment_pos.start_offset(), limit),
+                                Replacement::TrimPrecedingWhitespace(
+                                    comment_pos.to_raw_span().start.beg_of_line(),
+                                ),
                             );
+
+                            return;
                         }
                     }
                     _ => {}
@@ -337,6 +343,7 @@ impl<'a> Scanner<'a> {
                                     comment_pos.to_raw_span().start.beg_of_line(),
                                 ),
                             );
+                            return;
                         }
                     }
                     _ => {}

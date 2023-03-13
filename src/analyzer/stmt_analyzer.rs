@@ -305,6 +305,8 @@ fn analyze_awaitall(
     stmt: &aast::Stmt<(), ()>,
     loop_scope: &mut Option<LoopScope>,
 ) {
+    context.inside_awaitall = true;
+
     for (assignment_id, expr) in boxed.0 {
         expression_analyzer::analyze(statements_analyzer, expr, tast_info, context, &mut None);
 
@@ -353,4 +355,6 @@ fn analyze_awaitall(
     for stmt in boxed.1 {
         analyze(statements_analyzer, &stmt, tast_info, context, loop_scope);
     }
+
+    context.inside_awaitall = false;
 }

@@ -14,13 +14,6 @@ use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
-pub(crate) const PURE: u8 = 0b00000000;
-pub(crate) const READ_PROPS: u8 = 0b00000001;
-pub(crate) const READ_GLOBALS: u8 = 0b00000010;
-pub(crate) const WRITE_PROPS: u8 = 0b00000100;
-pub(crate) const WRITE_GLOBALS: u8 = 0b0001000;
-pub(crate) const IMPURE: u8 = READ_PROPS | READ_GLOBALS | WRITE_PROPS | WRITE_GLOBALS;
-
 pub struct TastInfo {
     pub expr_types: FxHashMap<(usize, usize), Rc<TUnion>>,
     pub if_true_assertions: FxHashMap<(usize, usize), FxHashMap<String, Vec<Assertion>>>,

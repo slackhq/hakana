@@ -189,6 +189,7 @@ impl IssueKind {
     pub fn is_unused_expression(&self) -> bool {
         match &self {
             Self::UnusedAssignment => true,
+            Self::UnusedAssignmentStatement => true,
             _ => false,
         }
     }

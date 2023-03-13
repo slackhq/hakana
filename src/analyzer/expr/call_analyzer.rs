@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::StrId;
+use hakana_reflection_info::{StrId, EFFECT_IMPURE, EFFECT_WRITE_PROPS};
 use rustc_hash::FxHashMap;
 
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -216,29 +216,61 @@ pub(crate) fn check_method_args(
         return false;
     }
 
-    let effect = match functionlike_storage.effects {
-        FnEffect::Unknown | FnEffect::None | FnEffect::Arg(_) => 0,
-        FnEffect::Some(effect) => effect,
-    };
-
-    if let Some(existing_effects) = tast_info
-        .expr_effects
-        .get_mut(&(pos.start_offset(), pos.end_offset()))
-    {
-        *existing_effects |= effect;
-    } else {
-        tast_info
-            .expr_effects
-            .insert((pos.start_offset(), pos.end_offset()), effect);
-    }
-
-    for arg in call_expr.2 {
-        tast_info.combine_effects(&arg.1, pos, pos);
-    }
+    apply_effects(functionlike_storage, tast_info, pos, &call_expr.1);
 
     if !template_result.template_types.is_empty() {
         check_template_result(statements_analyzer, template_result, pos, &functionlike_id);
     }
 
     return true;
+}
+
+pub(crate) fn apply_effects(
+    function_storage: &FunctionLikeInfo,
+    tast_info: &mut TastInfo,
+    pos: &Pos,
+    expr_args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+) {
+    match function_storage.effects {
+        FnEffect::Some(stored_effects) => {
+            if stored_effects > EFFECT_WRITE_PROPS {
+                tast_info
+                    .expr_effects
+                    .insert((pos.start_offset(), pos.end_offset()), stored_effects);
+            }
+        }
+        FnEffect::Arg(arg_offset) => {
+            if let Some((_, arg_expr)) = expr_args.get(arg_offset as usize) {
+                if let Some(arg_type) = tast_info
+                    .expr_types
+                    .get(&(arg_expr.pos().start_offset(), arg_expr.pos().end_offset()))
+                {
+                    for arg_atomic_type in &arg_type.types {
+                        if let TAtomic::TClosure { effects, .. } = arg_atomic_type {
+                            if let Some(evaluated_effects) = effects {
+                                tast_info.expr_effects.insert(
+                                    (pos.start_offset(), pos.end_offset()),
+                                    *evaluated_effects,
+                                );
+                            } else {
+                                tast_info
+                                    .expr_effects
+                                    .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        FnEffect::Pure => {
+            // do nothing, it's a pure function
+        }
+        FnEffect::Unknown => {
+            // yet to be computed
+        }
+    }
+
+    for arg in expr_args {
+        tast_info.combine_effects(arg.1.pos(), pos, pos);
+    }
 }

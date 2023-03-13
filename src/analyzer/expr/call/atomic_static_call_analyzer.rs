@@ -1,6 +1,7 @@
 use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
+    EFFECT_IMPURE,
 };
 use oxidized::{
     aast,
@@ -149,10 +150,9 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
-        tast_info.expr_effects.insert(
-            (pos.start_offset(), pos.end_offset()),
-            crate::typed_ast::IMPURE,
-        );
+        tast_info
+            .expr_effects
+            .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
 
         return;
     }

@@ -1,5 +1,5 @@
 function foo(): void {
-    rand(0, 1);
+    /* HHAST_FIXME[UnusedVariable] */ rand(0, 1);
     $b = 0;
     echo $b;
 }

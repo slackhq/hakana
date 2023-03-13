@@ -1,5 +1,6 @@
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
+use hakana_reflection_info::EFFECT_WRITE_LOCAL;
 use indexmap::IndexMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -609,11 +610,12 @@ fn analyze_assignment_to_variable(
                 .add_node(DataFlowNode::get_for_variable_source(
                     var_id.clone(),
                     statements_analyzer.get_hpos(var_expr.pos()),
-                    if let Some(source_expr) = source_expr {
-                        tast_info.is_pure(source_expr.pos())
-                    } else {
-                        false
-                    },
+                    !context.inside_awaitall
+                        && if let Some(source_expr) = source_expr {
+                            tast_info.is_pure(source_expr.pos())
+                        } else {
+                            false
+                        },
                 ));
         }
     }
@@ -715,4 +717,9 @@ pub(crate) fn analyze_inout_param(
     ) {
         tast_info.set_expr_type(expr.pos(), arg_type.clone());
     }
+
+    tast_info.expr_effects.insert(
+        (expr.pos().start_offset(), expr.pos().end_offset()),
+        EFFECT_WRITE_LOCAL,
+    );
 }

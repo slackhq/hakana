@@ -85,6 +85,15 @@ pub const STR_ASYNC_KEYED_ITERATOR: StrId = StrId(28);
 pub const STR_SHAPES: StrId = StrId(29);
 pub const STR_STDCLASS: StrId = StrId(29);
 
+pub const EFFECT_PURE: u8 = 0b00000000;
+pub const EFFECT_WRITE_LOCAL: u8 = 0b00000001;
+pub const EFFECT_READ_PROPS: u8 = 0b00000010;
+pub const EFFECT_READ_GLOBALS: u8 = 0b00000100;
+pub const EFFECT_WRITE_PROPS: u8 = 0b00001000;
+pub const EFFECT_WRITE_GLOBALS: u8 = 0b0010000;
+pub const EFFECT_IMPURE: u8 =
+    EFFECT_READ_PROPS | EFFECT_READ_GLOBALS | EFFECT_WRITE_PROPS | EFFECT_WRITE_GLOBALS;
+
 impl StrId {
     #[inline]
     pub fn is_empty(&self) -> bool {

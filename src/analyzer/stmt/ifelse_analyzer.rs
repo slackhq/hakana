@@ -3,7 +3,9 @@ use crate::scope_context::{
     ScopeContext,
 };
 use hakana_algebra::Clause;
-use hakana_reflection_info::{analysis_result::Replacement, issue::IssueKind};
+use hakana_reflection_info::{
+    analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS, EFFECT_READ_PROPS,
+};
 use hakana_type::combine_union_types;
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -379,10 +381,7 @@ pub(crate) fn analyze(
             .get(&(stmt.0 .1.start_offset(), stmt.0 .1.end_offset()))
             .unwrap_or(&0);
 
-        if let crate::typed_ast::PURE
-        | crate::typed_ast::READ_GLOBALS
-        | crate::typed_ast::READ_PROPS = *effects
-        {
+        if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS = *effects {
             tast_info.replacements.insert(
                 (
                     stmt_pos.to_raw_span().start.beg_of_line() as usize,

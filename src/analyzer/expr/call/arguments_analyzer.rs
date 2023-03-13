@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
-use hakana_reflection_info::{Interner, StrId, STR_SHAPES};
+use hakana_reflection_info::{Interner, StrId, STR_SHAPES, EFFECT_WRITE_LOCAL};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
@@ -922,6 +922,11 @@ pub(crate) fn evaluate_arbitrary_param(
                 );
             }
         }
+
+        tast_info.expr_effects.insert(
+            (expr.pos().start_offset(), expr.pos().end_offset()),
+            EFFECT_WRITE_LOCAL,
+        );
     }
 
     true

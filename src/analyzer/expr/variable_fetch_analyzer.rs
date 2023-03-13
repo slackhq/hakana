@@ -11,6 +11,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_union::TUnion,
     taint::SourceType,
+    EFFECT_READ_GLOBALS,
 };
 use hakana_type::{get_int, get_mixed_any, get_mixed_dict};
 use oxidized::{ast_defs::Pos, tast::Lid};
@@ -58,10 +59,9 @@ pub(crate) fn analyze(
 
         tast_info.set_rc_expr_type(&pos, superglobal_type);
 
-        tast_info.expr_effects.insert(
-            (pos.start_offset(), pos.end_offset()),
-            crate::typed_ast::READ_GLOBALS,
-        );
+        tast_info
+            .expr_effects
+            .insert((pos.start_offset(), pos.end_offset()), EFFECT_READ_GLOBALS);
     } else if let Some(var_type) = context.vars_in_scope.get(&lid.1 .1) {
         let mut var_type = (**var_type).clone();
 

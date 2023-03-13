@@ -4,6 +4,7 @@ use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_reflection_info::EFFECT_READ_PROPS;
 use hakana_type::{add_union_type, get_mixed_any, get_null};
 use oxidized::{
     aast::{self, Expr},
@@ -51,12 +52,7 @@ pub(crate) fn analyze(
         return false;
     }
 
-    tast_info.combine_effects_with(
-        expr.0.pos(),
-        expr.1.pos(),
-        pos,
-        crate::typed_ast::READ_PROPS,
-    );
+    tast_info.combine_effects_with(expr.0.pos(), expr.1.pos(), pos, EFFECT_READ_PROPS);
 
     context.inside_general_use = was_inside_general_use;
 

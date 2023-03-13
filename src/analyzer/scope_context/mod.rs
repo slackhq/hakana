@@ -105,6 +105,8 @@ pub struct ScopeContext {
 
     pub inside_assignment_op: bool,
 
+    pub inside_awaitall: bool,
+
     pub include_location: Option<Pos>,
 
     /**
@@ -171,6 +173,7 @@ impl ScopeContext {
             inside_assignment: false,
             inside_assignment_op: false,
             inside_try: false,
+            inside_awaitall: false,
 
             inside_negation: false,
             has_returned: false,

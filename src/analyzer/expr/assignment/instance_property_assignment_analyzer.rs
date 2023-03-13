@@ -6,7 +6,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    StrId,
+    StrId, EFFECT_WRITE_PROPS,
 };
 use hakana_type::{
     add_optional_union_type, get_mixed_any,
@@ -192,10 +192,9 @@ pub(crate) fn analyze_regular_assignment(
 
     context.inside_general_use = was_inside_general_use;
 
-    tast_info.expr_effects.insert(
-        (pos.start_offset(), pos.end_offset()),
-        crate::typed_ast::WRITE_PROPS,
-    );
+    tast_info
+        .expr_effects
+        .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_PROPS);
 
     let lhs_type = tast_info.get_expr_type(&stmt_var.pos()).cloned();
 

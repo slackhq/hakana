@@ -8,6 +8,7 @@ use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer
 use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_reflection_info::EFFECT_READ_PROPS;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     get_named_object,
@@ -83,10 +84,9 @@ pub(crate) fn analyze(
         return false;
     }
 
-    tast_info.expr_effects.insert(
-        (pos.start_offset(), pos.end_offset()),
-        crate::typed_ast::READ_PROPS,
-    );
+    tast_info
+        .expr_effects
+        .insert((pos.start_offset(), pos.end_offset()), EFFECT_READ_PROPS);
 
     tast_info.set_expr_type(&stmt_class.1, get_named_object(classlike_name.clone()));
 

@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_reflection_info::{StrId, STR_STATIC};
+use hakana_reflection_info::{StrId, EFFECT_IMPURE, STR_STATIC};
 use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
 use hakana_type::{
@@ -174,10 +174,9 @@ pub(crate) fn analyze(
         if_body_context,
         pos,
     ) {
-        tast_info.expr_effects.insert(
-            (pos.start_offset(), pos.end_offset()),
-            crate::typed_ast::IMPURE,
-        );
+        tast_info
+            .expr_effects
+            .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
 
         return get_mixed_any();
     }

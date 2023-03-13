@@ -21,7 +21,7 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FnEffect {
     Unknown,
-    None,
+    Pure,
     Arg(u8),
     Some(u8),
 }
@@ -30,7 +30,7 @@ impl FnEffect {
     pub fn to_u8(&self) -> Option<u8> {
         match self {
             FnEffect::Unknown => None,
-            FnEffect::None => Some(0),
+            FnEffect::Pure => Some(0),
             FnEffect::Arg(_) => None,
             FnEffect::Some(effects) => Some(*effects),
         }
@@ -39,7 +39,7 @@ impl FnEffect {
     pub fn from_u8(effects: &Option<u8>) -> Self {
         if let Some(effects) = effects {
             if effects == &0 {
-                FnEffect::None
+                FnEffect::Pure
             } else {
                 FnEffect::Some(*effects)
             }
