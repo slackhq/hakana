@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::{StrId, EFFECT_IMPURE, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{StrId, EFFECT_IMPURE, EFFECT_WRITE_PROPS, STR_ASIO_JOIN};
 use rustc_hash::FxHashMap;
 
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -231,6 +231,13 @@ pub(crate) fn apply_effects(
     pos: &Pos,
     expr_args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
 ) {
+    if function_storage.name == STR_ASIO_JOIN {
+        tast_info
+            .expr_effects
+            .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
+        return;
+    }
+
     match function_storage.effects {
         FnEffect::Some(stored_effects) => {
             if stored_effects > EFFECT_WRITE_PROPS {
