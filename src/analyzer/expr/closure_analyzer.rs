@@ -71,7 +71,7 @@ pub(crate) fn analyze(
 
     let closure_id = format!(
         "{}:{}",
-        statements_analyzer.get_file_path().0,
+        statements_analyzer.get_file_path().0 .0,
         fun.span.start_offset()
     );
 

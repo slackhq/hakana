@@ -102,12 +102,10 @@ impl<'a> FileAnalyzer<'a> {
         update_analysis_result_with_tast(
             tast_info,
             analysis_result,
-            self.get_interner().lookup(
-                &statements_analyzer
-                    .get_file_analyzer()
-                    .get_file_source()
-                    .file_path,
-            ),
+            &statements_analyzer
+                .get_file_analyzer()
+                .get_file_source()
+                .file_path,
             false,
         );
     }

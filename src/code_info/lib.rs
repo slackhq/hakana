@@ -35,6 +35,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use code_location::FilePath;
 use indexmap::{IndexMap, IndexSet};
 use oxidized::{prim_defs::Comment, tast::Pos};
 use rustc_hash::{self, FxHashMap, FxHasher};
@@ -42,7 +43,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub struct FileSource<'a> {
-    pub file_path: StrId,
+    pub file_path: FilePath,
     pub file_path_actual: String,
     pub file_contents: String,
     pub is_production_code: bool,
@@ -83,7 +84,9 @@ pub const STR_KEYED_ITERATOR: StrId = StrId(26);
 pub const STR_ASYNC_ITERATOR: StrId = StrId(27);
 pub const STR_ASYNC_KEYED_ITERATOR: StrId = StrId(28);
 pub const STR_SHAPES: StrId = StrId(29);
-pub const STR_STDCLASS: StrId = StrId(29);
+pub const STR_STDCLASS: StrId = StrId(30);
+pub const STR_SIMPLE_XML_ELEMENT: StrId = StrId(31);
+pub const STR_ASIO_JOIN: StrId = StrId(32);
 
 pub const EFFECT_PURE: u8 = 0b00000000;
 pub const EFFECT_WRITE_LOCAL: u8 = 0b00000001;
@@ -148,6 +151,8 @@ impl Interner {
         interner.intern("HH\\AsyncKeyedIterator".to_string());
         interner.intern("HH\\Shapes".to_string());
         interner.intern("stdClass".to_string());
+        interner.intern("SimpleXMLElement".to_string());
+        interner.intern("HH\\Asio\\join".to_string());
         interner
     }
 
@@ -186,6 +191,7 @@ impl Interner {
     }
 }
 
+#[derive(Debug)]
 pub struct ThreadedInterner {
     map: IndexMap<String, StrId>,
     reverse_map: BTreeMap<StrId, usize>,
@@ -232,9 +238,10 @@ impl ThreadedInterner {
     }
 
     pub fn lookup(&self, id: StrId) -> &str {
-        self.map
-            .get_index(*self.reverse_map.get(&id).unwrap())
-            .unwrap()
-            .0
+        if let Some(entry) = self.map.get_index(*self.reverse_map.get(&id).unwrap()) {
+            entry.0
+        } else {
+            panic!()
+        }
     }
 }

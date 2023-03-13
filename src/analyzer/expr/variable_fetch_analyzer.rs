@@ -89,7 +89,7 @@ pub(crate) fn get_type_for_superglobal(
             let taint_source = DataFlowNode {
                 id: format!(
                     "${}:{}:{}",
-                    name, taint_pos.file_path.0, taint_pos.start_offset
+                    name, taint_pos.file_path.0 .0, taint_pos.start_offset
                 ),
                 kind: DataFlowNodeKind::TaintSource {
                     pos: None,

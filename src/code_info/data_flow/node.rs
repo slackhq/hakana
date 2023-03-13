@@ -107,7 +107,7 @@ impl DataFlowNode {
         let mut specialization_key = None;
 
         if let Some(pos) = pos {
-            specialization_key = Some(format!("{}:{}", pos.file_path.0, pos.start_offset));
+            specialization_key = Some(format!("{}:{}", pos.file_path.0 .0, pos.start_offset));
         }
 
         Self::new(arg_id.clone(), arg_id, arg_location, specialization_key)
@@ -127,7 +127,7 @@ impl DataFlowNode {
         let mut specialization_key = None;
 
         if let Some(pos) = pos {
-            specialization_key = Some(format!("{}:{}", pos.file_path.0, pos.start_offset));
+            specialization_key = Some(format!("{}:{}", pos.file_path.0 .0, pos.start_offset));
         }
 
         Self::new(arg_id.clone(), arg_id, arg_location, specialization_key)
@@ -148,7 +148,7 @@ impl DataFlowNode {
         let mut specialization_key = None;
 
         if let Some(pos) = pos {
-            specialization_key = Some(format!("{}:{}", pos.file_path.0, pos.start_offset));
+            specialization_key = Some(format!("{}:{}", pos.file_path.0 .0, pos.start_offset));
         }
 
         DataFlowNode::new(label.clone(), label, method_location, specialization_key)
@@ -169,7 +169,7 @@ impl DataFlowNode {
         let mut specialization_key = None;
 
         if let Some(pos) = pos {
-            specialization_key = Some(format!("{}:{}", pos.file_path.0, pos.start_offset));
+            specialization_key = Some(format!("{}:{}", pos.file_path.0 .0, pos.start_offset));
         }
 
         DataFlowNode::new(label.clone(), label, method_location, specialization_key)
@@ -179,7 +179,7 @@ impl DataFlowNode {
         let id = format!(
             "{}-{}:{}-{}",
             var_id,
-            assignment_location.file_path.0,
+            assignment_location.file_path.0 .0,
             assignment_location.start_offset,
             assignment_location.end_offset
         );
@@ -190,7 +190,7 @@ impl DataFlowNode {
     pub fn get_for_composition(assignment_location: HPos) -> Self {
         let id = format!(
             "composition-{}:{}-{}",
-            assignment_location.file_path.0,
+            assignment_location.file_path.0 .0,
             assignment_location.start_offset,
             assignment_location.end_offset
         );
@@ -207,7 +207,7 @@ impl DataFlowNode {
         let id = format!(
             "{}-{}:{}-{}",
             label,
-            assignment_location.file_path.0,
+            assignment_location.file_path.0 .0,
             assignment_location.start_offset,
             assignment_location.end_offset
         );
@@ -224,7 +224,7 @@ impl DataFlowNode {
         let id = format!(
             "{}-{}:{}-{}",
             label,
-            assignment_location.file_path.0,
+            assignment_location.file_path.0 .0,
             assignment_location.start_offset,
             assignment_location.end_offset
         );
@@ -249,7 +249,7 @@ impl DataFlowNode {
 
         if let Some(function_location) = function_location {
             specialization_key = Some(
-                (function_location.file_path).0.to_string()
+                (function_location.file_path).0 .0.to_string()
                     + ":"
                     + function_location.start_offset.to_string().as_str(),
             );

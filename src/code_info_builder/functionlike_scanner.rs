@@ -25,6 +25,7 @@ use hakana_reflection_info::FileSource;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::ThreadedInterner;
 use hakana_reflection_info::EFFECT_IMPURE;
+use hakana_reflection_info::STR_ASIO_JOIN;
 use hakana_reflection_info::STR_CONSTRUCT;
 use hakana_type::get_mixed_any;
 use oxidized::aast;
@@ -61,8 +62,6 @@ pub(crate) fn scan_method(
         template_supers: FxHashMap::default(),
     };
 
-    let functionlike_id = format!("{}::{}", interner.lookup(classlike_name), m.name.1);
-
     let mut functionlike_info = get_functionlike(
         &codebase,
         interner,
@@ -81,7 +80,6 @@ pub(crate) fn scan_method(
         &mut type_resolution_context,
         Some(&classlike_name),
         resolved_names,
-        &functionlike_id,
         comments,
         file_source,
         false,
@@ -222,7 +220,6 @@ pub(crate) fn get_functionlike(
     type_context: &mut TypeResolutionContext,
     this_name: Option<&StrId>,
     resolved_names: &FxHashMap<usize, StrId>,
-    functionlike_id: &String,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
     is_anonymous: bool,
@@ -244,7 +241,11 @@ pub(crate) fn get_functionlike(
     let mut template_supers = FxHashMap::default();
 
     if !tparams.is_empty() {
-        let fn_id = "fn-".to_string() + functionlike_id.as_str();
+        let fn_id = if let Some(this_name) = this_name {
+            format!("fn-{}::{}", this_name.0, name.0)
+        } else {
+            format!("fn-{}", name.0)
+        };
         let fn_id = interner.intern(fn_id);
 
         for type_param_node in tparams.iter() {
@@ -483,7 +484,7 @@ pub(crate) fn get_functionlike(
         }
     };
 
-    if matches!(functionlike_info.effects, FnEffect::Pure) || !functionlike_id.contains("::") {
+    if matches!(functionlike_info.effects, FnEffect::Pure) || this_name.is_none() {
         functionlike_info.specialize_call = true;
     }
 
@@ -515,7 +516,7 @@ fn get_async_version(
     if let aast::Expr_::Call(call) = &expr.2 {
         if let aast::Expr_::Id(boxed_id) = &call.0 .2 {
             if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset()) {
-                if interner.lookup(*fn_id) == "HH\\Asio\\join" && call.2.len() == 1 {
+                if fn_id == &STR_ASIO_JOIN && call.2.len() == 1 {
                     let first_join_expr = &call.2[0].1;
 
                     if let aast::Expr_::Call(call) = &first_join_expr.2 {

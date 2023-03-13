@@ -17,12 +17,14 @@ use crate::cache::load_cached_symbols;
 use crate::file_cache_provider;
 use crate::file_cache_provider::FileStatus;
 use crate::get_aast_for_path;
-use crate::get_relative_path;
+use crate::SuccessfulRunData;
 use ast_differ::get_diff;
 use hakana_aast_helper::name_context::NameContext;
 use hakana_aast_helper::ParserError;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::config::Verbosity;
+use hakana_reflection_info::code_location::FilePath;
+use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::diff::CodebaseDiff;
 use hakana_reflection_info::FileSource;
@@ -40,10 +42,10 @@ use rustc_hash::FxHashSet;
 pub struct ScanFilesResult {
     pub codebase: CodebaseInfo,
     pub interner: Interner,
-    pub file_statuses: IndexMap<String, FileStatus>,
-    pub resolved_names: FxHashMap<String, FxHashMap<usize, StrId>>,
+    pub file_statuses: IndexMap<FilePath, FileStatus>,
+    pub resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
     pub codebase_diff: CodebaseDiff,
-    pub asts: FxHashMap<StrId, Vec<u8>>,
+    pub asts: FxHashMap<FilePath, Vec<u8>>,
 }
 
 pub(crate) fn scan_files(
@@ -55,7 +57,7 @@ pub(crate) fn scan_files(
     threads: u8,
     verbosity: Verbosity,
     build_checksum: &str,
-    starter_data: Option<(CodebaseInfo, Interner)>,
+    starter_data: Option<SuccessfulRunData>,
 ) -> io::Result<ScanFilesResult> {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("{:#?}", scan_dirs);
@@ -81,8 +83,13 @@ pub(crate) fn scan_files(
         None
     };
 
-    let (mut codebase, mut interner) =
-        starter_data.unwrap_or((CodebaseInfo::new(), Interner::new()));
+    let has_starter = starter_data.is_some();
+
+    let SuccessfulRunData {
+        mut codebase,
+        mut interner,
+        mut file_hashes_and_times,
+    } = starter_data.unwrap_or(SuccessfulRunData::default());
 
     if include_core_libs {
         // add HHVM libs
@@ -141,17 +148,20 @@ pub(crate) fn scan_files(
         }
     }
 
-    let file_update_hashes = if let Some(cache_dir) = cache_dir {
-        if use_codebase_cache {
-            file_cache_provider::get_file_manifest(cache_dir).unwrap_or(FxHashMap::default())
+    if !has_starter {
+        file_hashes_and_times = if let Some(cache_dir) = cache_dir {
+            if use_codebase_cache {
+                file_cache_provider::get_file_manifest(cache_dir).unwrap_or(FxHashMap::default())
+            } else {
+                FxHashMap::default()
+            }
         } else {
             FxHashMap::default()
-        }
-    } else {
-        FxHashMap::default()
-    };
+        };
+    }
 
-    let file_statuses = file_cache_provider::get_file_diff(&files_to_scan, file_update_hashes);
+    let file_statuses =
+        file_cache_provider::get_file_diff(&files_to_scan, file_hashes_and_times, &mut interner);
 
     let now = Instant::now();
 
@@ -162,36 +172,30 @@ pub(crate) fn scan_files(
     let changed_files = file_statuses
         .iter()
         .filter(|(_, v)| !matches!(v, FileStatus::Unchanged(..)))
-        .map(|(k, _)| {
-            if k.contains(&config.root_dir) {
-                k[(config.root_dir.len() + 1)..].to_string()
-            } else {
-                k.clone()
-            }
-        })
+        .map(|(k, _)| *k)
         .collect::<FxHashSet<_>>();
 
     // this needs to come after we've loaded interned strings
-    if let Some(codebase_path) = &codebase_path {
-        load_cached_codebase(
-            codebase_path,
-            use_codebase_cache,
-            &mut codebase,
-            &interner,
-            &changed_files,
-            verbosity,
-        );
+    if !has_starter {
+        if let Some(codebase_path) = &codebase_path {
+            if let Some(cache_codebase) =
+                load_cached_codebase(codebase_path, use_codebase_cache, verbosity)
+            {
+                codebase = cache_codebase;
+            }
+        }
     }
+
+    invalidate_changed_codebase_elements(&mut codebase, &changed_files);
 
     let mut resolved_names = FxHashMap::default();
 
     if let Some(aast_names_path) = &aast_names_path {
-        load_cached_aast_names(
-            aast_names_path,
-            use_codebase_cache,
-            &mut resolved_names,
-            verbosity,
-        );
+        if let Some(cached_resolved_names) =
+            load_cached_aast_names(aast_names_path, use_codebase_cache, verbosity)
+        {
+            resolved_names = cached_resolved_names
+        };
     }
 
     let elapsed = now.elapsed();
@@ -208,11 +212,6 @@ pub(crate) fn scan_files(
     for (target_file, status) in &file_statuses {
         if matches!(status, FileStatus::Added(..) | FileStatus::Modified(..)) {
             files_to_scan.push(target_file);
-            interner.intern(if target_file.contains(&config.root_dir) {
-                target_file[(&config.root_dir.len() + 1)..].to_string()
-            } else {
-                target_file.clone()
-            });
         }
     }
 
@@ -223,7 +222,7 @@ pub(crate) fn scan_files(
     let mut unchanged_files = FxHashMap::default();
 
     for (file_id, file_info) in files {
-        if changed_files.contains(interner.lookup(&file_id)) {
+        if changed_files.contains(&file_id) {
             updated_files.insert(file_id, file_info);
         } else {
             unchanged_files.insert(file_id, file_info);
@@ -293,29 +292,41 @@ pub(crate) fn scan_files(
 
             let analyze_map = files_to_analyze.iter().collect::<FxHashSet<_>>();
 
-            for (i, str_path) in path_groups[&0].iter().enumerate() {
+            for (i, file_path) in path_groups[&0].iter().enumerate() {
+                let str_path = new_interner
+                    .parent
+                    .lock()
+                    .unwrap()
+                    .lookup(&file_path.0)
+                    .to_string();
+
                 let file_resolved_names = if let Ok(scanner_result) = scan_file(
-                    str_path,
-                    &config.root_dir,
+                    &str_path,
+                    **file_path,
                     &config.all_custom_issues,
                     &mut new_codebase,
                     &mut new_interner,
                     empty_name_context.clone(),
-                    analyze_map.contains(*str_path),
+                    analyze_map.contains(&str_path),
                     !test_patterns.iter().any(|p| p.matches(&str_path)),
                     verbosity,
                 ) {
+                    if analyze_map.contains(&str_path) {
+                        asts.lock().unwrap().insert(
+                            **file_path,
+                            bincode::serialize(&scanner_result.1).unwrap().to_vec(),
+                        );
+                    }
+
                     scanner_result.0
                 } else {
-                    let str_path = get_relative_path(str_path, &config.root_dir);
-                    new_interner.intern(str_path.clone());
                     FxHashMap::default()
                 };
 
                 resolved_names
                     .lock()
                     .unwrap()
-                    .insert((**str_path).clone(), file_resolved_names);
+                    .insert(**file_path, file_resolved_names);
 
                 update_progressbar(i as u64, bar.clone());
             }
@@ -335,8 +346,6 @@ pub(crate) fn scan_files(
                     .iter()
                     .map(|c| c.clone().clone())
                     .collect::<Vec<_>>();
-
-                let root_dir_c = config.root_dir.clone();
 
                 let codebases = thread_codebases.clone();
 
@@ -363,30 +372,35 @@ pub(crate) fn scan_files(
                     let mut local_resolved_names = FxHashMap::default();
                     let mut local_asts = FxHashMap::default();
 
-                    for str_path in &pgc {
+                    for file_path in &pgc {
+                        let str_path = new_interner
+                            .parent
+                            .lock()
+                            .unwrap()
+                            .lookup(&file_path.0)
+                            .to_string();
+
                         if let Ok(scanner_result) = scan_file(
-                            str_path,
-                            &root_dir_c,
+                            &str_path,
+                            *file_path,
                             &config.all_custom_issues,
                             &mut new_codebase,
                             &mut new_interner,
                             empty_name_context.clone(),
-                            analyze_map.contains(str_path),
+                            analyze_map.contains(&str_path),
                             !test_patterns.iter().any(|p| p.matches(&str_path)),
                             verbosity,
                         ) {
-                            if analyze_map.contains(str_path) {
+                            if analyze_map.contains(&str_path) {
                                 local_asts.insert(
-                                    scanner_result.1,
-                                    bincode::serialize(&scanner_result.2).unwrap().to_vec(),
+                                    *file_path,
+                                    bincode::serialize(&scanner_result.1).unwrap().to_vec(),
                                 );
                             }
 
-                            local_resolved_names.insert((*str_path).clone(), scanner_result.0);
+                            local_resolved_names.insert(*file_path, scanner_result.0);
                         } else {
-                            local_resolved_names.insert((*str_path).clone(), FxHashMap::default());
-                            let str_path = get_relative_path(str_path, &root_dir_c);
-                            new_interner.intern(str_path.clone());
+                            local_resolved_names.insert(*file_path, FxHashMap::default());
                         };
 
                         let mut tally = files_processed.lock().unwrap();
@@ -438,10 +452,7 @@ pub(crate) fn scan_files(
         .into_inner()
         .unwrap();
 
-    let asts = Arc::try_unwrap(asts)
-        .unwrap()
-        .into_inner()
-        .unwrap();
+    let asts = Arc::try_unwrap(asts).unwrap().into_inner().unwrap();
 
     if has_new_files {
         if let Some(codebase_path) = codebase_path {
@@ -474,8 +485,8 @@ pub(crate) fn scan_files(
 }
 
 pub(crate) fn scan_file(
-    target_file: &String,
-    root_dir: &String,
+    str_path: &str,
+    file_path: FilePath,
     all_custom_issues: &FxHashSet<String>,
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
@@ -486,16 +497,15 @@ pub(crate) fn scan_file(
 ) -> Result<
     (
         FxHashMap<usize, StrId>,
-        StrId,
         (aast::Program<(), ()>, ScouredComments),
     ),
     ParserError,
 > {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-        println!("scanning {}", &target_file);
+        println!("scanning {}", str_path);
     }
 
-    let aast = get_aast_for_path(&target_file, root_dir, None);
+    let aast = get_aast_for_path(str_path);
 
     let aast = match aast {
         Ok(aast) => aast,
@@ -503,10 +513,6 @@ pub(crate) fn scan_file(
             return Err(err);
         }
     };
-
-    let target_name = get_relative_path(target_file, root_dir);
-
-    let interned_file_path = interner.intern(target_name.clone());
 
     let (resolved_names, uses) =
         hakana_aast_helper::scope_names(&aast.0, interner, empty_name_context);
@@ -519,8 +525,8 @@ pub(crate) fn scan_file(
         all_custom_issues,
         FileSource {
             is_production_code,
-            file_path_actual: target_name.clone(),
-            file_path: interned_file_path,
+            file_path_actual: str_path.to_string(),
+            file_path,
             hh_fixmes: &aast.1.fixmes,
             comments: &aast.1.comments,
             file_contents: aast.2,
@@ -529,5 +535,49 @@ pub(crate) fn scan_file(
         uses,
     );
 
-    Ok((resolved_names, interned_file_path, (aast.0, aast.1)))
+    Ok((resolved_names, (aast.0, aast.1)))
+}
+
+fn invalidate_changed_codebase_elements(
+    codebase: &mut CodebaseInfo,
+    changed_files: &FxHashSet<FilePath>,
+) {
+    for (_, file_storage) in codebase
+        .files
+        .iter()
+        .filter(|f| changed_files.contains(&f.0))
+    {
+        for ast_node in &file_storage.ast_nodes {
+            match codebase.symbols.all.get(&ast_node.name) {
+                Some(kind) => {
+                    if let SymbolKind::TypeDefinition = kind {
+                        codebase.type_definitions.remove(&ast_node.name);
+                    } else {
+                        codebase.classlike_infos.remove(&ast_node.name);
+                    }
+                    codebase.symbols.all.remove(&ast_node.name);
+                }
+                None => {
+                    if ast_node.is_function {
+                        codebase.functionlike_infos.remove(&ast_node.name);
+                    } else if ast_node.is_constant {
+                        codebase.constant_infos.remove(&ast_node.name);
+                    }
+                }
+            }
+        }
+    }
+
+    // we need to check for anonymous functions here
+    let closures_to_remove = codebase
+        .closures_in_files
+        .iter()
+        .filter(|(k, _)| changed_files.contains(*k))
+        .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
+        .flatten()
+        .collect::<FxHashSet<_>>();
+
+    codebase
+        .functionlike_infos
+        .retain(|k, _| !closures_to_remove.contains(k));
 }

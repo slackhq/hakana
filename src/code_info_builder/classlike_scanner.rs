@@ -15,6 +15,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
     FileSource, StrId, ThreadedInterner, STR_BUILTIN_ENUM, STR_BUILTIN_ENUM_CLASS, STR_MEMBER_OF,
+    STR_SIMPLE_XML_ELEMENT, STR_TRAVERSABLE,
 };
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use indexmap::IndexMap;
@@ -202,9 +203,7 @@ pub(crate) fn scan(
                         .insert(interface_name.clone());
                     storage.all_class_interfaces.insert(interface_name.clone());
 
-                    if interner.lookup(*class_name) == "SimpleXMLElement"
-                        && interner.lookup(interface_name) == "HH\\Traversable"
-                    {
+                    if class_name == &STR_SIMPLE_XML_ELEMENT && interface_name == STR_TRAVERSABLE {
                         storage.template_extended_offsets.insert(
                             interface_name,
                             vec![Arc::new(get_named_object(*class_name))],

@@ -4,6 +4,7 @@ use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::dataflow::program_analyzer::find_tainted_data;
 use hakana_analyzer::file_analyzer;
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -73,10 +74,9 @@ pub fn scan_and_analyze_single_file(
         );
 
         for issue in issues {
-            let file_path = interner.lookup(&issue.pos.file_path);
             analysis_result
                 .emitted_issues
-                .entry(file_path.to_string())
+                .entry(issue.pos.file_path)
                 .or_insert_with(Vec::new)
                 .push(issue);
         }
@@ -96,7 +96,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
     for file in HhiAsset::iter() {
         scan_file(
             &file.to_string(),
-            &"".to_string(),
+            FilePath(threaded_interner.intern(file.to_string())),
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
@@ -112,7 +112,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
     for file in HslAsset::iter() {
         scan_file(
             &file.to_string(),
-            &"".to_string(),
+            FilePath(threaded_interner.intern(file.to_string())),
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
@@ -126,8 +126,8 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
 
     for str_path in additional_files {
         scan_file(
-            &str_path.to_string(),
-            &"".to_string(),
+            str_path,
+            FilePath(threaded_interner.intern(str_path.to_string())),
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
@@ -171,12 +171,12 @@ pub fn scan_single_file(
     path: String,
     file_contents: String,
 ) -> std::result::Result<FxHashMap<usize, StrId>, ParserError> {
-    let aast = match get_aast_for_path_and_contents(path.clone(), file_contents, None) {
+    let aast = match get_aast_for_path_and_contents(&path, file_contents) {
         Ok(aast) => aast,
         Err(err) => return Err(err),
     };
 
-    let file_path = interner.intern(path.clone());
+    let file_path = FilePath(interner.intern(path.clone()));
 
     let name_context = NameContext::new(interner);
 
@@ -211,12 +211,12 @@ pub fn analyze_single_file(
     resolved_names: &FxHashMap<usize, StrId>,
     analysis_config: &Config,
 ) -> std::result::Result<AnalysisResult, String> {
-    let aast_result = get_aast_for_path_and_contents(path.clone(), file_contents, None);
+    let aast_result = get_aast_for_path_and_contents(&path, file_contents);
 
     let mut analysis_result =
         AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
-    let file_path = interner.get(path.as_str()).unwrap();
+    let file_path = FilePath(interner.get(path.as_str()).unwrap());
 
     let aast = match aast_result {
         Ok(aast) => aast,
@@ -225,7 +225,7 @@ pub fn analyze_single_file(
             ParserError::SyntaxError { message, mut pos } => {
                 pos.file_path = file_path;
                 analysis_result.emitted_issues.insert(
-                    path.clone(),
+                    file_path,
                     vec![Issue::new(IssueKind::InvalidHackFile, message, pos, &None)],
                 );
 

@@ -2,11 +2,13 @@ pub(crate) mod populator;
 
 use crate::file_cache_provider::FileStatus;
 use analyzer::analyze_files;
+use cache::load_cached_existing_references;
 use diff::mark_safe_symbols_from_diff;
 use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
 use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
@@ -19,7 +21,6 @@ use populator::populate_codebase;
 use rust_embed::RustEmbed;
 use rustc_hash::{FxHashMap, FxHashSet};
 use scanner::{scan_files, ScanFilesResult};
-use std::collections::BTreeMap;
 use std::fs;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
@@ -51,6 +52,23 @@ struct HhiAsset;
 #[include = "*.hack"]
 struct HslAsset;
 
+#[derive(Clone)]
+pub struct SuccessfulRunData {
+    pub codebase: CodebaseInfo,
+    pub interner: Interner,
+    pub file_hashes_and_times: FxHashMap<FilePath, (u64, u64)>,
+}
+
+impl Default for SuccessfulRunData {
+    fn default() -> Self {
+        SuccessfulRunData {
+            codebase: CodebaseInfo::new(),
+            interner: Interner::new(),
+            file_hashes_and_times: FxHashMap::default(),
+        }
+    }
+}
+
 pub fn scan_and_analyze(
     include_core_libs: bool,
     stubs_dirs: Vec<String>,
@@ -61,8 +79,8 @@ pub fn scan_and_analyze(
     threads: u8,
     verbosity: Verbosity,
     header: &str,
-    starter_data: Option<(CodebaseInfo, Interner)>,
-) -> io::Result<AnalysisResult> {
+    starter_data: Option<SuccessfulRunData>,
+) -> io::Result<(AnalysisResult, SuccessfulRunData)> {
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
 
@@ -89,34 +107,17 @@ pub fn scan_and_analyze(
         starter_data,
     )?;
 
+    let file_hashes_and_times = get_serializable_file_data(&file_statuses);
+
     if let Some(cache_dir) = cache_dir {
         let timestamp_path = format!("{}/buildinfo", cache_dir);
         let mut timestamp_file = fs::File::create(&timestamp_path).unwrap();
         write!(timestamp_file, "{}", header).unwrap();
 
         let aast_manifest_path = format!("{}/manifest", cache_dir);
-        let mut manifest_file = fs::File::create(&aast_manifest_path).unwrap();
-        let mapped = file_statuses
-            .iter()
-            .filter(|(_, v)| match v {
-                FileStatus::Deleted => false,
-                _ => true,
-            })
-            .map(|(k, v)| {
-                (
-                    k.clone(),
-                    match v {
-                        FileStatus::Unchanged(a, b)
-                        | FileStatus::Added(a, b)
-                        | FileStatus::Modified(a, b) => (a, b),
-                        FileStatus::Deleted => panic!(),
-                    },
-                )
-            })
-            .collect::<FxHashMap<_, _>>();
-        let serialized_hashes = bincode::serialize(&mapped).unwrap();
-        manifest_file
-            .write_all(&serialized_hashes)
+        fs::File::create(&aast_manifest_path)
+            .unwrap()
+            .write_all(&bincode::serialize(&file_hashes_and_times).unwrap())
             .unwrap_or_else(|_| panic!("Could not write aast manifest {}", &aast_manifest_path));
     }
 
@@ -134,20 +135,23 @@ pub fn scan_and_analyze(
 
     let mut safe_symbols = FxHashSet::default();
     let mut safe_symbol_members = FxHashSet::default();
-    let mut existing_issues = BTreeMap::new();
+    let mut existing_issues = FxHashMap::default();
     let mut symbol_references = SymbolReferences::new();
 
     if config.ast_diff {
-        if let Some(cached_analysis) = mark_safe_symbols_from_diff(
-            &references_path,
-            verbosity,
-            codebase_diff,
-            &codebase,
-            &mut interner,
-            &mut files_to_analyze,
-            &config,
-            &issues_path,
-        ) {
+        if let Some(existing_references) =
+            load_cached_existing_references(references_path.as_ref().unwrap(), true, verbosity)
+        {
+            let cached_analysis = mark_safe_symbols_from_diff(
+                verbosity,
+                codebase_diff,
+                &codebase,
+                &mut interner,
+                &mut files_to_analyze,
+                &issues_path,
+                existing_references,
+            );
+
             safe_symbols = cached_analysis.safe_symbols;
             safe_symbol_members = cached_analysis.safe_symbol_members;
             existing_issues = cached_analysis.existing_issues;
@@ -191,8 +195,6 @@ pub fn scan_and_analyze(
         &analysis_result,
         filter,
         &ignored_paths,
-        None,
-        &file_statuses,
         threads,
         verbosity,
     )?;
@@ -220,7 +222,7 @@ pub fn scan_and_analyze(
         issues_file.write_all(&serialized_issues)?;
     }
 
-    let mut codebase = Arc::try_unwrap(arc_codebase).unwrap();
+    let codebase = Arc::try_unwrap(arc_codebase).unwrap();
     let interner = Arc::try_unwrap(arc_interner).unwrap();
 
     if config.find_unused_definitions {
@@ -232,13 +234,6 @@ pub fn scan_and_analyze(
             &ignored_paths,
         );
     }
-
-    std::thread::spawn(move || {
-        codebase.classlike_infos.clear();
-        codebase.functionlike_infos.clear();
-        codebase.constant_infos.clear();
-        codebase.type_definitions.clear();
-    });
 
     if let GraphKind::WholeProgram(whole_program_kind) = config.graph_kind {
         let issues = match whole_program_kind {
@@ -259,13 +254,44 @@ pub fn scan_and_analyze(
         for issue in issues {
             analysis_result
                 .emitted_issues
-                .entry(interner.lookup(&issue.pos.file_path).to_string())
+                .entry(issue.pos.file_path)
                 .or_insert_with(Vec::new)
                 .push(issue);
         }
     }
 
-    Ok(analysis_result)
+    Ok((
+        analysis_result,
+        SuccessfulRunData {
+            codebase,
+            interner,
+            file_hashes_and_times,
+        },
+    ))
+}
+
+fn get_serializable_file_data(
+    file_statuses: &IndexMap<FilePath, FileStatus>,
+) -> FxHashMap<FilePath, (u64, u64)> {
+    let mapped = file_statuses
+        .iter()
+        .filter(|(_, v)| match v {
+            FileStatus::Deleted => false,
+            _ => true,
+        })
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                match v {
+                    FileStatus::Unchanged(a, b)
+                    | FileStatus::Added(a, b)
+                    | FileStatus::Modified(a, b) => (*a, *b),
+                    FileStatus::Deleted => panic!(),
+                },
+            )
+        })
+        .collect::<FxHashMap<_, _>>();
+    mapped
 }
 
 fn find_files_in_dir(
@@ -351,9 +377,7 @@ fn find_files_in_dir(
 }
 
 pub fn get_aast_for_path(
-    path: &String,
-    root_dir: &String,
-    cache_dir: Option<&String>,
+    path: &str,
 ) -> Result<(aast::Program<(), ()>, ScouredComments, String), ParserError> {
     let file_contents = if path.starts_with("hsl_embedded_") {
         std::str::from_utf8(
@@ -380,20 +404,7 @@ pub fn get_aast_for_path(
         }
     };
 
-    let mut local_path = path.clone();
-
-    if local_path.starts_with(root_dir) {
-        local_path = local_path.replace(root_dir, "");
-        local_path = local_path[1..].to_string();
-    }
-
-    let aast_cache_dir = if let Some(cache_dir) = cache_dir {
-        Some(format!("{}/ast", cache_dir))
-    } else {
-        None
-    };
-
-    get_aast_for_path_and_contents(local_path, file_contents, aast_cache_dir)
+    get_aast_for_path_and_contents(path, file_contents)
 }
 
 fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {

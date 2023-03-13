@@ -20,13 +20,14 @@ pub fn populate_codebase(
 ) {
     let mut all_classlike_descendants = FxHashMap::default();
 
-    let classlike_names = codebase
+    let new_classlike_names = codebase
         .classlike_infos
         .iter()
+        .filter(|(_, storage)| !storage.is_populated)
         .map(|(k, _)| k.clone())
         .collect::<Vec<_>>();
 
-    for k in &classlike_names {
+    for k in &new_classlike_names {
         populate_classlike_storage(
             k,
             &mut all_classlike_descendants,
@@ -164,7 +165,7 @@ pub fn populate_codebase(
             populate_functionlike_storage(
                 functionlike_info,
                 &codebase.symbols,
-                &ReferenceSource::Symbol(true, *name),
+                &ReferenceSource::Symbol(true, name.0),
                 symbol_references,
             );
         }

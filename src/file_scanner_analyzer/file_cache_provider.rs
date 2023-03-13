@@ -1,5 +1,6 @@
 use std::{fs, path::Path};
 
+use hakana_reflection_info::{code_location::FilePath, Interner};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
@@ -11,13 +12,13 @@ pub enum FileStatus {
     Modified(u64, u64),
 }
 
-pub(crate) fn get_file_manifest(cache_dir: &String) -> Option<FxHashMap<String, (u64, u64)>> {
+pub(crate) fn get_file_manifest(cache_dir: &String) -> Option<FxHashMap<FilePath, (u64, u64)>> {
     let aast_manifest_path = format!("{}/manifest", cache_dir);
 
     if Path::new(&aast_manifest_path).exists() {
         let serialized = fs::read(&aast_manifest_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &aast_manifest_path));
-        if let Ok(d) = bincode::deserialize::<FxHashMap<String, (u64, u64)>>(&serialized) {
+        if let Ok(d) = bincode::deserialize::<FxHashMap<FilePath, (u64, u64)>>(&serialized) {
             return Some(d);
         }
     }
@@ -34,15 +35,19 @@ fn get_contents_hash(file_path: &String) -> Result<u64, std::io::Error> {
 
 pub(crate) fn get_file_diff(
     target_files: &IndexMap<String, u64>,
-    file_update_hashes: FxHashMap<String, (u64, u64)>,
-) -> IndexMap<String, FileStatus> {
+    file_update_hashes: FxHashMap<FilePath, (u64, u64)>,
+    interner: &mut Interner,
+) -> IndexMap<FilePath, FileStatus> {
     let mut file_statuses = IndexMap::new();
 
     for (file_path, new_update_time) in target_files {
-        if let Some((old_contents_hash, old_update_time)) = file_update_hashes.get(file_path) {
+        let interned_file_path = FilePath(interner.intern(file_path.clone()));
+        if let Some((old_contents_hash, old_update_time)) =
+            file_update_hashes.get(&interned_file_path)
+        {
             if file_path.starts_with("hhi_embedded_") || file_path.starts_with("hsl_embedded_") {
                 file_statuses.insert(
-                    file_path.clone(),
+                    interned_file_path,
                     FileStatus::Unchanged(0, *new_update_time),
                 );
                 continue;
@@ -52,12 +57,12 @@ pub(crate) fn get_file_diff(
                 if let Ok(new_contents_hash) = get_contents_hash(&file_path) {
                     if new_contents_hash != *old_contents_hash {
                         file_statuses.insert(
-                            file_path.clone(),
+                            interned_file_path,
                             FileStatus::Modified(new_contents_hash, *new_update_time),
                         );
                     } else {
                         file_statuses.insert(
-                            file_path.clone(),
+                            interned_file_path,
                             FileStatus::Unchanged(new_contents_hash, *new_update_time),
                         );
                     }
@@ -66,19 +71,19 @@ pub(crate) fn get_file_diff(
                 }
             } else {
                 file_statuses.insert(
-                    file_path.clone(),
+                    interned_file_path,
                     FileStatus::Unchanged(*old_contents_hash, *new_update_time),
                 );
             }
         } else {
             if file_path.starts_with("hhi_embedded_") || file_path.starts_with("hsl_embedded_") {
-                file_statuses.insert(file_path.clone(), FileStatus::Added(0, *new_update_time));
+                file_statuses.insert(interned_file_path, FileStatus::Added(0, *new_update_time));
                 continue;
             }
 
             if let Ok(contents_hash) = get_contents_hash(&file_path) {
                 file_statuses.insert(
-                    file_path.clone(),
+                    interned_file_path,
                     FileStatus::Added(contents_hash, *new_update_time),
                 );
             } else {

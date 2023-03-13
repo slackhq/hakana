@@ -1,14 +1,14 @@
 use rustc_hash::FxHashMap;
 
-use crate::StrId;
+use crate::{code_location::FilePath, StrId};
 
 #[derive(Default, Debug)]
 pub struct CodebaseDiff {
     pub keep: Vec<(StrId, StrId)>,
     pub keep_signature: Vec<(StrId, StrId)>,
     pub add_or_delete: Vec<(StrId, StrId)>,
-    pub diff_map: FxHashMap<StrId, Vec<(usize, usize, isize, isize)>>,
-    pub deletion_ranges_map: FxHashMap<StrId, Vec<(usize, usize)>>,
+    pub diff_map: FxHashMap<FilePath, Vec<(usize, usize, isize, isize)>>,
+    pub deletion_ranges_map: FxHashMap<FilePath, Vec<(usize, usize)>>,
 }
 
 impl CodebaseDiff {

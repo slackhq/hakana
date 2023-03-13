@@ -1,15 +1,13 @@
-use crate::file_cache_provider::FileStatus;
 use crate::{get_aast_for_path, get_relative_path, update_progressbar};
 use hakana_aast_helper::ParserError;
 use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::file_analyzer;
 use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::code_location::HPos;
+use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::{FileSource, Interner, StrId};
-use indexmap::IndexMap;
 use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
@@ -22,14 +20,12 @@ pub fn analyze_files(
     mut paths: Vec<String>,
     codebase: Arc<CodebaseInfo>,
     interner: Arc<Interner>,
-    resolved_names: &FxHashMap<String, FxHashMap<usize, StrId>>,
-    asts: FxHashMap<StrId, Vec<u8>>,
+    resolved_names: &FxHashMap<FilePath, FxHashMap<usize, StrId>>,
+    asts: FxHashMap<FilePath, Vec<u8>>,
     config: Arc<Config>,
     analysis_result: &Arc<Mutex<AnalysisResult>>,
     filter: Option<String>,
     ignored_paths: &Option<FxHashSet<String>>,
-    cache_dir: Option<&String>,
-    _file_statuses: &IndexMap<String, FileStatus>,
     threads: u8,
     verbosity: Verbosity,
 ) -> io::Result<()> {
@@ -85,10 +81,11 @@ pub fn analyze_files(
         let asts = Arc::new(asts);
 
         for (i, str_path) in path_groups[&0].iter().enumerate() {
-            if let Some(resolved_names) = resolved_names.get(*str_path) {
+            let file_path = FilePath(interner.get(str_path).unwrap());
+            if let Some(resolved_names) = resolved_names.get(&file_path) {
                 analyze_file(
+                    file_path,
                     str_path,
-                    cache_dir,
                     &codebase,
                     &interner,
                     &config,
@@ -119,8 +116,6 @@ pub fn analyze_files(
                 .map(|c| c.clone().clone())
                 .collect::<Vec<_>>();
 
-            let cache_dir_c = cache_dir.cloned();
-
             let analysis_result = analysis_result.clone();
 
             let analysis_config = config.clone();
@@ -137,10 +132,12 @@ pub fn analyze_files(
                     AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
                 for str_path in &pgc {
-                    if let Some(resolved_names) = resolved_names.get(str_path) {
+                    let file_path = FilePath(interner.get(&str_path).unwrap());
+
+                    if let Some(resolved_names) = resolved_names.get(&file_path) {
                         analyze_file(
+                            file_path,
                             str_path,
-                            cache_dir_c.as_ref(),
                             &codebase,
                             &interner,
                             &analysis_config,
@@ -176,32 +173,28 @@ pub fn analyze_files(
 }
 
 fn analyze_file(
+    file_path: FilePath,
     str_path: &String,
-    cache_dir: Option<&String>,
     codebase: &Arc<CodebaseInfo>,
     interner: &Interner,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<usize, StrId>,
     verbosity: Verbosity,
-    asts: &Arc<FxHashMap<StrId, Vec<u8>>>,
+    asts: &Arc<FxHashMap<FilePath, Vec<u8>>>,
 ) {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("Analyzing {}", &str_path);
     }
 
-    let target_name = get_relative_path(str_path, &config.root_dir);
-
-    let file_path = interner.get(target_name.as_str()).unwrap();
-
     let aast = if let Some(aast_result) = get_deserialized_ast(asts, file_path) {
         aast_result
     } else {
-        match get_aast_for_path(str_path, &config.root_dir, cache_dir) {
+        match get_aast_for_path(str_path) {
             Ok(aast) => (aast.0, aast.1),
             Err(err) => {
                 analysis_result.emitted_issues.insert(
-                    target_name.clone(),
+                    file_path,
                     vec![match err {
                         ParserError::NotAHackFile => Issue::new(
                             IssueKind::InvalidHackFile,
@@ -232,7 +225,7 @@ fn analyze_file(
 
     let file_source = FileSource {
         is_production_code: true,
-        file_path_actual: target_name,
+        file_path_actual: str_path.clone(),
         file_path,
         hh_fixmes: &aast.1.fixmes,
         comments: &aast.1.comments,
@@ -244,8 +237,8 @@ fn analyze_file(
 }
 
 fn get_deserialized_ast(
-    asts: &Arc<FxHashMap<StrId, Vec<u8>>>,
-    file_path: StrId,
+    asts: &Arc<FxHashMap<FilePath, Vec<u8>>>,
+    file_path: FilePath,
 ) -> Option<(aast::Program<(), ()>, ScouredComments)> {
     if let Some(serialized_ast) = &asts.get(&file_path) {
         if let Ok(d) =

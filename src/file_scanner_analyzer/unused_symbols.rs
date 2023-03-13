@@ -6,7 +6,7 @@ use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
-use hakana_reflection_info::{StrId, STR_CONSTRUCT, STR_EMPTY, Interner};
+use hakana_reflection_info::{Interner, StrId, STR_CONSTRUCT, STR_EMPTY};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -31,7 +31,7 @@ pub(crate) fn find_unused_definitions(
             && !functionlike_info.generated
         {
             let pos = functionlike_info.name_location.as_ref().unwrap();
-            let file_path = interner.lookup(&pos.file_path);
+            let file_path = interner.lookup(&pos.file_path.0);
 
             if let Some(ignored_paths) = ignored_paths {
                 for ignored_path in ignored_paths {
@@ -59,7 +59,7 @@ pub(crate) fn find_unused_definitions(
                     let def_pos = &functionlike_info.def_location;
                     analysis_result
                         .replacements
-                        .entry(interner.lookup(&pos.file_path).to_string())
+                        .entry(pos.file_path)
                         .or_insert_with(BTreeMap::new)
                         .insert(
                             (def_pos.start_offset, def_pos.end_offset),
@@ -71,10 +71,7 @@ pub(crate) fn find_unused_definitions(
 
                 let issue = Issue::new(
                     IssueKind::UnusedFunction,
-                    format!(
-                        "Unused function {}",
-                        interner.lookup(&function_name)
-                    ),
+                    format!("Unused function {}", interner.lookup(&function_name)),
                     pos.clone(),
                     &Some(FunctionLikeIdentifier::Function(*function_name)),
                 );
@@ -86,7 +83,7 @@ pub(crate) fn find_unused_definitions(
                         .or_insert(0) += 1;
                     analysis_result
                         .emitted_issues
-                        .entry(file_path.to_string())
+                        .entry(pos.file_path)
                         .or_insert_with(Vec::new)
                         .push(issue);
                 }
@@ -97,7 +94,7 @@ pub(crate) fn find_unused_definitions(
     'outer2: for (classlike_name, classlike_info) in &codebase.classlike_infos {
         if classlike_info.user_defined && !classlike_info.generated {
             let pos = &classlike_info.name_location;
-            let file_path = interner.lookup(&pos.file_path);
+            let file_path = interner.lookup(&pos.file_path.0);
 
             if let Some(ignored_paths) = ignored_paths {
                 for ignored_path in ignored_paths {
@@ -137,7 +134,7 @@ pub(crate) fn find_unused_definitions(
                     let def_pos = &classlike_info.def_location;
                     analysis_result
                         .replacements
-                        .entry(interner.lookup(&pos.file_path).to_string())
+                        .entry(pos.file_path)
                         .or_insert_with(BTreeMap::new)
                         .insert(
                             (def_pos.start_offset, def_pos.end_offset),
@@ -154,7 +151,7 @@ pub(crate) fn find_unused_definitions(
                         .or_insert(0) += 1;
                     analysis_result
                         .emitted_issues
-                        .entry(file_path.to_string())
+                        .entry(pos.file_path)
                         .or_insert_with(Vec::new)
                         .push(issue);
                 }
@@ -249,7 +246,7 @@ pub(crate) fn find_unused_definitions(
                                 )
                             };
 
-                        let file_path = interner.lookup(&pos.file_path);
+                        let file_path = interner.lookup(&pos.file_path.0);
 
                         if !config.allow_issue_kind_in_file(&issue.kind, &file_path) {
                             continue;
@@ -262,7 +259,7 @@ pub(crate) fn find_unused_definitions(
                                 .or_insert(0) += 1;
                             analysis_result
                                 .emitted_issues
-                                .entry(file_path.to_string())
+                                .entry(pos.file_path)
                                 .or_insert_with(Vec::new)
                                 .push(issue);
                         }

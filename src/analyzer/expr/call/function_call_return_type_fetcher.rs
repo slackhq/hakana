@@ -79,7 +79,11 @@ pub(crate) fn fetch(
                         .get(
                             format!(
                                 "fn-{}",
-                                functionlike_id.to_string(&statements_analyzer.get_interner())
+                                match functionlike_id {
+                                    FunctionLikeIdentifier::Function(function_id) =>
+                                        function_id.0.to_string(),
+                                    FunctionLikeIdentifier::Method(_, _) => panic!(),
+                                }
                             )
                             .as_str(),
                         )

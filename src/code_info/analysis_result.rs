@@ -4,6 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 
 use crate::{
+    code_location::FilePath,
     data_flow::graph::{DataFlowGraph, GraphKind},
     issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
@@ -18,8 +19,8 @@ pub enum Replacement {
 
 #[derive(Clone, Debug)]
 pub struct AnalysisResult {
-    pub emitted_issues: BTreeMap<String, Vec<Issue>>,
-    pub replacements: FxHashMap<String, BTreeMap<(usize, usize), Replacement>>,
+    pub emitted_issues: FxHashMap<FilePath, Vec<Issue>>,
+    pub replacements: FxHashMap<FilePath, BTreeMap<(usize, usize), Replacement>>,
     pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
@@ -33,7 +34,7 @@ impl AnalysisResult {
         symbol_references: SymbolReferences,
     ) -> Self {
         Self {
-            emitted_issues: BTreeMap::new(),
+            emitted_issues: FxHashMap::default(),
             replacements: FxHashMap::default(),
             mixed_source_counts: FxHashMap::default(),
             program_dataflow_graph: DataFlowGraph::new(program_dataflow_graph_kind),

@@ -12,7 +12,7 @@ use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
-use hakana_reflection_info::code_location::{HPos, StmtStart};
+use hakana_reflection_info::code_location::{FilePath, HPos, StmtStart};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind, VariableSourceKind};
@@ -647,12 +647,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             update_analysis_result_with_tast(
                 tast_info,
                 analysis_result,
-                self.get_interner().lookup(
-                    &statements_analyzer
-                        .get_file_analyzer()
-                        .get_file_source()
-                        .file_path,
-                ),
+                &statements_analyzer
+                    .get_file_analyzer()
+                    .get_file_source()
+                    .file_path,
                 functionlike_storage.ignore_taint_path,
             );
         }
@@ -868,7 +866,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 let id = format!(
                     "{}-{}:{}-{}",
                     param.name,
-                    interner.lookup(&param.name_location.file_path),
+                    interner.lookup(&param.name_location.file_path.0),
                     param.name_location.start_offset,
                     param.name_location.end_offset
                 );
@@ -1096,7 +1094,7 @@ fn handle_unused_assignment(
 ) {
     if config.allow_issue_kind_in_file(
         &IssueKind::UnusedAssignment,
-        statements_analyzer.get_interner().lookup(&pos.file_path),
+        statements_analyzer.get_interner().lookup(&pos.file_path.0),
     ) {
         let unused_closure_variable =
             tast_info
@@ -1158,20 +1156,20 @@ fn handle_unused_assignment(
 pub(crate) fn update_analysis_result_with_tast(
     tast_info: TastInfo,
     analysis_result: &mut AnalysisResult,
-    file_path: &str,
+    file_path: &FilePath,
     ignore_taint_path: bool,
 ) {
     if !tast_info.replacements.is_empty() {
         analysis_result
             .replacements
-            .entry(file_path.to_string())
+            .entry(*file_path)
             .or_insert_with(BTreeMap::new)
             .extend(tast_info.replacements);
     }
 
     analysis_result
         .emitted_issues
-        .entry(file_path.to_string())
+        .entry(*file_path)
         .or_insert_with(Vec::new)
         .extend(
             tast_info

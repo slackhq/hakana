@@ -4,6 +4,7 @@ use hakana_analyzer::custom_hook::CustomHook;
 use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry, Replacement};
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::IssueKind;
+use hakana_reflection_info::Interner;
 use indexmap::IndexMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -519,6 +520,7 @@ pub async fn init(
             } else {
                 0
             };
+
             test_runner.run_test(
                 sub_matches.value_of("TEST").expect("required").to_string(),
                 verbosity,
@@ -577,8 +579,8 @@ fn do_fix(
         None,
     );
 
-    if let Ok(analysis_result) = result {
-        update_files(analysis_result, &root_dir);
+    if let Ok((analysis_result, successfull_run_data)) = result {
+        update_files(analysis_result, &root_dir, &successfull_run_data.interner);
     }
 }
 
@@ -624,8 +626,8 @@ fn do_remove_unused_fixmes(
         None,
     );
 
-    if let Ok(analysis_result) = result {
-        update_files(analysis_result, root_dir);
+    if let Ok((analysis_result, successful_run_data)) = result {
+        update_files(analysis_result, root_dir, &successful_run_data.interner);
     }
 }
 
@@ -690,8 +692,8 @@ fn do_add_fixmes(
         None,
     );
 
-    if let Ok(analysis_result) = result {
-        update_files(analysis_result, root_dir);
+    if let Ok((analysis_result, successful_run_data)) = result {
+        update_files(analysis_result, root_dir, &successful_run_data.interner);
     }
 }
 
@@ -763,8 +765,8 @@ fn do_migrate(
         None,
     );
 
-    if let Ok(analysis_result) = result {
-        update_files(analysis_result, root_dir);
+    if let Ok((analysis_result, successful_run_data)) = result {
+        update_files(analysis_result, root_dir, &successful_run_data.interner);
     }
 }
 
@@ -798,6 +800,8 @@ fn do_find_paths(
 
     config.hooks = analysis_hooks;
 
+    let root_dir = config.root_dir.clone();
+
     let result = hakana_workhorse::scan_and_analyze(
         true,
         Vec::new(),
@@ -810,11 +814,16 @@ fn do_find_paths(
         &header,
         None,
     );
-    if let Ok(analysis_result) = result {
+    if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in analysis_result.emitted_issues {
             for issue in issues {
                 *had_error = true;
-                println!("{}", issue.format(&file_path));
+                println!(
+                    "{}",
+                    issue.format(
+                        &file_path.get_relative_path(&successful_run_data.interner, &root_dir)
+                    )
+                );
             }
         }
 
@@ -856,6 +865,8 @@ fn do_security_check(
 
     config.hooks = analysis_hooks;
 
+    let root_dir = config.root_dir.clone();
+
     let result = hakana_workhorse::scan_and_analyze(
         true,
         Vec::new(),
@@ -868,11 +879,16 @@ fn do_security_check(
         &header,
         None,
     );
-    if let Ok(analysis_result) = result {
+    if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in &analysis_result.emitted_issues {
             for issue in issues {
                 *had_error = true;
-                println!("{}", issue.format(&file_path));
+                println!(
+                    "{}",
+                    issue.format(
+                        &file_path.get_relative_path(&successful_run_data.interner, &root_dir)
+                    )
+                );
             }
         }
 
@@ -881,7 +897,12 @@ fn do_security_check(
         }
 
         if let Some(output_file) = output_file {
-            write_output_files(output_file, cwd, &analysis_result);
+            write_output_files(
+                output_file,
+                cwd,
+                &analysis_result,
+                &successful_run_data.interner,
+            );
         }
     }
 }
@@ -952,6 +973,8 @@ fn do_analysis(
         config.allowed_issues = Some(issue_kinds_filter);
     }
 
+    let root_dir = config.root_dir.clone();
+
     let result = hakana_workhorse::scan_and_analyze(
         true,
         Vec::new(),
@@ -969,9 +992,19 @@ fn do_analysis(
         None,
     );
 
-    if let Ok(analysis_result) = result {
-        for (file_path, issues) in &analysis_result.emitted_issues {
-            for issue in issues {
+    if let Ok((analysis_result, successful_run_data)) = result {
+        for (file_path, issues) in &analysis_result
+            .emitted_issues
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.get_relative_path(&successful_run_data.interner, &root_dir),
+                    v,
+                )
+            })
+            .collect::<BTreeMap<_, _>>()
+        {
+            for issue in *issues {
                 *had_error = true;
                 println!("{}", issue.format(&file_path));
             }
@@ -982,7 +1015,12 @@ fn do_analysis(
         }
 
         if let Some(output_file) = output_file {
-            write_output_files(output_file, cwd, &analysis_result);
+            write_output_files(
+                output_file,
+                cwd,
+                &analysis_result,
+                &successful_run_data.interner,
+            );
         }
 
         if show_issue_stats {
@@ -1015,7 +1053,12 @@ fn do_analysis(
     }
 }
 
-fn write_output_files(output_file: String, cwd: &String, analysis_result: &AnalysisResult) {
+fn write_output_files(
+    output_file: String,
+    cwd: &String,
+    analysis_result: &AnalysisResult,
+    interner: &Interner,
+) {
     if output_file.ends_with("checkpoint_results.json") {
         let output_path = if output_file.starts_with("/") {
             output_file
@@ -1025,9 +1068,14 @@ fn write_output_files(output_file: String, cwd: &String, analysis_result: &Analy
         let mut output_path = fs::File::create(Path::new(&output_path)).unwrap();
         let mut checkpoint_entries = vec![];
 
-        for (file_path, issues) in &analysis_result.emitted_issues {
-            for issue in issues {
-                checkpoint_entries.push(CheckPointEntry::from_issue(issue, &file_path));
+        for (file_path, issues) in &analysis_result
+            .emitted_issues
+            .iter()
+            .map(|(k, v)| (k.get_relative_path(interner, cwd), v))
+            .collect::<BTreeMap<_, _>>()
+        {
+            for issue in *issues {
+                checkpoint_entries.push(CheckPointEntry::from_issue(issue, file_path));
             }
         }
 
@@ -1037,11 +1085,16 @@ fn write_output_files(output_file: String, cwd: &String, analysis_result: &Analy
     }
 }
 
-fn update_files(analysis_result: AnalysisResult, root_dir: &String) {
-    for (filename, replacements) in &analysis_result.replacements {
-        println!("updating {}", filename);
+fn update_files(analysis_result: AnalysisResult, root_dir: &String, interner: &Interner) {
+    for (relative_path, replacements) in analysis_result
+        .replacements
+        .iter()
+        .map(|(k, v)| (k.get_relative_path(interner, root_dir), v))
+        .collect::<BTreeMap<_, _>>()
+    {
+        println!("updating {}", relative_path);
 
-        let file_path = format!("{}/{}", root_dir, filename);
+        let file_path = format!("{}/{}", root_dir, relative_path);
 
         let file_contents = fs::read_to_string(&file_path).unwrap();
         let mut file = File::create(&file_path).unwrap();

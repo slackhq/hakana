@@ -218,7 +218,7 @@ impl Issue {
             symbol: match calling_functionlike_id {
                 Some(FunctionLikeIdentifier::Function(id)) => (*id, STR_EMPTY),
                 Some(FunctionLikeIdentifier::Method(a, b)) => (*a, *b),
-                None => (pos.file_path, STR_EMPTY),
+                None => (pos.file_path.0, STR_EMPTY),
             },
             pos,
             can_fix: false,

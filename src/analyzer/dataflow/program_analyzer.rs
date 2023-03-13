@@ -258,7 +258,7 @@ fn get_child_nodes(
                         let message = format!(
                             "Data found its way to {} using path {}",
                             target_id,
-                            generated_source.get_trace(interner)
+                            generated_source.get_trace(interner, &config.root_dir)
                         );
                         new_issues.push(Issue::new(
                             IssueKind::TaintedData(t.clone()),
@@ -327,7 +327,7 @@ fn get_child_nodes(
                             let message = format!(
                                 "Data found its way to {} using path {}",
                                 target_id,
-                                generated_source.get_trace(interner)
+                                generated_source.get_trace(interner, &config.root_dir)
                             );
                             new_issues.push(Issue::new(
                                 IssueKind::TaintedData(t.clone()),
@@ -379,7 +379,10 @@ fn get_child_nodes(
                                             if let Some(pos) = &new_destination.pos {
                                                 if !config.allow_sink_in_file(
                                                     &matching_taint,
-                                                    interner.lookup(&pos.file_path),
+                                                    &pos.file_path.get_relative_path(
+                                                        interner,
+                                                        &config.root_dir,
+                                                    ),
                                                 ) {
                                                     continue;
                                                 }
@@ -391,7 +394,8 @@ fn get_child_nodes(
                                                 "Data from {} found its way to {} using path {}",
                                                 taint_source.get_error_message(),
                                                 matching_taint.get_error_message(),
-                                                new_destination.get_trace(interner)
+                                                new_destination
+                                                    .get_trace(interner, &config.root_dir)
                                             );
                                             new_issues.push(Issue::new(
                                                 IssueKind::TaintedData(matching_taint.clone()),

@@ -292,7 +292,10 @@ fn analyze_named_constructor(
 
     let mut generic_type_params = None;
 
-    let method_name = statements_analyzer.get_interner().get("__construct").unwrap();
+    let method_name = statements_analyzer
+        .get_interner()
+        .get("__construct")
+        .unwrap();
     let method_id = MethodIdentifier(classlike_name.clone(), method_name);
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
@@ -367,7 +370,7 @@ fn analyze_named_constructor(
                     &statements_analyzer.get_codebase().symbols,
                     &context
                         .function_context
-                        .get_reference_source(statements_analyzer.get_file_path()),
+                        .get_reference_source(&statements_analyzer.get_file_path().0),
                     &mut tast_info.symbol_references,
                 );
 
@@ -474,7 +477,7 @@ fn analyze_named_constructor(
                             &statements_analyzer.get_codebase().symbols,
                             &context
                                 .function_context
-                                .get_reference_source(statements_analyzer.get_file_path()),
+                                .get_reference_source(&statements_analyzer.get_file_path().0),
                             &mut tast_info.symbol_references,
                         );
 

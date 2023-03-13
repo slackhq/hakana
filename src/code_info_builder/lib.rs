@@ -233,10 +233,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             };
 
             let mut h = FxHashMap::default();
-            let type_name_str = self.interner.lookup(type_name).to_string();
             h.insert(
                 self.interner
-                    .intern("typedef-".to_string() + &type_name_str),
+                    .intern("typedef-".to_string() + &type_name.0.to_string()),
                 Arc::new(constraint_type.clone()),
             );
 
@@ -512,10 +511,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .unwrap()
             .clone();
 
-        let functionlike_id = self.interner.lookup(name).to_string();
-
-        let functionlike_storage =
-            self.visit_function(false, c, name, &f.fun, Some(&f.name.0), functionlike_id);
+        let functionlike_storage = self.visit_function(false, c, name, &f.fun, Some(&f.name.0));
 
         let (signature_hash, body_hash) = get_function_hashes(
             &self.file_source.file_contents,
@@ -575,16 +571,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         if let Some(fun) = fun {
             let function_id = format!(
                 "{}:{}",
-                self.file_source.file_path.0,
+                self.file_source.file_path.0 .0,
                 fun.span.start_offset()
             );
 
             let name = self.interner.intern(function_id);
 
-            let functionlike_id = self.interner.lookup(name).to_string();
-
-            let functionlike_storage =
-                self.visit_function(true, c, name, fun, None, functionlike_id);
+            let functionlike_storage = self.visit_function(true, c, name, fun, None);
 
             self.closures
                 .insert(fun.span.start_offset(), functionlike_storage);
@@ -602,7 +595,6 @@ impl<'a> Scanner<'a> {
         name: StrId,
         fun: &aast::Fun_<(), ()>,
         name_pos: Option<&oxidized::tast::Pos>,
-        functionlike_id: String,
     ) -> FunctionLikeInfo {
         let parent_function_storage = if is_anonymous {
             if let Some(parent_function_id) = &c.function_name {
@@ -662,7 +654,6 @@ impl<'a> Scanner<'a> {
             &mut type_resolution_context,
             None,
             &self.resolved_names,
-            &functionlike_id,
             &self.file_source.comments,
             &self.file_source,
             is_anonymous,

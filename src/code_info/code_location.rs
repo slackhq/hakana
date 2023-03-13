@@ -1,7 +1,7 @@
 use oxidized::ast::Pos;
 use serde::{Deserialize, Serialize};
 
-use crate::StrId;
+use crate::{Interner, StrId};
 
 // offset, start line, start column
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -13,8 +13,22 @@ pub struct StmtStart {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+pub struct FilePath(pub StrId);
+
+impl FilePath {
+    pub fn get_relative_path(&self, interner: &Interner, root_dir: &str) -> String {
+        let full_path = interner.lookup(&self.0);
+        if full_path.contains(root_dir) {
+            full_path[(root_dir.len() + 1)..].to_string()
+        } else {
+            full_path.to_string()
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct HPos {
-    pub file_path: StrId,
+    pub file_path: FilePath,
 
     pub start_offset: usize,
     pub end_offset: usize,
@@ -27,7 +41,7 @@ pub struct HPos {
 }
 
 impl HPos {
-    pub fn new(pos: &Pos, file_path: StrId, stmt_start: Option<StmtStart>) -> HPos {
+    pub fn new(pos: &Pos, file_path: FilePath, stmt_start: Option<StmtStart>) -> HPos {
         let (start, end) = pos.to_start_and_end_lnum_bol_offset();
         let (start_line, line_start_beginning_offset, start_offset) = start;
         let (end_line, line_end_beginning_offset, end_offset) = end;

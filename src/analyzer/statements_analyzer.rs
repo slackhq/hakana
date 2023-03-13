@@ -6,7 +6,7 @@ use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
 use crate::stmt_analyzer;
 use crate::typed_ast::TastInfo;
-use hakana_reflection_info::code_location::HPos;
+use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
@@ -113,12 +113,12 @@ impl<'a> StatementsAnalyzer<'a> {
                         ReferenceSource::ClasslikeMember(false, *a, *b)
                     }
                 },
-                None => ReferenceSource::Symbol(false, *self.get_file_path()),
+                None => ReferenceSource::Symbol(false, self.get_file_path().0),
             },
         }
     }
 
-    pub fn get_file_path(&self) -> &StrId {
+    pub fn get_file_path(&self) -> &FilePath {
         &self.get_file_analyzer().get_file_source().file_path
     }
 

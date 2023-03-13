@@ -1,12 +1,13 @@
 use hakana_analyzer::config;
 use hakana_analyzer::config::Verbosity;
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::issue::IssueKind;
-use hakana_reflection_info::Interner;
 use hakana_workhorse::wasm::get_single_file_codebase;
+use hakana_workhorse::SuccessfulRunData;
+use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::env;
 use std::fs;
@@ -32,7 +33,12 @@ pub trait TestRunner {
         let mut test_diagnostics = vec![];
 
         let starter_codebase = if test_folders.len() > 1 {
-            Some(get_single_file_codebase(vec!["tests/stubs/stubs.hack"]))
+            let (codebase, interner) = get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
+            Some(SuccessfulRunData {
+                codebase,
+                interner,
+                file_hashes_and_times: FxHashMap::default(),
+            })
         } else {
             None
         };
@@ -153,7 +159,7 @@ pub trait TestRunner {
         had_error: &mut bool,
         test_diagnostics: &mut Vec<(String, String)>,
         build_checksum: &str,
-        starter_data: Option<(CodebaseInfo, Interner)>,
+        starter_data: Option<SuccessfulRunData>,
         total_time_in_analysis: &mut Duration,
     ) -> String {
         if dir.contains("skipped-") || dir.contains("SKIPPED-") {
@@ -220,15 +226,16 @@ pub trait TestRunner {
 
             let result = result.unwrap();
 
-            *total_time_in_analysis += result.time_in_analysis;
+            let input_file_path = FilePath(result.1.interner.get(&input_file).unwrap());
 
-            let output_contents = if let Some(file_replacements) =
-                result.replacements.get(&"input.hack".to_string())
-            {
-                crate::replace_contents(input_contents, file_replacements)
-            } else {
-                input_contents
-            };
+            *total_time_in_analysis += result.0.time_in_analysis;
+
+            let output_contents =
+                if let Some(file_replacements) = result.0.replacements.get(&input_file_path) {
+                    crate::replace_contents(input_contents, file_replacements)
+                } else {
+                    input_contents
+                };
 
             return if output_contents == expected_output_contents {
                 ".".to_string()
@@ -241,13 +248,16 @@ pub trait TestRunner {
             };
         } else {
             let test_output = match result {
-                Ok(analysis_result) => {
+                Ok((analysis_result, run_data)) => {
                     *total_time_in_analysis += analysis_result.time_in_analysis;
 
                     let mut output = vec![];
                     for (file_path, issues) in &analysis_result.emitted_issues {
                         for issue in issues {
-                            output.push(issue.format(&file_path));
+                            output
+                                .push(issue.format(
+                                    &file_path.get_relative_path(&run_data.interner, &dir),
+                                ));
                         }
                     }
 
@@ -310,7 +320,7 @@ pub trait TestRunner {
         had_error: &mut bool,
         test_diagnostics: &mut Vec<(String, String)>,
         build_checksum: &str,
-        starter_data: Option<(CodebaseInfo, Interner)>,
+        starter_data: Option<SuccessfulRunData>,
     ) -> String {
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
@@ -380,11 +390,13 @@ pub trait TestRunner {
         fs::remove_dir_all(&workdir_base).unwrap();
 
         let test_output = match b_result {
-            Ok(analysis_result) => {
+            Ok((analysis_result, run_data)) => {
                 let mut output = vec![];
                 for (file_path, issues) in &analysis_result.emitted_issues {
                     for issue in issues {
-                        output.push(issue.format(&file_path));
+                        output.push(issue.format(
+                            &file_path.get_relative_path(&run_data.interner, &workdir_base),
+                        ));
                     }
                 }
 

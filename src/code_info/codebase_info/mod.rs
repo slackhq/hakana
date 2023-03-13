@@ -2,7 +2,6 @@ pub mod symbols;
 
 use self::symbols::SymbolKind;
 pub use self::symbols::Symbols;
-use crate::class_constant_info::ConstantInfo;
 use crate::classlike_info::ClassLikeInfo;
 use crate::file_info::FileInfo;
 use crate::functionlike_info::FunctionLikeInfo;
@@ -11,6 +10,7 @@ use crate::t_atomic::TAtomic;
 use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
 use crate::StrId;
+use crate::{class_constant_info::ConstantInfo, code_location::FilePath};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
@@ -23,10 +23,10 @@ pub struct CodebaseInfo {
     pub infer_types_from_usage: bool,
     pub register_stub_files: bool,
     pub constant_infos: FxHashMap<StrId, ConstantInfo>,
-    pub closures_in_files: FxHashMap<String, FxHashSet<StrId>>,
+    pub closures_in_files: FxHashMap<FilePath, FxHashSet<StrId>>,
     pub const_files: FxHashMap<String, FxHashSet<StrId>>,
     pub classlike_descendants: FxHashMap<StrId, FxHashSet<StrId>>,
-    pub files: FxHashMap<StrId, FileInfo>,
+    pub files: FxHashMap<FilePath, FileInfo>,
 
     /* Symbols that have already been checked on a previous Hakana run */
     pub safe_symbols: FxHashSet<StrId>,

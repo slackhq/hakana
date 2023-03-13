@@ -150,7 +150,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             &codebase.symbols,
             &context
                 .function_context
-                .get_reference_source(statements_analyzer.get_file_path()),
+                .get_reference_source(&statements_analyzer.get_file_path().0),
             &mut tast_info.symbol_references,
         );
         type_expander::expand_union(

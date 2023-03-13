@@ -64,8 +64,8 @@ pub(crate) fn fetch(
 
     if !functionlike_storage.template_types.is_empty() {
         let fn_id = format!(
-            "fn-{}",
-            declaring_method_id.to_string(&statements_analyzer.get_interner())
+            "fn-{}::{}",
+            declaring_method_id.0 .0, declaring_method_id.1 .0,
         );
         let fn_id = statements_analyzer
             .get_interner()

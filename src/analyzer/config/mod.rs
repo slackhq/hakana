@@ -158,8 +158,6 @@ impl Config {
     }
 
     pub fn allow_issues_in_file(&self, file: &str) -> bool {
-        let file = format!("{}/{}", self.root_dir, file);
-
         for ignore_file_path in &self.ignore_all_issues_in_files {
             if glob::Pattern::new(ignore_file_path).unwrap().matches(&file) {
                 return false;
@@ -170,8 +168,6 @@ impl Config {
     }
 
     pub fn allow_issue_kind_in_file(&self, issue_kind: &IssueKind, file: &str) -> bool {
-        let file = format!("{}/{}", self.root_dir, file);
-
         if let Some(issue_entries) = self.ignore_issue_files.get(&issue_kind) {
             for ignore_file_path in issue_entries {
                 if glob::Pattern::new(ignore_file_path).unwrap().matches(&file) {
@@ -195,7 +191,6 @@ impl Config {
 
     pub fn allow_sink_in_file(&self, taint_type: &SinkType, file: &str) -> bool {
         let str_type = taint_type.to_string();
-        let file = format!("{}/{}", self.root_dir, file);
 
         if let Some(issue_entries) = self.security_config.ignore_sink_files.get(&str_type) {
             for ignore_file_path in issue_entries {

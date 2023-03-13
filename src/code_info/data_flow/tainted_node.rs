@@ -30,14 +30,14 @@ pub struct TaintedNode {
 }
 
 impl TaintedNode {
-    pub fn get_trace(&self, interner: &Interner) -> String {
+    pub fn get_trace(&self, interner: &Interner, root_dir: &str) -> String {
         let mut source_descriptor = format!(
             "{}{}",
             self.label,
             if let Some(pos) = &self.pos {
                 format!(
                     " ({}:{}:{})",
-                    interner.lookup(&pos.file_path),
+                    &pos.file_path.get_relative_path(interner, root_dir),
                     pos.start_line,
                     pos.start_column
                 )
@@ -50,7 +50,7 @@ impl TaintedNode {
             let path = self.path_types.iter().last();
             source_descriptor = format!(
                 "{} {} {}",
-                previous_source.get_trace(interner),
+                previous_source.get_trace(interner, root_dir),
                 if let Some(path) = path {
                     format!("--{}-->", path)
                 } else {

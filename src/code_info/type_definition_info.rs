@@ -6,13 +6,17 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    classlike_info::Variance, code_location::HPos, t_atomic::DictKey, t_union::TUnion,
-    taint::SourceType, StrId,
+    classlike_info::Variance,
+    code_location::{FilePath, HPos},
+    t_atomic::DictKey,
+    t_union::TUnion,
+    taint::SourceType,
+    StrId,
 };
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TypeDefinitionInfo {
-    pub newtype_file: Option<StrId>,
+    pub newtype_file: Option<FilePath>,
     pub as_type: Option<TUnion>,
     pub actual_type: TUnion,
 

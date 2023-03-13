@@ -11,7 +11,7 @@ use hakana_reflection_info::{
     functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    Interner, StrId, STR_THIS,
+    Interner, StrId, STR_THIS, code_location::FilePath,
 };
 use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
@@ -33,7 +33,7 @@ pub struct TypeExpansionOptions<'a> {
     pub self_class: Option<&'a StrId>,
     pub static_class_type: StaticClassType<'a, 'a>,
     pub parent_class: Option<&'a StrId>,
-    pub file_path: Option<&'a StrId>,
+    pub file_path: Option<&'a FilePath>,
 
     pub evaluate_class_constants: bool,
     pub evaluate_conditional_types: bool,

@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
 use hakana_reflection_info::{
-    ast_signature::DefSignatureNode, diff::CodebaseDiff, file_info::FileInfo, StrId, STR_EMPTY,
+    ast_signature::DefSignatureNode, code_location::FilePath, diff::CodebaseDiff,
+    file_info::FileInfo, STR_EMPTY,
 };
 use rustc_hash::FxHashMap;
 
 pub(crate) fn get_diff(
-    existing_files: &FxHashMap<StrId, FileInfo>,
-    new_files: &FxHashMap<StrId, FileInfo>,
+    existing_files: &FxHashMap<FilePath, FileInfo>,
+    new_files: &FxHashMap<FilePath, FileInfo>,
 ) -> CodebaseDiff {
     let mut keep = vec![];
     let mut keep_signature = vec![];
