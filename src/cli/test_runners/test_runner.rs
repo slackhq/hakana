@@ -7,6 +7,8 @@ use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_workhorse::wasm::get_single_file_codebase;
 use hakana_workhorse::SuccessfulRunData;
+use rand::seq::SliceRandom;
+use rand::SeedableRng;
 use rustc_hash::FxHashSet;
 use std::env;
 use std::fs;
@@ -27,12 +29,13 @@ pub trait TestRunner {
         had_error: &mut bool,
         build_checksum: &str,
         repeat: u16,
+        random_seed: Option<u64>,
     ) {
-        let test_folders = get_all_test_folders(test_or_test_dir);
+        let candidate_test_folders = get_all_test_folders(test_or_test_dir);
 
         let mut test_diagnostics = vec![];
 
-        let starter_data = if test_folders.len() > 1 {
+        let starter_data = if candidate_test_folders.len() > 1 {
             let (codebase, interner) = get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
             Some(SuccessfulRunData {
                 codebase,
@@ -46,6 +49,18 @@ pub trait TestRunner {
         let mut last_run_data = None;
 
         let mut time_in_analysis = Duration::default();
+
+        let mut test_folders = vec![];
+
+        for _ in 0..(repeat + 1) {
+            test_folders.extend(candidate_test_folders.clone());
+        }
+
+        if let Some(random_seed) = random_seed {
+            println!("Running with random seed: {}\n", random_seed);
+            let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(random_seed);
+            test_folders.shuffle(&mut rng);
+        }
 
         for _ in 0..(repeat + 1) {
             for test_folder in test_folders.clone() {

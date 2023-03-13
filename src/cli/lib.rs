@@ -6,6 +6,7 @@ use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::Interner;
 use indexmap::IndexMap;
+use rand::Rng;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 use std::env;
@@ -339,6 +340,16 @@ pub async fn init(
                         .help("Whether to reuse codebase between tests"),
                 )
                 .arg(
+                    arg!(--"randomize")
+                        .required(false)
+                        .help("Whether to randomise test order"),
+                )
+                .arg(
+                    arg!(--"seed" <COUNT>)
+                        .required(false)
+                        .help("Seed for random test execution"),
+                )
+                .arg(
                     arg!(--"debug")
                         .required(false)
                         .help("Whether to show debug output"),
@@ -526,6 +537,17 @@ pub async fn init(
                 0
             };
 
+            let random_seed = if sub_matches.is_present("randomize") {
+                if let Some(val) = sub_matches.value_of("seed").map(|f| f.to_string()) {
+                    Some(val.parse::<u64>().unwrap())
+                } else {
+                    let mut rng = rand::thread_rng();
+                    Some(rng.gen())
+                }
+            } else {
+                None
+            };
+
             test_runner.run_test(
                 sub_matches.value_of("TEST").expect("required").to_string(),
                 verbosity,
@@ -534,6 +556,7 @@ pub async fn init(
                 &mut had_error,
                 header,
                 repeat,
+                random_seed,
             );
         }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachabe!()
