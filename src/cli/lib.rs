@@ -334,6 +334,11 @@ pub async fn init(
                         .help("Whether to use cache"),
                 )
                 .arg(
+                    arg!(--"reuse-codebase")
+                        .required(false)
+                        .help("Whether to reuse codebase between tests"),
+                )
+                .arg(
                     arg!(--"debug")
                         .required(false)
                         .help("Whether to show debug output"),
@@ -525,6 +530,7 @@ pub async fn init(
                 sub_matches.value_of("TEST").expect("required").to_string(),
                 verbosity,
                 !sub_matches.is_present("no-cache"),
+                sub_matches.is_present("reuse-codebase"),
                 &mut had_error,
                 header,
                 repeat,

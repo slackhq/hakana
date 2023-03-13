@@ -7,7 +7,6 @@ use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_workhorse::wasm::get_single_file_codebase;
 use hakana_workhorse::SuccessfulRunData;
-use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::env;
 use std::fs;
@@ -24,6 +23,7 @@ pub trait TestRunner {
         test_or_test_dir: String,
         verbosity: Verbosity,
         use_cache: bool,
+        reuse_codebase: bool,
         had_error: &mut bool,
         build_checksum: &str,
         repeat: u16,
@@ -32,16 +32,18 @@ pub trait TestRunner {
 
         let mut test_diagnostics = vec![];
 
-        let starter_codebase = if test_folders.len() > 1 {
+        let starter_data = if test_folders.len() > 1 {
             let (codebase, interner) = get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
             Some(SuccessfulRunData {
                 codebase,
                 interner,
-                file_hashes_and_times: FxHashMap::default(),
+                ..Default::default()
             })
         } else {
             None
         };
+
+        let mut last_run_data = None;
 
         let mut time_in_analysis = Duration::default();
 
@@ -53,8 +55,7 @@ pub trait TestRunner {
                     panic!("could not create aast cache directory");
                 }
 
-                let needs_fresh_codebase =
-                    test_folder.contains("xhp") || test_folder.contains("/diff/");
+                let needs_fresh_codebase = test_folder.contains("xhp");
 
                 let test_result = self.run_test_in_dir(
                     test_folder,
@@ -63,19 +64,29 @@ pub trait TestRunner {
                     had_error,
                     &mut test_diagnostics,
                     build_checksum,
-                    if let Some(starter_codebase) = &starter_codebase {
-                        if needs_fresh_codebase {
-                            None
+                    if let Some(last_run_data) = last_run_data {
+                        if reuse_codebase {
+                            Some(last_run_data)
                         } else {
-                            Some(starter_codebase.clone())
+                            if !needs_fresh_codebase {
+                                starter_data.clone()
+                            } else {
+                                None
+                            }
                         }
                     } else {
-                        None
+                        if !needs_fresh_codebase {
+                            starter_data.clone()
+                        } else {
+                            None
+                        }
                     },
                     &mut time_in_analysis,
                 );
 
-                print!("{}", test_result);
+                last_run_data = test_result.1;
+
+                print!("{}", test_result.0);
                 io::stdout().flush().unwrap();
             }
         }
@@ -161,9 +172,9 @@ pub trait TestRunner {
         build_checksum: &str,
         starter_data: Option<SuccessfulRunData>,
         total_time_in_analysis: &mut Duration,
-    ) -> String {
+    ) -> (String, Option<SuccessfulRunData>) {
         if dir.contains("skipped-") || dir.contains("SKIPPED-") {
-            return "S".to_string();
+            return ("S".to_string(), starter_data);
         }
 
         if dir.contains("/diff/") {
@@ -226,9 +237,9 @@ pub trait TestRunner {
 
             let result = result.unwrap();
 
-            let input_file_path = FilePath(result.1.interner.get(&input_file).unwrap());
-
             *total_time_in_analysis += result.0.time_in_analysis;
+
+            let input_file_path = FilePath(result.1.interner.get(&input_file).unwrap());
 
             let output_contents =
                 if let Some(file_replacements) = result.0.replacements.get(&input_file_path) {
@@ -238,16 +249,16 @@ pub trait TestRunner {
                 };
 
             return if output_contents == expected_output_contents {
-                ".".to_string()
+                (".".to_string(), Some(result.1))
             } else {
                 test_diagnostics.push((
                     dir,
                     format!("- {}\n+ {}", expected_output_contents, output_contents),
                 ));
-                "F".to_string()
+                ("F".to_string(), Some(result.1))
             };
         } else {
-            let test_output = match result {
+            match result {
                 Ok((analysis_result, run_data)) => {
                     *total_time_in_analysis += analysis_result.time_in_analysis;
 
@@ -261,54 +272,56 @@ pub trait TestRunner {
                         }
                     }
 
-                    output
+                    let test_output = output;
+
+                    let expected_output_path = dir.clone() + "/output.txt";
+                    let expected_output = if Path::new(&expected_output_path).exists() {
+                        let expected = fs::read_to_string(expected_output_path)
+                            .unwrap()
+                            .trim()
+                            .to_string();
+                        Some(expected)
+                    } else {
+                        None
+                    };
+
+                    if if let Some(expected_output) = &expected_output {
+                        if expected_output == test_output.join("").trim() {
+                            true
+                        } else {
+                            expected_output != ""
+                                && test_output.len() == 1
+                                && expected_output
+                                    .as_bytes()
+                                    .iter()
+                                    .filter(|&&c| c == b'\n')
+                                    .count()
+                                    == 0
+                                && test_output.iter().any(|s| s.contains(expected_output))
+                        }
+                    } else {
+                        test_output.is_empty()
+                    } {
+                        return (".".to_string(), Some(run_data));
+                    } else {
+                        if let Some(expected_output) = &expected_output {
+                            test_diagnostics.push((
+                                dir,
+                                format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
+                            ));
+                        } else {
+                            test_diagnostics
+                                .push((dir, format!("-\n+ {}", test_output.join("+ "))));
+                        }
+                        return ("F".to_string(), Some(run_data));
+                    }
                 }
                 Err(error) => {
                     *had_error = true;
-                    vec![error.to_string()]
+                    test_diagnostics.push((dir, error.to_string()));
+                    return ("F".to_string(), None);
                 }
             };
-
-            let expected_output_path = dir.clone() + "/output.txt";
-            let expected_output = if Path::new(&expected_output_path).exists() {
-                let expected = fs::read_to_string(expected_output_path)
-                    .unwrap()
-                    .trim()
-                    .to_string();
-                Some(expected)
-            } else {
-                None
-            };
-
-            if if let Some(expected_output) = &expected_output {
-                if expected_output == test_output.join("").trim() {
-                    true
-                } else {
-                    expected_output != ""
-                        && test_output.len() == 1
-                        && expected_output
-                            .as_bytes()
-                            .iter()
-                            .filter(|&&c| c == b'\n')
-                            .count()
-                            == 0
-                        && test_output.iter().any(|s| s.contains(expected_output))
-                }
-            } else {
-                test_output.is_empty()
-            } {
-                return ".".to_string();
-            } else {
-                if let Some(expected_output) = &expected_output {
-                    test_diagnostics.push((
-                        dir,
-                        format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
-                    ));
-                } else {
-                    test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
-                }
-                return "F".to_string();
-            }
         }
     }
 
@@ -321,7 +334,7 @@ pub trait TestRunner {
         test_diagnostics: &mut Vec<(String, String)>,
         build_checksum: &str,
         starter_data: Option<SuccessfulRunData>,
-    ) -> String {
+    ) -> (String, Option<SuccessfulRunData>) {
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
         if matches!(verbosity, Verbosity::Debugging) {
@@ -344,7 +357,7 @@ pub trait TestRunner {
 
         let stub_dirs = vec![cwd.clone() + "/test/stubs"];
 
-        hakana_workhorse::scan_and_analyze(
+        let a_result = hakana_workhorse::scan_and_analyze(
             starter_data.is_none(),
             stub_dirs.clone(),
             None,
@@ -353,17 +366,15 @@ pub trait TestRunner {
                 format!("{}/third-party/xhp-lib/src", cwd),
             ])),
             config.clone(),
-            if starter_data.is_none() {
-                cache_dir
-            } else {
-                None
-            },
+            cache_dir,
             1,
             verbosity,
             build_checksum,
-            starter_data.clone(),
+            starter_data,
         )
         .unwrap();
+
+        let starter_data = Some(a_result.1);
 
         copy_recursively(dir.clone() + "/b", workdir_base.clone()).unwrap();
 
@@ -376,11 +387,7 @@ pub trait TestRunner {
                 format!("{}/third-party/xhp-lib/src", cwd),
             ])),
             config.clone(),
-            if starter_data.is_none() {
-                cache_dir
-            } else {
-                None
-            },
+            cache_dir,
             1,
             verbosity,
             build_checksum,
@@ -389,7 +396,7 @@ pub trait TestRunner {
 
         fs::remove_dir_all(&workdir_base).unwrap();
 
-        let test_output = match b_result {
+        match b_result {
             Ok((analysis_result, run_data)) => {
                 let mut output = vec![];
                 for (file_path, issues) in &analysis_result.emitted_issues {
@@ -400,54 +407,55 @@ pub trait TestRunner {
                     }
                 }
 
-                output
+                let test_output = output;
+
+                let expected_output_path = dir.clone() + "/output.txt";
+                let expected_output = if Path::new(&expected_output_path).exists() {
+                    let expected = fs::read_to_string(expected_output_path)
+                        .unwrap()
+                        .trim()
+                        .to_string();
+                    Some(expected)
+                } else {
+                    None
+                };
+
+                if if let Some(expected_output) = &expected_output {
+                    if expected_output.trim() == test_output.join("").trim() {
+                        true
+                    } else {
+                        expected_output != ""
+                            && test_output.len() == 1
+                            && expected_output
+                                .as_bytes()
+                                .iter()
+                                .filter(|&&c| c == b'\n')
+                                .count()
+                                == 0
+                            && test_output.iter().any(|s| s.contains(expected_output))
+                    }
+                } else {
+                    test_output.is_empty()
+                } {
+                    return (".".to_string(), Some(run_data));
+                } else {
+                    if let Some(expected_output) = &expected_output {
+                        test_diagnostics.push((
+                            dir,
+                            format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
+                        ));
+                    } else {
+                        test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
+                    }
+                    return ("F".to_string(), Some(run_data));
+                }
             }
             Err(error) => {
                 *had_error = true;
-                vec![error.to_string()]
+                test_diagnostics.push((dir, error.to_string()));
+                return ("F".to_string(), None);
             }
         };
-
-        let expected_output_path = dir.clone() + "/output.txt";
-        let expected_output = if Path::new(&expected_output_path).exists() {
-            let expected = fs::read_to_string(expected_output_path)
-                .unwrap()
-                .trim()
-                .to_string();
-            Some(expected)
-        } else {
-            None
-        };
-
-        if if let Some(expected_output) = &expected_output {
-            if expected_output.trim() == test_output.join("").trim() {
-                true
-            } else {
-                expected_output != ""
-                    && test_output.len() == 1
-                    && expected_output
-                        .as_bytes()
-                        .iter()
-                        .filter(|&&c| c == b'\n')
-                        .count()
-                        == 0
-                    && test_output.iter().any(|s| s.contains(expected_output))
-            }
-        } else {
-            test_output.is_empty()
-        } {
-            return ".".to_string();
-        } else {
-            if let Some(expected_output) = &expected_output {
-                test_diagnostics.push((
-                    dir,
-                    format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
-                ));
-            } else {
-                test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
-            }
-            return "F".to_string();
-        }
     }
 }
 
