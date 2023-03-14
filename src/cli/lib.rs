@@ -114,6 +114,11 @@ pub async fn init(
                         .help("Add output for debugging"),
                 )
                 .arg(
+                    arg!(--"show-timing")
+                        .required(false)
+                        .help("If set, timing info will be displayed"),
+                )
+                .arg(
                     arg!(--"no-cache")
                         .required(false)
                         .help("Whether to ignore the cache"),
@@ -389,6 +394,8 @@ pub async fn init(
         Some((_, sub_matches)) => {
             if sub_matches.is_present("debug") {
                 Verbosity::Debugging
+            } else if sub_matches.is_present("show-timing") {
+                Verbosity::Timing
             } else {
                 Verbosity::Simple
             }

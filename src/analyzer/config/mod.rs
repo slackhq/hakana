@@ -15,6 +15,7 @@ pub mod json_config;
 pub enum Verbosity {
     Quiet,
     Simple,
+    Timing,
     Debugging,
     DebuggingByLine,
 }

@@ -119,7 +119,10 @@ pub(crate) fn scan_files(
 
     let elapsed = now.elapsed();
 
-    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+    if matches!(
+        verbosity,
+        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
+    ) {
         println!("File discovery took {:.2?}", elapsed);
     }
 
@@ -200,7 +203,10 @@ pub(crate) fn scan_files(
 
     let elapsed = now.elapsed();
 
-    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+    if matches!(
+        verbosity,
+        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
+    ) {
         println!(
             "Loading serialised codebase from cache took {:.2?}",
             elapsed
@@ -440,7 +446,10 @@ pub(crate) fn scan_files(
 
         let elapsed = now.elapsed();
 
-        if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+        if matches!(
+            verbosity,
+            Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
+        ) {
             println!("Scanning files took {:.2?}", elapsed);
         }
     }

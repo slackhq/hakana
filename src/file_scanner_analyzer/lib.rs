@@ -161,7 +161,10 @@ pub fn scan_and_analyze(
 
     let elapsed = now.elapsed();
 
-    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+    if matches!(
+        verbosity,
+        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
+    ) {
         println!("File discovery & scanning took {:.2?}", elapsed);
     }
 
@@ -201,7 +204,10 @@ pub fn scan_and_analyze(
 
     let elapsed = now.elapsed();
 
-    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+    if matches!(
+        verbosity,
+        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
+    ) {
         println!("File analysis took {:.2?}", elapsed);
     }
 

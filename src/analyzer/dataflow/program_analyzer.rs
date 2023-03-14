@@ -112,7 +112,7 @@ fn find_paths_to_sinks(
     if !match_sinks || !graph.sinks.is_empty() {
         for i in 0..config.security_config.max_depth {
             if !sources.is_empty() {
-                let now = if matches!(verbosity, Verbosity::Debugging) {
+                let now = if matches!(verbosity, Verbosity::Debugging | Verbosity::Timing) {
                     Some(Instant::now())
                 } else {
                     None
@@ -121,7 +121,7 @@ fn find_paths_to_sinks(
                 let mut new_sources = Vec::new();
 
                 for source in sources {
-                    let inow = if matches!(verbosity, Verbosity::Debugging) {
+                    let inow = if matches!(verbosity, Verbosity::Debugging | Verbosity::Timing) {
                         Some(Instant::now())
                     } else {
                         None
