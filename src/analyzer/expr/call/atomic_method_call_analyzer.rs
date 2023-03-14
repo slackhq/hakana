@@ -243,40 +243,34 @@ pub(crate) fn handle_method_call_on_named_object(
             if let Some(method_name) = statements_analyzer.get_interner().get(&boxed.1) {
                 method_name
             } else {
-                tast_info.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::NonExistentMethod,
-                        format!(
-                            "Method {}::{} does not exist",
-                            statements_analyzer.get_interner().lookup(classlike_name),
-                            &boxed.1
-                        ),
-                        statements_analyzer.get_hpos(&pos),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
+                handle_nonexistent_method(
+                    tast_info,
+                    statements_analyzer,
+                    &boxed,
+                    classlike_name,
+                    pos,
+                    context,
+                    &expr.3,
+                    if_body_context,
                 );
+
                 return false;
             };
 
         classlike_names.retain(|n| codebase.method_exists(n, &method_name));
 
         if classlike_names.is_empty() {
-            tast_info.maybe_add_issue(
-                Issue::new(
-                    IssueKind::NonExistentMethod,
-                    format!(
-                        "Method {}::{} does not exist",
-                        statements_analyzer.get_interner().lookup(classlike_name),
-                        &boxed.1
-                    ),
-                    statements_analyzer.get_hpos(&pos),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
+            handle_nonexistent_method(
+                tast_info,
+                statements_analyzer,
+                &boxed,
+                classlike_name,
+                pos,
+                context,
+                &expr.3,
+                if_body_context,
             );
+
             return false;
         }
 
@@ -317,4 +311,41 @@ pub(crate) fn handle_method_call_on_named_object(
     }
 
     return true;
+}
+
+fn handle_nonexistent_method(
+    tast_info: &mut TastInfo,
+    statements_analyzer: &StatementsAnalyzer,
+    id: &ast_defs::Id,
+    classlike_name: &StrId,
+    pos: &Pos,
+    context: &mut ScopeContext,
+    expr_args: &Vec<(ParamKind, aast::Expr<(), ()>)>,
+    if_body_context: &mut Option<ScopeContext>,
+) {
+    tast_info.maybe_add_issue(
+        Issue::new(
+            IssueKind::NonExistentMethod,
+            format!(
+                "Method {}::{} does not exist",
+                statements_analyzer.get_interner().lookup(classlike_name),
+                &id.1
+            ),
+            statements_analyzer.get_hpos(&pos),
+            &context.function_context.calling_functionlike_id,
+        ),
+        statements_analyzer.get_config(),
+        statements_analyzer.get_file_path_actual(),
+    );
+
+    for (param_kind, arg_expr) in expr_args {
+        evaluate_arbitrary_param(
+            statements_analyzer,
+            arg_expr,
+            matches!(param_kind, ParamKind::Pinout(_)),
+            tast_info,
+            context,
+            if_body_context,
+        );
+    }
 }
