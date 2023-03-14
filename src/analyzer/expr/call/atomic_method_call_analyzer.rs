@@ -153,6 +153,18 @@ pub(crate) fn analyze(
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
                 );
+
+                for (param_kind, arg_expr) in expr.3 {
+                    evaluate_arbitrary_param(
+                        statements_analyzer,
+                        arg_expr,
+                        matches!(param_kind, ParamKind::Pinout(_)),
+                        tast_info,
+                        context,
+                        if_body_context,
+                    );
+                }
+
                 // todo handle invalid class invocation
                 return;
             }

@@ -26,6 +26,7 @@ use crate::algebra_analyzer;
 use crate::formula_generator;
 
 use super::control_analyzer::BreakContext;
+use super::if_conditional_analyzer::add_branch_dataflow;
 
 use oxidized::ast_defs;
 
@@ -95,6 +96,8 @@ pub(crate) fn analyze_case(
         ) {
             return false;
         }
+
+        add_branch_dataflow(statements_analyzer, case_cond, tast_info);
 
         tast_info.expr_types = tast_info.expr_types.clone();
 
