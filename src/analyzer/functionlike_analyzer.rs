@@ -1105,7 +1105,10 @@ fn handle_unused_assignment(
                 });
 
         if (config.issues_to_fix.contains(&IssueKind::UnusedAssignment)
-            || (*pure && config.issues_to_fix.contains(&IssueKind::UnusedAssignmentStatement)))
+            || (*pure
+                && config
+                    .issues_to_fix
+                    .contains(&IssueKind::UnusedAssignmentStatement)))
             && !config.add_fixmes
             && !unused_closure_variable
         {
@@ -1167,17 +1170,15 @@ pub(crate) fn update_analysis_result_with_tast(
             .extend(tast_info.replacements);
     }
 
+    let mut issues_to_emit = tast_info.issues_to_emit;
+
+    issues_to_emit.sort_by(|a, b| a.pos.start_offset.partial_cmp(&b.pos.start_offset).unwrap());
+
     analysis_result
         .emitted_issues
         .entry(*file_path)
         .or_insert_with(Vec::new)
-        .extend(
-            tast_info
-                .issues_to_emit
-                .into_iter()
-                .unique()
-                .collect::<Vec<_>>(),
-        );
+        .extend(issues_to_emit.into_iter().unique().collect::<Vec<_>>());
 
     if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
         if !ignore_taint_path {
