@@ -69,6 +69,13 @@ pub(crate) fn analyze(
             add_dataflow_to_variable(statements_analyzer, lid, pos, var_type, tast_info, context);
 
         tast_info.set_expr_type(&pos, var_type);
+
+        if lid.1 .1 == "$$" {
+            tast_info.expr_effects.insert(
+                (pos.start_offset(), pos.end_offset()),
+                context.pipe_var_effects,
+            );
+        }
     }
 
     true

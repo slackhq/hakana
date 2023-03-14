@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
 use hakana_reflection_info::function_context::FunctionContext;
-use hakana_reflection_info::StrId;
 use hakana_reflection_info::{assertion::Assertion, t_union::TUnion};
+use hakana_reflection_info::{StrId, EFFECT_PURE};
 use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -153,6 +153,9 @@ pub struct ScopeContext {
     pub inside_async: bool,
 
     pub for_loop_init_bounds: Option<(usize, usize)>,
+
+    /* Effects for pipe var, if applicable */
+    pub pipe_var_effects: u8,
 }
 
 impl ScopeContext {
@@ -192,6 +195,8 @@ impl ScopeContext {
             allow_taints: true,
             inside_async: false,
             for_loop_init_bounds: None,
+
+            pipe_var_effects: EFFECT_PURE,
         }
     }
 
