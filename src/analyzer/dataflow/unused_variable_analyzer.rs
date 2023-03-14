@@ -224,15 +224,18 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         stmt: &aast::Stmt<(), ()>,
     ) -> Result<(), ()> {
         if let aast::Stmt_::If(boxed) = &stmt.1 {
-            if boxed.1 .0.len() == 1 || boxed.2 .0.len() == 1 {
-                self.in_single_block = true;
+            self.in_single_block = boxed.1 .0.len() == 1 && matches!(boxed.1.0[0].1, aast::Stmt_::Expr(_));
 
-                let result = stmt.recurse(tast_info, self);
-
+            let result = boxed.1.recurse(tast_info, self);
+            if let Err(_) = result {
                 self.in_single_block = false;
-
                 return result;
             }
+
+            self.in_single_block = boxed.2 .0.len() == 1 && matches!(boxed.2.0[0].1, aast::Stmt_::Expr(_));
+            let result = boxed.2.recurse(tast_info, self);
+            self.in_single_block = false;
+            return result;
         }
 
         let has_matching_node = self.unused_variable_nodes.iter().any(|n| match &n.kind {
