@@ -163,14 +163,14 @@ pub(crate) fn scan_files(
         };
     }
 
+    if let Some(symbols_path) = &symbols_path {
+        load_cached_symbols(symbols_path, use_codebase_cache, &mut interner, verbosity);
+    }
+
     let file_statuses =
         file_cache_provider::get_file_diff(&files_to_scan, file_hashes_and_times, &mut interner);
 
     let now = Instant::now();
-
-    if let Some(symbols_path) = &symbols_path {
-        load_cached_symbols(symbols_path, use_codebase_cache, &mut interner, verbosity);
-    }
 
     let changed_files = file_statuses
         .iter()
