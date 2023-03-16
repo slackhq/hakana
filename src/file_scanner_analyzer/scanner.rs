@@ -189,8 +189,6 @@ pub(crate) fn scan_files(
         }
     }
 
-    invalidate_changed_codebase_elements(&mut codebase, &changed_files);
-
     let mut resolved_names = FxHashMap::default();
 
     if let Some(aast_names_path) = &aast_names_path {
@@ -200,6 +198,8 @@ pub(crate) fn scan_files(
             resolved_names = cached_resolved_names
         };
     }
+
+    invalidate_changed_codebase_elements(&mut codebase, &changed_files);
 
     let elapsed = now.elapsed();
 
@@ -477,9 +477,9 @@ pub(crate) fn scan_files(
         }
 
         if let Some(aast_names_path) = aast_names_path {
-            let mut symbols_file = fs::File::create(&aast_names_path).unwrap();
-            let serialized_symbols = bincode::serialize(&resolved_names).unwrap();
-            symbols_file.write_all(&serialized_symbols)?;
+            let mut aast_names_file = fs::File::create(&aast_names_path).unwrap();
+            let serialized_aast_names = bincode::serialize(&resolved_names).unwrap();
+            aast_names_file.write_all(&serialized_aast_names)?;
         }
     }
 

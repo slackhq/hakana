@@ -192,7 +192,7 @@ pub fn scan_and_analyze(
         files_to_analyze,
         arc_codebase.clone(),
         arc_interner.clone(),
-        &resolved_names,
+        resolved_names,
         asts,
         config.clone(),
         &analysis_result,

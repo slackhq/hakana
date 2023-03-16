@@ -20,7 +20,7 @@ pub fn analyze_files(
     mut paths: Vec<String>,
     codebase: Arc<CodebaseInfo>,
     interner: Arc<Interner>,
-    resolved_names: &FxHashMap<FilePath, FxHashMap<usize, StrId>>,
+    resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
     asts: FxHashMap<FilePath, Vec<u8>>,
     config: Arc<Config>,
     analysis_result: &Arc<Mutex<AnalysisResult>>,
@@ -104,6 +104,8 @@ pub fn analyze_files(
         let mut handles = vec![];
 
         let files_processed = Arc::new(Mutex::new(0));
+
+        let resolved_names = Arc::new(resolved_names);
 
         let asts = Arc::new(asts);
 
