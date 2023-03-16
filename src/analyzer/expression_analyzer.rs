@@ -562,13 +562,20 @@ pub(crate) fn analyze(
             } else {
                 None
             };
-            tast_info.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
-                Rc::new(wrap_atomic(TAtomic::TEnumClassLabel {
-                    class_name,
-                    member_name: statements_analyzer.get_interner().get(&boxed.1).unwrap(),
-                })),
-            );
+            if let Some(member_name) = statements_analyzer.get_interner().get(&boxed.1) {
+                tast_info.expr_types.insert(
+                    (expr.1.start_offset(), expr.1.end_offset()),
+                    Rc::new(wrap_atomic(TAtomic::TEnumClassLabel {
+                        class_name,
+                        member_name,
+                    })),
+                );
+            } else {
+                tast_info.expr_types.insert(
+                    (expr.1.start_offset(), expr.1.end_offset()),
+                    Rc::new(get_mixed_any()),
+                );
+            }
         }
         aast::Expr_::Darray(boxed) => {
             let fields = boxed

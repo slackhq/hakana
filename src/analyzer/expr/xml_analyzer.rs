@@ -15,6 +15,8 @@ use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
 use hakana_reflection_info::StrId;
+use hakana_reflection_info::EFFECT_IMPURE;
+use hakana_reflection_info::EFFECT_PURE;
 use hakana_reflection_info::STR_DATA_ATTRIBUTE;
 use hakana_type::get_named_object;
 use itertools::Itertools;
@@ -130,6 +132,17 @@ pub(crate) fn analyze(
         }
     }
 
+    let element_name = statements_analyzer.get_interner().lookup(xhp_class_name);
+
+    tast_info.expr_effects.insert(
+        (pos.start_offset(), pos.end_offset()),
+        if element_name.starts_with("Facebook\\XHP\\HTML\\") {
+            EFFECT_PURE
+        } else {
+            EFFECT_IMPURE
+        },
+    );
+
     for inner_expr in &boxed.2 {
         expression_analyzer::analyze(
             statements_analyzer,
@@ -139,7 +152,7 @@ pub(crate) fn analyze(
             if_body_context,
         );
 
-        let element_name = statements_analyzer.get_interner().lookup(xhp_class_name);
+        tast_info.combine_effects(inner_expr.pos(), pos, pos);
 
         if let Some(expr_type) = tast_info.expr_types.get(&(
             inner_expr.pos().start_offset(),

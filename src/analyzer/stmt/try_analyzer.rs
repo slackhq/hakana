@@ -294,8 +294,23 @@ pub(crate) fn analyze(
 
             finally_has_returned = finally_context.has_returned;
 
-            for (var_id, _) in &finally_context.assigned_var_ids {
-                if let Some(finally_type) = finally_context.vars_in_scope.get(var_id) {
+            let finally_actions = control_analyzer::get_control_actions(
+                codebase,
+                statements_analyzer.get_interner(),
+                statements_analyzer.get_file_analyzer().resolved_names,
+                &stmt.2 .0,
+                Some(tast_info),
+                vec![],
+                true,
+            );
+
+            if finally_actions.len() != 1
+                || !matches!(
+                    finally_actions.iter().next().unwrap(),
+                    ControlAction::End | ControlAction::Continue | ControlAction::Break
+                )
+            {
+                for (var_id, finally_type) in &finally_context.vars_in_scope {
                     if let Some(context_type) = context.vars_in_scope.get_mut(var_id) {
                         if context_type.possibly_undefined_from_try {
                             let mut context_type_inner = (**context_type).clone();
