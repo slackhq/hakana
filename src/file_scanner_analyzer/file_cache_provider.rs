@@ -37,6 +37,7 @@ pub(crate) fn get_file_diff(
     target_files: &IndexMap<String, u64>,
     file_update_hashes: FxHashMap<FilePath, (u64, u64)>,
     interner: &mut Interner,
+    can_cache: bool,
 ) -> IndexMap<FilePath, FileStatus> {
     let mut file_statuses = IndexMap::new();
 
@@ -76,7 +77,10 @@ pub(crate) fn get_file_diff(
                 );
             }
         } else {
-            if file_path.starts_with("hhi_embedded_") || file_path.starts_with("hsl_embedded_") {
+            if file_path.starts_with("hhi_embedded_")
+                || file_path.starts_with("hsl_embedded_")
+                || !can_cache // if we're not caching don't bother to calculate file contents cache
+            {
                 file_statuses.insert(interned_file_path, FileStatus::Added(0, *new_update_time));
                 continue;
             }

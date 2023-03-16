@@ -117,13 +117,13 @@ pub(crate) fn scan_files(
         files_to_scan.extend(find_files_in_dir(scan_dir, config, files_to_analyze));
     }
 
-    let elapsed = file_discovery_now.elapsed();
+    let file_discovery_elapsed = file_discovery_now.elapsed();
 
     if matches!(
         verbosity,
         Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
     ) {
-        println!("File discovery took {:.2?}", elapsed);
+        println!("File discovery took {:.2?}", file_discovery_elapsed);
     }
 
     let mut use_codebase_cache = true;
@@ -173,8 +173,12 @@ pub(crate) fn scan_files(
         }
     }
 
-    let file_statuses =
-        file_cache_provider::get_file_diff(&files_to_scan, file_hashes_and_times, &mut interner);
+    let file_statuses = file_cache_provider::get_file_diff(
+        &files_to_scan,
+        file_hashes_and_times,
+        &mut interner,
+        cache_dir.is_some(),
+    );
 
     let changed_files = file_statuses
         .iter()
@@ -203,8 +207,6 @@ pub(crate) fn scan_files(
         };
     }
 
-    invalidate_changed_codebase_elements(&mut codebase, &changed_files);
-
     let load_from_cache_elapsed = load_from_cache_now.elapsed();
 
     if matches!(
@@ -212,10 +214,12 @@ pub(crate) fn scan_files(
         Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
     ) {
         println!(
-            "Loading serialised codebase from cache took {:.2?}",
+            "Loading serialised codebase information from cache took {:.2?}",
             load_from_cache_elapsed
         );
     }
+
+    invalidate_changed_codebase_elements(&mut codebase, &changed_files);
 
     let mut files_to_scan = vec![];
 
