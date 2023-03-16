@@ -23,7 +23,7 @@ pub fn scan_and_analyze_single_file(
     file_name: String,
     file_contents: String,
     find_unused_expressions: bool,
-) -> std::result::Result<AnalysisResult, String> {
+) -> std::result::Result<(AnalysisResult, Interner), String> {
     let mut analysis_config = Config::new("".to_string(), FxHashSet::default());
     analysis_config.find_unused_expressions = find_unused_expressions;
     analysis_config.graph_kind = if file_contents.starts_with("// security-check")
@@ -82,7 +82,7 @@ pub fn scan_and_analyze_single_file(
         }
     }
 
-    Ok(analysis_result)
+    Ok((analysis_result, interner))
 }
 
 pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, Interner) {

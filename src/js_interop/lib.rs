@@ -1,4 +1,5 @@
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::Interner;
 use hakana_workhorse::wasm::{get_single_file_codebase, scan_and_analyze_single_file};
 use serde_json::json;
 use wasm_bindgen::prelude::*;
@@ -7,6 +8,7 @@ extern crate console_error_panic_hook;
 #[wasm_bindgen]
 pub struct ScannerAndAnalyzer {
     codebase: CodebaseInfo,
+    interner: Interner,
 }
 
 #[wasm_bindgen]
@@ -15,20 +17,23 @@ impl ScannerAndAnalyzer {
     pub fn new() -> Self {
         console_error_panic_hook::set_once();
 
-        let (mut codebase, interner) = get_single_file_codebase(vec![]);
+        let (codebase, interner) = get_single_file_codebase(vec![]);
 
-        Self { codebase }
+        Self { codebase, interner }
     }
 
     pub fn get_results(&mut self, file_contents: String) -> String {
         let result = scan_and_analyze_single_file(
             &mut self.codebase,
+            &self.interner,
             "hello.hack".to_string(),
             file_contents.clone(),
             true,
         );
         return match result {
-            Ok(analysis_result) => {
+            Ok((analysis_result, interner)) => {
+                self.interner = interner;
+
                 let mut issue_json_objects = vec![];
                 for (file_path, issues) in &analysis_result.emitted_issues {
                     for issue in issues {
