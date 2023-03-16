@@ -5,9 +5,10 @@ use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
 };
 use hakana_reflection_info::data_flow::node::DataFlowNode;
-use hakana_type::{combine_optional_union_types, combine_union_types, get_named_object};
+use hakana_type::{combine_union_types, get_named_object};
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::cell::RefCell;
 use std::{collections::BTreeMap, rc::Rc};
 
 use super::control_analyzer;
@@ -46,9 +47,9 @@ pub(crate) fn analyze(
     let mut try_context = context.clone();
 
     if !stmt.2.is_empty() {
-        try_context.finally_scope = Some(FinallyScope {
+        try_context.finally_scope = Some(Rc::new(RefCell::new(FinallyScope {
             vars_in_scope: BTreeMap::new(),
-        });
+        })));
     }
 
     let assigned_var_ids = context.assigned_var_ids.clone();
@@ -62,23 +63,6 @@ pub(crate) fn analyze(
     }
 
     context.inside_try = was_inside_try;
-
-    if let Some(ref mut finally_scope) = try_context.finally_scope {
-        for (var_id, var_type) in &context.vars_in_scope {
-            finally_scope.vars_in_scope.insert(
-                var_id.clone(),
-                Rc::new(combine_optional_union_types(
-                    if let Some(t) = finally_scope.vars_in_scope.get(var_id) {
-                        Some(&t)
-                    } else {
-                        None
-                    },
-                    Some(var_type),
-                    codebase,
-                )),
-            );
-        }
-    }
 
     context.has_returned = false;
     try_context.has_returned = false;
@@ -249,30 +233,29 @@ pub(crate) fn analyze(
                     );
                 }
             }
-        }
 
-        if let Some(ref mut finally_scope) = try_context.finally_scope {
-            for (var_id, var_type) in &catch_context.vars_in_scope {
-                if let Some(finally_type) = finally_scope.vars_in_scope.get(var_id).cloned() {
-                    finally_scope.vars_in_scope.insert(
-                        var_id.clone(),
-                        Rc::new(combine_union_types(
+            if let Some(finally_scope) = try_context.finally_scope.clone() {
+                let mut finally_scope = (*finally_scope).borrow_mut();
+                for (var_id, var_type) in &catch_context.vars_in_scope {
+                    if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
+                        *finally_type = Rc::new(combine_union_types(
                             &finally_type,
-                            &var_type,
+                            var_type,
                             codebase,
                             false,
-                        )),
-                    );
-                } else {
-                    let mut var_type = (**var_type).clone();
-                    var_type.possibly_undefined_from_try = true;
-                    finally_scope
-                        .vars_in_scope
-                        .insert(var_id.clone(), Rc::new(var_type));
+                        ));
+                    } else {
+                        finally_scope
+                            .vars_in_scope
+                            .insert(var_id.clone(), var_type.clone());
+                    }
                 }
             }
         }
     }
+
+    let finally_scope = try_context.finally_scope.clone();
+    try_context.finally_scope = None;
 
     if let Some(loop_scope) = loop_scope {
         if !try_leaves_loop && !loop_scope.final_actions.contains(&ControlAction::None) {
@@ -283,15 +266,31 @@ pub(crate) fn analyze(
     let mut finally_has_returned = false;
 
     if !stmt.2.is_empty() {
-        if let Some(finally_scope) = try_context.finally_scope {
+        if let Some(finally_scope) = finally_scope {
+            let finally_scope = finally_scope.borrow();
             let mut finally_context = context.clone();
 
             finally_context.assigned_var_ids = FxHashMap::default();
             finally_context.possibly_assigned_var_ids = FxHashSet::default();
 
-            finally_context.vars_in_scope = finally_scope.vars_in_scope;
+            finally_context.vars_in_scope = (&finally_scope.vars_in_scope).clone();
 
-            statements_analyzer.analyze(&stmt.2 .0, tast_info, context, loop_scope);
+            for (var_id, var_type) in &try_context.vars_in_scope {
+                if let Some(finally_type) = finally_context.vars_in_scope.get_mut(var_id) {
+                    *finally_type = Rc::new(combine_union_types(
+                        &finally_type,
+                        var_type,
+                        codebase,
+                        false,
+                    ));
+                } else {
+                    finally_context
+                        .vars_in_scope
+                        .insert(var_id.clone(), var_type.clone());
+                }
+            }
+
+            statements_analyzer.analyze(&stmt.2 .0, tast_info, &mut finally_context, loop_scope);
 
             finally_has_returned = finally_context.has_returned;
 

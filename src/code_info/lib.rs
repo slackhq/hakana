@@ -87,6 +87,7 @@ pub const STR_SHAPES: StrId = StrId(29);
 pub const STR_STDCLASS: StrId = StrId(30);
 pub const STR_SIMPLE_XML_ELEMENT: StrId = StrId(31);
 pub const STR_ASIO_JOIN: StrId = StrId(32);
+pub const STR_INCLUDE: StrId = StrId(33);
 
 pub const EFFECT_PURE: u8 = 0b00000000;
 pub const EFFECT_WRITE_LOCAL: u8 = 0b00000001;
@@ -153,6 +154,7 @@ impl Interner {
         interner.intern("stdClass".to_string());
         interner.intern("SimpleXMLElement".to_string());
         interner.intern("HH\\Asio\\join".to_string());
+        interner.intern("include".to_string());
         interner
     }
 

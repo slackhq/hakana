@@ -6,7 +6,7 @@ use crate::{
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
 };
 use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
-use hakana_type::combine_optional_union_types;
+use hakana_type::{combine_optional_union_types, combine_union_types};
 use rustc_hash::FxHashMap;
 
 pub(crate) fn analyze(
@@ -64,7 +64,23 @@ pub(crate) fn analyze(
             }
         }
 
-        // todo populate finally scope
+        if let Some(finally_scope) = context.finally_scope.clone() {
+            let mut finally_scope = (*finally_scope).borrow_mut();
+            for (var_id, var_type) in &context.vars_in_scope {
+                if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
+                    *finally_type = Rc::new(combine_union_types(
+                        &finally_type,
+                        var_type,
+                        codebase,
+                        false,
+                    ));
+                } else {
+                    finally_scope
+                        .vars_in_scope
+                        .insert(var_id.clone(), var_type.clone());
+                }
+            }
+        }
     }
 
     let case_scope = tast_info.case_scopes.last_mut();

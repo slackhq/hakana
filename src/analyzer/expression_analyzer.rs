@@ -8,9 +8,9 @@ use crate::expr::fetch::{
 };
 use crate::expr::{
     as_analyzer, binop_analyzer, call_analyzer, cast_analyzer, closure_analyzer,
-    collection_analyzer, const_fetch_analyzer, expression_identifier, pipe_analyzer,
-    prefixed_string_analyzer, shape_analyzer, ternary_analyzer, tuple_analyzer, unop_analyzer,
-    variable_fetch_analyzer, xml_analyzer, yield_analyzer,
+    collection_analyzer, const_fetch_analyzer, expression_identifier, include_analyzer,
+    pipe_analyzer, prefixed_string_analyzer, shape_analyzer, ternary_analyzer, tuple_analyzer,
+    unop_analyzer, variable_fetch_analyzer, xml_analyzer, yield_analyzer,
 };
 use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -543,8 +543,16 @@ pub(crate) fn analyze(
         aast::Expr_::List(_) => {
             panic!("should not happen")
         }
-        aast::Expr_::Import(_) => {
-            // do nothing with require/include
+        aast::Expr_::Import(boxed) => {
+            if !include_analyzer::analyze(
+                statements_analyzer,
+                &boxed.1,
+                expr.pos(),
+                tast_info,
+                context,
+            ) {
+                return false;
+            }
         }
         aast::Expr_::EnumClassLabel(boxed) => {
             let class_name = if let Some(id) = &boxed.0 {

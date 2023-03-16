@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::scope_context::ScopeContext;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
@@ -12,6 +14,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use hakana_reflection_info::{STR_AWAITABLE, STR_CONSTRUCT};
+use hakana_type::combine_union_types;
 use hakana_type::{
     get_mixed_any, get_null, get_void,
     type_comparator::type_comparison_result::TypeComparisonResult,
@@ -74,8 +77,24 @@ pub(crate) fn analyze(
         get_void()
     };
 
-    if let Some(_) = &context.finally_scope {
-        // todo handle finally
+    let codebase = statements_analyzer.get_codebase();
+
+    if let Some(finally_scope) = context.finally_scope.clone() {
+        let mut finally_scope = (*finally_scope).borrow_mut();
+        for (var_id, var_type) in &context.vars_in_scope {
+            if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
+                *finally_type = Rc::new(combine_union_types(
+                    &finally_type,
+                    var_type,
+                    codebase,
+                    false,
+                ));
+            } else {
+                finally_scope
+                    .vars_in_scope
+                    .insert(var_id.clone(), var_type.clone());
+            }
+        }
     }
 
     context.has_returned = true;
@@ -99,7 +118,7 @@ pub(crate) fn analyze(
     // examineParamTypes in Psalm's source code
 
     type_expander::expand_union(
-        statements_analyzer.get_codebase(),
+        codebase,
         &Some(statements_analyzer.get_interner()),
         &mut inferred_return_type,
         &TypeExpansionOptions {
@@ -143,7 +162,7 @@ pub(crate) fn analyze(
         let mut expected_type = expected_return_type.clone();
 
         type_expander::expand_union(
-            statements_analyzer.get_codebase(),
+            codebase,
             &Some(statements_analyzer.get_interner()),
             &mut expected_type,
             &TypeExpansionOptions {
@@ -281,7 +300,7 @@ pub(crate) fn analyze(
             let mut union_comparison_result = TypeComparisonResult::new();
 
             let is_contained_by = union_type_comparator::is_contained_by(
-                statements_analyzer.get_codebase(),
+                codebase,
                 &inferred_return_type,
                 &expected_return_type,
                 true,

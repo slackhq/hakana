@@ -11,6 +11,7 @@ class TestMe {
         try {
             $this->workThatMayOrMayNotThrow();
             $success = true;
+        } catch (Exception $e) {
         } finally {
             $this->endTransaction($success ?? false);
         }

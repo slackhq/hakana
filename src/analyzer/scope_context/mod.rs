@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
@@ -136,7 +137,7 @@ pub struct ScopeContext {
 
     pub case_scope: Option<CaseScope>,
 
-    pub finally_scope: Option<FinallyScope>,
+    pub finally_scope: Option<Rc<RefCell<FinallyScope>>>,
 
     pub function_context: FunctionContext,
 
