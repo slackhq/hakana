@@ -107,7 +107,7 @@ pub(crate) fn scan_files(
         println!("Looking for Hack files");
     }
 
-    let now = Instant::now();
+    let file_discovery_now = Instant::now();
 
     for scan_dir in scan_dirs {
         if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
@@ -117,7 +117,7 @@ pub(crate) fn scan_files(
         files_to_scan.extend(find_files_in_dir(scan_dir, config, files_to_analyze));
     }
 
-    let elapsed = now.elapsed();
+    let elapsed = file_discovery_now.elapsed();
 
     if matches!(
         verbosity,
@@ -163,14 +163,18 @@ pub(crate) fn scan_files(
         };
     }
 
+    let load_from_cache_now = Instant::now();
+
     if let Some(symbols_path) = &symbols_path {
-        load_cached_symbols(symbols_path, use_codebase_cache, &mut interner, verbosity);
+        if let Some(cached_interner) =
+            load_cached_symbols(symbols_path, use_codebase_cache, verbosity)
+        {
+            interner = cached_interner;
+        }
     }
 
     let file_statuses =
         file_cache_provider::get_file_diff(&files_to_scan, file_hashes_and_times, &mut interner);
-
-    let now = Instant::now();
 
     let changed_files = file_statuses
         .iter()
@@ -201,7 +205,7 @@ pub(crate) fn scan_files(
 
     invalidate_changed_codebase_elements(&mut codebase, &changed_files);
 
-    let elapsed = now.elapsed();
+    let load_from_cache_elapsed = load_from_cache_now.elapsed();
 
     if matches!(
         verbosity,
@@ -209,7 +213,7 @@ pub(crate) fn scan_files(
     ) {
         println!(
             "Loading serialised codebase from cache took {:.2?}",
-            elapsed
+            load_from_cache_elapsed
         );
     }
 
@@ -251,7 +255,7 @@ pub(crate) fn scan_files(
     let has_new_files = files_to_scan.len() > 0;
 
     if files_to_scan.len() > 0 {
-        let now = Instant::now();
+        let file_scanning_now = Instant::now();
 
         let bar = if matches!(verbosity, Verbosity::Simple) {
             let pb = ProgressBar::new(files_to_scan.len() as u64);
@@ -444,13 +448,13 @@ pub(crate) fn scan_files(
             bar.finish_and_clear();
         }
 
-        let elapsed = now.elapsed();
+        let file_scanning_elapsed = file_scanning_now.elapsed();
 
         if matches!(
             verbosity,
             Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
         ) {
-            println!("Scanning files took {:.2?}", elapsed);
+            println!("Scanning files took {:.2?}", file_scanning_elapsed);
         }
     }
 

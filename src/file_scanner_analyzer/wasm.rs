@@ -141,22 +141,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
 
     drop(threaded_interner);
 
-    let mutex = match Arc::try_unwrap(interner) {
-        Ok(mutex) => mutex,
-        Err(_) => {
-            panic!("There's a lock somewhere")
-        }
-    };
-
-    let interner = mutex.into_inner();
-
-    let interner = match interner {
-        Ok(interner) => interner,
-        Err(err) => {
-            println!("{}", err.to_string());
-            panic!()
-        }
-    };
+    let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
 
     let mut symbol_references = SymbolReferences::new();
 

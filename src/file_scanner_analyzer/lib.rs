@@ -84,7 +84,7 @@ pub fn scan_and_analyze(
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
 
-    let now = Instant::now();
+    let file_discovery_and_scanning_now = Instant::now();
 
     let mut files_to_analyze = vec![];
 
@@ -106,6 +106,18 @@ pub fn scan_and_analyze(
         header,
         starter_data,
     )?;
+
+    let file_discovery_and_scanning_elapsed = file_discovery_and_scanning_now.elapsed();
+
+    if matches!(
+        verbosity,
+        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
+    ) {
+        println!(
+            "File discovery & scanning took {:.2?}",
+            file_discovery_and_scanning_elapsed
+        );
+    }
 
     let file_hashes_and_times = get_serializable_file_data(&file_statuses);
 
@@ -159,25 +171,25 @@ pub fn scan_and_analyze(
         }
     }
 
-    let elapsed = now.elapsed();
+    if !matches!(verbosity, Verbosity::Quiet) {
+        println!("Calculating symbol inheritance");
+    }
+
+    let populating_now = Instant::now();
+
+    populate_codebase(&mut codebase, &interner, &mut symbol_references);
+
+    let populating_elapsed = populating_now.elapsed();
 
     if matches!(
         verbosity,
         Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
     ) {
-        println!("File discovery & scanning took {:.2?}", elapsed);
+        println!("Populating codebase took {:.2?}", populating_elapsed);
     }
-
-    if !matches!(verbosity, Verbosity::Quiet) {
-        println!("Calculating symbol inheritance");
-    }
-
-    populate_codebase(&mut codebase, &interner, &mut symbol_references);
 
     codebase.safe_symbols = safe_symbols;
     codebase.safe_symbol_members = safe_symbol_members;
-
-    let now = Instant::now();
 
     let mut analysis_result = AnalysisResult::new(config.graph_kind, symbol_references);
 
@@ -187,6 +199,8 @@ pub fn scan_and_analyze(
 
     let arc_codebase = Arc::new(codebase);
     let arc_interner = Arc::new(interner);
+
+    let analyzed_files_now = Instant::now();
 
     analyze_files(
         files_to_analyze,
@@ -202,18 +216,18 @@ pub fn scan_and_analyze(
         verbosity,
     )?;
 
-    let elapsed = now.elapsed();
+    let analyzed_files_elapsed = analyzed_files_now.elapsed();
 
     if matches!(
         verbosity,
         Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
     ) {
-        println!("File analysis took {:.2?}", elapsed);
+        println!("File analysis took {:.2?}", analyzed_files_elapsed);
     }
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
 
-    analysis_result.time_in_analysis = elapsed;
+    analysis_result.time_in_analysis = analyzed_files_elapsed;
 
     if let Some(references_path) = references_path {
         let mut symbols_file = fs::File::create(&references_path).unwrap();

@@ -31,9 +31,8 @@ pub(crate) fn load_cached_codebase(
 pub(crate) fn load_cached_symbols(
     symbols_path: &String,
     use_codebase_cache: bool,
-    interner: &mut Interner,
     verbosity: Verbosity,
-) {
+) -> Option<Interner> {
     if Path::new(symbols_path).exists() && use_codebase_cache {
         if !matches!(verbosity, Verbosity::Quiet) {
             println!("Deserializing stored symbol cache");
@@ -41,9 +40,11 @@ pub(crate) fn load_cached_symbols(
         let serialized = fs::read(&symbols_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &symbols_path));
         if let Ok(d) = bincode::deserialize::<Interner>(&serialized) {
-            *interner = d;
+            return Some(d);
         }
     }
+
+    None
 }
 
 pub(crate) fn load_cached_aast_names(
