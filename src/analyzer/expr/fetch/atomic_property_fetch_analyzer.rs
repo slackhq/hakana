@@ -1,6 +1,6 @@
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::{
-    expr::call::arguments_analyzer::get_template_types_for_call, typed_ast::FunctionAnalysisData,
+    expr::call::arguments_analyzer::get_template_types_for_call, function_analysis_data::FunctionAnalysisData,
 };
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::code_location::HPos;

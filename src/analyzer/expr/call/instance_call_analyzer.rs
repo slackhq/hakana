@@ -3,7 +3,7 @@ use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_WRITE_PROPS;

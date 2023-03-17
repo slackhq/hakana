@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,

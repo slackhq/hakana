@@ -8,7 +8,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},

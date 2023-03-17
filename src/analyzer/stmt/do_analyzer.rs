@@ -9,7 +9,7 @@ use crate::{
     reconciler::reconciler,
     scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 
 use super::{

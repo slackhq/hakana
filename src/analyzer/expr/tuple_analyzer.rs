@@ -1,5 +1,5 @@
 use crate::expression_analyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::{

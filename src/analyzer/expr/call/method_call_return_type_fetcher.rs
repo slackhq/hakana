@@ -19,7 +19,7 @@ use oxidized::ast_defs::Pos;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_type::template::{TemplateBound, TemplateResult};
 

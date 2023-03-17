@@ -5,7 +5,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_type::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use oxidized::aast;
 use oxidized::ast_defs::ParamKind;

@@ -1,5 +1,5 @@
 use super::atomic_property_fetch_analyzer;
-use crate::{expr::expression_identifier, typed_ast::FunctionAnalysisData};
+use crate::{expr::expression_identifier, function_analysis_data::FunctionAnalysisData};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::issue::{Issue, IssueKind};

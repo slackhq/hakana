@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{functionlike_analyzer::FunctionLikeAnalyzer, scope_analyzer::ScopeAnalyzer};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::data_flow::graph::GraphKind;

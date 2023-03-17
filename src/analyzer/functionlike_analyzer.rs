@@ -9,7 +9,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
-use crate::{file_analyzer::FileAnalyzer, typed_ast::FunctionAnalysisData};
+use crate::{file_analyzer::FileAnalyzer, function_analysis_data::FunctionAnalysisData};
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::{FilePath, HPos, StmtStart};

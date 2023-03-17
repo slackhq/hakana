@@ -24,7 +24,7 @@ use crate::{
         call::argument_analyzer::get_removed_taints_in_comments, expression_identifier,
         fetch::atomic_property_fetch_analyzer::localize_property_type,
     },
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};

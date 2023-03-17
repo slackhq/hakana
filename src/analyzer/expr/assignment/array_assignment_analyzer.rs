@@ -22,7 +22,7 @@ use rustc_hash::FxHashSet;
 
 use crate::{
     expr::{expression_identifier, fetch::array_fetch_analyzer},
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};

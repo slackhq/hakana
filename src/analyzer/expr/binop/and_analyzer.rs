@@ -5,7 +5,7 @@ use crate::reconciler::reconciler;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{expression_analyzer, formula_generator};
 use hakana_type::get_bool;
 use oxidized::aast;

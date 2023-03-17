@@ -7,7 +7,7 @@ use crate::scope_context::if_scope::IfScope;
 use crate::scope_context::{var_has_root, ScopeContext};
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::{self, add_branch_dataflow};
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
 use hakana_algebra::Clause;
 use hakana_reflection_info::assertion::Assertion;

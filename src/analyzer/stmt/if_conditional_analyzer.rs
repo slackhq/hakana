@@ -16,7 +16,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     reconciler::reconciler, statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 
 use super::if_conditional_scope::IfConditionalScope;

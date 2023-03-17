@@ -10,7 +10,7 @@ use oxidized::{
 
 use crate::{
     config, scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 
 pub struct AfterExprAnalysisData<'a> {

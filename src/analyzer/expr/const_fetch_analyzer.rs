@@ -6,7 +6,7 @@ use hakana_type::type_expander;
 use hakana_type::type_expander::TypeExpansionOptions;
 
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 
 use oxidized::ast_defs;
 

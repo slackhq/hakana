@@ -8,7 +8,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
 use crate::{expression_analyzer, formula_generator};
-use crate::{scope_context::if_scope::IfScope, typed_ast::FunctionAnalysisData};
+use crate::{scope_context::if_scope::IfScope, function_analysis_data::FunctionAnalysisData};
 use hakana_type::combine_union_types;
 use oxidized::ast::Uop;
 use oxidized::{aast, ast};

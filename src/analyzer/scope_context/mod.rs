@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     reconciler::assertion_reconciler, statements_analyzer::StatementsAnalyzer,
-    stmt::control_analyzer::BreakContext, typed_ast::FunctionAnalysisData,
+    stmt::control_analyzer::BreakContext, function_analysis_data::FunctionAnalysisData,
 };
 
 pub mod control_action;

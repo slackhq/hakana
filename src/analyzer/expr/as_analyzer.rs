@@ -4,7 +4,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext};
 
 use crate::expression_analyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::t_union::populate_union_type;
 use hakana_reflection_info::EFFECT_IMPURE;

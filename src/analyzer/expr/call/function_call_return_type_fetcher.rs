@@ -25,7 +25,7 @@ use crate::expr::variable_fetch_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 
 use hakana_type::template::{TemplateBound, TemplateResult};
 use oxidized::pos::Pos;

@@ -2,7 +2,7 @@ use super::{
     assertion_reconciler::intersect_atomic_with_atomic, reconciler::trigger_issue_for_impossible,
     simple_negated_assertion_reconciler,
 };
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::STR_XHP_CHILD;
 use hakana_reflection_info::{

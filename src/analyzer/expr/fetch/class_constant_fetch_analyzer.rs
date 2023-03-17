@@ -1,4 +1,4 @@
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::ast::get_id_name;

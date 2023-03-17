@@ -30,7 +30,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::ScopeContext,
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 
 use super::{

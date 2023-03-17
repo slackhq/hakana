@@ -4,7 +4,7 @@ use crate::{
     expression_analyzer,
     scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 
 use super::{control_analyzer::BreakContext, loop_analyzer};

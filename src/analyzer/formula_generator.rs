@@ -14,7 +14,7 @@ use oxidized::{
     ast::{Bop, Uop},
 };
 
-use crate::{expr::assertion_finder, typed_ast::FunctionAnalysisData};
+use crate::{expr::assertion_finder, function_analysis_data::FunctionAnalysisData};
 
 pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource<'a>,

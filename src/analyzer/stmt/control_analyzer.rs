@@ -4,7 +4,7 @@ use crate::scope_context::control_action::ControlAction;
 use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId};
 use oxidized::aast;
 
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum BreakContext {

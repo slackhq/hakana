@@ -2,7 +2,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::{var_has_root, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     assertion::Assertion,

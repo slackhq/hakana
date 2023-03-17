@@ -1,5 +1,5 @@
 use super::expression_identifier::{get_dim_id, get_var_id};
-use crate::{formula_generator::AssertionContext, typed_ast::FunctionAnalysisData};
+use crate::{formula_generator::AssertionContext, function_analysis_data::FunctionAnalysisData};
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::{

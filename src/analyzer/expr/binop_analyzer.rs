@@ -1,7 +1,7 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 
 use hakana_type::{get_bool, get_int};
 use oxidized::pos::Pos;

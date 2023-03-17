@@ -4,7 +4,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::control_action::ControlAction;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::{if_scope::IfScope, ScopeContext};
-use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData};
+use crate::{statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData};
 use oxidized::aast;
 use oxidized::aast::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};

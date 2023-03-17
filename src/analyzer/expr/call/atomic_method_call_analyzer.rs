@@ -14,7 +14,7 @@ use oxidized::{
 
 use crate::{
     scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData,
+    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData,
 };
 
 use super::{arguments_analyzer::evaluate_arbitrary_param, existing_atomic_method_call_analyzer};

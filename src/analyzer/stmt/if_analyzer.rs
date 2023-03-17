@@ -5,7 +5,7 @@ use crate::scope_context::control_action::ControlAction;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::var_has_root;
 use crate::scope_context::{if_scope::IfScope, ScopeContext};
-use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData};
+use crate::{statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_type::add_union_type;
 use oxidized::aast;

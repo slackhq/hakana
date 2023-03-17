@@ -12,7 +12,7 @@ use rustc_hash::FxHashSet;
 
 use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 
 pub(crate) fn check_for_paradox(

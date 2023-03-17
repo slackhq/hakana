@@ -5,7 +5,7 @@ use crate::expr::fetch::array_fetch_analyzer::{
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_reflection_info::data_flow::path::PathKind;

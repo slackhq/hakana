@@ -14,7 +14,7 @@ use crate::{
         ScopeContext,
     },
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 
 use super::{

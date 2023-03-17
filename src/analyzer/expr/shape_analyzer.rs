@@ -1,6 +1,6 @@
 use crate::{
     expression_analyzer, scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData,
+    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     code_location::StmtStart,

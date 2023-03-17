@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;

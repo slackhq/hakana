@@ -4,7 +4,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{expression_analyzer, stmt_analyzer};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::function_context::FunctionContext;

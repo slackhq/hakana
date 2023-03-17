@@ -15,7 +15,7 @@ use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{expression_analyzer, functionlike_analyzer};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;

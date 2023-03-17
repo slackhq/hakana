@@ -1,7 +1,7 @@
 use super::simple_assertion_reconciler::{get_acceptable_type, intersect_null};
 use crate::{
     reconciler::reconciler::trigger_issue_for_impossible, scope_analyzer::ScopeAnalyzer,
-    statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData,
+    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     assertion::Assertion,

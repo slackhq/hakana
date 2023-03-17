@@ -6,7 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{expr::expression_identifier, expression_analyzer};
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},

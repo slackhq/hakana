@@ -18,7 +18,7 @@ use crate::expression_analyzer;
 
 use crate::scope_context::ScopeContext;
 
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 
 use oxidized::aast;
 

@@ -16,4 +16,4 @@ mod stmt;
 mod stmt_analyzer;
 
 pub mod dataflow;
-pub mod typed_ast;
+pub mod function_analysis_data;

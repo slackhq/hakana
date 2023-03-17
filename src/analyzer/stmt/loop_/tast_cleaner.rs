@@ -3,7 +3,7 @@ use oxidized::{
     aast_visitor::{visit, AstParams, Node, Visitor},
 };
 
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 
 struct Scanner {}
 

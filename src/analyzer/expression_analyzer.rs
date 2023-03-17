@@ -16,7 +16,7 @@ use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::data_flow::graph::GraphKind;

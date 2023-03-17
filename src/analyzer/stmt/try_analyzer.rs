@@ -3,7 +3,7 @@ use crate::scope_context::{
 };
 use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
-    typed_ast::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData,
 };
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_type::{combine_union_types, get_named_object};

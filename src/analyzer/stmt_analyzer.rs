@@ -15,7 +15,7 @@ use crate::stmt::{
     break_analyzer, continue_analyzer, do_analyzer, for_analyzer, foreach_analyzer,
     ifelse_analyzer, return_analyzer, switch_analyzer, try_analyzer, while_analyzer,
 };
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use oxidized::{aast, ast_defs};

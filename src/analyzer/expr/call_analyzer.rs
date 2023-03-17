@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::method_identifier::MethodIdentifier;

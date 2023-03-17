@@ -18,7 +18,7 @@ use std::rc::Rc;
 use crate::dataflow::program_analyzer::{should_ignore_array_fetch, should_ignore_property_fetch};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::ArrayDataKind;

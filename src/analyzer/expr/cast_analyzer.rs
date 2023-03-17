@@ -4,7 +4,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::get_mixed_any;

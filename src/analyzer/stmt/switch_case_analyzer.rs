@@ -46,7 +46,7 @@ use crate::scope_context::control_action::ControlAction;
 
 use crate::scope_context::ScopeContext;
 
-use crate::typed_ast::FunctionAnalysisData;
+use crate::function_analysis_data::FunctionAnalysisData;
 
 use oxidized::aast::Pos;
 
