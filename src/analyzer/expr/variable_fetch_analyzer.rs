@@ -1,6 +1,6 @@
 use crate::{
     scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+    statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     data_flow::{
@@ -22,7 +22,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     lid: &Lid,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     if !context.has_variable(&lid.1 .1) {
@@ -32,7 +32,7 @@ pub(crate) fn analyze(
                     statements_analyzer,
                     lid.1 .1[1..].to_string(),
                     pos,
-                    tast_info,
+                    analysis_data,
                 ));
 
                 context
@@ -42,7 +42,7 @@ pub(crate) fn analyze(
                 superglobal_type
             }
             _ => {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::UndefinedVariable,
                         format!("Cannot find referenced variable {}", &lid.1 .1),
@@ -57,21 +57,27 @@ pub(crate) fn analyze(
             }
         };
 
-        tast_info.set_rc_expr_type(&pos, superglobal_type);
+        analysis_data.set_rc_expr_type(&pos, superglobal_type);
 
-        tast_info
+        analysis_data
             .expr_effects
             .insert((pos.start_offset(), pos.end_offset()), EFFECT_READ_GLOBALS);
     } else if let Some(var_type) = context.vars_in_scope.get(&lid.1 .1) {
         let mut var_type = (**var_type).clone();
 
-        var_type =
-            add_dataflow_to_variable(statements_analyzer, lid, pos, var_type, tast_info, context);
+        var_type = add_dataflow_to_variable(
+            statements_analyzer,
+            lid,
+            pos,
+            var_type,
+            analysis_data,
+            context,
+        );
 
-        tast_info.set_expr_type(&pos, var_type);
+        analysis_data.set_expr_type(&pos, var_type);
 
         if lid.1 .1 == "$$" {
-            tast_info.expr_effects.insert(
+            analysis_data.expr_effects.insert(
                 (pos.start_offset(), pos.end_offset()),
                 context.pipe_var_effects,
             );
@@ -85,7 +91,7 @@ pub(crate) fn get_type_for_superglobal(
     statements_analyzer: &StatementsAnalyzer,
     name: String,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     match name.as_str() {
         "_FILES" | "_SERVER" | "_ENV" => get_mixed_dict(),
@@ -109,7 +115,7 @@ pub(crate) fn get_type_for_superglobal(
                 },
             };
 
-            tast_info.data_flow_graph.add_node(taint_source.clone());
+            analysis_data.data_flow_graph.add_node(taint_source.clone());
 
             var_type.parent_nodes.insert(taint_source);
 
@@ -126,12 +132,12 @@ fn add_dataflow_to_variable(
     lid: &Lid,
     pos: &Pos,
     stmt_type: TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> TUnion {
     let mut stmt_type = stmt_type;
 
-    let ref mut data_flow_graph = tast_info.data_flow_graph;
+    let ref mut data_flow_graph = analysis_data.data_flow_graph;
 
     if data_flow_graph.kind == GraphKind::FunctionBody {
         if context.inside_general_use || context.inside_throw || context.inside_isset {

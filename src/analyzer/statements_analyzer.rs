@@ -5,7 +5,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
 use crate::stmt_analyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
@@ -42,7 +42,7 @@ impl<'a> StatementsAnalyzer<'a> {
     pub fn analyze(
         &self,
         stmts: &Vec<aast::Stmt<(), ()>>,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         context: &mut ScopeContext,
         loop_scope: &mut Option<LoopScope>,
     ) -> bool {
@@ -54,7 +54,7 @@ impl<'a> StatementsAnalyzer<'a> {
                 )
             {
                 if self.get_config().find_unused_expressions {
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::UnevaluatedCode,
                             "Unused code after return/throw/continue".to_string(),
@@ -66,7 +66,7 @@ impl<'a> StatementsAnalyzer<'a> {
                     );
                 }
             } else {
-                if !stmt_analyzer::analyze(self, stmt, tast_info, context, loop_scope) {
+                if !stmt_analyzer::analyze(self, stmt, analysis_data, context, loop_scope) {
                     return false;
                 }
             }

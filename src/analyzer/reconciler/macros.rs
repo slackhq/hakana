@@ -8,7 +8,7 @@ macro_rules! intersect_simple {
         $existing_var_type:expr,
         $key:expr,
         $negated:expr,
-        $tast_info:expr,
+        $analysis_data:expr,
         $statements_analyzer:expr,
         $pos:expr,
         $calling_functionlike_id:expr,
@@ -33,7 +33,7 @@ macro_rules! intersect_simple {
                 if let Some(k) = $key {
                     if let Some(loc) = $pos {
                         trigger_issue_for_impossible(
-                            $tast_info,
+                            $analysis_data,
                             $statements_analyzer,
                             &$existing_var_type.get_id(Some(&$statements_analyzer.get_interner())),
                             &k,

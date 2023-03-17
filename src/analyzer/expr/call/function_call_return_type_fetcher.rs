@@ -25,7 +25,7 @@ use crate::expr::variable_fetch_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 
 use hakana_type::template::{TemplateBound, TemplateResult};
 use oxidized::pos::Pos;
@@ -43,7 +43,7 @@ pub(crate) fn fetch(
     functionlike_id: &FunctionLikeIdentifier,
     function_storage: &FunctionLikeInfo,
     mut template_result: TemplateResult,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
@@ -57,7 +57,7 @@ pub(crate) fn fetch(
                 expr.2,
                 pos,
                 codebase,
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 stmt_type = Some(t);
@@ -115,7 +115,7 @@ pub(crate) fn fetch(
                         expand_templates: false,
                         ..Default::default()
                     },
-                    &mut tast_info.data_flow_graph,
+                    &mut analysis_data.data_flow_graph,
                 );
 
                 function_return_type = template::inferred_type_replacer::replace(
@@ -140,7 +140,7 @@ pub(crate) fn fetch(
                     ),
                     ..Default::default()
                 },
-                &mut tast_info.data_flow_graph,
+                &mut analysis_data.data_flow_graph,
             );
 
             // todo dispatch AfterFunctionCallAnalysisEvent
@@ -159,7 +159,7 @@ pub(crate) fn fetch(
         function_storage,
         stmt_type,
         &template_result,
-        tast_info,
+        analysis_data,
         context,
     );
 }
@@ -170,19 +170,19 @@ fn handle_special_functions(
     args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
     pos: &Pos,
     codebase: &CodebaseInfo,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> Option<TUnion> {
     match name {
         "HH\\global_get" => {
             if let Some((_, arg_expr)) = args.get(0) {
-                if let Some(expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if let Some(value) = expr_type.get_single_literal_string_value() {
                         Some(variable_fetch_analyzer::get_type_for_superglobal(
                             statements_analyzer,
                             value,
                             pos,
-                            tast_info,
+                            analysis_data,
                         ))
                     } else {
                         None
@@ -226,7 +226,7 @@ fn handle_special_functions(
         }
         "preg_split" => {
             if let Some((_, arg_expr)) = args.get(3) {
-                if let Some(expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     return if let Some(value) = expr_type.get_single_literal_int_value() {
                         match value {
                             0 | 2 => {
@@ -350,7 +350,7 @@ fn handle_special_functions(
         "str_replace" => {
             // returns string if the second arg is a string
             if let Some((_, arg_expr)) = args.get(1) {
-                if let Some(expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if union_type_comparator::is_contained_by(
                         codebase,
                         expr_type,
@@ -374,7 +374,7 @@ fn handle_special_functions(
         "preg_replace" => {
             // returns string if the third arg is a string
             if let Some((_, arg_expr)) = args.get(2) {
-                if let Some(expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if union_type_comparator::is_contained_by(
                         codebase,
                         expr_type,
@@ -397,7 +397,7 @@ fn handle_special_functions(
         }
         "microtime" => {
             if let Some((_, arg_expr)) = args.get(0) {
-                if let Some(expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if expr_type.is_always_truthy() {
                         Some(get_float())
                     } else if expr_type.is_always_falsy() {
@@ -417,8 +417,8 @@ fn handle_special_functions(
                 (args.get(0), args.get(1))
             {
                 if let (Some(first_expr_type), Some(second_expr_type)) = (
-                    tast_info.get_expr_type(first_arg_expr.pos()),
-                    tast_info.get_expr_type(second_arg_expr.pos()),
+                    analysis_data.get_expr_type(first_arg_expr.pos()),
+                    analysis_data.get_expr_type(second_arg_expr.pos()),
                 ) {
                     if second_expr_type.all_literals() && first_expr_type.is_single() {
                         let first_expr_type = first_expr_type.get_single();
@@ -450,7 +450,7 @@ fn handle_special_functions(
         | "HH\\Lib\\Str\\replace" => {
             let mut all_literals = true;
             for (_, arg_expr) in args {
-                if let Some(arg_expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if !arg_expr_type.all_literals() {
                         all_literals = false;
                         break;
@@ -470,7 +470,7 @@ fn handle_special_functions(
         "HH\\Lib\\Str\\split" => {
             let mut all_literals = true;
             for (_, arg_expr) in args {
-                if let Some(arg_expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if !arg_expr_type.all_literals() {
                         all_literals = false;
                         break;
@@ -490,7 +490,7 @@ fn handle_special_functions(
         "range" => {
             let mut all_ints = true;
             for (_, arg_expr) in args {
-                if let Some(arg_expr_type) = tast_info.get_expr_type(arg_expr.pos()) {
+                if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if !arg_expr_type.is_int() {
                         all_ints = false;
                         break;
@@ -509,8 +509,8 @@ fn handle_special_functions(
         }
         "HH\\idx" => {
             if args.len() >= 2 {
-                let dict_type = tast_info.get_rc_expr_type(args[0].1.pos()).cloned();
-                let dim_type = tast_info.get_rc_expr_type(args[1].1.pos()).cloned();
+                let dict_type = analysis_data.get_rc_expr_type(args[0].1.pos()).cloned();
+                let dim_type = analysis_data.get_rc_expr_type(args[1].1.pos()).cloned();
 
                 let mut expr_type = None;
 
@@ -520,7 +520,7 @@ fn handle_special_functions(
                             let mut expr_type_inner = handle_array_access_on_dict(
                                 statements_analyzer,
                                 pos,
-                                tast_info,
+                                analysis_data,
                                 context,
                                 atomic_type,
                                 &*dim_type,
@@ -541,7 +541,7 @@ fn handle_special_functions(
                     }
 
                     if args.len() > 2 {
-                        let default_type = tast_info.get_expr_type(args[2].1.pos());
+                        let default_type = analysis_data.get_expr_type(args[2].1.pos());
                         expr_type = if let Some(expr_type) = expr_type {
                             Some(if let Some(default_type) = default_type {
                                 add_union_type(expr_type, default_type, codebase, false)
@@ -576,7 +576,7 @@ fn add_dataflow(
     functionlike_storage: &FunctionLikeInfo,
     stmt_type: TUnion,
     _template_result: &TemplateResult,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
@@ -584,7 +584,7 @@ fn add_dataflow(
     //let added_taints = Vec::new();
     //let removed_taints = Vec::new();
 
-    let ref mut data_flow_graph = tast_info.data_flow_graph;
+    let ref mut data_flow_graph = analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !context.allow_taints {

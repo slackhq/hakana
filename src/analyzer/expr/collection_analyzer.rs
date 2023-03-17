@@ -20,7 +20,7 @@ use oxidized::{
 };
 use rustc_hash::FxHashSet;
 
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
@@ -72,14 +72,14 @@ pub(crate) fn analyze_vals(
     vc_kind: &oxidized::tast::VcKind,
     items: &Vec<oxidized::ast::Expr>,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
         match vc_kind {
             VcKind::Vec => {
-                tast_info.set_expr_type(
+                analysis_data.set_expr_type(
                     &pos,
                     wrap_atomic(TAtomic::TVec {
                         known_items: None,
@@ -90,10 +90,10 @@ pub(crate) fn analyze_vals(
                 );
             }
             VcKind::Keyset => {
-                tast_info.set_expr_type(&pos, get_keyset(get_nothing()));
+                analysis_data.set_expr_type(&pos, get_keyset(get_nothing()));
             }
             VcKind::Vector => {
-                tast_info.set_expr_type(
+                analysis_data.set_expr_type(
                     &pos,
                     wrap_atomic(TAtomic::TNamedObject {
                         name: statements_analyzer
@@ -125,7 +125,7 @@ pub(crate) fn analyze_vals(
             &mut array_creation_info,
             item,
             vc_kind,
-            tast_info,
+            analysis_data,
             offset,
         );
     }
@@ -174,7 +174,7 @@ pub(crate) fn analyze_vals(
 
             new_vec.parent_nodes = array_creation_info.parent_nodes;
 
-            tast_info.set_expr_type(&pos, new_vec);
+            analysis_data.set_expr_type(&pos, new_vec);
         }
         VcKind::Keyset => {
             let item_value_type = TUnion::new(type_combiner::combine(
@@ -187,7 +187,7 @@ pub(crate) fn analyze_vals(
 
             keyset.parent_nodes = array_creation_info.parent_nodes;
 
-            tast_info.set_expr_type(&pos, keyset);
+            analysis_data.set_expr_type(&pos, keyset);
         }
         VcKind::Vector => {
             let mut new_vec = wrap_atomic(TAtomic::TNamedObject {
@@ -203,12 +203,12 @@ pub(crate) fn analyze_vals(
 
             new_vec.parent_nodes = array_creation_info.parent_nodes;
 
-            tast_info.set_expr_type(&pos, new_vec);
+            analysis_data.set_expr_type(&pos, new_vec);
         }
         _ => {}
     }
 
-    tast_info.expr_effects.insert(
+    analysis_data.expr_effects.insert(
         (pos.start_offset(), pos.end_offset()),
         array_creation_info.effects,
     );
@@ -221,12 +221,12 @@ pub(crate) fn analyze_keyvals(
     kvc_kind: &oxidized::tast::KvcKind,
     items: &Vec<oxidized::tast::Field<(), ()>>,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
-        tast_info.set_expr_type(
+        analysis_data.set_expr_type(
             &pos,
             wrap_atomic(TAtomic::TDict {
                 known_items: None,
@@ -250,7 +250,7 @@ pub(crate) fn analyze_keyvals(
             &mut array_creation_info,
             item,
             kvc_kind,
-            tast_info,
+            analysis_data,
         );
     }
 
@@ -299,9 +299,9 @@ pub(crate) fn analyze_keyvals(
 
     new_dict.parent_nodes = array_creation_info.parent_nodes;
 
-    tast_info.set_expr_type(&pos, new_dict);
+    analysis_data.set_expr_type(&pos, new_dict);
 
-    tast_info.expr_effects.insert(
+    analysis_data.expr_effects.insert(
         (pos.start_offset(), pos.end_offset()),
         array_creation_info.effects,
     );
@@ -315,7 +315,7 @@ fn analyze_vals_item(
     array_creation_info: &mut ArrayCreationInfo,
     item_value: &Expr,
     container_type: &VcKind,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     offset: usize,
 ) -> bool {
     let key_item_type = get_literal_int(offset.try_into().unwrap());
@@ -324,12 +324,12 @@ fn analyze_vals_item(
     expression_analyzer::analyze(
         statements_analyzer,
         item_value,
-        tast_info,
+        analysis_data,
         context,
         &mut None,
     );
 
-    array_creation_info.effects |= tast_info
+    array_creation_info.effects |= analysis_data
         .expr_effects
         .get(&(
             item_value.pos().start_offset(),
@@ -337,7 +337,7 @@ fn analyze_vals_item(
         ))
         .unwrap_or(&0);
 
-    let value_item_type = tast_info
+    let value_item_type = analysis_data
         .get_expr_type(&item_value.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
@@ -345,7 +345,7 @@ fn analyze_vals_item(
     add_array_value_dataflow(
         statements_analyzer,
         &value_item_type,
-        tast_info,
+        analysis_data,
         &key_item_type,
         item_value,
         array_creation_info,
@@ -377,17 +377,23 @@ fn analyze_keyvals_item(
     array_creation_info: &mut ArrayCreationInfo,
     item: &oxidized::tast::Field<(), ()>,
     container_type: &KvcKind,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) -> bool {
     // Analyze type for key
-    expression_analyzer::analyze(statements_analyzer, &item.0, tast_info, context, &mut None);
+    expression_analyzer::analyze(
+        statements_analyzer,
+        &item.0,
+        analysis_data,
+        context,
+        &mut None,
+    );
 
-    array_creation_info.effects |= tast_info
+    array_creation_info.effects |= analysis_data
         .expr_effects
         .get(&(item.0.pos().start_offset(), item.0.pos().end_offset()))
         .unwrap_or(&0);
 
-    let key_item_type = tast_info
+    let key_item_type = analysis_data
         .get_expr_type(&item.0.pos())
         .cloned()
         .unwrap_or(get_arraykey(true));
@@ -395,20 +401,26 @@ fn analyze_keyvals_item(
     add_array_key_dataflow(
         statements_analyzer,
         &key_item_type,
-        tast_info,
+        analysis_data,
         item.0.pos(),
         array_creation_info,
     );
 
     // Now check types of the values
-    expression_analyzer::analyze(statements_analyzer, &item.1, tast_info, context, &mut None);
+    expression_analyzer::analyze(
+        statements_analyzer,
+        &item.1,
+        analysis_data,
+        context,
+        &mut None,
+    );
 
-    array_creation_info.effects |= tast_info
+    array_creation_info.effects |= analysis_data
         .expr_effects
         .get(&(item.1.pos().start_offset(), item.1.pos().end_offset()))
         .unwrap_or(&0);
 
-    let value_item_type = tast_info
+    let value_item_type = analysis_data
         .get_expr_type(&item.1.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
@@ -416,7 +428,7 @@ fn analyze_keyvals_item(
     add_array_value_dataflow(
         statements_analyzer,
         &value_item_type,
-        tast_info,
+        analysis_data,
         &key_item_type,
         &item.1,
         array_creation_info,
@@ -447,14 +459,14 @@ fn analyze_keyvals_item(
 fn add_array_value_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     value_type: &TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     key_item_type: &TUnion,
     value: &oxidized::aast::Expr<(), ()>,
     array_creation_info: &mut ArrayCreationInfo,
 ) {
     if !value_type.parent_nodes.is_empty()
         && !(matches!(
-            &tast_info.data_flow_graph.kind,
+            &analysis_data.data_flow_graph.kind,
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         ) && !value_type.has_taintable_value())
     {
@@ -476,12 +488,14 @@ fn add_array_value_dataflow(
 
         let new_parent_node =
             DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(value.pos()));
-        tast_info.data_flow_graph.add_node(new_parent_node.clone());
+        analysis_data
+            .data_flow_graph
+            .add_node(new_parent_node.clone());
 
         // TODO add taint event dispatches
 
         for parent_node in value_type.parent_nodes.iter() {
-            tast_info.data_flow_graph.add_path(
+            analysis_data.data_flow_graph.add_path(
                 parent_node,
                 &new_parent_node,
                 if let Some(key_item_single) = key_item_single {
@@ -513,13 +527,13 @@ fn add_array_value_dataflow(
 fn add_array_key_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     key_item_type: &TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     item_key_pos: &Pos,
     array_creation_info: &mut ArrayCreationInfo,
 ) {
     if !key_item_type.parent_nodes.is_empty()
         && !(matches!(
-            &tast_info.data_flow_graph.kind,
+            &analysis_data.data_flow_graph.kind,
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         ) && !key_item_type.has_taintable_value())
     {
@@ -527,7 +541,9 @@ fn add_array_key_dataflow(
 
         let new_parent_node =
             DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(item_key_pos));
-        tast_info.data_flow_graph.add_node(new_parent_node.clone());
+        analysis_data
+            .data_flow_graph
+            .add_node(new_parent_node.clone());
 
         // TODO add taint event dispatches
 
@@ -538,7 +554,7 @@ fn add_array_key_dataflow(
         };
 
         for parent_node in key_item_type.parent_nodes.iter() {
-            tast_info.data_flow_graph.add_path(
+            analysis_data.data_flow_graph.add_path(
                 parent_node,
                 &new_parent_node,
                 if let Some(key_item_single) = key_item_single {

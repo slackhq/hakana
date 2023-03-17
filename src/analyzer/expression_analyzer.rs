@@ -16,7 +16,7 @@ use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -42,12 +42,12 @@ use rustc_hash::FxHashSet;
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: &aast::Expr<(), ()>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
     if statements_analyzer.get_config().add_fixmes {
-        if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
+        if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
             if current_stmt_offset.line != expr.1.line() {
                 if !matches!(expr.2, aast::Expr_::Xml(..)) {
                     *current_stmt_offset = StmtStart {
@@ -61,7 +61,7 @@ pub(crate) fn analyze(
                 }
             }
 
-            tast_info.expr_fixme_positions.insert(
+            analysis_data.expr_fixme_positions.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 *current_stmt_offset,
             );
@@ -76,7 +76,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (binop, e1, e2),
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -84,10 +84,16 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::Lvar(lid) => {
-            variable_fetch_analyzer::analyze(statements_analyzer, lid, &expr.1, tast_info, context);
+            variable_fetch_analyzer::analyze(
+                statements_analyzer,
+                lid,
+                &expr.1,
+                analysis_data,
+                context,
+            );
         }
         aast::Expr_::Int(value) => {
-            tast_info.expr_types.insert(
+            analysis_data.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(
                     if let Ok(value) = if value.starts_with("0x") {
@@ -106,13 +112,13 @@ pub(crate) fn analyze(
             );
         }
         aast::Expr_::String(value) => {
-            tast_info.expr_types.insert(
+            analysis_data.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_literal_string(value.to_string())),
             );
         }
         aast::Expr_::Float(_) => {
-            tast_info.expr_types.insert(
+            analysis_data.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_float()),
             );
@@ -123,7 +129,7 @@ pub(crate) fn analyze(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 lhs_expr,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -132,7 +138,7 @@ pub(crate) fn analyze(
 
             add_decision_dataflow(
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 lhs_expr,
                 None,
                 expr.pos(),
@@ -146,7 +152,7 @@ pub(crate) fn analyze(
                 &boxed.0,
                 &boxed.1,
                 boxed.2,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -158,7 +164,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3),
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -181,7 +187,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (&boxed.0, boxed.1.as_ref()),
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 keyed_array_var_id,
             ) {
@@ -193,7 +199,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -205,7 +211,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 shape_fields,
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -216,7 +222,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 shape_fields,
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -227,7 +233,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -244,7 +250,7 @@ pub(crate) fn analyze(
                         statements_analyzer,
                         (&lhs_expr, &rhs_expr),
                         &expr.1,
-                        tast_info,
+                        analysis_data,
                         context,
                         context.inside_assignment,
                         matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
@@ -267,7 +273,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3),
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -281,7 +287,7 @@ pub(crate) fn analyze(
                         statements_analyzer,
                         (lhs, &rhs),
                         &expr.1,
-                        tast_info,
+                        analysis_data,
                         context,
                     ) {
                         return false;
@@ -293,19 +299,19 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::Null => {
-            tast_info.expr_types.insert(
+            analysis_data.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_null()),
             );
         }
         aast::Expr_::True => {
-            tast_info.expr_types.insert(
+            analysis_data.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_true()),
             );
         }
         aast::Expr_::False => {
-            tast_info.expr_types.insert(
+            analysis_data.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(get_false()),
             );
@@ -317,7 +323,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (unop, inner_expr),
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -325,13 +331,24 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::Lfun(boxed) => {
-            if !closure_analyzer::analyze(statements_analyzer, context, tast_info, &boxed.0, expr) {
+            if !closure_analyzer::analyze(
+                statements_analyzer,
+                context,
+                analysis_data,
+                &boxed.0,
+                expr,
+            ) {
                 return false;
             }
         }
         aast::Expr_::Efun(boxed) => {
-            if !closure_analyzer::analyze(statements_analyzer, context, tast_info, &boxed.fun, expr)
-            {
+            if !closure_analyzer::analyze(
+                statements_analyzer,
+                context,
+                analysis_data,
+                &boxed.fun,
+                expr,
+            ) {
                 return false;
             }
         }
@@ -340,7 +357,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (&boxed.0, (&boxed.1 .0, &boxed.1 .1)),
                 &expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -351,19 +368,19 @@ pub(crate) fn analyze(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
                 return false;
             }
 
-            if let Some(stmt_type) = tast_info
+            if let Some(stmt_type) = analysis_data
                 .expr_types
                 .get(&(boxed.pos().start_offset(), boxed.pos().end_offset()))
                 .cloned()
             {
-                tast_info.expr_types.insert(
+                analysis_data.expr_types.insert(
                     (expr.1.start_offset(), expr.1.end_offset()),
                     stmt_type.clone(),
                 );
@@ -378,14 +395,14 @@ pub(crate) fn analyze(
                 if !expression_analyzer::analyze(
                     statements_analyzer,
                     inner_expr,
-                    tast_info,
+                    analysis_data,
                     context,
                     if_body_context,
                 ) {
                     return false;
                 }
 
-                let expr_part_type = tast_info.expr_types.get(&(
+                let expr_part_type = analysis_data.expr_types.get(&(
                     inner_expr.pos().start_offset(),
                     inner_expr.pos().end_offset(),
                 ));
@@ -395,7 +412,9 @@ pub(crate) fn analyze(
                     statements_analyzer.get_hpos(inner_expr.pos()),
                 );
 
-                tast_info.data_flow_graph.add_node(new_parent_node.clone());
+                analysis_data
+                    .data_flow_graph
+                    .add_node(new_parent_node.clone());
 
                 if let Some(expr_part_type) = expr_part_type {
                     if !expr_part_type.all_literals() {
@@ -403,7 +422,7 @@ pub(crate) fn analyze(
                     }
 
                     for parent_node in &expr_part_type.parent_nodes {
-                        tast_info.data_flow_graph.add_path(
+                        analysis_data.data_flow_graph.add_path(
                             parent_node,
                             &new_parent_node,
                             PathKind::Default,
@@ -434,7 +453,7 @@ pub(crate) fn analyze(
 
             string_type.parent_nodes = parent_nodes;
 
-            tast_info.expr_types.insert(
+            analysis_data.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(string_type),
             );
@@ -443,7 +462,7 @@ pub(crate) fn analyze(
             if let Some(value) = prefixed_string_analyzer::analyze(
                 statements_analyzer,
                 boxed,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
                 expr,
@@ -452,7 +471,7 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::Id(boxed) => {
-            const_fetch_analyzer::analyze(statements_analyzer, boxed, tast_info);
+            const_fetch_analyzer::analyze(statements_analyzer, boxed, analysis_data);
         }
         aast::Expr_::Xml(boxed) => {
             xml_analyzer::analyze(
@@ -460,7 +479,7 @@ pub(crate) fn analyze(
                 boxed,
                 expr.pos(),
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 if_body_context,
             );
         }
@@ -468,19 +487,19 @@ pub(crate) fn analyze(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
                 return false;
             }
 
-            let mut awaited_stmt_type = tast_info
+            let mut awaited_stmt_type = analysis_data
                 .get_expr_type(boxed.pos())
                 .cloned()
                 .unwrap_or(get_mixed_any());
 
-            tast_info
+            analysis_data
                 .expr_effects
                 .insert((expr.1.start_offset(), expr.1.end_offset()), EFFECT_IMPURE);
 
@@ -511,13 +530,13 @@ pub(crate) fn analyze(
 
             awaited_stmt_type.types = new_types;
 
-            tast_info.expr_types.insert(
+            analysis_data.expr_types.insert(
                 (expr.1.start_offset(), expr.1.end_offset()),
                 Rc::new(awaited_stmt_type),
             );
         }
         aast::Expr_::FunctionPointer(boxed) => {
-            analyze_function_pointer(statements_analyzer, boxed, context, tast_info, expr);
+            analyze_function_pointer(statements_analyzer, boxed, context, analysis_data, expr);
         }
         aast::Expr_::Cast(boxed) => {
             return cast_analyzer::analyze(
@@ -525,7 +544,7 @@ pub(crate) fn analyze(
                 &expr.1,
                 &boxed.0,
                 &boxed.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -535,7 +554,7 @@ pub(crate) fn analyze(
                 &expr.1,
                 boxed,
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -548,7 +567,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 &boxed.1,
                 expr.pos(),
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -563,7 +582,7 @@ pub(crate) fn analyze(
                 None
             };
             if let Some(member_name) = statements_analyzer.get_interner().get(&boxed.1) {
-                tast_info.expr_types.insert(
+                analysis_data.expr_types.insert(
                     (expr.1.start_offset(), expr.1.end_offset()),
                     Rc::new(wrap_atomic(TAtomic::TEnumClassLabel {
                         class_name,
@@ -571,7 +590,7 @@ pub(crate) fn analyze(
                     })),
                 );
             } else {
-                tast_info.expr_types.insert(
+                analysis_data.expr_types.insert(
                     (expr.1.start_offset(), expr.1.end_offset()),
                     Rc::new(get_mixed_any()),
                 );
@@ -589,7 +608,7 @@ pub(crate) fn analyze(
                 &oxidized::tast::KvcKind::Dict,
                 &fields,
                 expr.pos(),
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -601,7 +620,7 @@ pub(crate) fn analyze(
                 &oxidized::tast::VcKind::Vec,
                 &boxed.1,
                 expr.pos(),
-                tast_info,
+                analysis_data,
                 context,
             );
         }
@@ -611,7 +630,7 @@ pub(crate) fn analyze(
                 &boxed.0 .1,
                 &boxed.2,
                 expr.pos(),
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -623,7 +642,7 @@ pub(crate) fn analyze(
                 &boxed.0 .1,
                 &boxed.2,
                 expr.pos(),
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -643,7 +662,7 @@ pub(crate) fn analyze(
         | aast::Expr_::ETSplice(_)
         | aast::Expr_::Hole(_)
         | aast::Expr_::Invalid(_) => {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::UnrecognizedExpression,
                     "Unrecognized expression".to_string(),
@@ -659,7 +678,7 @@ pub(crate) fn analyze(
 
     for hook in &statements_analyzer.get_config().hooks {
         hook.after_expr_analysis(
-            tast_info,
+            analysis_data,
             AfterExprAnalysisData {
                 statements_analyzer,
                 expr,
@@ -675,7 +694,7 @@ fn analyze_function_pointer(
     statements_analyzer: &StatementsAnalyzer,
     boxed: &Box<(aast::FunctionPtrId<(), ()>, Vec<aast::Targ<()>>)>,
     context: &mut ScopeContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     expr: &aast::Expr<(), ()>,
 ) {
     let codebase = statements_analyzer.get_codebase();
@@ -713,14 +732,14 @@ fn analyze_function_pointer(
 
     match &id {
         FunctionLikeIdentifier::Function(name) => {
-            tast_info.symbol_references.add_reference_to_symbol(
+            analysis_data.symbol_references.add_reference_to_symbol(
                 &context.function_context,
                 name.clone(),
                 false,
             );
 
             if !codebase.functionlike_infos.contains_key(name) {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentFunction,
                         format!(
@@ -738,11 +757,13 @@ fn analyze_function_pointer(
             }
         }
         FunctionLikeIdentifier::Method(class_name, method_name) => {
-            tast_info.symbol_references.add_reference_to_class_member(
-                &context.function_context,
-                (class_name.clone(), *method_name),
-                false,
-            );
+            analysis_data
+                .symbol_references
+                .add_reference_to_class_member(
+                    &context.function_context,
+                    (class_name.clone(), *method_name),
+                    false,
+                );
 
             if let Some(classlike_storage) = codebase.classlike_infos.get(class_name) {
                 let declaring_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
@@ -755,7 +776,7 @@ fn analyze_function_pointer(
                     .get(&declaring_method_id.1)
                 {
                     for overridden_classlike in overridden_classlikes {
-                        tast_info
+                        analysis_data
                             .symbol_references
                             .add_reference_to_overridden_class_member(
                                 &context.function_context,
@@ -764,7 +785,7 @@ fn analyze_function_pointer(
                     }
                 }
             } else {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentClasslike,
                         format!(
@@ -787,9 +808,9 @@ fn analyze_function_pointer(
         &id,
         codebase,
         &Some(statements_analyzer.get_interner()),
-        &mut tast_info.data_flow_graph,
+        &mut analysis_data.data_flow_graph,
     ) {
-        tast_info.expr_types.insert(
+        analysis_data.expr_types.insert(
             (expr.1.start_offset(), expr.1.end_offset()),
             Rc::new(wrap_atomic(closure)),
         );
@@ -798,13 +819,13 @@ fn analyze_function_pointer(
 
 pub(crate) fn add_decision_dataflow(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     lhs_expr: &aast::Expr<(), ()>,
     rhs_expr: Option<&aast::Expr<(), ()>>,
     expr_pos: &Pos,
     mut cond_type: TUnion,
 ) {
-    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         return;
     }
 
@@ -813,14 +834,14 @@ pub(crate) fn add_decision_dataflow(
         statements_analyzer.get_hpos(expr_pos),
     );
 
-    if let Some(lhs_type) = tast_info
+    if let Some(lhs_type) = analysis_data
         .expr_types
         .get(&(lhs_expr.1.start_offset(), lhs_expr.1.end_offset()))
     {
         cond_type.parent_nodes.insert(decision_node.clone());
 
         for old_parent_node in &lhs_type.parent_nodes {
-            tast_info.data_flow_graph.add_path(
+            analysis_data.data_flow_graph.add_path(
                 old_parent_node,
                 &decision_node,
                 PathKind::Default,
@@ -831,14 +852,14 @@ pub(crate) fn add_decision_dataflow(
     }
 
     if let Some(rhs_expr) = rhs_expr {
-        if let Some(rhs_type) = tast_info
+        if let Some(rhs_type) = analysis_data
             .expr_types
             .get(&(rhs_expr.1.start_offset(), rhs_expr.1.end_offset()))
         {
             cond_type.parent_nodes.insert(decision_node.clone());
 
             for old_parent_node in &rhs_type.parent_nodes {
-                tast_info.data_flow_graph.add_path(
+                analysis_data.data_flow_graph.add_path(
                     old_parent_node,
                     &decision_node,
                     PathKind::Default,
@@ -848,7 +869,7 @@ pub(crate) fn add_decision_dataflow(
             }
         }
     }
-    tast_info.expr_types.insert(
+    analysis_data.expr_types.insert(
         (expr_pos.start_offset(), expr_pos.end_offset()),
         Rc::new(cond_type),
     );

@@ -15,7 +15,7 @@ use crate::stmt::{
     break_analyzer, continue_analyzer, do_analyzer, for_analyzer, foreach_analyzer,
     ifelse_analyzer, return_analyzer, switch_analyzer, try_analyzer, while_analyzer,
 };
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use oxidized::{aast, ast_defs};
@@ -23,13 +23,13 @@ use oxidized::{aast, ast_defs};
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: &aast::Stmt<(), ()>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> bool {
-    if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
+    if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
         if current_stmt_offset.line != stmt.0.line() {
-            tast_info.current_stmt_offset = Some(StmtStart {
+            analysis_data.current_stmt_offset = Some(StmtStart {
                 offset: stmt.0.start_offset(),
                 line: stmt.0.line(),
                 column: stmt.0.to_raw_span().start.column() as usize,
@@ -37,7 +37,7 @@ pub(crate) fn analyze(
             });
         }
     } else {
-        tast_info.current_stmt_offset = Some(StmtStart {
+        analysis_data.current_stmt_offset = Some(StmtStart {
             offset: stmt.0.start_offset(),
             line: stmt.0.line(),
             column: stmt.0.to_raw_span().start.column() as usize,
@@ -50,7 +50,7 @@ pub(crate) fn analyze(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed,
-                tast_info,
+                analysis_data,
                 context,
                 &mut None,
             ) {
@@ -70,7 +70,7 @@ pub(crate) fn analyze(
                             codebase.functionlike_infos.get(&function_id)
                         {
                             if functionlike_info.must_use {
-                                tast_info.maybe_add_issue(
+                                analysis_data.maybe_add_issue(
                                     Issue::new(
                                         IssueKind::UnusedFunctionCall,
                                         "This function is annotated with MustUse but the returned value is not used".to_string(),
@@ -85,14 +85,14 @@ pub(crate) fn analyze(
                     }
                 }
 
-                if let Some(expr_type) = tast_info.get_rc_expr_type(boxed.pos()).cloned() {
+                if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
                     for atomic_type in &expr_type.types {
                         if let TAtomic::TNamedObject {
                             name: STR_AWAITABLE,
                             ..
                         } = atomic_type
                         {
-                            tast_info.maybe_add_issue(
+                            analysis_data.maybe_add_issue(
                                 Issue::new(
                                     IssueKind::UnusedAwaitable,
                                     "This awaitable is never awaited".to_string(),
@@ -108,14 +108,14 @@ pub(crate) fn analyze(
             }
         }
         aast::Stmt_::Return(_) => {
-            return_analyzer::analyze(stmt, statements_analyzer, tast_info, context);
+            return_analyzer::analyze(stmt, statements_analyzer, analysis_data, context);
         }
         aast::Stmt_::If(boxed) => {
             if !ifelse_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &stmt.0,
-                tast_info,
+                analysis_data,
                 context,
                 loop_scope,
             ) {
@@ -126,7 +126,7 @@ pub(crate) fn analyze(
             if !while_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1),
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -136,7 +136,7 @@ pub(crate) fn analyze(
             if !do_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1),
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -147,7 +147,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3),
                 &stmt.0,
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -158,7 +158,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &stmt.0,
-                tast_info,
+                analysis_data,
                 context,
             ) {
                 return false;
@@ -168,17 +168,17 @@ pub(crate) fn analyze(
             // ignore
         }
         aast::Stmt_::Break => {
-            break_analyzer::analyze(statements_analyzer, tast_info, context, loop_scope);
+            break_analyzer::analyze(statements_analyzer, analysis_data, context, loop_scope);
         }
         aast::Stmt_::Continue => {
-            continue_analyzer::analyze(statements_analyzer, tast_info, context, loop_scope);
+            continue_analyzer::analyze(statements_analyzer, analysis_data, context, loop_scope);
         }
         aast::Stmt_::Switch(boxed) => {
             switch_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &stmt.0,
-                tast_info,
+                analysis_data,
                 context,
                 loop_scope,
             );
@@ -189,7 +189,7 @@ pub(crate) fn analyze(
             let analysis_result = expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed,
-                tast_info,
+                analysis_data,
                 context,
                 &mut None,
             );
@@ -205,7 +205,7 @@ pub(crate) fn analyze(
             if !try_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
-                tast_info,
+                analysis_data,
                 context,
                 loop_scope,
             ) {
@@ -219,7 +219,7 @@ pub(crate) fn analyze(
             analyze_awaitall(
                 (&boxed.0, &boxed.1 .0),
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 context,
                 stmt,
                 loop_scope,
@@ -230,7 +230,7 @@ pub(crate) fn analyze(
                 if !expression_analyzer::analyze(
                     statements_analyzer,
                     &boxed_expr,
-                    tast_info,
+                    analysis_data,
                     context,
                     &mut None,
                 ) {
@@ -242,7 +242,7 @@ pub(crate) fn analyze(
                 if !analyze(
                     statements_analyzer,
                     using_stmt,
-                    tast_info,
+                    analysis_data,
                     context,
                     loop_scope,
                 ) {
@@ -255,7 +255,7 @@ pub(crate) fn analyze(
                 if !analyze(
                     statements_analyzer,
                     boxed_stmt,
-                    tast_info,
+                    analysis_data,
                     context,
                     loop_scope,
                 ) {
@@ -266,7 +266,7 @@ pub(crate) fn analyze(
         aast::Stmt_::Fallthrough => {} // do nothing
         aast::Stmt_::YieldBreak | aast::Stmt_::AssertEnv(_) => {
             //println!("{:#?}", stmt);
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::UnrecognizedStatement,
                     "Unrecognized statement".to_string(),
@@ -282,7 +282,7 @@ pub(crate) fn analyze(
 
     for hook in &statements_analyzer.get_config().hooks {
         hook.after_stmt_analysis(
-            tast_info,
+            analysis_data,
             AfterStmtAnalysisData {
                 statements_analyzer,
                 stmt: &stmt,
@@ -300,7 +300,7 @@ fn analyze_awaitall(
         &Vec<aast::Stmt<(), ()>>,
     ),
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     stmt: &aast::Stmt<(), ()>,
     loop_scope: &mut Option<LoopScope>,
@@ -308,12 +308,12 @@ fn analyze_awaitall(
     context.inside_awaitall = true;
 
     for (assignment_id, expr) in boxed.0 {
-        expression_analyzer::analyze(statements_analyzer, expr, tast_info, context, &mut None);
+        expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, &mut None);
 
         if let Some(assignment_id) = assignment_id {
             let mut assignment_type = None;
 
-            if let Some(t) = tast_info.get_expr_type(expr.pos()) {
+            if let Some(t) = analysis_data.get_expr_type(expr.pos()) {
                 let parent_nodes = t.parent_nodes.clone();
                 if t.is_single() {
                     let inner = t.get_single();
@@ -344,7 +344,7 @@ fn analyze_awaitall(
                 ),
                 &stmt.0,
                 assignment_type.as_ref(),
-                tast_info,
+                analysis_data,
                 context,
                 false,
             )
@@ -353,7 +353,13 @@ fn analyze_awaitall(
     }
 
     for stmt in boxed.1 {
-        analyze(statements_analyzer, &stmt, tast_info, context, loop_scope);
+        analyze(
+            statements_analyzer,
+            &stmt,
+            analysis_data,
+            context,
+            loop_scope,
+        );
     }
 
     context.inside_awaitall = false;

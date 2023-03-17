@@ -4,7 +4,7 @@ use crate::{
     expression_analyzer,
     scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 
 use super::{control_analyzer::BreakContext, loop_analyzer};
@@ -18,7 +18,7 @@ pub(crate) fn analyze(
         &aast::Block<(), ()>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let pre_assigned_var_ids = context.assigned_var_ids.clone();
@@ -33,7 +33,7 @@ pub(crate) fn analyze(
         if !expression_analyzer::analyze(
             statements_analyzer,
             init_expr,
-            tast_info,
+            analysis_data,
             context,
             &mut None,
         ) {
@@ -53,7 +53,7 @@ pub(crate) fn analyze(
 
     let (analysis_result, _) = loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.3.0,
+        &stmt.3 .0,
         if let Some(cond_expr) = stmt.1 {
             vec![cond_expr]
         } else {
@@ -63,7 +63,7 @@ pub(crate) fn analyze(
         &mut LoopScope::new(context.vars_in_scope.clone()),
         &mut for_context,
         context,
-        tast_info,
+        analysis_data,
         false,
         while_true,
     );
@@ -75,7 +75,7 @@ pub(crate) fn analyze(
     // theoretically we could also port over always_enters_loop logic from Psalm here
     // but I'm not sure that would be massively useful
 
-    // todo do we need to remove the loop scope from tast_info here? unsure
+    // todo do we need to remove the loop scope from analysis_data here? unsure
 
     return true;
 }

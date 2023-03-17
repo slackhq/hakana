@@ -4,7 +4,7 @@ use crate::functionlike_analyzer::FunctionLikeAnalyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
@@ -67,7 +67,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
 
         let mut class_context = ScopeContext::new(function_context);
 
-        let mut tast_info = TastInfo::new(
+        let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(GraphKind::FunctionBody),
             statements_analyzer.get_file_analyzer().get_file_source(),
             &statements_analyzer.comments,
@@ -83,7 +83,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
                     expression_analyzer::analyze(
                         statements_analyzer,
                         expr,
-                        &mut tast_info,
+                        &mut analysis_data,
                         &mut class_context,
                         &mut None,
                     );
@@ -97,7 +97,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
                 expression_analyzer::analyze(
                     statements_analyzer,
                     default,
-                    &mut tast_info,
+                    &mut analysis_data,
                     &mut class_context,
                     &mut None,
                 );
@@ -106,7 +106,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
 
         analysis_result
             .symbol_references
-            .extend(tast_info.symbol_references);
+            .extend(analysis_data.symbol_references);
 
         for method in &stmt.methods {
             if method.abstract_ || matches!(classlike_storage.kind, SymbolKind::Interface) {

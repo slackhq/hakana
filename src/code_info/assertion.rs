@@ -1,8 +1,8 @@
 use std::hash::Hasher;
 
+use derivative::Derivative;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
-use derivative::Derivative;
 
 use crate::{
     t_atomic::{DictKey, TAtomic},

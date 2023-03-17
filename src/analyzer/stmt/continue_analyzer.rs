@@ -8,11 +8,11 @@ use crate::{
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
 };
 
-use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
+use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    _tast_info: &mut TastInfo,
+    _analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
 ) {

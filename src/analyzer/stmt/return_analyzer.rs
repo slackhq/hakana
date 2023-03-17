@@ -27,13 +27,13 @@ use rustc_hash::FxHashSet;
 
 use crate::{
     expression_analyzer, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 
 pub(crate) fn analyze(
     stmt: &aast::Stmt<(), ()>,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) {
     let return_expr = stmt.1.as_return().unwrap();
@@ -45,15 +45,16 @@ pub(crate) fn analyze(
         expression_analyzer::analyze(
             statements_analyzer,
             return_expr,
-            tast_info,
+            analysis_data,
             context,
             &mut None,
         );
         context.inside_return = false;
 
-        if let Some(mut inferred_return_type) = tast_info.get_expr_type(&return_expr.1).cloned() {
+        if let Some(mut inferred_return_type) = analysis_data.get_expr_type(&return_expr.1).cloned()
+        {
             if inferred_return_type.is_nothing() {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::NothingReturn,
                         "This function call evaluates to nothing — likely calling a noreturn function"
@@ -110,7 +111,7 @@ pub(crate) fn analyze(
         functionlike_storage,
         statements_analyzer,
         context,
-        tast_info,
+        analysis_data,
         Some(&stmt.0),
     );
 
@@ -136,7 +137,7 @@ pub(crate) fn analyze(
             },
             ..Default::default()
         },
-        &mut tast_info.data_flow_graph,
+        &mut analysis_data.data_flow_graph,
     );
 
     if functionlike_storage.is_async {
@@ -152,7 +153,7 @@ pub(crate) fn analyze(
     }
 
     if let Some(_) = return_expr {
-        tast_info
+        analysis_data
             .inferred_return_types
             .push(inferred_return_type.clone());
     }
@@ -187,7 +188,7 @@ pub(crate) fn analyze(
                 ),
                 ..Default::default()
             },
-            &mut tast_info.data_flow_graph,
+            &mut analysis_data.data_flow_graph,
         );
 
         expected_type
@@ -201,7 +202,7 @@ pub(crate) fn analyze(
             context,
             return_expr,
             &inferred_return_type,
-            &mut tast_info.data_flow_graph,
+            &mut analysis_data.data_flow_graph,
             &if let Some(closure_id) = context.calling_closure_id {
                 FunctionLikeIdentifier::Function(closure_id)
             } else {
@@ -223,7 +224,7 @@ pub(crate) fn analyze(
 
             if inferred_return_type.is_mixed_with_any(&mut mixed_with_any) {
                 if expected_return_type.is_void() {
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::InvalidReturnStatement,
                             format!(
@@ -246,12 +247,14 @@ pub(crate) fn analyze(
                 }
 
                 for origin in &inferred_return_type.parent_nodes {
-                    tast_info.data_flow_graph.add_mixed_data(origin, &stmt.0);
+                    analysis_data
+                        .data_flow_graph
+                        .add_mixed_data(origin, &stmt.0);
                 }
 
                 // todo increment mixed count
 
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         if mixed_with_any {
                             IssueKind::MixedAnyReturnStatement
@@ -275,7 +278,7 @@ pub(crate) fn analyze(
             // todo increment non-mixed count
 
             if expected_return_type.is_void() {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::InvalidReturnStatement,
                         format!(
@@ -315,7 +318,7 @@ pub(crate) fn analyze(
                         .type_coerced_from_nested_any
                         .unwrap_or(false)
                     {
-                        tast_info.maybe_add_issue(
+                        analysis_data.maybe_add_issue(
                             Issue::new(
                             IssueKind::LessSpecificNestedAnyReturnStatement,
                             format!(
@@ -337,7 +340,7 @@ pub(crate) fn analyze(
                             .type_coerced_from_as_mixed
                             .unwrap_or(false)
                         {
-                            tast_info.maybe_add_issue(
+                            analysis_data.maybe_add_issue(
                                 Issue::new(
                                     IssueKind::LessSpecificNestedReturnStatement,
                                     format!(
@@ -358,7 +361,7 @@ pub(crate) fn analyze(
                             .type_coerced_from_as_mixed
                             .unwrap_or(false)
                         {
-                            tast_info.maybe_add_issue(Issue::new(
+                            analysis_data.maybe_add_issue(Issue::new(
                                 IssueKind::LessSpecificReturnStatement,
                                 format!(
                                     "The type {} is more general than the declared return type {} for {}",
@@ -375,7 +378,7 @@ pub(crate) fn analyze(
                         }
                     }
                 } else {
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::InvalidReturnStatement,
                             format!(
@@ -402,7 +405,7 @@ pub(crate) fn analyze(
                 && !expected_return_type.is_nullable()
                 && !expected_return_type.has_template()
             {
-                tast_info.maybe_add_issue(Issue::new(
+                analysis_data.maybe_add_issue(Issue::new(
                     IssueKind::NullableReturnStatement,
                     format!(
                         "The declared return type {} for {} is not nullable, but the function returns {}",
@@ -423,7 +426,7 @@ pub(crate) fn analyze(
                 && !expected_return_type.has_template()
                 && !inferred_return_type.ignore_falsable_issues
             {
-                tast_info.maybe_add_issue(Issue::new(
+                analysis_data.maybe_add_issue(Issue::new(
                     IssueKind::FalsableReturnStatement,
                     format!(
                         "The declared return type {} for {} is not falsable, but the function returns {}",
@@ -446,7 +449,7 @@ pub(crate) fn analyze(
             .lookup(&functionlike_storage.name)
             != "__construct"
     {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::InvalidReturnStatement,
                 format!(
@@ -471,15 +474,15 @@ pub(crate) fn handle_inout_at_return(
     functionlike_storage: &FunctionLikeInfo,
     statements_analyzer: &StatementsAnalyzer,
     context: &mut ScopeContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     _return_pos: Option<&Pos>,
 ) {
     for (i, param) in functionlike_storage.params.iter().enumerate() {
         if param.is_inout {
             if let Some(context_type) = context.vars_in_scope.get(&param.name) {
-                if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {}
+                if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {}
                 let new_parent_node =
-                    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                         DataFlowNode::get_for_method_argument_out(
                             context
                                 .function_context
@@ -498,10 +501,12 @@ pub(crate) fn handle_inout_at_return(
                         )
                     };
 
-                tast_info.data_flow_graph.add_node(new_parent_node.clone());
+                analysis_data
+                    .data_flow_graph
+                    .add_node(new_parent_node.clone());
 
                 for parent_node in &context_type.parent_nodes {
-                    tast_info.data_flow_graph.add_path(
+                    analysis_data.data_flow_graph.add_path(
                         parent_node,
                         &new_parent_node,
                         PathKind::Default,

@@ -4,7 +4,7 @@ use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
@@ -25,7 +25,7 @@ pub(crate) fn analyze(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -34,7 +34,7 @@ pub(crate) fn analyze(
     if !expression_analyzer::analyze(
         statements_analyzer,
         expr.0,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     ) {
@@ -42,7 +42,7 @@ pub(crate) fn analyze(
     }
     context.inside_general_use = was_inside_general_use;
 
-    let lhs_type = tast_info
+    let lhs_type = analysis_data
         .get_expr_type(expr.0.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
@@ -90,7 +90,7 @@ pub(crate) fn analyze(
                 &functionlike_id,
                 &lambda_storage,
                 None,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
                 &mut template_result,
@@ -111,7 +111,7 @@ pub(crate) fn analyze(
         context.has_returned = true;
     }
 
-    tast_info.set_expr_type(&pos, stmt_type);
+    analysis_data.set_expr_type(&pos, stmt_type);
 
     true
 }

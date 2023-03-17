@@ -6,7 +6,7 @@ use hakana_type::type_expander;
 use hakana_type::type_expander::TypeExpansionOptions;
 
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 
 use oxidized::ast_defs;
 
@@ -15,7 +15,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     boxed: &Box<ast_defs::Id>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) {
     let codebase = statements_analyzer.get_codebase();
 
@@ -47,10 +47,10 @@ pub(crate) fn analyze(
         &TypeExpansionOptions {
             ..Default::default()
         },
-        &mut tast_info.data_flow_graph,
+        &mut analysis_data.data_flow_graph,
     );
 
-    tast_info.expr_types.insert(
+    analysis_data.expr_types.insert(
         (boxed.0.start_offset(), boxed.0.end_offset()),
         Rc::new(stmt_type),
     );

@@ -4,7 +4,7 @@ use crate::functionlike_analyzer::update_analysis_result_with_tast;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
@@ -47,7 +47,7 @@ impl<'a> FileAnalyzer<'a> {
         program: &aast::Program<(), ()>,
         analysis_result: &mut AnalysisResult,
     ) {
-        let mut tast_info = TastInfo::new(
+        let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(self.analysis_config.graph_kind),
             &self.file_source,
             &Vec::from_iter(self.file_source.comments.iter()),
@@ -78,7 +78,7 @@ impl<'a> FileAnalyzer<'a> {
                         namespace_statement,
                         &mut context,
                         &mut None,
-                        &mut tast_info,
+                        &mut analysis_data,
                         analysis_result,
                     );
                 }
@@ -93,14 +93,14 @@ impl<'a> FileAnalyzer<'a> {
                     declaration,
                     &mut context,
                     &mut None,
-                    &mut tast_info,
+                    &mut analysis_data,
                     analysis_result,
                 );
             }
         }
 
         update_analysis_result_with_tast(
-            tast_info,
+            analysis_data,
             analysis_result,
             &statements_analyzer
                 .get_file_analyzer()

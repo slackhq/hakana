@@ -7,7 +7,7 @@ use crate::scope_context::if_scope::IfScope;
 use crate::scope_context::{var_has_root, ScopeContext};
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::{self, add_branch_dataflow};
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
 use hakana_algebra::Clause;
 use hakana_reflection_info::assertion::Assertion;
@@ -25,7 +25,7 @@ pub(crate) fn analyze(
         &aast::Expr<(), ()>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -36,14 +36,14 @@ pub(crate) fn analyze(
     let if_conditional_scope = if_conditional_analyzer::analyze(
         statements_analyzer,
         &expr.0,
-        tast_info,
+        analysis_data,
         context,
         &mut if_scope,
     );
 
-    tast_info.copy_effects(expr.0.pos(), pos);
+    analysis_data.copy_effects(expr.0.pos(), pos);
 
-    add_branch_dataflow(statements_analyzer, &expr.0, tast_info);
+    add_branch_dataflow(statements_analyzer, &expr.0, analysis_data);
 
     let mut if_context = if_conditional_scope.if_body_context;
     let post_if_context = if_conditional_scope.post_if_context;
@@ -62,7 +62,7 @@ pub(crate) fn analyze(
         cond_object_id,
         expr.0,
         &assertion_context,
-        tast_info,
+        analysis_data,
         false,
         false,
     );
@@ -126,7 +126,7 @@ pub(crate) fn analyze(
         statements_analyzer,
         &context.clauses,
         &if_clauses,
-        tast_info,
+        analysis_data,
         expr.0.pos(),
         &context.function_context.calling_functionlike_id,
     );
@@ -178,7 +178,7 @@ pub(crate) fn analyze(
                 aast::Expr_::Unop(Box::new((Uop::Unot, expr.0.clone()))),
             ),
             &assertion_context,
-            tast_info,
+            analysis_data,
             false,
             false,
         ) {
@@ -213,7 +213,7 @@ pub(crate) fn analyze(
             &mut changed_var_ids,
             &cond_referenced_var_ids,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             expr.0.pos(),
             true,
             false,
@@ -227,7 +227,7 @@ pub(crate) fn analyze(
 
     if_context.reconciled_expression_clauses = Vec::new();
 
-    let stmt_cond_type = tast_info.get_expr_type(expr.0.pos()).cloned();
+    let stmt_cond_type = analysis_data.get_expr_type(expr.0.pos()).cloned();
 
     let mut lhs_type = None;
 
@@ -239,14 +239,14 @@ pub(crate) fn analyze(
         if !expression_analyzer::analyze(
             statements_analyzer,
             if_branch,
-            tast_info,
+            analysis_data,
             &mut if_context,
             if_body_context,
         ) {
             return false;
         }
 
-        tast_info.combine_effects(if_branch.pos(), pos, pos);
+        analysis_data.combine_effects(if_branch.pos(), pos, pos);
 
         let mut new_referenced_var_ids = context.cond_referenced_var_ids.clone();
         new_referenced_var_ids.extend(if_context.cond_referenced_var_ids.clone());
@@ -255,7 +255,7 @@ pub(crate) fn analyze(
 
         context.cond_referenced_var_ids = new_referenced_var_ids;
 
-        if let Some(stmt_if_type) = tast_info.get_expr_type(if_branch.pos()) {
+        if let Some(stmt_if_type) = analysis_data.get_expr_type(if_branch.pos()) {
             lhs_type = Some(stmt_if_type.clone());
         }
     } else if let Some(cond_type) = &stmt_cond_type {
@@ -265,7 +265,7 @@ pub(crate) fn analyze(
             false,
             None,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             context.inside_loop,
             None,
             &None,
@@ -284,7 +284,7 @@ pub(crate) fn analyze(
             &mut changed_var_ids,
             &FxHashSet::default(),
             statements_analyzer,
-            tast_info,
+            analysis_data,
             expr.2.pos(),
             true,
             false,
@@ -301,17 +301,17 @@ pub(crate) fn analyze(
     if !expression_analyzer::analyze(
         statements_analyzer,
         &expr.2,
-        tast_info,
+        analysis_data,
         &mut temp_else_context,
         if_body_context,
     ) {
         return false;
     }
 
-    tast_info.combine_effects(expr.2.pos(), pos, pos);
+    analysis_data.combine_effects(expr.2.pos(), pos, pos);
 
-    // we do this here so it's accurate, tast_info might get overwritten for the same position later
-    let stmt_else_type = tast_info.get_expr_type(expr.2.pos()).cloned();
+    // we do this here so it's accurate, analysis_data might get overwritten for the same position later
+    let stmt_else_type = analysis_data.get_expr_type(expr.2.pos()).cloned();
 
     let assign_var_ifs = if_context.assigned_var_ids.clone();
     let assign_var_else = temp_else_context.assigned_var_ids.clone();
@@ -425,10 +425,10 @@ pub(crate) fn analyze(
     } {
         if if let Some(stmt_cond_type) = stmt_cond_type {
             if stmt_cond_type.is_always_falsy() {
-                tast_info.set_expr_type(&pos, stmt_else_type.clone());
+                analysis_data.set_expr_type(&pos, stmt_else_type.clone());
                 false
             } else if stmt_cond_type.is_always_truthy() {
-                tast_info.set_expr_type(&pos, lhs_type.clone());
+                analysis_data.set_expr_type(&pos, lhs_type.clone());
                 false
             } else {
                 true
@@ -437,10 +437,10 @@ pub(crate) fn analyze(
             true
         } {
             let union_type = add_union_type(stmt_else_type, &lhs_type, codebase, false);
-            tast_info.set_expr_type(&pos, union_type);
+            analysis_data.set_expr_type(&pos, union_type);
         }
     } else {
-        tast_info.set_expr_type(&pos, get_mixed_any());
+        analysis_data.set_expr_type(&pos, get_mixed_any());
     }
 
     true

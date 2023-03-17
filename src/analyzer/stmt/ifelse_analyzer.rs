@@ -4,7 +4,8 @@ use crate::scope_context::{
 };
 use hakana_algebra::Clause;
 use hakana_reflection_info::{
-    analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS, EFFECT_READ_PROPS,
+    analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS,
+    EFFECT_READ_PROPS,
 };
 use hakana_type::combine_union_types;
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
@@ -13,7 +14,7 @@ use std::{collections::BTreeMap, rc::Rc};
 
 use crate::{
     algebra_analyzer, formula_generator, reconciler::reconciler, scope_analyzer::ScopeAnalyzer,
-    statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+    statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData,
 };
 
 use super::{
@@ -50,7 +51,7 @@ pub(crate) fn analyze(
         &aast::Block<(), ()>,
     ),
     stmt_pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> bool {
@@ -67,12 +68,12 @@ pub(crate) fn analyze(
     let if_conditional_scope = if_conditional_analyzer::analyze(
         statements_analyzer,
         &stmt.0,
-        tast_info,
+        analysis_data,
         context,
         &mut if_scope,
     );
 
-    add_branch_dataflow(statements_analyzer, &stmt.0, tast_info);
+    add_branch_dataflow(statements_analyzer, &stmt.0, analysis_data);
 
     let mut if_body_context = if_conditional_scope.if_body_context;
     let post_if_context = if_conditional_scope.post_if_context;
@@ -99,7 +100,7 @@ pub(crate) fn analyze(
         cond_object_id,
         stmt.0,
         &assertion_context,
-        tast_info,
+        analysis_data,
         false,
         false,
     );
@@ -127,7 +128,7 @@ pub(crate) fn analyze(
         statements_analyzer,
         &context.clauses,
         &if_clauses,
-        tast_info,
+        analysis_data,
         stmt.0.pos(),
         &context.function_context.calling_functionlike_id,
     );
@@ -185,7 +186,7 @@ pub(crate) fn analyze(
                 aast::Expr_::Unop(Box::new((Uop::Unot, stmt.0.clone()))),
             ),
             &assertion_context,
-            tast_info,
+            analysis_data,
             false,
             false,
         ) {
@@ -221,7 +222,7 @@ pub(crate) fn analyze(
             &mut changed_var_ids,
             &FxHashSet::default(),
             statements_analyzer,
-            tast_info,
+            analysis_data,
             stmt.0.pos(),
             true,
             false,
@@ -248,7 +249,7 @@ pub(crate) fn analyze(
     if !if_analyzer::analyze(
         statements_analyzer,
         stmt,
-        tast_info,
+        analysis_data,
         &mut if_scope,
         if_conditional_scope.cond_referenced_var_ids,
         &mut if_body_context,
@@ -264,7 +265,7 @@ pub(crate) fn analyze(
         statements_analyzer,
         stmt.0.pos(),
         stmt.2,
-        tast_info,
+        analysis_data,
         &mut if_scope,
         &mut else_context,
         context,
@@ -319,7 +320,7 @@ pub(crate) fn analyze(
                 reasonable_clauses,
                 Some(&var_type),
                 Some(statements_analyzer),
-                tast_info,
+                analysis_data,
             );
 
             if_scope.updated_vars.insert(var_id.clone());
@@ -355,7 +356,7 @@ pub(crate) fn analyze(
                     combine_union_types(existing_var_type, &var_type, codebase, false);
 
                 if combined_type != var_type {
-                    context.remove_descendants(&var_id, &combined_type, None, None, tast_info);
+                    context.remove_descendants(&var_id, &combined_type, None, None, analysis_data);
                 }
 
                 context.vars_in_scope.insert(var_id, Rc::new(combined_type));
@@ -376,13 +377,13 @@ pub(crate) fn analyze(
         && stmt.1.is_empty()
         && stmt.2.is_empty()
     {
-        let effects = tast_info
+        let effects = analysis_data
             .expr_effects
             .get(&(stmt.0 .1.start_offset(), stmt.0 .1.end_offset()))
             .unwrap_or(&0);
 
         if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS = *effects {
-            tast_info.replacements.insert(
+            analysis_data.replacements.insert(
                 (
                     stmt_pos.to_raw_span().start.beg_of_line() as usize,
                     stmt_pos.end_offset() + 1,
@@ -390,11 +391,11 @@ pub(crate) fn analyze(
                 Replacement::Remove,
             );
         } else {
-            tast_info.replacements.insert(
+            analysis_data.replacements.insert(
                 (stmt_pos.start_offset() as usize, stmt.0 .1.start_offset()),
                 Replacement::Remove,
             );
-            tast_info.replacements.insert(
+            analysis_data.replacements.insert(
                 (stmt.0 .1.end_offset() as usize, stmt_pos.end_offset()),
                 Replacement::Substitute(";".to_string()),
             );

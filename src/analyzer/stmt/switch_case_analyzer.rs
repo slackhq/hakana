@@ -46,7 +46,7 @@ use crate::scope_context::control_action::ControlAction;
 
 use crate::scope_context::ScopeContext;
 
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 
 use oxidized::aast::Pos;
 
@@ -66,7 +66,7 @@ pub(crate) fn analyze_case(
     case_pos: &Pos,
     case_stmts: &Vec<aast::Stmt<(), ()>>,
     previous_empty_cases: &Vec<&aast::Case<(), ()>>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     original_context: &ScopeContext,
     case_exit_type: &ControlAction,
@@ -82,7 +82,7 @@ pub(crate) fn analyze_case(
 
     let mut case_context = original_context.clone();
 
-    let mut old_node_data = tast_info.expr_types.clone();
+    let mut old_node_data = analysis_data.expr_types.clone();
 
     let mut case_equality_expr = None;
 
@@ -90,19 +90,19 @@ pub(crate) fn analyze_case(
         if !expression_analyzer::analyze(
             statements_analyzer,
             case_cond,
-            tast_info,
+            analysis_data,
             context,
             &mut None,
         ) {
             return false;
         }
 
-        add_branch_dataflow(statements_analyzer, case_cond, tast_info);
+        add_branch_dataflow(statements_analyzer, case_cond, analysis_data);
 
-        tast_info.expr_types = tast_info.expr_types.clone();
+        analysis_data.expr_types = analysis_data.expr_types.clone();
 
         if condition_is_fake {
-            tast_info.set_expr_type(
+            analysis_data.set_expr_type(
                 &switch_condition.pos(),
                 if let Some(t) = context.vars_in_scope.get(switch_var_id) {
                     (**t).clone()
@@ -112,7 +112,7 @@ pub(crate) fn analyze_case(
             );
         }
 
-        let switch_cond_type = tast_info
+        let switch_cond_type = analysis_data
             .get_expr_type(switch_condition.pos())
             .cloned()
             .unwrap_or(get_mixed_any());
@@ -122,7 +122,7 @@ pub(crate) fn analyze_case(
                 if !expression_analyzer::analyze(
                     statements_analyzer,
                     &previous_empty_case.0,
-                    tast_info,
+                    analysis_data,
                     context,
                     &mut None,
                 ) {
@@ -239,9 +239,9 @@ pub(crate) fn analyze_case(
             ))),
         )];
 
-        tast_info.expr_types = old_node_data;
+        analysis_data.expr_types = old_node_data;
 
-        tast_info.case_scopes.pop();
+        analysis_data.case_scopes.pop();
 
         return true;
     }
@@ -293,7 +293,7 @@ pub(crate) fn analyze_case(
             id,
             case_equality_expr,
             &assertion_context,
-            tast_info,
+            analysis_data,
             false,
             false,
         )
@@ -326,7 +326,7 @@ pub(crate) fn analyze_case(
             statements_analyzer,
             &entry_clauses.iter().map(|v| Rc::new(v.clone())).collect(),
             &case_clauses,
-            tast_info,
+            analysis_data,
             case_cond.unwrap().pos(),
             &context.function_context.calling_functionlike_id,
         );
@@ -365,7 +365,7 @@ pub(crate) fn analyze_case(
                 FxHashSet::default()
             },
             statements_analyzer,
-            tast_info,
+            analysis_data,
             case_pos,
             true,
             false,
@@ -404,7 +404,7 @@ pub(crate) fn analyze_case(
                             ))),
                         ),
                         &assertion_context,
-                        tast_info,
+                        analysis_data,
                         false,
                         false,
                     )
@@ -415,19 +415,19 @@ pub(crate) fn analyze_case(
         }
     }
 
-    tast_info.case_scopes.push(CaseScope::new());
+    analysis_data.case_scopes.push(CaseScope::new());
 
-    statements_analyzer.analyze(&case_stmts, tast_info, &mut case_context, loop_scope);
+    statements_analyzer.analyze(&case_stmts, analysis_data, &mut case_context, loop_scope);
 
-    if tast_info.case_scopes.is_empty() {
+    if analysis_data.case_scopes.is_empty() {
         return false;
     }
 
-    let case_scope = tast_info.case_scopes.pop().unwrap();
+    let case_scope = analysis_data.case_scopes.pop().unwrap();
 
-    let new_node_data = tast_info.expr_types.clone();
+    let new_node_data = analysis_data.expr_types.clone();
     old_node_data.extend(new_node_data);
-    tast_info.expr_types = old_node_data;
+    analysis_data.expr_types = old_node_data;
 
     if !matches!(case_exit_type, ControlAction::Return) {
         if !handle_non_returning_case(
@@ -435,7 +435,7 @@ pub(crate) fn analyze_case(
             switch_var_id,
             case_cond.is_none(),
             case_pos,
-            tast_info,
+            analysis_data,
             context,
             &case_context,
             original_context,
@@ -519,7 +519,7 @@ pub(crate) fn handle_non_returning_case(
     switch_var_id: &String,
     is_default_case: bool,
     case_pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     case_context: &ScopeContext,
     original_context: &ScopeContext,
@@ -529,7 +529,7 @@ pub(crate) fn handle_non_returning_case(
     if is_default_case {
         if let Some(switch_type) = case_context.vars_in_scope.get(switch_var_id) {
             if switch_type.is_nothing() {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::ParadoxicalCondition,
                         "All possible case statements have been met, default is impossible here"

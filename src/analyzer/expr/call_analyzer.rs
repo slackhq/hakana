@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
@@ -32,7 +32,7 @@ pub(crate) fn analyze(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -44,7 +44,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 ((&boxed_id.0, &boxed_id.1), expr.1, expr.2, expr.3),
                 pos,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -59,7 +59,7 @@ pub(crate) fn analyze(
                         statements_analyzer,
                         (lhs_expr, rhs_expr, expr.1, expr.2, expr.3),
                         &pos,
-                        tast_info,
+                        analysis_data,
                         context,
                         if_body_context,
                         matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
@@ -70,7 +70,7 @@ pub(crate) fn analyze(
                         statements_analyzer,
                         (expr.0, expr.1, expr.2, expr.3),
                         pos,
-                        tast_info,
+                        analysis_data,
                         context,
                         if_body_context,
                     );
@@ -84,7 +84,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (class_id, rhs_expr, expr.1, expr.2, expr.3),
                 &pos,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -94,7 +94,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 (expr.0, expr.1, expr.2, expr.3),
                 pos,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -180,7 +180,7 @@ pub(crate) fn get_generic_param_for_offset(
 
 pub(crate) fn check_method_args(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     method_id: &MethodIdentifier,
     functionlike_storage: &FunctionLikeInfo,
     call_expr: (
@@ -207,7 +207,7 @@ pub(crate) fn check_method_args(
         &functionlike_id,
         functionlike_storage,
         Some(calling_class_storage),
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
         template_result,
@@ -216,7 +216,7 @@ pub(crate) fn check_method_args(
         return false;
     }
 
-    apply_effects(functionlike_storage, tast_info, pos, &call_expr.1);
+    apply_effects(functionlike_storage, analysis_data, pos, &call_expr.1);
 
     if !template_result.template_types.is_empty() {
         check_template_result(statements_analyzer, template_result, pos, &functionlike_id);
@@ -227,12 +227,12 @@ pub(crate) fn check_method_args(
 
 pub(crate) fn apply_effects(
     function_storage: &FunctionLikeInfo,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     expr_args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
 ) {
     if function_storage.name == STR_ASIO_JOIN {
-        tast_info
+        analysis_data
             .expr_effects
             .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
         return;
@@ -241,26 +241,26 @@ pub(crate) fn apply_effects(
     match function_storage.effects {
         FnEffect::Some(stored_effects) => {
             if stored_effects > EFFECT_WRITE_PROPS {
-                tast_info
+                analysis_data
                     .expr_effects
                     .insert((pos.start_offset(), pos.end_offset()), stored_effects);
             }
         }
         FnEffect::Arg(arg_offset) => {
             if let Some((_, arg_expr)) = expr_args.get(arg_offset as usize) {
-                if let Some(arg_type) = tast_info
+                if let Some(arg_type) = analysis_data
                     .expr_types
                     .get(&(arg_expr.pos().start_offset(), arg_expr.pos().end_offset()))
                 {
                     for arg_atomic_type in &arg_type.types {
                         if let TAtomic::TClosure { effects, .. } = arg_atomic_type {
                             if let Some(evaluated_effects) = effects {
-                                tast_info.expr_effects.insert(
+                                analysis_data.expr_effects.insert(
                                     (pos.start_offset(), pos.end_offset()),
                                     *evaluated_effects,
                                 );
                             } else {
-                                tast_info
+                                analysis_data
                                     .expr_effects
                                     .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
                             }
@@ -278,6 +278,6 @@ pub(crate) fn apply_effects(
     }
 
     for arg in expr_args {
-        tast_info.combine_effects(arg.1.pos(), pos, pos);
+        analysis_data.combine_effects(arg.1.pos(), pos, pos);
     }
 }

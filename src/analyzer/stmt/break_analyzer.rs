@@ -5,13 +5,13 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
 };
-use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
+use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData};
 use hakana_type::{combine_optional_union_types, combine_union_types};
 use rustc_hash::FxHashMap;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
 ) {
@@ -83,7 +83,7 @@ pub(crate) fn analyze(
         }
     }
 
-    let case_scope = tast_info.case_scopes.last_mut();
+    let case_scope = analysis_data.case_scopes.last_mut();
 
     if let Some(case_scope) = case_scope {
         if leaving_switch {

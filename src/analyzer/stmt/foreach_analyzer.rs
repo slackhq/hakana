@@ -8,7 +8,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -32,7 +32,7 @@ pub(crate) fn analyze(
         &aast::Block<(), ()>,
     ),
     pos: &ast_defs::Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let mut value_is_async = false;
@@ -50,8 +50,13 @@ pub(crate) fn analyze(
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
 
-    if expression_analyzer::analyze(statements_analyzer, stmt.0, tast_info, context, &mut None)
-        == false
+    if expression_analyzer::analyze(
+        statements_analyzer,
+        stmt.0,
+        analysis_data,
+        context,
+        &mut None,
+    ) == false
     {
         context.inside_general_use = was_inside_general_use;
 
@@ -75,7 +80,7 @@ pub(crate) fn analyze(
         )),
     );
 
-    let iterator_type = if let Some(stmt_expr_type) = tast_info.get_expr_type(stmt.0.pos()) {
+    let iterator_type = if let Some(stmt_expr_type) = analysis_data.get_expr_type(stmt.0.pos()) {
         Some(stmt_expr_type.clone())
     } else if let Some(var_id) = &var_id {
         if context.has_variable(&var_id) {
@@ -94,7 +99,7 @@ pub(crate) fn analyze(
     if let Some(iterator_type) = iterator_type {
         let result = check_iterator_type(
             statements_analyzer,
-            tast_info,
+            analysis_data,
             stmt.0,
             stmt.0.pos(),
             &iterator_type,
@@ -125,7 +130,7 @@ pub(crate) fn analyze(
                 (&ast_defs::Bop::Eq(None), key_expr, None),
                 stmt.0.pos(),
                 Some(&key_type),
-                tast_info,
+                analysis_data,
                 &mut foreach_context,
                 false,
             )
@@ -143,7 +148,7 @@ pub(crate) fn analyze(
         (&ast_defs::Bop::Eq(None), value_expr, None),
         stmt.0.pos(),
         Some(&value_type),
-        tast_info,
+        analysis_data,
         &mut foreach_context,
         false,
     )
@@ -159,7 +164,7 @@ pub(crate) fn analyze(
         &mut LoopScope::new(context.vars_in_scope.clone()),
         &mut foreach_context,
         context,
-        tast_info,
+        analysis_data,
         false,
         always_non_empty_array,
     );
@@ -168,14 +173,14 @@ pub(crate) fn analyze(
         return false;
     }
 
-    // todo do we need to remove the loop scope from tast_info here? unsure
+    // todo do we need to remove the loop scope from analysis_data here? unsure
 
     return true;
 }
 
 fn check_iterator_type(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     expr: &aast::Expr<(), ()>,
     pos: &ast_defs::Pos,
     iterator_type: &TUnion,
@@ -185,7 +190,7 @@ fn check_iterator_type(
     let mut always_non_empty_array = true;
 
     if iterator_type.is_null() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NullIterator,
                 "Cannot iterate over null".to_string(),
@@ -200,7 +205,7 @@ fn check_iterator_type(
     }
 
     if iterator_type.is_nullable() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NullIterator,
                 "Cannot iterate over null".to_string(),
@@ -528,7 +533,7 @@ fn check_iterator_type(
                 add_array_fetch_dataflow(
                     statements_analyzer,
                     expr.pos(),
-                    tast_info,
+                    analysis_data,
                     None,
                     value_type,
                     key_type,
@@ -537,14 +542,14 @@ fn check_iterator_type(
         }
     }
 
-    if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
+    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
         let foreach_node = DataFlowNode::get_for_variable_sink(
             "foreach".to_string(),
             statements_analyzer.get_hpos(pos),
         );
 
         for parent_node in &iterator_type.parent_nodes {
-            tast_info.data_flow_graph.add_path(
+            analysis_data.data_flow_graph.add_path(
                 &parent_node,
                 &foreach_node,
                 PathKind::Default,
@@ -552,7 +557,7 @@ fn check_iterator_type(
                 None,
             );
         }
-        tast_info.data_flow_graph.add_node(foreach_node);
+        analysis_data.data_flow_graph.add_node(foreach_node);
     }
 
     (true, key_type, value_type, always_non_empty_array)

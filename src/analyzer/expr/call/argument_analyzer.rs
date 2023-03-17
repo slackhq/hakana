@@ -5,7 +5,7 @@ use crate::expr::fetch::array_fetch_analyzer::{
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -36,7 +36,7 @@ pub(crate) fn check_argument_matches(
     arg_unpacked: bool,
     arg_value_type: TUnion,
     context: &mut ScopeContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     ignore_taints: bool,
     specialize_taint: bool,
     function_call_pos: &Pos,
@@ -47,7 +47,7 @@ pub(crate) fn check_argument_matches(
         arg_value_type = get_unpacked_type(
             statements_analyzer,
             arg_value_type,
-            tast_info,
+            analysis_data,
             arg.1.pos(),
             context,
         );
@@ -57,7 +57,7 @@ pub(crate) fn check_argument_matches(
 
     for hook in &config.hooks {
         hook.after_argument_analysis(
-            tast_info,
+            analysis_data,
             AfterArgAnalysisData {
                 functionlike_id,
                 statements_analyzer,
@@ -79,7 +79,7 @@ pub(crate) fn check_argument_matches(
         argument_offset,
         arg.1,
         context,
-        tast_info,
+        analysis_data,
         function_param,
         method_call_info,
         ignore_taints,
@@ -91,7 +91,7 @@ pub(crate) fn check_argument_matches(
 fn get_unpacked_type(
     statements_analyzer: &StatementsAnalyzer,
     mut arg_value_type: TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     context: &mut ScopeContext,
 ) -> TUnion {
@@ -104,7 +104,7 @@ fn get_unpacked_type(
             TAtomic::TDict { .. } => handle_array_access_on_dict(
                 statements_analyzer,
                 pos,
-                tast_info,
+                analysis_data,
                 context,
                 &atomic_type,
                 &get_arraykey(false),
@@ -117,7 +117,7 @@ fn get_unpacked_type(
             TAtomic::TVec { .. } => handle_array_access_on_vec(
                 statements_analyzer,
                 pos,
-                tast_info,
+                analysis_data,
                 context,
                 atomic_type,
                 get_int(),
@@ -130,10 +130,10 @@ fn get_unpacked_type(
             }
             TAtomic::TMixedWithFlags(true, ..) => {
                 for origin in &arg_value_type.parent_nodes {
-                    tast_info.data_flow_graph.add_mixed_data(origin, pos);
+                    analysis_data.data_flow_graph.add_mixed_data(origin, pos);
                 }
 
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::MixedAnyArgument,
                         format!(
@@ -153,10 +153,10 @@ fn get_unpacked_type(
             | TAtomic::TMixedWithFlags(_, _, _, true)
             | TAtomic::TMixed => {
                 for origin in &arg_value_type.parent_nodes {
-                    tast_info.data_flow_graph.add_mixed_data(origin, pos);
+                    analysis_data.data_flow_graph.add_mixed_data(origin, pos);
                 }
 
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::MixedArgument,
                         format!(
@@ -174,7 +174,7 @@ fn get_unpacked_type(
             }
             TAtomic::TMixedWithFlags(_, _, true, _) | TAtomic::TNothing => get_nothing(),
             _ => {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::InvalidArgument,
                         format!(
@@ -203,7 +203,7 @@ fn get_unpacked_type(
     add_array_fetch_dataflow(
         statements_analyzer,
         pos,
-        tast_info,
+        analysis_data,
         None,
         &mut result_type,
         &mut get_arraykey(false),
@@ -220,7 +220,7 @@ pub(crate) fn verify_type(
     argument_offset: usize,
     input_expr: &aast::Expr<(), ()>,
     context: &mut ScopeContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     function_param: &FunctionLikeParameter,
     method_call_info: &Option<MethodCallInfo>,
     ignore_taints: bool,
@@ -248,7 +248,7 @@ pub(crate) fn verify_type(
             input_type,
             param_type,
             context,
-            tast_info,
+            analysis_data,
             function_param,
             method_call_info,
             ignore_taints,
@@ -262,12 +262,12 @@ pub(crate) fn verify_type(
     let mut mixed_from_any = false;
     if input_type.is_mixed_with_any(&mut mixed_from_any) {
         for origin in &input_type.parent_nodes {
-            tast_info
+            analysis_data
                 .data_flow_graph
                 .add_mixed_data(origin, input_expr.pos());
         }
 
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 if mixed_from_any {
                     IssueKind::MixedAnyArgument
@@ -299,7 +299,7 @@ pub(crate) fn verify_type(
             input_type,
             param_type,
             context,
-            tast_info,
+            analysis_data,
             function_param,
             method_call_info,
             ignore_taints,
@@ -311,7 +311,7 @@ pub(crate) fn verify_type(
     }
 
     if input_type.is_nothing() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NoValue,
                 format!(
@@ -358,7 +358,7 @@ pub(crate) fn verify_type(
         &input_type,
         &param_type,
         context,
-        tast_info,
+        analysis_data,
         function_param,
         method_call_info,
         ignore_taints,
@@ -376,7 +376,7 @@ pub(crate) fn verify_type(
             .type_coerced_from_nested_any
             .unwrap_or(false)
         {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::LessSpecificNestedAnyArgumentType,
                     format!(
@@ -396,7 +396,7 @@ pub(crate) fn verify_type(
             .type_coerced_from_nested_mixed
             .unwrap_or(false)
         {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::LessSpecificNestedArgumentType,
                     format!(
@@ -413,7 +413,7 @@ pub(crate) fn verify_type(
                 statements_analyzer.get_file_path_actual(),
             );
         } else {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::LessSpecificArgument,
                     format!(
@@ -441,7 +441,7 @@ pub(crate) fn verify_type(
         );
 
         if types_can_be_identical {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::PossiblyInvalidArgument,
                     format!(
@@ -458,7 +458,7 @@ pub(crate) fn verify_type(
                 statements_analyzer.get_file_path_actual(),
             );
         } else {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::InvalidArgument,
                     format!(
@@ -491,7 +491,7 @@ pub(crate) fn verify_type(
         })
     {
         if input_type.is_null() && !param_type.is_null() {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::NullArgument,
                     format!(
@@ -512,7 +512,7 @@ pub(crate) fn verify_type(
         }
 
         if input_type.is_nullable() {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::PossiblyNullArgument,
                     format!(
@@ -545,7 +545,7 @@ pub(crate) fn verify_type(
         })
     {
         if input_type.is_false() {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::PossiblyFalseArgument,
                     format!(
@@ -565,7 +565,7 @@ pub(crate) fn verify_type(
         }
 
         if input_type.is_falsable() && !input_type.ignore_falsable_issues {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::FalseArgument,
                     format!(
@@ -595,7 +595,7 @@ fn add_dataflow(
     input_type: &TUnion,
     param_type: &TUnion,
     context: &ScopeContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     function_param: &FunctionLikeParameter,
     method_call_info: &Option<MethodCallInfo>,
     ignore_taints: bool,
@@ -604,7 +604,7 @@ fn add_dataflow(
 ) {
     let codebase = statements_analyzer.get_codebase();
 
-    let ref mut data_flow_graph = tast_info.data_flow_graph;
+    let ref mut data_flow_graph = analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
         if !input_type.has_taintable_value() || !param_type.has_taintable_value() {

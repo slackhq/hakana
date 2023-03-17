@@ -1,6 +1,6 @@
 use crate::{
     expression_analyzer, scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+    statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     code_location::StmtStart,
@@ -24,7 +24,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     shape_fields: &Vec<(ShapeFieldName, aast::Expr<(), ()>)>,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let codebase = statements_analyzer.get_codebase();
@@ -41,7 +41,7 @@ pub(crate) fn analyze(
             ShapeFieldName::SFclassConst(lhs, _) => &lhs.0,
         };
 
-        if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
+        if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
             if current_stmt_offset.line != start_pos.line() {
                 *current_stmt_offset = StmtStart {
                     offset: start_pos.start_offset(),
@@ -103,14 +103,14 @@ pub(crate) fn analyze(
         if !expression_analyzer::analyze(
             statements_analyzer,
             value_expr,
-            tast_info,
+            analysis_data,
             context,
             &mut None,
         ) {
             return false;
         }
 
-        effects |= tast_info
+        effects |= analysis_data
             .expr_effects
             .get(&(
                 value_expr.pos().start_offset(),
@@ -119,7 +119,7 @@ pub(crate) fn analyze(
             .unwrap_or(&0);
 
         if let Some(name) = name {
-            let value_item_type = tast_info
+            let value_item_type = analysis_data
                 .get_expr_type(&value_expr.pos())
                 .cloned()
                 .unwrap_or(get_mixed_any());
@@ -127,12 +127,15 @@ pub(crate) fn analyze(
             if let Some(new_parent_node) = add_shape_value_dataflow(
                 statements_analyzer,
                 &value_item_type,
-                tast_info,
+                analysis_data,
                 &match &name {
                     DictKey::Int(i) => i.to_string(),
                     DictKey::String(k) => k.clone(),
                     DictKey::Enum(class_name, member_name) => {
-                        statements_analyzer.get_interner().lookup(class_name).to_string()
+                        statements_analyzer
+                            .get_interner()
+                            .lookup(class_name)
+                            .to_string()
                             + "::"
                             + statements_analyzer.get_interner().lookup(member_name)
                     }
@@ -146,7 +149,7 @@ pub(crate) fn analyze(
         }
     }
 
-    tast_info
+    analysis_data
         .expr_effects
         .insert((pos.start_offset(), pos.end_offset()), effects);
 
@@ -163,7 +166,7 @@ pub(crate) fn analyze(
 
     new_dict.parent_nodes = parent_nodes;
 
-    tast_info.set_expr_type(&pos, new_dict);
+    analysis_data.set_expr_type(&pos, new_dict);
 
     true
 }
@@ -171,13 +174,13 @@ pub(crate) fn analyze(
 fn add_shape_value_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     value_type: &TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     key_value: &String,
     value: &aast::Expr<(), ()>,
 ) -> Option<DataFlowNode> {
     if value_type.parent_nodes.is_empty()
         || (matches!(
-            &tast_info.data_flow_graph.kind,
+            &analysis_data.data_flow_graph.kind,
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         ) && !value_type.has_taintable_value())
     {
@@ -188,12 +191,14 @@ fn add_shape_value_dataflow(
 
     let new_parent_node =
         DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(value.pos()));
-    tast_info.data_flow_graph.add_node(new_parent_node.clone());
+    analysis_data
+        .data_flow_graph
+        .add_node(new_parent_node.clone());
 
     // TODO add taint event dispatches
 
     for parent_node in value_type.parent_nodes.iter() {
-        tast_info.data_flow_graph.add_path(
+        analysis_data.data_flow_graph.add_path(
             parent_node,
             &new_parent_node,
             PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.clone()),

@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     reconciler::assertion_reconciler, statements_analyzer::StatementsAnalyzer,
-    stmt::control_analyzer::BreakContext, typed_ast::TastInfo,
+    stmt::control_analyzer::BreakContext, typed_ast::FunctionAnalysisData,
 };
 
 pub mod control_action;
@@ -312,7 +312,7 @@ impl ScopeContext {
         clauses: Vec<Rc<Clause>>,
         new_type: Option<&TUnion>,
         statements_analyzer: Option<&StatementsAnalyzer>,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
     ) -> Vec<Rc<Clause>> {
         let mut clauses_to_keep = Vec::new();
 
@@ -355,7 +355,7 @@ impl ScopeContext {
                                 false,
                                 None,
                                 statements_analyzer,
-                                tast_info,
+                                analysis_data,
                                 false,
                                 None,
                                 &None,
@@ -386,14 +386,14 @@ impl ScopeContext {
         remove_var_id: &String,
         new_type: Option<&TUnion>,
         statements_analyzer: Option<&StatementsAnalyzer>,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
     ) {
         self.clauses = ScopeContext::filter_clauses(
             remove_var_id,
             self.clauses.clone(),
             new_type,
             statements_analyzer,
-            tast_info,
+            analysis_data,
         );
         self.parent_conflicting_clause_vars
             .insert(remove_var_id.clone());
@@ -405,7 +405,7 @@ impl ScopeContext {
         existing_type: &TUnion,
         new_type: Option<&TUnion>,
         statements_analyzer: Option<&StatementsAnalyzer>,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
     ) {
         self.remove_var_from_conflicting_clauses(
             remove_var_id,
@@ -417,7 +417,7 @@ impl ScopeContext {
                 None
             },
             statements_analyzer,
-            tast_info,
+            analysis_data,
         );
 
         let keys = self

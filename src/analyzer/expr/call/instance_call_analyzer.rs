@@ -3,7 +3,7 @@ use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_WRITE_PROPS;
@@ -23,7 +23,7 @@ pub(crate) fn analyze(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     nullsafe: bool,
@@ -35,7 +35,7 @@ pub(crate) fn analyze(
     if !expression_analyzer::analyze(
         statements_analyzer,
         expr.0,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     ) {
@@ -49,7 +49,7 @@ pub(crate) fn analyze(
         if !expression_analyzer::analyze(
             statements_analyzer,
             expr.1,
-            tast_info,
+            analysis_data,
             context,
             if_body_context,
         ) {
@@ -69,7 +69,7 @@ pub(crate) fn analyze(
         )),
     );
 
-    let class_type = tast_info
+    let class_type = analysis_data
         .get_expr_type(expr.0.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
@@ -77,7 +77,7 @@ pub(crate) fn analyze(
     let mut analysis_result = AtomicMethodCallAnalysisResult::new();
 
     if class_type.is_null() || class_type.is_void() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::MethodCallOnNull,
                 "Cannot call method on null value".to_string(),
@@ -89,7 +89,7 @@ pub(crate) fn analyze(
         );
     } else {
         if class_type.is_nullable() && !nullsafe {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::PossibleMethodCallOnNull,
                     "Cannot call method on null value".to_string(),
@@ -103,7 +103,7 @@ pub(crate) fn analyze(
 
         if class_type.is_mixed() {
             for origin in &class_type.parent_nodes {
-                tast_info.data_flow_graph.add_mixed_data(origin, pos);
+                analysis_data.data_flow_graph.add_mixed_data(origin, pos);
             }
         }
 
@@ -137,7 +137,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 expr,
                 pos,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
                 lhs_atomic_type,
@@ -147,7 +147,7 @@ pub(crate) fn analyze(
         }
     }
 
-    if tast_info
+    if analysis_data
         .expr_effects
         .get(&(pos.start_offset(), pos.end_offset()))
         .unwrap_or(&0)
@@ -168,7 +168,7 @@ pub(crate) fn analyze(
         if stmt_type.is_nothing() && !context.inside_loop {
             context.has_returned = true;
         }
-        tast_info.set_expr_type(&pos, stmt_type);
+        analysis_data.set_expr_type(&pos, stmt_type);
     }
 
     true

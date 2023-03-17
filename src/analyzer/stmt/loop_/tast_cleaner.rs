@@ -3,12 +3,12 @@ use oxidized::{
     aast_visitor::{visit, AstParams, Node, Visitor},
 };
 
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 
 struct Scanner {}
 
 impl<'ast> Visitor<'ast> for Scanner {
-    type Params = AstParams<TastInfo, ()>;
+    type Params = AstParams<FunctionAnalysisData, ()>;
 
     fn object(&mut self) -> &mut dyn Visitor<'ast, Params = Self::Params> {
         self
@@ -16,21 +16,24 @@ impl<'ast> Visitor<'ast> for Scanner {
 
     fn visit_expr(
         &mut self,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         expr: &aast::Expr<(), ()>,
     ) -> Result<(), ()> {
-        tast_info
+        analysis_data
             .expr_types
             .remove(&(expr.1.start_offset(), expr.1.end_offset()));
 
-        expr.recurse(tast_info, self)
+        expr.recurse(analysis_data, self)
     }
 }
 
-pub(crate) fn clean_nodes(stmts: &Vec<aast::Stmt<(), ()>>, tast_info: &mut TastInfo) {
+pub(crate) fn clean_nodes(
+    stmts: &Vec<aast::Stmt<(), ()>>,
+    analysis_data: &mut FunctionAnalysisData,
+) {
     let mut scanner = Scanner {};
 
     for stmt in stmts {
-        visit(&mut scanner, tast_info, stmt).unwrap();
+        visit(&mut scanner, analysis_data, stmt).unwrap();
     }
 }

@@ -11,14 +11,15 @@ use oxidized::ast::Pos;
 use rustc_hash::FxHashSet;
 
 use crate::{
-    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    typed_ast::FunctionAnalysisData,
 };
 
 pub(crate) fn check_for_paradox(
     statements_analyzer: &StatementsAnalyzer,
     formula_1: &Vec<Rc<Clause>>,
     formula_2: &Vec<Clause>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
 ) {
@@ -49,10 +50,9 @@ pub(crate) fn check_for_paradox(
                 })
             })
         {
-            let clause_string =
-                formula_2_clause.to_string(&statements_analyzer.get_interner());
+            let clause_string = formula_2_clause.to_string(&statements_analyzer.get_interner());
 
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     if clause_string == "isset" {
                         IssueKind::RedundantIssetCheck
@@ -141,7 +141,7 @@ pub(crate) fn check_for_paradox(
                         .as_str();
                     paradox_message += ")";
 
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::ParadoxicalCondition,
                             paradox_message,

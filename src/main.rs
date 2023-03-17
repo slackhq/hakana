@@ -16,7 +16,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![],
         header.as_str(),
         Box::new(hakana_cli::test_runners::core_test_runner::CoreTestRunner {}),
-    ).await;
+    )
+    .await;
 
     Ok(())
 }

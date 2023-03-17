@@ -9,7 +9,7 @@ use crate::{
     reconciler::reconciler,
     scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 
 use super::{
@@ -20,7 +20,7 @@ use super::{
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: (&aast::Block<(), ()>, &aast::Expr<(), ()>),
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let mut do_context = context.clone();
@@ -49,7 +49,7 @@ pub(crate) fn analyze(
         cond_id,
         stmt.1,
         &assertion_context,
-        tast_info,
+        analysis_data,
         true,
         false,
     )
@@ -70,13 +70,13 @@ pub(crate) fn analyze(
 
     let (analysis_result, mut inner_loop_context) = loop_analyzer::analyze(
         statements_analyzer,
-        &stmt.0.0,
+        &stmt.0 .0,
         get_and_expressions(stmt.1),
         vec![],
         &mut loop_scope,
         &mut do_context,
         context,
-        tast_info,
+        analysis_data,
         true,
         true,
     );
@@ -107,7 +107,7 @@ pub(crate) fn analyze(
             &mut FxHashSet::default(),
             &FxHashSet::default(),
             statements_analyzer,
-            tast_info,
+            analysis_data,
             stmt.1.pos(),
             true,
             false,

@@ -1,5 +1,5 @@
 use crate::scope_context::ScopeContext;
-use rustc_hash::{FxHashSet};
+use rustc_hash::FxHashSet;
 
 #[derive(Clone)]
 pub(crate) struct IfConditionalScope {

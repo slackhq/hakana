@@ -30,7 +30,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::ScopeContext,
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 
 use super::{
@@ -49,14 +49,14 @@ pub(crate) fn analyze(
     ),
     lhs_type_part: &TAtomic,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     lhs_var_id: Option<&String>,
     lhs_var_pos: Option<&Pos>,
     result: &mut AtomicMethodCallAnalysisResult,
 ) -> TUnion {
-    tast_info.symbol_references.add_reference_to_symbol(
+    analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
         classlike_name.clone(),
         false,
@@ -78,11 +78,13 @@ pub(crate) fn analyze(
 
     let classlike_storage = codebase.classlike_infos.get(&classlike_name).unwrap();
 
-    tast_info.symbol_references.add_reference_to_class_member(
-        &context.function_context,
-        (declaring_method_id.0, declaring_method_id.1),
-        false,
-    );
+    analysis_data
+        .symbol_references
+        .add_reference_to_class_member(
+            &context.function_context,
+            (declaring_method_id.0, declaring_method_id.1),
+            false,
+        );
 
     for classlike_descendant in codebase.get_all_descendants(&classlike_name) {
         let descendant_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
@@ -90,11 +92,13 @@ pub(crate) fn analyze(
             declaring_method_id.1,
         ));
 
-        tast_info.symbol_references.add_reference_to_class_member(
-            &context.function_context,
-            (descendant_method_id.0, descendant_method_id.1),
-            false,
-        );
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(
+                &context.function_context,
+                (descendant_method_id.0, descendant_method_id.1),
+                false,
+            );
     }
 
     if let Some(overridden_classlikes) = classlike_storage
@@ -102,7 +106,7 @@ pub(crate) fn analyze(
         .get(&declaring_method_id.1)
     {
         for overridden_classlike in overridden_classlikes {
-            tast_info
+            analysis_data
                 .symbol_references
                 .add_reference_to_overridden_class_member(
                     &context.function_context,
@@ -165,7 +169,7 @@ pub(crate) fn analyze(
 
     if !check_method_args(
         statements_analyzer,
-        tast_info,
+        analysis_data,
         &method_id,
         functionlike_storage,
         call_expr,
@@ -174,7 +178,7 @@ pub(crate) fn analyze(
         if_body_context,
         pos,
     ) {
-        tast_info
+        analysis_data
             .expr_effects
             .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
 
@@ -182,7 +186,7 @@ pub(crate) fn analyze(
     }
 
     if functionlike_storage.ignore_taints_if_true {
-        tast_info.if_true_assertions.insert(
+        analysis_data.if_true_assertions.insert(
             (pos.start_offset(), pos.end_offset()),
             FxHashMap::from_iter([("hakana taints".to_string(), vec![Assertion::IgnoreTaints])]),
         );
@@ -194,7 +198,7 @@ pub(crate) fn analyze(
             call_expr,
             context,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             pos,
             codebase,
         ) {
@@ -204,7 +208,7 @@ pub(crate) fn analyze(
 
     let return_type_candidate = method_call_return_type_fetcher::fetch(
         statements_analyzer,
-        tast_info,
+        analysis_data,
         context,
         &method_id,
         &declaring_method_id,
@@ -239,7 +243,7 @@ fn handle_shapes_static_method(
     ),
     context: &mut ScopeContext,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     codebase: &hakana_reflection_info::codebase_info::CodebaseInfo,
 ) -> Option<TUnion> {
@@ -267,7 +271,7 @@ fn handle_shapes_static_method(
                     if let Some(mut dim_var_id) = dim_var_id {
                         if dim_var_id.starts_with("'") {
                             dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
-                            tast_info.if_true_assertions.insert(
+                            analysis_data.if_true_assertions.insert(
                                 (pos.start_offset(), pos.end_offset()),
                                 FxHashMap::from_iter([(
                                     expr_var_id,
@@ -275,7 +279,7 @@ fn handle_shapes_static_method(
                                 )]),
                             );
                         } else {
-                            tast_info.if_true_assertions.insert(
+                            analysis_data.if_true_assertions.insert(
                                 (pos.start_offset(), pos.end_offset()),
                                 FxHashMap::from_iter([(
                                     format!("{}[{}]", expr_var_id, dim_var_id),
@@ -328,7 +332,7 @@ fn handle_shapes_static_method(
                         );
 
                         for parent_node in &expr_type.parent_nodes {
-                            tast_info.data_flow_graph.add_path(
+                            analysis_data.data_flow_graph.add_path(
                                 parent_node,
                                 &assignment_node,
                                 PathKind::RemoveDictKey(dim_var_id.clone()),
@@ -339,7 +343,7 @@ fn handle_shapes_static_method(
 
                         new_type.parent_nodes = FxHashSet::from_iter([assignment_node.clone()]);
 
-                        tast_info.data_flow_graph.add_node(assignment_node);
+                        analysis_data.data_flow_graph.add_node(assignment_node);
 
                         context.vars_in_scope.insert(expr_var_id, Rc::new(new_type));
                     }
@@ -348,8 +352,12 @@ fn handle_shapes_static_method(
         }
         "idx" => {
             if call_expr.1.len() >= 2 {
-                let dict_type = tast_info.get_rc_expr_type(call_expr.1[0].1.pos()).cloned();
-                let dim_type = tast_info.get_rc_expr_type(call_expr.1[1].1.pos()).cloned();
+                let dict_type = analysis_data
+                    .get_rc_expr_type(call_expr.1[0].1.pos())
+                    .cloned();
+                let dim_type = analysis_data
+                    .get_rc_expr_type(call_expr.1[1].1.pos())
+                    .cloned();
 
                 let mut expr_type = None;
 
@@ -364,7 +372,7 @@ fn handle_shapes_static_method(
                             let mut expr_type_inner = handle_array_access_on_dict(
                                 statements_analyzer,
                                 pos,
-                                tast_info,
+                                analysis_data,
                                 context,
                                 atomic_type,
                                 &*dim_type,
@@ -390,7 +398,7 @@ fn handle_shapes_static_method(
                                                 call_expr,
                                                 context,
                                                 statements_analyzer,
-                                                tast_info,
+                                                analysis_data,
                                                 pos,
                                             );
                                         }
@@ -402,7 +410,7 @@ fn handle_shapes_static_method(
                                         call_expr,
                                         context,
                                         statements_analyzer,
-                                        tast_info,
+                                        analysis_data,
                                         pos,
                                     );
                                 }
@@ -416,7 +424,7 @@ fn handle_shapes_static_method(
                     }
 
                     if (is_nullable || has_possibly_undefined) && call_expr.1.len() > 2 {
-                        let default_type = tast_info.get_expr_type(call_expr.1[2].1.pos());
+                        let default_type = analysis_data.get_expr_type(call_expr.1[2].1.pos());
                         expr_type = if let Some(expr_type) = expr_type {
                             Some(if let Some(default_type) = default_type {
                                 add_union_type(expr_type, default_type, codebase, false)
@@ -433,7 +441,7 @@ fn handle_shapes_static_method(
             }
         }
         "toDict" | "toArray" => {
-            let arg_type = tast_info.get_expr_type(call_expr.1[0].1.pos()).cloned();
+            let arg_type = analysis_data.get_expr_type(call_expr.1[0].1.pos()).cloned();
 
             return Some(if let Some(arg_type) = arg_type {
                 if arg_type.is_mixed() {
@@ -459,7 +467,7 @@ fn handle_defined_shape_idx(
     ),
     context: &mut ScopeContext,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
 ) {
     if statements_analyzer
@@ -468,18 +476,18 @@ fn handle_defined_shape_idx(
         .contains(&IssueKind::UnnecessaryShapesIdx)
         && !statements_analyzer.get_config().add_fixmes
     {
-        tast_info.replacements.insert(
+        analysis_data.replacements.insert(
             (pos.start_offset(), call_expr.1[0].1.pos().start_offset()),
             Replacement::Remove,
         );
-        tast_info.replacements.insert(
+        analysis_data.replacements.insert(
             (
                 call_expr.1[0].1.pos().end_offset(),
                 call_expr.1[1].1.pos().start_offset(),
             ),
             Replacement::Substitute("[".to_string()),
         );
-        tast_info.replacements.insert(
+        analysis_data.replacements.insert(
             (call_expr.1[1].1.pos().end_offset(), pos.end_offset()),
             Replacement::Substitute("]".to_string()),
         );
@@ -500,7 +508,7 @@ fn handle_defined_shape_idx(
         expression_identifier::get_dim_id(&call_expr.1[1].1, None, &FxHashMap::default());
 
     if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::UnnecessaryShapesIdx,
                 format!(

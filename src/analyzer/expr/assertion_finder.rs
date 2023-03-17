@@ -1,5 +1,5 @@
 use super::expression_identifier::{get_dim_id, get_var_id};
-use crate::{formula_generator::AssertionContext, typed_ast::TastInfo};
+use crate::{formula_generator::AssertionContext, typed_ast::FunctionAnalysisData};
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::{
@@ -32,7 +32,7 @@ pub(crate) enum OtherValuePosition {
  */
 pub(crate) fn scrape_assertions(
     conditional: &aast::Expr<(), ()>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     assertion_context: &AssertionContext,
     inside_negation: bool,
     cache: bool,
@@ -47,7 +47,7 @@ pub(crate) fn scrape_assertions(
                 &is_expr.0,
                 &is_expr.1,
                 assertion_context,
-                tast_info,
+                analysis_data,
                 inside_negation,
             );
         }
@@ -68,12 +68,12 @@ pub(crate) fn scrape_assertions(
                     &call.2,
                     &conditional.1,
                     assertion_context,
-                    tast_info,
+                    analysis_data,
                     inside_negation,
                 );
             }
 
-            if_types.extend(process_custom_assertions(conditional.pos(), tast_info));
+            if_types.extend(process_custom_assertions(conditional.pos(), analysis_data));
         }
         _ => {}
     }
@@ -105,7 +105,7 @@ pub(crate) fn scrape_assertions(
                     &binop.0,
                     &binop.1,
                     &binop.2,
-                    &tast_info,
+                    &analysis_data,
                     assertion_context,
                     cache,
                     inside_conditional,
@@ -116,7 +116,7 @@ pub(crate) fn scrape_assertions(
                     &binop.0,
                     &binop.1,
                     &binop.2,
-                    &tast_info,
+                    &analysis_data,
                     assertion_context,
                     cache,
                     inside_conditional,
@@ -143,7 +143,7 @@ pub(crate) fn scrape_assertions(
                 //     &binop.2,
                 //     this_class_name,
                 //     source,
-                //     &tast_info,
+                //     &analysis_data,
                 //     resolved_names,
                 // );
             }
@@ -156,15 +156,15 @@ pub(crate) fn scrape_assertions(
 
 fn process_custom_assertions(
     conditional_pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) -> FxHashMap<String, Vec<Vec<Assertion>>> {
-    let mut if_true_assertions = tast_info
+    let mut if_true_assertions = analysis_data
         .if_true_assertions
         .get(&(conditional_pos.start_offset(), conditional_pos.end_offset()))
         .cloned()
         .unwrap_or(FxHashMap::default());
 
-    let if_false_assertions = tast_info
+    let if_false_assertions = analysis_data
         .if_false_assertions
         .get(&(conditional_pos.start_offset(), conditional_pos.end_offset()))
         .cloned()
@@ -197,7 +197,7 @@ fn get_is_assertions(
     var_expr: &aast::Expr<(), ()>,
     hint: &Hint,
     assertion_context: &AssertionContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     _inside_negation: bool,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let mut if_types: FxHashMap<String, Vec<Vec<Assertion>>> = FxHashMap::default();
@@ -215,7 +215,7 @@ fn get_is_assertions(
             &mut is_type,
             &codebase.symbols,
             &assertion_context.reference_source,
-            &mut tast_info.symbol_references,
+            &mut analysis_data.symbol_references,
         );
         type_expander::expand_union(
             codebase,
@@ -388,7 +388,7 @@ fn scrape_equality_assertions(
     bop: &ast_defs::Bop,
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
-    tast_info: &TastInfo,
+    analysis_data: &FunctionAnalysisData,
     assertion_context: &AssertionContext,
     _cache: bool,
     _inside_conditional: bool,
@@ -412,12 +412,12 @@ fn scrape_equality_assertions(
     }
 
     if let Some(typed_value_position) =
-        has_typed_value_comparison(left, right, tast_info, assertion_context)
+        has_typed_value_comparison(left, right, analysis_data, assertion_context)
     {
         return get_typed_value_equality_assertions(
             left,
             right,
-            tast_info,
+            analysis_data,
             assertion_context,
             typed_value_position,
         );
@@ -430,7 +430,7 @@ fn scrape_inequality_assertions(
     bop: &ast_defs::Bop,
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
-    tast_info: &TastInfo,
+    analysis_data: &FunctionAnalysisData,
     assertion_context: &AssertionContext,
     _cache: bool,
     _inside_conditional: bool,
@@ -450,12 +450,12 @@ fn scrape_inequality_assertions(
     // if let Some(false_position) = false_position {}
 
     if let Some(typed_value_position) =
-        has_typed_value_comparison(left, right, tast_info, assertion_context)
+        has_typed_value_comparison(left, right, analysis_data, assertion_context)
     {
         return get_typed_value_inequality_assertions(
             left,
             right,
-            tast_info,
+            analysis_data,
             assertion_context,
             typed_value_position,
         );
@@ -467,15 +467,15 @@ fn scrape_inequality_assertions(
 // fn has_literal_int_comparison(
 //     left: &aast::Expr<(), ()>,
 //     right: &aast::Expr<(), ()>,
-//     tast_info: &TastInfo,
+//     analysis_data: &TastInfo,
 // ) -> Option<(OtherValuePosition, i64)> {
-//     if let Some(right_type) = tast_info.get_expr_type(right.pos()) {
+//     if let Some(right_type) = analysis_data.get_expr_type(right.pos()) {
 //         if let Some(value) = right_type.get_single_literal_int_value() {
 //             return Some((OtherValuePosition::Right, value));
 //         }
 //     }
 
-//     if let Some(left_type) = tast_info.get_expr_type(left.pos()) {
+//     if let Some(left_type) = analysis_data.get_expr_type(left.pos()) {
 //         if let Some(value) = left_type.get_single_literal_int_value() {
 //             return Some((OtherValuePosition::Left, value));
 //         }
@@ -489,7 +489,7 @@ fn scrape_function_assertions(
     args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
     pos: &Pos,
     assertion_context: &AssertionContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     _negate: bool,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let firsts = if let Some(first_arg) = args.first() {
@@ -500,7 +500,7 @@ fn scrape_function_assertions(
             assertion_context.resolved_names,
             assertion_context.codebase,
         );
-        let first_var_type = tast_info.get_expr_type(first_arg.1.pos());
+        let first_var_type = analysis_data.get_expr_type(first_arg.1.pos());
         Some((&first_arg.1, first_var_name, first_var_type))
     } else {
         None
@@ -528,7 +528,7 @@ fn scrape_function_assertions(
         }
     }
 
-    let custom_assertions = process_custom_assertions(pos, tast_info);
+    let custom_assertions = process_custom_assertions(pos, analysis_data);
 
     if_types.extend(custom_assertions);
 
@@ -674,7 +674,7 @@ pub(crate) fn has_false_variable(
 pub(crate) fn has_typed_value_comparison(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
-    tast_info: &TastInfo,
+    analysis_data: &FunctionAnalysisData,
     assertion_context: &AssertionContext,
 ) -> Option<OtherValuePosition> {
     let left_var_id = get_var_id(
@@ -692,7 +692,7 @@ pub(crate) fn has_typed_value_comparison(
         assertion_context.codebase,
     );
 
-    if let Some(right_type) = tast_info.get_expr_type(right.pos()) {
+    if let Some(right_type) = analysis_data.get_expr_type(right.pos()) {
         if (left_var_id.is_some() || right_var_id.is_none())
             && right_type.is_single()
             && !right_type.is_mixed()
@@ -701,7 +701,7 @@ pub(crate) fn has_typed_value_comparison(
         }
     }
 
-    if let Some(left_type) = tast_info.get_expr_type(left.pos()) {
+    if let Some(left_type) = analysis_data.get_expr_type(left.pos()) {
         if left_var_id.is_none() && left_type.is_single() && !left_type.is_mixed() {
             return Some(OtherValuePosition::Left);
         }
@@ -741,7 +741,7 @@ fn get_false_equality_assertions(
 fn get_typed_value_equality_assertions(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
-    tast_info: &TastInfo,
+    analysis_data: &FunctionAnalysisData,
     assertion_context: &AssertionContext,
     typed_value_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
@@ -769,8 +769,8 @@ fn get_typed_value_equality_assertions(
                 assertion_context.codebase,
             );
 
-            var_type = tast_info.get_expr_type(left.pos());
-            other_value_type = tast_info.get_expr_type(right.pos());
+            var_type = analysis_data.get_expr_type(left.pos());
+            other_value_type = analysis_data.get_expr_type(right.pos());
         }
         OtherValuePosition::Left => {
             var_name = get_var_id(
@@ -788,8 +788,8 @@ fn get_typed_value_equality_assertions(
                 assertion_context.codebase,
             );
 
-            var_type = tast_info.get_expr_type(right.pos());
-            other_value_type = tast_info.get_expr_type(left.pos());
+            var_type = analysis_data.get_expr_type(right.pos());
+            other_value_type = analysis_data.get_expr_type(left.pos());
         }
     }
 
@@ -825,7 +825,7 @@ fn get_typed_value_equality_assertions(
 fn get_typed_value_inequality_assertions(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
-    tast_info: &TastInfo,
+    analysis_data: &FunctionAnalysisData,
     assertion_context: &AssertionContext,
     typed_value_position: OtherValuePosition,
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
@@ -853,8 +853,8 @@ fn get_typed_value_inequality_assertions(
                 assertion_context.codebase,
             );
 
-            var_type = tast_info.get_expr_type(left.pos());
-            other_value_type = tast_info.get_expr_type(right.pos());
+            var_type = analysis_data.get_expr_type(left.pos());
+            other_value_type = analysis_data.get_expr_type(right.pos());
         }
         OtherValuePosition::Left => {
             var_name = get_var_id(
@@ -872,8 +872,8 @@ fn get_typed_value_inequality_assertions(
                 assertion_context.codebase,
             );
 
-            var_type = tast_info.get_expr_type(right.pos());
-            other_value_type = tast_info.get_expr_type(left.pos());
+            var_type = analysis_data.get_expr_type(right.pos());
+            other_value_type = analysis_data.get_expr_type(left.pos());
         }
     }
 

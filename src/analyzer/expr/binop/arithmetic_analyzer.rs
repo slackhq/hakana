@@ -6,7 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{expr::expression_identifier, expression_analyzer};
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -23,20 +23,26 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
     operator: &'expr ast::Bop,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
-    tast_info: &'tast mut TastInfo,
+    analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) {
-    expression_analyzer::analyze(statements_analyzer, left, tast_info, context, &mut None);
-    expression_analyzer::analyze(statements_analyzer, right, tast_info, context, &mut None);
+    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context, &mut None);
+    expression_analyzer::analyze(
+        statements_analyzer,
+        right,
+        analysis_data,
+        context,
+        &mut None,
+    );
 
     let fallback = get_mixed_any();
-    let e1_type = match tast_info.get_rc_expr_type(&left.1).cloned() {
+    let e1_type = match analysis_data.get_rc_expr_type(&left.1).cloned() {
         Some(var_type) => var_type,
         None => Rc::new(fallback.clone()),
     };
 
     if e1_type.is_mixed() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::MixedOperand,
                 "Operand has a mixed type".to_string(),
@@ -60,13 +66,13 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
         None
     };
 
-    let e2_type = match tast_info.get_rc_expr_type(&right.1).cloned() {
+    let e2_type = match analysis_data.get_rc_expr_type(&right.1).cloned() {
         Some(var_type) => var_type,
         None => Rc::new(fallback),
     };
 
     if e2_type.is_mixed() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::MixedOperand,
                 "Operand has a mixed type".to_string(),
@@ -173,7 +179,7 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
 
     assign_arithmetic_type(
         statements_analyzer,
-        tast_info,
+        analysis_data,
         result_type,
         left,
         right,
@@ -183,14 +189,14 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
 
 pub(crate) fn assign_arithmetic_type(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     cond_type: TUnion,
     lhs_expr: &aast::Expr<(), ()>,
     rhs_expr: &aast::Expr<(), ()>,
     expr_pos: &Pos,
 ) {
     let mut cond_type = cond_type;
-    let decision_node = if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    let decision_node = if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         DataFlowNode::get_for_composition(statements_analyzer.get_hpos(expr_pos))
     } else {
         DataFlowNode::get_for_variable_sink(
@@ -199,16 +205,18 @@ pub(crate) fn assign_arithmetic_type(
         )
     };
 
-    tast_info.data_flow_graph.add_node(decision_node.clone());
+    analysis_data
+        .data_flow_graph
+        .add_node(decision_node.clone());
 
-    if let Some(lhs_type) = tast_info
+    if let Some(lhs_type) = analysis_data
         .expr_types
         .get(&(lhs_expr.1.start_offset(), lhs_expr.1.end_offset()))
     {
         cond_type.parent_nodes.insert(decision_node.clone());
 
         for old_parent_node in &lhs_type.parent_nodes {
-            tast_info.data_flow_graph.add_path(
+            analysis_data.data_flow_graph.add_path(
                 old_parent_node,
                 &decision_node,
                 PathKind::Default,
@@ -218,14 +226,14 @@ pub(crate) fn assign_arithmetic_type(
         }
     }
 
-    if let Some(rhs_type) = tast_info
+    if let Some(rhs_type) = analysis_data
         .expr_types
         .get(&(rhs_expr.1.start_offset(), rhs_expr.1.end_offset()))
     {
         cond_type.parent_nodes.insert(decision_node.clone());
 
         for old_parent_node in &rhs_type.parent_nodes {
-            tast_info.data_flow_graph.add_path(
+            analysis_data.data_flow_graph.add_path(
                 old_parent_node,
                 &decision_node,
                 PathKind::Default,
@@ -243,5 +251,5 @@ pub(crate) fn assign_arithmetic_type(
         }
     }
 
-    tast_info.set_expr_type(&expr_pos, cond_type);
+    analysis_data.set_expr_type(&expr_pos, cond_type);
 }

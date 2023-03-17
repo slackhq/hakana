@@ -1,5 +1,5 @@
 use crate::expression_analyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::{
@@ -21,7 +21,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     tuple_fields: &Vec<aast::Expr<(), ()>>,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let mut parent_nodes = FxHashSet::default();
@@ -32,14 +32,14 @@ pub(crate) fn analyze(
         if !expression_analyzer::analyze(
             statements_analyzer,
             value_expr,
-            tast_info,
+            analysis_data,
             context,
             &mut None,
         ) {
             return false;
         }
 
-        let value_item_type = tast_info
+        let value_item_type = analysis_data
             .get_expr_type(&value_expr.pos())
             .cloned()
             .unwrap_or(get_mixed_any());
@@ -47,7 +47,7 @@ pub(crate) fn analyze(
         if let Some(new_parent_node) = add_tuple_value_dataflow(
             statements_analyzer,
             &value_item_type,
-            tast_info,
+            analysis_data,
             i,
             value_expr,
         ) {
@@ -70,7 +70,7 @@ pub(crate) fn analyze(
 
     new_dict.parent_nodes = parent_nodes;
 
-    tast_info.set_expr_type(&pos, new_dict);
+    analysis_data.set_expr_type(&pos, new_dict);
 
     true
 }
@@ -78,13 +78,13 @@ pub(crate) fn analyze(
 fn add_tuple_value_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     value_type: &TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     key_value: usize,
     value: &aast::Expr<(), ()>,
 ) -> Option<DataFlowNode> {
     if value_type.parent_nodes.is_empty()
         || (matches!(
-            &tast_info.data_flow_graph.kind,
+            &analysis_data.data_flow_graph.kind,
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         ) && value_type.has_taintable_value())
     {
@@ -95,12 +95,14 @@ fn add_tuple_value_dataflow(
 
     let new_parent_node =
         DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(value.pos()));
-    tast_info.data_flow_graph.add_node(new_parent_node.clone());
+    analysis_data
+        .data_flow_graph
+        .add_node(new_parent_node.clone());
 
     // TODO add taint event dispatches
 
     for parent_node in value_type.parent_nodes.iter() {
-        tast_info.data_flow_graph.add_path(
+        analysis_data.data_flow_graph.add_path(
             parent_node,
             &new_parent_node,
             PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.to_string()),

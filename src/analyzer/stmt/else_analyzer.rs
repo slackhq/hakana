@@ -4,7 +4,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::control_action::ControlAction;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::{if_scope::IfScope, ScopeContext};
-use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
+use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData};
 use oxidized::aast;
 use oxidized::aast::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -15,7 +15,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     if_cond_pos: &Pos,
     stmts: &aast::Block<(), ()>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     if_scope: &mut IfScope,
     else_context: &mut ScopeContext,
     outer_context: &mut ScopeContext,
@@ -59,7 +59,7 @@ pub(crate) fn analyze(
             &mut changed_var_ids,
             &FxHashSet::default(),
             statements_analyzer,
-            tast_info,
+            analysis_data,
             if_cond_pos,
             false,
             false,
@@ -76,12 +76,12 @@ pub(crate) fn analyze(
     let pre_possibly_assigned_var_ids = else_context.possibly_assigned_var_ids.clone();
     else_context.possibly_assigned_var_ids.clear();
 
-    if !statements_analyzer.analyze(&stmts.0, tast_info, else_context, loop_scope) {
+    if !statements_analyzer.analyze(&stmts.0, analysis_data, else_context, loop_scope) {
         return false;
     }
 
     for var_id in &else_context.parent_conflicting_clause_vars {
-        outer_context.remove_var_from_conflicting_clauses(var_id, None, None, tast_info);
+        outer_context.remove_var_from_conflicting_clauses(var_id, None, None, analysis_data);
     }
 
     let new_assigned_var_ids = else_context.assigned_var_ids.clone();
@@ -100,7 +100,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_interner(),
             statements_analyzer.get_file_analyzer().resolved_names,
             &stmts.0,
-            Some(tast_info),
+            Some(analysis_data),
             Vec::new(),
             true,
         )

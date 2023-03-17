@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
@@ -16,7 +16,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
     call_pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let echo_param = FunctionLikeParameter::new(
@@ -26,9 +26,15 @@ pub(crate) fn analyze(
     );
 
     for (i, (_, arg_expr)) in args.iter().enumerate() {
-        expression_analyzer::analyze(statements_analyzer, arg_expr, tast_info, context, &mut None);
+        expression_analyzer::analyze(
+            statements_analyzer,
+            arg_expr,
+            analysis_data,
+            context,
+            &mut None,
+        );
 
-        let arg_type = tast_info.get_expr_type(arg_expr.pos()).cloned();
+        let arg_type = analysis_data.get_expr_type(arg_expr.pos()).cloned();
 
         if !argument_analyzer::verify_type(
             statements_analyzer,
@@ -38,7 +44,7 @@ pub(crate) fn analyze(
             i,
             arg_expr,
             context,
-            tast_info,
+            analysis_data,
             &echo_param,
             &None,
             false,

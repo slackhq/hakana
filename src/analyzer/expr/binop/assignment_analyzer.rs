@@ -19,7 +19,7 @@ use crate::formula_generator;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_algebra::Clause;
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
@@ -46,7 +46,7 @@ pub(crate) fn analyze(
     expr: (&ast::Bop, &aast::Expr<(), ()>, Option<&aast::Expr<(), ()>>),
     pos: &Pos,
     assign_value_type: Option<&TUnion>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     is_inout: bool,
 ) -> Result<(), ()> {
@@ -64,12 +64,12 @@ pub(crate) fn analyze(
     );
 
     if statements_analyzer.get_config().add_fixmes {
-        if let Some(ref mut current_stmt_offset) = tast_info.current_stmt_offset {
+        if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
             if current_stmt_offset.line != expr.1.pos().line() {
                 current_stmt_offset.line = expr.1.pos().line();
             }
 
-            tast_info.expr_fixme_positions.insert(
+            analysis_data.expr_fixme_positions.insert(
                 (expr.1.pos().start_offset(), expr.1.pos().end_offset()),
                 *current_stmt_offset,
             );
@@ -105,7 +105,7 @@ pub(crate) fn analyze(
         let analyzed_ok = match binop {
             // this rewrites $a += 4 and $a ??= 4 to $a = $a + 4 and $a = $a ?? 4 respectively
             Bop::Eq(Some(assignment_type)) => {
-                let tast_expr_types = tast_info.expr_types.clone();
+                let tast_expr_types = analysis_data.expr_types.clone();
 
                 context.inside_assignment_op = true;
 
@@ -120,22 +120,22 @@ pub(crate) fn analyze(
                             assign_value.clone(),
                         ))),
                     ),
-                    tast_info,
+                    analysis_data,
                     context,
                     &mut None,
                 );
 
                 context.inside_assignment_op = false;
 
-                let new_expr_types = tast_info.expr_types.clone();
+                let new_expr_types = analysis_data.expr_types.clone();
                 let expr_type = new_expr_types
                     .get(&(pos.start_offset(), pos.end_offset()))
                     .cloned();
 
-                tast_info.expr_types = tast_expr_types;
+                analysis_data.expr_types = tast_expr_types;
 
                 if let Some(expr_type) = expr_type {
-                    tast_info.expr_types.insert(
+                    analysis_data.expr_types.insert(
                         (assign_value.1.start_offset(), assign_value.1.end_offset()),
                         expr_type,
                     );
@@ -146,7 +146,7 @@ pub(crate) fn analyze(
             _ => expression_analyzer::analyze(
                 statements_analyzer,
                 assign_value,
-                tast_info,
+                analysis_data,
                 context,
                 &mut None,
             ),
@@ -162,7 +162,7 @@ pub(crate) fn analyze(
                         existing_type,
                         assign_value_type,
                         None,
-                        tast_info,
+                        analysis_data,
                     );
                 }
 
@@ -180,7 +180,7 @@ pub(crate) fn analyze(
         assign_value_type.clone()
     } else {
         if let Some(assign_value) = assign_value {
-            if let Some(var_type) = tast_info.get_expr_type(&assign_value.1) {
+            if let Some(var_type) = analysis_data.get_expr_type(&assign_value.1) {
                 let assign_value_type = var_type.clone();
 
                 // todo set from_property flags on union
@@ -194,7 +194,7 @@ pub(crate) fn analyze(
         }
     };
 
-    if tast_info.data_flow_graph.kind == GraphKind::FunctionBody
+    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
         && assign_value_type.parent_nodes.is_empty()
     {
         if let Some(var_id) = &var_id {
@@ -203,7 +203,9 @@ pub(crate) fn analyze(
                 statements_analyzer.get_hpos(assign_var.pos()),
             );
 
-            tast_info.data_flow_graph.add_node(assignment_node.clone());
+            analysis_data
+                .data_flow_graph
+                .add_node(assignment_node.clone());
 
             assign_value_type.parent_nodes.insert(assignment_node);
 
@@ -218,7 +220,7 @@ pub(crate) fn analyze(
                         },
                     };
 
-                    tast_info.data_flow_graph.add_node(for_node.clone());
+                    analysis_data.data_flow_graph.add_node(for_node.clone());
 
                     assign_value_type.parent_nodes.insert(for_node);
                 }
@@ -237,7 +239,7 @@ pub(crate) fn analyze(
             let mut origin_nodes = vec![];
 
             for parent_node in &existing_var_type.parent_nodes {
-                origin_nodes.extend(tast_info.data_flow_graph.get_origin_nodes(parent_node));
+                origin_nodes.extend(analysis_data.data_flow_graph.get_origin_nodes(parent_node));
             }
 
             origin_nodes.retain(|n| match &n.kind {
@@ -254,7 +256,7 @@ pub(crate) fn analyze(
             });
 
             if !origin_nodes.is_empty() {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::ForLoopInvalidation,
                         format!("{} was previously assigned in a for loop", var_id),
@@ -274,7 +276,7 @@ pub(crate) fn analyze(
             existing_var_type,
             Some(&assign_value_type),
             Some(statements_analyzer),
-            tast_info,
+            analysis_data,
         );
     } else {
         let root_var_id = get_root_var_id(
@@ -289,7 +291,7 @@ pub(crate) fn analyze(
                     &root_var_id,
                     Some(&existing_root_type),
                     Some(statements_analyzer),
-                    tast_info,
+                    analysis_data,
                 );
             }
         }
@@ -308,7 +310,7 @@ pub(crate) fn analyze(
             assign_value,
             assign_value_type,
             var_id.as_ref().unwrap(),
-            tast_info,
+            analysis_data,
             context,
             is_inout,
         ),
@@ -318,7 +320,7 @@ pub(crate) fn analyze(
                 (&boxed.0, boxed.1.as_ref(), assign_var.pos()),
                 assign_value_type,
                 pos,
-                tast_info,
+                analysis_data,
                 context,
             );
         }
@@ -329,7 +331,7 @@ pub(crate) fn analyze(
                 pos,
                 var_id,
                 &assign_value_type,
-                tast_info,
+                analysis_data,
                 context,
             );
         }
@@ -346,7 +348,7 @@ pub(crate) fn analyze(
                 },
                 &assign_value_type,
                 &var_id,
-                tast_info,
+                analysis_data,
                 context,
             );
         }
@@ -355,14 +357,14 @@ pub(crate) fn analyze(
             expressions,
             assign_value,
             &assign_value_type,
-            tast_info,
+            analysis_data,
             context,
         ),
         aast::Expr_::Omitted => {
             // do nothing
         }
         _ => {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::UnrecognizedExpression,
                     "Unrecognized expression in assignment".to_string(),
@@ -381,7 +383,7 @@ pub(crate) fn analyze(
 fn check_variable_or_property_assignment(
     statements_analyzer: &StatementsAnalyzer,
     var_type: TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     assign_var_pos: &Pos,
     var_id: &String,
     context: &ScopeContext,
@@ -390,7 +392,7 @@ fn check_variable_or_property_assignment(
         // todo (maybe) handle void assignment
     }
     if var_type.is_nothing() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::ImpossibleAssignment,
                 "This assignment is impossible".to_string(),
@@ -401,7 +403,7 @@ fn check_variable_or_property_assignment(
             statements_analyzer.get_file_path_actual(),
         );
     }
-    let ref mut data_flow_graph = tast_info.data_flow_graph;
+    let ref mut data_flow_graph = analysis_data.data_flow_graph;
 
     if !var_type.parent_nodes.is_empty()
         && (matches!(&data_flow_graph.kind, GraphKind::FunctionBody) || context.allow_taints)
@@ -428,7 +430,7 @@ fn analyze_list_assignment(
     expressions: &Vec<aast::Expr<(), ()>>,
     source_expr: Option<&aast::Expr<(), ()>>,
     assign_value_type: &TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) {
     let codebase = statements_analyzer.get_codebase();
@@ -461,7 +463,7 @@ fn analyze_list_assignment(
                 if let Some(known_items) = known_items {
                     if let Some((possibly_undefined, value_type)) = known_items.get(&offset) {
                         if *possibly_undefined {
-                            tast_info.maybe_add_issue(
+                            analysis_data.maybe_add_issue(
                                 Issue::new(
                                     IssueKind::PossiblyUndefinedIntArrayOffset,
                                     "Possibly undefined offset in list assignment".to_string(),
@@ -525,7 +527,7 @@ fn analyze_list_assignment(
             array_fetch_analyzer::add_array_fetch_dataflow_rc(
                 statements_analyzer,
                 source_expr,
-                tast_info,
+                analysis_data,
                 keyed_array_var_id,
                 &mut value_type_rc,
                 &mut get_literal_int(offset as i64),
@@ -539,7 +541,7 @@ fn analyze_list_assignment(
             (&ast_defs::Bop::Eq(None), assign_var_item, None),
             assign_var_item.pos(),
             Some(&value_type),
-            tast_info,
+            analysis_data,
             context,
             false,
         )
@@ -599,20 +601,20 @@ fn analyze_assignment_to_variable(
     source_expr: Option<&aast::Expr<(), ()>>,
     assign_value_type: TUnion,
     var_id: &String,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     is_inout: bool,
 ) {
     if !is_inout {
-        if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
-            tast_info
+        if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+            analysis_data
                 .data_flow_graph
                 .add_node(DataFlowNode::get_for_variable_source(
                     var_id.clone(),
                     statements_analyzer.get_hpos(var_expr.pos()),
                     !context.inside_awaitall
                         && if let Some(source_expr) = source_expr {
-                            tast_info.is_pure(source_expr.pos())
+                            analysis_data.is_pure(source_expr.pos())
                         } else {
                             false
                         },
@@ -623,7 +625,7 @@ fn analyze_assignment_to_variable(
     let assign_value_type = check_variable_or_property_assignment(
         statements_analyzer,
         assign_value_type,
-        tast_info,
+        analysis_data,
         var_expr.pos(),
         var_id,
         &context,
@@ -649,7 +651,7 @@ fn analyze_assignment_to_variable(
                     cond_object_id,
                     source_expr,
                     &assertion_context,
-                    tast_info,
+                    analysis_data,
                     true,
                     false,
                 );
@@ -660,7 +662,7 @@ fn analyze_assignment_to_variable(
                         right_clauses.into_iter().map(|v| Rc::new(v)).collect(),
                         None,
                         None,
-                        tast_info,
+                        analysis_data,
                     );
 
                     let mut possibilities = BTreeMap::new();
@@ -703,7 +705,7 @@ pub(crate) fn analyze_inout_param(
     expr: &aast::Expr<(), ()>,
     arg_type: TUnion,
     inout_type: &TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) {
     if let Ok(_) = analyze(
@@ -711,14 +713,14 @@ pub(crate) fn analyze_inout_param(
         (&ast_defs::Bop::Eq(None), expr, None),
         expr.pos(),
         Some(inout_type),
-        tast_info,
+        analysis_data,
         context,
         true,
     ) {
-        tast_info.set_expr_type(expr.pos(), arg_type.clone());
+        analysis_data.set_expr_type(expr.pos(), arg_type.clone());
     }
 
-    tast_info.expr_effects.insert(
+    analysis_data.expr_effects.insert(
         (expr.pos().start_offset(), expr.pos().end_offset()),
         EFFECT_WRITE_LOCAL,
     );

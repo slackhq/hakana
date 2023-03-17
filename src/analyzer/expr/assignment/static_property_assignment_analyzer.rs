@@ -16,7 +16,7 @@ use oxidized::{
     tast::Pos,
 };
 
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
@@ -28,7 +28,7 @@ pub(crate) fn analyze(
     assign_value_pos: Option<&Pos>,
     assign_value_type: &TUnion,
     var_id: &Option<String>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let codebase = statements_analyzer.get_codebase();
@@ -57,7 +57,8 @@ pub(crate) fn analyze(
         if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
             Some(id.1.clone())
         } else {
-            if let Some(stmt_name_type) = tast_info.get_expr_type(stmt_name_expr.pos()).cloned() {
+            if let Some(stmt_name_type) = analysis_data.get_expr_type(stmt_name_expr.pos()).cloned()
+            {
                 if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
                     Some(value.clone())
                 } else {
@@ -106,13 +107,13 @@ pub(crate) fn analyze(
                     expression_analyzer::analyze(
                         statements_analyzer,
                         expr,
-                        tast_info,
+                        analysis_data,
                         context,
                         &mut None,
                     );
                     context.inside_general_use = was_inside_general_use;
 
-                    let lhs_type = tast_info.get_expr_type(&expr.1.clone());
+                    let lhs_type = analysis_data.get_expr_type(&expr.1.clone());
 
                     if let Some(lhs_type) = lhs_type {
                         for lhs_atomic_type in lhs_type.types.clone() {
@@ -160,7 +161,7 @@ pub(crate) fn analyze(
                 &property_id,
                 stmt_name_pos,
                 assign_value_pos,
-                tast_info,
+                analysis_data,
                 assign_value_type,
                 codebase,
                 &fq_class_name,
@@ -186,7 +187,7 @@ pub(crate) fn analyze(
                         ),
                         ..Default::default()
                     },
-                    &mut tast_info.data_flow_graph,
+                    &mut analysis_data.data_flow_graph,
                 );
             }
 
@@ -211,7 +212,7 @@ pub(crate) fn analyze(
             }
 
             if !type_match_found && union_comparison_result.type_coerced.is_none() {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::InvalidPropertyAssignmentValue,
                         format!(
@@ -236,7 +237,7 @@ pub(crate) fn analyze(
                     .type_coerced_from_nested_mixed
                     .is_some()
                 {
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::MixedPropertyTypeCoercion,
                             format!(
@@ -253,7 +254,7 @@ pub(crate) fn analyze(
                         statements_analyzer.get_file_path_actual(),
                     );
                 } else {
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::PropertyTypeCoercion,
                             format!(

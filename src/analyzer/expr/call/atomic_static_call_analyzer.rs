@@ -10,7 +10,7 @@ use oxidized::{
 
 use crate::{
     scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+    statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData,
 };
 
 use super::{
@@ -37,7 +37,7 @@ pub(crate) fn analyze(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     lhs_type_part: &TAtomic,
@@ -55,7 +55,7 @@ pub(crate) fn analyze(
                             name,
                             extra_types,
                             &None,
-                            tast_info,
+                            analysis_data,
                             statements_analyzer,
                             pos,
                             (
@@ -114,7 +114,7 @@ pub(crate) fn analyze(
         }
         _ => {
             if lhs_type_part.is_mixed() {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::MixedMethodCall,
                         "Method called on unknown object".to_string(),
@@ -135,7 +135,7 @@ pub(crate) fn analyze(
     let method_name = statements_analyzer.get_interner().get(&expr.1 .1);
 
     if method_name.is_none() || !codebase.method_exists(&classlike_name, &method_name.unwrap()) {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentMethod,
                 format!(
@@ -150,7 +150,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
-        tast_info
+        analysis_data
             .expr_effects
             .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
 
@@ -164,7 +164,7 @@ pub(crate) fn analyze(
         (expr.2, expr.3, expr.4),
         lhs_type_part,
         pos,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
         None,

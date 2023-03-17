@@ -22,7 +22,7 @@ use rustc_hash::FxHashSet;
 
 use crate::{
     expr::{expression_identifier, fetch::array_fetch_analyzer},
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
@@ -32,7 +32,7 @@ pub(crate) fn analyze(
     expr: (&Expr<(), ()>, Option<&Expr<(), ()>>, &Pos),
     assign_value_type: TUnion,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let mut root_array_expr = (expr.0, expr.1, pos);
@@ -49,7 +49,7 @@ pub(crate) fn analyze(
     if expression_analyzer::analyze(
         statements_analyzer,
         root_array_expr,
-        tast_info,
+        analysis_data,
         context,
         &mut None,
     ) == false
@@ -57,19 +57,25 @@ pub(crate) fn analyze(
         // fall through
     }
 
-    let mut root_type = tast_info
+    let mut root_type = analysis_data
         .get_expr_type(root_array_expr.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
 
     if root_type.is_mixed() {
-        expression_analyzer::analyze(statements_analyzer, expr.0, tast_info, context, &mut None);
+        expression_analyzer::analyze(
+            statements_analyzer,
+            expr.0,
+            analysis_data,
+            context,
+            &mut None,
+        );
 
         if let Some(dim_expr) = expr.1 {
             expression_analyzer::analyze(
                 statements_analyzer,
                 dim_expr,
-                tast_info,
+                analysis_data,
                 context,
                 &mut None,
             );
@@ -93,17 +99,17 @@ pub(crate) fn analyze(
         statements_analyzer,
         array_exprs,
         assign_value_type,
-        tast_info,
+        analysis_data,
         context,
         root_var_id.clone(),
         &mut root_type,
         &mut current_type,
     );
 
-    if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
+    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
         if let Some(root_var_id) = &root_var_id {
             if let aast::Expr_::Lvar(_) = &root_array_expr.2 {
-                tast_info
+                analysis_data
                     .data_flow_graph
                     .add_node(DataFlowNode::get_for_variable_source(
                         root_var_id.clone(),
@@ -120,7 +126,7 @@ pub(crate) fn analyze(
 
     let dim_type = if let Some(current_dim) = current_dim {
         Some(
-            tast_info
+            analysis_data
                 .get_expr_type(current_dim.pos())
                 .cloned()
                 .unwrap_or(get_arraykey(true)),
@@ -169,7 +175,7 @@ pub(crate) fn analyze(
             .insert(root_var_id.clone(), Rc::new(root_type.clone()));
     }
 
-    tast_info.set_expr_type(&root_array_expr.1, root_type);
+    analysis_data.set_expr_type(&root_array_expr.1, root_type);
 
     // InstancePropertyAssignmentAnalyzer (do we need it?)
 
@@ -359,14 +365,14 @@ fn update_atomic_given_key(
 
 fn add_array_assignment_dataflow(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     expr_var_pos: &aast::Pos,
     mut parent_expr_type: TUnion,
     child_expr_type: &TUnion,
     var_var_id: Option<String>,
     key_values: &Vec<TAtomic>,
 ) -> TUnion {
-    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = analysis_data.data_flow_graph.kind {
         if !child_expr_type.has_taintable_value() {
             return parent_expr_type;
         }
@@ -377,14 +383,14 @@ fn add_array_assignment_dataflow(
         statements_analyzer.get_hpos(expr_var_pos),
     );
 
-    tast_info.data_flow_graph.add_node(parent_node.clone());
+    analysis_data.data_flow_graph.add_node(parent_node.clone());
 
     let old_parent_nodes = parent_expr_type.parent_nodes.clone();
 
     parent_expr_type.parent_nodes = FxHashSet::from_iter([parent_node.clone()]);
 
     for old_parent_node in old_parent_nodes {
-        tast_info.data_flow_graph.add_path(
+        analysis_data.data_flow_graph.add_path(
             &old_parent_node,
             &parent_node,
             PathKind::Default,
@@ -436,7 +442,7 @@ fn add_array_assignment_dataflow(
                     }
                 };
 
-                tast_info.data_flow_graph.add_path(
+                analysis_data.data_flow_graph.add_path(
                     &child_parent_node,
                     &parent_node,
                     PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value),
@@ -445,7 +451,7 @@ fn add_array_assignment_dataflow(
                 );
             }
         } else {
-            tast_info.data_flow_graph.add_path(
+            analysis_data.data_flow_graph.add_path(
                 &child_parent_node,
                 &parent_node,
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
@@ -588,7 +594,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
     statements_analyzer: &StatementsAnalyzer,
     mut array_exprs: Vec<(&'a Expr<(), ()>, Option<&'a Expr<(), ()>>, &aast::Pos)>,
     assign_value_type: TUnion,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     root_var_id: Option<String>,
     root_type: &mut TUnion,
@@ -611,8 +617,13 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             let was_inside_general_use = context.inside_general_use;
             context.inside_general_use = true;
 
-            if expression_analyzer::analyze(statements_analyzer, dim, tast_info, context, &mut None)
-                == false
+            if expression_analyzer::analyze(
+                statements_analyzer,
+                dim,
+                analysis_data,
+                context,
+                &mut None,
+            ) == false
             {
                 context.inside_general_use = was_inside_general_use;
 
@@ -620,7 +631,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             }
 
             context.inside_general_use = was_inside_general_use;
-            let dim_type = tast_info.get_expr_type(dim.pos()).cloned();
+            let dim_type = analysis_data.get_expr_type(dim.pos()).cloned();
             array_expr_offset_type = if let Some(dim_type) = dim_type {
                 array_expr_offset_atomic_types = get_array_assignment_offset_types(&dim_type);
 
@@ -663,7 +674,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         }
 
         let mut array_expr_var_type =
-            if let Some(t) = tast_info.get_rc_expr_type(array_expr.0.pos()) {
+            if let Some(t) = analysis_data.get_rc_expr_type(array_expr.0.pos()) {
                 t.clone()
             } else {
                 return array_expr.1;
@@ -682,11 +693,11 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             });
             array_expr_var_type = Rc::new(atomic);
 
-            tast_info.set_rc_expr_type(&array_expr.0.pos(), array_expr_var_type.clone());
+            analysis_data.set_rc_expr_type(&array_expr.0.pos(), array_expr_var_type.clone());
         } else if let Some(parent_var_id) = parent_var_id.to_owned() {
             if context.vars_in_scope.contains_key(&parent_var_id) {
                 let scoped_type = context.vars_in_scope.get(&parent_var_id).unwrap();
-                tast_info.set_rc_expr_type(&array_expr.0.pos(), scoped_type.clone());
+                analysis_data.set_rc_expr_type(&array_expr.0.pos(), scoped_type.clone());
 
                 array_expr_var_type = scoped_type.clone();
             }
@@ -698,7 +709,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
         let mut array_expr_type = array_fetch_analyzer::get_array_access_type_given_offset(
             statements_analyzer,
-            tast_info,
+            analysis_data,
             *array_expr,
             (*array_expr_var_type).clone(),
             &new_offset_type,
@@ -715,11 +726,11 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
         if is_last {
             array_expr_type = assign_value_type.clone();
-            tast_info.set_expr_type(&array_expr.2, assign_value_type.clone());
+            analysis_data.set_expr_type(&array_expr.2, assign_value_type.clone());
 
             array_expr_var_type_inner = add_array_assignment_dataflow(
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 array_expr.0.pos(),
                 array_expr_var_type_inner,
                 &assign_value_type,
@@ -736,10 +747,10 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                 &array_expr_offset_atomic_types,
             );
         } else {
-            tast_info.set_expr_type(&array_expr.2, array_expr_type.clone());
+            analysis_data.set_expr_type(&array_expr.2, array_expr_type.clone());
         }
 
-        tast_info.set_expr_type(array_expr.0.pos(), array_expr_var_type_inner.clone());
+        analysis_data.set_expr_type(array_expr.0.pos(), array_expr_var_type_inner.clone());
 
         if let Some(root_var_id) = &root_var_id {
             extended_var_id = Some(root_var_id.to_owned() + &var_id_additions.join("").to_string());
@@ -778,7 +789,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
     let first_stmt = &array_exprs.remove(0);
 
     if let Some(root_var_id) = &root_var_id {
-        if let Some(_) = tast_info.get_expr_type(first_stmt.0.pos()) {
+        if let Some(_) = analysis_data.get_expr_type(first_stmt.0.pos()) {
             let extended_var_id = root_var_id.clone() + var_id_additions.join("").as_str();
 
             if full_var_id && extended_var_id.contains("[$") {
@@ -793,10 +804,10 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
     var_id_additions.pop();
 
     for (i, array_expr) in array_exprs.iter().enumerate() {
-        let mut array_expr_type = tast_info.get_expr_type(array_expr.2).unwrap().clone();
+        let mut array_expr_type = analysis_data.get_expr_type(array_expr.2).unwrap().clone();
 
         let dim_type = if let Some(current_dim) = last_array_expr_dim {
-            tast_info.get_expr_type(current_dim.pos())
+            analysis_data.get_expr_type(current_dim.pos())
         } else {
             None
         };
@@ -851,14 +862,14 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             }
         }
 
-        let array_type = tast_info
+        let array_type = analysis_data
             .get_expr_type(array_expr.0.pos())
             .cloned()
             .unwrap_or(get_mixed_any());
 
         // recalculate dim_type
         let dim_type = if let Some(current_dim) = array_expr.1 {
-            tast_info.get_expr_type(current_dim.pos())
+            analysis_data.get_expr_type(current_dim.pos())
         } else {
             None
         };
@@ -871,7 +882,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
         let array_type = add_array_assignment_dataflow(
             statements_analyzer,
-            tast_info,
+            analysis_data,
             array_expr.0.pos(),
             array_type,
             &array_expr_type,
@@ -884,7 +895,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         if is_first {
             *root_type = array_type;
         } else {
-            tast_info.set_expr_type(&array_expr.0.pos(), array_type);
+            analysis_data.set_expr_type(&array_expr.0.pos(), array_type);
         }
 
         var_id_additions.pop();

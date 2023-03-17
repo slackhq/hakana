@@ -92,7 +92,7 @@ pub fn infer(
                 }
             }
 
-            match boxed.0.1 {
+            match boxed.0 .1 {
                 oxidized::tast::VcKind::Vec => Some(wrap_atomic(TAtomic::TVec {
                     known_count: Some(entries.len()),
                     known_items: Some(entries),
@@ -124,7 +124,7 @@ pub fn infer(
             }
 
             if known_items.len() < 100 {
-                match boxed.0.1 {
+                match boxed.0 .1 {
                     oxidized::tast::KvcKind::Dict => Some(wrap_atomic(TAtomic::TDict {
                         non_empty: !known_items.is_empty(),
                         known_items: Some(known_items),

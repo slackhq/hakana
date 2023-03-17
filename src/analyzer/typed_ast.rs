@@ -14,7 +14,7 @@ use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
-pub struct TastInfo {
+pub struct FunctionAnalysisData {
     pub expr_types: FxHashMap<(usize, usize), Rc<TUnion>>,
     pub if_true_assertions: FxHashMap<(usize, usize), FxHashMap<String, Vec<Assertion>>>,
     pub if_false_assertions: FxHashMap<(usize, usize), FxHashMap<String, Vec<Assertion>>>,
@@ -39,7 +39,7 @@ pub struct TastInfo {
     pub matched_ignore_positions: FxHashSet<(usize, usize)>,
 }
 
-impl TastInfo {
+impl FunctionAnalysisData {
     pub(crate) fn new(
         data_flow_graph: DataFlowGraph,
         file_source: &FileSource,

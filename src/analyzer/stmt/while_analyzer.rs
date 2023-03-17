@@ -3,7 +3,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 use oxidized::{aast, ast_defs};
 use std::rc::Rc;
@@ -11,7 +11,7 @@ use std::rc::Rc;
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: (&aast::Expr<(), ()>, &aast::Block<(), ()>),
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let while_true = match &stmt.0 .2 {
@@ -37,7 +37,7 @@ pub(crate) fn analyze(
         &mut loop_scope,
         &mut while_context,
         context,
-        tast_info,
+        analysis_data,
         false,
         false,
     );
@@ -49,7 +49,7 @@ pub(crate) fn analyze(
     let always_enters_loop = if while_true {
         true
     } else {
-        if let Some(stmt_cond_type) = tast_info.get_expr_type(stmt.0.pos()) {
+        if let Some(stmt_cond_type) = analysis_data.get_expr_type(stmt.0.pos()) {
             stmt_cond_type.is_always_truthy()
         } else {
             false
@@ -90,7 +90,7 @@ pub(crate) fn analyze(
         }
     }
 
-    // todo do we need to remove the loop scope from tast_info here? unsure
+    // todo do we need to remove the loop scope from analysis_data here? unsure
 
     return true;
 }

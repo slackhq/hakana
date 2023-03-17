@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_type::get_bool;
 use oxidized::{aast, ast::Pos};
 
@@ -9,7 +9,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: &aast::Expr<(), ()>,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -17,13 +17,13 @@ pub(crate) fn analyze(
     let result = expression_analyzer::analyze(
         statements_analyzer,
         expr,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     );
     context.inside_isset = false;
-    tast_info.copy_effects(expr.pos(), pos);
+    analysis_data.copy_effects(expr.pos(), pos);
 
-    tast_info.set_expr_type(&pos, get_bool());
+    analysis_data.set_expr_type(&pos, get_bool());
     result
 }

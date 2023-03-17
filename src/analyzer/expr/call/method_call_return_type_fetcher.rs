@@ -19,13 +19,13 @@ use oxidized::ast_defs::Pos;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_type::template::{TemplateBound, TemplateResult};
 
 pub(crate) fn fetch(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     method_id: &MethodIdentifier,
     declaring_method_id: &MethodIdentifier,
@@ -94,7 +94,7 @@ pub(crate) fn fetch(
                 expand_generic: true,
                 ..Default::default()
             },
-            &mut tast_info.data_flow_graph,
+            &mut analysis_data.data_flow_graph,
         );
 
         return_type_candidate = template::inferred_type_replacer::replace(
@@ -130,7 +130,7 @@ pub(crate) fn fetch(
             ),
             ..Default::default()
         },
-        &mut tast_info.data_flow_graph,
+        &mut analysis_data.data_flow_graph,
     );
 
     add_dataflow(
@@ -142,7 +142,7 @@ pub(crate) fn fetch(
         lhs_var_id,
         lhs_var_pos,
         functionlike_storage,
-        tast_info,
+        analysis_data,
         call_pos,
     )
 }
@@ -212,7 +212,7 @@ fn add_dataflow(
     lhs_var_id: Option<&String>,
     lhs_var_pos: Option<&Pos>,
     functionlike_storage: &FunctionLikeInfo,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     call_pos: &Pos,
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
@@ -220,7 +220,7 @@ fn add_dataflow(
     let added_taints = None;
     let removed_taints = None;
 
-    let ref mut data_flow_graph = tast_info.data_flow_graph;
+    let ref mut data_flow_graph = analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !context.allow_taints {

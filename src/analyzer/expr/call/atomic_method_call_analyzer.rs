@@ -14,7 +14,7 @@ use oxidized::{
 
 use crate::{
     scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+    statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData,
 };
 
 use super::{arguments_analyzer::evaluate_arbitrary_param, existing_atomic_method_call_analyzer};
@@ -53,7 +53,7 @@ pub(crate) fn analyze(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     lhs_type_part: &TAtomic,
@@ -71,7 +71,7 @@ pub(crate) fn analyze(
                 classlike_name,
                 extra_types,
                 lhs_var_id,
-                tast_info,
+                analysis_data,
                 statements_analyzer,
                 pos,
                 expr,
@@ -86,7 +86,7 @@ pub(crate) fn analyze(
             name: classlike_name,
             ..
         } => {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::NonExistentClasslike,
                     format!(
@@ -104,7 +104,7 @@ pub(crate) fn analyze(
             let mut mixed_with_any = false;
 
             if !lhs_type_part.is_mixed_with_any(&mut mixed_with_any) {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::InvalidMethodCall,
                         if let Some(lhs_var_id) = lhs_var_id {
@@ -128,7 +128,7 @@ pub(crate) fn analyze(
                 // todo handle invalid class invocation
                 return;
             } else {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         if mixed_with_any {
                             IssueKind::MixedAnyMethodCall
@@ -159,7 +159,7 @@ pub(crate) fn analyze(
                         statements_analyzer,
                         arg_expr,
                         matches!(param_kind, ParamKind::Pinout(_)),
-                        tast_info,
+                        analysis_data,
                         context,
                         if_body_context,
                     );
@@ -177,7 +177,7 @@ pub(crate) fn handle_method_call_on_named_object(
     classlike_name: &StrId,
     extra_types: &Option<Vec<TAtomic>>,
     lhs_var_id: &Option<String>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     expr: (
@@ -220,7 +220,7 @@ pub(crate) fn handle_method_call_on_named_object(
         };
 
         if !does_class_exist {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::NonExistentClass,
                     format!(
@@ -244,7 +244,7 @@ pub(crate) fn handle_method_call_on_named_object(
                 method_name
             } else {
                 handle_nonexistent_method(
-                    tast_info,
+                    analysis_data,
                     statements_analyzer,
                     &boxed,
                     classlike_name,
@@ -261,7 +261,7 @@ pub(crate) fn handle_method_call_on_named_object(
 
         if classlike_names.is_empty() {
             handle_nonexistent_method(
-                tast_info,
+                analysis_data,
                 statements_analyzer,
                 &boxed,
                 classlike_name,
@@ -281,7 +281,7 @@ pub(crate) fn handle_method_call_on_named_object(
             (expr.2, expr.3, expr.4),
             &lhs_type_part,
             pos,
-            tast_info,
+            analysis_data,
             context,
             if_body_context,
             lhs_var_id.as_ref(),
@@ -300,7 +300,7 @@ pub(crate) fn handle_method_call_on_named_object(
                 statements_analyzer,
                 arg_expr,
                 matches!(param_kind, ParamKind::Pinout(_)),
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -314,7 +314,7 @@ pub(crate) fn handle_method_call_on_named_object(
 }
 
 fn handle_nonexistent_method(
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
     id: &ast_defs::Id,
     classlike_name: &StrId,
@@ -323,7 +323,7 @@ fn handle_nonexistent_method(
     expr_args: &Vec<(ParamKind, aast::Expr<(), ()>)>,
     if_body_context: &mut Option<ScopeContext>,
 ) {
-    tast_info.maybe_add_issue(
+    analysis_data.maybe_add_issue(
         Issue::new(
             IssueKind::NonExistentMethod,
             format!(
@@ -343,7 +343,7 @@ fn handle_nonexistent_method(
             statements_analyzer,
             arg_expr,
             matches!(param_kind, ParamKind::Pinout(_)),
-            tast_info,
+            analysis_data,
             context,
             if_body_context,
         );

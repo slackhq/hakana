@@ -1,7 +1,7 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 
 use hakana_type::{get_bool, get_int};
 use oxidized::pos::Pos;
@@ -11,7 +11,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&ast::Bop, &aast::Expr<(), ()>, &aast::Expr<(), ()>),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -33,7 +33,7 @@ pub(crate) fn analyze(
                 expr.0,
                 expr.1,
                 expr.2,
-                tast_info,
+                analysis_data,
                 context,
             );
             return true;
@@ -45,14 +45,14 @@ pub(crate) fn analyze(
                 pos,
                 expr.1,
                 expr.2,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
 
             add_decision_dataflow(
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 expr.1,
                 Some(expr.2),
                 pos,
@@ -67,14 +67,14 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 expr.1,
                 expr.2,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
 
             add_decision_dataflow(
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 expr.1,
                 Some(expr.2),
                 pos,
@@ -95,7 +95,7 @@ pub(crate) fn analyze(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -105,7 +105,7 @@ pub(crate) fn analyze(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 expr.2,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -114,14 +114,14 @@ pub(crate) fn analyze(
 
             add_decision_dataflow(
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 expr.1,
                 Some(expr.2),
                 pos,
                 get_bool(),
             );
 
-            tast_info.combine_effects(expr.1.pos(), expr.2.pos(), pos);
+            analysis_data.combine_effects(expr.1.pos(), expr.2.pos(), pos);
 
             return true;
         }
@@ -132,7 +132,7 @@ pub(crate) fn analyze(
                 pos,
                 expr.1,
                 expr.2,
-                tast_info,
+                analysis_data,
                 context,
             );
 
@@ -143,7 +143,7 @@ pub(crate) fn analyze(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 expr.1,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -153,7 +153,7 @@ pub(crate) fn analyze(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 expr.2,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -162,14 +162,14 @@ pub(crate) fn analyze(
 
             add_decision_dataflow(
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 expr.1,
                 Some(expr.2),
                 pos,
                 get_int(),
             );
 
-            tast_info.combine_effects(expr.1.pos(), expr.2.pos(), pos);
+            analysis_data.combine_effects(expr.1.pos(), expr.2.pos(), pos);
 
             return true;
         }
@@ -180,7 +180,7 @@ pub(crate) fn analyze(
                 pos,
                 expr.1,
                 expr.2,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -192,7 +192,7 @@ pub(crate) fn analyze(
                 (expr.0, expr.1, Some(expr.2)),
                 pos,
                 None,
-                tast_info,
+                analysis_data,
                 context,
                 false,
             )

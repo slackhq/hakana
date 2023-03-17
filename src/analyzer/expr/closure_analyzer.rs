@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{functionlike_analyzer::FunctionLikeAnalyzer, scope_analyzer::ScopeAnalyzer};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -20,17 +20,17 @@ use rustc_hash::FxHashSet;
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     context: &mut ScopeContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     fun: &aast::Fun_<(), ()>,
     expr: &aast::Expr<(), ()>,
 ) -> bool {
     let mut function_analyzer = FunctionLikeAnalyzer::new(statements_analyzer.get_file_analyzer());
     let mut analysis_result =
-        AnalysisResult::new(tast_info.data_flow_graph.kind, SymbolReferences::new());
+        AnalysisResult::new(analysis_data.data_flow_graph.kind, SymbolReferences::new());
     let mut lambda_storage = function_analyzer.analyze_lambda(
         fun,
         context.clone(),
-        tast_info,
+        analysis_data,
         &mut analysis_result,
         expr.pos(),
     );
@@ -46,7 +46,7 @@ pub(crate) fn analyze(
                     expand_generic: true,
                     ..Default::default()
                 },
-                &mut tast_info.data_flow_graph,
+                &mut analysis_data.data_flow_graph,
             )
         }
     }
@@ -55,7 +55,7 @@ pub(crate) fn analyze(
 
     if let Some(issues) = issues {
         for issue in issues.1 {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 issue,
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
@@ -66,7 +66,7 @@ pub(crate) fn analyze(
     let replacements = analysis_result.replacements.into_iter().next();
 
     if let Some((_, replacements)) = replacements {
-        tast_info.replacements.extend(replacements);
+        analysis_data.replacements.extend(replacements);
     }
 
     let closure_id = format!(
@@ -91,7 +91,7 @@ pub(crate) fn analyze(
         closure_id: statements_analyzer.get_interner().get(&closure_id).unwrap(),
     });
 
-    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let application_node = DataFlowNode::get_for_method_reference(
             closure_id.clone(),
             Some(statements_analyzer.get_hpos(expr.pos())),
@@ -103,7 +103,7 @@ pub(crate) fn analyze(
             None,
         );
 
-        tast_info.data_flow_graph.add_path(
+        analysis_data.data_flow_graph.add_path(
             &closure_return_node,
             &application_node,
             PathKind::Default,
@@ -111,12 +111,14 @@ pub(crate) fn analyze(
             None,
         );
 
-        tast_info.data_flow_graph.add_node(application_node.clone());
+        analysis_data
+            .data_flow_graph
+            .add_node(application_node.clone());
 
         closure_type.parent_nodes = FxHashSet::from_iter([application_node]);
     }
 
-    tast_info.expr_types.insert(
+    analysis_data.expr_types.insert(
         (expr.1.start_offset(), expr.1.end_offset()),
         Rc::new(closure_type),
     );

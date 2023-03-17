@@ -2,7 +2,7 @@ use super::{
     atomic_property_fetch_analyzer::add_unspecialized_property_fetch_dataflow,
     instance_property_fetch_analyzer,
 };
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::ast::get_id_name;
@@ -25,7 +25,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let codebase = statements_analyzer.get_codebase();
@@ -49,7 +49,7 @@ pub(crate) fn analyze(
                     statements_analyzer,
                     expr,
                     pos,
-                    tast_info,
+                    analysis_data,
                     context,
                 );
                 return true;
@@ -61,13 +61,13 @@ pub(crate) fn analyze(
     };
 
     if !codebase.class_exists(&classlike_name) {
-        tast_info.symbol_references.add_reference_to_symbol(
+        analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
             classlike_name,
             false,
         );
 
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentClass,
                 format!(
@@ -84,18 +84,19 @@ pub(crate) fn analyze(
         return false;
     }
 
-    tast_info
+    analysis_data
         .expr_effects
         .insert((pos.start_offset(), pos.end_offset()), EFFECT_READ_PROPS);
 
-    tast_info.set_expr_type(&stmt_class.1, get_named_object(classlike_name.clone()));
+    analysis_data.set_expr_type(&stmt_class.1, get_named_object(classlike_name.clone()));
 
     let prop_name = match &stmt_name {
         aast::ClassGetExpr::CGexpr(stmt_name_expr) => {
             if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
                 id.1.clone()
             } else {
-                if let Some(stmt_name_type) = tast_info.get_expr_type(stmt_name_expr.pos()).cloned()
+                if let Some(stmt_name_type) =
+                    analysis_data.get_expr_type(stmt_name_expr.pos()).cloned()
                 {
                     if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
                         value.clone()
@@ -125,13 +126,13 @@ pub(crate) fn analyze(
     let property_id = if let Some(prop_name_id) = prop_name_id {
         (classlike_name.clone(), prop_name_id)
     } else {
-        tast_info.symbol_references.add_reference_to_symbol(
+        analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
             classlike_name,
             false,
         );
 
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentProperty,
                 format!(
@@ -149,11 +150,13 @@ pub(crate) fn analyze(
         return false;
     };
 
-    tast_info.symbol_references.add_reference_to_class_member(
-        &context.function_context,
-        (property_id.0, property_id.1),
-        false,
-    );
+    analysis_data
+        .symbol_references
+        .add_reference_to_class_member(
+            &context.function_context,
+            (property_id.0, property_id.1),
+            false,
+        );
 
     // Handle scoped property fetches
     if context.has_variable(&var_id) {
@@ -163,14 +166,14 @@ pub(crate) fn analyze(
             &None,
             &property_id,
             statements_analyzer.get_hpos(pos),
-            tast_info,
+            analysis_data,
             false,
             stmt_type,
             &statements_analyzer.get_interner(),
         );
 
         // we don't need to check anything since this variable is known in this scope
-        tast_info.set_expr_type(&pos, stmt_type);
+        analysis_data.set_expr_type(&pos, stmt_type);
 
         return true;
     }
@@ -180,7 +183,7 @@ pub(crate) fn analyze(
     {
         declaring_property_class
     } else {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentProperty,
                 format!(
@@ -229,14 +232,14 @@ pub(crate) fn analyze(
                 ),
                 ..Default::default()
             },
-            &mut tast_info.data_flow_graph,
+            &mut analysis_data.data_flow_graph,
         );
 
         inserted_type = add_unspecialized_property_fetch_dataflow(
             &None,
             &property_id,
             statements_analyzer.get_hpos(pos),
-            tast_info,
+            analysis_data,
             false,
             inserted_type,
             &statements_analyzer.get_interner(),
@@ -246,7 +249,7 @@ pub(crate) fn analyze(
 
         context.vars_in_scope.insert(var_id.to_owned(), rc.clone());
 
-        tast_info.set_rc_expr_type(&pos, rc)
+        analysis_data.set_rc_expr_type(&pos, rc)
     }
 
     true
@@ -260,7 +263,7 @@ fn analyze_variable_static_property_fetch(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) {
     let stmt_class_type = if let aast::ClassId_::CIexpr(stmt_class_expr) = &expr.0 .2 {
@@ -270,13 +273,13 @@ fn analyze_variable_static_property_fetch(
         expression_analyzer::analyze(
             statements_analyzer,
             stmt_class_expr,
-            tast_info,
+            analysis_data,
             context,
             &mut None,
         );
 
         context.inside_general_use = was_inside_general_use;
-        tast_info.get_expr_type(stmt_class_expr.pos()).cloned()
+        analysis_data.get_expr_type(stmt_class_expr.pos()).cloned()
     } else {
         None
     };
@@ -312,13 +315,13 @@ fn analyze_variable_static_property_fetch(
             statements_analyzer,
             (&lhs, &rhs),
             &pos,
-            tast_info,
+            analysis_data,
             context,
             context.inside_assignment,
             false,
         );
 
-        let stmt_type = tast_info.get_expr_type(&pos).unwrap();
-        tast_info.set_expr_type(&pos, stmt_type.clone());
+        let stmt_type = analysis_data.get_expr_type(&pos).unwrap();
+        analysis_data.set_expr_type(&pos, stmt_type.clone());
     }
 }

@@ -10,7 +10,7 @@ use oxidized::{
 
 use crate::{
     config, scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 
 pub struct AfterExprAnalysisData<'a> {
@@ -54,7 +54,7 @@ pub trait InternalHook {
     #[allow(unused_variables)]
     fn after_stmt_analysis(
         &self,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         after_stmt_analysis_data: AfterStmtAnalysisData,
     ) {
     }
@@ -63,7 +63,7 @@ pub trait InternalHook {
     #[allow(unused_variables)]
     fn after_expr_analysis(
         &self,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         after_expr_analysis_data: AfterExprAnalysisData,
     ) {
     }
@@ -73,7 +73,7 @@ pub trait InternalHook {
     #[allow(unused_variables)]
     fn handle_functionlike_param(
         &self,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         functionlike_param_data: FunctionLikeParamData,
     ) {
     }
@@ -82,7 +82,7 @@ pub trait InternalHook {
     #[allow(unused_variables)]
     fn after_argument_analysis(
         &self,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         after_arg_analysis_data: AfterArgAnalysisData,
     ) {
     }
@@ -93,7 +93,7 @@ pub trait InternalHook {
         context: &mut ScopeContext,
         functionlike_storage: &FunctionLikeInfo,
         completed_analysis: bool,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         inferred_return_type: &mut Option<TUnion>,
         codebase: &CodebaseInfo,
         statements_analyzer: &StatementsAnalyzer,

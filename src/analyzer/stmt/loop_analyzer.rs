@@ -13,7 +13,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 
 use super::{
@@ -30,7 +30,7 @@ pub(crate) fn analyze<'a>(
     loop_scope: &'a mut LoopScope,
     loop_context: &'a mut ScopeContext,
     loop_parent_context: &'a mut ScopeContext,
-    tast_info: &'a mut TastInfo,
+    analysis_data: &'a mut FunctionAnalysisData,
     is_do: bool,
     always_enters_loop: bool,
 ) -> (bool, ScopeContext) {
@@ -74,7 +74,7 @@ pub(crate) fn analyze<'a>(
                     pre_condition_id,
                     pre_condition,
                     &assertion_context,
-                    tast_info,
+                    analysis_data,
                     true,
                     false,
                 )
@@ -91,7 +91,7 @@ pub(crate) fn analyze<'a>(
         statements_analyzer.get_interner(),
         statements_analyzer.get_file_analyzer().resolved_names,
         stmts,
-        Some(tast_info),
+        Some(analysis_data),
         vec![],
         true,
     );
@@ -113,7 +113,7 @@ pub(crate) fn analyze<'a>(
                 pre_condition_clauses.get(condition_offset).unwrap(),
                 &mut continue_context,
                 loop_parent_context,
-                tast_info,
+                analysis_data,
                 is_do,
             );
         }
@@ -122,7 +122,7 @@ pub(crate) fn analyze<'a>(
 
         statements_analyzer.analyze(
             stmts,
-            tast_info,
+            analysis_data,
             &mut continue_context,
             &mut wrapped_loop_scope,
         );
@@ -139,7 +139,7 @@ pub(crate) fn analyze<'a>(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 post_expression,
-                tast_info,
+                analysis_data,
                 loop_context,
                 &mut None,
             ) {
@@ -151,7 +151,7 @@ pub(crate) fn analyze<'a>(
 
         let mut pre_loop_context = loop_context.clone();
 
-        tast_info.start_recording_issues();
+        analysis_data.start_recording_issues();
 
         if !is_do {
             for (condition_offset, pre_condition) in pre_conditions.iter().enumerate() {
@@ -161,7 +161,7 @@ pub(crate) fn analyze<'a>(
                     pre_condition_clauses.get(condition_offset).unwrap(),
                     loop_context,
                     loop_parent_context,
-                    tast_info,
+                    analysis_data,
                     is_do,
                 );
             }
@@ -173,7 +173,7 @@ pub(crate) fn analyze<'a>(
 
         statements_analyzer.analyze(
             stmts,
-            tast_info,
+            analysis_data,
             &mut continue_context,
             &mut wrapped_loop_scope,
         );
@@ -198,7 +198,7 @@ pub(crate) fn analyze<'a>(
                     pre_condition_clauses.get(condition_offset).unwrap(),
                     &mut continue_context,
                     loop_parent_context,
-                    tast_info,
+                    analysis_data,
                     is_do,
                 ));
             }
@@ -208,7 +208,7 @@ pub(crate) fn analyze<'a>(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 post_expression,
-                tast_info,
+                analysis_data,
                 &mut continue_context,
                 &mut None,
             ) {
@@ -216,8 +216,8 @@ pub(crate) fn analyze<'a>(
             }
         }
 
-        let mut recorded_issues = tast_info.clear_currently_recorded_issues();
-        tast_info.stop_recording_issues();
+        let mut recorded_issues = analysis_data.clear_currently_recorded_issues();
+        analysis_data.stop_recording_issues();
 
         let mut i = 0;
 
@@ -271,8 +271,12 @@ pub(crate) fn analyze<'a>(
                         );
 
                         // if there's a change, invalidate related clauses
-                        pre_loop_context
-                            .remove_var_from_conflicting_clauses(&var_id, None, None, tast_info);
+                        pre_loop_context.remove_var_from_conflicting_clauses(
+                            &var_id,
+                            None,
+                            None,
+                            analysis_data,
+                        );
 
                         loop_parent_context
                             .possibly_assigned_var_ids
@@ -296,8 +300,12 @@ pub(crate) fn analyze<'a>(
                         );
 
                         // if there's a change, invalidate related clauses
-                        pre_loop_context
-                            .remove_var_from_conflicting_clauses(&var_id, None, None, tast_info);
+                        pre_loop_context.remove_var_from_conflicting_clauses(
+                            &var_id,
+                            None,
+                            None,
+                            analysis_data,
+                        );
                     }
                 } else {
                     // give an opportunity to redeemed UndefinedVariable issues
@@ -326,7 +334,7 @@ pub(crate) fn analyze<'a>(
 
             continue_context.clauses = pre_loop_context.clauses.clone();
 
-            tast_info.start_recording_issues();
+            analysis_data.start_recording_issues();
 
             if !is_do {
                 for (condition_offset, pre_condition) in pre_conditions.iter().enumerate() {
@@ -336,7 +344,7 @@ pub(crate) fn analyze<'a>(
                         pre_condition_clauses.get(condition_offset).unwrap(),
                         &mut continue_context,
                         loop_parent_context,
-                        tast_info,
+                        analysis_data,
                         is_do,
                     );
                 }
@@ -368,13 +376,13 @@ pub(crate) fn analyze<'a>(
 
             continue_context.clauses = pre_loop_context.clauses.clone();
 
-            clean_nodes(stmts, tast_info);
+            clean_nodes(stmts, analysis_data);
 
             let mut wrapped_loop_scope = Some(loop_scope.clone());
 
             statements_analyzer.analyze(
                 stmts,
-                tast_info,
+                analysis_data,
                 &mut continue_context,
                 &mut wrapped_loop_scope,
             );
@@ -399,7 +407,7 @@ pub(crate) fn analyze<'a>(
                         pre_condition_clauses.get(condition_offset).unwrap(),
                         &mut continue_context,
                         loop_parent_context,
-                        tast_info,
+                        analysis_data,
                         is_do,
                     );
                 }
@@ -409,7 +417,7 @@ pub(crate) fn analyze<'a>(
                 if !expression_analyzer::analyze(
                     statements_analyzer,
                     post_expression,
-                    tast_info,
+                    analysis_data,
                     &mut continue_context,
                     &mut None,
                 ) {
@@ -417,15 +425,15 @@ pub(crate) fn analyze<'a>(
                 }
             }
 
-            recorded_issues = tast_info.clear_currently_recorded_issues();
-            tast_info.stop_recording_issues();
+            recorded_issues = analysis_data.clear_currently_recorded_issues();
+            analysis_data.stop_recording_issues();
 
             i += 1;
         }
 
         for recorded_issue in recorded_issues {
             // if we're not in any loops then this will just result in the issue being emitted
-            tast_info.bubble_up_issue(recorded_issue);
+            analysis_data.bubble_up_issue(recorded_issue);
         }
     }
 
@@ -494,8 +502,12 @@ pub(crate) fn analyze<'a>(
                     )),
                 );
 
-                loop_parent_context
-                    .remove_var_from_conflicting_clauses(var_id, None, None, tast_info);
+                loop_parent_context.remove_var_from_conflicting_clauses(
+                    var_id,
+                    None,
+                    None,
+                    analysis_data,
+                );
             } else {
                 if let Some(loop_parent_context_type) =
                     loop_parent_context.vars_in_scope.get_mut(var_id)
@@ -521,8 +533,12 @@ pub(crate) fn analyze<'a>(
                     loop_parent_context
                         .vars_in_scope
                         .insert(var_id.clone(), continue_context_type.clone());
-                    loop_parent_context
-                        .remove_var_from_conflicting_clauses(&var_id, None, None, tast_info);
+                    loop_parent_context.remove_var_from_conflicting_clauses(
+                        &var_id,
+                        None,
+                        None,
+                        analysis_data,
+                    );
                 } else if continue_context_type != &var_type {
                     loop_parent_context.vars_in_scope.insert(
                         var_id.clone(),
@@ -533,8 +549,12 @@ pub(crate) fn analyze<'a>(
                             false,
                         )),
                     );
-                    loop_parent_context
-                        .remove_var_from_conflicting_clauses(&var_id, None, None, tast_info);
+                    loop_parent_context.remove_var_from_conflicting_clauses(
+                        &var_id,
+                        None,
+                        None,
+                        analysis_data,
+                    );
                 } else {
                     if let Some(loop_parent_context_type) =
                         loop_parent_context.vars_in_scope.get_mut(&var_id)
@@ -579,7 +599,7 @@ pub(crate) fn analyze<'a>(
                 &mut changed_var_ids,
                 &FxHashSet::default(),
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 pre_conditions.get(0).unwrap().pos(),
                 true,
                 false,
@@ -594,8 +614,12 @@ pub(crate) fn analyze<'a>(
                             .insert(var_id.clone(), reconciled_type.clone());
                     }
 
-                    loop_parent_context
-                        .remove_var_from_conflicting_clauses(&var_id, None, None, tast_info);
+                    loop_parent_context.remove_var_from_conflicting_clauses(
+                        &var_id,
+                        None,
+                        None,
+                        analysis_data,
+                    );
                 }
             }
         }
@@ -676,7 +700,7 @@ fn apply_pre_condition_to_loop_context(
     pre_condition_clauses: &Vec<Clause>,
     loop_context: &mut ScopeContext,
     loop_parent_context: &mut ScopeContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     is_do: bool,
 ) -> FxHashSet<String> {
     let pre_referenced_var_ids = loop_context.cond_referenced_var_ids.clone();
@@ -687,12 +711,12 @@ fn apply_pre_condition_to_loop_context(
     expression_analyzer::analyze(
         statements_analyzer,
         pre_condition,
-        tast_info,
+        analysis_data,
         loop_context,
         &mut None,
     );
 
-    add_branch_dataflow(statements_analyzer, &pre_condition, tast_info);
+    add_branch_dataflow(statements_analyzer, &pre_condition, analysis_data);
 
     loop_context.inside_conditional = false;
 
@@ -734,7 +758,7 @@ fn apply_pre_condition_to_loop_context(
             &mut FxHashSet::default(),
             &new_referenced_var_ids,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             pre_condition.pos(),
             true,
             false,
@@ -755,7 +779,7 @@ fn apply_pre_condition_to_loop_context(
                 loop_context_clauses,
                 None,
                 Some(statements_analyzer),
-                tast_info,
+                analysis_data,
             );
         }
 

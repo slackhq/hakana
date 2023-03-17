@@ -14,7 +14,7 @@ use crate::{
         ScopeContext,
     },
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 
 use super::{
@@ -31,7 +31,7 @@ pub(crate) fn analyze(
         &Option<aast::DefaultCase<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
 ) {
@@ -39,14 +39,20 @@ pub(crate) fn analyze(
 
     context.inside_conditional = true;
 
-    if !expression_analyzer::analyze(statements_analyzer, stmt.0, tast_info, context, &mut None) {
+    if !expression_analyzer::analyze(
+        statements_analyzer,
+        stmt.0,
+        analysis_data,
+        context,
+        &mut None,
+    ) {
         context.inside_conditional = false;
         return;
     }
 
     context.inside_conditional = false;
 
-    add_branch_dataflow(statements_analyzer, &stmt.0, tast_info);
+    add_branch_dataflow(statements_analyzer, &stmt.0, analysis_data);
 
     let switch_var_id = if let Some(switch_var_id) = expression_identifier::get_var_id(
         stmt.0,
@@ -65,7 +71,7 @@ pub(crate) fn analyze(
         context.vars_in_scope.insert(
             switch_var_id.clone(),
             Rc::new(
-                tast_info
+                analysis_data
                     .get_expr_type(&stmt.0 .1)
                     .cloned()
                     .unwrap_or(get_mixed_any()),
@@ -97,7 +103,7 @@ pub(crate) fn analyze(
             codebase,
             statements_analyzer.get_interner(),
             &default_case.1 .0,
-            tast_info,
+            analysis_data,
             statements_analyzer.get_file_analyzer().resolved_names,
             &mut case_action_map,
             cases.len(),
@@ -111,7 +117,7 @@ pub(crate) fn analyze(
             codebase,
             statements_analyzer.get_interner(),
             &case.1 .0,
-            tast_info,
+            analysis_data,
             statements_analyzer.get_file_analyzer().resolved_names,
             &mut case_action_map,
             *i,
@@ -169,7 +175,7 @@ pub(crate) fn analyze(
             &case.0.pos(),
             &case.1 .0,
             &previous_empty_cases,
-            tast_info,
+            analysis_data,
             context,
             &original_context,
             case_exit_type,
@@ -205,7 +211,7 @@ pub(crate) fn analyze(
             &default_case.0,
             &default_case.1 .0,
             &previous_empty_cases,
-            tast_info,
+            analysis_data,
             context,
             &original_context,
             case_exit_type,
@@ -245,7 +251,7 @@ pub(crate) fn analyze(
         }
     }
 
-    tast_info
+    analysis_data
         .fully_matched_switch_offsets
         .insert(pos.start_offset());
 
@@ -259,7 +265,7 @@ fn update_case_exit_map(
     codebase: &CodebaseInfo,
     interner: &Interner,
     case_stmts: &Vec<aast::Stmt<(), ()>>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     resolved_names: &FxHashMap<usize, StrId>,
     case_action_map: &mut FxHashMap<usize, FxHashSet<ControlAction>>,
     i: usize,
@@ -271,7 +277,7 @@ fn update_case_exit_map(
         interner,
         resolved_names,
         &case_stmts,
-        Some(tast_info),
+        Some(analysis_data),
         vec![BreakContext::Switch],
         true,
     );

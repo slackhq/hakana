@@ -2,7 +2,7 @@ use super::{
     assertion_reconciler::intersect_atomic_with_atomic, reconciler::trigger_issue_for_impossible,
     simple_negated_assertion_reconciler,
 };
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::STR_XHP_CHILD;
 use hakana_reflection_info::{
@@ -26,7 +26,7 @@ pub(crate) fn reconcile(
     possibly_undefined: bool,
     key: Option<&String>,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     old_var_type_string: String,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
@@ -45,7 +45,7 @@ pub(crate) fn reconcile(
             existing_var_type,
             key,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             old_var_type_string,
             pos,
             calling_functionlike_id,
@@ -60,7 +60,7 @@ pub(crate) fn reconcile(
         possibly_undefined,
         key,
         statements_analyzer,
-        tast_info,
+        analysis_data,
         pos,
         calling_functionlike_id,
         negated,
@@ -90,7 +90,7 @@ pub(crate) fn reconcile(
                     if let Some(key) = &key {
                         if let Some(pos) = pos {
                             trigger_issue_for_impossible(
-                                tast_info,
+                                analysis_data,
                                 statements_analyzer,
                                 &old_var_type_string,
                                 key,
@@ -115,7 +115,7 @@ pub(crate) fn reconcile(
                         true,
                     ) {
                         trigger_issue_for_impossible(
-                            tast_info,
+                            analysis_data,
                             statements_analyzer,
                             &old_var_type_string,
                             key,
@@ -139,7 +139,7 @@ pub(crate) fn reconcile(
             if let Some(key) = &key {
                 if let Some(pos) = pos {
                     trigger_issue_for_impossible(
-                        tast_info,
+                        analysis_data,
                         statements_analyzer,
                         &old_var_type_string,
                         key,
@@ -332,7 +332,7 @@ fn handle_literal_negated_equality(
     existing_var_type: &TUnion,
     key: Option<&String>,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     old_var_type_string: String,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
@@ -612,7 +612,7 @@ fn handle_literal_negated_equality(
         if let Some(pos) = pos {
             if !did_remove_type || acceptable_types.is_empty() {
                 trigger_issue_for_impossible(
-                    tast_info,
+                    analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
                     key,

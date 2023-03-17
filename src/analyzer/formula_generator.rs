@@ -8,13 +8,13 @@ use hakana_algebra::Clause;
 use hakana_reflection_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
 };
-use hakana_reflection_info::{FileSource, StrId, Interner};
+use hakana_reflection_info::{FileSource, Interner, StrId};
 use oxidized::{
     aast,
     ast::{Bop, Uop},
 };
 
-use crate::{expr::assertion_finder, typed_ast::TastInfo};
+use crate::{expr::assertion_finder, typed_ast::FunctionAnalysisData};
 
 pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource<'a>,
@@ -30,7 +30,7 @@ pub(crate) fn get_formula(
     creating_object_id: (usize, usize),
     conditional: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     cache: bool,
     inside_negation: bool,
 ) -> Result<Vec<Clause>, String> {
@@ -41,7 +41,7 @@ pub(crate) fn get_formula(
             &expr.1,
             &expr.2,
             assertion_context,
-            tast_info,
+            analysis_data,
             cache,
             inside_negation,
         ) {
@@ -55,7 +55,7 @@ pub(crate) fn get_formula(
             &expr.0,
             &expr.1,
             assertion_context,
-            tast_info,
+            analysis_data,
             cache,
             inside_negation,
         ) {
@@ -65,7 +65,7 @@ pub(crate) fn get_formula(
 
     let anded_assertions = assertion_finder::scrape_assertions(
         conditional,
-        tast_info,
+        analysis_data,
         &assertion_context,
         inside_negation,
         cache,
@@ -134,7 +134,7 @@ fn handle_binop(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     cache: bool,
     inside_negation: bool,
 ) -> Option<Result<Vec<Clause>, String>> {
@@ -144,7 +144,7 @@ fn handle_binop(
             left,
             right,
             assertion_context,
-            tast_info,
+            analysis_data,
             cache,
             inside_negation,
         ));
@@ -156,7 +156,7 @@ fn handle_binop(
             left,
             right,
             assertion_context,
-            tast_info,
+            analysis_data,
             cache,
             inside_negation,
         ));
@@ -178,7 +178,7 @@ fn handle_or(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     cache: bool,
     inside_negation: bool,
 ) -> Result<Vec<Clause>, String> {
@@ -187,7 +187,7 @@ fn handle_or(
         (left.pos().start_offset(), left.pos().end_offset()),
         left,
         assertion_context,
-        tast_info,
+        analysis_data,
         cache,
         inside_negation,
     );
@@ -201,7 +201,7 @@ fn handle_or(
         (right.pos().start_offset(), right.pos().end_offset()),
         right,
         assertion_context,
-        tast_info,
+        analysis_data,
         cache,
         inside_negation,
     );
@@ -223,7 +223,7 @@ fn handle_and(
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     cache: bool,
     inside_negation: bool,
 ) -> Result<Vec<Clause>, String> {
@@ -232,7 +232,7 @@ fn handle_and(
         (left.pos().start_offset(), left.pos().end_offset()),
         left,
         assertion_context,
-        tast_info,
+        analysis_data,
         cache,
         inside_negation,
     );
@@ -246,7 +246,7 @@ fn handle_and(
         (right.pos().start_offset(), right.pos().end_offset()),
         right,
         assertion_context,
-        tast_info,
+        analysis_data,
         cache,
         inside_negation,
     );
@@ -267,7 +267,7 @@ fn handle_uop(
     uop: &oxidized::ast::Uop,
     expr: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     cache: bool,
     inside_negation: bool,
 ) -> Option<Result<Vec<Clause>, String>> {
@@ -287,7 +287,7 @@ fn handle_uop(
                         aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.2.clone()))),
                     ),
                     assertion_context,
-                    tast_info,
+                    analysis_data,
                     cache,
                     inside_negation,
                 ));
@@ -307,7 +307,7 @@ fn handle_uop(
                         aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.2.clone()))),
                     ),
                     assertion_context,
-                    tast_info,
+                    analysis_data,
                     cache,
                     inside_negation,
                 ));
@@ -319,7 +319,7 @@ fn handle_uop(
             (expr.pos().start_offset(), expr.pos().end_offset()),
             expr,
             assertion_context,
-            tast_info,
+            analysis_data,
             cache,
             inside_negation,
         );

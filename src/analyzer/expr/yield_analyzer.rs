@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -12,7 +12,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     field: &aast::Afield<(), ()>,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) {
@@ -21,7 +21,7 @@ pub(crate) fn analyze(
             expression_analyzer::analyze(
                 statements_analyzer,
                 key_expr,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -36,23 +36,23 @@ pub(crate) fn analyze(
     expression_analyzer::analyze(
         statements_analyzer,
         value_expr,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     );
 
-    if let Some(inferred_type) = tast_info.expr_types.get(&(
+    if let Some(inferred_type) = analysis_data.expr_types.get(&(
         value_expr.pos().start_offset(),
         value_expr.pos().end_offset(),
     )) {
-        if let GraphKind::FunctionBody = tast_info.data_flow_graph.kind {
+        if let GraphKind::FunctionBody = analysis_data.data_flow_graph.kind {
             let return_node = DataFlowNode::get_for_variable_sink(
                 "yield".to_string(),
                 statements_analyzer.get_hpos(pos),
             );
 
             for parent_node in &inferred_type.parent_nodes {
-                tast_info.data_flow_graph.add_path(
+                analysis_data.data_flow_graph.add_path(
                     &parent_node,
                     &return_node,
                     PathKind::Default,
@@ -60,7 +60,7 @@ pub(crate) fn analyze(
                     None,
                 );
             }
-            tast_info.data_flow_graph.add_node(return_node);
+            analysis_data.data_flow_graph.add_node(return_node);
         } else {
             // todo handle taint flows in yield
         }

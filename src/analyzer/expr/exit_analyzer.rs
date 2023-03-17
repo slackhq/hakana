@@ -2,7 +2,7 @@ use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
@@ -16,7 +16,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
     call_pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> bool {
     let echo_param = FunctionLikeParameter::new(
@@ -27,10 +27,16 @@ pub(crate) fn analyze(
 
     for (i, (_, arg_expr)) in args.iter().enumerate() {
         context.inside_general_use = true;
-        expression_analyzer::analyze(statements_analyzer, arg_expr, tast_info, context, &mut None);
+        expression_analyzer::analyze(
+            statements_analyzer,
+            arg_expr,
+            analysis_data,
+            context,
+            &mut None,
+        );
         context.inside_general_use = false;
 
-        let arg_type = tast_info.get_expr_type(arg_expr.pos()).cloned();
+        let arg_type = analysis_data.get_expr_type(arg_expr.pos()).cloned();
 
         // TODO handle exit taint sink
 
@@ -44,7 +50,7 @@ pub(crate) fn analyze(
             i,
             arg_expr,
             context,
-            tast_info,
+            analysis_data,
             &echo_param,
             &None,
             false,
@@ -53,7 +59,7 @@ pub(crate) fn analyze(
         );
     }
 
-    tast_info.set_expr_type(&call_pos, get_nothing());
+    analysis_data.set_expr_type(&call_pos, get_nothing());
 
     true
 }

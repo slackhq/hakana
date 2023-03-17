@@ -13,7 +13,7 @@ use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
@@ -39,7 +39,7 @@ pub(crate) fn analyze(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -97,12 +97,12 @@ pub(crate) fn analyze(
                 expression_analyzer::analyze(
                     statements_analyzer,
                     lhs_expr,
-                    tast_info,
+                    analysis_data,
                     context,
                     if_body_context,
                 );
                 context.inside_general_use = was_inside_general_use;
-                tast_info
+                analysis_data
                     .get_expr_type(&lhs_expr.1)
                     .cloned()
                     .unwrap_or(get_mixed_any())
@@ -120,7 +120,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             expr,
             pos,
-            tast_info,
+            analysis_data,
             context,
             if_body_context,
             lhs_type_part,
@@ -129,7 +129,7 @@ pub(crate) fn analyze(
         );
     }
 
-    tast_info.set_expr_type(&pos, result.return_type.clone().unwrap_or(get_mixed_any()));
+    analysis_data.set_expr_type(&pos, result.return_type.clone().unwrap_or(get_mixed_any()));
 
     true
 }
@@ -143,7 +143,7 @@ fn analyze_atomic(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     lhs_type_part: &TAtomic,
@@ -166,7 +166,7 @@ fn analyze_atomic(
 
                 name
             } else {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::MixedMethodCall,
                         "Method called on unknown object".to_string(),
@@ -201,7 +201,7 @@ fn analyze_atomic(
         }
         _ => {
             if lhs_type_part.is_mixed() {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::MixedMethodCall,
                         "Method called on unknown object".to_string(),
@@ -222,7 +222,7 @@ fn analyze_atomic(
         statements_analyzer,
         expr,
         pos,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
         classlike_name,
@@ -242,7 +242,7 @@ fn analyze_named_constructor(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     classlike_name: StrId,
@@ -255,7 +255,7 @@ fn analyze_named_constructor(
     let storage = if let Some(storage) = codebase.classlike_infos.get(&classlike_name) {
         storage
     } else {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentClass,
                 format!(
@@ -300,19 +300,23 @@ fn analyze_named_constructor(
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
     if codebase.method_exists(&method_id.0, &method_id.1) {
-        tast_info.symbol_references.add_reference_to_class_member(
-            &context.function_context,
-            (classlike_name.clone(), method_id.1),
-            false,
-        );
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(
+                &context.function_context,
+                (classlike_name.clone(), method_id.1),
+                false,
+            );
 
         let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
-        tast_info.symbol_references.add_reference_to_class_member(
-            &context.function_context,
-            (declaring_method_id.0, declaring_method_id.1),
-            false,
-        );
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(
+                &context.function_context,
+                (declaring_method_id.0, declaring_method_id.1),
+                false,
+            );
 
         let mut template_result = TemplateResult::new(
             if expr.1.is_empty() {
@@ -327,7 +331,7 @@ fn analyze_named_constructor(
 
         if !check_method_args(
             statements_analyzer,
-            tast_info,
+            analysis_data,
             &method_id,
             method_storage,
             (
@@ -371,7 +375,7 @@ fn analyze_named_constructor(
                     &context
                         .function_context
                         .get_reference_source(&statements_analyzer.get_file_path().0),
-                    &mut tast_info.symbol_references,
+                    &mut analysis_data.symbol_references,
                 );
 
                 if let Some((template_name, map)) = template_result.template_types.get_index(i) {
@@ -448,7 +452,7 @@ fn analyze_named_constructor(
             generic_type_params = Some(v);
         }
     } else {
-        tast_info.symbol_references.add_reference_to_symbol(
+        analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
             classlike_name.clone(),
             false,
@@ -478,7 +482,7 @@ fn analyze_named_constructor(
                             &context
                                 .function_context
                                 .get_reference_source(&statements_analyzer.get_file_path().0),
-                            &mut tast_info.symbol_references,
+                            &mut analysis_data.symbol_references,
                         );
 
                         generic_params.push(param_type);
@@ -513,7 +517,7 @@ fn analyze_named_constructor(
         let descendants = codebase.get_all_descendants(&classlike_name);
 
         for descendant_class in descendants {
-            tast_info
+            analysis_data
                 .symbol_references
                 .add_reference_to_overridden_class_member(
                     &context.function_context,
@@ -522,7 +526,7 @@ fn analyze_named_constructor(
         }
     }
 
-    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         result_type = add_dataflow(
             statements_analyzer,
             result_type,
@@ -531,7 +535,7 @@ fn analyze_named_constructor(
             codebase.get_method(&declaring_method_id),
             storage.specialize_instance,
             from_classname,
-            tast_info,
+            analysis_data,
             pos,
         );
     }
@@ -551,12 +555,12 @@ fn add_dataflow<'a>(
     functionlike_storage: Option<&'a FunctionLikeInfo>,
     specialize_instance: bool,
     from_classname: bool,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     call_pos: &Pos,
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
 
-    let ref mut data_flow_graph = tast_info.data_flow_graph;
+    let ref mut data_flow_graph = analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !context.allow_taints {

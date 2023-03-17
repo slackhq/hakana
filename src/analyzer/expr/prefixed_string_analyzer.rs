@@ -18,7 +18,7 @@ use crate::expression_analyzer;
 
 use crate::scope_context::ScopeContext;
 
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 
 use oxidized::aast;
 
@@ -27,7 +27,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     boxed: &Box<(String, aast::Expr<(), ()>)>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     expr: &aast::Expr<(), ()>,
@@ -35,14 +35,14 @@ pub(crate) fn analyze(
     if !expression_analyzer::analyze(
         statements_analyzer,
         &boxed.1,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     ) {
         return Some(false);
     }
 
-    let inner_type = if let Some(t) = tast_info
+    let inner_type = if let Some(t) = analysis_data
         .expr_types
         .get(&(boxed.1.pos().start_offset(), boxed.1.pos().end_offset()))
     {
@@ -51,7 +51,7 @@ pub(crate) fn analyze(
         get_string()
     };
 
-    tast_info.expr_types.insert(
+    analysis_data.expr_types.insert(
         (expr.1.start_offset(), expr.1.end_offset()),
         Rc::new(if boxed.0 == "re" {
             let mut inner_text = inner_type.get_single_literal_string_value().unwrap();

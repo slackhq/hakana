@@ -1,6 +1,6 @@
 use super::{
     node::{DataFlowNode, DataFlowNodeKind},
-    path::{DataFlowPath, ArrayDataKind, PathKind},
+    path::{ArrayDataKind, DataFlowPath, PathKind},
 };
 use crate::taint::SinkType;
 use oxidized::ast_defs::Pos;

@@ -4,10 +4,10 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext};
 
 use crate::expression_analyzer;
-use crate::typed_ast::TastInfo;
-use hakana_reflection_info::EFFECT_IMPURE;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::t_union::populate_union_type;
+use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{get_mixed_any, type_expander};
@@ -19,16 +19,17 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     left: &'expr aast::Expr<(), ()>,
     hint: &'expr aast::Hint,
     null_if_false: bool,
-    tast_info: &'tast mut TastInfo,
+    analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
     let mut root_expr = left.clone();
     let mut has_arrayget_key = false;
 
-    tast_info
-        .expr_effects
-        .insert((stmt_pos.start_offset(), stmt_pos.end_offset()), EFFECT_IMPURE);
+    analysis_data.expr_effects.insert(
+        (stmt_pos.start_offset(), stmt_pos.end_offset()),
+        EFFECT_IMPURE,
+    );
 
     loop {
         match root_expr.2 {
@@ -66,7 +67,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         replacement_left = get_fake_as_var(
             left,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             context,
             if_body_context,
         );
@@ -75,7 +76,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             replacement_left = get_fake_as_var(
                 left,
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -119,18 +120,18 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         ))),
     );
 
-    let old_expr_types = tast_info.expr_types.clone();
-    tast_info.expr_types = tast_info.expr_types.clone();
+    let old_expr_types = analysis_data.expr_types.clone();
+    analysis_data.expr_types = analysis_data.expr_types.clone();
 
     expression_analyzer::analyze(
         statements_analyzer,
         &ternary,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     );
 
-    let mut ternary_type = tast_info
+    let mut ternary_type = analysis_data
         .get_expr_type(&stmt_pos)
         .cloned()
         .unwrap_or(get_mixed_any());
@@ -151,7 +152,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             &context
                 .function_context
                 .get_reference_source(&statements_analyzer.get_file_path().0),
-            &mut tast_info.symbol_references,
+            &mut analysis_data.symbol_references,
         );
         type_expander::expand_union(
             codebase,
@@ -170,9 +171,9 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         ternary_type = hint_type;
     }
 
-    tast_info.expr_types = old_expr_types;
+    analysis_data.expr_types = old_expr_types;
 
-    tast_info.set_expr_type(&stmt_pos, ternary_type);
+    analysis_data.set_expr_type(&stmt_pos, ternary_type);
 
     true
 }
@@ -180,7 +181,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 fn get_fake_as_var(
     left: &aast::Expr<(), ()>,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> Option<aast::Expr<(), ()>> {
@@ -192,12 +193,12 @@ fn get_fake_as_var(
     expression_analyzer::analyze(
         statements_analyzer,
         left,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     );
 
-    let condition_type = tast_info
+    let condition_type = analysis_data
         .get_expr_type(left.pos())
         .cloned()
         .unwrap_or(get_mixed_any());

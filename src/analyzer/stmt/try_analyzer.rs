@@ -2,7 +2,8 @@ use crate::scope_context::{
     control_action::ControlAction, loop_scope::LoopScope, FinallyScope, ScopeContext,
 };
 use crate::{
-    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    typed_ast::FunctionAnalysisData,
 };
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_type::{combine_union_types, get_named_object};
@@ -20,7 +21,7 @@ pub(crate) fn analyze(
         &Vec<aast::Catch<(), ()>>,
         &aast::Block<(), ()>,
     ),
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> bool {
@@ -34,7 +35,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_interner(),
             statements_analyzer.get_file_analyzer().resolved_names,
             &catch.2 .0,
-            Some(tast_info),
+            Some(analysis_data),
             vec![],
             true,
         );
@@ -58,7 +59,7 @@ pub(crate) fn analyze(
     let was_inside_try = context.inside_try;
     context.inside_try = true;
 
-    if !statements_analyzer.analyze(&stmt.0 .0, tast_info, context, loop_scope) {
+    if !statements_analyzer.analyze(&stmt.0 .0, analysis_data, context, loop_scope) {
         return false;
     }
 
@@ -72,7 +73,7 @@ pub(crate) fn analyze(
         statements_analyzer.get_interner(),
         statements_analyzer.get_file_analyzer().resolved_names,
         &stmt.0 .0,
-        Some(tast_info),
+        Some(analysis_data),
         vec![],
         true,
     );
@@ -116,7 +117,7 @@ pub(crate) fn analyze(
         } else {
             &mut *context
         }
-        .remove_var_from_conflicting_clauses(assigned_var_id, None, None, tast_info);
+        .remove_var_from_conflicting_clauses(assigned_var_id, None, None, analysis_data);
     }
 
     // at this point we have two contexts – $context, in which it is assumed that everything was fine,
@@ -166,7 +167,7 @@ pub(crate) fn analyze(
             &catch_type,
             None,
             Some(statements_analyzer),
-            tast_info,
+            analysis_data,
         );
 
         let new_parent_node = DataFlowNode::get_for_assignment(
@@ -183,7 +184,7 @@ pub(crate) fn analyze(
         let old_catch_assigned_var_ids = catch_context.assigned_var_ids.clone();
 
         catch_context.assigned_var_ids = FxHashMap::default();
-        statements_analyzer.analyze(&catch.2 .0, tast_info, &mut catch_context, loop_scope);
+        statements_analyzer.analyze(&catch.2 .0, analysis_data, &mut catch_context, loop_scope);
 
         // recalculate in case there's a nothing function call
         let catch_actions = control_analyzer::get_control_actions(
@@ -191,7 +192,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_interner(),
             statements_analyzer.get_file_analyzer().resolved_names,
             &catch.2 .0,
-            Some(tast_info),
+            Some(analysis_data),
             vec![],
             true,
         );
@@ -290,7 +291,12 @@ pub(crate) fn analyze(
                 }
             }
 
-            statements_analyzer.analyze(&stmt.2 .0, tast_info, &mut finally_context, loop_scope);
+            statements_analyzer.analyze(
+                &stmt.2 .0,
+                analysis_data,
+                &mut finally_context,
+                loop_scope,
+            );
 
             finally_has_returned = finally_context.has_returned;
 
@@ -299,7 +305,7 @@ pub(crate) fn analyze(
                 statements_analyzer.get_interner(),
                 statements_analyzer.get_file_analyzer().resolved_names,
                 &stmt.2 .0,
-                Some(tast_info),
+                Some(analysis_data),
                 vec![],
                 true,
             );

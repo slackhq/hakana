@@ -8,7 +8,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
 use crate::{expression_analyzer, formula_generator};
-use crate::{scope_context::if_scope::IfScope, typed_ast::TastInfo};
+use crate::{scope_context::if_scope::IfScope, typed_ast::FunctionAnalysisData};
 use hakana_type::combine_union_types;
 use oxidized::ast::Uop;
 use oxidized::{aast, ast};
@@ -17,7 +17,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     statements_analyzer: &StatementsAnalyzer,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
-    tast_info: &'tast mut TastInfo,
+    analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -35,7 +35,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         let if_conditional_scope = if_conditional_analyzer::analyze(
             statements_analyzer,
             left,
-            tast_info,
+            analysis_data,
             context,
             &mut if_scope,
         );
@@ -55,7 +55,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         if !expression_analyzer::analyze(
             statements_analyzer,
             left,
-            tast_info,
+            analysis_data,
             &mut left_context,
             &mut None,
         ) {
@@ -63,13 +63,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         }
 
         for var_id in &left_context.parent_conflicting_clause_vars {
-            context.remove_var_from_conflicting_clauses(var_id, None, None, tast_info);
+            context.remove_var_from_conflicting_clauses(var_id, None, None, analysis_data);
         }
 
-        if let Some(cond_type) = tast_info.get_expr_type(left.pos()).cloned() {
+        if let Some(cond_type) = analysis_data.get_expr_type(left.pos()).cloned() {
             handle_paradoxical_condition(
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 left.pos(),
                 &context.function_context.calling_functionlike_id,
                 &cond_type,
@@ -118,7 +118,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         left_cond_id,
         left,
         &assertion_context,
-        tast_info,
+        analysis_data,
         true,
         false,
     ) {
@@ -140,7 +140,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                     aast::Expr_::Unop(Box::new((Uop::Unot, left.clone()))),
                 ),
                 &assertion_context,
-                tast_info,
+                analysis_data,
                 false,
                 false,
             ) {
@@ -196,7 +196,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             &mut changed_var_ids,
             &left_referenced_var_ids,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             left.pos(),
             true,
             !context.inside_negation,
@@ -234,17 +234,17 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     if !expression_analyzer::analyze(
         statements_analyzer,
         right,
-        tast_info,
+        analysis_data,
         &mut right_context,
         &mut None,
     ) {
         return false;
     }
 
-    if let Some(cond_type) = tast_info.get_expr_type(right.pos()).cloned() {
+    if let Some(cond_type) = analysis_data.get_expr_type(right.pos()).cloned() {
         handle_paradoxical_condition(
             statements_analyzer,
-            tast_info,
+            analysis_data,
             right.pos(),
             &context.function_context.calling_functionlike_id,
             &cond_type,
@@ -266,7 +266,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         right_cond_id,
         right,
         &assertion_context,
-        tast_info,
+        analysis_data,
         true,
         false,
     );

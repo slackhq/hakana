@@ -1,7 +1,7 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_type::{get_bool, get_literal_int};
 use oxidized::ast_defs::Bop;
 use oxidized::pos::Pos;
@@ -11,7 +11,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&ast::Uop, &aast::Expr<(), ()>),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -21,7 +21,7 @@ pub(crate) fn analyze(
     expression_analyzer::analyze(
         statements_analyzer,
         expr.1,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     );
@@ -29,9 +29,9 @@ pub(crate) fn analyze(
         context.inside_negation = !context.inside_negation;
     }
 
-    tast_info.expr_effects.insert(
+    analysis_data.expr_effects.insert(
         (pos.start_offset(), pos.end_offset()),
-        *tast_info
+        *analysis_data
             .expr_effects
             .get(&(expr.1.pos().start_offset(), expr.1.pos().end_offset()))
             .unwrap_or(&0),
@@ -39,14 +39,14 @@ pub(crate) fn analyze(
 
     match expr.0 {
         oxidized::ast_defs::Uop::Utild => {
-            if let Some(stmt_type) = tast_info.get_expr_type(expr.1.pos()).cloned() {
-                tast_info.set_expr_type(&pos, stmt_type);
+            if let Some(stmt_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
+                analysis_data.set_expr_type(&pos, stmt_type);
             }
         }
         oxidized::ast_defs::Uop::Unot => {
             add_decision_dataflow(
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 expr.1,
                 None,
                 pos,
@@ -54,17 +54,17 @@ pub(crate) fn analyze(
             );
         }
         oxidized::ast_defs::Uop::Uplus => {
-            if let Some(stmt_type) = tast_info.get_expr_type(expr.1.pos()).cloned() {
-                tast_info.set_expr_type(&pos, stmt_type);
+            if let Some(stmt_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
+                analysis_data.set_expr_type(&pos, stmt_type);
             }
         }
         oxidized::ast_defs::Uop::Uminus => {
-            if let Some(mut stmt_type) = tast_info.get_expr_type(expr.1.pos()).cloned() {
+            if let Some(mut stmt_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
                 if let Some(value) = stmt_type.get_single_literal_int_value() {
                     stmt_type = get_literal_int(-value);
                 }
 
-                tast_info.set_expr_type(&pos, stmt_type);
+                analysis_data.set_expr_type(&pos, stmt_type);
             }
         }
         oxidized::ast_defs::Uop::Uincr
@@ -95,7 +95,7 @@ pub(crate) fn analyze(
                         ),
                     ))),
                 ),
-                tast_info,
+                analysis_data,
                 context,
                 &mut None,
             );
@@ -104,8 +104,8 @@ pub(crate) fn analyze(
             return analyzed_ok;
         }
         oxidized::ast_defs::Uop::Usilence => {
-            if let Some(stmt_type) = tast_info.get_expr_type(expr.1.pos()).cloned() {
-                tast_info.set_expr_type(&pos, stmt_type);
+            if let Some(stmt_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
+                analysis_data.set_expr_type(&pos, stmt_type);
             }
         }
     }

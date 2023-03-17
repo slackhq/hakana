@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::{
+    code_location::FilePath,
     codebase_info::CodebaseInfo,
     data_flow::{
         graph::DataFlowGraph,
@@ -11,7 +12,7 @@ use hakana_reflection_info::{
     functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    Interner, StrId, STR_THIS, code_location::FilePath,
+    Interner, StrId, STR_THIS,
 };
 use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,

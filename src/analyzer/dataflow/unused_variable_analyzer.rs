@@ -18,7 +18,7 @@ use std::rc::Rc;
 use crate::dataflow::program_analyzer::{should_ignore_array_fetch, should_ignore_property_fetch};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::ArrayDataKind;
@@ -187,7 +187,7 @@ struct Scanner<'a> {
 }
 
 impl<'ast> Visitor<'ast> for Scanner<'_> {
-    type Params = AstParams<TastInfo, ()>;
+    type Params = AstParams<FunctionAnalysisData, ()>;
 
     fn object(&mut self) -> &mut dyn Visitor<'ast, Params = Self::Params> {
         self
@@ -195,7 +195,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
     fn visit_expr(
         &mut self,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         expr: &aast::Expr<(), ()>,
     ) -> Result<(), ()> {
         if let aast::Expr_::List(exprs) = &expr.2 {
@@ -208,32 +208,34 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 });
 
                 if has_matching_node {
-                    tast_info.replacements.insert(
+                    analysis_data.replacements.insert(
                         (list_expr.1.start_offset(), list_expr.1.end_offset()),
                         Replacement::Substitute("$_".to_string()),
                     );
                 }
             }
         }
-        expr.recurse(tast_info, self)
+        expr.recurse(analysis_data, self)
     }
 
     fn visit_stmt(
         &mut self,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         stmt: &aast::Stmt<(), ()>,
     ) -> Result<(), ()> {
         if let aast::Stmt_::If(boxed) = &stmt.1 {
-            self.in_single_block = boxed.1 .0.len() == 1 && matches!(boxed.1.0[0].1, aast::Stmt_::Expr(_));
+            self.in_single_block =
+                boxed.1 .0.len() == 1 && matches!(boxed.1 .0[0].1, aast::Stmt_::Expr(_));
 
-            let result = boxed.1.recurse(tast_info, self);
+            let result = boxed.1.recurse(analysis_data, self);
             if let Err(_) = result {
                 self.in_single_block = false;
                 return result;
             }
 
-            self.in_single_block = boxed.2 .0.len() == 1 && matches!(boxed.2.0[0].1, aast::Stmt_::Expr(_));
-            let result = boxed.2.recurse(tast_info, self);
+            self.in_single_block =
+                boxed.2 .0.len() == 1 && matches!(boxed.2 .0[0].1, aast::Stmt_::Expr(_));
+            let result = boxed.2.recurse(analysis_data, self);
             self.in_single_block = false;
             return result;
         }
@@ -249,7 +251,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             if let aast::Stmt_::Expr(boxed) = &stmt.1 {
                 if let aast::Expr_::Binop(boxed) = &boxed.2 {
                     if let oxidized::ast_defs::Bop::Eq(_) = &boxed.0 {
-                        let expression_effects = tast_info
+                        let expression_effects = analysis_data
                             .expr_effects
                             .get(&(boxed.2 .1.start_offset(), boxed.2 .1.end_offset()))
                             .unwrap_or(&0);
@@ -259,15 +261,19 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         {
                             if !self.in_single_block {
                                 let span = stmt.0.to_raw_span();
-                                tast_info.replacements.insert(
+                                analysis_data.replacements.insert(
                                     (stmt.0.start_offset(), stmt.0.end_offset()),
                                     Replacement::TrimPrecedingWhitespace(span.start.beg_of_line()),
                                 );
 
-                                self.remove_fixme_comments(stmt, tast_info, stmt.0.start_offset());
+                                self.remove_fixme_comments(
+                                    stmt,
+                                    analysis_data,
+                                    stmt.0.start_offset(),
+                                );
                             }
                         } else {
-                            tast_info.replacements.insert(
+                            analysis_data.replacements.insert(
                                 (stmt.0.start_offset(), boxed.2 .1.start_offset()),
                                 Replacement::Remove,
                             );
@@ -275,7 +281,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             // remove trailing array fetches
                             if let aast::Expr_::ArrayGet(array_get) = &boxed.2 .2 {
                                 if let Some(array_offset_expr) = &array_get.1 {
-                                    let array_offset_effects = tast_info
+                                    let array_offset_effects = analysis_data
                                         .expr_effects
                                         .get(&(
                                             array_offset_expr.1.start_offset(),
@@ -286,7 +292,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                     if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
                                         *array_offset_effects
                                     {
-                                        tast_info.replacements.insert(
+                                        analysis_data.replacements.insert(
                                             (
                                                 array_offset_expr.pos().start_offset() - 1,
                                                 array_offset_expr.pos().end_offset() + 1,
@@ -302,7 +308,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             }
         }
 
-        stmt.recurse(tast_info, self)
+        stmt.recurse(analysis_data, self)
     }
 }
 
@@ -310,7 +316,7 @@ impl<'a> Scanner<'a> {
     fn remove_fixme_comments(
         &mut self,
         stmt: &aast::Stmt<(), ()>,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         limit: usize,
     ) {
         for (comment_pos, comment) in self.comments {
@@ -318,7 +324,7 @@ impl<'a> Scanner<'a> {
                 match comment {
                     Comment::CmtBlock(block) => {
                         if block.trim() == "HHAST_FIXME[UnusedVariable]" {
-                            tast_info.replacements.insert(
+                            analysis_data.replacements.insert(
                                 (comment_pos.start_offset(), limit),
                                 Replacement::TrimPrecedingWhitespace(
                                     comment_pos.to_raw_span().start.beg_of_line(),
@@ -337,7 +343,7 @@ impl<'a> Scanner<'a> {
                         | "HAKANA_FIXME[UnusedAssignmentStatement]" = block.trim()
                         {
                             let stmt_start = stmt.0.to_raw_span().start;
-                            tast_info.replacements.insert(
+                            analysis_data.replacements.insert(
                                 (
                                     comment_pos.start_offset(),
                                     (stmt_start.beg_of_line() as usize) - 1,
@@ -358,7 +364,7 @@ impl<'a> Scanner<'a> {
 
 pub(crate) fn add_unused_expression_replacements(
     stmts: &Vec<aast::Stmt<(), ()>>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     unused_source_nodes: &Vec<DataFlowNode>,
     statements_analyzer: &StatementsAnalyzer,
 ) {
@@ -372,7 +378,7 @@ pub(crate) fn add_unused_expression_replacements(
     };
 
     for stmt in stmts {
-        visit(&mut scanner, tast_info, stmt).unwrap();
+        visit(&mut scanner, analysis_data, stmt).unwrap();
     }
 }
 

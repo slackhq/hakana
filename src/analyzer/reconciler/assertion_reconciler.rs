@@ -5,7 +5,8 @@ use super::{
     simple_assertion_reconciler,
 };
 use crate::{
-    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    typed_ast::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -30,7 +31,7 @@ pub fn reconcile(
     possibly_undefined: bool,
     key: Option<&String>,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     inside_loop: bool,
     pos: Option<&Pos>,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
@@ -57,7 +58,7 @@ pub fn reconcile(
             possibly_undefined,
             key,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             old_var_type_string,
             if can_report_issues { pos } else { None },
             calling_functionlike_id,
@@ -72,7 +73,7 @@ pub fn reconcile(
         possibly_undefined,
         key.clone(),
         codebase,
-        tast_info,
+        analysis_data,
         statements_analyzer,
         if can_report_issues { pos } else { None },
         calling_functionlike_id,
@@ -95,7 +96,7 @@ pub fn reconcile(
                     if &existing_var_type.types == &refined_type.types {
                         if !assertion.has_equality() && !assertion_type.is_mixed() {
                             trigger_issue_for_impossible(
-                                tast_info,
+                                analysis_data,
                                 statements_analyzer,
                                 &old_var_type_string,
                                 key,
@@ -109,7 +110,7 @@ pub fn reconcile(
                         }
                     } else if refined_type.is_nothing() {
                         trigger_issue_for_impossible(
-                            tast_info,
+                            analysis_data,
                             statements_analyzer,
                             &old_var_type_string,
                             key,
@@ -133,7 +134,7 @@ pub fn reconcile(
                 expand_generic: true,
                 ..Default::default()
             },
-            &mut tast_info.data_flow_graph,
+            &mut analysis_data.data_flow_graph,
         );
 
         return refined_type;

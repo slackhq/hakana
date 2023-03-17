@@ -1,5 +1,5 @@
 use super::atomic_property_fetch_analyzer;
-use crate::{expr::expression_identifier, typed_ast::TastInfo};
+use crate::{expr::expression_identifier, typed_ast::FunctionAnalysisData};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -16,7 +16,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&Expr<(), ()>, &Expr<(), ()>),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     in_assignment: bool,
     nullsafe: bool,
@@ -30,14 +30,14 @@ pub(crate) fn analyze(
         if !expression_analyzer::analyze(
             statements_analyzer,
             &expr.1,
-            tast_info,
+            analysis_data,
             context,
             &mut None,
         ) {
             return false;
         }
 
-        if let Some(stmt_name_type) = tast_info.get_expr_type(expr.1.pos()).cloned() {
+        if let Some(stmt_name_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
             if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
                 Some(value.clone())
             } else {
@@ -48,11 +48,17 @@ pub(crate) fn analyze(
         }
     };
 
-    if !expression_analyzer::analyze(statements_analyzer, &expr.0, tast_info, context, &mut None) {
+    if !expression_analyzer::analyze(
+        statements_analyzer,
+        &expr.0,
+        analysis_data,
+        context,
+        &mut None,
+    ) {
         return false;
     }
 
-    tast_info.combine_effects_with(expr.0.pos(), expr.1.pos(), pos, EFFECT_READ_PROPS);
+    analysis_data.combine_effects_with(expr.0.pos(), expr.1.pos(), pos, EFFECT_READ_PROPS);
 
     context.inside_general_use = was_inside_general_use;
 
@@ -80,7 +86,7 @@ pub(crate) fn analyze(
     if let Some(var_id) = &var_id {
         if context.has_variable(&var_id) {
             // short circuit if the type is known in scope
-            handle_scoped_property(context, tast_info, pos, var_id);
+            handle_scoped_property(context, analysis_data, pos, var_id);
 
             return true;
         }
@@ -90,10 +96,10 @@ pub(crate) fn analyze(
         if context.has_variable(&stmt_var_id) {
             Some((**context.vars_in_scope.get(stmt_var_id).unwrap()).clone())
         } else {
-            tast_info.get_expr_type(expr.0.pos()).cloned()
+            analysis_data.get_expr_type(expr.0.pos()).cloned()
         }
     } else {
-        tast_info.get_expr_type(expr.0.pos()).cloned()
+        analysis_data.get_expr_type(expr.0.pos()).cloned()
     }
     .unwrap_or(get_mixed_any());
 
@@ -115,7 +121,7 @@ pub(crate) fn analyze(
                 }
 
                 if !context.inside_isset {
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::PossiblyNullPropertyFetch,
                             "Unsafe property access on null".to_string(),
@@ -133,7 +139,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 expr,
                 pos,
-                tast_info,
+                analysis_data,
                 context,
                 in_assignment,
                 lhs_type_part.clone(),
@@ -144,7 +150,7 @@ pub(crate) fn analyze(
         }
     }
 
-    let mut stmt_type = tast_info.get_rc_expr_type(&pos).cloned();
+    let mut stmt_type = analysis_data.get_rc_expr_type(&pos).cloned();
 
     if has_nullsafe_null {
         if let Some(ref mut stmt_type) = stmt_type {
@@ -159,7 +165,7 @@ pub(crate) fn analyze(
 
                 *stmt_type = Rc::new(stmt_type_inner);
 
-                tast_info.set_rc_expr_type(pos, stmt_type.clone());
+                analysis_data.set_rc_expr_type(pos, stmt_type.clone());
             }
         }
     } else if nullsafe {
@@ -186,14 +192,14 @@ pub(crate) fn analyze(
  */
 pub(crate) fn handle_scoped_property(
     context: &mut ScopeContext,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     var_id: &String,
 ) -> () {
     let stmt_type = context.vars_in_scope.get(var_id);
 
     // we don't need to check anything since this variable is known in this scope
-    tast_info.set_rc_expr_type(
+    analysis_data.set_rc_expr_type(
         &pos,
         if let Some(stmt_type) = stmt_type {
             stmt_type.clone()

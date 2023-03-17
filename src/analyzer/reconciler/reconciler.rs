@@ -2,7 +2,7 @@ use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::{var_has_root, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    typed_ast::TastInfo,
+    typed_ast::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -33,7 +33,7 @@ pub(crate) fn reconcile_keyed_types(
     changed_var_ids: &mut FxHashSet<String>,
     referenced_var_ids: &FxHashSet<String>,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     can_report_issues: bool,
     negated: bool,
@@ -85,7 +85,7 @@ pub(crate) fn reconcile_keyed_types(
                                 );
 
                                 for old_parent_node in &existing_var_type.parent_nodes {
-                                    tast_info.data_flow_graph.add_path(
+                                    analysis_data.data_flow_graph.add_path(
                                         old_parent_node,
                                         &new_parent_node,
                                         PathKind::Default,
@@ -101,7 +101,7 @@ pub(crate) fn reconcile_keyed_types(
 
                                 *existing_var_type = Rc::new(existing_var_type_inner);
 
-                                tast_info.data_flow_graph.add_node(new_parent_node);
+                                analysis_data.data_flow_graph.add_node(new_parent_node);
                             }
                         }
                         Assertion::IgnoreTaints => {
@@ -152,7 +152,7 @@ pub(crate) fn reconcile_keyed_types(
                 has_inverted_isset,
                 inside_loop,
                 &mut possibly_undefined,
-                tast_info,
+                analysis_data,
             )
         };
 
@@ -176,7 +176,7 @@ pub(crate) fn reconcile_keyed_types(
                     possibly_undefined,
                     Some(key),
                     statements_analyzer,
-                    tast_info,
+                    analysis_data,
                     inside_loop,
                     Some(pos),
                     &context.function_context.calling_functionlike_id,
@@ -229,7 +229,7 @@ pub(crate) fn reconcile_keyed_types(
         };
 
         if let Some(before_adjustment) = &before_adjustment {
-            if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+            if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                 let mut has_scalar_restriction = false;
 
                 for new_type_part_parts in new_type_parts {
@@ -251,7 +251,7 @@ pub(crate) fn reconcile_keyed_types(
                     );
 
                     for parent_node in &before_adjustment.parent_nodes {
-                        tast_info.data_flow_graph.add_path(
+                        analysis_data.data_flow_graph.add_path(
                             parent_node,
                             &scalar_check_node,
                             PathKind::ScalarTypeGuard,
@@ -262,7 +262,7 @@ pub(crate) fn reconcile_keyed_types(
 
                     result_type.parent_nodes = FxHashSet::from_iter([scalar_check_node.clone()]);
 
-                    tast_info.data_flow_graph.add_node(scalar_check_node);
+                    analysis_data.data_flow_graph.add_node(scalar_check_node);
                 } else {
                     let narrowed_symbol = if type_changed {
                         if result_type.is_single() {
@@ -286,7 +286,7 @@ pub(crate) fn reconcile_keyed_types(
                         );
 
                         for parent_node in &before_adjustment.parent_nodes {
-                            tast_info.data_flow_graph.add_path(
+                            analysis_data.data_flow_graph.add_path(
                                 parent_node,
                                 &narrowing_node,
                                 PathKind::RefineSymbol(*narrowed_symbol),
@@ -297,7 +297,7 @@ pub(crate) fn reconcile_keyed_types(
 
                         result_type.parent_nodes = FxHashSet::from_iter([narrowing_node.clone()]);
 
-                        tast_info.data_flow_graph.add_node(narrowing_node);
+                        analysis_data.data_flow_graph.add_node(narrowing_node);
                     } else {
                         result_type.parent_nodes = before_adjustment.parent_nodes.clone();
                     }
@@ -706,7 +706,7 @@ fn get_value_for_key(
     has_inverted_isset: bool,
     inside_loop: bool,
     possibly_undefined: &mut bool,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) -> Option<TUnion> {
     lazy_static! {
         static ref INTEGER_REGEX: Regex = Regex::new("^[0-9]+$").unwrap();
@@ -998,7 +998,7 @@ fn get_value_for_key(
                                     interner,
                                     &fq_class_name,
                                     &interner.get(&property_name).unwrap(),
-                                    tast_info,
+                                    analysis_data,
                                 );
 
                                 if let Some(maybe_class_property_type) = maybe_class_property_type {
@@ -1048,7 +1048,7 @@ fn get_property_type(
     interner: &Interner,
     classlike_name: &StrId,
     property_name: &StrId,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) -> Option<TUnion> {
     if !codebase.property_exists(classlike_name, property_name) {
         return None;
@@ -1076,7 +1076,7 @@ fn get_property_type(
                 static_class_type: StaticClassType::Name(declaring_property_class),
                 ..Default::default()
             },
-            &mut tast_info.data_flow_graph,
+            &mut analysis_data.data_flow_graph,
         );
         return Some(class_property_type);
     }
@@ -1085,7 +1085,7 @@ fn get_property_type(
 }
 
 pub(crate) fn trigger_issue_for_impossible(
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
     old_var_type_string: &String,
     key: &String,
@@ -1121,7 +1121,7 @@ pub(crate) fn trigger_issue_for_impossible(
             }
         }
 
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             if not_operator {
                 get_impossible_issue(
                     assertion,
@@ -1147,7 +1147,7 @@ pub(crate) fn trigger_issue_for_impossible(
             statements_analyzer.get_file_path_actual(),
         );
     } else {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             if not_operator {
                 get_redundant_issue(
                     &assertion,

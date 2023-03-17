@@ -4,7 +4,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{expression_analyzer, stmt_analyzer};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::function_context::FunctionContext;
@@ -17,7 +17,7 @@ pub(crate) fn analyze(
     def: &aast::Def<(), ()>,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     analysis_result: &mut AnalysisResult,
 ) {
     match def {
@@ -39,7 +39,13 @@ pub(crate) fn analyze(
             // already handled
         }
         aast::Def::Stmt(boxed) => {
-            stmt_analyzer::analyze(statements_analyzer, boxed, tast_info, context, loop_scope);
+            stmt_analyzer::analyze(
+                statements_analyzer,
+                boxed,
+                analysis_data,
+                context,
+                loop_scope,
+            );
         }
         aast::Def::Constant(boxed) => {
             let mut function_context = FunctionContext::new();
@@ -56,7 +62,7 @@ pub(crate) fn analyze(
             expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed.value,
-                tast_info,
+                analysis_data,
                 &mut context,
                 &mut None,
             );
@@ -71,7 +77,7 @@ pub(crate) fn analyze(
             // not sure
         }
         aast::Def::Module(boxed) => {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::UnrecognizedStatement,
                     "Unrecognized statement".to_string(),
@@ -83,7 +89,7 @@ pub(crate) fn analyze(
             );
         }
         aast::Def::SetModule(boxed) => {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::UnrecognizedStatement,
                     "Unrecognized statement".to_string(),

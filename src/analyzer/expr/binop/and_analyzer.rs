@@ -5,7 +5,7 @@ use crate::reconciler::reconciler;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{expression_analyzer, formula_generator};
 use hakana_type::get_bool;
 use oxidized::aast;
@@ -15,7 +15,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     stmt_pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
-    tast_info: &'tast mut TastInfo,
+    analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -29,22 +29,22 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     left_context.reconciled_expression_clauses = Vec::new();
 
-    tast_info.set_expr_type(&stmt_pos, get_bool());
+    analysis_data.set_expr_type(&stmt_pos, get_bool());
 
     if !expression_analyzer::analyze(
         statements_analyzer,
         left,
-        tast_info,
+        analysis_data,
         &mut left_context,
         if_body_context,
     ) {
         return false;
     }
 
-    if let Some(cond_type) = tast_info.get_expr_type(left.pos()).cloned() {
+    if let Some(cond_type) = analysis_data.get_expr_type(left.pos()).cloned() {
         handle_paradoxical_condition(
             statements_analyzer,
-            tast_info,
+            analysis_data,
             left.pos(),
             &context.function_context.calling_functionlike_id,
             &cond_type,
@@ -63,7 +63,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         left_cond_id,
         left,
         &assertion_context,
-        tast_info,
+        analysis_data,
         true,
         false,
     )
@@ -133,7 +133,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             &mut changed_var_ids,
             &left_referenced_var_ids,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             left.pos(),
             true,
             !context.inside_negation,
@@ -156,17 +156,17 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     if !expression_analyzer::analyze(
         statements_analyzer,
         right,
-        tast_info,
+        analysis_data,
         &mut right_context,
         if_body_context,
     ) {
         return false;
     }
 
-    if let Some(cond_type) = tast_info.get_expr_type(right.pos()).cloned() {
+    if let Some(cond_type) = analysis_data.get_expr_type(right.pos()).cloned() {
         handle_paradoxical_condition(
             statements_analyzer,
-            tast_info,
+            analysis_data,
             right.pos(),
             &context.function_context.calling_functionlike_id,
             &cond_type,

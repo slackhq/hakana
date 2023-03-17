@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
@@ -16,7 +16,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     stmt_pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
-    tast_info: &'tast mut TastInfo,
+    analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) {
     let mut concat_nodes = get_concat_nodes(left);
@@ -24,7 +24,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     let mut all_literals = true;
 
-    let decision_node = if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    let decision_node = if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         DataFlowNode::get_for_composition(statements_analyzer.get_hpos(stmt_pos))
     } else {
         DataFlowNode::get_for_variable_sink(
@@ -40,12 +40,12 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         expression_analyzer::analyze(
             statements_analyzer,
             concat_node,
-            tast_info,
+            analysis_data,
             context,
             &mut None,
         );
 
-        let expr_type = tast_info.expr_types.get(&(
+        let expr_type = analysis_data.expr_types.get(&(
             concat_node.pos().start_offset(),
             concat_node.pos().end_offset(),
         ));
@@ -63,7 +63,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             }
 
             for old_parent_node in &expr_type.parent_nodes {
-                tast_info.data_flow_graph.add_path(
+                analysis_data.data_flow_graph.add_path(
                     old_parent_node,
                     &decision_node,
                     PathKind::Default,
@@ -94,9 +94,11 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     // todo handle more string type combinations
 
-    tast_info.data_flow_graph.add_node(decision_node.clone());
+    analysis_data
+        .data_flow_graph
+        .add_node(decision_node.clone());
 
-    tast_info.set_expr_type(&stmt_pos, result_type);
+    analysis_data.set_expr_type(&stmt_pos, result_type);
 }
 
 fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
-use hakana_reflection_info::{Interner, StrId, STR_SHAPES, EFFECT_WRITE_LOCAL};
+use hakana_reflection_info::{Interner, StrId, EFFECT_WRITE_LOCAL, STR_SHAPES};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
@@ -15,7 +15,7 @@ use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{expression_analyzer, functionlike_analyzer};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -49,7 +49,7 @@ pub(crate) fn check_arguments_match(
     functionlike_id: &FunctionLikeIdentifier,
     functionlike_info: &FunctionLikeInfo,
     calling_classlike_storage: Option<&ClassLikeInfo>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     template_result: &mut TemplateResult,
@@ -78,7 +78,7 @@ pub(crate) fn check_arguments_match(
                 &context
                     .function_context
                     .get_reference_source(&statements_analyzer.get_file_path().0),
-                &mut tast_info.symbol_references,
+                &mut analysis_data.symbol_references,
             );
 
             if let Some((template_name, map)) = template_result.template_types.get_index(i) {
@@ -154,7 +154,7 @@ pub(crate) fn check_arguments_match(
     refine_template_result_for_functionlike(
         template_result,
         codebase,
-        tast_info,
+        analysis_data,
         &method_call_info,
         class_storage,
         calling_classlike_storage,
@@ -172,7 +172,7 @@ pub(crate) fn check_arguments_match(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 arg_expr,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
@@ -212,7 +212,7 @@ pub(crate) fn check_arguments_match(
             class_storage,
             calling_classlike_storage,
             statements_analyzer,
-            tast_info,
+            analysis_data,
         );
 
         let was_inside_call = context.inside_general_use;
@@ -223,7 +223,7 @@ pub(crate) fn check_arguments_match(
             context.inside_general_use = false;
         }
 
-        let mut arg_value_type = tast_info
+        let mut arg_value_type = analysis_data
             .get_expr_type(arg_expr.pos())
             .cloned()
             .unwrap_or(get_mixed_any());
@@ -231,7 +231,7 @@ pub(crate) fn check_arguments_match(
         if let aast::Expr_::Lfun(_) | aast::Expr_::Efun(_) = arg_expr.2 {
             handle_closure_arg(
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 context,
                 functionlike_id,
                 template_result,
@@ -243,14 +243,14 @@ pub(crate) fn check_arguments_match(
             if !expression_analyzer::analyze(
                 statements_analyzer,
                 arg_expr,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             ) {
                 return false;
             }
 
-            arg_value_type = tast_info
+            arg_value_type = analysis_data
                 .get_expr_type(arg_expr.pos())
                 .cloned()
                 .unwrap_or(get_mixed_any());
@@ -282,7 +282,7 @@ pub(crate) fn check_arguments_match(
             class_storage,
             calling_classlike_storage,
             statements_analyzer,
-            tast_info,
+            analysis_data,
         );
 
         let was_inside_call = context.inside_general_use;
@@ -293,7 +293,7 @@ pub(crate) fn check_arguments_match(
             context.inside_general_use = false;
         }
 
-        let arg_value_type = tast_info
+        let arg_value_type = analysis_data
             .get_expr_type(unpacked_arg.pos())
             .cloned()
             .unwrap_or(get_mixed_any());
@@ -315,7 +315,7 @@ pub(crate) fn check_arguments_match(
         if !expression_analyzer::analyze(
             statements_analyzer,
             unpacked_arg,
-            tast_info,
+            analysis_data,
             context,
             if_body_context,
         ) {
@@ -379,7 +379,7 @@ pub(crate) fn check_arguments_match(
             } {
                 handle_possibly_matching_inout_param(
                     statements_analyzer,
-                    tast_info,
+                    analysis_data,
                     function_param,
                     functionlike_id,
                     argument_offset,
@@ -393,7 +393,7 @@ pub(crate) fn check_arguments_match(
             }
         }
 
-        let arg_value_type = tast_info.get_expr_type(arg_expr.pos());
+        let arg_value_type = analysis_data.get_expr_type(arg_expr.pos());
 
         let arg_value_type = if let Some(arg_value_type) = arg_value_type {
             arg_value_type.clone()
@@ -414,7 +414,7 @@ pub(crate) fn check_arguments_match(
             false,
             arg_value_type,
             context,
-            tast_info,
+            analysis_data,
             functionlike_info.ignore_taint_path,
             functionlike_info.specialize_call,
             function_call_pos,
@@ -422,7 +422,7 @@ pub(crate) fn check_arguments_match(
             return false;
         }
 
-        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+        if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
             if let Some(removed_taints) = &function_param.removed_taints_when_returning_true {
                 if let Some(expr_var_id) = expression_identifier::get_var_id(
                     arg_expr,
@@ -434,7 +434,7 @@ pub(crate) fn check_arguments_match(
                         statements_analyzer.get_interner(),
                     )),
                 ) {
-                    tast_info.if_true_assertions.insert(
+                    analysis_data.if_true_assertions.insert(
                         (
                             function_call_pos.start_offset(),
                             function_call_pos.end_offset(),
@@ -460,7 +460,7 @@ pub(crate) fn check_arguments_match(
     if let Some(unpacked_arg) = unpacked_arg {
         if let Some(last_param) = function_params.last() {
             if last_param.is_variadic {
-                let arg_value_type = tast_info.get_expr_type(unpacked_arg.pos());
+                let arg_value_type = analysis_data.get_expr_type(unpacked_arg.pos());
 
                 let arg_value_type = if let Some(arg_value_type) = arg_value_type {
                     arg_value_type.clone()
@@ -481,7 +481,7 @@ pub(crate) fn check_arguments_match(
                     true,
                     arg_value_type,
                     context,
-                    tast_info,
+                    analysis_data,
                     functionlike_info.ignore_taint_path,
                     functionlike_info.specialize_call,
                     function_call_pos,
@@ -605,7 +605,7 @@ fn get_param_type(
     class_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     if let Some(param) = param {
         if let Some(param_type) = &param.signature_type {
@@ -644,7 +644,7 @@ fn get_param_type(
                     ),
                     ..Default::default()
                 },
-                &mut tast_info.data_flow_graph,
+                &mut analysis_data.data_flow_graph,
             );
 
             param_type
@@ -658,7 +658,7 @@ fn get_param_type(
 
 fn handle_closure_arg(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     functionlike_id: &FunctionLikeIdentifier,
     template_result: &mut TemplateResult,
@@ -754,7 +754,7 @@ fn handle_closure_arg(
             }
         }
 
-        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+        if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
             if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
                 match statements_analyzer.get_interner().lookup(function_name) {
                     "HH\\Lib\\Vec\\map"
@@ -768,7 +768,7 @@ fn handle_closure_arg(
                                 add_array_fetch_dataflow(
                                     statements_analyzer,
                                     &args[0].1.pos(),
-                                    tast_info,
+                                    analysis_data,
                                     None,
                                     signature_type,
                                     &mut get_arraykey(false),
@@ -785,7 +785,7 @@ fn handle_closure_arg(
                                 add_array_fetch_dataflow(
                                     statements_analyzer,
                                     &args[0].1.pos(),
-                                    tast_info,
+                                    analysis_data,
                                     None,
                                     signature_type,
                                     &mut get_arraykey(false),
@@ -799,7 +799,7 @@ fn handle_closure_arg(
         }
     }
 
-    tast_info
+    analysis_data
         .closures
         .insert(closure_expr.pos().clone(), closure_storage);
 }
@@ -870,7 +870,7 @@ pub(crate) fn evaluate_arbitrary_param(
     statements_analyzer: &StatementsAnalyzer,
     expr: &aast::Expr<(), ()>,
     is_inout: bool,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -880,7 +880,7 @@ pub(crate) fn evaluate_arbitrary_param(
     if !expression_analyzer::analyze(
         statements_analyzer,
         expr,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     ) {
@@ -911,19 +911,19 @@ pub(crate) fn evaluate_arbitrary_param(
                     &var_id,
                     Some(&t),
                     Some(statements_analyzer),
-                    tast_info,
+                    analysis_data,
                 );
             } else {
                 context.remove_var_from_conflicting_clauses(
                     &var_id,
                     None,
                     Some(statements_analyzer),
-                    tast_info,
+                    analysis_data,
                 );
             }
         }
 
-        tast_info.expr_effects.insert(
+        analysis_data.expr_effects.insert(
             (expr.pos().start_offset(), expr.pos().end_offset()),
             EFFECT_WRITE_LOCAL,
         );
@@ -934,7 +934,7 @@ pub(crate) fn evaluate_arbitrary_param(
 
 fn handle_possibly_matching_inout_param(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     functionlike_param: &FunctionLikeParameter,
     functionlike_id: &FunctionLikeIdentifier,
     argument_offset: usize,
@@ -952,7 +952,7 @@ fn handle_possibly_matching_inout_param(
 
     let codebase = statements_analyzer.get_codebase();
 
-    let arg_type = tast_info.get_expr_type(expr.pos()).cloned();
+    let arg_type = analysis_data.get_expr_type(expr.pos()).cloned();
 
     if !template_result.template_types.is_empty() {
         let original_inout_type = inout_type.clone();
@@ -1017,12 +1017,12 @@ fn handle_possibly_matching_inout_param(
             ),
             ..Default::default()
         },
-        &mut tast_info.data_flow_graph,
+        &mut analysis_data.data_flow_graph,
     );
 
     let arg_type = arg_type.unwrap_or(get_mixed_any());
 
-    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let out_node = DataFlowNode::get_for_method_argument_out(
             functionlike_id.to_string(&statements_analyzer.get_interner()),
             argument_offset,
@@ -1032,7 +1032,7 @@ fn handle_possibly_matching_inout_param(
 
         inout_type.parent_nodes = FxHashSet::from_iter([out_node.clone()]);
 
-        tast_info.data_flow_graph.add_node(out_node);
+        analysis_data.data_flow_graph.add_node(out_node);
     } else {
         inout_type
             .parent_nodes
@@ -1044,7 +1044,7 @@ fn handle_possibly_matching_inout_param(
         expr,
         arg_type,
         &inout_type,
-        tast_info,
+        analysis_data,
         context,
     );
 
@@ -1054,7 +1054,7 @@ fn handle_possibly_matching_inout_param(
 fn refine_template_result_for_functionlike(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     method_call_info: &Option<MethodCallInfo>,
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
@@ -1063,7 +1063,7 @@ fn refine_template_result_for_functionlike(
 ) {
     let template_types = get_template_types_for_call(
         codebase,
-        tast_info,
+        analysis_data,
         classlike_storage,
         if let Some(method_call_info) = method_call_info {
             Some(&method_call_info.self_fq_classlike_name)
@@ -1089,7 +1089,7 @@ fn refine_template_result_for_functionlike(
 
 pub(crate) fn get_template_types_for_call(
     codebase: &CodebaseInfo,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     declaring_classlike_storage: Option<&ClassLikeInfo>,
     appearing_class_name: Option<&StrId>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
@@ -1211,7 +1211,7 @@ pub(crate) fn get_template_types_for_call(
                                 },
                                 ..Default::default()
                             },
-                            &mut tast_info.data_flow_graph,
+                            &mut analysis_data.data_flow_graph,
                         );
                         v
                     })

@@ -207,12 +207,14 @@ impl Clause {
                         continue;
                     }
                     Assertion::IsType(value) | Assertion::IsEqual(value) => {
-                        clause_string_parts
-                            .push(var_id.to_string() + " is " + value.get_id(Some(interner)).as_str());
+                        clause_string_parts.push(
+                            var_id.to_string() + " is " + value.get_id(Some(interner)).as_str(),
+                        );
                     }
                     Assertion::IsNotType(value) | Assertion::IsNotEqual(value) => {
-                        clause_string_parts
-                            .push(var_id.to_string() + " is not " + value.get_id(Some(interner)).as_str());
+                        clause_string_parts.push(
+                            var_id.to_string() + " is not " + value.get_id(Some(interner)).as_str(),
+                        );
                     }
                     _ => {
                         clause_string_parts.push(value.to_string(Some(interner)));

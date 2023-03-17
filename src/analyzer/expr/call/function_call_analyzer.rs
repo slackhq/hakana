@@ -14,7 +14,7 @@ use crate::reconciler::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{expression_analyzer, formula_generator};
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -38,7 +38,7 @@ pub(crate) fn analyze(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -51,7 +51,7 @@ pub(crate) fn analyze(
     // we special-case this because exit is used in
     // `as` ternaries where the positions may be fake
     if name == "exit" || name == "die" {
-        return exit_analyzer::analyze(statements_analyzer, expr.2, pos, tast_info, context);
+        return exit_analyzer::analyze(statements_analyzer, expr.2, pos, analysis_data, context);
     }
 
     // we special-case this because isset is used in
@@ -63,7 +63,7 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 first_arg,
                 pos,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
@@ -77,19 +77,19 @@ pub(crate) fn analyze(
             let result = expression_analyzer::analyze(
                 statements_analyzer,
                 first_arg,
-                tast_info,
+                analysis_data,
                 context,
                 if_body_context,
             );
             context.inside_unset = false;
-            tast_info.copy_effects(first_arg.pos(), pos);
-            tast_info.set_expr_type(&pos, get_void());
+            analysis_data.copy_effects(first_arg.pos(), pos);
+            analysis_data.set_expr_type(&pos, get_void());
             return result;
         }
     }
 
     if name == "echo" {
-        return echo_analyzer::analyze(statements_analyzer, expr.2, pos, tast_info, context);
+        return echo_analyzer::analyze(statements_analyzer, expr.2, pos, analysis_data, context);
     }
 
     let name = if name == "\\in_array" {
@@ -105,7 +105,7 @@ pub(crate) fn analyze(
     {
         function_storage
     } else {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentFunction,
                 format!(
@@ -124,7 +124,7 @@ pub(crate) fn analyze(
 
     let name = function_storage.name.clone();
 
-    tast_info.symbol_references.add_reference_to_symbol(
+    analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
         name.clone(),
         false,
@@ -148,16 +148,16 @@ pub(crate) fn analyze(
         &functionlike_id,
         &function_storage,
         None,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
         &mut template_result,
         pos,
     );
 
-    apply_effects(function_storage, tast_info, pos, &expr.2);
+    apply_effects(function_storage, analysis_data, pos, &expr.2);
 
-    if let Some(effects) = tast_info
+    if let Some(effects) = analysis_data
         .expr_effects
         .get(&(pos.start_offset(), pos.end_offset()))
     {
@@ -167,7 +167,7 @@ pub(crate) fn analyze(
     }
 
     if function_storage.ignore_taints_if_true {
-        tast_info.if_true_assertions.insert(
+        analysis_data.if_true_assertions.insert(
             (pos.start_offset(), pos.end_offset()),
             FxHashMap::from_iter([("hakana taints".to_string(), vec![Assertion::IgnoreTaints])]),
         );
@@ -187,11 +187,11 @@ pub(crate) fn analyze(
         &functionlike_id,
         function_storage,
         template_result,
-        tast_info,
+        analysis_data,
         context,
     );
 
-    tast_info.set_expr_type(&pos, stmt_type.clone());
+    analysis_data.set_expr_type(&pos, stmt_type.clone());
 
     if stmt_type.is_nothing() && !context.inside_loop {
         context.has_returned = true;
@@ -202,7 +202,7 @@ pub(crate) fn analyze(
     match real_name {
         "HH\\invariant" => {
             if let Some((_, first_arg)) = &expr.2.get(0) {
-                process_invariant(first_arg, context, statements_analyzer, tast_info);
+                process_invariant(first_arg, context, statements_analyzer, analysis_data);
             }
         }
         "HH\\Lib\\C\\contains_key"
@@ -221,12 +221,12 @@ pub(crate) fn analyze(
             );
 
             if real_name == "HH\\Lib\\C\\contains" || real_name == "HH\\Lib\\Dict\\contains" {
-                let container_type = tast_info.get_expr_type(expr.2[0].1.pos()).cloned();
-                let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos()).cloned();
+                let container_type = analysis_data.get_expr_type(expr.2[0].1.pos()).cloned();
+                let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos()).cloned();
                 check_array_key_or_value_type(
                     codebase,
                     statements_analyzer,
-                    tast_info,
+                    analysis_data,
                     container_type,
                     second_arg_type,
                     &pos,
@@ -237,12 +237,12 @@ pub(crate) fn analyze(
             } else if real_name == "HH\\Lib\\C\\contains_key"
                 || real_name == "HH\\Lib\\Dict\\contains_key"
             {
-                let container_type = tast_info.get_expr_type(expr.2[0].1.pos()).cloned();
+                let container_type = analysis_data.get_expr_type(expr.2[0].1.pos()).cloned();
 
                 if let Some(expr_var_id) = expr_var_id {
                     if let aast::Expr_::String(boxed) = &expr.2[1].1 .2 {
                         let dim_var_id = boxed.to_string();
-                        tast_info.if_true_assertions.insert(
+                        analysis_data.if_true_assertions.insert(
                             (pos.start_offset(), pos.end_offset()),
                             FxHashMap::from_iter([(
                                 expr_var_id.clone(),
@@ -250,7 +250,7 @@ pub(crate) fn analyze(
                             )]),
                         );
                     } else if let aast::Expr_::Int(boxed) = &expr.2[1].1 .2 {
-                        tast_info.if_true_assertions.insert(
+                        analysis_data.if_true_assertions.insert(
                             (pos.start_offset(), pos.end_offset()),
                             FxHashMap::from_iter([(
                                 expr_var_id.clone(),
@@ -268,7 +268,7 @@ pub(crate) fn analyze(
                             )),
                             resolved_names,
                         ) {
-                            tast_info.if_true_assertions.insert(
+                            analysis_data.if_true_assertions.insert(
                                 (pos.start_offset(), pos.end_offset()),
                                 FxHashMap::from_iter([(
                                     format!("{}[{}]", expr_var_id, dim_var_id),
@@ -277,12 +277,12 @@ pub(crate) fn analyze(
                             );
                         }
 
-                        let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
+                        let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos());
                         if let Some(second_arg_type) = second_arg_type {
                             check_array_key_or_value_type(
                                 codebase,
                                 statements_analyzer,
-                                tast_info,
+                                analysis_data,
                                 container_type,
                                 Some(second_arg_type.clone()),
                                 &pos,
@@ -295,7 +295,7 @@ pub(crate) fn analyze(
                 }
             }
 
-            if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+            if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                 let second_arg_var_id = expression_identifier::get_var_id(
                     &expr.2[1].1,
                     context.function_context.calling_class.as_ref(),
@@ -308,7 +308,7 @@ pub(crate) fn analyze(
                 );
 
                 if let Some(expr_var_id) = second_arg_var_id {
-                    tast_info.if_true_assertions.insert(
+                    analysis_data.if_true_assertions.insert(
                         (pos.start_offset(), pos.end_offset()),
                         FxHashMap::from_iter([(
                             "hakana taints".to_string(),
@@ -323,7 +323,7 @@ pub(crate) fn analyze(
         }
         "HH\\Lib\\Str\\starts_with" => {
             if expr.2.len() == 2 {
-                if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(
                         &expr.2[0].1,
                         context.function_context.calling_class.as_ref(),
@@ -335,7 +335,7 @@ pub(crate) fn analyze(
                         )),
                     );
 
-                    let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
+                    let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos());
 
                     // if we have a HH\Lib\Str\starts_with($foo, "/something") check
                     // we can remove url-specific taints
@@ -344,7 +344,7 @@ pub(crate) fn analyze(
                     {
                         if let Some(str) = second_arg_type.get_single_literal_string_value() {
                             if str.len() > 1 && str != "http://" && str != "https://" {
-                                tast_info.if_true_assertions.insert(
+                                analysis_data.if_true_assertions.insert(
                                     (pos.start_offset(), pos.end_offset()),
                                     FxHashMap::from_iter([(
                                         "hakana taints".to_string(),
@@ -366,7 +366,7 @@ pub(crate) fn analyze(
         }
         "HH\\Lib\\Regex\\matches" => {
             if expr.2.len() == 2 {
-                if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+                if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(
                         &expr.2[0].1,
                         context.function_context.calling_class.as_ref(),
@@ -378,7 +378,7 @@ pub(crate) fn analyze(
                         )),
                     );
 
-                    let second_arg_type = tast_info.get_expr_type(expr.2[1].1.pos());
+                    let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos());
 
                     // if we have a HH\Lib\Str\starts_with($foo, "/something") check
                     // we can remove url-specific taints
@@ -414,7 +414,7 @@ pub(crate) fn analyze(
                             }
 
                             if !hashes_to_remove.is_empty() {
-                                tast_info.if_true_assertions.insert(
+                                analysis_data.if_true_assertions.insert(
                                     (pos.start_offset(), pos.end_offset()),
                                     FxHashMap::from_iter([(
                                         "hakana taints".to_string(),
@@ -440,7 +440,7 @@ fn process_invariant(
     first_arg: &aast::Expr<(), ()>,
     context: &mut ScopeContext,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) {
     let assertion_context = statements_analyzer.get_assertion_context(
         context.function_context.calling_class.as_ref(),
@@ -453,7 +453,7 @@ fn process_invariant(
         var_object_id,
         first_arg,
         &assertion_context,
-        tast_info,
+        analysis_data,
         true,
         false,
     );
@@ -484,7 +484,7 @@ fn process_invariant(
                     .map(|(k, _)| k.clone())
                     .collect(),
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 first_arg.pos(),
                 true,
                 false,
@@ -516,7 +516,7 @@ fn get_named_function_info<'a>(
 fn check_array_key_or_value_type(
     codebase: &CodebaseInfo,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     container_type: Option<TUnion>,
     arg_type: Option<TUnion>,
     pos: &Pos,
@@ -558,7 +558,7 @@ fn check_array_key_or_value_type(
 
         if let Some(error_message) = error_message {
             if !has_valid_container_type {
-                tast_info.maybe_add_issue(
+                analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::InvalidContainsCheck,
                         error_message,

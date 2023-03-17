@@ -1,8 +1,11 @@
-use rustc_hash::{FxHashSet, FxHashMap};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{attribute_info::AttributeInfo, code_location::HPos, t_union::TUnion, taint::SinkType, issue::IssueKind};
+use crate::{
+    attribute_info::AttributeInfo, code_location::HPos, issue::IssueKind, t_union::TUnion,
+    taint::SinkType,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnresolvedConstantComponent {}

@@ -5,7 +5,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_type::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use oxidized::aast;
 use oxidized::ast_defs::ParamKind;
@@ -16,7 +16,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
-    tast_info: &'tast mut TastInfo,
+    analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -49,12 +49,12 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         expression_analyzer::analyze(
             statements_analyzer,
             root_expr,
-            tast_info,
+            analysis_data,
             context,
             if_body_context,
         );
 
-        tast_info.get_expr_type(root_expr.pos()).cloned()
+        analysis_data.get_expr_type(root_expr.pos()).cloned()
     } else {
         None
     };
@@ -77,7 +77,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             context,
             statements_analyzer,
             left,
-            tast_info,
+            analysis_data,
             if_body_context,
             root_not_left,
         ));
@@ -87,7 +87,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                 context,
                 statements_analyzer,
                 left,
-                tast_info,
+                analysis_data,
                 if_body_context,
                 root_not_left,
             ));
@@ -123,26 +123,26 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         ))),
     );
 
-    let old_expr_types = tast_info.expr_types.clone();
-    tast_info.expr_types = tast_info.expr_types.clone();
+    let old_expr_types = analysis_data.expr_types.clone();
+    analysis_data.expr_types = analysis_data.expr_types.clone();
 
     expression_analyzer::analyze(
         statements_analyzer,
         &ternary,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     );
 
-    let ternary_type = tast_info
+    let ternary_type = analysis_data
         .get_expr_type(&pos)
         .cloned()
         .unwrap_or(get_mixed_any());
-    tast_info.expr_types = old_expr_types;
+    analysis_data.expr_types = old_expr_types;
 
-    tast_info.set_expr_type(&pos, ternary_type);
+    analysis_data.set_expr_type(&pos, ternary_type);
 
-    tast_info.combine_effects(left.pos(), right.pos(), pos);
+    analysis_data.combine_effects(left.pos(), right.pos(), pos);
 
     true
 }
@@ -151,7 +151,7 @@ fn get_left_expr(
     context: &mut ScopeContext,
     statements_analyzer: &StatementsAnalyzer,
     left: &aast::Expr<(), ()>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     if_body_context: &mut Option<ScopeContext>,
     root_not_left: bool,
 ) -> aast::Expr<(), ()> {
@@ -160,11 +160,11 @@ fn get_left_expr(
     expression_analyzer::analyze(
         statements_analyzer,
         left,
-        tast_info,
+        analysis_data,
         &mut isset_context,
         if_body_context,
     );
-    let mut condition_type = tast_info
+    let mut condition_type = analysis_data
         .get_expr_type(left.pos())
         .cloned()
         .unwrap_or(get_mixed_any());

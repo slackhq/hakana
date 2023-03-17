@@ -2,7 +2,7 @@ use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_WRITE_PROPS;
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
@@ -22,7 +22,7 @@ pub(crate) fn analyze(
         &Option<aast::Expr<(), ()>>,
     ),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -98,12 +98,12 @@ pub(crate) fn analyze(
                 expression_analyzer::analyze(
                     statements_analyzer,
                     lhs_expr,
-                    tast_info,
+                    analysis_data,
                     context,
                     if_body_context,
                 );
                 context.inside_general_use = was_inside_general_use;
-                tast_info
+                analysis_data
                     .get_expr_type(&lhs_expr.1)
                     .cloned()
                     .unwrap_or(get_mixed_any())
@@ -121,7 +121,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             expr,
             pos,
-            tast_info,
+            analysis_data,
             context,
             if_body_context,
             lhs_type_part,
@@ -129,7 +129,7 @@ pub(crate) fn analyze(
         );
     }
 
-    if tast_info
+    if analysis_data
         .expr_effects
         .get(&(pos.start_offset(), pos.end_offset()))
         .unwrap_or(&0)
@@ -138,7 +138,7 @@ pub(crate) fn analyze(
         context.remove_mutable_object_vars();
     }
 
-    tast_info.set_expr_type(&pos, result.return_type.clone().unwrap_or(get_mixed_any()));
+    analysis_data.set_expr_type(&pos, result.return_type.clone().unwrap_or(get_mixed_any()));
 
     true
 }

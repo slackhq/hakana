@@ -5,7 +5,7 @@ use crate::scope_context::control_action::ControlAction;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::var_has_root;
 use crate::scope_context::{if_scope::IfScope, ScopeContext};
-use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
+use crate::{statements_analyzer::StatementsAnalyzer, typed_ast::FunctionAnalysisData};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_type::add_union_type;
 use oxidized::aast;
@@ -18,7 +18,7 @@ pub(crate) fn analyze(
         &aast::Block<(), ()>,
         &aast::Block<(), ()>,
     ),
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     if_scope: &mut IfScope,
     mut cond_referenced_var_ids: FxHashSet<String>,
     if_context: &mut ScopeContext,
@@ -75,7 +75,7 @@ pub(crate) fn analyze(
             &mut changed_var_ids,
             &cond_referenced_var_ids,
             statements_analyzer,
-            tast_info,
+            analysis_data,
             stmt.0.pos(),
             true,
             false,
@@ -109,7 +109,7 @@ pub(crate) fn analyze(
     if_context.assigned_var_ids.clear();
     if_context.possibly_assigned_var_ids.clear();
 
-    if !statements_analyzer.analyze(&stmt.1 .0, tast_info, if_context, loop_scope) {
+    if !statements_analyzer.analyze(&stmt.1 .0, analysis_data, if_context, loop_scope) {
         return false;
     }
 
@@ -118,7 +118,7 @@ pub(crate) fn analyze(
         statements_analyzer.get_interner(),
         statements_analyzer.get_file_analyzer().resolved_names,
         &stmt.1 .0,
-        Some(tast_info),
+        Some(analysis_data),
         Vec::new(),
         true,
     );
@@ -168,7 +168,7 @@ pub(crate) fn analyze(
                         None
                     },
                     Some(statements_analyzer),
-                    tast_info,
+                    analysis_data,
                 );
             }
         }

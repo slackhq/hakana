@@ -18,7 +18,7 @@ use hakana_type::{
 use oxidized::{aast, ast_defs::Pos};
 use rustc_hash::FxHashSet;
 
-use crate::{expr::expression_identifier, typed_ast::TastInfo};
+use crate::{expr::expression_identifier, typed_ast::FunctionAnalysisData};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
@@ -26,7 +26,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&aast::Expr<(), ()>, Option<&aast::Expr<(), ()>>),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     keyed_array_var_id: Option<String>,
 ) -> bool {
@@ -50,8 +50,13 @@ pub(crate) fn analyze(
         let was_inside_unset = context.inside_unset;
         context.inside_unset = false;
 
-        let analysis_result =
-            expression_analyzer::analyze(statements_analyzer, dim, tast_info, context, &mut None);
+        let analysis_result = expression_analyzer::analyze(
+            statements_analyzer,
+            dim,
+            analysis_data,
+            context,
+            &mut None,
+        );
         context.inside_general_use = was_inside_general_use;
         context.inside_unset = was_inside_unset;
 
@@ -59,7 +64,7 @@ pub(crate) fn analyze(
             return false;
         }
 
-        used_key_type = if let Some(dim_type) = tast_info.get_expr_type(dim.pos()) {
+        used_key_type = if let Some(dim_type) = analysis_data.get_expr_type(dim.pos()) {
             dim_type.clone()
         } else {
             get_arraykey(true)
@@ -68,7 +73,13 @@ pub(crate) fn analyze(
         used_key_type = get_int();
     }
 
-    if !expression_analyzer::analyze(statements_analyzer, expr.0, tast_info, context, &mut None) {
+    if !expression_analyzer::analyze(
+        statements_analyzer,
+        expr.0,
+        analysis_data,
+        context,
+        &mut None,
+    ) {
         return false;
     }
 
@@ -79,13 +90,13 @@ pub(crate) fn analyze(
             add_array_fetch_dataflow_rc(
                 statements_analyzer,
                 expr.0,
-                tast_info,
+                analysis_data,
                 Some(keyed_array_var_id.clone()),
                 &mut stmt_type,
                 &mut used_key_type,
             );
 
-            tast_info.set_rc_expr_type(pos, stmt_type.clone());
+            analysis_data.set_rc_expr_type(pos, stmt_type.clone());
 
             context
                 .vars_in_scope
@@ -95,14 +106,14 @@ pub(crate) fn analyze(
         }
     }
 
-    let stmt_var_type = tast_info.get_expr_type(expr.0.pos()).cloned();
+    let stmt_var_type = analysis_data.get_expr_type(expr.0.pos()).cloned();
 
     if let Some(stmt_var_type) = stmt_var_type {
         // maybe todo handle access on null
 
         let stmt_type = Some(get_array_access_type_given_offset(
             statements_analyzer,
-            tast_info,
+            analysis_data,
             (expr.0, expr.1, pos),
             stmt_var_type.clone(),
             &used_key_type,
@@ -125,18 +136,18 @@ pub(crate) fn analyze(
             add_array_fetch_dataflow(
                 statements_analyzer,
                 expr.0.pos(),
-                tast_info,
+                analysis_data,
                 keyed_array_var_id.clone(),
                 &mut stmt_type,
                 &mut used_key_type,
             );
 
-            tast_info.set_expr_type(&pos, stmt_type.clone());
+            analysis_data.set_expr_type(&pos, stmt_type.clone());
         }
     }
 
     if let Some(dim_expr) = expr.1 {
-        tast_info.combine_effects(expr.0.pos(), dim_expr.pos(), pos);
+        analysis_data.combine_effects(expr.0.pos(), dim_expr.pos(), pos);
     }
 
     true
@@ -148,7 +159,7 @@ pub(crate) fn analyze(
 pub(crate) fn add_array_fetch_dataflow_rc(
     statements_analyzer: &StatementsAnalyzer,
     array_expr: &aast::Expr<(), ()>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     keyed_array_var_id: Option<String>,
     value_type: &mut Rc<TUnion>,
     key_type: &mut TUnion,
@@ -157,7 +168,7 @@ pub(crate) fn add_array_fetch_dataflow_rc(
     add_array_fetch_dataflow(
         statements_analyzer,
         array_expr.pos(),
-        tast_info,
+        analysis_data,
         keyed_array_var_id,
         value_type_inner,
         key_type,
@@ -170,18 +181,18 @@ pub(crate) fn add_array_fetch_dataflow_rc(
 pub(crate) fn add_array_fetch_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     array_expr_pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     keyed_array_var_id: Option<String>,
     value_type: &mut TUnion,
     key_type: &mut TUnion,
 ) {
-    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &analysis_data.data_flow_graph.kind {
         if !value_type.has_taintable_value() {
             return;
         }
     }
 
-    if let Some(stmt_var_type) = tast_info
+    if let Some(stmt_var_type) = analysis_data
         .expr_types
         .get(&(array_expr_pos.start_offset(), array_expr_pos.end_offset()))
     {
@@ -197,7 +208,9 @@ pub(crate) fn add_array_fetch_dataflow(
                 node_name,
                 statements_analyzer.get_hpos(array_expr_pos),
             );
-            tast_info.data_flow_graph.add_node(new_parent_node.clone());
+            analysis_data
+                .data_flow_graph
+                .add_node(new_parent_node.clone());
 
             let key_type_single = if key_type.is_single() {
                 Some(key_type.get_single())
@@ -225,14 +238,16 @@ pub(crate) fn add_array_fetch_dataflow(
                         "arraykey-fetch".to_string(),
                         statements_analyzer.get_hpos(array_expr_pos),
                     );
-                    tast_info.data_flow_graph.add_node(fetch_node.clone());
+                    analysis_data.data_flow_graph.add_node(fetch_node.clone());
                     array_key_node = Some(fetch_node);
-                    tast_info.data_flow_graph.add_node(new_parent_node.clone());
+                    analysis_data
+                        .data_flow_graph
+                        .add_node(new_parent_node.clone());
                 }
             }
 
             for parent_node in stmt_var_type.parent_nodes.iter() {
-                tast_info.data_flow_graph.add_path(
+                analysis_data.data_flow_graph.add_path(
                     parent_node,
                     &new_parent_node,
                     if let Some(dim_value) = dim_value.clone() {
@@ -245,7 +260,7 @@ pub(crate) fn add_array_fetch_dataflow(
                 );
 
                 if let Some(array_key_node) = array_key_node.clone() {
-                    tast_info.data_flow_graph.add_path(
+                    analysis_data.data_flow_graph.add_path(
                         parent_node,
                         &array_key_node,
                         PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey),
@@ -270,7 +285,7 @@ pub(crate) fn add_array_fetch_dataflow(
  */
 pub(crate) fn get_array_access_type_given_offset(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     stmt: (&aast::Expr<(), ()>, Option<&aast::Expr<(), ()>>, &Pos),
     array_type: TUnion,
     offset_type: &TUnion,
@@ -284,7 +299,7 @@ pub(crate) fn get_array_access_type_given_offset(
 
     if offset_type.is_null() {
         // TODO append issue
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NullArrayOffset,
                 format!(
@@ -300,7 +315,7 @@ pub(crate) fn get_array_access_type_given_offset(
     }
 
     if offset_type.is_nullable() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::PossiblyNullArrayOffset,
                 format!(
@@ -336,7 +351,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 let new_type = handle_array_access_on_vec(
                     statements_analyzer,
                     stmt.2,
-                    tast_info,
+                    analysis_data,
                     context,
                     atomic_var_type.clone(),
                     offset_type.clone(),
@@ -354,7 +369,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 let new_type = handle_array_access_on_dict(
                     statements_analyzer,
                     stmt.2,
-                    tast_info,
+                    analysis_data,
                     context,
                     atomic_var_type,
                     offset_type,
@@ -394,7 +409,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 let new_type = handle_array_access_on_mixed(
                     statements_analyzer,
                     stmt.2,
-                    tast_info,
+                    analysis_data,
                     context,
                     atomic_var_type,
                     &array_type,
@@ -413,7 +428,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 if in_assignment {
                 } else {
                     if !context.inside_isset {
-                        tast_info.maybe_add_issue(
+                        analysis_data.maybe_add_issue(
                             Issue::new(
                                 IssueKind::PossiblyNullArrayAccess,
                                 "Unsafe array access on null".to_string(),
@@ -473,7 +488,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     let new_type = handle_array_access_on_mixed(
                         statements_analyzer,
                         stmt.2,
-                        tast_info,
+                        analysis_data,
                         context,
                         atomic_var_type,
                         &array_type,
@@ -500,10 +515,10 @@ pub(crate) fn get_array_access_type_given_offset(
         let mut mixed_with_any = false;
         if offset_type.is_mixed_with_any(&mut mixed_with_any) {
             for origin in &offset_type.parent_nodes {
-                tast_info.data_flow_graph.add_mixed_data(origin, stmt.2);
+                analysis_data.data_flow_graph.add_mixed_data(origin, stmt.2);
             }
 
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     if mixed_with_any {
                         IssueKind::MixedAnyArrayOffset
@@ -522,7 +537,7 @@ pub(crate) fn get_array_access_type_given_offset(
                 statements_analyzer.get_file_path_actual(),
             );
         } else {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::InvalidArrayOffset,
                     format!(
@@ -560,7 +575,7 @@ pub(crate) fn get_array_access_type_given_offset(
 pub(crate) fn handle_array_access_on_vec(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &ScopeContext,
     vec: TAtomic,
     dim_type: TUnion,
@@ -603,7 +618,7 @@ pub(crate) fn handle_array_access_on_vec(
                     && !in_assignment
                 {
                     // oh no!
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::PossiblyUndefinedIntArrayOffset,
                             format!(
@@ -624,7 +639,7 @@ pub(crate) fn handle_array_access_on_vec(
 
             if !in_assignment {
                 if type_param.is_nothing() {
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::UndefinedIntArrayOffset,
                             format!(
@@ -664,7 +679,7 @@ pub(crate) fn handle_array_access_on_vec(
 pub(crate) fn handle_array_access_on_dict(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &ScopeContext,
     dict: &TAtomic,
     dim_type: &TUnion,
@@ -723,7 +738,7 @@ pub(crate) fn handle_array_access_on_dict(
                 if actual_possibly_undefined && !in_assignment {
                     if !allow_possibly_undefined {
                         // oh no!
-                        tast_info.maybe_add_issue(
+                        analysis_data.maybe_add_issue(
                             Issue::new(
                                 match &dict_key {
                                     DictKey::Int(_) => IssueKind::PossiblyUndefinedIntArrayOffset,
@@ -755,7 +770,7 @@ pub(crate) fn handle_array_access_on_dict(
 
                 if !context.inside_isset {
                     // oh no!
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::UndefinedStringArrayOffset,
                             format!(
@@ -770,7 +785,7 @@ pub(crate) fn handle_array_access_on_dict(
                         statements_analyzer.get_file_path_actual(),
                     );
                 } else {
-                    tast_info.maybe_add_issue(
+                    analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::ImpossibleNonnullEntryCheck,
                             format!(
@@ -837,7 +852,7 @@ pub(crate) fn handle_array_access_on_dict(
                 if !in_assignment {
                     if !allow_possibly_undefined {
                         // oh no!
-                        tast_info.maybe_add_issue(
+                        analysis_data.maybe_add_issue(
                             Issue::new(
                                 match &dict_key {
                                     DictKey::Int(_) => IssueKind::PossiblyUndefinedIntArrayOffset,
@@ -924,7 +939,7 @@ pub(crate) fn handle_array_access_on_string(
 pub(crate) fn handle_array_access_on_mixed(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &ScopeContext,
     mixed: &TAtomic,
     mixed_union: &TUnion,
@@ -932,12 +947,12 @@ pub(crate) fn handle_array_access_on_mixed(
 ) -> TUnion {
     if !context.inside_isset {
         for origin in &mixed_union.parent_nodes {
-            tast_info.data_flow_graph.add_mixed_data(origin, pos);
+            analysis_data.data_flow_graph.add_mixed_data(origin, pos);
         }
 
         if context.inside_assignment {
             // oh no!
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     if let TAtomic::TMixedWithFlags(true, ..) = mixed {
                         IssueKind::MixedAnyArrayAssignment
@@ -958,7 +973,7 @@ pub(crate) fn handle_array_access_on_mixed(
             );
         } else {
             // oh no!
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     if let TAtomic::TMixedWithFlags(true, ..) = mixed {
                         IssueKind::MixedAnyArrayAccess
@@ -978,7 +993,7 @@ pub(crate) fn handle_array_access_on_mixed(
         }
     }
 
-    if let Some(stmt_var_type) = tast_info
+    if let Some(stmt_var_type) = analysis_data
         .expr_types
         .get(&(pos.start_offset(), pos.end_offset()))
     {
@@ -987,10 +1002,12 @@ pub(crate) fn handle_array_access_on_mixed(
                 "mixed-var-array-access".to_string(),
                 statements_analyzer.get_hpos(pos),
             );
-            tast_info.data_flow_graph.add_node(new_parent_node.clone());
+            analysis_data
+                .data_flow_graph
+                .add_node(new_parent_node.clone());
 
             for parent_node in stmt_var_type.parent_nodes.iter() {
-                tast_info.data_flow_graph.add_path(
+                analysis_data.data_flow_graph.add_path(
                     parent_node,
                     &new_parent_node,
                     PathKind::Default,

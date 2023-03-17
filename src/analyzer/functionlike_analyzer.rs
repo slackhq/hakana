@@ -9,7 +9,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
-use crate::{file_analyzer::FileAnalyzer, typed_ast::TastInfo};
+use crate::{file_analyzer::FileAnalyzer, typed_ast::FunctionAnalysisData};
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::{FilePath, HPos, StmtStart};
@@ -109,11 +109,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         &mut self,
         stmt: &aast::Fun_<(), ()>,
         mut context: ScopeContext,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         analysis_result: &mut AnalysisResult,
         expr_pos: &Pos,
     ) -> FunctionLikeInfo {
-        let lambda_storage = tast_info.closures.get(expr_pos).cloned();
+        let lambda_storage = analysis_data.closures.get(expr_pos).cloned();
 
         let mut lambda_storage = if let Some(lambda_storage) = lambda_storage {
             lambda_storage
@@ -127,7 +127,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         };
 
-        tast_info
+        analysis_data
             .closure_spans
             .push((stmt.span.start_offset(), stmt.span.end_offset()));
 
@@ -156,7 +156,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &stmt.params,
             &stmt.body.fb_ast.0,
             analysis_result,
-            Some(tast_info),
+            Some(analysis_data),
         );
 
         lambda_storage.return_type = Some(inferred_return_type.unwrap_or(get_mixed_any()));
@@ -279,7 +279,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     fn add_properties_to_context(
         &mut self,
         classlike_storage: &ClassLikeInfo,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         function_storage: &FunctionLikeInfo,
         context: &mut ScopeContext,
     ) {
@@ -312,7 +312,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             &Some(expr_id.clone()),
                             &(classlike_storage.name.clone(), property_name.clone()),
                             property_pos.clone(),
-                            tast_info,
+                            analysis_data,
                             false,
                             property_type,
                             interner,
@@ -339,7 +339,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                         ..Default::default()
                     },
-                    &mut tast_info.data_flow_graph,
+                    &mut analysis_data.data_flow_graph,
                 );
 
                 context
@@ -357,29 +357,29 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         params: &Vec<aast::FunParam<(), ()>>,
         fb_ast: &Vec<aast::Stmt<(), ()>>,
         analysis_result: &mut AnalysisResult,
-        parent_tast_info: Option<&mut TastInfo>,
+        parent_analysis_data: Option<&mut FunctionAnalysisData>,
     ) -> (Option<TUnion>, u8) {
         context.inside_async = functionlike_storage.is_async;
 
-        let mut tast_info = TastInfo::new(
+        let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             statements_analyzer.get_file_analyzer().get_file_source(),
             &statements_analyzer.comments,
             &self.get_config().all_custom_issues,
-            if let Some(parent_tast_info) = &parent_tast_info {
-                parent_tast_info.current_stmt_offset.clone()
+            if let Some(parent_analysis_data) = &parent_analysis_data {
+                parent_analysis_data.current_stmt_offset.clone()
             } else {
                 None
             },
-            if let Some(parent_tast_info) = &parent_tast_info {
-                Some(parent_tast_info.hakana_fixme_or_ignores.clone())
+            if let Some(parent_analysis_data) = &parent_analysis_data {
+                Some(parent_analysis_data.hakana_fixme_or_ignores.clone())
             } else {
                 None
             },
         );
 
         if let Some(issue_filter) = &statements_analyzer.get_config().allowed_issues {
-            tast_info.issue_filter = Some(issue_filter.clone());
+            analysis_data.issue_filter = Some(issue_filter.clone());
         }
 
         let mut completed_analysis = false;
@@ -387,7 +387,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if self.add_param_types_to_context(
             params,
             functionlike_storage,
-            &mut tast_info,
+            &mut analysis_data,
             &mut context,
             statements_analyzer,
         ) {
@@ -400,7 +400,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 {
                     self.add_properties_to_context(
                         classlike_storage,
-                        &mut tast_info,
+                        &mut analysis_data,
                         functionlike_storage,
                         &mut context,
                     );
@@ -410,7 +410,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             //let start_t = std::time::Instant::now();
 
             completed_analysis =
-                statements_analyzer.analyze(&fb_ast, &mut tast_info, &mut context, &mut None);
+                statements_analyzer.analyze(&fb_ast, &mut analysis_data, &mut context, &mut None);
 
             // let end_t = start_t.elapsed();
 
@@ -436,13 +436,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     functionlike_storage,
                     statements_analyzer,
                     &mut context,
-                    &mut tast_info,
+                    &mut analysis_data,
                     None,
                 );
             }
         }
 
-        if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+        if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
             if let Some(method_storage) = &functionlike_storage.method_info {
                 if !method_storage.is_static {
                     if let Some(this_type) = context.vars_in_scope.get("$this") {
@@ -457,7 +457,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         );
 
                         for parent_node in &this_type.parent_nodes {
-                            tast_info.data_flow_graph.add_path(
+                            analysis_data.data_flow_graph.add_path(
                                 parent_node,
                                 &new_call_node,
                                 PathKind::Default,
@@ -466,7 +466,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             );
                         }
 
-                        tast_info.data_flow_graph.add_node(new_call_node);
+                        analysis_data.data_flow_graph.add_node(new_call_node);
                     }
                 }
             }
@@ -474,9 +474,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let config = statements_analyzer.get_config();
 
-        if config.find_unused_expressions && parent_tast_info.is_none() {
+        if config.find_unused_expressions && parent_analysis_data.is_none() {
             report_unused_expressions(
-                &mut tast_info,
+                &mut analysis_data,
                 config,
                 fb_ast,
                 statements_analyzer,
@@ -485,9 +485,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             );
         }
 
-        if config.remove_fixmes && parent_tast_info.is_none() {
-            for unused_fixme_position in tast_info.get_unused_hakana_fixme_positions() {
-                tast_info.replacements.insert(
+        if config.remove_fixmes && parent_analysis_data.is_none() {
+            for unused_fixme_position in analysis_data.get_unused_hakana_fixme_positions() {
+                analysis_data.replacements.insert(
                     (unused_fixme_position.0, unused_fixme_position.1),
                     Replacement::TrimPrecedingWhitespace(unused_fixme_position.2),
                 );
@@ -523,7 +523,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                     ..Default::default()
                 },
-                &mut tast_info.data_flow_graph,
+                &mut analysis_data.data_flow_graph,
             );
 
             let config = statements_analyzer.get_config();
@@ -533,7 +533,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     &mut context,
                     functionlike_storage,
                     completed_analysis,
-                    &mut tast_info,
+                    &mut analysis_data,
                     &mut inferred_return_type,
                     codebase,
                     statements_analyzer,
@@ -541,8 +541,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             });
 
             if !return_result_handled {
-                if !tast_info.inferred_return_types.is_empty() {
-                    for callsite_return_type in &tast_info.inferred_return_types {
+                if !analysis_data.inferred_return_types.is_empty() {
+                    for callsite_return_type in &analysis_data.inferred_return_types {
                         if type_comparator::union_type_comparator::is_contained_by(
                             codebase,
                             &callsite_return_type,
@@ -580,8 +580,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 }
             }
         } else {
-            if !tast_info.inferred_return_types.is_empty() {
-                for callsite_return_type in &tast_info.inferred_return_types {
+            if !analysis_data.inferred_return_types.is_empty() {
+                for callsite_return_type in &analysis_data.inferred_return_types {
                     inferred_return_type = Some(add_optional_union_type(
                         callsite_return_type.clone(),
                         inferred_return_type.as_ref(),
@@ -606,46 +606,48 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut effects = 0;
 
         if let FnEffect::Unknown = functionlike_storage.effects {
-            for (_, effect) in &tast_info.expr_effects {
+            for (_, effect) in &analysis_data.expr_effects {
                 effects |= effect;
             }
         }
 
-        if let Some(parent_tast_info) = parent_tast_info {
-            if !tast_info.replacements.is_empty() {
-                parent_tast_info.replacements.extend(tast_info.replacements);
+        if let Some(parent_analysis_data) = parent_analysis_data {
+            if !analysis_data.replacements.is_empty() {
+                parent_analysis_data
+                    .replacements
+                    .extend(analysis_data.replacements);
             }
 
-            for issue in tast_info.issues_to_emit {
-                parent_tast_info.maybe_add_issue(
+            for issue in analysis_data.issues_to_emit {
+                parent_analysis_data.maybe_add_issue(
                     issue,
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),
                 );
             }
 
-            parent_tast_info
+            parent_analysis_data
                 .symbol_references
-                .extend(tast_info.symbol_references);
+                .extend(analysis_data.symbol_references);
 
-            parent_tast_info
+            parent_analysis_data
                 .data_flow_graph
-                .add_graph(tast_info.data_flow_graph);
+                .add_graph(analysis_data.data_flow_graph);
 
-            parent_tast_info
+            parent_analysis_data
                 .closure_spans
-                .extend(tast_info.closure_spans);
+                .extend(analysis_data.closure_spans);
 
-            parent_tast_info
+            parent_analysis_data
                 .matched_ignore_positions
-                .extend(tast_info.matched_ignore_positions);
+                .extend(analysis_data.matched_ignore_positions);
 
-            for (kind, count) in tast_info.issue_counts {
-                *parent_tast_info.issue_counts.entry(kind).or_insert(0) += count;
+            for (kind, count) in analysis_data.issue_counts {
+                *parent_analysis_data.issue_counts.entry(kind).or_insert(0) += count;
             }
         } else {
             update_analysis_result_with_tast(
-                tast_info,
+                analysis_data,
                 analysis_result,
                 &statements_analyzer
                     .get_file_analyzer()
@@ -662,7 +664,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         &mut self,
         params: &Vec<aast::FunParam<(), ()>>,
         functionlike_storage: &FunctionLikeInfo,
-        tast_info: &mut TastInfo,
+        analysis_data: &mut FunctionAnalysisData,
         context: &mut ScopeContext,
         statements_analyzer: &mut StatementsAnalyzer,
     ) -> bool {
@@ -678,17 +680,19 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                 id: FunctionLikeIdentifier::Function(name),
                             } => match context.function_context.calling_functionlike_id {
                                 Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                    tast_info.symbol_references.add_symbol_reference_to_symbol(
-                                        calling_function,
-                                        *name,
-                                        true,
-                                    );
+                                    analysis_data
+                                        .symbol_references
+                                        .add_symbol_reference_to_symbol(
+                                            calling_function,
+                                            *name,
+                                            true,
+                                        );
                                 }
                                 Some(FunctionLikeIdentifier::Method(
                                     calling_classlike,
                                     calling_function,
                                 )) => {
-                                    tast_info
+                                    analysis_data
                                         .symbol_references
                                         .add_class_member_reference_to_symbol(
                                             (calling_classlike, calling_function),
@@ -708,7 +712,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                 id: FunctionLikeIdentifier::Method(name, member_name),
                             } => match context.function_context.calling_functionlike_id {
                                 Some(FunctionLikeIdentifier::Function(calling_function)) => {
-                                    tast_info
+                                    analysis_data
                                         .symbol_references
                                         .add_symbol_reference_to_class_member(
                                             calling_function,
@@ -720,7 +724,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                     calling_classlike,
                                     calling_function,
                                 )) => {
-                                    tast_info
+                                    analysis_data
                                         .symbol_references
                                         .add_class_member_reference_to_class_member(
                                             (calling_classlike, calling_function),
@@ -740,7 +744,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                         Some(FunctionLikeIdentifier::Function(
                                             calling_function,
                                         )) => {
-                                            tast_info
+                                            analysis_data
                                                 .symbol_references
                                                 .add_symbol_reference_to_class_member(
                                                     calling_function,
@@ -752,7 +756,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                             calling_classlike,
                                             calling_function,
                                         )) => {
-                                            tast_info
+                                            analysis_data
                                                 .symbol_references
                                                 .add_class_member_reference_to_class_member(
                                                     (calling_classlike, calling_function),
@@ -803,7 +807,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                             ..Default::default()
                         },
-                        &mut tast_info.data_flow_graph,
+                        &mut analysis_data.data_flow_graph,
                     );
 
                     for type_node in param_type.get_all_child_nodes() {
@@ -811,7 +815,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             hakana_reflection_info::t_union::TypeNode::Atomic(
                                 TAtomic::TReference { name, .. },
                             ) => {
-                                tast_info.add_issue(Issue::new(
+                                analysis_data.add_issue(Issue::new(
                                     IssueKind::NonExistentClasslike,
                                     format!(
                                         "Class, enum or interface {} cannot be found",
@@ -843,7 +847,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 expression_analyzer::analyze(
                     statements_analyzer,
                     default,
-                    tast_info,
+                    analysis_data,
                     context,
                     &mut None,
                 );
@@ -859,7 +863,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             let new_parent_node = if let GraphKind::WholeProgram(_) =
-                &tast_info.data_flow_graph.kind
+                &analysis_data.data_flow_graph.kind
             {
                 DataFlowNode::get_for_assignment(param.name.clone(), param.name_location.clone())
             } else {
@@ -898,14 +902,18 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             };
 
             if !param.promoted_property {
-                if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
-                    tast_info.data_flow_graph.add_node(new_parent_node.clone());
+                if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+                    analysis_data
+                        .data_flow_graph
+                        .add_node(new_parent_node.clone());
                 }
             }
 
-            tast_info.data_flow_graph.add_node(new_parent_node.clone());
+            analysis_data
+                .data_flow_graph
+                .add_node(new_parent_node.clone());
 
-            if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+            if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                 let calling_id = if let Some(calling_closure_id) = context.calling_closure_id {
                     FunctionLikeIdentifier::Function(calling_closure_id)
                 } else {
@@ -923,7 +931,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     None,
                 );
 
-                tast_info.data_flow_graph.add_path(
+                analysis_data.data_flow_graph.add_path(
                     &argument_node,
                     &new_parent_node,
                     PathKind::Default,
@@ -931,7 +939,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     None,
                 );
 
-                tast_info.data_flow_graph.add_node(argument_node);
+                analysis_data.data_flow_graph.add_node(argument_node);
             }
 
             param_type.parent_nodes.insert(new_parent_node);
@@ -940,7 +948,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             for hook in &config.hooks {
                 hook.handle_functionlike_param(
-                    tast_info,
+                    analysis_data,
                     FunctionLikeParamData {
                         context,
                         config,
@@ -962,15 +970,15 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 }
 
 fn report_unused_expressions(
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     config: &Config,
     fb_ast: &Vec<aast::Stmt<(), ()>>,
     statements_analyzer: &StatementsAnalyzer,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    let unused_source_nodes = check_variables_used(&tast_info.data_flow_graph);
-    tast_info.current_stmt_offset = None;
+    let unused_source_nodes = check_variables_used(&analysis_data.data_flow_graph);
+    analysis_data.current_stmt_offset = None;
 
     let mut unused_variable_nodes = vec![];
 
@@ -994,7 +1002,7 @@ fn report_unused_expressions(
                             pos,
                             &mut unused_variable_nodes,
                             node,
-                            tast_info,
+                            analysis_data,
                             label,
                             calling_functionlike_id,
                             pure,
@@ -1020,7 +1028,7 @@ fn report_unused_expressions(
 
                 match &kind {
                     VariableSourceKind::PrivateParam => {
-                        tast_info.expr_fixme_positions.insert(
+                        analysis_data.expr_fixme_positions.insert(
                             (pos.start_offset, pos.end_offset),
                             StmtStart {
                                 offset: pos.start_offset,
@@ -1030,7 +1038,7 @@ fn report_unused_expressions(
                             },
                         );
 
-                        tast_info.maybe_add_issue(
+                        analysis_data.maybe_add_issue(
                             Issue::new(
                                 IssueKind::UnusedParameter,
                                 "Unused param ".to_string() + label,
@@ -1054,7 +1062,7 @@ fn report_unused_expressions(
                             pos,
                             &mut unused_variable_nodes,
                             node,
-                            tast_info,
+                            analysis_data,
                             label,
                             calling_functionlike_id,
                             &false,
@@ -1074,7 +1082,7 @@ fn report_unused_expressions(
     if !unused_variable_nodes.is_empty() {
         add_unused_expression_replacements(
             fb_ast,
-            tast_info,
+            analysis_data,
             &unused_variable_nodes,
             statements_analyzer,
         )
@@ -1087,7 +1095,7 @@ fn handle_unused_assignment(
     pos: &HPos,
     unused_variable_nodes: &mut Vec<DataFlowNode>,
     node: &DataFlowNode,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     label: &String,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     pure: &bool,
@@ -1097,7 +1105,7 @@ fn handle_unused_assignment(
         statements_analyzer.get_interner().lookup(&pos.file_path.0),
     ) {
         let unused_closure_variable =
-            tast_info
+            analysis_data
                 .closure_spans
                 .iter()
                 .any(|(closure_start, closure_end)| {
@@ -1114,7 +1122,7 @@ fn handle_unused_assignment(
         {
             unused_variable_nodes.push(node.clone());
         } else {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 if label == "$$" {
                     Issue::new(
                         IssueKind::UnusedPipeVariable,
@@ -1157,20 +1165,20 @@ fn handle_unused_assignment(
 }
 
 pub(crate) fn update_analysis_result_with_tast(
-    tast_info: TastInfo,
+    analysis_data: FunctionAnalysisData,
     analysis_result: &mut AnalysisResult,
     file_path: &FilePath,
     ignore_taint_path: bool,
 ) {
-    if !tast_info.replacements.is_empty() {
+    if !analysis_data.replacements.is_empty() {
         analysis_result
             .replacements
             .entry(*file_path)
             .or_insert_with(BTreeMap::new)
-            .extend(tast_info.replacements);
+            .extend(analysis_data.replacements);
     }
 
-    let mut issues_to_emit = tast_info.issues_to_emit;
+    let mut issues_to_emit = analysis_data.issues_to_emit;
 
     issues_to_emit.sort_by(|a, b| a.pos.start_offset.partial_cmp(&b.pos.start_offset).unwrap());
 
@@ -1180,18 +1188,18 @@ pub(crate) fn update_analysis_result_with_tast(
         .or_insert_with(Vec::new)
         .extend(issues_to_emit.into_iter().unique().collect::<Vec<_>>());
 
-    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         if !ignore_taint_path {
             analysis_result
                 .program_dataflow_graph
-                .add_graph(tast_info.data_flow_graph);
+                .add_graph(analysis_data.data_flow_graph);
         }
     } else {
         analysis_result
             .symbol_references
-            .extend(tast_info.symbol_references);
+            .extend(analysis_data.symbol_references);
 
-        for (source_id, c) in tast_info.data_flow_graph.mixed_source_counts {
+        for (source_id, c) in analysis_data.data_flow_graph.mixed_source_counts {
             if let Some(existing_count) = analysis_result.mixed_source_counts.get_mut(&source_id) {
                 existing_count.extend(c);
             } else {
@@ -1199,7 +1207,7 @@ pub(crate) fn update_analysis_result_with_tast(
             }
         }
 
-        for (kind, count) in tast_info.issue_counts {
+        for (kind, count) in analysis_data.issue_counts {
             *analysis_result.issue_counts.entry(kind).or_insert(0) += count;
         }
     }

@@ -1,4 +1,4 @@
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::ast::get_id_name;
@@ -16,13 +16,13 @@ use oxidized::{
     aast::{self, ClassId},
     ast_defs::Pos,
 };
-use rustc_hash::{FxHashSet};
+use rustc_hash::FxHashSet;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&ClassId<(), ()>, (&Pos, &String)),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
@@ -50,7 +50,7 @@ pub(crate) fn analyze(
                 if !expression_analyzer::analyze(
                     statements_analyzer,
                     lhs_expr,
-                    tast_info,
+                    analysis_data,
                     context,
                     if_body_context,
                 ) {
@@ -62,14 +62,14 @@ pub(crate) fn analyze(
 
                 let mut stmt_type = None;
 
-                if let Some(lhs_type) = tast_info.get_expr_type(lhs_expr.pos()).cloned() {
+                if let Some(lhs_type) = analysis_data.get_expr_type(lhs_expr.pos()).cloned() {
                     for atomic_type in &lhs_type.types {
                         match atomic_type {
                             TAtomic::TNamedObject { name, is_this, .. } => {
                                 stmt_type = Some(add_optional_union_type(
                                     analyse_known_class_constant(
                                         codebase,
-                                        tast_info,
+                                        analysis_data,
                                         context,
                                         &name,
                                         const_name,
@@ -86,12 +86,14 @@ pub(crate) fn analyze(
                                 name: classlike_name,
                                 ..
                             } => {
-                                tast_info.maybe_add_issue(
+                                analysis_data.maybe_add_issue(
                                     Issue::new(
                                         IssueKind::NonExistentClasslike,
                                         format!(
                                             "Unknown classlike {}",
-                                            statements_analyzer.get_interner().lookup(classlike_name)
+                                            statements_analyzer
+                                                .get_interner()
+                                                .lookup(classlike_name)
                                         ),
                                         statements_analyzer.get_hpos(&pos),
                                         &context.function_context.calling_functionlike_id,
@@ -105,7 +107,7 @@ pub(crate) fn analyze(
                     }
                 }
 
-                tast_info.set_expr_type(&pos, stmt_type.unwrap_or(get_mixed_any()));
+                analysis_data.set_expr_type(&pos, stmt_type.unwrap_or(get_mixed_any()));
 
                 return true;
             }
@@ -117,7 +119,7 @@ pub(crate) fn analyze(
 
     let stmt_type = analyse_known_class_constant(
         codebase,
-        tast_info,
+        analysis_data,
         context,
         &classlike_name,
         const_name,
@@ -126,14 +128,14 @@ pub(crate) fn analyze(
         pos,
     )
     .unwrap_or(get_mixed_any());
-    tast_info.set_expr_type(&pos, stmt_type);
+    analysis_data.set_expr_type(&pos, stmt_type);
 
     return true;
 }
 
 fn analyse_known_class_constant(
     codebase: &CodebaseInfo,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     classlike_name: &StrId,
     const_name: &String,
@@ -148,11 +150,14 @@ fn analyse_known_class_constant(
             }));
         }
 
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             if const_name == "class" {
                 Issue::new(
                     IssueKind::NonExistentType,
-                    format!("Unknown class {}", statements_analyzer.get_interner().lookup(classlike_name)),
+                    format!(
+                        "Unknown class {}",
+                        statements_analyzer.get_interner().lookup(classlike_name)
+                    ),
                     statements_analyzer.get_hpos(&pos),
                     &context.function_context.calling_functionlike_id,
                 )
@@ -192,7 +197,7 @@ fn analyse_known_class_constant(
             }
         };
 
-        tast_info.symbol_references.add_reference_to_symbol(
+        analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
             classlike_name.clone(),
             false,
@@ -204,7 +209,7 @@ fn analyse_known_class_constant(
     let const_name = if let Some(const_name) = statements_analyzer.get_interner().get(&const_name) {
         const_name
     } else {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentClassConstant,
                 format!(
@@ -222,16 +227,18 @@ fn analyse_known_class_constant(
         return None;
     };
 
-    tast_info.symbol_references.add_reference_to_class_member(
-        &context.function_context,
-        (classlike_name.clone(), const_name),
-        false,
-    );
+    analysis_data
+        .symbol_references
+        .add_reference_to_class_member(
+            &context.function_context,
+            (classlike_name.clone(), const_name),
+            false,
+        );
 
     let classlike_storage = codebase.classlike_infos.get(classlike_name).unwrap();
 
     if !classlike_storage.constants.contains_key(&const_name) {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentClassConstant,
                 format!(
@@ -260,7 +267,7 @@ fn analyse_known_class_constant(
                 expand_generic: true,
                 ..Default::default()
             },
-            &mut tast_info.data_flow_graph,
+            &mut analysis_data.data_flow_graph,
         );
     }
 

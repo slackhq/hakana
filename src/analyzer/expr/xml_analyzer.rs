@@ -2,7 +2,7 @@ use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
@@ -39,13 +39,13 @@ pub(crate) fn analyze(
     )>,
     pos: &Pos,
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     if_body_context: &mut Option<ScopeContext>,
 ) {
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
     let xhp_class_name = resolved_names.get(&boxed.0 .0.start_offset()).unwrap();
 
-    tast_info.symbol_references.add_reference_to_symbol(
+    analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
         xhp_class_name.clone(),
         false,
@@ -64,7 +64,7 @@ pub(crate) fn analyze(
                 let attribute_name = get_attribute_name(
                     xhp_simple,
                     resolved_names,
-                    tast_info,
+                    analysis_data,
                     context,
                     &xhp_class_name,
                 );
@@ -76,7 +76,7 @@ pub(crate) fn analyze(
                     attribute_name,
                     &xhp_class_name,
                     xhp_simple,
-                    tast_info,
+                    analysis_data,
                     context,
                     if_body_context,
                 );
@@ -86,7 +86,7 @@ pub(crate) fn analyze(
                     statements_analyzer,
                     xhp_expr,
                     &xhp_class_name,
-                    tast_info,
+                    analysis_data,
                     context,
                     if_body_context,
                     codebase,
@@ -106,7 +106,7 @@ pub(crate) fn analyze(
         required_attributes.retain(|attr| !used_attributes.contains(attr));
 
         if !required_attributes.is_empty() {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::MissingRequiredXhpAttribute,
                     format!(
@@ -134,7 +134,7 @@ pub(crate) fn analyze(
 
     let element_name = statements_analyzer.get_interner().lookup(xhp_class_name);
 
-    tast_info.expr_effects.insert(
+    analysis_data.expr_effects.insert(
         (pos.start_offset(), pos.end_offset()),
         if element_name.starts_with("Facebook\\XHP\\HTML\\") {
             EFFECT_PURE
@@ -147,14 +147,14 @@ pub(crate) fn analyze(
         expression_analyzer::analyze(
             statements_analyzer,
             inner_expr,
-            tast_info,
+            analysis_data,
             context,
             if_body_context,
         );
 
-        tast_info.combine_effects(inner_expr.pos(), pos, pos);
+        analysis_data.combine_effects(inner_expr.pos(), pos, pos);
 
-        if let Some(expr_type) = tast_info.expr_types.get(&(
+        if let Some(expr_type) = analysis_data.expr_types.get(&(
             inner_expr.pos().start_offset(),
             inner_expr.pos().end_offset(),
         )) {
@@ -172,7 +172,7 @@ pub(crate) fn analyze(
                 };
 
                 for parent_node in &expr_type.parent_nodes {
-                    tast_info.data_flow_graph.add_path(
+                    analysis_data.data_flow_graph.add_path(
                         parent_node,
                         &xml_body_taint,
                         PathKind::Default,
@@ -181,7 +181,7 @@ pub(crate) fn analyze(
                     );
                 }
 
-                tast_info.data_flow_graph.add_node(xml_body_taint);
+                analysis_data.data_flow_graph.add_node(xml_body_taint);
             }
 
             // find data leaking to style and script tags
@@ -199,7 +199,7 @@ pub(crate) fn analyze(
                 };
 
                 for parent_node in &expr_type.parent_nodes {
-                    tast_info.data_flow_graph.add_path(
+                    analysis_data.data_flow_graph.add_path(
                         parent_node,
                         &xml_body_taint,
                         PathKind::Default,
@@ -208,13 +208,13 @@ pub(crate) fn analyze(
                     );
                 }
 
-                tast_info.data_flow_graph.add_node(xml_body_taint);
+                analysis_data.data_flow_graph.add_node(xml_body_taint);
             }
         }
     }
     context.inside_general_use = was_inside_general_use;
 
-    tast_info.expr_types.insert(
+    analysis_data.expr_types.insert(
         (pos.start_offset(), pos.end_offset()),
         Rc::new(get_named_object(*xhp_class_name)),
     );
@@ -224,7 +224,7 @@ fn handle_attribute_spread(
     statements_analyzer: &StatementsAnalyzer,
     xhp_expr: &aast::Expr<(), ()>,
     element_name: &StrId,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     codebase: &CodebaseInfo,
@@ -232,14 +232,14 @@ fn handle_attribute_spread(
     expression_analyzer::analyze(
         statements_analyzer,
         xhp_expr,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     );
 
     let mut used_attributes = FxHashSet::default();
 
-    if let Some(expr_type) = tast_info
+    if let Some(expr_type) = analysis_data
         .expr_types
         .get(&(xhp_expr.pos().start_offset(), xhp_expr.pos().end_offset()))
         .cloned()
@@ -263,7 +263,7 @@ fn handle_attribute_spread(
                                 statements_analyzer,
                                 (xhp_expr, xhp_expr),
                                 xhp_expr.pos(),
-                                tast_info,
+                                analysis_data,
                                 context,
                                 false,
                                 expr_type_atomic.clone(),
@@ -276,13 +276,13 @@ fn handle_attribute_spread(
 
                             used_attributes.insert(*spread_attribute.0);
 
-                            if let Some(property_fetch_type) = tast_info
+                            if let Some(property_fetch_type) = analysis_data
                                 .expr_types
                                 .get(&(xhp_expr.pos().start_offset(), xhp_expr.pos().end_offset()))
                                 .cloned()
                             {
                                 add_all_dataflow(
-                                    tast_info,
+                                    analysis_data,
                                     statements_analyzer,
                                     (*element_name, *spread_attribute.0),
                                     xhp_expr.pos(),
@@ -300,7 +300,7 @@ fn handle_attribute_spread(
             }
         }
 
-        tast_info.expr_types.insert(
+        analysis_data.expr_types.insert(
             (xhp_expr.pos().start_offset(), xhp_expr.pos().end_offset()),
             expr_type,
         );
@@ -314,21 +314,21 @@ fn analyze_xhp_attribute_assignment(
     attribute_name: StrId,
     element_name: &StrId,
     attribute_info: &aast::XhpSimple<(), ()>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) {
     expression_analyzer::analyze(
         statements_analyzer,
         &attribute_info.expr,
-        tast_info,
+        analysis_data,
         context,
         if_body_context,
     );
 
     let property_id = (*element_name, attribute_name);
 
-    let attribute_value_type = tast_info
+    let attribute_value_type = analysis_data
         .expr_types
         .get(&(
             attribute_info.expr.pos().start_offset(),
@@ -346,7 +346,7 @@ fn analyze_xhp_attribute_assignment(
                 .appearing_property_ids
                 .contains_key(&attribute_name)
         {
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::NonExistentXhpAttribute,
                     format!(
@@ -367,7 +367,7 @@ fn analyze_xhp_attribute_assignment(
 
     if let Some(attribute_value_type) = attribute_value_type {
         add_all_dataflow(
-            tast_info,
+            analysis_data,
             statements_analyzer,
             property_id,
             attribute_name_pos,
@@ -379,7 +379,7 @@ fn analyze_xhp_attribute_assignment(
 }
 
 fn add_all_dataflow(
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     statements_analyzer: &StatementsAnalyzer,
     property_id: (StrId, StrId),
     attribute_name_pos: &Pos,
@@ -387,7 +387,7 @@ fn add_all_dataflow(
     attribute_value_type: Rc<TUnion>,
     attribute_name: &str,
 ) {
-    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let codebase = statements_analyzer.get_codebase();
 
         add_unspecialized_property_assignment_dataflow(
@@ -395,7 +395,7 @@ fn add_all_dataflow(
             &property_id,
             attribute_name_pos,
             Some(attribute_value_pos),
-            tast_info,
+            analysis_data,
             &attribute_value_type,
             codebase,
             &property_id.0,
@@ -408,7 +408,7 @@ fn add_all_dataflow(
             &property_id.0,
             property_id,
             attribute_name,
-            tast_info,
+            analysis_data,
         );
     }
 }
@@ -416,7 +416,7 @@ fn add_all_dataflow(
 fn get_attribute_name(
     attribute_info: &oxidized::tast::XhpSimple<(), ()>,
     resolved_names: &FxHashMap<usize, StrId>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &ScopeContext,
     element_name: &StrId,
 ) -> StrId {
@@ -429,11 +429,13 @@ fn get_attribute_name(
             .get(&attribute_info.name.0.start_offset())
             .unwrap();
 
-        tast_info.symbol_references.add_reference_to_class_member(
-            &context.function_context,
-            (*element_name, attribute_name),
-            false,
-        );
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(
+                &context.function_context,
+                (*element_name, attribute_name),
+                false,
+            );
 
         attribute_name
     }
@@ -445,7 +447,7 @@ fn add_xml_attribute_dataflow(
     element_name: &StrId,
     property_id: (StrId, StrId),
     name: &str,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) {
     if let Some(classlike_storage) = codebase.classlike_infos.get(element_name) {
         let element_name = statements_analyzer.get_interner().lookup(element_name);
@@ -525,7 +527,7 @@ fn add_xml_attribute_dataflow(
                 },
             };
 
-            tast_info.data_flow_graph.add_node(xml_attribute_taint);
+            analysis_data.data_flow_graph.add_node(xml_attribute_taint);
         }
     }
 }

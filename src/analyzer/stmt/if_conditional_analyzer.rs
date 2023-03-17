@@ -14,14 +14,17 @@ use hakana_reflection_info::{
 use oxidized::{aast, ast, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{reconciler::reconciler, statements_analyzer::StatementsAnalyzer, typed_ast::TastInfo};
+use crate::{
+    reconciler::reconciler, statements_analyzer::StatementsAnalyzer,
+    typed_ast::FunctionAnalysisData,
+};
 
 use super::if_conditional_scope::IfConditionalScope;
 
 pub(crate) fn analyze<'a>(
     statements_analyzer: &StatementsAnalyzer,
     cond: &aast::Expr<(), ()>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     outer_context: &ScopeContext,
     if_scope: &mut IfScope,
 ) -> IfConditionalScope {
@@ -42,7 +45,7 @@ pub(crate) fn analyze<'a>(
                 &mut changed_var_ids,
                 &FxHashSet::default(),
                 statements_analyzer,
-                tast_info,
+                analysis_data,
                 cond.pos(),
                 true,
                 false,
@@ -123,7 +126,7 @@ pub(crate) fn analyze<'a>(
     if !expression_analyzer::analyze(
         statements_analyzer,
         externally_applied_if_cond_expr,
-        tast_info,
+        analysis_data,
         if has_outer_context_changes {
             &mut outer_context
         } else {
@@ -211,14 +214,14 @@ pub(crate) fn analyze<'a>(
         if !expression_analyzer::analyze(
             statements_analyzer,
             cond,
-            tast_info,
+            analysis_data,
             &mut if_conditional_context,
             &mut if_context,
         ) {
             // do something here
         }
 
-        add_branch_dataflow(statements_analyzer, cond, tast_info);
+        add_branch_dataflow(statements_analyzer, cond, analysis_data);
 
         if_conditional_context.inside_conditional = was_inside_conditional;
 
@@ -247,10 +250,10 @@ pub(crate) fn analyze<'a>(
         })
         .collect::<FxHashSet<_>>();
 
-    if let Some(cond_type) = tast_info.get_expr_type(cond.pos()).cloned() {
+    if let Some(cond_type) = analysis_data.get_expr_type(cond.pos()).cloned() {
         handle_paradoxical_condition(
             statements_analyzer,
-            tast_info,
+            analysis_data,
             cond.pos(),
             &outer_context.function_context.calling_functionlike_id,
             &cond_type,
@@ -324,14 +327,14 @@ fn get_definitely_evaluated_expression_inside_if(stmt: &aast::Expr<(), ()>) -> &
 pub(crate) fn add_branch_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     cond: &aast::Expr<(), ()>,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) {
-    if let GraphKind::WholeProgram(_) = &tast_info.data_flow_graph.kind {
+    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         // todo maybe useful in the future
         return;
     }
 
-    let conditional_type = tast_info
+    let conditional_type = analysis_data
         .expr_types
         .get(&(cond.1.start_offset(), cond.1.end_offset()));
 
@@ -343,7 +346,7 @@ pub(crate) fn add_branch_dataflow(
             );
 
             for parent_node in &conditional_type.parent_nodes {
-                tast_info.data_flow_graph.add_path(
+                analysis_data.data_flow_graph.add_path(
                     &parent_node,
                     &branch_node,
                     PathKind::Default,
@@ -352,8 +355,8 @@ pub(crate) fn add_branch_dataflow(
                 );
             }
 
-            if tast_info.data_flow_graph.kind == GraphKind::FunctionBody {
-                tast_info.data_flow_graph.add_node(branch_node);
+            if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+                analysis_data.data_flow_graph.add_node(branch_node);
             }
         }
     }
@@ -361,13 +364,13 @@ pub(crate) fn add_branch_dataflow(
 
 pub(crate) fn handle_paradoxical_condition(
     statements_analyzer: &StatementsAnalyzer,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     expr_type: &TUnion,
 ) {
     if expr_type.is_always_falsy() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::ImpossibleTruthinessCheck,
                 format!(
@@ -381,7 +384,7 @@ pub(crate) fn handle_paradoxical_condition(
             statements_analyzer.get_file_path_actual(),
         );
     } else if expr_type.is_always_truthy() {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::RedundantTruthinessCheck,
                 format!(

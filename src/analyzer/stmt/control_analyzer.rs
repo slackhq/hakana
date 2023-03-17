@@ -4,7 +4,7 @@ use crate::scope_context::control_action::ControlAction;
 use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId};
 use oxidized::aast;
 
-use crate::typed_ast::TastInfo;
+use crate::typed_ast::FunctionAnalysisData;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum BreakContext {
@@ -17,7 +17,7 @@ pub(crate) fn get_control_actions(
     interner: &Interner,
     resolved_names: &FxHashMap<usize, StrId>,
     stmts: &Vec<aast::Stmt<(), ()>>,
-    tast_info: Option<&TastInfo>,
+    analysis_data: Option<&FunctionAnalysisData>,
     break_context: Vec<BreakContext>,
     return_is_exit: bool, // default true
 ) -> FxHashSet<ControlAction> {
@@ -43,8 +43,8 @@ pub(crate) fn get_control_actions(
                     }
                 }
 
-                if let Some(tast_info) = tast_info {
-                    if let Some(t) = tast_info.get_expr_type(&boxed.pos()) {
+                if let Some(analysis_data) = analysis_data {
+                    if let Some(t) = analysis_data.get_expr_type(&boxed.pos()) {
                         if t.is_nothing() {
                             control_actions.insert(ControlAction::End);
                             return control_actions;
@@ -91,7 +91,7 @@ pub(crate) fn get_control_actions(
                     interner,
                     resolved_names,
                     &if_stmt.1 .0,
-                    tast_info,
+                    analysis_data,
                     break_context.clone(),
                     return_is_exit,
                 );
@@ -107,7 +107,7 @@ pub(crate) fn get_control_actions(
                     interner,
                     resolved_names,
                     &if_stmt.2 .0,
-                    tast_info,
+                    analysis_data,
                     break_context.clone(),
                     return_is_exit,
                 );
@@ -150,7 +150,7 @@ pub(crate) fn get_control_actions(
                     interner,
                     resolved_names,
                     &loop_stmts.0,
-                    tast_info,
+                    analysis_data,
                     loop_break_context,
                     return_is_exit,
                 );
@@ -163,7 +163,7 @@ pub(crate) fn get_control_actions(
                     .collect();
 
                 // check for infinite loop behaviour
-                if let Some(types) = tast_info {
+                if let Some(types) = analysis_data {
                     if stmt.1.is_while() {
                         let stmt = stmt.1.as_while().unwrap();
 
@@ -240,7 +240,7 @@ pub(crate) fn get_control_actions(
                         interner,
                         resolved_names,
                         &inner_case_stmts.0,
-                        tast_info,
+                        analysis_data,
                         switch_break_context.clone(),
                         return_is_exit,
                     );
@@ -279,7 +279,7 @@ pub(crate) fn get_control_actions(
                         interner,
                         resolved_names,
                         &inner_case_stmts.0,
-                        tast_info,
+                        analysis_data,
                         switch_break_context.clone(),
                         return_is_exit,
                     );
@@ -315,8 +315,8 @@ pub(crate) fn get_control_actions(
                 control_actions.extend(all_case_actions);
 
                 if has_default_terminator
-                    || if let Some(tast_info) = tast_info {
-                        tast_info
+                    || if let Some(analysis_data) = analysis_data {
+                        analysis_data
                             .fully_matched_switch_offsets
                             .contains(&stmt.0.start_offset())
                     } else {
@@ -334,7 +334,7 @@ pub(crate) fn get_control_actions(
                     interner,
                     resolved_names,
                     &stmt.0 .0,
-                    tast_info,
+                    analysis_data,
                     break_context.clone(),
                     return_is_exit,
                 );
@@ -356,7 +356,7 @@ pub(crate) fn get_control_actions(
                             interner,
                             resolved_names,
                             &catch.2 .0,
-                            tast_info,
+                            analysis_data,
                             break_context.clone(),
                             return_is_exit,
                         );
@@ -397,7 +397,7 @@ pub(crate) fn get_control_actions(
                         interner,
                         resolved_names,
                         &stmt.2 .0,
-                        tast_info,
+                        analysis_data,
                         break_context.clone(),
                         return_is_exit,
                     );
@@ -420,7 +420,7 @@ pub(crate) fn get_control_actions(
                     interner,
                     resolved_names,
                     &block_stmts.0,
-                    tast_info,
+                    analysis_data,
                     break_context.clone(),
                     return_is_exit,
                 );
@@ -441,7 +441,7 @@ pub(crate) fn get_control_actions(
                     interner,
                     resolved_names,
                     &boxed.1 .0,
-                    tast_info,
+                    analysis_data,
                     break_context.clone(),
                     return_is_exit,
                 );

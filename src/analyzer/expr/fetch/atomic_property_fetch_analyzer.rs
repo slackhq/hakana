@@ -1,5 +1,7 @@
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::{expr::call::arguments_analyzer::get_template_types_for_call, typed_ast::TastInfo};
+use crate::{
+    expr::call::arguments_analyzer::get_template_types_for_call, typed_ast::FunctionAnalysisData,
+};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -25,7 +27,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&Expr<(), ()>, &Expr<(), ()>),
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     in_assignment: bool,
     lhs_type_part: TAtomic,
@@ -34,7 +36,7 @@ pub(crate) fn analyze(
     lhs_var_id: &Option<String>,
 ) -> bool {
     if lhs_type_part.is_mixed() {
-        tast_info.set_expr_type(&expr.0.pos(), get_mixed_any());
+        analysis_data.set_expr_type(&expr.0.pos(), get_mixed_any());
     }
 
     let codebase = statements_analyzer.get_codebase();
@@ -45,13 +47,13 @@ pub(crate) fn analyze(
             name: classlike_name,
             ..
         } => {
-            tast_info.symbol_references.add_reference_to_symbol(
+            analysis_data.symbol_references.add_reference_to_symbol(
                 &context.function_context,
                 *classlike_name,
                 false,
             );
 
-            tast_info.maybe_add_issue(
+            analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::NonExistentClass,
                     format!(
@@ -74,7 +76,7 @@ pub(crate) fn analyze(
     let prop_name = if let Some(prop_name) = statements_analyzer.get_interner().get(prop_name) {
         prop_name
     } else {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentProperty,
                 format!(
@@ -93,7 +95,7 @@ pub(crate) fn analyze(
     };
 
     if !codebase.property_exists(&classlike_name, &prop_name) {
-        tast_info.maybe_add_issue(
+        analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentProperty,
                 format!(
@@ -111,11 +113,13 @@ pub(crate) fn analyze(
         return false;
     }
 
-    tast_info.symbol_references.add_reference_to_class_member(
-        &context.function_context,
-        (classlike_name.clone(), prop_name),
-        false,
-    );
+    analysis_data
+        .symbol_references
+        .add_reference_to_class_member(
+            &context.function_context,
+            (classlike_name.clone(), prop_name),
+            false,
+        );
 
     let declaring_property_class =
         codebase.get_declaring_class_for_property(&classlike_name, &prop_name);
@@ -136,7 +140,7 @@ pub(crate) fn analyze(
         &prop_name,
         declaring_property_class.unwrap(),
         lhs_type_part,
-        tast_info,
+        analysis_data,
     );
 
     // if (!$context->collect_mutations
@@ -166,7 +170,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             expr.0.pos(),
             pos,
-            tast_info,
+            analysis_data,
             classlike_storage,
             class_property_type,
             in_assignment,
@@ -180,9 +184,13 @@ pub(crate) fn analyze(
     //     $class_property_type->has_mutations = false;
     // }
 
-    tast_info.set_expr_type(
+    analysis_data.set_expr_type(
         &pos,
-        add_optional_union_type(class_property_type, tast_info.get_expr_type(pos), codebase),
+        add_optional_union_type(
+            class_property_type,
+            analysis_data.get_expr_type(pos),
+            codebase,
+        ),
     );
 
     true
@@ -194,7 +202,7 @@ fn get_class_property_type(
     property_name: &StrId,
     declaring_property_class: &StrId,
     mut lhs_type_part: TAtomic,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
     let class_property_type = codebase.get_property_type(&classlike_name, &property_name);
@@ -222,7 +230,7 @@ fn get_class_property_type(
                 ),
                 ..Default::default()
             },
-            &mut tast_info.data_flow_graph,
+            &mut analysis_data.data_flow_graph,
         );
 
         if !declaring_class_storage.template_types.is_empty() {
@@ -253,7 +261,7 @@ fn get_class_property_type(
                 &lhs_type_part,
                 class_storage,
                 declaring_class_storage,
-                tast_info,
+                analysis_data,
             );
         } else if let TAtomic::TNamedObject {
             type_params: Some(_),
@@ -266,7 +274,7 @@ fn get_class_property_type(
                 &lhs_type_part,
                 class_storage,
                 declaring_class_storage,
-                tast_info,
+                analysis_data,
             );
         }
 
@@ -284,7 +292,7 @@ pub(crate) fn localize_property_type(
     lhs_type_part: &TAtomic,
     property_class_storage: &ClassLikeInfo,
     property_declaring_class_storage: &ClassLikeInfo,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     if let TAtomic::TNamedObject {
         type_params: Some(lhs_type_params),
@@ -293,7 +301,7 @@ pub(crate) fn localize_property_type(
     {
         let mut template_types = get_template_types_for_call(
             codebase,
-            tast_info,
+            analysis_data,
             Some(property_declaring_class_storage),
             Some(&property_declaring_class_storage.name),
             Some(property_class_storage),
@@ -373,7 +381,7 @@ fn add_property_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     lhs_pos: &Pos,
     pos: &Pos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     classlike_storage: &ClassLikeInfo,
     stmt_type: TUnion,
     in_assignment: bool,
@@ -383,7 +391,7 @@ fn add_property_dataflow(
 ) -> TUnion {
     if classlike_storage.specialize_instance {
         if let Some(lhs_var_id) = lhs_var_id {
-            let var_type = tast_info
+            let var_type = analysis_data
                 .expr_types
                 .get(&(lhs_pos.start_offset(), lhs_pos.end_offset()));
 
@@ -391,7 +399,7 @@ fn add_property_dataflow(
                 lhs_var_id.clone(),
                 statements_analyzer.get_hpos(lhs_pos),
             );
-            tast_info.data_flow_graph.add_node(var_node.clone());
+            analysis_data.data_flow_graph.add_node(var_node.clone());
 
             let property_node = DataFlowNode::get_for_assignment(
                 if let Some(expr_id) = expr_id {
@@ -401,9 +409,11 @@ fn add_property_dataflow(
                 },
                 statements_analyzer.get_hpos(pos),
             );
-            tast_info.data_flow_graph.add_node(property_node.clone());
+            analysis_data
+                .data_flow_graph
+                .add_node(property_node.clone());
 
-            tast_info.data_flow_graph.add_path(
+            analysis_data.data_flow_graph.add_path(
                 &var_node,
                 &property_node,
                 PathKind::PropertyFetch(property_id.0, property_id.1),
@@ -413,7 +423,7 @@ fn add_property_dataflow(
 
             if let Some(var_type) = var_type {
                 for parent_node in var_type.parent_nodes.iter() {
-                    tast_info.data_flow_graph.add_path(
+                    analysis_data.data_flow_graph.add_path(
                         parent_node,
                         &var_node,
                         PathKind::Default,
@@ -435,7 +445,7 @@ fn add_property_dataflow(
             expr_id,
             property_id,
             statements_analyzer.get_hpos(pos),
-            tast_info,
+            analysis_data,
             in_assignment,
             stmt_type,
             &statements_analyzer.get_interner(),
@@ -449,7 +459,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
     expr_id: &Option<String>,
     property_id: &(StrId, StrId),
     pos: HPos,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     in_assignment: bool,
     stmt_type: TUnion,
     interner: &Interner,
@@ -467,7 +477,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         pos,
     );
 
-    tast_info
+    analysis_data
         .data_flow_graph
         .add_node(localized_property_node.clone());
 
@@ -480,7 +490,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
     let property_node = DataFlowNode::new(label.clone(), label, None, None);
 
     if in_assignment {
-        tast_info.data_flow_graph.add_path(
+        analysis_data.data_flow_graph.add_path(
             &property_node,
             &localized_property_node,
             PathKind::PropertyAssignment(property_id.0, property_id.1),
@@ -488,7 +498,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
             None,
         );
     } else {
-        tast_info.data_flow_graph.add_path(
+        analysis_data.data_flow_graph.add_path(
             &property_node,
             &localized_property_node,
             PathKind::PropertyFetch(property_id.0, property_id.1),
