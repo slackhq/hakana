@@ -10,10 +10,10 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::expr::call_analyzer::{check_method_args, get_generic_param_for_offset};
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
@@ -22,7 +22,8 @@ use hakana_reflection_info::t_union::{populate_union_type, TUnion};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::template::{self, TemplateBound, TemplateResult};
 use hakana_type::{
-    add_optional_union_type, get_mixed_any, get_named_object, get_nothing, wrap_atomic,
+    add_optional_union_type, get_mixed_any, get_named_object, get_nothing, get_placeholder,
+    wrap_atomic,
 };
 use indexmap::IndexMap;
 use oxidized::pos::Pos;
@@ -356,45 +357,47 @@ fn analyze_named_constructor(
         // todo check purity
 
         if !storage.template_types.is_empty() {
-            for (i, type_arg) in expr.1.iter().enumerate() {
-                let mut param_type = get_type_from_hint(
-                    &type_arg.1 .1,
-                    context.function_context.calling_class.as_ref(),
-                    &statements_analyzer.get_type_resolution_context(),
-                    statements_analyzer.get_file_analyzer().resolved_names,
-                )
-                .unwrap();
-
-                if param_type.is_placeholder() {
-                    continue;
-                }
-
-                populate_union_type(
-                    &mut param_type,
-                    &statements_analyzer.get_codebase().symbols,
-                    &context
-                        .function_context
-                        .get_reference_source(&statements_analyzer.get_file_path().0),
-                    &mut analysis_data.symbol_references,
-                );
-
-                if let Some((template_name, map)) = template_result.template_types.get_index(i) {
-                    template_result.lower_bounds.insert(
-                        template_name.clone(),
-                        map.iter()
-                            .map(|(entity, _)| {
-                                (
-                                    entity.clone(),
-                                    vec![TemplateBound::new(param_type.clone(), 0, None, None)],
-                                )
-                            })
-                            .collect::<FxHashMap<_, _>>(),
-                    );
-                }
-            }
-
             let mut v = vec![];
+
             for (i, (template_name, base_type_map)) in storage.template_types.iter().enumerate() {
+                let mut param_type = if let Some(type_arg) = expr.1.get(i) {
+                    get_type_from_hint(
+                        &type_arg.1 .1,
+                        context.function_context.calling_class.as_ref(),
+                        &statements_analyzer.get_type_resolution_context(),
+                        statements_analyzer.get_file_analyzer().resolved_names,
+                    )
+                    .unwrap()
+                } else {
+                    get_placeholder()
+                };
+
+                if !param_type.is_placeholder() {
+                    populate_union_type(
+                        &mut param_type,
+                        &statements_analyzer.get_codebase().symbols,
+                        &context
+                            .function_context
+                            .get_reference_source(&statements_analyzer.get_file_path().0),
+                        &mut analysis_data.symbol_references,
+                    );
+
+                    if let Some((template_name, map)) = template_result.template_types.get_index(i)
+                    {
+                        template_result.lower_bounds.insert(
+                            template_name.clone(),
+                            map.iter()
+                                .map(|(entity, _)| {
+                                    (
+                                        entity.clone(),
+                                        vec![TemplateBound::new(param_type.clone(), 0, None, None)],
+                                    )
+                                })
+                                .collect::<FxHashMap<_, _>>(),
+                        );
+                    }
+                }
+
                 let mut generic_param_type = if let Some(template_bounds) =
                     if let Some(result_map) = template_result.lower_bounds.get(template_name) {
                         result_map.get(&classlike_name)
