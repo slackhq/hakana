@@ -7,7 +7,7 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::Interner;
+use hakana_reflection_info::{Interner, STR_TYPE_STRUCTURE};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
@@ -174,6 +174,22 @@ fn handle_special_functions(
     context: &mut ScopeContext,
 ) -> Option<TUnion> {
     match name {
+        "HH\\type_structure" => {
+            if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
+                (args.get(0), args.get(1))
+            {
+                if let (Some(first_expr_type), Some(second_expr_type)) = (
+                    analysis_data.get_expr_type(first_arg_expr.pos()),
+                    analysis_data.get_expr_type(second_arg_expr.pos()),
+                ) {
+                    get_type_structure_type(statements_analyzer, first_expr_type, second_expr_type)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
         "HH\\global_get" => {
             if let Some((_, arg_expr)) = args.get(0) {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -561,6 +577,46 @@ fn handle_special_functions(
         }
         _ => None,
     }
+}
+
+fn get_type_structure_type(
+    statements_analyzer: &StatementsAnalyzer,
+    first_expr_type: &TUnion,
+    second_expr_type: &TUnion,
+) -> Option<TUnion> {
+    if let Some(second_arg_string) = second_expr_type.get_single_literal_string_value() {
+        let const_name =
+            if let Some(const_name) = statements_analyzer.get_interner().get(&second_arg_string) {
+                const_name
+            } else {
+                return None;
+            };
+
+        if first_expr_type.is_single() {
+            let classname = match first_expr_type.get_single() {
+                TAtomic::TLiteralClassname { name } => *name,
+                _ => {
+                    return None;
+                }
+            };
+
+            if let Some(classlike_info) = statements_analyzer
+                .get_codebase()
+                .classlike_infos
+                .get(&classname)
+            {
+                if let Some(Some(type_constant)) = classlike_info.type_constants.get(&const_name) {
+                    return Some(wrap_atomic(TAtomic::TTypeAlias {
+                        name: STR_TYPE_STRUCTURE,
+                        type_params: Some(vec![type_constant.clone()]),
+                        as_type: None,
+                    }));
+                }
+            }
+        }
+    }
+
+    None
 }
 
 fn add_dataflow(
