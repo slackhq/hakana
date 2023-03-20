@@ -86,7 +86,7 @@ pub struct TemplateBound {
     /**
      * When non-null, indicates an equality template bound (vs a lower or upper bound)
      */
-    pub equality_bound_classlike: Option<String>,
+    pub equality_bound_classlike: Option<StrId>,
 }
 
 impl TemplateBound {
@@ -94,7 +94,7 @@ impl TemplateBound {
         bound_type: TUnion,
         appearance_depth: usize,
         arg_offset: Option<usize>,
-        equality_bound_classlike: Option<String>,
+        equality_bound_classlike: Option<StrId>,
     ) -> Self {
         Self {
             bound_type,

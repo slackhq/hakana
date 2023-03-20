@@ -590,12 +590,12 @@ fn adjust_param_type(
                     };
 
                     template_result
-                        .lower_bounds
+                        .upper_bounds
                         .entry(param_name.clone())
                         .or_insert_with(FxHashMap::default)
                         .insert(
                             defining_entity.clone(),
-                            vec![TemplateBound::new(bound_type, 0, None, None)],
+                            TemplateBound::new(bound_type, 0, None, None),
                         );
                 }
             }

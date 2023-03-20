@@ -30,10 +30,10 @@ pub fn replace(
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
-    replace: bool,                             // true
-    add_lower_bound: bool,                     // false
-    bound_equality_classlike: Option<&String>, // None
-    depth: usize,                              // 1
+    replace: bool,                           // true
+    add_lower_bound: bool,                   // false
+    bound_equality_classlike: Option<StrId>, // None
+    depth: usize,                            // 1
 ) -> TUnion {
     let mut atomic_types = Vec::new();
 
@@ -111,7 +111,7 @@ fn handle_atomic_standin(
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
-    bound_equality_classlike: Option<&String>,
+    bound_equality_classlike: Option<StrId>,
     depth: usize,
     was_single: bool,
     had_template: &mut bool,
@@ -737,7 +737,7 @@ fn handle_template_param_standin(
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
-    bound_equality_classlike: Option<&String>,
+    bound_equality_classlike: Option<StrId>,
     depth: usize,
     had_template: &mut bool,
 ) -> Vec<TAtomic> {
@@ -963,7 +963,7 @@ fn handle_template_param_standin(
                         if existing_depth == &depth
                             && &input_arg_offset == existing_arg_offset
                             && existing_lower_bound.bound_type == generic_param
-                            && existing_lower_bound.equality_bound_classlike.as_ref()
+                            && existing_lower_bound.equality_bound_classlike
                                 == bound_equality_classlike
                         {
                             has_matching_lower_bound = true;
@@ -982,7 +982,7 @@ fn handle_template_param_standin(
                                 bound_type: generic_param,
                                 appearance_depth: depth,
                                 arg_offset: input_arg_offset,
-                                equality_bound_classlike: bound_equality_classlike.cloned(),
+                                equality_bound_classlike: bound_equality_classlike,
                             });
                     }
                 } else {
@@ -995,7 +995,7 @@ fn handle_template_param_standin(
                             bound_type: generic_param,
                             appearance_depth: depth,
                             arg_offset: input_arg_offset,
-                            equality_bound_classlike: bound_equality_classlike.cloned(),
+                            equality_bound_classlike: bound_equality_classlike,
                         }]);
                 }
             }
@@ -1124,7 +1124,7 @@ fn handle_template_param_class_standin(
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
-    bound_equality_classlike: Option<&String>,
+    bound_equality_classlike: Option<StrId>,
     depth: usize,
     was_single: bool,
 ) -> Vec<TAtomic> {
@@ -1302,7 +1302,7 @@ fn handle_template_param_type_standin(
     calling_function: Option<&FunctionLikeIdentifier>,
     replace: bool,
     add_lower_bound: bool,
-    bound_equality_classlike: Option<&String>,
+    bound_equality_classlike: Option<StrId>,
     depth: usize,
     was_single: bool,
 ) -> Vec<TAtomic> {
