@@ -347,7 +347,7 @@ impl TUnion {
         return false;
     }
 
-    pub fn get_template_types(&self) -> Vec<TAtomic> {
+    pub fn get_template_types(&self) -> Vec<&TAtomic> {
         let all_child_nodes = self.get_all_child_nodes();
 
         let mut template_types = Vec::new();
@@ -358,7 +358,7 @@ impl TUnion {
                 | TAtomic::TGenericClassname { .. }
                 | TAtomic::TGenericTypename { .. } = inner
                 {
-                    template_types.push(inner.clone());
+                    template_types.push(inner);
                 }
             }
         }

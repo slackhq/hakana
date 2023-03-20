@@ -133,6 +133,13 @@ pub struct ClassLikeInfo {
      */
     pub template_types: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
 
+    /*
+     * A list of all the templates that are only written in the constructor.
+     * 
+     * This list is used to limit the creation of type variables to only the classes that warrant them.
+     */
+    pub template_readonly: FxHashSet<StrId>,
+
     pub generic_variance: FxHashMap<usize, Variance>,
 
     /**
@@ -263,6 +270,7 @@ impl ClassLikeInfo {
             uses_position: None,
             namespace_position: None,
             is_production_code: true,
+            template_readonly: FxHashSet::default(),
         }
     }
 }

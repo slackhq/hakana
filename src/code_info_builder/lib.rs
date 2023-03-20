@@ -11,7 +11,7 @@ use hakana_reflection_info::{
     taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
     type_resolution::TypeResolutionContext, StrId,
 };
-use hakana_reflection_info::{FileSource, ThreadedInterner};
+use hakana_reflection_info::{FileSource, ThreadedInterner, STR_CONSTRUCT};
 use hakana_type::get_mixed_any;
 use indexmap::IndexMap;
 use no_pos_hash::{position_insensitive_hash, Hasher};
@@ -478,12 +478,32 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             });
         }
 
-        self.codebase
+        if let Some(classlike_storage) = self
+            .codebase
             .classlike_infos
-            .get_mut(c.classlike_name.as_ref().unwrap())
-            .unwrap()
-            .methods
-            .insert(method_name, functionlike_storage);
+            .get_mut(&c.classlike_name.unwrap())
+        {
+            if !classlike_storage.template_readonly.is_empty()
+                && matches!(m.visibility, ast_defs::Visibility::Public)
+                && method_name != STR_CONSTRUCT
+            {
+                for param in &functionlike_storage.params {
+                    if let Some(param_type) = &param.signature_type {
+                        let template_types = param_type.get_template_types();
+
+                        for template_type in template_types {
+                            if let TAtomic::TGenericParam { param_name, .. } = template_type {
+                                classlike_storage.template_readonly.remove(param_name);
+                            }
+                        }
+                    }
+                }
+            }
+
+            classlike_storage
+                .methods
+                .insert(method_name, functionlike_storage);
+        }
 
         let result = m.recurse(c, self);
 

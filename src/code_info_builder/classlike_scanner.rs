@@ -124,19 +124,21 @@ pub(crate) fn scan(
             match type_param_node.variance {
                 ast_defs::Variance::Covariant => {
                     storage.generic_variance.insert(i, Variance::Covariant);
+                    storage.template_readonly.insert(*param_name);
                 }
                 ast_defs::Variance::Contravariant => {
                     storage.generic_variance.insert(i, Variance::Contravariant);
                 }
                 ast_defs::Variance::Invariant => {
                     // default, do nothing
-
                     if class_name == &interner.intern_str("HH\\Vector") {
                         // cheat here for vectors
                         storage.generic_variance.insert(i, Variance::Covariant);
                     } else {
                         storage.generic_variance.insert(i, Variance::Invariant);
                     }
+
+                    storage.template_readonly.insert(*param_name);
                 }
             }
         }
@@ -879,6 +881,20 @@ fn visit_property_declaration(
         is_function: false,
         is_constant: false,
     });
+
+    if !classlike_storage.template_readonly.is_empty()
+        && matches!(property_node.visibility, ast_defs::Visibility::Public)
+    {
+        if let Some(property_type) = &property_type {
+            let template_types = property_type.get_template_types();
+
+            for template_type in template_types {
+                if let TAtomic::TGenericParam { param_name, .. } = template_type {
+                    classlike_storage.template_readonly.remove(param_name);
+                }
+            }
+        }
+    }
 
     let property_storage = PropertyInfo {
         is_static: property_node.is_static,

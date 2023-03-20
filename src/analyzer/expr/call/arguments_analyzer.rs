@@ -12,10 +12,10 @@ use crate::expr::binop::assignment_analyzer;
 use crate::expr::call_analyzer::get_generic_param_for_offset;
 use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{expression_analyzer, functionlike_analyzer};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -506,7 +506,11 @@ fn adjust_param_type(
     statements_analyzer: &StatementsAnalyzer,
     functionlike_id: &FunctionLikeIdentifier,
 ) {
-    let bindable_template_params = param_type.get_template_types();
+    let bindable_template_params = param_type
+        .get_template_types()
+        .into_iter()
+        .map(|t| t.clone())
+        .collect::<Vec<_>>();
 
     if !class_generic_params.is_empty() {
         map_class_generic_params(
@@ -558,7 +562,7 @@ fn adjust_param_type(
             );
         }
 
-        for template_type in &bindable_template_params {
+        for template_type in bindable_template_params {
             if let TAtomic::TGenericParam {
                 param_name,
                 defining_entity,
@@ -567,16 +571,16 @@ fn adjust_param_type(
             } = template_type
             {
                 if let None =
-                    if let Some(bounds_by_param) = template_result.lower_bounds.get(param_name) {
-                        bounds_by_param.get(defining_entity)
+                    if let Some(bounds_by_param) = template_result.lower_bounds.get(&param_name) {
+                        bounds_by_param.get(&defining_entity)
                     } else {
                         None
                     }
                 {
                     let bound_type = if let Some(bounds_by_param) =
-                        template_result.upper_bounds.get(param_name)
+                        template_result.upper_bounds.get(&param_name)
                     {
-                        if let Some(upper_bound) = bounds_by_param.get(defining_entity) {
+                        if let Some(upper_bound) = bounds_by_param.get(&defining_entity) {
                             upper_bound.bound_type.clone()
                         } else {
                             as_type.clone()
