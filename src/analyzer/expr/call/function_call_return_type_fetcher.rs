@@ -13,7 +13,7 @@ use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
-    add_union_type, get_arrayish_params, get_bool, get_float, get_int, get_mixed, get_mixed_any,
+    add_union_type, get_arrayish_params, get_float, get_int, get_mixed, get_mixed_any,
     get_mixed_vec, get_nothing, get_null, get_object, get_string, get_vec, template, type_expander,
     wrap_atomic,
 };
@@ -23,10 +23,10 @@ use std::sync::Arc;
 
 use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;
 use crate::expr::variable_fetch_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 
 use hakana_type::template::{TemplateBound, TemplateResult};
 use oxidized::pos::Pos;
@@ -215,36 +215,6 @@ fn handle_special_functions(
             } else {
                 None
             }
-        }
-        // bool
-        "hash_equals" | "in_array" => Some(get_bool()),
-        // int
-        "mb_strlen" | "rand" => Some(get_int()),
-        // string
-        "utf8_encode" | "sha1" | "dirname" | "vsprintf" | "trim" | "ltrim" | "rtrim" | "strpad"
-        | "str_repeat" | "md5" | "basename" | "strtolower" | "strtoupper" => Some(get_string()),
-        // falsable strings
-        "json_encode" | "file_get_contents" | "hex2bin" | "realpath" | "date" | "base64_decode"
-        | "date_format" | "hash_hmac" => {
-            let mut false_or_string = TUnion::new(vec![TAtomic::TString, TAtomic::TFalse]);
-            false_or_string.ignore_falsable_issues = true;
-            Some(false_or_string)
-        }
-        // falsable ints
-        "strtotime" | "mktime" => {
-            let mut false_or_int = TUnion::new(vec![TAtomic::TInt, TAtomic::TFalse]);
-            false_or_int.ignore_falsable_issues = true;
-            Some(false_or_int)
-        }
-        // falsable strings
-        "password_hash" => {
-            let mut false_or_null_or_string = TUnion::new(vec![
-                TAtomic::TStringWithFlags(false, true, false),
-                TAtomic::TFalse,
-                TAtomic::TNull,
-            ]);
-            false_or_null_or_string.ignore_falsable_issues = true;
-            Some(false_or_null_or_string)
         }
         "preg_split" => {
             if let Some((_, arg_expr)) = args.get(3) {

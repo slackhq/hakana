@@ -5,6 +5,7 @@ use crate::typehint_resolver::get_type_from_hint;
 use hakana_aast_helper::Uses;
 use hakana_reflection_info::file_info::FileInfo;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
+use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::{
     ast_signature::DefSignatureNode, class_constant_info::ConstantInfo, classlike_info::Variance,
     code_location::HPos, codebase_info::CodebaseInfo, t_atomic::TAtomic,
@@ -12,7 +13,7 @@ use hakana_reflection_info::{
     type_resolution::TypeResolutionContext, StrId,
 };
 use hakana_reflection_info::{FileSource, ThreadedInterner, STR_CONSTRUCT};
-use hakana_type::get_mixed_any;
+use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
 use indexmap::IndexMap;
 use no_pos_hash::{position_insensitive_hash, Hasher};
 use oxidized::ast::{FunParam, Tparam, TypeHint};
@@ -683,7 +684,55 @@ impl<'a> Scanner<'a> {
 
         functionlike_storage.user_defined = self.user_defined && !is_anonymous;
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
+
+        if !self.user_defined {
+            fix_function_return_type(self.interner.lookup(name), &mut functionlike_storage);
+        }
         functionlike_storage
+    }
+}
+
+fn fix_function_return_type(function_name: &str, functionlike_storage: &mut FunctionLikeInfo) {
+    match function_name {
+        // bool
+        "hash_equals" | "in_array" => {
+            functionlike_storage.return_type = Some(get_bool());
+        }
+
+        // int
+        "mb_strlen" | "rand" => functionlike_storage.return_type = Some(get_int()),
+
+        // string
+        "utf8_encode" | "sha1" | "dirname" | "vsprintf" | "trim" | "ltrim" | "rtrim" | "strpad"
+        | "str_repeat" | "md5" | "basename" | "strtolower" | "strtoupper" | "mb_strtolower"
+        | "mb_strtoupper" => functionlike_storage.return_type = Some(get_string()),
+
+        // falsable strings
+        "json_encode" | "file_get_contents" | "hex2bin" | "realpath" | "date" | "base64_decode"
+        | "date_format" | "hash_hmac" => {
+            let mut false_or_string = TUnion::new(vec![TAtomic::TString, TAtomic::TFalse]);
+            false_or_string.ignore_falsable_issues = true;
+            functionlike_storage.return_type = Some(false_or_string);
+        }
+
+        // falsable ints
+        "strtotime" | "mktime" => {
+            let mut false_or_int = TUnion::new(vec![TAtomic::TInt, TAtomic::TFalse]);
+            false_or_int.ignore_falsable_issues = true;
+            functionlike_storage.return_type = Some(false_or_int);
+        }
+
+        // falsable strings
+        "password_hash" => {
+            let mut false_or_null_or_string = TUnion::new(vec![
+                TAtomic::TStringWithFlags(false, true, false),
+                TAtomic::TFalse,
+                TAtomic::TNull,
+            ]);
+            false_or_null_or_string.ignore_falsable_issues = true;
+            functionlike_storage.return_type = Some(false_or_null_or_string);
+        }
+        _ => {}
     }
 }
 
