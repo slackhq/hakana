@@ -779,6 +779,14 @@ pub(crate) fn can_be_identical<'a>(
         }
     }
 
+    if let TAtomic::TClassTypeConstant { .. } = type1_part {
+        return true;
+    }
+
+    if let TAtomic::TClassTypeConstant { .. } = type2_part {
+        return true;
+    }
+
     if let TAtomic::TEnumLiteralCase {
         enum_name,
         member_name,

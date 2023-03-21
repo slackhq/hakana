@@ -5,8 +5,8 @@ use super::{
     simple_assertion_reconciler,
 };
 use crate::{
-    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
+    statements_analyzer::StatementsAnalyzer,
 };
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -14,7 +14,8 @@ use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_XHP_CHILD,
+    StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_KEYED_TRAVERSABLE,
+    STR_TRAVERSABLE, STR_XHP_CHILD,
 };
 use hakana_type::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
@@ -250,6 +251,14 @@ pub(crate) fn intersect_atomic_with_atomic(
         );
     }
 
+    if let TAtomic::TClassTypeConstant { .. } = type_1_atomic {
+        return Some(type_2_atomic.clone());
+    }
+
+    if let TAtomic::TClassTypeConstant { .. } = type_2_atomic {
+        return Some(type_1_atomic.clone());
+    }
+
     match (type_1_atomic, type_2_atomic) {
         (
             TAtomic::TEnum {
@@ -424,7 +433,7 @@ pub(crate) fn intersect_atomic_with_atomic(
             },
         ) => {
             if type_1_name == &STR_XHP_CHILD {
-                if type_2_name == &STR_KEYED_CONTAINER {
+                if type_2_name == &STR_KEYED_CONTAINER || type_2_name == &STR_KEYED_TRAVERSABLE {
                     let mut atomic = TAtomic::TNamedObject {
                         name: STR_ANY_ARRAY,
                         type_params: type_2_params.clone(),
@@ -434,7 +443,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     };
                     atomic.remove_placeholders();
                     return Some(atomic);
-                } else if type_2_name == &STR_CONTAINER {
+                } else if type_2_name == &STR_CONTAINER || type_2_name == &STR_TRAVERSABLE {
                     let type_2_params = if let Some(type_2_params) = type_2_params {
                         Some(vec![get_arraykey(true), type_2_params[0].clone()])
                     } else {

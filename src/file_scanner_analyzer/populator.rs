@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::classlike_info::ClassLikeInfo;
+use hakana_reflection_info::classlike_info::{ClassConstantType, ClassLikeInfo};
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
@@ -101,14 +101,17 @@ pub fn populate_codebase(
             }
         }
 
-        for (_, constant_type) in storage.type_constants.iter_mut() {
-            if let Some(constant_type) = constant_type {
-                populate_union_type(
-                    constant_type,
-                    &codebase.symbols,
-                    &ReferenceSource::Symbol(true, *name),
-                    symbol_references,
-                );
+        for (_, type_constant_info) in storage.type_constants.iter_mut() {
+            match type_constant_info {
+                ClassConstantType::Concrete(type_) | ClassConstantType::Abstract(Some(type_)) => {
+                    populate_union_type(
+                        type_,
+                        &codebase.symbols,
+                        &ReferenceSource::Symbol(true, *name),
+                        symbol_references,
+                    );
+                }
+                _ => {}
             }
         }
 
@@ -521,9 +524,11 @@ fn populate_data_from_parent_classlike(
             .collect::<FxHashMap<_, _>>(),
     );
 
-    storage
-        .type_constants
-        .extend(parent_storage.type_constants.clone());
+    for (name, type_info) in &parent_storage.type_constants {
+        if !storage.type_constants.contains_key(name) {
+            storage.type_constants.insert(*name, type_info.clone());
+        }
+    }
 
     if parent_storage.preserve_constructor_signature {
         storage.preserve_constructor_signature = true;
@@ -565,6 +570,14 @@ fn populate_data_from_trait(
     storage
         .all_class_interfaces
         .extend(trait_storage.direct_class_interfaces.clone());
+
+    for (name, type_info) in &trait_storage.type_constants {
+        if let Some(ClassConstantType::Concrete(_)) = storage.type_constants.get(name) {
+            // do nothing
+        } else {
+            storage.type_constants.insert(*name, type_info.clone());
+        }
+    }
 
     inherit_methods_from_parent(storage, trait_storage, codebase);
     inherit_properties_from_parent(storage, trait_storage);

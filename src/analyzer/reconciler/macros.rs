@@ -24,6 +24,9 @@ macro_rules! intersect_simple {
                     acceptable_types.push(atomic.clone());
                 } else if matches!(atomic, $( $supertype_pattern )|+ $( if $supertype_guard )?) {
                     return Some($max_type);
+                } else if let TAtomic::TClassTypeConstant { .. } = atomic {
+                    acceptable_types.push(atomic.clone());
+                    did_remove_type = true;
                 } else {
                     did_remove_type = true;
                 }

@@ -1,3 +1,4 @@
+use hakana_reflection_info::classlike_info::ClassConstantType;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
@@ -7,7 +8,7 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::{Interner, STR_TYPE_STRUCTURE};
+use hakana_reflection_info::{Interner, StrId, STR_TYPE_STRUCTURE};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
@@ -182,7 +183,12 @@ fn handle_special_functions(
                     analysis_data.get_expr_type(first_arg_expr.pos()),
                     analysis_data.get_expr_type(second_arg_expr.pos()),
                 ) {
-                    get_type_structure_type(statements_analyzer, first_expr_type, second_expr_type)
+                    get_type_structure_type(
+                        statements_analyzer,
+                        first_expr_type,
+                        second_expr_type,
+                        context.function_context.calling_class,
+                    )
                 } else {
                     None
                 }
@@ -583,6 +589,7 @@ fn get_type_structure_type(
     statements_analyzer: &StatementsAnalyzer,
     first_expr_type: &TUnion,
     second_expr_type: &TUnion,
+    this_class: Option<StrId>,
 ) -> Option<TUnion> {
     if let Some(second_arg_string) = second_expr_type.get_single_literal_string_value() {
         let const_name =
@@ -595,6 +602,33 @@ fn get_type_structure_type(
         if first_expr_type.is_single() {
             let classname = match first_expr_type.get_single() {
                 TAtomic::TLiteralClassname { name } => *name,
+                TAtomic::TClassname { as_type } => match &**as_type {
+                    TAtomic::TNamedObject { name, is_this, .. } => {
+                        if *is_this {
+                            if let Some(this_class) = this_class {
+                                this_class
+                            } else {
+                                *name
+                            }
+                        } else {
+                            *name
+                        }
+                    }
+                    _ => {
+                        return None;
+                    }
+                },
+                TAtomic::TNamedObject { name, is_this, .. } => {
+                    if *is_this {
+                        if let Some(this_class) = this_class {
+                            this_class
+                        } else {
+                            *name
+                        }
+                    } else {
+                        *name
+                    }
+                }
                 _ => {
                     return None;
                 }
@@ -605,10 +639,14 @@ fn get_type_structure_type(
                 .classlike_infos
                 .get(&classname)
             {
-                if let Some(Some(type_constant)) = classlike_info.type_constants.get(&const_name) {
+                if let Some(type_constant_info) = classlike_info.type_constants.get(&const_name) {
                     return Some(wrap_atomic(TAtomic::TTypeAlias {
                         name: STR_TYPE_STRUCTURE,
-                        type_params: Some(vec![type_constant.clone()]),
+                        type_params: Some(vec![match type_constant_info {
+                            ClassConstantType::Concrete(actual_type) => actual_type.clone(),
+                            ClassConstantType::Abstract(Some(as_type)) => as_type.clone(),
+                            _ => get_mixed_any(),
+                        }]),
                         as_type: None,
                     }));
                 }

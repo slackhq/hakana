@@ -22,6 +22,12 @@ pub enum Variance {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ClassConstantType {
+    Abstract(Option<TUnion>),
+    Concrete(TUnion),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClassLikeInfo {
     pub constants: IndexMap<StrId, ConstantInfo>,
 
@@ -135,7 +141,7 @@ pub struct ClassLikeInfo {
 
     /*
      * A list of all the templates that are only written in the constructor.
-     * 
+     *
      * This list is used to limit the creation of type variables to only the classes that warrant them.
      */
     pub template_readonly: FxHashSet<StrId>,
@@ -193,7 +199,7 @@ pub struct ClassLikeInfo {
     pub enum_type: Option<TAtomic>,
     pub enum_constraint: Option<Box<TAtomic>>,
 
-    pub type_constants: FxHashMap<StrId, Option<TUnion>>,
+    pub type_constants: FxHashMap<StrId, ClassConstantType>,
 
     pub user_defined: bool,
 

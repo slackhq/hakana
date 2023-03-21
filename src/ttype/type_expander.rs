@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::{
+    classlike_info::ClassConstantType,
     code_location::FilePath,
     codebase_info::CodebaseInfo,
     data_flow::{
@@ -506,7 +507,9 @@ fn expand_atomic(
                     return;
                 };
 
-                let type_ = if let Some(t) = classlike_storage.type_constants.get(&member_name) {
+                let type_constant = if let Some(t) =
+                    classlike_storage.type_constants.get(&member_name)
+                {
                     t.clone()
                 } else {
                     *skip_key = true;
@@ -514,22 +517,26 @@ fn expand_atomic(
                     return;
                 };
 
-                if let Some(mut type_) = type_ {
-                    expand_union(codebase, interner, &mut type_, options, data_flow_graph);
+                match type_constant {
+                    ClassConstantType::Abstract(Some(mut type_))
+                    | ClassConstantType::Concrete(mut type_) => {
+                        expand_union(codebase, interner, &mut type_, options, data_flow_graph);
 
-                    *skip_key = true;
-                    new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
-                        if let TAtomic::TDict {
-                            known_items: Some(_),
-                            ref mut shape_name,
-                            ..
-                        } = v
-                        {
-                            *shape_name = Some((*class_name, Some(*member_name)));
-                        };
-                        v
-                    }));
-                }
+                        *skip_key = true;
+                        new_return_type_parts.extend(type_.types.into_iter().map(|mut v| {
+                            if let TAtomic::TDict {
+                                known_items: Some(_),
+                                ref mut shape_name,
+                                ..
+                            } = v
+                            {
+                                *shape_name = Some((*class_name, Some(*member_name)));
+                            };
+                            v
+                        }));
+                    }
+                    _ => {}
+                };
             }
             _ => {
                 *skip_key = true;

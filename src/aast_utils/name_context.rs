@@ -308,8 +308,6 @@ fn get_aliased_classes(interner: &mut ThreadedInterner) -> FxHashMap<StrId, StrI
         "ConstMap",
         "ConstSet",
         "ConstVector",
-        "DateTime",
-        "DateTimeImmutable",
         "Generator",
         "HH\\AnyArray",
         "HH\\AsyncFunctionWaitHandle",

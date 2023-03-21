@@ -7,7 +7,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use hakana_reflection_info::{
     ast_signature::DefSignatureNode,
     class_constant_info::ConstantInfo,
-    classlike_info::{ClassLikeInfo, Variance},
+    classlike_info::{ClassConstantType, ClassLikeInfo, Variance},
     code_location::HPos,
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
     member_visibility::MemberVisibility,
@@ -778,12 +778,26 @@ fn visit_class_typeconst_declaration(
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
     all_uses: &Uses,
 ) {
-    let const_type = match &const_node.kind {
-        aast::ClassTypeconst::TCAbstract(_) => {
-            interner.intern(const_node.name.1.clone());
-            return;
+    let class_constant_type = match &const_node.kind {
+        aast::ClassTypeconst::TCAbstract(abstract_node) => {
+            ClassConstantType::Abstract(if let Some(hint) = &abstract_node.as_constraint {
+                Some(
+                    get_type_from_hint(
+                        &hint.1,
+                        Some(&classlike_storage.name),
+                        &TypeResolutionContext {
+                            template_type_map: classlike_storage.template_types.clone(),
+                            template_supers: FxHashMap::default(),
+                        },
+                        resolved_names,
+                    )
+                    .unwrap(),
+                )
+            } else {
+                None
+            })
         }
-        aast::ClassTypeconst::TCConcrete(const_node) => Some(
+        aast::ClassTypeconst::TCConcrete(const_node) => ClassConstantType::Concrete(
             get_type_from_hint(
                 &const_node.c_tc_type.1,
                 Some(&classlike_storage.name),
@@ -821,7 +835,9 @@ fn visit_class_typeconst_declaration(
         is_constant: true,
     });
 
-    classlike_storage.type_constants.insert(name, const_type);
+    classlike_storage
+        .type_constants
+        .insert(name, class_constant_type);
 }
 
 fn visit_property_declaration(

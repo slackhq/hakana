@@ -41,28 +41,29 @@ pub fn is_contained_by(
     container_atomic_types.reverse();
 
     'outer: while let Some(input_type_part) = input_atomic_types.pop() {
-        if let TAtomic::TNull { .. } = input_type_part {
-            if ignore_null {
-                continue;
+        match input_type_part {
+            TAtomic::TNull { .. } => {
+                if ignore_null {
+                    continue;
+                }
             }
-        }
-
-        if let TAtomic::TFalse { .. } = input_type_part {
-            if ignore_false {
-                continue;
+            TAtomic::TFalse { .. } => {
+                if ignore_false {
+                    continue;
+                }
             }
-        }
-
-        if let TAtomic::TGenericParam {
-            extra_types: None,
-            as_type,
-            ..
-        } = &input_type_part
-        {
-            if !container_has_template {
-                input_atomic_types.extend(as_type.types.iter().map(|a| a).collect::<Vec<_>>());
-                continue;
+            TAtomic::TGenericParam {
+                extra_types: None,
+                as_type,
+                ..
+            } => {
+                if !container_has_template {
+                    input_atomic_types.extend(as_type.types.iter().map(|a| a).collect::<Vec<_>>());
+                    continue;
+                }
             }
+            TAtomic::TClassTypeConstant { .. } => continue,
+            _ => (),
         }
 
         // todo handle class constant refs
@@ -102,6 +103,12 @@ pub fn is_contained_by(
                 && matches!(container_type_part, TAtomic::TFalse { .. })
                 && !matches!(input_type_part, TAtomic::TFalse { .. })
             {
+                continue;
+            }
+
+            if let TAtomic::TClassTypeConstant { .. } = &container_type_part {
+                type_match_found = true;
+
                 continue;
             }
 

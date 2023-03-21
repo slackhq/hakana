@@ -4,8 +4,8 @@ use super::{
     reconciler::trigger_issue_for_impossible, simple_negated_assertion_reconciler::subtract_null,
 };
 use crate::{
-    intersect_simple, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, intersect_simple, scope_analyzer::ScopeAnalyzer,
+    statements_analyzer::StatementsAnalyzer,
 };
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -13,6 +13,7 @@ use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_XHP_CHILD,
 };
 use hakana_type::{
     get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
@@ -467,7 +468,9 @@ pub(crate) fn intersect_null(
             TAtomic::TNull => {
                 nullable_types.push(TAtomic::TNull);
             }
-            TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false, _, false) => {
+            TAtomic::TMixed
+            | TAtomic::TMixedWithFlags(_, false, _, false)
+            | TAtomic::TClassTypeConstant { .. } => {
                 nullable_types.push(TAtomic::TNull);
                 did_remove_type = true;
             }
@@ -497,8 +500,8 @@ pub(crate) fn intersect_null(
                 name,
                 type_params: None,
                 ..
-            } => match statements_analyzer.get_interner().lookup(name) {
-                "XHPChild" => {
+            } => match *name {
+                STR_XHP_CHILD => {
                     nullable_types.push(TAtomic::TNull);
                     did_remove_type = true;
                 }
@@ -640,17 +643,49 @@ fn intersect_vec(
     let mut did_remove_type = false;
 
     for atomic in &existing_var_type.types {
-        if matches!(atomic, TAtomic::TVec { .. }) {
-            acceptable_types.push(atomic.clone());
-        } else {
-            if let TAtomic::TNamedObject {
+        match atomic {
+            TAtomic::TVec { .. } => {
+                acceptable_types.push(atomic.clone());
+            }
+            TAtomic::TGenericParam { as_type, .. } => {
+                if as_type.is_mixed() {
+                    let atomic = atomic.replace_template_extends(get_mixed_vec());
+
+                    acceptable_types.push(atomic);
+                } else {
+                    let atomic = atomic.replace_template_extends(intersect_vec(
+                        assertion,
+                        as_type,
+                        None,
+                        false,
+                        analysis_data,
+                        statements_analyzer,
+                        pos,
+                        calling_functionlike_id,
+                        is_equality,
+                        suppressed_issues,
+                    ));
+                    acceptable_types.push(atomic);
+                }
+
+                did_remove_type = true;
+            }
+            TAtomic::TClassTypeConstant { .. } => {
+                acceptable_types.push(TAtomic::TVec {
+                    known_items: None,
+                    type_param: get_mixed_any(),
+                    non_empty: false,
+                    known_count: None,
+                });
+                did_remove_type = true;
+            }
+            TAtomic::TNamedObject {
                 name,
                 type_params: Some(typed_params),
                 ..
-            } = atomic
-            {
-                match statements_analyzer.get_interner().lookup(name) {
-                    "HH\\Container" => {
+            } => {
+                match *name {
+                    STR_CONTAINER => {
                         acceptable_types.push(TAtomic::TVec {
                             type_param: typed_params.get(0).unwrap().clone(),
                             known_items: None,
@@ -658,7 +693,7 @@ fn intersect_vec(
                             known_count: None,
                         });
                     }
-                    "HH\\KeyedContainer" | "HH\\AnyArray" => {
+                    STR_KEYED_CONTAINER | STR_ANY_ARRAY => {
                         acceptable_types.push(TAtomic::TVec {
                             type_param: typed_params.get(1).unwrap().clone(),
                             known_items: None,
@@ -666,7 +701,7 @@ fn intersect_vec(
                             known_count: None,
                         });
                     }
-                    "XHPChild" => {
+                    STR_XHP_CHILD => {
                         acceptable_types.push(TAtomic::TVec {
                             type_param: wrap_atomic(atomic.clone()),
                             known_items: None,
@@ -676,9 +711,11 @@ fn intersect_vec(
                     }
                     _ => {}
                 }
+                did_remove_type = true;
             }
-
-            did_remove_type = true;
+            _ => {
+                did_remove_type = true;
+            }
         }
     }
 
@@ -728,36 +765,43 @@ fn intersect_keyset(
     let mut did_remove_type = false;
 
     for atomic in &existing_var_type.types {
-        if matches!(atomic, TAtomic::TKeyset { .. }) {
-            acceptable_types.push(atomic.clone());
-        } else {
-            if let TAtomic::TNamedObject {
+        match atomic {
+            TAtomic::TKeyset { .. } => {
+                acceptable_types.push(atomic.clone());
+            }
+            TAtomic::TClassTypeConstant { .. } => {
+                acceptable_types.push(atomic.clone());
+                did_remove_type = true;
+            }
+            TAtomic::TNamedObject {
                 name,
                 type_params: Some(typed_params),
                 ..
-            } = atomic
-            {
-                match statements_analyzer.get_interner().lookup(name) {
-                    "HH\\Container" => {
+            } => {
+                match *name {
+                    STR_CONTAINER => {
                         acceptable_types.push(TAtomic::TKeyset {
                             type_param: get_arraykey(true),
                         });
                     }
-                    "HH\\KeyedContainer" | "HH\\AnyArray" => {
+                    STR_KEYED_CONTAINER | STR_ANY_ARRAY => {
                         acceptable_types.push(TAtomic::TKeyset {
                             type_param: typed_params.get(0).unwrap().clone(),
                         });
                     }
-                    "XHPChild" => {
+                    STR_XHP_CHILD => {
                         acceptable_types.push(TAtomic::TKeyset {
                             type_param: wrap_atomic(atomic.clone()),
                         });
                     }
                     _ => {}
                 }
-            }
 
-            did_remove_type = true;
+                did_remove_type = true;
+            }
+            _ => {
+                did_remove_type = true;
+            }
         }
     }
 
@@ -836,50 +880,59 @@ fn intersect_dict(
 
                 did_remove_type = true;
             }
-            _ => {
-                if let TAtomic::TNamedObject {
-                    name, type_params, ..
-                } = atomic
-                {
-                    match statements_analyzer.get_interner().lookup(name) {
-                        "HH\\Container" => {
-                            if let Some(typed_params) = type_params {
-                                acceptable_types.push(TAtomic::TDict {
-                                    params: Some((
-                                        get_arraykey(true),
-                                        typed_params.get(0).unwrap().clone(),
-                                    )),
-                                    known_items: None,
-                                    non_empty: false,
-                                    shape_name: None,
-                                });
-                            }
-                        }
-                        "HH\\KeyedContainer" | "HH\\AnyArray" => {
-                            if let Some(typed_params) = type_params {
-                                acceptable_types.push(TAtomic::TDict {
-                                    params: Some((
-                                        typed_params.get(0).unwrap().clone(),
-                                        typed_params.get(1).unwrap().clone(),
-                                    )),
-                                    known_items: None,
-                                    non_empty: false,
-                                    shape_name: None,
-                                });
-                            }
-                        }
-                        "XHPChild" => {
+            TAtomic::TClassTypeConstant { .. } => {
+                acceptable_types.push(TAtomic::TDict {
+                    known_items: None,
+                    params: Some((get_arraykey(true), get_mixed_any())),
+                    non_empty: false,
+                    shape_name: None,
+                });
+                did_remove_type = true;
+            }
+            TAtomic::TNamedObject {
+                name, type_params, ..
+            } => {
+                match *name {
+                    STR_CONTAINER => {
+                        if let Some(typed_params) = type_params {
                             acceptable_types.push(TAtomic::TDict {
-                                params: Some((get_arraykey(true), wrap_atomic(atomic.clone()))),
+                                params: Some((
+                                    get_arraykey(true),
+                                    typed_params.get(0).unwrap().clone(),
+                                )),
                                 known_items: None,
                                 non_empty: false,
                                 shape_name: None,
                             });
                         }
-                        _ => {}
                     }
+                    STR_KEYED_CONTAINER | STR_ANY_ARRAY => {
+                        if let Some(typed_params) = type_params {
+                            acceptable_types.push(TAtomic::TDict {
+                                params: Some((
+                                    typed_params.get(0).unwrap().clone(),
+                                    typed_params.get(1).unwrap().clone(),
+                                )),
+                                known_items: None,
+                                non_empty: false,
+                                shape_name: None,
+                            });
+                        }
+                    }
+                    STR_XHP_CHILD => {
+                        acceptable_types.push(TAtomic::TDict {
+                            params: Some((get_arraykey(true), wrap_atomic(atomic.clone()))),
+                            known_items: None,
+                            non_empty: false,
+                            shape_name: None,
+                        });
+                    }
+                    _ => {}
                 }
 
+                did_remove_type = true;
+            }
+            _ => {
                 did_remove_type = true;
             }
         }
@@ -933,6 +986,9 @@ fn intersect_arraykey(
     for atomic in &existing_var_type.types {
         if atomic.is_int() || atomic.is_string() || matches!(atomic, TAtomic::TArraykey { .. }) {
             acceptable_types.push(atomic.clone());
+        } else if let TAtomic::TClassTypeConstant { .. } = atomic {
+            acceptable_types.push(TAtomic::TArraykey { from_any: true });
+            did_remove_type = true;
         } else if matches!(atomic, TAtomic::TNum { .. }) {
             return get_int();
         } else {
@@ -988,6 +1044,9 @@ fn intersect_num(
     for atomic in &existing_var_type.types {
         if atomic.is_int() || matches!(atomic, TAtomic::TFloat { .. }) {
             acceptable_types.push(atomic.clone());
+        } else if let TAtomic::TClassTypeConstant { .. } = atomic {
+            acceptable_types.push(TAtomic::TNum);
+            did_remove_type = true;
         } else if matches!(atomic, TAtomic::TArraykey { .. }) {
             return get_int();
         } else {
@@ -1053,6 +1112,10 @@ fn intersect_string(
             | TAtomic::TScalar
             | TAtomic::TArraykey { .. } => {
                 return get_string();
+            }
+            TAtomic::TClassTypeConstant { .. } => {
+                acceptable_types.push(TAtomic::TString);
+                did_remove_type = true;
             }
             TAtomic::TEnumLiteralCase {
                 constraint_type, ..
@@ -1208,6 +1271,10 @@ fn intersect_int(
                     acceptable_types.push(atomic);
                 }
 
+                did_remove_type = true;
+            }
+            TAtomic::TClassTypeConstant { .. } => {
+                acceptable_types.push(TAtomic::TInt);
                 did_remove_type = true;
             }
             TAtomic::TEnumLiteralCase {
@@ -1883,7 +1950,8 @@ fn reconcile_has_array_key(
             TAtomic::TMixed
             | TAtomic::TMixedWithFlags(..)
             | TAtomic::TMixedFromLoopIsset
-            | TAtomic::TTypeAlias { .. } => {
+            | TAtomic::TTypeAlias { .. }
+            | TAtomic::TClassTypeConstant { .. } => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }
@@ -2138,7 +2206,8 @@ fn reconcile_has_nonnull_entry_for_key(
             TAtomic::TMixed
             | TAtomic::TMixedWithFlags(..)
             | TAtomic::TMixedFromLoopIsset
-            | TAtomic::TTypeAlias { .. } => {
+            | TAtomic::TTypeAlias { .. }
+            | TAtomic::TClassTypeConstant { .. } => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }

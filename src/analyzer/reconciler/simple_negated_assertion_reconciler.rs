@@ -1,7 +1,8 @@
 use super::simple_assertion_reconciler::{get_acceptable_type, intersect_null};
 use crate::{
+    function_analysis_data::FunctionAnalysisData,
     reconciler::reconciler::trigger_issue_for_impossible, scope_analyzer::ScopeAnalyzer,
-    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData,
+    statements_analyzer::StatementsAnalyzer,
 };
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -1224,37 +1225,44 @@ pub(crate) fn subtract_null(
     let mut acceptable_types = vec![];
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. } = &atomic {
-            let new_atomic = atomic.replace_template_extends(subtract_null(
-                assertion,
-                &as_type,
-                None,
-                false,
-                analysis_data,
-                statements_analyzer,
-                None,
-                calling_functionlike_id,
-                suppressed_issues,
-            ));
+        match atomic {
+            TAtomic::TGenericParam { ref as_type, .. } => {
+                let new_atomic = atomic.replace_template_extends(subtract_null(
+                    assertion,
+                    &as_type,
+                    None,
+                    false,
+                    analysis_data,
+                    statements_analyzer,
+                    None,
+                    calling_functionlike_id,
+                    suppressed_issues,
+                ));
 
-            acceptable_types.push(new_atomic);
+                acceptable_types.push(new_atomic);
 
-            did_remove_type = true;
-        } else if let TAtomic::TMixed = atomic {
-            did_remove_type = true;
-            acceptable_types.push(TAtomic::TMixedWithFlags(false, false, false, true));
-        } else if let TAtomic::TMixedWithFlags(is_any, false, _, false) = atomic {
-            did_remove_type = true;
-            acceptable_types.push(TAtomic::TMixedWithFlags(is_any, false, false, true));
-        } else if let TAtomic::TNull = atomic {
-            did_remove_type = true;
-        } else if let TAtomic::TNamedObject {
-            name,
-            type_params: None,
-            ..
-        } = atomic
-        {
-            match statements_analyzer.get_interner().lookup(&name) {
+                did_remove_type = true;
+            }
+            TAtomic::TMixed => {
+                did_remove_type = true;
+                acceptable_types.push(TAtomic::TMixedWithFlags(false, false, false, true));
+            }
+            TAtomic::TMixedWithFlags(is_any, false, _, false) => {
+                did_remove_type = true;
+                acceptable_types.push(TAtomic::TMixedWithFlags(is_any, false, false, true));
+            }
+            TAtomic::TClassTypeConstant { .. } => {
+                acceptable_types.push(atomic);
+                did_remove_type = true;
+            }
+            TAtomic::TNull => {
+                did_remove_type = true;
+            }
+            TAtomic::TNamedObject {
+                name,
+                type_params: None,
+                ..
+            } => match statements_analyzer.get_interner().lookup(&name) {
                 "XHPChild" => {
                     did_remove_type = true;
                     acceptable_types.push(atomic);
@@ -1262,9 +1270,10 @@ pub(crate) fn subtract_null(
                 _ => {
                     acceptable_types.push(atomic);
                 }
+            },
+            _ => {
+                acceptable_types.push(atomic);
             }
-        } else {
-            acceptable_types.push(atomic);
         }
     }
 
