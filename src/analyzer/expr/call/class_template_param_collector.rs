@@ -14,7 +14,6 @@ pub(crate) fn collect(
     class_storage: &ClassLikeInfo,
     static_class_storage: &ClassLikeInfo,
     lhs_type_part: Option<&TAtomic>, // default None
-    self_call: bool,                 // default false
 ) -> Option<IndexMap<StrId, FxHashMap<StrId, TUnion>>> {
     let template_types = &class_storage.template_types;
 
@@ -81,7 +80,7 @@ pub(crate) fn collect(
     }
 
     for (template_name, type_map) in template_types {
-        for (_, type_) in type_map {
+        for (template_classname, type_) in type_map {
             if class_storage.name != static_class_storage.name {
                 if let Some(extended_type) = e
                     .get(&class_storage.name)
@@ -101,6 +100,17 @@ pub(crate) fn collect(
                         )));
                 }
             }
+
+            let self_call = if let Some(TAtomic::TNamedObject {
+                is_this: true,
+                name: self_class_name,
+                ..
+            }) = lhs_type_part
+            {
+                template_classname == self_class_name
+            } else {
+                false
+            };
 
             if !self_call {
                 class_template_params

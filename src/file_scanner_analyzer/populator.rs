@@ -579,6 +579,8 @@ fn populate_data_from_trait(
         }
     }
 
+    extend_template_params(storage, trait_storage);
+
     inherit_methods_from_parent(storage, trait_storage, codebase);
     inherit_properties_from_parent(storage, trait_storage);
 }

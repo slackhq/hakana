@@ -450,7 +450,7 @@ pub(crate) fn scan(
             &trait_use.1,
             None,
             &TypeResolutionContext {
-                template_type_map: IndexMap::new(),
+                template_type_map: storage.template_types.clone(),
                 template_supers: FxHashMap::default(),
             },
             resolved_names,
@@ -458,7 +458,10 @@ pub(crate) fn scan(
         .unwrap()
         .get_single_owned();
 
-        if let TAtomic::TReference { name, .. } = trait_type {
+        if let TAtomic::TReference {
+            name, type_params, ..
+        } = trait_type
+        {
             storage.used_traits.insert(name.clone());
 
             let mut hasher = rustc_hash::FxHasher::default();
@@ -467,6 +470,16 @@ pub(crate) fn scan(
             def_signature_node.signature_hash = def_signature_node
                 .signature_hash
                 .wrapping_add(hasher.finish());
+
+            if let Some(type_params) = type_params {
+                storage.template_extended_offsets.insert(
+                    name,
+                    type_params
+                        .into_iter()
+                        .map(|param| Arc::new(param))
+                        .collect(),
+                );
+            }
         }
     }
 

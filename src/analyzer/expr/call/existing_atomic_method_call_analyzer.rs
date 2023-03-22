@@ -27,10 +27,10 @@ use crate::{
         call_analyzer::check_method_args, expression_identifier,
         fetch::array_fetch_analyzer::handle_array_access_on_dict,
     },
+    function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
     scope_context::ScopeContext,
     statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
 };
 
 use super::{
@@ -119,15 +119,16 @@ pub(crate) fn analyze(
         != "HH\\Vector"
         || statements_analyzer.get_interner().lookup(method_name) != "fromItems"
     {
+        let declaring_classlike_storage = codebase
+            .classlike_infos
+            .get(&declaring_method_id.0)
+            .unwrap();
+
         class_template_param_collector::collect(
             codebase,
-            codebase
-                .classlike_infos
-                .get(&declaring_method_id.0)
-                .unwrap(),
+            declaring_classlike_storage,
             classlike_storage,
             Some(lhs_type_part),
-            lhs_var_id.unwrap_or(&"".to_string()) == "$this",
         )
     } else {
         None
@@ -135,8 +136,10 @@ pub(crate) fn analyze(
 
     let functionlike_storage = codebase.get_method(&declaring_method_id).unwrap();
 
+    let functionlike_template_types = functionlike_storage.template_types.clone();
+
     let mut template_result = TemplateResult::new(
-        functionlike_storage.template_types.clone(),
+        functionlike_template_types,
         class_template_params.clone().unwrap_or(IndexMap::new()),
     );
 
