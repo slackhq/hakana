@@ -1,7 +1,7 @@
 use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
-    EFFECT_IMPURE,
+    StrId, EFFECT_IMPURE,
 };
 use oxidized::{
     aast,
@@ -9,8 +9,8 @@ use oxidized::{
 };
 
 use crate::{
-    scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
+    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
 };
 
 use super::{
@@ -41,92 +41,95 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     lhs_type_part: &TAtomic,
+    classlike_name: Option<StrId>,
     result: &mut AtomicMethodCallAnalysisResult,
 ) {
-    let classlike_name = match &lhs_type_part {
-        TAtomic::TNamedObject {
-            name, extra_types, ..
-        } => {
-            match &expr.0 .2 {
-                aast::ClassId_::CIexpr(lhs_expr) => {
-                    if !matches!(&lhs_expr.2, aast::Expr_::Id(_)) {
-                        handle_method_call_on_named_object(
-                            result,
-                            name,
-                            extra_types,
-                            &None,
-                            analysis_data,
-                            statements_analyzer,
-                            pos,
-                            (
-                                lhs_expr,
-                                &aast::Expr::new(
-                                    (),
-                                    expr.1 .0.clone(),
-                                    aast::Expr_::Id(Box::new(oxidized::ast::Id(
-                                        expr.0 .1.clone(),
-                                        expr.1 .1.clone(),
-                                    ))),
-                                ),
-                                &expr.2,
-                                &expr.3,
-                                &expr.4,
-                            ),
-                            lhs_type_part,
-                            context,
-                            if_body_context,
-                        );
-                        return;
-                    }
-                }
-                _ => {}
-            }
-
-            name.clone()
-        }
-        TAtomic::TClassname { as_type, .. } | TAtomic::TGenericClassname { as_type, .. } => {
-            let as_type = *as_type.clone();
-            if let TAtomic::TNamedObject { name, .. } = as_type {
-                // todo check class name and register usage
-                name
-            } else {
+    if let TAtomic::TNamedObject {
+        name, extra_types, ..
+    } = &lhs_type_part
+    {
+        if let aast::ClassId_::CIexpr(lhs_expr) = &expr.0 .2 {
+            if !matches!(&lhs_expr.2, aast::Expr_::Id(_)) {
+                handle_method_call_on_named_object(
+                    result,
+                    name,
+                    extra_types,
+                    &None,
+                    analysis_data,
+                    statements_analyzer,
+                    pos,
+                    (
+                        lhs_expr,
+                        &aast::Expr::new(
+                            (),
+                            expr.1 .0.clone(),
+                            aast::Expr_::Id(Box::new(oxidized::ast::Id(
+                                expr.0 .1.clone(),
+                                expr.1 .1.clone(),
+                            ))),
+                        ),
+                        &expr.2,
+                        &expr.3,
+                        &expr.4,
+                    ),
+                    lhs_type_part,
+                    context,
+                    if_body_context,
+                );
                 return;
             }
         }
-        TAtomic::TLiteralClassname { name } => name.clone(),
-        TAtomic::TGenericParam { as_type, .. } => {
-            let mut classlike_name = None;
-            for generic_param_type in &as_type.types {
-                if let TAtomic::TNamedObject { name, .. } = generic_param_type {
-                    classlike_name = Some(name.clone());
-                    break;
+    }
+
+    let classlike_name = if let Some(classlike_name) = classlike_name {
+        classlike_name
+    } else {
+        match &lhs_type_part {
+            TAtomic::TNamedObject { name, .. } => name.clone(),
+            TAtomic::TClassname { as_type, .. } | TAtomic::TGenericClassname { as_type, .. } => {
+                let as_type = *as_type.clone();
+                if let TAtomic::TNamedObject { name, .. } = as_type {
+                    // todo check class name and register usage
+                    name
                 } else {
                     return;
                 }
             }
+            TAtomic::TLiteralClassname { name } => name.clone(),
+            TAtomic::TGenericParam { as_type, .. } => {
+                let mut classlike_name = None;
+                for generic_param_type in &as_type.types {
+                    if let TAtomic::TNamedObject { name, .. } = generic_param_type {
+                        classlike_name = Some(name.clone());
+                        break;
+                    } else {
+                        return;
+                    }
+                }
 
-            if let Some(classlike_name) = classlike_name {
-                classlike_name
-            } else {
-                // todo emit issue
+                if let Some(classlike_name) = classlike_name {
+                    classlike_name
+                } else {
+                    // todo emit issue
+                    return;
+                }
+            }
+            _ => {
+                if lhs_type_part.is_mixed() {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::MixedMethodCall,
+                            "Method called on unknown object".to_string(),
+                            statements_analyzer.get_hpos(&pos),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+
                 return;
             }
-        }
-        _ => {
-            if lhs_type_part.is_mixed() {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::MixedMethodCall,
-                        "Method called on unknown object".to_string(),
-                        statements_analyzer.get_hpos(&pos),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-            }
-
-            return;
         }
     };
 

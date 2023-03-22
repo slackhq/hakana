@@ -16,10 +16,10 @@ use hakana_type::{
 };
 use oxidized::ast_defs::Pos;
 
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_type::template::{TemplateBound, TemplateResult};
 
@@ -110,14 +110,12 @@ pub(crate) fn fetch(
         &mut return_type_candidate,
         &TypeExpansionOptions {
             self_class: Some(&method_id.0),
-            static_class_type: if let TAtomic::TNamedObject { .. } | TAtomic::TGenericParam { .. } =
-                lhs_type_part
-            {
-                type_expander::StaticClassType::Object(lhs_type_part)
-            } else if let TAtomic::TClassname { as_type } = lhs_type_part {
-                type_expander::StaticClassType::Object(as_type)
-            } else {
-                type_expander::StaticClassType::None
+            static_class_type: match lhs_type_part {
+                TAtomic::TNamedObject { .. } | TAtomic::TGenericParam { .. } => {
+                    type_expander::StaticClassType::Object(lhs_type_part)
+                }
+                TAtomic::TClassname { as_type } => type_expander::StaticClassType::Object(as_type),
+                _ => type_expander::StaticClassType::None,
             },
             parent_class: classlike_storage.direct_parent_class.as_ref(),
             function_is_final: method_storage.is_final,

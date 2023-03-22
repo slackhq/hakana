@@ -1,8 +1,8 @@
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_WRITE_PROPS;
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
@@ -26,9 +26,9 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
-    //let method_id = None;
-
     let codebase = statements_analyzer.get_codebase();
+
+    let mut classlike_name = None;
 
     let lhs_type = match &expr.0 .2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
@@ -43,6 +43,8 @@ pub(crate) fn analyze(
                                 return false;
                             };
 
+                        classlike_name = Some(*self_name);
+
                         get_named_object(self_name.clone())
                     }
                     "parent" => {
@@ -55,16 +57,24 @@ pub(crate) fn analyze(
 
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
 
-                        get_named_object(
-                            if let Some(parent_class) =
-                                classlike_storage.direct_parent_class.clone()
-                            {
-                                parent_class
-                            } else {
-                                // todo handle for traits
-                                return false;
-                            },
-                        )
+                        let parent_name = if let Some(parent_class) =
+                            classlike_storage.direct_parent_class.clone()
+                        {
+                            parent_class
+                        } else {
+                            // todo handle for traits
+                            return false;
+                        };
+
+                        classlike_name = Some(parent_name);
+
+                        wrap_atomic(TAtomic::TNamedObject {
+                            name: self_name.clone(),
+                            type_params: None,
+                            is_this: !classlike_storage.is_final,
+                            extra_types: None,
+                            remapped_params: false,
+                        })
                     }
                     "static" => {
                         let self_name =
@@ -73,6 +83,8 @@ pub(crate) fn analyze(
                             } else {
                                 return false;
                             };
+
+                        classlike_name = Some(*self_name);
 
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
 
@@ -88,6 +100,8 @@ pub(crate) fn analyze(
                         let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
                         let name_string = resolved_names.get(&id.0.start_offset()).unwrap().clone();
+
+                        classlike_name = Some(name_string);
 
                         get_named_object(name_string)
                     }
@@ -125,6 +139,7 @@ pub(crate) fn analyze(
             context,
             if_body_context,
             lhs_type_part,
+            classlike_name,
             &mut result,
         );
     }
