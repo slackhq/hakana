@@ -26,140 +26,142 @@ pub fn replace(
         let mut atomic_type = atomic_type.clone();
         atomic_type = replace_atomic(atomic_type, template_result, codebase);
 
-        if let TAtomic::TGenericParam {
-            param_name,
-            defining_entity,
-            as_type,
-            extra_types,
-            ..
-        } = &atomic_type
-        {
-            let key = param_name;
-
-            let template_type = replace_template_param(
-                &template_result.lower_bounds,
+        match &atomic_type {
+            TAtomic::TGenericParam {
                 param_name,
                 defining_entity,
-                codebase,
                 as_type,
                 extra_types,
-                &key,
-            );
+                ..
+            } => {
+                let key = param_name;
 
-            if let Some(template_type) = template_type {
-                keys_to_unset.insert(key.clone());
+                let template_type = replace_template_param(
+                    &template_result.lower_bounds,
+                    param_name,
+                    defining_entity,
+                    codebase,
+                    as_type,
+                    extra_types,
+                    &key,
+                );
 
-                for template_type_part in template_type.types {
-                    new_types.push(template_type_part);
+                if let Some(template_type) = template_type {
+                    keys_to_unset.insert(key.clone());
+
+                    for template_type_part in template_type.types {
+                        new_types.push(template_type_part);
+                    }
+                } else {
+                    new_types.push(atomic_type);
                 }
-            } else {
+            }
+            TAtomic::TGenericClassname {
+                param_name,
+                defining_entity,
+                ..
+            } => {
+                if let Some(bounds) = template_result
+                    .lower_bounds
+                    .get(param_name)
+                    .unwrap_or(&FxHashMap::default())
+                    .get(defining_entity)
+                {
+                    let template_type = get_most_specific_type_from_bounds(bounds, codebase);
+
+                    let mut class_template_type = None;
+
+                    for template_type_part in &template_type.types {
+                        if template_type_part.is_mixed()
+                            || matches!(template_type_part, TAtomic::TObject)
+                        {
+                            class_template_type = Some(TAtomic::TClassname {
+                                as_type: Box::new(TAtomic::TObject),
+                            });
+                        } else if let TAtomic::TNamedObject { .. } = template_type_part {
+                            class_template_type = Some(TAtomic::TClassname {
+                                as_type: Box::new(template_type_part.clone()),
+                            });
+                        } else if let TAtomic::TGenericParam {
+                            as_type,
+                            param_name,
+                            defining_entity,
+                            ..
+                        } = template_type_part
+                        {
+                            let first_atomic_type = as_type.get_single();
+
+                            class_template_type = Some(TAtomic::TGenericClassname {
+                                param_name: param_name.clone(),
+                                as_type: Box::new(first_atomic_type.clone()),
+                                defining_entity: defining_entity.clone(),
+                            })
+                        }
+                    }
+
+                    if let Some(class_template_type) = class_template_type {
+                        keys_to_unset.insert(param_name.clone());
+                        new_types.push(class_template_type);
+                    }
+                }
+            }
+            TAtomic::TGenericTypename {
+                param_name,
+                defining_entity,
+                ..
+            } => {
+                if let Some(bounds) = template_result
+                    .lower_bounds
+                    .get(param_name)
+                    .unwrap_or(&FxHashMap::default())
+                    .get(defining_entity)
+                {
+                    let template_type = get_most_specific_type_from_bounds(bounds, codebase);
+
+                    let mut class_template_type = None;
+
+                    for template_type_part in &template_type.types {
+                        if template_type_part.is_mixed() {
+                            class_template_type = Some(TAtomic::TTypename {
+                                as_type: Box::new(TAtomic::TObject),
+                            });
+                        } else if let TAtomic::TTypeAlias {
+                            name: type_name, ..
+                        } = template_type_part
+                        {
+                            class_template_type = Some(TAtomic::TTypename {
+                                as_type: Box::new(TAtomic::TTypeAlias {
+                                    name: *type_name,
+                                    type_params: None,
+                                    as_type: None,
+                                }),
+                            });
+                        } else if let TAtomic::TGenericParam {
+                            as_type,
+                            param_name,
+                            defining_entity,
+                            ..
+                        } = template_type_part
+                        {
+                            let first_atomic_type = as_type.get_single();
+
+                            class_template_type = Some(TAtomic::TGenericClassname {
+                                param_name: param_name.clone(),
+                                as_type: Box::new(first_atomic_type.clone()),
+                                defining_entity: defining_entity.clone(),
+                            })
+                        }
+                    }
+
+                    if let Some(class_template_type) = class_template_type {
+                        keys_to_unset.insert(param_name.clone());
+                        new_types.push(class_template_type);
+                    }
+                }
+            }
+            _ => {
                 new_types.push(atomic_type);
             }
-        } else if let TAtomic::TGenericClassname {
-            param_name,
-            defining_entity,
-            ..
-        } = &atomic_type
-        {
-            if let Some(bounds) = template_result
-                .lower_bounds
-                .get(param_name)
-                .unwrap_or(&FxHashMap::default())
-                .get(defining_entity)
-            {
-                let template_type = get_most_specific_type_from_bounds(bounds, codebase);
-
-                let mut class_template_type = None;
-
-                for template_type_part in &template_type.types {
-                    if template_type_part.is_mixed()
-                        || matches!(template_type_part, TAtomic::TObject)
-                    {
-                        class_template_type = Some(TAtomic::TClassname {
-                            as_type: Box::new(TAtomic::TObject),
-                        });
-                    } else if let TAtomic::TNamedObject { .. } = template_type_part {
-                        class_template_type = Some(TAtomic::TClassname {
-                            as_type: Box::new(template_type_part.clone()),
-                        });
-                    } else if let TAtomic::TGenericParam {
-                        as_type,
-                        param_name,
-                        defining_entity,
-                        ..
-                    } = template_type_part
-                    {
-                        let first_atomic_type = as_type.get_single();
-
-                        class_template_type = Some(TAtomic::TGenericClassname {
-                            param_name: param_name.clone(),
-                            as_type: Box::new(first_atomic_type.clone()),
-                            defining_entity: defining_entity.clone(),
-                        })
-                    }
-                }
-
-                if let Some(class_template_type) = class_template_type {
-                    keys_to_unset.insert(param_name.clone());
-                    new_types.push(class_template_type);
-                }
-            }
-        } else if let TAtomic::TGenericTypename {
-            param_name,
-            defining_entity,
-            ..
-        } = &atomic_type
-        {
-            if let Some(bounds) = template_result
-                .lower_bounds
-                .get(param_name)
-                .unwrap_or(&FxHashMap::default())
-                .get(defining_entity)
-            {
-                let template_type = get_most_specific_type_from_bounds(bounds, codebase);
-
-                let mut class_template_type = None;
-
-                for template_type_part in &template_type.types {
-                    if template_type_part.is_mixed() {
-                        class_template_type = Some(TAtomic::TTypename {
-                            as_type: Box::new(TAtomic::TObject),
-                        });
-                    } else if let TAtomic::TTypeAlias {
-                        name: type_name, ..
-                    } = template_type_part
-                    {
-                        class_template_type = Some(TAtomic::TTypename {
-                            as_type: Box::new(TAtomic::TTypeAlias {
-                                name: *type_name,
-                                type_params: None,
-                                as_type: None,
-                            }),
-                        });
-                    } else if let TAtomic::TGenericParam {
-                        as_type,
-                        param_name,
-                        defining_entity,
-                        ..
-                    } = template_type_part
-                    {
-                        let first_atomic_type = as_type.get_single();
-
-                        class_template_type = Some(TAtomic::TGenericClassname {
-                            param_name: param_name.clone(),
-                            as_type: Box::new(first_atomic_type.clone()),
-                            defining_entity: defining_entity.clone(),
-                        })
-                    }
-                }
-
-                if let Some(class_template_type) = class_template_type {
-                    keys_to_unset.insert(param_name.clone());
-                    new_types.push(class_template_type);
-                }
-            }
-        } else {
-            new_types.push(atomic_type);
         }
     }
 
