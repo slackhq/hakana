@@ -3,6 +3,7 @@ use crate::custom_hook::FunctionLikeParamData;
 use crate::dataflow::unused_variable_analyzer::{
     add_unused_expression_replacements, check_variables_used,
 };
+use crate::expr::call_analyzer::reconcile_lower_bounds_with_upper_bounds;
 use crate::expr::fetch::atomic_property_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -378,6 +379,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             },
         );
 
+        if let Some(parent_analysis_data) = &parent_analysis_data {
+            analysis_data.type_variable_bounds = parent_analysis_data.type_variable_bounds.clone();
+        }
+
         if let Some(issue_filter) = &statements_analyzer.get_config().allowed_issues {
             analysis_data.issue_filter = Some(issue_filter.clone());
         }
@@ -645,7 +650,45 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             for (kind, count) in analysis_data.issue_counts {
                 *parent_analysis_data.issue_counts.entry(kind).or_insert(0) += count;
             }
+
+            for (name, bounds) in analysis_data.type_variable_bounds {
+                if let Some(existing_bounds) =
+                    parent_analysis_data.type_variable_bounds.get_mut(&name)
+                {
+                    let existing_bounds_copy = existing_bounds.clone();
+                    let filtered_lower_bounds = bounds
+                        .0
+                        .into_iter()
+                        .filter(|bound| !(&existing_bounds_copy.0).contains(bound));
+                    let filtered_upper_bounds = bounds
+                        .1
+                        .into_iter()
+                        .filter(|bound| !(&existing_bounds_copy.1).contains(bound));
+
+                    existing_bounds.0.extend(filtered_lower_bounds);
+                    existing_bounds.1.extend(filtered_upper_bounds);
+                    existing_bounds.1.dedup();
+                } else {
+                    parent_analysis_data
+                        .type_variable_bounds
+                        .insert(name, bounds);
+                }
+            }
         } else {
+            if !analysis_data.type_variable_bounds.is_empty() {
+                for (_, bounds) in analysis_data.type_variable_bounds.clone() {
+                    reconcile_lower_bounds_with_upper_bounds(
+                        &bounds.0,
+                        &bounds.1,
+                        statements_analyzer,
+                        &mut analysis_data,
+                        functionlike_storage
+                            .name_location
+                            .unwrap_or(functionlike_storage.def_location),
+                    );
+                }
+            }
+
             update_analysis_result_with_tast(
                 analysis_data,
                 analysis_result,

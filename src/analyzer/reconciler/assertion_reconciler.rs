@@ -166,7 +166,6 @@ pub(crate) fn refine_atomic_with_union(
 
 fn intersect_union_with_atomic(
     codebase: &CodebaseInfo,
-
     existing_var_type: &TUnion,
     new_type: &TAtomic,
 ) -> Option<TUnion> {
@@ -257,6 +256,14 @@ pub(crate) fn intersect_atomic_with_atomic(
 
     if let TAtomic::TClassTypeConstant { .. } = type_2_atomic {
         return Some(type_1_atomic.clone());
+    }
+
+    if let TAtomic::TTypeVariable { .. } = type_1_atomic {
+        return Some(type_1_atomic.clone());
+    }
+
+    if let TAtomic::TTypeVariable { .. } = type_2_atomic {
+        return Some(type_2_atomic.clone());
     }
 
     match (type_1_atomic, type_2_atomic) {
@@ -843,7 +850,7 @@ fn intersect_dicts(
     }
 }
 
-fn intersect_union_with_union(
+pub(crate) fn intersect_union_with_union(
     type_1_param: &TUnion,
     type_2_param: &TUnion,
     codebase: &CodebaseInfo,
@@ -958,7 +965,6 @@ fn intersect_contained_atomic_with_another(
     super_atomic: &TAtomic,
     sub_atomic: &TAtomic,
     codebase: &CodebaseInfo,
-
     generic_coercion: bool,
 ) -> Option<TAtomic> {
     if generic_coercion {

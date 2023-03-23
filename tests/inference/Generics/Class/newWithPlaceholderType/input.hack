@@ -5,6 +5,11 @@ class MyCollection<Tv> {
 }
 
 function getMixedCollection(string $s): MyCollection<mixed> {
-  $collection = new MyCollection(vec[$s]);
+  $collection = new MyCollection<_>(vec[$s]);
+  return $collection;
+}
+
+function getIntCollection(string $s): MyCollection<int> {
+  $collection = new MyCollection<_>(vec[$s]);
   return $collection;
 }

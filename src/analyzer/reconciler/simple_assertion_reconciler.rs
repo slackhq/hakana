@@ -19,6 +19,7 @@ use hakana_type::{
     get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
     get_mixed_dict, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing, get_null, get_num,
     get_object, get_scalar, get_string, get_true, intersect_union_types,
+    template::TemplateBound,
     type_comparator::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
     },
@@ -496,6 +497,20 @@ pub(crate) fn intersect_null(
                 }
                 did_remove_type = true;
             }
+            TAtomic::TTypeVariable { name } => {
+                if let Some(pos) = pos {
+                    if let Some((lower_bounds, _)) =
+                        analysis_data.type_variable_bounds.get_mut(name)
+                    {
+                        let mut bound = TemplateBound::new(get_null(), 0, None, None);
+                        bound.pos = Some(statements_analyzer.get_hpos(pos));
+                        lower_bounds.push(bound);
+                    }
+                }
+
+                acceptable_types.push(atomic.clone());
+                did_remove_type = true;
+            }
             TAtomic::TNamedObject {
                 name,
                 type_params: None,
@@ -677,6 +692,20 @@ fn intersect_vec(
                     non_empty: false,
                     known_count: None,
                 });
+                did_remove_type = true;
+            }
+            TAtomic::TTypeVariable { name } => {
+                if let Some(pos) = pos {
+                    if let Some((lower_bounds, _)) =
+                        analysis_data.type_variable_bounds.get_mut(name)
+                    {
+                        let mut bound = TemplateBound::new(get_mixed_dict(), 0, None, None);
+                        bound.pos = Some(statements_analyzer.get_hpos(pos));
+                        lower_bounds.push(bound);
+                    }
+                }
+
+                acceptable_types.push(atomic.clone());
                 did_remove_type = true;
             }
             TAtomic::TNamedObject {
@@ -889,6 +918,20 @@ fn intersect_dict(
                 });
                 did_remove_type = true;
             }
+            TAtomic::TTypeVariable { name } => {
+                if let Some(pos) = pos {
+                    if let Some((lower_bounds, _)) =
+                        analysis_data.type_variable_bounds.get_mut(name)
+                    {
+                        let mut bound = TemplateBound::new(get_mixed_dict(), 0, None, None);
+                        bound.pos = Some(statements_analyzer.get_hpos(pos));
+                        lower_bounds.push(bound);
+                    }
+                }
+
+                acceptable_types.push(atomic.clone());
+                did_remove_type = true;
+            }
             TAtomic::TNamedObject {
                 name, type_params, ..
             } => {
@@ -929,7 +972,6 @@ fn intersect_dict(
                     }
                     _ => {}
                 }
-
                 did_remove_type = true;
             }
             _ => {
@@ -1161,6 +1203,20 @@ fn intersect_string(
 
                 did_remove_type = true;
             }
+            TAtomic::TTypeVariable { name } => {
+                if let Some(pos) = pos {
+                    if let Some((lower_bounds, _)) =
+                        analysis_data.type_variable_bounds.get_mut(name)
+                    {
+                        let mut bound = TemplateBound::new(get_string(), 0, None, None);
+                        bound.pos = Some(statements_analyzer.get_hpos(pos));
+                        lower_bounds.push(bound);
+                    }
+                }
+
+                acceptable_types.push(atomic.clone());
+                did_remove_type = true;
+            }
             TAtomic::TNamedObject {
                 name,
                 type_params: None,
@@ -1277,6 +1333,20 @@ fn intersect_int(
                 acceptable_types.push(TAtomic::TInt);
                 did_remove_type = true;
             }
+            TAtomic::TTypeVariable { name } => {
+                if let Some(pos) = pos {
+                    if let Some((lower_bounds, _)) =
+                        analysis_data.type_variable_bounds.get_mut(name)
+                    {
+                        let mut bound = TemplateBound::new(get_int(), 0, None, None);
+                        bound.pos = Some(statements_analyzer.get_hpos(pos));
+                        lower_bounds.push(bound);
+                    }
+                }
+
+                acceptable_types.push(atomic.clone());
+                did_remove_type = true;
+            }
             TAtomic::TEnumLiteralCase {
                 constraint_type, ..
             } => {
@@ -1388,6 +1458,10 @@ fn reconcile_truthy(
                     } else {
                         acceptable_types.push(atomic);
                     }
+                }
+                TAtomic::TTypeVariable { .. } => {
+                    did_remove_type = true;
+                    acceptable_types.push(atomic);
                 }
                 TAtomic::TBool { .. } => {
                     acceptable_types.push(TAtomic::TTrue);
@@ -1957,7 +2031,10 @@ fn reconcile_has_array_key(
                 }
                 did_remove_type = true;
             }
-
+            TAtomic::TTypeVariable { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
             TAtomic::TMixed
             | TAtomic::TMixedWithFlags(..)
             | TAtomic::TMixedFromLoopIsset
@@ -2213,6 +2290,10 @@ fn reconcile_has_nonnull_entry_for_key(
                     acceptable_types.push(atomic);
                 }
                 did_remove_type = true;
+            }
+            TAtomic::TTypeVariable { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
             }
             TAtomic::TMixed
             | TAtomic::TMixedWithFlags(..)

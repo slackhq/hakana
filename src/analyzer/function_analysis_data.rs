@@ -10,6 +10,7 @@ use hakana_reflection_info::{
     symbol_references::SymbolReferences,
     t_union::TUnion,
 };
+use hakana_type::template::TemplateBound;
 use oxidized::{ast_defs::Pos, prim_defs::Comment};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
@@ -37,6 +38,7 @@ pub struct FunctionAnalysisData {
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
     pub hakana_fixme_or_ignores: BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64))>>,
     pub matched_ignore_positions: FxHashSet<(usize, usize)>,
+    pub type_variable_bounds: FxHashMap<String, (Vec<TemplateBound>, Vec<TemplateBound>)>,
 }
 
 impl FunctionAnalysisData {
@@ -72,6 +74,7 @@ impl FunctionAnalysisData {
             expr_fixme_positions: FxHashMap::default(),
             matched_ignore_positions: FxHashSet::default(),
             issue_counts: FxHashMap::default(),
+            type_variable_bounds: FxHashMap::default(),
         }
     }
 

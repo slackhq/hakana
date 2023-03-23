@@ -724,5 +724,10 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TResource => "resource".to_string(),
+        TAtomic::TTypeVariable { .. } => {
+            *is_valid = false;
+            // todo
+            "_".to_string()
+        }
     }
 }

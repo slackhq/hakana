@@ -1,7 +1,6 @@
 use crate::{
-    add_union_type, combine_optional_union_types, get_arrayish_params, get_arraykey, get_mixed,
-    get_mixed_any, get_mixed_maybe_from_loop, get_value_param, intersect_union_types,
-    type_combiner,
+    add_union_type, get_arrayish_params, get_arraykey, get_mixed, get_mixed_any,
+    get_mixed_maybe_from_loop, get_value_param, intersect_union_types, type_combiner,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
     type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
@@ -983,6 +982,7 @@ fn handle_template_param_standin(
                                 appearance_depth: depth,
                                 arg_offset: input_arg_offset,
                                 equality_bound_classlike: bound_equality_classlike,
+                                pos: None,
                             });
                     }
                 } else {
@@ -996,6 +996,7 @@ fn handle_template_param_standin(
                             appearance_depth: depth,
                             arg_offset: input_arg_offset,
                             equality_bound_classlike: bound_equality_classlike,
+                            pos: None,
                         }]);
                 }
             }
@@ -1098,6 +1099,7 @@ fn handle_template_param_standin(
                         appearance_depth: 0,
                         arg_offset: None,
                         equality_bound_classlike: None,
+                        pos: None,
                     }
                 };
 
@@ -1685,6 +1687,10 @@ fn find_matching_atomic_types_for_template(
                     }
                 }
             }
+            TAtomic::TTypeVariable { .. } => {
+                // todo we can probably do better here
+                matching_atomic_types.push(TAtomic::TMixedWithFlags(true, false, false, false));
+            }
             _ => (),
         }
     }
@@ -1933,25 +1939,44 @@ pub fn get_most_specific_type_from_bounds(
     lower_bounds: &Vec<TemplateBound>,
     codebase: &CodebaseInfo,
 ) -> TUnion {
+    let relevant_bounds = get_relevant_bounds(lower_bounds);
+
+    if relevant_bounds.is_empty() {
+        return get_mixed_any();
+    }
+
+    if relevant_bounds.len() == 1 {
+        return relevant_bounds[0].bound_type.clone();
+    }
+
+    let mut specific_type = relevant_bounds[0].bound_type.clone();
+
+    for bound in relevant_bounds {
+        specific_type = add_union_type(specific_type, &bound.bound_type, codebase, false);
+    }
+
+    specific_type
+}
+
+pub fn get_relevant_bounds<'a>(lower_bounds: &'a Vec<TemplateBound>) -> Vec<&'a TemplateBound> {
     if lower_bounds.len() == 1 {
-        return lower_bounds.get(0).unwrap().bound_type.clone();
+        return vec![lower_bounds.get(0).unwrap()];
     }
 
     let mut lower_bounds = lower_bounds.into_iter().collect::<Vec<_>>();
     lower_bounds.sort_by(|a, b| a.appearance_depth.partial_cmp(&b.appearance_depth).unwrap());
 
     let mut current_depth = None;
-    let mut current_type: Option<TUnion> = None;
     let mut had_invariant = false;
     let mut last_arg_offset = None;
+
+    let mut applicable_bounds = vec![];
 
     for template_bound in lower_bounds {
         if let Some(inner) = current_depth {
             if inner != template_bound.appearance_depth {
-                if let Some(current_type) = &current_type {
-                    if !current_type.is_nothing()
-                        && (!had_invariant || last_arg_offset == template_bound.arg_offset)
-                    {
+                if !applicable_bounds.is_empty() {
+                    if !had_invariant || last_arg_offset == template_bound.arg_offset {
                         // escape switches when matching on invariant generic params
                         // and when matching
                         break;
@@ -1970,14 +1995,10 @@ pub fn get_most_specific_type_from_bounds(
             template_bound.equality_bound_classlike.is_some()
         };
 
-        current_type = Some(combine_optional_union_types(
-            current_type.as_ref(),
-            Some(&template_bound.bound_type),
-            codebase,
-        ));
+        applicable_bounds.push(template_bound);
 
         last_arg_offset = template_bound.arg_offset.clone();
     }
 
-    current_type.unwrap_or(get_mixed_any())
+    applicable_bounds
 }

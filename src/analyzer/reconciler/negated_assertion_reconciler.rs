@@ -602,6 +602,10 @@ fn handle_literal_negated_equality(
 
                 acceptable_types.push(existing_atomic_type);
             }
+            TAtomic::TTypeVariable { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(existing_atomic_type);
+            }
             _ => {
                 acceptable_types.push(existing_atomic_type);
             }

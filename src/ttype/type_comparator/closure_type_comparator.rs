@@ -44,6 +44,8 @@ pub(crate) fn is_contained_by(
 
                 if let Some(container_param) = container_param {
                     if let Some(container_param_type) = &container_param.signature_type {
+                        let mut param_comparison_result = TypeComparisonResult::new();
+
                         if !container_param_type.is_mixed()
                             && !union_type_comparator::is_contained_by(
                                 codebase,
@@ -55,11 +57,19 @@ pub(crate) fn is_contained_by(
                                 false,
                                 false,
                                 false,
-                                atomic_comparison_result,
+                                &mut param_comparison_result,
                             )
                         {
                             return false;
                         }
+
+                        atomic_comparison_result
+                            .type_variable_lower_bounds
+                            .extend(param_comparison_result.type_variable_upper_bounds);
+
+                        atomic_comparison_result
+                            .type_variable_upper_bounds
+                            .extend(param_comparison_result.type_variable_lower_bounds);
                     }
                 } else {
                     if input_param.is_optional {

@@ -1,8 +1,8 @@
 use crate::{
+    function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
     scope_context::{var_has_root, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
 };
 use hakana_reflection_info::{
     assertion::Assertion,

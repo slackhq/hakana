@@ -1,5 +1,7 @@
 use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
 
+use crate::template::TemplateBound;
+
 #[derive(Debug)]
 pub struct TypeComparisonResult {
     pub type_coerced: Option<bool>,
@@ -28,6 +30,9 @@ pub struct TypeComparisonResult {
 
     pub replacement_union_type: Option<TUnion>,
     pub replacement_atomic_type: Option<TAtomic>,
+
+    pub type_variable_lower_bounds: Vec<(String, TemplateBound)>,
+    pub type_variable_upper_bounds: Vec<(String, TemplateBound)>,
 }
 
 impl TypeComparisonResult {
@@ -40,6 +45,8 @@ impl TypeComparisonResult {
             type_coerced_to_literal: None,
             replacement_union_type: None,
             replacement_atomic_type: None,
+            type_variable_lower_bounds: vec![],
+            type_variable_upper_bounds: vec![],
         }
     }
 }

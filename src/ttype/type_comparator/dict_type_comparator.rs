@@ -2,7 +2,7 @@ use crate::{get_arrayish_params, get_arraykey, get_mixed};
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
 
 use super::{
-    generic_type_comparator::update_result_from_nested,
+    generic_type_comparator::update_failed_result_from_nested,
     type_comparison_result::TypeComparisonResult, union_type_comparator,
 };
 
@@ -135,7 +135,7 @@ pub(crate) fn is_contained_by(
                 ) {
                     all_types_contain = false;
 
-                    update_result_from_nested(atomic_comparison_result, &nested_comparison_result);
+                    update_failed_result_from_nested(atomic_comparison_result, nested_comparison_result);
                 }
 
                 let mut nested_comparison_result = TypeComparisonResult::new();
@@ -151,7 +151,7 @@ pub(crate) fn is_contained_by(
                 ) {
                     all_types_contain = false;
 
-                    update_result_from_nested(atomic_comparison_result, &nested_comparison_result);
+                    update_failed_result_from_nested(atomic_comparison_result, nested_comparison_result);
                 }
             }
         } else {

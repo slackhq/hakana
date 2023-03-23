@@ -1,0 +1,1 @@
+ERROR: IncompatibleTypeParameters - input.hack:11:25 - Type mixed should be a subtype of string

@@ -26,8 +26,8 @@ use oxidized::{aast, aast::Pos};
 use rustc_hash::FxHashSet;
 
 use crate::{
-    expression_analyzer, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    expression_analyzer, function_analysis_data::FunctionAnalysisData,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
 };
 
 pub(crate) fn analyze(
@@ -398,6 +398,24 @@ pub(crate) fn analyze(
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
                     );
+                }
+            } else {
+                for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
+                    if let Some((lower_bounds, _)) =
+                        analysis_data.type_variable_bounds.get_mut(&name)
+                    {
+                        bound.pos = Some(statements_analyzer.get_hpos(&return_expr.1));
+                        lower_bounds.push(bound);
+                    }
+                }
+
+                for (name, mut bound) in union_comparison_result.type_variable_upper_bounds {
+                    if let Some((_, upper_bounds)) =
+                        analysis_data.type_variable_bounds.get_mut(&name)
+                    {
+                        bound.pos = Some(statements_analyzer.get_hpos(&return_expr.1));
+                        upper_bounds.push(bound);
+                    }
                 }
             }
 

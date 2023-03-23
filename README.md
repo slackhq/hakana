@@ -36,7 +36,3 @@ That will create a binary at `./target/release/hakana-default`
 You can run all tests with: `cargo run --release test tests`
 
 You can run an individual test with `cargo run test <path-to-test-dir>`
-
-## Known issues
-
-- Generic parameters are not correctly inferred for `new HH\Lib\Ref<_>(false)` — currently Hakana infers the overly-narrow type `HH\Lib\Ref<false>`. As a workaround, the generic parameter type can be provided explicitly: `new HH\Lib\Ref<bool>(false)`.

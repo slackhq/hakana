@@ -20,6 +20,8 @@ function takesAChild(AChild $a): AChild {
     return $a;
 }
 
-$a = new Foo<AChild, _>(($a) ==> takesAChild($a));
-$b = $a->bar();
-echo $b->foo();
+function bar() {
+  $a = new Foo<AChild, _>(($a) ==> takesAChild($a));
+  $b = $a->bar();
+  echo $b->foo();
+}

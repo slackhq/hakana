@@ -2,10 +2,10 @@ use crate::custom_hook::AfterArgAnalysisData;
 use crate::expr::fetch::array_fetch_analyzer::{
     add_array_fetch_dataflow, handle_array_access_on_dict, handle_array_access_on_vec,
 };
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -477,6 +477,20 @@ pub(crate) fn verify_type(
         }
 
         return true;
+    } else {
+        for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
+            if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(&name) {
+                bound.pos = Some(statements_analyzer.get_hpos(input_expr.pos()));
+                lower_bounds.push(bound);
+            }
+        }
+
+        for (name, mut bound) in union_comparison_result.type_variable_upper_bounds {
+            if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(&name) {
+                bound.pos = Some(statements_analyzer.get_hpos(input_expr.pos()));
+                upper_bounds.push(bound);
+            }
+        }
     }
 
     if !param_type.is_nullable()

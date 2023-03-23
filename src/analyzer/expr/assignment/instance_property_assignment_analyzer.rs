@@ -84,6 +84,20 @@ pub(crate) fn analyze(
                     context.vars_in_scope.insert(var_id, Rc::new(union_type));
                 }
             }
+
+            for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
+                if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(&name) {
+                    bound.pos = Some(statements_analyzer.get_hpos(pos));
+                    lower_bounds.push(bound);
+                }
+            }
+
+            for (name, mut bound) in union_comparison_result.type_variable_upper_bounds {
+                if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(&name) {
+                    bound.pos = Some(statements_analyzer.get_hpos(pos));
+                    upper_bounds.push(bound);
+                }
+            }
         } else {
             if union_comparison_result.type_coerced.unwrap_or(false) {
                 if union_comparison_result
