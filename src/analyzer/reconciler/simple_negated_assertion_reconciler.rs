@@ -1398,34 +1398,39 @@ fn subtract_true(
     let mut existing_var_type = existing_var_type.clone();
 
     for atomic in existing_var_types {
-        if let TAtomic::TGenericParam { as_type, .. } = atomic {
-            if !is_equality && !as_type.is_mixed() {
-                let atomic = atomic.replace_template_extends(subtract_true(
-                    assertion,
-                    as_type,
-                    None,
-                    false,
-                    analysis_data,
-                    statements_analyzer,
-                    None,
-                    calling_functionlike_id,
-                    is_equality,
-                    suppressed_issues,
-                ));
+        match atomic {
+            TAtomic::TGenericParam { as_type, .. } => {
+                if !is_equality && !as_type.is_mixed() {
+                    let atomic = atomic.replace_template_extends(subtract_true(
+                        assertion,
+                        as_type,
+                        None,
+                        false,
+                        analysis_data,
+                        statements_analyzer,
+                        None,
+                        calling_functionlike_id,
+                        is_equality,
+                        suppressed_issues,
+                    ));
 
+                    existing_var_type.remove_type(&atomic);
+                    existing_var_type.types.push(atomic);
+                } else {
+                    did_remove_type = true;
+                }
+            }
+            TAtomic::TBool => {
                 existing_var_type.remove_type(&atomic);
-                existing_var_type.types.push(atomic);
-            } else {
+                existing_var_type.types.push(TAtomic::TFalse);
                 did_remove_type = true;
             }
-        } else if let TAtomic::TBool = atomic {
-            existing_var_type.remove_type(&atomic);
-            existing_var_type.types.push(TAtomic::TFalse);
-            did_remove_type = true;
-        } else if let TAtomic::TTrue { .. } = atomic {
-            did_remove_type = true;
+            TAtomic::TTrue { .. } => {
+                did_remove_type = true;
 
-            existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(&atomic);
+            }
+            _ => (),
         }
     }
 
@@ -1482,60 +1487,71 @@ fn reconcile_falsy(
         } else if !atomic.is_falsy() {
             did_remove_type = true;
 
-            if let TAtomic::TGenericParam { as_type, .. } = &atomic {
-                if !as_type.is_mixed() {
-                    let atomic = atomic.replace_template_extends(reconcile_falsy(
-                        assertion,
-                        as_type,
-                        None,
-                        false,
-                        analysis_data,
-                        statements_analyzer,
-                        None,
-                        calling_functionlike_id,
-                        suppressed_issues,
-                    ));
+            match atomic {
+                TAtomic::TGenericParam { ref as_type, .. } => {
+                    if !as_type.is_mixed() {
+                        let atomic = atomic.replace_template_extends(reconcile_falsy(
+                            assertion,
+                            as_type,
+                            None,
+                            false,
+                            analysis_data,
+                            statements_analyzer,
+                            None,
+                            calling_functionlike_id,
+                            suppressed_issues,
+                        ));
 
+                        acceptable_types.push(atomic);
+                    }
+                }
+                TAtomic::TBool { .. } => {
+                    acceptable_types.push(TAtomic::TFalse);
+                }
+                TAtomic::TVec { .. } => {
+                    let new_atomic = TAtomic::TVec {
+                        type_param: get_nothing(),
+                        known_items: None,
+                        non_empty: false,
+                        known_count: None,
+                    };
+                    acceptable_types.push(new_atomic);
+                }
+                TAtomic::TDict { .. } => {
+                    let new_atomic = TAtomic::TDict {
+                        params: None,
+                        known_items: None,
+                        non_empty: false,
+                        shape_name: None,
+                    };
+                    acceptable_types.push(new_atomic);
+                }
+                TAtomic::TMixed => {
+                    acceptable_types.push(TAtomic::TMixedWithFlags(false, false, true, false));
+                }
+                TAtomic::TMixedWithFlags(is_any, false, false, _) => {
+                    acceptable_types.push(TAtomic::TMixedWithFlags(is_any, false, true, false));
+                }
+                TAtomic::TMixedFromLoopIsset => {
+                    acceptable_types.push(TAtomic::TMixedWithFlags(false, false, true, false));
+                }
+                TAtomic::TString { .. } => {
+                    let empty_string = TAtomic::TLiteralString {
+                        value: "".to_string(),
+                    };
+                    let falsy_string = TAtomic::TLiteralString {
+                        value: "0".to_string(),
+                    };
+                    acceptable_types.push(empty_string);
+                    acceptable_types.push(falsy_string);
+                }
+                TAtomic::TInt { .. } => {
+                    let zero = TAtomic::TLiteralInt { value: 0 };
+                    acceptable_types.push(zero);
+                }
+                _ => {
                     acceptable_types.push(atomic);
                 }
-            } else if let TAtomic::TBool { .. } = atomic {
-                acceptable_types.push(TAtomic::TFalse);
-            } else if let TAtomic::TVec { .. } = atomic {
-                let new_atomic = TAtomic::TVec {
-                    type_param: get_nothing(),
-                    known_items: None,
-                    non_empty: false,
-                    known_count: None,
-                };
-                acceptable_types.push(new_atomic);
-            } else if let TAtomic::TDict { .. } = atomic {
-                let new_atomic = TAtomic::TDict {
-                    params: None,
-                    known_items: None,
-                    non_empty: false,
-                    shape_name: None,
-                };
-                acceptable_types.push(new_atomic);
-            } else if let TAtomic::TMixed = atomic {
-                acceptable_types.push(TAtomic::TMixedWithFlags(false, false, true, false));
-            } else if let TAtomic::TMixedWithFlags(is_any, false, false, _) = atomic {
-                acceptable_types.push(TAtomic::TMixedWithFlags(is_any, false, true, false));
-            } else if let TAtomic::TMixedFromLoopIsset = atomic {
-                acceptable_types.push(TAtomic::TMixedWithFlags(false, false, true, false));
-            } else if let TAtomic::TString { .. } = atomic {
-                let empty_string = TAtomic::TLiteralString {
-                    value: "".to_string(),
-                };
-                let falsy_string = TAtomic::TLiteralString {
-                    value: "0".to_string(),
-                };
-                acceptable_types.push(empty_string);
-                acceptable_types.push(falsy_string);
-            } else if let TAtomic::TInt { .. } = atomic {
-                let zero = TAtomic::TLiteralInt { value: 0 };
-                acceptable_types.push(zero);
-            } else {
-                acceptable_types.push(atomic);
             }
         } else {
             acceptable_types.push(atomic);
