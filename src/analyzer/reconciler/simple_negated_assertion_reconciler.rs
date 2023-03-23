@@ -1243,6 +1243,14 @@ pub(crate) fn subtract_null(
 
                 did_remove_type = true;
             }
+            TAtomic::TTypeVariable { .. } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
+            TAtomic::TClassTypeConstant { .. } => {
+                acceptable_types.push(atomic);
+                did_remove_type = true;
+            }
             TAtomic::TMixed => {
                 did_remove_type = true;
                 acceptable_types.push(TAtomic::TMixedWithFlags(false, false, false, true));
@@ -1250,10 +1258,6 @@ pub(crate) fn subtract_null(
             TAtomic::TMixedWithFlags(is_any, false, _, false) => {
                 did_remove_type = true;
                 acceptable_types.push(TAtomic::TMixedWithFlags(is_any, false, false, true));
-            }
-            TAtomic::TClassTypeConstant { .. } => {
-                acceptable_types.push(atomic);
-                did_remove_type = true;
             }
             TAtomic::TNull => {
                 did_remove_type = true;
@@ -1420,6 +1424,9 @@ fn subtract_true(
                     did_remove_type = true;
                 }
             }
+            TAtomic::TTypeVariable { .. } => {
+                did_remove_type = true;
+            }
             TAtomic::TBool => {
                 existing_var_type.remove_type(&atomic);
                 existing_var_type.types.push(TAtomic::TFalse);
@@ -1504,6 +1511,9 @@ fn reconcile_falsy(
 
                         acceptable_types.push(atomic);
                     }
+                }
+                TAtomic::TTypeVariable { .. } => {
+                    acceptable_types.push(atomic);
                 }
                 TAtomic::TBool { .. } => {
                     acceptable_types.push(TAtomic::TFalse);

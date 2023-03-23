@@ -1,0 +1,1 @@
+ERROR: IncompatibleTypeParameters - input.hack:5:3 - Type int should be a subtype of bool

@@ -24,6 +24,7 @@ pub enum IssueKind {
     ImpossibleTruthinessCheck,
     ImpossibleTypeComparison,
     InternalError,
+    IncompatibleTypeParameters,
     InvalidArgument,
     InvalidArrayOffset,
     InvalidContainsCheck,

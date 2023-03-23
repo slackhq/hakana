@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rustc_hash::FxHashMap;
 
-use hakana_reflection_info::{t_union::TUnion, StrId};
+use hakana_reflection_info::{code_location::HPos, t_union::TUnion, StrId};
 use indexmap::IndexMap;
 
 pub mod inferred_type_replacer;
@@ -63,7 +63,7 @@ impl TemplateResult {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TemplateBound {
     pub bound_type: TUnion,
 
@@ -87,6 +87,8 @@ pub struct TemplateBound {
      * When non-null, indicates an equality template bound (vs a lower or upper bound)
      */
     pub equality_bound_classlike: Option<StrId>,
+
+    pub pos: Option<HPos>,
 }
 
 impl TemplateBound {
@@ -101,6 +103,7 @@ impl TemplateBound {
             appearance_depth,
             arg_offset,
             equality_bound_classlike,
+            pos: None,
         }
     }
 }

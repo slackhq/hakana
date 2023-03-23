@@ -30,7 +30,7 @@ To add custom statement-handling code, insert this method override:
 ```
 fn after_stmt_analysis(
     &self,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut TastInfo,
     after_stmt_analysis_data: AfterStmtAnalysisData,
 ) {
     // your code goes here
@@ -46,7 +46,7 @@ To add custom expression-handling code, insert this method override:
 ```
 fn after_expr_analysis(
     &self,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut TastInfo,
     after_expr_analysis_data: AfterExprAnalysisData,
 ) {
     // your code goes here
@@ -62,7 +62,7 @@ You can use this hook to insert type-aware replacements for function parameters.
 ```
 fn handle_functionlike_param(
     &self,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut TastInfo,
     functionlike_param_data: FunctionLikeParamData,
 ) {
     // your code goes here
@@ -80,7 +80,7 @@ This hook allows you to do that on a per-call basis.
 ```
 fn after_argument_analysis(
     &self,
-    tast_info: &mut TastInfo,
+    analysis_data: &mut TastInfo,
     after_arg_analysis_data: AfterArgAnalysisData,
 ) {
     // your code goes here

@@ -1,9 +1,9 @@
 use crate::expr::expression_identifier;
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_WRITE_PROPS;
@@ -109,6 +109,8 @@ pub(crate) fn analyze(
 
         let mut class_types = class_type.types.iter().collect::<Vec<_>>();
 
+        let type_variable_bounds = analysis_data.type_variable_bounds.clone();
+
         while let Some(lhs_atomic_type) = class_types.pop() {
             match lhs_atomic_type {
                 TAtomic::TNull => {
@@ -128,6 +130,14 @@ pub(crate) fn analyze(
                     ..
                 } => {
                     class_types.extend(&as_type.types);
+                    continue;
+                }
+                TAtomic::TTypeVariable { name } => {
+                    if let Some(bounds) = type_variable_bounds.get(name) {
+                        for lower_bound_info in &bounds.0 {
+                            class_types.extend(&lower_bound_info.bound_type.types);
+                        }
+                    }
                     continue;
                 }
                 _ => (),

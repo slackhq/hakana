@@ -372,7 +372,61 @@ fn analyze_named_constructor(
                     get_placeholder()
                 };
 
-                if !param_type.is_placeholder() {
+                if param_type.is_placeholder() {
+                    if !storage.template_readonly.contains(template_name) {
+                        if let Some((template_name, map)) =
+                            template_result.template_types.get_index(i)
+                        {
+                            let placeholder_name =
+                                format!("`_{}", analysis_data.type_variable_bounds.len());
+
+                            let upper_bound = (**map.iter().next().unwrap().1).clone();
+
+                            let mut placeholder_lower_bounds = vec![];
+
+                            if let Some(bounds) = template_result.lower_bounds.get(template_name) {
+                                if let Some(bounds) = bounds.get(&classlike_name) {
+                                    for bound in bounds {
+                                        placeholder_lower_bounds.push(bound.clone());
+                                    }
+                                }
+                            }
+
+                            analysis_data.type_variable_bounds.insert(
+                                placeholder_name.clone(),
+                                (
+                                    placeholder_lower_bounds,
+                                    vec![TemplateBound {
+                                        bound_type: upper_bound,
+                                        appearance_depth: 0,
+                                        arg_offset: None,
+                                        equality_bound_classlike: None,
+                                        pos: Some(statements_analyzer.get_hpos(pos)),
+                                    }],
+                                ),
+                            );
+
+                            template_result.lower_bounds.insert(
+                                template_name.clone(),
+                                map.iter()
+                                    .map(|(entity, _)| {
+                                        (
+                                            entity.clone(),
+                                            vec![TemplateBound::new(
+                                                wrap_atomic(TAtomic::TTypeVariable {
+                                                    name: placeholder_name.clone(),
+                                                }),
+                                                0,
+                                                None,
+                                                None,
+                                            )],
+                                        )
+                                    })
+                                    .collect::<FxHashMap<_, _>>(),
+                            );
+                        }
+                    }
+                } else {
                     populate_union_type(
                         &mut param_type,
                         &statements_analyzer.get_codebase().symbols,

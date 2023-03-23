@@ -249,7 +249,7 @@ pub(crate) fn compare_generic_params(
             param_comparison_result.type_coerced_from_nested_mixed = Some(true);
         }
 
-        update_result_from_nested(atomic_comparison_result, &param_comparison_result);
+        update_failed_result_from_nested(atomic_comparison_result, param_comparison_result);
 
         *all_types_contain = false;
     } else if !container_param.has_template() && !input_param.has_template() {
@@ -269,6 +269,27 @@ pub(crate) fn compare_generic_params(
             if !matches!(container_type_param_variance, Some(Variance::Covariant))
                 && !container_param.had_template
             {
+                atomic_comparison_result
+                    .type_variable_lower_bounds
+                    .extend(param_comparison_result.type_variable_lower_bounds);
+
+                atomic_comparison_result.type_variable_lower_bounds.extend(
+                    param_comparison_result
+                        .type_variable_upper_bounds
+                        .clone()
+                        .into_iter()
+                        .map(|(name, mut b)| {
+                            b.equality_bound_classlike = Some(*container_name);
+                            (name, b)
+                        }),
+                );
+
+                atomic_comparison_result
+                    .type_variable_upper_bounds
+                    .extend(param_comparison_result.type_variable_upper_bounds);
+
+                let mut param_comparison_result = TypeComparisonResult::new();
+
                 if !union_type_comparator::is_contained_by(
                     codebase,
                     container_param,
@@ -290,9 +311,9 @@ pub(crate) fn compare_generic_params(
     }
 }
 
-pub(crate) fn update_result_from_nested(
+pub(crate) fn update_failed_result_from_nested(
     atomic_comparison_result: &mut TypeComparisonResult,
-    param_comparison_result: &TypeComparisonResult,
+    param_comparison_result: TypeComparisonResult,
 ) {
     atomic_comparison_result.type_coerced =
         Some(if let Some(val) = atomic_comparison_result.type_coerced {

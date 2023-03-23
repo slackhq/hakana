@@ -13,8 +13,8 @@ use oxidized::{
 };
 
 use crate::{
-    scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
+    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
 };
 
 use super::{arguments_analyzer::evaluate_arbitrary_param, existing_atomic_method_call_analyzer};

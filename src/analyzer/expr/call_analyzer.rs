@@ -1,19 +1,25 @@
 use std::sync::Arc;
 
+use hakana_reflection_info::code_location::HPos;
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::{StrId, EFFECT_IMPURE, EFFECT_WRITE_PROPS, STR_ASIO_JOIN};
+use hakana_type::template::standin_type_replacer::get_relevant_bounds;
+use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
+use hakana_type::type_comparator::union_type_comparator;
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::get_mixed_any;
-use hakana_type::template::TemplateResult;
+use hakana_type::template::{TemplateBound, TemplateResult};
 use indexmap::IndexMap;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
@@ -134,6 +140,123 @@ pub(crate) fn check_template_result(
     _pos: &Pos,
     _functionlike_id: &FunctionLikeIdentifier,
 ) {
+}
+
+pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
+    lower_bounds: &Vec<TemplateBound>,
+    upper_bounds: &Vec<TemplateBound>,
+    statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &mut FunctionAnalysisData,
+    pos: HPos,
+) {
+    let codebase = statements_analyzer.get_codebase();
+    let interner = statements_analyzer.get_interner();
+
+    let relevant_lower_bounds = get_relevant_bounds(lower_bounds);
+
+    let mut union_comparison_result = TypeComparisonResult::new();
+
+    let mut has_issue = false;
+
+    for relevant_lower_bound in &relevant_lower_bounds {
+        for upper_bound in upper_bounds {
+            if !union_type_comparator::is_contained_by(
+                codebase,
+                &relevant_lower_bound.bound_type,
+                &upper_bound.bound_type,
+                false,
+                false,
+                false,
+                &mut union_comparison_result,
+            ) {
+                has_issue = true;
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::IncompatibleTypeParameters,
+                        format!(
+                            "Type {} should be a subtype of {}",
+                            relevant_lower_bound.bound_type.get_id(Some(interner)),
+                            upper_bound.bound_type.get_id(Some(interner))
+                        ),
+                        relevant_lower_bound
+                            .pos
+                            .unwrap_or(upper_bound.pos.unwrap_or(pos)),
+                        &None,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+    }
+
+    if !has_issue && relevant_lower_bounds.len() > 1 {
+        let bounds_with_equality = lower_bounds
+            .iter()
+            .filter(|bound| bound.equality_bound_classlike.is_some())
+            .collect::<Vec<_>>();
+
+        if bounds_with_equality.is_empty() {
+            return;
+        }
+
+        let equality_strings = bounds_with_equality
+            .iter()
+            .map(|bound| bound.bound_type.get_id(Some(interner)))
+            .unique()
+            .collect::<Vec<_>>();
+
+        if equality_strings.len() > 1 {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::IncompatibleTypeParameters,
+                    format!(
+                        "Incompatible types found for {} (must have only one of {})",
+                        "type variable",
+                        equality_strings.join(", "),
+                    ),
+                    bounds_with_equality[0].pos.unwrap_or(pos),
+                    &None,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        } else {
+            'outer: for lower_bound in lower_bounds {
+                if lower_bound.equality_bound_classlike.is_none() {
+                    for bound_with_equality in &bounds_with_equality {
+                        if union_type_comparator::is_contained_by(
+                            codebase,
+                            &lower_bound.bound_type,
+                            &bound_with_equality.bound_type,
+                            false,
+                            false,
+                            false,
+                            &mut TypeComparisonResult::new(),
+                        ) {
+                            continue 'outer;
+                        }
+                    }
+
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::IncompatibleTypeParameters,
+                            format!(
+                                "Incompatible types found for {} ({} is not in {})",
+                                "type variable",
+                                lower_bound.bound_type.get_id(Some(interner)),
+                                equality_strings.join(", "),
+                            ),
+                            pos,
+                            &None,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+            }
+        }
+    }
 }
 
 pub(crate) fn get_generic_param_for_offset(

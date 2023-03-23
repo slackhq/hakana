@@ -1,4 +1,4 @@
-use crate::wrap_atomic;
+use crate::{template::TemplateBound, wrap_atomic};
 use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
 
 use super::{atomic_type_comparator, type_comparison_result::TypeComparisonResult};
@@ -13,20 +13,6 @@ pub fn is_contained_by(
     union_comparison_result: &mut TypeComparisonResult,
 ) -> bool {
     if input_type == container_type {
-        return true;
-    }
-
-    // top type
-    if container_type.is_mixed() {
-        return true;
-    }
-
-    // bottom type
-    if input_type.is_nothing() {
-        return true;
-    }
-
-    if container_type.is_mixed() && !container_type.is_falsy_mixed() {
         return true;
     }
 
@@ -51,6 +37,14 @@ pub fn is_contained_by(
                 if ignore_false {
                     continue;
                 }
+            }
+            TAtomic::TTypeVariable { name } => {
+                union_comparison_result.type_variable_upper_bounds.push((
+                    name.clone(),
+                    TemplateBound::new(container_type.clone(), 0, None, None),
+                ));
+
+                continue;
             }
             TAtomic::TGenericParam {
                 extra_types: None,
@@ -112,6 +106,17 @@ pub fn is_contained_by(
                 continue;
             }
 
+            if let TAtomic::TTypeVariable { name } = &container_type_part {
+                union_comparison_result.type_variable_lower_bounds.push((
+                    name.clone(),
+                    TemplateBound::new(input_type.clone(), 0, None, None),
+                ));
+
+                type_match_found = true;
+
+                continue;
+            }
+
             let mut atomic_comparison_result = TypeComparisonResult::new();
 
             let is_atomic_contained_by = atomic_type_comparator::is_contained_by(
@@ -152,6 +157,14 @@ pub fn is_contained_by(
                             Some(wrap_atomic(replacement_atomic_type));
                     }
                 }
+
+                union_comparison_result
+                    .type_variable_lower_bounds
+                    .extend(atomic_comparison_result.type_variable_lower_bounds);
+
+                union_comparison_result
+                    .type_variable_upper_bounds
+                    .extend(atomic_comparison_result.type_variable_upper_bounds);
             }
 
             if atomic_comparison_result.type_coerced.unwrap_or(false) {

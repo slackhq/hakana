@@ -131,6 +131,9 @@ pub enum TAtomic {
         defining_entity: StrId,
         as_type: Box<crate::t_atomic::TAtomic>,
     },
+    TTypeVariable {
+        name: String,
+    },
     TTrue,
     TTypeAlias {
         name: StrId,
@@ -614,6 +617,7 @@ impl TAtomic {
                 }
             }
             TAtomic::TResource => "resource".to_string(),
+            TAtomic::TTypeVariable { name } => name.clone(),
         }
     }
 
@@ -662,7 +666,8 @@ impl TAtomic {
             | TAtomic::TArraykey { .. }
             | TAtomic::TBool { .. }
             | TAtomic::TEnumClassLabel { .. }
-            | TAtomic::TMixedWithFlags(..) => self.get_id(None),
+            | TAtomic::TMixedWithFlags(..)
+            | TAtomic::TTypeVariable { .. } => self.get_id(None),
 
             TAtomic::TStringWithFlags(..) => "string".to_string(),
 

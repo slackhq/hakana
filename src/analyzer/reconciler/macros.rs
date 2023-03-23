@@ -24,6 +24,17 @@ macro_rules! intersect_simple {
                     acceptable_types.push(atomic.clone());
                 } else if matches!(atomic, $( $supertype_pattern )|+ $( if $supertype_guard )?) {
                     return Some($max_type);
+                } else if let TAtomic::TTypeVariable { name } = atomic {
+                    if let Some(pos) = $pos {
+                        if let Some((lower_bounds, _)) = $analysis_data.type_variable_bounds.get_mut(name) {
+                            let mut bound = hakana_type::template::TemplateBound::new($max_type.clone(), 0, None, None);
+                            bound.pos = Some($statements_analyzer.get_hpos(pos));
+                            lower_bounds.push(bound);
+                        }
+                    }
+
+                    did_remove_type = true;
+                    acceptable_types.push(atomic.clone());
                 } else if let TAtomic::TClassTypeConstant { .. } = atomic {
                     acceptable_types.push(atomic.clone());
                     did_remove_type = true;
