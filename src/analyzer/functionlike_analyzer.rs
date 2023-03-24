@@ -189,7 +189,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         }
 
-        let functionlike_storage = &classlike_storage.methods.get(&method_name).unwrap();
+        let functionlike_storage =
+            if let Some(functionlike_storage) = classlike_storage.methods.get(&method_name) {
+                functionlike_storage
+            } else {
+                return;
+            };
 
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
