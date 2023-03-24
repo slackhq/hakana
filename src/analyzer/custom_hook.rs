@@ -106,4 +106,4 @@ pub trait InternalHook {
     }
 }
 
-pub trait CustomHook: InternalHook + Send + Sync {}
+pub trait CustomHook: InternalHook + Send + Sync + core::fmt::Debug {}

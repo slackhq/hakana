@@ -20,6 +20,7 @@ pub enum Verbosity {
     DebuggingByLine,
 }
 
+#[derive(Debug)]
 pub struct Config {
     pub migration_symbols: FxHashSet<(String, String)>,
     pub find_unused_expressions: bool,
