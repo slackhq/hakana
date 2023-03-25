@@ -172,10 +172,22 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
                             value: e1_value | e2_value,
                         },
                         oxidized::ast_defs::Bop::Ltlt => TAtomic::TLiteralInt {
-                            value: e1_value << e2_value,
+                            value: e1_value.wrapping_shl(
+                                if let Ok(result) = (*e2_value).try_into() {
+                                    result
+                                } else {
+                                    return;
+                                },
+                            ),
                         },
                         oxidized::ast_defs::Bop::Gtgt => TAtomic::TLiteralInt {
-                            value: e1_value >> e2_value,
+                            value: e1_value.wrapping_shr(
+                                if let Ok(result) = (*e2_value).try_into() {
+                                    result
+                                } else {
+                                    return;
+                                },
+                            ),
                         },
                         oxidized::ast_defs::Bop::Percent => TAtomic::TLiteralInt {
                             value: e1_value % e2_value,
