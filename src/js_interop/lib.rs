@@ -35,7 +35,7 @@ impl ScannerAndAnalyzer {
                 self.interner = interner;
 
                 let mut issue_json_objects = vec![];
-                for (file_path, issues) in &analysis_result.emitted_issues {
+                for (file_path, issues) in analysis_result.get_all_issues(&self.interner, &"") {
                     for issue in issues {
                         issue_json_objects.push(json!({
                             "severity": "ERROR",

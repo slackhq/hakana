@@ -1,12 +1,13 @@
 use hakana_analyzer::config;
 use hakana_analyzer::config::Verbosity;
 use hakana_analyzer::custom_hook::CustomHook;
+use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_workhorse::wasm::get_single_file_codebase;
-use hakana_workhorse::SuccessfulRunData;
+use hakana_workhorse::SuccessfulScanData;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashSet;
@@ -37,7 +38,7 @@ pub trait TestRunner {
 
         let starter_data = if candidate_test_folders.len() > 1 {
             let (codebase, interner) = get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
-            Some(SuccessfulRunData {
+            Some(SuccessfulScanData {
                 codebase,
                 interner,
                 ..Default::default()
@@ -46,7 +47,8 @@ pub trait TestRunner {
             None
         };
 
-        let mut last_run_data = None;
+        let mut last_scan_data = None;
+        let mut last_analysis_result = None;
 
         let mut time_in_analysis = Duration::default();
 
@@ -79,7 +81,7 @@ pub trait TestRunner {
                     had_error,
                     &mut test_diagnostics,
                     build_checksum,
-                    if let Some(last_run_data) = last_run_data {
+                    if let Some(last_run_data) = last_scan_data {
                         if reuse_codebase {
                             Some(last_run_data)
                         } else {
@@ -96,10 +98,20 @@ pub trait TestRunner {
                             None
                         }
                     },
+                    if let Some(last_analysis_result) = last_analysis_result {
+                        if reuse_codebase {
+                            Some(last_analysis_result)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    },
                     &mut time_in_analysis,
                 );
 
-                last_run_data = test_result.1;
+                last_scan_data = test_result.1;
+                last_analysis_result = test_result.2;
 
                 print!("{}", test_result.0);
                 io::stdout().flush().unwrap();
@@ -185,11 +197,16 @@ pub trait TestRunner {
         had_error: &mut bool,
         test_diagnostics: &mut Vec<(String, String)>,
         build_checksum: &str,
-        starter_data: Option<SuccessfulRunData>,
+        previous_scan_data: Option<SuccessfulScanData>,
+        previous_analysis_result: Option<AnalysisResult>,
         total_time_in_analysis: &mut Duration,
-    ) -> (String, Option<SuccessfulRunData>) {
+    ) -> (String, Option<SuccessfulScanData>, Option<AnalysisResult>) {
         if dir.contains("skipped-") || dir.contains("SKIPPED-") {
-            return ("S".to_string(), starter_data);
+            return (
+                "S".to_string(),
+                previous_scan_data,
+                previous_analysis_result,
+            );
         }
 
         if dir.contains("/diff/") {
@@ -200,7 +217,6 @@ pub trait TestRunner {
                 had_error,
                 test_diagnostics,
                 build_checksum,
-                starter_data,
             );
         }
 
@@ -212,7 +228,7 @@ pub trait TestRunner {
             println!("running test {}", dir);
         }
 
-        let mut stub_dirs = vec![cwd.clone() + "/test/stubs"];
+        let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
         if dir.contains("xhp") || dir.contains("XHP") {
             stub_dirs.push(cwd.clone() + "/third-party/xhp-lib/src");
@@ -221,7 +237,6 @@ pub trait TestRunner {
         let config = Arc::new(analysis_config);
 
         let result = hakana_workhorse::scan_and_analyze(
-            starter_data.is_none(),
             stub_dirs,
             None,
             Some(FxHashSet::from_iter([
@@ -229,7 +244,7 @@ pub trait TestRunner {
                 format!("{}/third-party/xhp-lib/src", cwd),
             ])),
             config.clone(),
-            if starter_data.is_none() {
+            if previous_scan_data.is_none() {
                 cache_dir
             } else {
                 None
@@ -237,7 +252,8 @@ pub trait TestRunner {
             1,
             verbosity,
             build_checksum,
-            starter_data,
+            previous_scan_data,
+            previous_analysis_result,
         );
 
         if dir.contains("/migrations/")
@@ -264,13 +280,13 @@ pub trait TestRunner {
                 };
 
             return if output_contents == expected_output_contents {
-                (".".to_string(), Some(result.1))
+                (".".to_string(), Some(result.1), Some(result.0))
             } else {
                 test_diagnostics.push((
                     dir,
                     format!("- {}\n+ {}", expected_output_contents, output_contents),
                 ));
-                ("F".to_string(), Some(result.1))
+                ("F".to_string(), Some(result.1), Some(result.0))
             };
         } else {
             match result {
@@ -278,12 +294,11 @@ pub trait TestRunner {
                     *total_time_in_analysis += analysis_result.time_in_analysis;
 
                     let mut output = vec![];
-                    for (file_path, issues) in &analysis_result.emitted_issues {
+                    for (file_path, issues) in
+                        analysis_result.get_all_issues(&run_data.interner, &dir)
+                    {
                         for issue in issues {
-                            output
-                                .push(issue.format(
-                                    &file_path.get_relative_path(&run_data.interner, &dir),
-                                ));
+                            output.push(issue.format(&file_path));
                         }
                     }
 
@@ -317,7 +332,7 @@ pub trait TestRunner {
                     } else {
                         test_output.is_empty()
                     } {
-                        return (".".to_string(), Some(run_data));
+                        return (".".to_string(), Some(run_data), Some(analysis_result));
                     } else {
                         if let Some(expected_output) = &expected_output {
                             test_diagnostics.push((
@@ -328,13 +343,13 @@ pub trait TestRunner {
                             test_diagnostics
                                 .push((dir, format!("-\n+ {}", test_output.join("+ "))));
                         }
-                        return ("F".to_string(), Some(run_data));
+                        return ("F".to_string(), Some(run_data), Some(analysis_result));
                     }
                 }
                 Err(error) => {
                     *had_error = true;
                     test_diagnostics.push((dir, error.to_string()));
-                    return ("F".to_string(), None);
+                    return ("F".to_string(), None, None);
                 }
             };
         }
@@ -348,8 +363,7 @@ pub trait TestRunner {
         had_error: &mut bool,
         test_diagnostics: &mut Vec<(String, String)>,
         build_checksum: &str,
-        starter_data: Option<SuccessfulRunData>,
-    ) -> (String, Option<SuccessfulRunData>) {
+    ) -> (String, Option<SuccessfulScanData>, Option<AnalysisResult>) {
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
         if matches!(verbosity, Verbosity::Debugging) {
@@ -370,10 +384,9 @@ pub trait TestRunner {
         config.find_unused_definitions = true;
         let config = Arc::new(config);
 
-        let stub_dirs = vec![cwd.clone() + "/test/stubs"];
+        let stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
         let a_result = hakana_workhorse::scan_and_analyze(
-            starter_data.is_none(),
             stub_dirs.clone(),
             None,
             Some(FxHashSet::from_iter([
@@ -381,20 +394,21 @@ pub trait TestRunner {
                 format!("{}/third-party/xhp-lib/src", cwd),
             ])),
             config.clone(),
-            cache_dir,
+            None,
             1,
             verbosity,
             build_checksum,
-            starter_data,
+            None,
+            None,
         )
         .unwrap();
 
-        let starter_data = Some(a_result.1);
+        let previous_scan_data = Some(a_result.1);
+        let previous_analysis_result = Some(a_result.0);
 
         copy_recursively(dir.clone() + "/b", workdir_base.clone()).unwrap();
 
         let b_result = hakana_workhorse::scan_and_analyze(
-            starter_data.is_none(),
             stub_dirs,
             None,
             Some(FxHashSet::from_iter([
@@ -402,11 +416,12 @@ pub trait TestRunner {
                 format!("{}/third-party/xhp-lib/src", cwd),
             ])),
             config.clone(),
-            cache_dir,
+            None,
             1,
             verbosity,
             build_checksum,
-            starter_data,
+            previous_scan_data,
+            previous_analysis_result,
         );
 
         fs::remove_dir_all(&workdir_base).unwrap();
@@ -414,11 +429,11 @@ pub trait TestRunner {
         match b_result {
             Ok((analysis_result, run_data)) => {
                 let mut output = vec![];
-                for (file_path, issues) in &analysis_result.emitted_issues {
+                for (file_path, issues) in
+                    analysis_result.get_all_issues(&run_data.interner, &workdir_base)
+                {
                     for issue in issues {
-                        output.push(issue.format(
-                            &file_path.get_relative_path(&run_data.interner, &workdir_base),
-                        ));
+                        output.push(issue.format(&file_path));
                     }
                 }
 
@@ -452,7 +467,7 @@ pub trait TestRunner {
                 } else {
                     test_output.is_empty()
                 } {
-                    return (".".to_string(), Some(run_data));
+                    return (".".to_string(), Some(run_data), Some(analysis_result));
                 } else {
                     if let Some(expected_output) = &expected_output {
                         test_diagnostics.push((
@@ -462,13 +477,13 @@ pub trait TestRunner {
                     } else {
                         test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
                     }
-                    return ("F".to_string(), Some(run_data));
+                    return ("F".to_string(), Some(run_data), Some(analysis_result));
                 }
             }
             Err(error) => {
                 *had_error = true;
                 test_diagnostics.push((dir, error.to_string()));
-                return ("F".to_string(), None);
+                return ("F".to_string(), None, None);
             }
         };
     }

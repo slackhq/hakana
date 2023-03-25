@@ -17,7 +17,7 @@ use crate::cache::load_cached_symbols;
 use crate::file_cache_provider;
 use crate::file_cache_provider::FileStatus;
 use crate::get_aast_for_path;
-use crate::SuccessfulRunData;
+use crate::SuccessfulScanData;
 use ast_differ::get_diff;
 use hakana_aast_helper::name_context::NameContext;
 use hakana_aast_helper::ParserError;
@@ -50,14 +50,13 @@ pub struct ScanFilesResult {
 
 pub(crate) fn scan_files(
     scan_dirs: &Vec<String>,
-    include_core_libs: bool,
     cache_dir: Option<&String>,
     files_to_analyze: &mut Vec<String>,
     config: &Arc<Config>,
     threads: u8,
     verbosity: Verbosity,
     build_checksum: &str,
-    starter_data: Option<SuccessfulRunData>,
+    starter_data: Option<SuccessfulScanData>,
 ) -> io::Result<ScanFilesResult> {
     if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
         println!("{:#?}", scan_dirs);
@@ -85,22 +84,20 @@ pub(crate) fn scan_files(
 
     let has_starter = starter_data.is_some();
 
-    let SuccessfulRunData {
+    let SuccessfulScanData {
         mut codebase,
         mut interner,
         mut file_hashes_and_times,
-    } = starter_data.unwrap_or(SuccessfulRunData::default());
+    } = starter_data.unwrap_or(SuccessfulScanData::default());
 
-    if include_core_libs {
-        // add HHVM libs
-        for file in HhiAsset::iter() {
-            files_to_scan.insert(file.to_string(), 0);
-        }
+    // add HHVM libs
+    for file in HhiAsset::iter() {
+        files_to_scan.insert(file.to_string(), 0);
+    }
 
-        // add HSL
-        for file in HslAsset::iter() {
-            files_to_scan.insert(file.to_string(), 0);
-        }
+    // add HSL
+    for file in HslAsset::iter() {
+        files_to_scan.insert(file.to_string(), 0);
     }
 
     if !matches!(verbosity, Verbosity::Quiet) {

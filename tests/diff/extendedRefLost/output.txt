@@ -1,2 +1,2 @@
-ERROR: UnusedFunction - input.hack:5:10 - Unused function foo
 ERROR: UnusedClass - input.hack:1:16 - Unused class, interface or enum A
+ERROR: UnusedFunction - input.hack:5:10 - Unused function foo

@@ -19,4 +19,4 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build & Run tests
-      run: ./init.sh && cargo run --release test tests
+      run: ./init.sh && cargo run --release --bin hakana test tests

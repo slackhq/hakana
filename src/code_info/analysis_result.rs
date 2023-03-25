@@ -8,6 +8,7 @@ use crate::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
+    Interner,
 };
 
 #[derive(Clone, Debug)]
@@ -20,6 +21,7 @@ pub enum Replacement {
 #[derive(Clone, Debug)]
 pub struct AnalysisResult {
     pub emitted_issues: FxHashMap<FilePath, Vec<Issue>>,
+    pub emitted_definition_issues: FxHashMap<FilePath, Vec<Issue>>,
     pub replacements: FxHashMap<FilePath, BTreeMap<(usize, usize), Replacement>>,
     pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
@@ -35,6 +37,7 @@ impl AnalysisResult {
     ) -> Self {
         Self {
             emitted_issues: FxHashMap::default(),
+            emitted_definition_issues: FxHashMap::default(),
             replacements: FxHashMap::default(),
             mixed_source_counts: FxHashMap::default(),
             program_dataflow_graph: DataFlowGraph::new(program_dataflow_graph_kind),
@@ -64,6 +67,36 @@ impl AnalysisResult {
         for (kind, count) in other.issue_counts {
             *self.issue_counts.entry(kind).or_insert(0) += count;
         }
+    }
+
+    pub fn get_all_issues(
+        &self,
+        interner: &Interner,
+        root_dir: &str,
+    ) -> BTreeMap<String, Vec<&Issue>> {
+        let mut issues = self
+            .emitted_issues
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.get_relative_path(&interner, &root_dir),
+                    v.iter().collect::<Vec<_>>(),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        for (file_path, file_definition_issues) in &self.emitted_definition_issues {
+            let file_path = file_path.get_relative_path(&interner, &root_dir);
+
+            if let Some(file_issues) = issues.get_mut(&file_path) {
+                file_issues.extend(file_definition_issues);
+                file_issues.sort_by(|a, b| a.pos.start_offset.cmp(&b.pos.start_offset));
+            } else {
+                issues.insert(file_path, file_definition_issues.iter().collect::<Vec<_>>());
+            }
+        }
+
+        issues
     }
 }
 

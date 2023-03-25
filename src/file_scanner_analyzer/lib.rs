@@ -2,7 +2,6 @@ pub(crate) mod populator;
 
 use crate::file_cache_provider::FileStatus;
 use analyzer::analyze_files;
-use cache::load_cached_existing_references;
 use diff::mark_safe_symbols_from_diff;
 use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
 use hakana_analyzer::config::{Config, Verbosity};
@@ -53,15 +52,15 @@ struct HhiAsset;
 struct HslAsset;
 
 #[derive(Clone)]
-pub struct SuccessfulRunData {
+pub struct SuccessfulScanData {
     pub codebase: CodebaseInfo,
     pub interner: Interner,
     pub file_hashes_and_times: FxHashMap<FilePath, (u64, u64)>,
 }
 
-impl Default for SuccessfulRunData {
+impl Default for SuccessfulScanData {
     fn default() -> Self {
-        SuccessfulRunData {
+        SuccessfulScanData {
             codebase: CodebaseInfo::new(),
             interner: Interner::new(),
             file_hashes_and_times: FxHashMap::default(),
@@ -70,7 +69,6 @@ impl Default for SuccessfulRunData {
 }
 
 pub fn scan_and_analyze(
-    include_core_libs: bool,
     stubs_dirs: Vec<String>,
     filter: Option<String>,
     ignored_paths: Option<FxHashSet<String>>,
@@ -79,8 +77,9 @@ pub fn scan_and_analyze(
     threads: u8,
     verbosity: Verbosity,
     header: &str,
-    starter_data: Option<SuccessfulRunData>,
-) -> io::Result<(AnalysisResult, SuccessfulRunData)> {
+    previous_scan_data: Option<SuccessfulScanData>,
+    previous_analysis_result: Option<AnalysisResult>,
+) -> io::Result<(AnalysisResult, SuccessfulScanData)> {
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
 
@@ -97,14 +96,13 @@ pub fn scan_and_analyze(
         asts,
     } = scan_files(
         &all_scanned_dirs,
-        include_core_libs,
         cache_dir,
         &mut files_to_analyze,
         &config,
         threads,
         verbosity,
         header,
-        starter_data,
+        previous_scan_data,
     )?;
 
     let file_discovery_and_scanning_elapsed = file_discovery_and_scanning_now.elapsed();
@@ -151,24 +149,21 @@ pub fn scan_and_analyze(
     let mut symbol_references = SymbolReferences::new();
 
     if config.ast_diff {
-        if let Some(existing_references) =
-            load_cached_existing_references(references_path.as_ref().unwrap(), true, verbosity)
-        {
-            let cached_analysis = mark_safe_symbols_from_diff(
-                verbosity,
-                codebase_diff,
-                &codebase,
-                &mut interner,
-                &mut files_to_analyze,
-                &issues_path,
-                existing_references,
-            );
+        let cached_analysis = mark_safe_symbols_from_diff(
+            verbosity,
+            codebase_diff,
+            &codebase,
+            &mut interner,
+            &mut files_to_analyze,
+            &issues_path,
+            &references_path,
+            previous_analysis_result,
+        );
 
-            safe_symbols = cached_analysis.safe_symbols;
-            safe_symbol_members = cached_analysis.safe_symbol_members;
-            existing_issues = cached_analysis.existing_issues;
-            symbol_references = cached_analysis.symbol_references;
-        }
+        safe_symbols = cached_analysis.safe_symbols;
+        safe_symbol_members = cached_analysis.safe_symbol_members;
+        existing_issues = cached_analysis.existing_issues;
+        symbol_references = cached_analysis.symbol_references;
     }
 
     if !matches!(verbosity, Verbosity::Quiet) {
@@ -282,7 +277,7 @@ pub fn scan_and_analyze(
 
     Ok((
         analysis_result,
-        SuccessfulRunData {
+        SuccessfulScanData {
             codebase,
             interner,
             file_hashes_and_times,
@@ -415,8 +410,6 @@ pub fn get_aast_for_path(
         )
         .unwrap_or_else(|_| panic!("Could not convert HHI file {}", path))
         .to_string()
-    } else if path.ends_with("tests/stubs/stubs.hack") {
-        "function hakana_expect_type<T>(T $id): void {}".to_string()
     } else {
         match fs::read_to_string(path) {
             Ok(str_file) => str_file,

@@ -82,7 +82,7 @@ pub(crate) fn find_unused_definitions(
                         .entry(issue.kind.clone())
                         .or_insert(0) += 1;
                     analysis_result
-                        .emitted_issues
+                        .emitted_definition_issues
                         .entry(pos.file_path)
                         .or_insert_with(Vec::new)
                         .push(issue);
@@ -150,7 +150,7 @@ pub(crate) fn find_unused_definitions(
                         .entry(issue.kind.clone())
                         .or_insert(0) += 1;
                     analysis_result
-                        .emitted_issues
+                        .emitted_definition_issues
                         .entry(pos.file_path)
                         .or_insert_with(Vec::new)
                         .push(issue);
@@ -258,7 +258,7 @@ pub(crate) fn find_unused_definitions(
                                 .entry(issue.kind.clone())
                                 .or_insert(0) += 1;
                             analysis_result
-                                .emitted_issues
+                                .emitted_definition_issues
                                 .entry(pos.file_path)
                                 .or_insert_with(Vec::new)
                                 .push(issue);

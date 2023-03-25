@@ -579,7 +579,6 @@ fn do_fix(
     config.allowed_issues = None;
 
     let result = hakana_workhorse::scan_and_analyze(
-        true,
         Vec::new(),
         filter,
         None,
@@ -588,6 +587,7 @@ fn do_fix(
         threads,
         verbosity,
         &header,
+        None,
         None,
     );
 
@@ -626,7 +626,6 @@ fn do_remove_unused_fixmes(
     config.remove_fixmes = true;
 
     let result = hakana_workhorse::scan_and_analyze(
-        true,
         Vec::new(),
         filter,
         None,
@@ -635,6 +634,7 @@ fn do_remove_unused_fixmes(
         threads,
         verbosity,
         &header,
+        None,
         None,
     );
 
@@ -692,7 +692,6 @@ fn do_add_fixmes(
     config.add_fixmes = true;
 
     let result = hakana_workhorse::scan_and_analyze(
-        true,
         Vec::new(),
         filter,
         None,
@@ -701,6 +700,7 @@ fn do_add_fixmes(
         threads,
         verbosity,
         &header,
+        None,
         None,
     );
 
@@ -765,7 +765,6 @@ fn do_migrate(
     }
 
     let result = hakana_workhorse::scan_and_analyze(
-        true,
         Vec::new(),
         None,
         None,
@@ -774,6 +773,7 @@ fn do_migrate(
         threads,
         verbosity,
         &header,
+        None,
         None,
     );
 
@@ -815,7 +815,6 @@ fn do_find_paths(
     let root_dir = config.root_dir.clone();
 
     let result = hakana_workhorse::scan_and_analyze(
-        true,
         Vec::new(),
         None,
         None,
@@ -825,17 +824,15 @@ fn do_find_paths(
         verbosity,
         &header,
         None,
+        None,
     );
     if let Ok((analysis_result, successful_run_data)) = result {
-        for (file_path, issues) in analysis_result.emitted_issues {
+        for (file_path, issues) in
+            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir)
+        {
             for issue in issues {
                 *had_error = true;
-                println!(
-                    "{}",
-                    issue.format(
-                        &file_path.get_relative_path(&successful_run_data.interner, &root_dir)
-                    )
-                );
+                println!("{}", issue.format(&file_path));
             }
         }
 
@@ -880,7 +877,6 @@ fn do_security_check(
     let root_dir = config.root_dir.clone();
 
     let result = hakana_workhorse::scan_and_analyze(
-        true,
         Vec::new(),
         None,
         None,
@@ -890,17 +886,15 @@ fn do_security_check(
         verbosity,
         &header,
         None,
+        None,
     );
     if let Ok((analysis_result, successful_run_data)) = result {
-        for (file_path, issues) in &analysis_result.emitted_issues {
+        for (file_path, issues) in
+            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir)
+        {
             for issue in issues {
                 *had_error = true;
-                println!(
-                    "{}",
-                    issue.format(
-                        &file_path.get_relative_path(&successful_run_data.interner, &root_dir)
-                    )
-                );
+                println!("{}", issue.format(&file_path));
             }
         }
 
@@ -988,7 +982,6 @@ fn do_analysis(
     let root_dir = config.root_dir.clone();
 
     let result = hakana_workhorse::scan_and_analyze(
-        true,
         Vec::new(),
         filter,
         ignored,
@@ -1002,21 +995,14 @@ fn do_analysis(
         verbosity,
         &header,
         None,
+        None,
     );
 
     if let Ok((analysis_result, successful_run_data)) = result {
-        for (file_path, issues) in &analysis_result
-            .emitted_issues
-            .iter()
-            .map(|(k, v)| {
-                (
-                    k.get_relative_path(&successful_run_data.interner, &root_dir),
-                    v,
-                )
-            })
-            .collect::<BTreeMap<_, _>>()
+        for (file_path, issues) in
+            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir)
         {
-            for issue in *issues {
+            for issue in issues {
                 *had_error = true;
                 println!("{}", issue.format(&file_path));
             }
@@ -1080,14 +1066,9 @@ fn write_output_files(
         let mut output_path = fs::File::create(Path::new(&output_path)).unwrap();
         let mut checkpoint_entries = vec![];
 
-        for (file_path, issues) in &analysis_result
-            .emitted_issues
-            .iter()
-            .map(|(k, v)| (k.get_relative_path(interner, cwd), v))
-            .collect::<BTreeMap<_, _>>()
-        {
-            for issue in *issues {
-                checkpoint_entries.push(CheckPointEntry::from_issue(issue, file_path));
+        for (file_path, issues) in analysis_result.get_all_issues(&interner, &cwd) {
+            for issue in issues {
+                checkpoint_entries.push(CheckPointEntry::from_issue(issue, &file_path));
             }
         }
 

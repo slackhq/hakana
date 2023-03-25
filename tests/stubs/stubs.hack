@@ -1,1 +1,1 @@
-// hard-coded in test code
+function hakana_expect_type<T>(T $id): void {}
