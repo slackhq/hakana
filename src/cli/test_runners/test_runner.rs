@@ -37,11 +37,13 @@ pub trait TestRunner {
         let mut test_diagnostics = vec![];
 
         let starter_data = if candidate_test_folders.len() > 1 {
-            let (codebase, interner) = get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
+            let (codebase, interner, file_system) =
+                get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
+
             Some(SuccessfulScanData {
                 codebase,
                 interner,
-                ..Default::default()
+                file_system,
             })
         } else {
             None

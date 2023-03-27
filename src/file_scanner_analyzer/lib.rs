@@ -1,18 +1,16 @@
 pub(crate) mod populator;
 
-use crate::file_cache_provider::FileStatus;
 use analyzer::analyze_files;
 use diff::mark_safe_symbols_from_diff;
+use file::VirtualFileSystem;
 use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
 use hakana_analyzer::config::{Config, Verbosity};
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::Interner;
-use indexmap::IndexMap;
 use indicatif::ProgressBar;
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
@@ -23,15 +21,15 @@ use scanner::{scan_files, ScanFilesResult};
 use std::fs;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
-use std::time::{Instant, SystemTime};
+use std::time::Instant;
 use unused_symbols::find_unused_definitions;
 
 mod analyzer;
 mod ast_differ;
 mod cache;
 mod diff;
-mod file_cache_provider;
-mod scanner;
+mod file;
+pub mod scanner;
 mod unused_symbols;
 pub mod wasm;
 
@@ -55,15 +53,15 @@ struct HslAsset;
 pub struct SuccessfulScanData {
     pub codebase: CodebaseInfo,
     pub interner: Interner,
-    pub file_hashes_and_times: FxHashMap<FilePath, (u64, u64)>,
+    pub file_system: VirtualFileSystem,
 }
 
 impl Default for SuccessfulScanData {
     fn default() -> Self {
         SuccessfulScanData {
             codebase: CodebaseInfo::new(),
-            interner: Interner::new(),
-            file_hashes_and_times: FxHashMap::default(),
+            interner: Interner::default(),
+            file_system: VirtualFileSystem::default(),
         }
     }
 }
@@ -85,19 +83,17 @@ pub fn scan_and_analyze(
 
     let file_discovery_and_scanning_now = Instant::now();
 
-    let mut files_to_analyze = vec![];
-
     let ScanFilesResult {
         mut codebase,
         mut interner,
-        file_statuses,
         resolved_names,
         codebase_diff,
+        file_system,
         asts,
+        mut files_to_analyze,
     } = scan_files(
         &all_scanned_dirs,
         cache_dir,
-        &mut files_to_analyze,
         &config,
         threads,
         verbosity,
@@ -117,8 +113,6 @@ pub fn scan_and_analyze(
         );
     }
 
-    let file_hashes_and_times = get_serializable_file_data(&file_statuses);
-
     if let Some(cache_dir) = cache_dir {
         let timestamp_path = format!("{}/buildinfo", cache_dir);
         let mut timestamp_file = fs::File::create(&timestamp_path).unwrap();
@@ -127,7 +121,7 @@ pub fn scan_and_analyze(
         let aast_manifest_path = format!("{}/manifest", cache_dir);
         fs::File::create(&aast_manifest_path)
             .unwrap()
-            .write_all(&bincode::serialize(&file_hashes_and_times).unwrap())
+            .write_all(&bincode::serialize(&file_system).unwrap())
             .unwrap_or_else(|_| panic!("Could not write aast manifest {}", &aast_manifest_path));
     }
 
@@ -280,115 +274,9 @@ pub fn scan_and_analyze(
         SuccessfulScanData {
             codebase,
             interner,
-            file_hashes_and_times,
+            file_system,
         },
     ))
-}
-
-fn get_serializable_file_data(
-    file_statuses: &IndexMap<FilePath, FileStatus>,
-) -> FxHashMap<FilePath, (u64, u64)> {
-    let mapped = file_statuses
-        .iter()
-        .filter(|(_, v)| match v {
-            FileStatus::Deleted => false,
-            _ => true,
-        })
-        .map(|(k, v)| {
-            (
-                k.clone(),
-                match v {
-                    FileStatus::Unchanged(a, b)
-                    | FileStatus::Added(a, b)
-                    | FileStatus::Modified(a, b) => (*a, *b),
-                    FileStatus::Deleted => panic!(),
-                },
-            )
-        })
-        .collect::<FxHashMap<_, _>>();
-    mapped
-}
-
-fn find_files_in_dir(
-    scan_dir: &String,
-    config: &Config,
-    files_to_analyze: &mut Vec<String>,
-) -> IndexMap<String, u64> {
-    let mut files_to_scan = IndexMap::new();
-
-    let ignore_dirs = config
-        .ignore_files
-        .iter()
-        .filter(|file| file.ends_with("/**"))
-        .map(|file| file[0..(file.len() - 3)].to_string())
-        .collect::<FxHashSet<_>>();
-
-    let mut walker_builder = ignore::WalkBuilder::new(scan_dir);
-
-    walker_builder
-        .sort_by_file_path(|a, b| a.file_name().cmp(&b.file_name()))
-        .follow_links(true);
-    walker_builder.git_ignore(false);
-    walker_builder.filter_entry(move |f| {
-        let p = f.path().to_str().unwrap();
-        !ignore_dirs.contains(p) && !p.contains("/.")
-    });
-
-    let walker = walker_builder.build().into_iter().filter_map(|e| e.ok());
-
-    let ignore_patterns = config
-        .ignore_files
-        .iter()
-        .filter(|file| !file.ends_with("/**"))
-        .map(|ignore_file| glob::Pattern::new(ignore_file).unwrap())
-        .collect::<Vec<_>>();
-
-    'walker_entry: for entry in walker {
-        let path = entry.path();
-
-        let metadata = if let Ok(metadata) = fs::metadata(&path) {
-            metadata
-        } else {
-            println!("Could not get metadata");
-            panic!();
-        };
-
-        if metadata.is_file() {
-            if let Some(extension) = path.extension() {
-                if extension.eq("hack") || extension.eq("php") || extension.eq("hhi") {
-                    let path = path.to_str().unwrap().to_string();
-
-                    for ignore_pattern in &ignore_patterns {
-                        if ignore_pattern.matches(&path) {
-                            continue 'walker_entry;
-                        }
-                    }
-
-                    files_to_scan.insert(
-                        path.clone(),
-                        metadata
-                            .modified()
-                            .unwrap()
-                            .duration_since(SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_micros() as u64,
-                    );
-
-                    if !extension.eq("hhi") {
-                        if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
-                            if config.allow_taints_in_file(&path) {
-                                files_to_analyze.push(path.clone());
-                            }
-                        } else {
-                            files_to_analyze.push(path.clone());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    files_to_scan
 }
 
 pub fn get_aast_for_path(

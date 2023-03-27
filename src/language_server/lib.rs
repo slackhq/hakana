@@ -1,7 +1,9 @@
 use std::path::Path;
+use std::sync::Arc;
 
-use hakana_analyzer::config::{Config, self};
+use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
+use hakana_workhorse::scanner::ScanFilesResult;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
@@ -9,19 +11,69 @@ use tower_lsp::{Client, LanguageServer};
 #[derive(Debug)]
 pub struct Backend {
     pub client: Client,
-    pub analysis_config: Config,
+    pub analysis_config: Arc<Config>,
+    pub scan_result: tokio::sync::Mutex<ScanFilesResult>,
 }
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
-        Ok(InitializeResult::default())
+        Ok(InitializeResult {
+            capabilities: ServerCapabilities {
+                ..ServerCapabilities::default()
+            },
+            ..InitializeResult::default()
+        })
     }
 
     async fn initialized(&self, _: InitializedParams) {
+        let registration = Registration {
+            id: "watch-hack-files".to_string(),
+            method: "workspace/didChangeWatchedFiles".to_string(),
+            register_options: Some(
+                serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
+                    watchers: vec![FileSystemWatcher {
+                        glob_pattern: GlobPattern::String("**/*.{hack,php,hhi}".to_string()),
+                        kind: None,
+                    }],
+                })
+                .unwrap(),
+            ),
+        };
+
+        let registrations = vec![registration];
+
+        self.client
+            .register_capability(registrations)
+            .await
+            .unwrap();
+
         self.client
             .log_message(MessageType::INFO, "server initialized!")
             .await;
+    }
+
+    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+        for file_event in params.changes {
+            //let uri = file_event.uri;
+            let change_type = file_event.typ;
+
+            match change_type {
+                FileChangeType::CREATED => {
+                    // Handle file creation
+                    // ...
+                }
+                FileChangeType::CHANGED => {
+                    // Handle file modification
+                    // ...
+                }
+                FileChangeType::DELETED => {
+                    // Handle file deletion
+                    // ...
+                }
+                _ => {}
+            }
+        }
     }
 
     async fn shutdown(&self) -> Result<()> {

@@ -6,16 +6,16 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
 
-use super::find_files_in_dir;
 use super::update_progressbar;
 use super::HhiAsset;
 use super::HslAsset;
 use crate::ast_differ;
+use crate::cache::get_file_manifest;
 use crate::cache::load_cached_aast_names;
 use crate::cache::load_cached_codebase;
 use crate::cache::load_cached_symbols;
-use crate::file_cache_provider;
-use crate::file_cache_provider::FileStatus;
+use crate::file::FileStatus;
+use crate::file::VirtualFileSystem;
 use crate::get_aast_for_path;
 use crate::SuccessfulScanData;
 use ast_differ::get_diff;
@@ -31,7 +31,6 @@ use hakana_reflection_info::FileSource;
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::ThreadedInterner;
-use indexmap::IndexMap;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use oxidized::aast;
@@ -39,19 +38,20 @@ use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
+#[derive(Debug)]
 pub struct ScanFilesResult {
     pub codebase: CodebaseInfo,
     pub interner: Interner,
-    pub file_statuses: IndexMap<FilePath, FileStatus>,
+    pub file_system: VirtualFileSystem,
     pub resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
     pub codebase_diff: CodebaseDiff,
     pub asts: FxHashMap<FilePath, Vec<u8>>,
+    pub files_to_analyze: Vec<String>,
 }
 
-pub(crate) fn scan_files(
+pub fn scan_files(
     scan_dirs: &Vec<String>,
     cache_dir: Option<&String>,
-    files_to_analyze: &mut Vec<String>,
     config: &Arc<Config>,
     threads: u8,
     verbosity: Verbosity,
@@ -62,7 +62,9 @@ pub(crate) fn scan_files(
         println!("{:#?}", scan_dirs);
     }
 
-    let mut files_to_scan = IndexMap::new();
+    let mut files_to_scan = vec![];
+
+    let mut files_to_analyze = vec![];
 
     let codebase_path = if let Some(cache_dir) = cache_dir {
         Some(format!("{}/codebase", cache_dir))
@@ -81,47 +83,6 @@ pub(crate) fn scan_files(
     } else {
         None
     };
-
-    let has_starter = starter_data.is_some();
-
-    let SuccessfulScanData {
-        mut codebase,
-        mut interner,
-        mut file_hashes_and_times,
-    } = starter_data.unwrap_or(SuccessfulScanData::default());
-
-    // add HHVM libs
-    for file in HhiAsset::iter() {
-        files_to_scan.insert(file.to_string(), 0);
-    }
-
-    // add HSL
-    for file in HslAsset::iter() {
-        files_to_scan.insert(file.to_string(), 0);
-    }
-
-    if !matches!(verbosity, Verbosity::Quiet) {
-        println!("Looking for Hack files");
-    }
-
-    let file_discovery_now = Instant::now();
-
-    for scan_dir in scan_dirs {
-        if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-            println!(" - in {}", scan_dir);
-        }
-
-        files_to_scan.extend(find_files_in_dir(scan_dir, config, files_to_analyze));
-    }
-
-    let file_discovery_elapsed = file_discovery_now.elapsed();
-
-    if matches!(
-        verbosity,
-        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
-    ) {
-        println!("File discovery took {:.2?}", file_discovery_elapsed);
-    }
 
     let mut use_codebase_cache = true;
 
@@ -148,16 +109,59 @@ pub(crate) fn scan_files(
         }
     }
 
-    if !has_starter {
-        file_hashes_and_times = if let Some(cache_dir) = cache_dir {
-            if use_codebase_cache {
-                file_cache_provider::get_file_manifest(cache_dir).unwrap_or(FxHashMap::default())
-            } else {
-                FxHashMap::default()
-            }
-        } else {
-            FxHashMap::default()
+    let has_starter = starter_data.is_some();
+
+    let mut existing_file_system = None;
+
+    let mut interner;
+    let mut codebase;
+
+    if let Some(starter_data) = starter_data {
+        existing_file_system = Some(starter_data.file_system);
+        interner = starter_data.interner;
+        codebase = starter_data.codebase;
+    } else {
+        interner = Interner::default();
+        codebase = CodebaseInfo::new();
+    }
+
+    if existing_file_system.is_none() && use_codebase_cache {
+        if let Some(cache_dir) = cache_dir {
+            existing_file_system = get_file_manifest(cache_dir);
         };
+    }
+
+    let mut file_system = VirtualFileSystem::default();
+    let file_discovery_now = Instant::now();
+
+    add_builtins_to_scan(&mut files_to_scan, &mut interner, &mut file_system);
+
+    if !matches!(verbosity, Verbosity::Quiet) {
+        println!("Looking for Hack files");
+    }
+
+    for scan_dir in scan_dirs {
+        if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+            println!(" - in {}", scan_dir);
+        }
+
+        files_to_scan.extend(file_system.find_files_in_dir(
+            scan_dir,
+            &mut interner,
+            &existing_file_system,
+            config,
+            cache_dir.is_some() || config.ast_diff,
+            &mut files_to_analyze,
+        ));
+    }
+
+    let file_discovery_elapsed = file_discovery_now.elapsed();
+
+    if matches!(
+        verbosity,
+        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
+    ) {
+        println!("File discovery took {:.2?}", file_discovery_elapsed);
     }
 
     let load_from_cache_now = Instant::now();
@@ -170,12 +174,8 @@ pub(crate) fn scan_files(
         }
     }
 
-    let file_statuses = file_cache_provider::get_file_diff(
-        &files_to_scan,
-        file_hashes_and_times,
-        &mut interner,
-        cache_dir.is_some(),
-    );
+    let file_statuses =
+        file_system.get_file_statuses(&files_to_scan, &interner, &existing_file_system);
 
     let changed_files = file_statuses
         .iter()
@@ -491,11 +491,36 @@ pub(crate) fn scan_files(
     Ok(ScanFilesResult {
         codebase,
         interner,
-        file_statuses,
         resolved_names,
         codebase_diff,
         asts,
+        files_to_analyze,
+        file_system,
     })
+}
+
+pub fn add_builtins_to_scan(
+    files_to_scan: &mut Vec<String>,
+    interner: &mut Interner,
+    file_system: &mut VirtualFileSystem,
+) {
+    // add HHVM libs
+    for file in HhiAsset::iter() {
+        files_to_scan.push(file.to_string());
+        let interned_file_path = FilePath(interner.intern(file.to_string()));
+        file_system
+            .file_hashes_and_times
+            .insert(interned_file_path, (0, 0));
+    }
+
+    // add HSL
+    for file in HslAsset::iter() {
+        files_to_scan.push(file.to_string());
+        let interned_file_path = FilePath(interner.intern(file.to_string()));
+        file_system
+            .file_hashes_and_times
+            .insert(interned_file_path, (0, 0));
+    }
 }
 
 pub(crate) fn scan_file(

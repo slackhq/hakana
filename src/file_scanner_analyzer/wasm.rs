@@ -13,6 +13,7 @@ use hakana_reflection_info::{FileSource, Interner, StrId, ThreadedInterner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Mutex};
 
+use crate::file::VirtualFileSystem;
 use crate::populator::populate_codebase;
 use crate::scanner::scan_file;
 use crate::{HhiAsset, HslAsset};
@@ -85,18 +86,27 @@ pub fn scan_and_analyze_single_file(
     Ok((analysis_result, interner))
 }
 
-pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, Interner) {
+pub fn get_single_file_codebase(
+    additional_files: Vec<&str>,
+) -> (CodebaseInfo, Interner, VirtualFileSystem) {
     let mut codebase = CodebaseInfo::new();
-    let interner = Arc::new(Mutex::new(Interner::new()));
+    let interner = Arc::new(Mutex::new(Interner::default()));
 
     let mut threaded_interner = ThreadedInterner::new(interner.clone());
     let empty_name_context = NameContext::new(&mut threaded_interner);
 
+    let mut file_system = VirtualFileSystem::default();
+
     // add HHVM libs
     for file in HhiAsset::iter() {
+        let interned_file_path = FilePath(threaded_interner.intern(file.to_string()));
+        file_system
+            .file_hashes_and_times
+            .insert(interned_file_path, (0, 0));
+
         scan_file(
             &file.to_string(),
-            FilePath(threaded_interner.intern(file.to_string())),
+            interned_file_path,
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
@@ -110,9 +120,14 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
 
     // add HHVM libs
     for file in HslAsset::iter() {
+        let interned_file_path = FilePath(threaded_interner.intern(file.to_string()));
+        file_system
+            .file_hashes_and_times
+            .insert(interned_file_path, (0, 0));
+
         scan_file(
             &file.to_string(),
-            FilePath(threaded_interner.intern(file.to_string())),
+            interned_file_path,
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
@@ -125,9 +140,14 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
     }
 
     for str_path in additional_files {
+        let interned_file_path = FilePath(threaded_interner.intern(str_path.to_string()));
+        file_system
+            .file_hashes_and_times
+            .insert(interned_file_path, (0, 0));
+
         scan_file(
             str_path,
-            FilePath(threaded_interner.intern(str_path.to_string())),
+            interned_file_path,
             &FxHashSet::default(),
             &mut codebase,
             &mut threaded_interner,
@@ -147,7 +167,7 @@ pub fn get_single_file_codebase(additional_files: Vec<&str>) -> (CodebaseInfo, I
 
     populate_codebase(&mut codebase, &interner, &mut symbol_references);
 
-    (codebase, interner)
+    (codebase, interner, file_system)
 }
 
 pub fn scan_single_file(

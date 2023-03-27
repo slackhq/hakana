@@ -9,6 +9,8 @@ use rustc_hash::FxHashMap;
 use std::fs;
 use std::path::Path;
 
+use crate::file::VirtualFileSystem;
+
 pub(crate) fn load_cached_codebase(
     codebase_path: &String,
     use_codebase_cache: bool,
@@ -99,6 +101,20 @@ pub(crate) fn load_cached_existing_issues(
         let serialized = fs::read(&existing_issues_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &existing_issues_path));
         if let Ok(d) = bincode::deserialize::<FxHashMap<FilePath, Vec<Issue>>>(&serialized) {
+            return Some(d);
+        }
+    }
+
+    None
+}
+
+pub(crate) fn get_file_manifest(cache_dir: &String) -> Option<VirtualFileSystem> {
+    let aast_manifest_path = format!("{}/manifest", cache_dir);
+
+    if Path::new(&aast_manifest_path).exists() {
+        let serialized = fs::read(&aast_manifest_path)
+            .unwrap_or_else(|_| panic!("Could not read file {}", &aast_manifest_path));
+        if let Ok(d) = bincode::deserialize::<VirtualFileSystem>(&serialized) {
             return Some(d);
         }
     }

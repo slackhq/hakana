@@ -1,0 +1,205 @@
+use std::{fs, time::SystemTime};
+
+use hakana_analyzer::config::Config;
+use hakana_reflection_info::{code_location::FilePath, data_flow::graph::GraphKind, Interner};
+use indexmap::IndexMap;
+use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug)]
+pub enum FileStatus {
+    Unchanged(u64, u64),
+    Added(u64, u64),
+    Deleted,
+    Modified(u64, u64),
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct VirtualFileSystem {
+    pub file_hashes_and_times: FxHashMap<FilePath, (u64, u64)>,
+}
+
+impl VirtualFileSystem {
+    pub fn get_contents_hash(&self, file_path: &String) -> Result<u64, std::io::Error> {
+        match fs::read_to_string(&file_path) {
+            Ok(file_contents) => Ok(xxhash_rust::xxh3::xxh3_64(file_contents.as_bytes())),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub(crate) fn get_file_statuses(
+        &self,
+        target_files: &Vec<String>,
+        interner: &Interner,
+        existing_file_system: &Option<VirtualFileSystem>,
+    ) -> IndexMap<FilePath, FileStatus> {
+        let mut file_statuses = IndexMap::new();
+
+        for file_path in target_files {
+            let interned_file_path = FilePath(interner.get(file_path).unwrap());
+
+            file_statuses.insert(
+                interned_file_path,
+                self.get_file_status(existing_file_system, interned_file_path, file_path),
+            );
+        }
+
+        if let Some(existing_file_system) = existing_file_system {
+            for (file_path, _) in &existing_file_system.file_hashes_and_times {
+                if !file_statuses.contains_key(file_path) {
+                    file_statuses.insert(file_path.clone(), FileStatus::Deleted);
+                }
+            }
+        }
+
+        file_statuses
+    }
+
+    fn get_file_status(
+        &self,
+        existing_file_system: &Option<VirtualFileSystem>,
+        interned_file_path: FilePath,
+        file_path: &String,
+    ) -> FileStatus {
+        if let Some((old_contents_hash, _)) =
+            if let Some(existing_file_system) = existing_file_system {
+                existing_file_system
+                    .file_hashes_and_times
+                    .get(&interned_file_path)
+            } else {
+                None
+            }
+        {
+            if file_path.starts_with("hhi_embedded_") || file_path.starts_with("hsl_embedded_") {
+                FileStatus::Unchanged(0, 0)
+            } else {
+                let (new_contents_hash, new_update_time) =
+                    self.file_hashes_and_times.get(&interned_file_path).unwrap();
+
+                if new_contents_hash != old_contents_hash {
+                    FileStatus::Modified(*new_contents_hash, *new_update_time)
+                } else {
+                    FileStatus::Unchanged(*new_contents_hash, *new_update_time)
+                }
+            }
+        } else {
+            let (new_contents_hash, new_update_time) =
+                self.file_hashes_and_times.get(&interned_file_path).unwrap();
+
+            FileStatus::Added(*new_contents_hash, *new_update_time)
+        }
+    }
+
+    pub fn find_files_in_dir(
+        &mut self,
+        scan_dir: &String,
+        interner: &mut Interner,
+        existing_file_system: &Option<VirtualFileSystem>,
+        config: &Config,
+        calculate_file_hashes: bool,
+        files_to_analyze: &mut Vec<String>,
+    ) -> Vec<String> {
+        let mut files_to_scan = vec![];
+
+        let ignore_dirs = config
+            .ignore_files
+            .iter()
+            .filter(|file| file.ends_with("/**"))
+            .map(|file| file[0..(file.len() - 3)].to_string())
+            .collect::<FxHashSet<_>>();
+
+        let mut walker_builder = ignore::WalkBuilder::new(scan_dir);
+
+        walker_builder
+            .sort_by_file_path(|a, b| a.file_name().cmp(&b.file_name()))
+            .follow_links(true);
+        walker_builder.git_ignore(false);
+        walker_builder.filter_entry(move |f| {
+            let p = f.path().to_str().unwrap();
+            !ignore_dirs.contains(p) && !p.contains("/.")
+        });
+
+        let walker = walker_builder.build().into_iter().filter_map(|e| e.ok());
+
+        let ignore_patterns = config
+            .ignore_files
+            .iter()
+            .filter(|file| !file.ends_with("/**"))
+            .map(|ignore_file| glob::Pattern::new(ignore_file).unwrap())
+            .collect::<Vec<_>>();
+
+        'walker_entry: for entry in walker {
+            let path = entry.path();
+
+            let metadata = if let Ok(metadata) = fs::metadata(&path) {
+                metadata
+            } else {
+                println!("Could not get metadata");
+                panic!();
+            };
+
+            if metadata.is_file() {
+                if let Some(extension) = path.extension() {
+                    if extension.eq("hack") || extension.eq("php") || extension.eq("hhi") {
+                        let str_path = path.to_str().unwrap().to_string();
+
+                        for ignore_pattern in &ignore_patterns {
+                            if ignore_pattern.matches(&str_path) {
+                                continue 'walker_entry;
+                            }
+                        }
+
+                        let interned_file_path = FilePath(interner.intern(str_path.clone()));
+
+                        let updated_time = metadata
+                            .modified()
+                            .unwrap()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_micros() as u64;
+
+                        let file_hash = if let Some(existing_file_system) = existing_file_system {
+                            if let Some((old_contents_hash, old_update_time)) = existing_file_system
+                                .file_hashes_and_times
+                                .get(&interned_file_path)
+                            {
+                                if old_update_time == &updated_time {
+                                    *old_contents_hash
+                                } else if calculate_file_hashes {
+                                    self.get_contents_hash(&str_path).unwrap_or(0)
+                                } else {
+                                    0
+                                }
+                            } else {
+                                0
+                            }
+                        } else {
+                            if calculate_file_hashes {
+                                self.get_contents_hash(&str_path).unwrap_or(0)
+                            } else {
+                                0
+                            }
+                        };
+
+                        self.file_hashes_and_times
+                            .insert(interned_file_path, (file_hash, updated_time));
+
+                        files_to_scan.push(str_path.clone());
+
+                        if !extension.eq("hhi") {
+                            if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
+                                if config.allow_taints_in_file(&str_path) {
+                                    files_to_analyze.push(str_path.clone());
+                                }
+                            } else {
+                                files_to_analyze.push(str_path.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        files_to_scan
+    }
+}

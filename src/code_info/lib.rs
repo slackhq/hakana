@@ -113,15 +113,9 @@ pub struct Interner {
 
 impl Default for Interner {
     fn default() -> Self {
-        Self {
+        let mut interner = Interner {
             map: IndexSet::default(),
-        }
-    }
-}
-
-impl Interner {
-    pub fn new() -> Self {
-        let mut interner = Interner::default();
+        };
         interner.intern("".to_string());
         interner.intern("this".to_string());
         interner.intern("<anonymous function>".to_string());
@@ -159,7 +153,9 @@ impl Interner {
         interner.intern("HH\\TypeStructure".to_string());
         interner
     }
+}
 
+impl Interner {
     /// Get the id corresponding to `path`.
     ///
     /// If `path` does not exists in `self`, returns [`None`].
