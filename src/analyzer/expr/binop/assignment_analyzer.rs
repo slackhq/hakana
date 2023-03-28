@@ -16,10 +16,10 @@ use crate::expr::expression_identifier::get_var_id;
 use crate::expr::fetch::array_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::formula_generator;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_algebra::Clause;
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
@@ -302,6 +302,10 @@ pub(crate) fn analyze(
     } else {
         // todo increment non-mixed count
     }
+
+    analysis_data
+        .expr_effects
+        .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_LOCAL);
 
     match &assign_var.2 {
         aast::Expr_::Lvar(_) => analyze_assignment_to_variable(

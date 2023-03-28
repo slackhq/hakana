@@ -128,6 +128,7 @@ impl FunctionAnalysisData {
                         if let IssueKind::UnusedParameter
                         | IssueKind::UnusedAssignment
                         | IssueKind::UnusedAssignmentStatement
+                        | IssueKind::UnusedStatement
                         | IssueKind::UnusedFunction
                         | IssueKind::UnusedPrivateMethod = issue.kind
                         {

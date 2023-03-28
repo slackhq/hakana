@@ -4,7 +4,7 @@ use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::STR_AWAITABLE;
+use hakana_reflection_info::{EFFECT_PURE, STR_AWAITABLE};
 use hakana_type::get_arrayish_params;
 
 use crate::custom_hook::AfterStmtAnalysisData;
@@ -62,6 +62,8 @@ pub(crate) fn analyze(
                 return false;
             }
 
+            let mut fn_can_throw = false;
+
             if let aast::Expr_::Call(boxed_call) = &boxed.2 {
                 let functionlike_id = get_functionlike_id_from_call(
                     boxed_call,
@@ -88,9 +90,19 @@ pub(crate) fn analyze(
                             } else if let Some(expr_type) =
                                 analysis_data.get_rc_expr_type(boxed.pos()).cloned()
                             {
+                                let function_name =
+                                    statements_analyzer.get_interner().lookup(&function_id);
+
+                                if function_name == "HH\\invariant"
+                                    || function_name == "HH\\invariant_violation"
+                                    || function_name == "HH\\trigger_error"
+                                {
+                                    fn_can_throw = true;
+                                }
+
                                 check_for_lib_array_returns(
                                     statements_analyzer,
-                                    function_id,
+                                    function_name,
                                     expr_type,
                                     codebase,
                                     analysis_data,
@@ -108,6 +120,26 @@ pub(crate) fn analyze(
                             Issue::new(
                                 IssueKind::UnusedAwaitable,
                                 "This awaitable is never awaited".to_string(),
+                                statements_analyzer.get_hpos(&stmt.0),
+                                &context.function_context.calling_functionlike_id,
+                            ),
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
+                        );
+                    }
+                }
+            }
+
+            if statements_analyzer.get_config().find_unused_expressions {
+                if let Some(effect) = analysis_data
+                    .expr_effects
+                    .get(&(boxed.pos().start_offset(), boxed.pos().end_offset()))
+                {
+                    if effect == &EFFECT_PURE && !fn_can_throw {
+                        analysis_data.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::UnusedStatement,
+                                "This statement has no effect and can be removed".to_string(),
                                 statements_analyzer.get_hpos(&stmt.0),
                                 &context.function_context.calling_functionlike_id,
                             ),
@@ -307,15 +339,13 @@ pub(crate) fn analyze(
 
 fn check_for_lib_array_returns(
     statements_analyzer: &StatementsAnalyzer,
-    function_id: hakana_reflection_info::StrId,
+    function_name: &str,
     expr_type: Rc<TUnion>,
     codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
     stmt: &aast::Stmt<(), ()>,
     context: &mut ScopeContext,
 ) {
-    let function_name = statements_analyzer.get_interner().lookup(&function_id);
-
     if function_name.starts_with("HH\\Lib\\Keyset\\")
         || function_name.starts_with("HH\\Lib\\Vec\\")
         || function_name.starts_with("HH\\Lib\\Dict\\")

@@ -1071,7 +1071,11 @@ fn report_unused_expressions(
     for node in &unused_source_nodes.1 {
         match &node.kind {
             DataFlowNodeKind::VariableUseSource {
-                kind, label, pos, has_awaitable, ..
+                kind,
+                label,
+                pos,
+                has_awaitable,
+                ..
             } => {
                 if label.starts_with("$_") {
                     continue;

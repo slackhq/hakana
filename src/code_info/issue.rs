@@ -124,6 +124,7 @@ pub enum IssueKind {
     UnusedPrivateMethod,
     UnusedProperty,
     UnusedPublicOrProtectedMethod,
+    UnusedStatement,
     UnusedTrait,
 }
 

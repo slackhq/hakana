@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_reflection_info::{StrId, EFFECT_IMPURE, STR_STATIC};
+use hakana_reflection_info::{StrId, EFFECT_IMPURE, STR_STATIC, EFFECT_WRITE_LOCAL};
 use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
 use hakana_type::{
@@ -312,6 +312,10 @@ fn handle_shapes_static_method(
                     None,
                     &FxHashMap::default(),
                 );
+
+                analysis_data
+                    .expr_effects
+                    .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_LOCAL);
 
                 if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
                     if let Some(expr_type) = context.vars_in_scope.get(&expr_var_id) {

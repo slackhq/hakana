@@ -1,7 +1,7 @@
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{StrId, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{StrId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{get_arrayish_params, get_void};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -10,11 +10,11 @@ use std::rc::Rc;
 use crate::expr::call::arguments_analyzer;
 use crate::expr::call_analyzer::{apply_effects, check_template_result};
 use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_analyzer};
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{expression_analyzer, formula_generator};
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -82,8 +82,12 @@ pub(crate) fn analyze(
                 if_body_context,
             );
             context.inside_unset = false;
-            analysis_data.copy_effects(first_arg.pos(), pos);
+            analysis_data
+                .expr_effects
+                .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_LOCAL);
+            analysis_data.combine_effects(first_arg.pos(), pos, pos);
             analysis_data.set_expr_type(&pos, get_void());
+
             return result;
         }
     }
