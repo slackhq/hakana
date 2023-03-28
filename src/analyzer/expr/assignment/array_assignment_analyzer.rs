@@ -115,6 +115,7 @@ pub(crate) fn analyze(
                         root_var_id.clone(),
                         statements_analyzer.get_hpos(root_array_expr.pos()),
                         false,
+                        false,
                     ));
             }
         }

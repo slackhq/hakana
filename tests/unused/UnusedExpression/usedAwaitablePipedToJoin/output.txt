@@ -1,4 +1,4 @@
 ERROR: UnusedAssignment - input.hack:6:5 - Assignment to $a is unused
-ERROR: UnusedAssignment - input.hack:7:5 - Assignment to $b is unused
+ERROR: UnusedAwaitable - input.hack:7:5 - Assignment to awaitable $b is unused
 ERROR: UnusedPipeVariable - input.hack:7:10 - The pipe data in this expression is not used anywhere
 ERROR: UnusedAssignment - input.hack:8:5 - Assignment to $c is unused

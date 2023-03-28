@@ -3,7 +3,7 @@ use crate::{
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
     t_atomic::{populate_atomic_type, DictKey, TAtomic},
-    Interner, StrId, STR_LIB_REGEX_PATTERN,
+    Interner, StrId, STR_AWAITABLE, STR_LIB_REGEX_PATTERN,
 };
 use core::panic;
 use derivative::Derivative;
@@ -345,6 +345,18 @@ impl TUnion {
         }
 
         return false;
+    }
+
+    pub fn has_awaitable_types(&self) -> bool {
+        self.get_all_child_nodes().iter().any(|a| {
+            matches!(
+                a,
+                TypeNode::Atomic(TAtomic::TNamedObject {
+                    name: STR_AWAITABLE,
+                    ..
+                })
+            )
+        })
     }
 
     pub fn get_template_types(&self) -> Vec<&TAtomic> {

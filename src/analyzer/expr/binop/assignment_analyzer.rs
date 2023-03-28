@@ -618,6 +618,7 @@ fn analyze_assignment_to_variable(
                         } else {
                             false
                         },
+                    assign_value_type.has_awaitable_types(),
                 ));
         }
     }

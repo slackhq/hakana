@@ -3,7 +3,7 @@ use std::rc::Rc;
 use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::t_union::{TUnion, TypeNode};
+use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::STR_AWAITABLE;
 use hakana_type::get_arrayish_params;
 
@@ -103,23 +103,17 @@ pub(crate) fn analyze(
                 }
 
                 if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
-                    for child_node in expr_type.get_all_child_nodes() {
-                        if let TypeNode::Atomic(TAtomic::TNamedObject {
-                            name: STR_AWAITABLE,
-                            ..
-                        }) = child_node
-                        {
-                            analysis_data.maybe_add_issue(
-                                Issue::new(
-                                    IssueKind::UnusedAwaitable,
-                                    "This awaitable is never awaited".to_string(),
-                                    statements_analyzer.get_hpos(&stmt.0),
-                                    &context.function_context.calling_functionlike_id,
-                                ),
-                                statements_analyzer.get_config(),
-                                statements_analyzer.get_file_path_actual(),
-                            );
-                        }
+                    if expr_type.has_awaitable_types() {
+                        analysis_data.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::UnusedAwaitable,
+                                "This awaitable is never awaited".to_string(),
+                                statements_analyzer.get_hpos(&stmt.0),
+                                &context.function_context.calling_functionlike_id,
+                            ),
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
+                        );
                     }
                 }
             }

@@ -945,6 +945,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         },
                         label: param.name.clone(),
                         pure: false,
+                        has_awaitable: param_type.has_awaitable_types(),
                     },
                 }
             };
@@ -1037,6 +1038,7 @@ fn report_unused_expressions(
                 label,
                 pos,
                 pure,
+                has_awaitable,
             } => {
                 if label.starts_with("$_") {
                     continue;
@@ -1054,6 +1056,7 @@ fn report_unused_expressions(
                             label,
                             calling_functionlike_id,
                             pure,
+                            has_awaitable,
                         );
                     }
                     _ => {}
@@ -1068,7 +1071,7 @@ fn report_unused_expressions(
     for node in &unused_source_nodes.1 {
         match &node.kind {
             DataFlowNodeKind::VariableUseSource {
-                kind, label, pos, ..
+                kind, label, pos, has_awaitable, ..
             } => {
                 if label.starts_with("$_") {
                     continue;
@@ -1114,6 +1117,7 @@ fn report_unused_expressions(
                             label,
                             calling_functionlike_id,
                             &false,
+                            &has_awaitable,
                         );
                     }
                     VariableSourceKind::InoutParam => {
@@ -1147,6 +1151,7 @@ fn handle_unused_assignment(
     label: &String,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     pure: &bool,
+    has_awaitable: &bool,
 ) {
     if config.allow_issue_kind_in_file(
         &IssueKind::UnusedAssignment,
@@ -1193,6 +1198,13 @@ fn handle_unused_assignment(
                                 "Assignment to {} is unused, and this expression has no effect",
                                 label
                             ),
+                            pos.clone(),
+                            calling_functionlike_id,
+                        )
+                    } else if *has_awaitable {
+                        Issue::new(
+                            IssueKind::UnusedAwaitable,
+                            format!("Assignment to awaitable {} is unused", label),
                             pos.clone(),
                             calling_functionlike_id,
                         )
