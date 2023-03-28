@@ -2,4 +2,4 @@ function foo(int $i) : bool {
   return true;
 }
 
-HH\Lib\Vec\filter(vec["hello"], "foo");
+$a = HH\Lib\Vec\filter(vec["hello"], "foo");

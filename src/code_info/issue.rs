@@ -113,6 +113,7 @@ pub enum IssueKind {
     UnusedAssignment,
     UnusedAssignmentInClosure,
     UnusedAwaitable,
+    UnusedBuiltinReturnValue,
     UnusedClass,
     UnusedAssignmentStatement,
     UnusedFunction,

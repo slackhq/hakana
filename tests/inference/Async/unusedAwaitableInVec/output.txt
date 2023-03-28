@@ -1,1 +1,2 @@
-UnusedAwaitable
+ERROR: UnusedBuiltinReturnValue - input.hack:2:5 - The value vec<HH\Awaitable<int>> returned from HH\Lib\Vec\map should be consumed
+ERROR: UnusedAwaitable - input.hack:2:5 - This awaitable is never awaited

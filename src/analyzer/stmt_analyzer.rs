@@ -1,7 +1,11 @@
+use std::rc::Rc;
+
 use hakana_reflection_info::code_location::StmtStart;
+use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::t_union::TypeNode;
+use hakana_reflection_info::t_union::{TUnion, TypeNode};
 use hakana_reflection_info::STR_AWAITABLE;
+use hakana_type::get_arrayish_params;
 
 use crate::custom_hook::AfterStmtAnalysisData;
 use crate::expr::assertion_finder::get_functionlike_id_from_call;
@@ -80,6 +84,18 @@ pub(crate) fn analyze(
                                     ),
                                     statements_analyzer.get_config(),
                                     statements_analyzer.get_file_path_actual(),
+                                );
+                            } else if let Some(expr_type) =
+                                analysis_data.get_rc_expr_type(boxed.pos()).cloned()
+                            {
+                                check_for_lib_array_returns(
+                                    statements_analyzer,
+                                    function_id,
+                                    expr_type,
+                                    codebase,
+                                    analysis_data,
+                                    stmt,
+                                    context,
                                 );
                             }
                         }
@@ -293,6 +309,46 @@ pub(crate) fn analyze(
     }
 
     true
+}
+
+fn check_for_lib_array_returns(
+    statements_analyzer: &StatementsAnalyzer,
+    function_id: hakana_reflection_info::StrId,
+    expr_type: Rc<TUnion>,
+    codebase: &CodebaseInfo,
+    analysis_data: &mut FunctionAnalysisData,
+    stmt: &aast::Stmt<(), ()>,
+    context: &mut ScopeContext,
+) {
+    let function_name = statements_analyzer.get_interner().lookup(&function_id);
+
+    if function_name.starts_with("HH\\Lib\\Keyset\\")
+        || function_name.starts_with("HH\\Lib\\Vec\\")
+        || function_name.starts_with("HH\\Lib\\Dict\\")
+    {
+        if expr_type.is_single() {
+            let array_types = get_arrayish_params(expr_type.get_single(), codebase);
+
+            if let Some((_, value_type)) = array_types {
+                if !value_type.is_null() && !value_type.is_void() {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::UnusedBuiltinReturnValue,
+                            format!(
+                                "The value {} returned from {} should be consumed",
+                                expr_type.get_id(Some(statements_analyzer.get_interner())),
+                                function_name
+                            ),
+                            statements_analyzer.get_hpos(&stmt.0),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+            }
+        }
+    }
 }
 
 fn analyze_awaitall(
