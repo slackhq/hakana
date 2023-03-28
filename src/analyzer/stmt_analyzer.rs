@@ -1,5 +1,6 @@
 use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_reflection_info::t_union::TypeNode;
 use hakana_reflection_info::STR_AWAITABLE;
 
 use crate::custom_hook::AfterStmtAnalysisData;
@@ -7,6 +8,7 @@ use crate::expr::assertion_finder::get_functionlike_id_from_call;
 use crate::expr::binop::assignment_analyzer;
 
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
@@ -15,7 +17,6 @@ use crate::stmt::{
     break_analyzer, continue_analyzer, do_analyzer, for_analyzer, foreach_analyzer,
     ifelse_analyzer, return_analyzer, switch_analyzer, try_analyzer, while_analyzer,
 };
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use oxidized::{aast, ast_defs};
@@ -86,11 +87,11 @@ pub(crate) fn analyze(
                 }
 
                 if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
-                    for atomic_type in &expr_type.types {
-                        if let TAtomic::TNamedObject {
+                    for child_node in expr_type.get_all_child_nodes() {
+                        if let TypeNode::Atomic(TAtomic::TNamedObject {
                             name: STR_AWAITABLE,
                             ..
-                        } = atomic_type
+                        }) = child_node
                         {
                             analysis_data.maybe_add_issue(
                                 Issue::new(
