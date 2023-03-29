@@ -1,10 +1,6 @@
-use std::rc::Rc;
-
 use hakana_reflection_info::code_location::StmtStart;
-use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{EFFECT_PURE, STR_AWAITABLE};
+use hakana_reflection_info::{EFFECT_PURE, STR_AWAITABLE, STR_CONSTRUCT};
 use hakana_type::get_arrayish_params;
 
 use crate::custom_hook::AfterStmtAnalysisData;
@@ -62,92 +58,14 @@ pub(crate) fn analyze(
                 return false;
             }
 
-            let mut fn_can_throw = false;
-
-            if let aast::Expr_::Call(boxed_call) = &boxed.2 {
-                let functionlike_id = get_functionlike_id_from_call(
-                    boxed_call,
-                    Some(statements_analyzer.get_interner()),
-                    statements_analyzer.get_file_analyzer().resolved_names,
-                );
-                if let Some(functionlike_id) = functionlike_id {
-                    if let FunctionLikeIdentifier::Function(function_id) = functionlike_id {
-                        let codebase = statements_analyzer.get_codebase();
-                        if let Some(functionlike_info) =
-                            codebase.functionlike_infos.get(&function_id)
-                        {
-                            if functionlike_info.must_use {
-                                analysis_data.maybe_add_issue(
-                                    Issue::new(
-                                        IssueKind::UnusedFunctionCall,
-                                        "This function is annotated with MustUse but the returned value is not used".to_string(),
-                                        statements_analyzer.get_hpos(&stmt.0),
-                                        &context.function_context.calling_functionlike_id,
-                                    ),
-                                    statements_analyzer.get_config(),
-                                    statements_analyzer.get_file_path_actual(),
-                                );
-                            } else if let Some(expr_type) =
-                                analysis_data.get_rc_expr_type(boxed.pos()).cloned()
-                            {
-                                let function_name =
-                                    statements_analyzer.get_interner().lookup(&function_id);
-
-                                if function_name == "HH\\invariant"
-                                    || function_name == "HH\\invariant_violation"
-                                    || function_name == "HH\\trigger_error"
-                                {
-                                    fn_can_throw = true;
-                                }
-
-                                check_for_lib_array_returns(
-                                    statements_analyzer,
-                                    function_name,
-                                    expr_type,
-                                    codebase,
-                                    analysis_data,
-                                    stmt,
-                                    context,
-                                );
-                            }
-                        }
-                    }
-                }
-
-                if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
-                    if expr_type.has_awaitable_types() {
-                        analysis_data.maybe_add_issue(
-                            Issue::new(
-                                IssueKind::UnusedAwaitable,
-                                "This awaitable is never awaited".to_string(),
-                                statements_analyzer.get_hpos(&stmt.0),
-                                &context.function_context.calling_functionlike_id,
-                            ),
-                            statements_analyzer.get_config(),
-                            statements_analyzer.get_file_path_actual(),
-                        );
-                    }
-                }
-            }
-
             if statements_analyzer.get_config().find_unused_expressions {
-                if let Some(effect) = analysis_data
-                    .expr_effects
-                    .get(&(boxed.pos().start_offset(), boxed.pos().end_offset()))
-                {
-                    if effect == &EFFECT_PURE && !fn_can_throw {
-                        analysis_data.maybe_add_issue(
-                            Issue::new(
-                                IssueKind::UnusedStatement,
-                                "This statement has no effect and can be removed".to_string(),
-                                statements_analyzer.get_hpos(&stmt.0),
-                                &context.function_context.calling_functionlike_id,
-                            ),
-                            statements_analyzer.get_config(),
-                            statements_analyzer.get_file_path_actual(),
-                        );
-                    }
-                }
+                detect_unused_statement_expressions(
+                    boxed,
+                    statements_analyzer,
+                    analysis_data,
+                    stmt,
+                    context,
+                );
             }
         }
         aast::Stmt_::Return(_) => {
@@ -337,39 +255,131 @@ pub(crate) fn analyze(
     true
 }
 
-fn check_for_lib_array_returns(
+fn detect_unused_statement_expressions(
+    boxed: &Box<aast::Expr<(), ()>>,
     statements_analyzer: &StatementsAnalyzer,
-    function_name: &str,
-    expr_type: Rc<TUnion>,
-    codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
     stmt: &aast::Stmt<(), ()>,
     context: &mut ScopeContext,
 ) {
-    if function_name.starts_with("HH\\Lib\\Keyset\\")
-        || function_name.starts_with("HH\\Lib\\Vec\\")
-        || function_name.starts_with("HH\\Lib\\Dict\\")
-    {
-        if expr_type.is_single() {
-            let array_types = get_arrayish_params(expr_type.get_single(), codebase);
+    let functionlike_id = if let aast::Expr_::Call(boxed_call) = &boxed.2 {
+        get_functionlike_id_from_call(
+            boxed_call,
+            Some(statements_analyzer.get_interner()),
+            statements_analyzer.get_file_analyzer().resolved_names,
+        )
+    } else {
+        None
+    };
 
-            if let Some((_, value_type)) = array_types {
-                if !value_type.is_null() && !value_type.is_void() {
+    if let Some(effect) = analysis_data
+        .expr_effects
+        .get(&(boxed.pos().start_offset(), boxed.pos().end_offset()))
+    {
+        if effect == &EFFECT_PURE {
+            let mut is_constructor_call = false;
+            let mut fn_can_throw = false;
+
+            if let Some(functionlike_id) = functionlike_id {
+                match functionlike_id {
+                    FunctionLikeIdentifier::Function(function_id) => {
+                        let function_name = statements_analyzer.get_interner().lookup(&function_id);
+
+                        if function_name == "HH\\invariant"
+                            || function_name == "HH\\invariant_violation"
+                            || function_name == "HH\\trigger_error"
+                        {
+                            fn_can_throw = true;
+                        }
+                    }
+                    FunctionLikeIdentifier::Method(_, method_name) => {
+                        if method_name == STR_CONSTRUCT {
+                            is_constructor_call = true;
+                        }
+                    }
+                }
+            };
+
+            if !is_constructor_call && !fn_can_throw {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UnusedStatement,
+                        "This statement has no effect and can be removed".to_string(),
+                        statements_analyzer.get_hpos(&stmt.0),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+                return;
+            }
+        }
+    }
+
+    if let Some(functionlike_id) = functionlike_id {
+        if let FunctionLikeIdentifier::Function(function_id) = functionlike_id {
+            let codebase = statements_analyzer.get_codebase();
+            if let Some(functionlike_info) = codebase.functionlike_infos.get(&function_id) {
+                if functionlike_info.must_use {
                     analysis_data.maybe_add_issue(
                         Issue::new(
-                            IssueKind::UnusedBuiltinReturnValue,
-                            format!(
-                                "The value {} returned from {} should be consumed",
-                                expr_type.get_id(Some(statements_analyzer.get_interner())),
-                                function_name
-                            ),
+                            IssueKind::UnusedFunctionCall,
+                            "This function is annotated with MustUse but the returned value is not used".to_string(),
                             statements_analyzer.get_hpos(&stmt.0),
                             &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
                         statements_analyzer.get_file_path_actual(),
                     );
+                } else if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned()
+                {
+                    let function_name = statements_analyzer.get_interner().lookup(&function_id);
+
+                    if function_name.starts_with("HH\\Lib\\Keyset\\")
+                        || function_name.starts_with("HH\\Lib\\Vec\\")
+                        || function_name.starts_with("HH\\Lib\\Dict\\")
+                    {
+                        if expr_type.is_single() {
+                            let array_types = get_arrayish_params(expr_type.get_single(), codebase);
+
+                            if let Some((_, value_type)) = array_types {
+                                if !value_type.is_null() && !value_type.is_void() {
+                                    analysis_data.maybe_add_issue(
+                                        Issue::new(
+                                            IssueKind::UnusedBuiltinReturnValue,
+                                            format!(
+                                                "The value {} returned from {} should be consumed",
+                                                expr_type.get_id(Some(
+                                                    statements_analyzer.get_interner()
+                                                )),
+                                                function_name
+                                            ),
+                                            statements_analyzer.get_hpos(&stmt.0),
+                                            &context.function_context.calling_functionlike_id,
+                                        ),
+                                        statements_analyzer.get_config(),
+                                        statements_analyzer.get_file_path_actual(),
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
+            }
+        }
+
+        if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
+            if expr_type.has_awaitable_types() {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UnusedAwaitable,
+                        "This awaitable is never awaited".to_string(),
+                        statements_analyzer.get_hpos(&stmt.0),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
             }
         }
     }

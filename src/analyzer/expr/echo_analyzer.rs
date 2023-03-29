@@ -1,11 +1,11 @@
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
-use hakana_reflection_info::STR_ECHO;
+use hakana_reflection_info::{EFFECT_IMPURE, STR_ECHO};
 use hakana_type::{get_arraykey, get_mixed_any};
 use oxidized::ast_defs::Pos;
 use oxidized::{aast, ast_defs};
@@ -55,7 +55,10 @@ pub(crate) fn analyze(
         }
     }
 
-    // TODO handle mutations
+    analysis_data.expr_effects.insert(
+        (call_pos.start_offset(), call_pos.end_offset()),
+        EFFECT_IMPURE,
+    );
 
     true
 }

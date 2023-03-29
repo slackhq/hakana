@@ -5,5 +5,5 @@ function foo(): void {
 }
 
 async function bar(int $i): Awaitable<int> {
-    return 5;
+    return $i;
 }
