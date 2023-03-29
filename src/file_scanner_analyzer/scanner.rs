@@ -140,6 +140,16 @@ pub fn scan_files(
         println!("Looking for Hack files");
     }
 
+    let load_from_cache_now = Instant::now();
+
+    if let Some(symbols_path) = &symbols_path {
+        if let Some(cached_interner) =
+            load_cached_symbols(symbols_path, use_codebase_cache, verbosity)
+        {
+            interner = cached_interner;
+        }
+    }
+
     for scan_dir in scan_dirs {
         if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
             println!(" - in {}", scan_dir);
@@ -162,16 +172,6 @@ pub fn scan_files(
         Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
     ) {
         println!("File discovery took {:.2?}", file_discovery_elapsed);
-    }
-
-    let load_from_cache_now = Instant::now();
-
-    if let Some(symbols_path) = &symbols_path {
-        if let Some(cached_interner) =
-            load_cached_symbols(symbols_path, use_codebase_cache, verbosity)
-        {
-            interner = cached_interner;
-        }
     }
 
     let file_statuses =
