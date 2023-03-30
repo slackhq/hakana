@@ -1100,11 +1100,11 @@ fn replace_contents(
     mut file_contents: String,
     replacements: &BTreeMap<(usize, usize), Replacement>,
 ) -> String {
-    for ((mut start, end), replacement) in replacements.iter().rev() {
+    for ((mut start, mut end), replacement) in replacements.iter().rev() {
         match replacement {
             Replacement::Remove => {
                 file_contents =
-                    file_contents[..start].to_string() + &*file_contents[*end..].to_string();
+                    file_contents[..start].to_string() + &*file_contents[end..].to_string();
             }
             Replacement::TrimPrecedingWhitespace(beg_of_line) => {
                 let potential_whitespace =
@@ -1120,12 +1120,22 @@ fn replace_contents(
                 }
 
                 file_contents =
-                    file_contents[..start].to_string() + &*file_contents[*end..].to_string();
+                    file_contents[..start].to_string() + &*file_contents[end..].to_string();
+            }
+            Replacement::TrimTrailingWhitespace(end_of_line) => {
+                let potential_whitespace = file_contents[end..(*end_of_line as usize)].to_string();
+
+                if potential_whitespace.trim() == "" {
+                    end = *end_of_line as usize;
+                }
+
+                file_contents =
+                    file_contents[..start].to_string() + &*file_contents[end..].to_string();
             }
             Replacement::Substitute(string) => {
                 file_contents = file_contents[..start].to_string()
                     + string
-                    + &*file_contents[*end..].to_string();
+                    + &*file_contents[end..].to_string();
             }
         }
     }

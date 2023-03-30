@@ -15,6 +15,7 @@ use crate::{
 pub enum Replacement {
     Remove,
     TrimPrecedingWhitespace(u64),
+    TrimTrailingWhitespace(u64),
     Substitute(String),
 }
 

@@ -36,7 +36,7 @@ pub struct FunctionAnalysisData {
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
-    pub hakana_fixme_or_ignores: BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64))>>,
+    pub hakana_fixme_or_ignores: BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64, bool))>>,
     pub matched_ignore_positions: FxHashSet<(usize, usize)>,
     pub type_variable_bounds: FxHashMap<String, (Vec<TemplateBound>, Vec<TemplateBound>)>,
 }
@@ -48,7 +48,9 @@ impl FunctionAnalysisData {
         comments: &Vec<&(Pos, Comment)>,
         all_custom_issues: &FxHashSet<String>,
         current_stmt_offset: Option<StmtStart>,
-        hakana_fixme_or_ignores: Option<BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64))>>>,
+        hakana_fixme_or_ignores: Option<
+            BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64, bool))>>,
+        >,
     ) -> Self {
         Self {
             expr_types: FxHashMap::default(),
@@ -482,7 +484,7 @@ impl FunctionAnalysisData {
         }
     }
 
-    pub(crate) fn get_unused_hakana_fixme_positions(&self) -> Vec<(usize, usize, u64)> {
+    pub(crate) fn get_unused_hakana_fixme_positions(&self) -> Vec<(usize, usize, u64, bool)> {
         let mut unused_fixme_positions = vec![];
 
         for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
@@ -503,7 +505,7 @@ impl FunctionAnalysisData {
 fn get_hakana_fixmes_and_ignores(
     comments: &Vec<&(Pos, Comment)>,
     all_custom_issues: &FxHashSet<String>,
-) -> BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64))>> {
+) -> BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64, bool))>> {
     let mut hakana_fixme_or_ignores = BTreeMap::new();
     for (pos, comment) in comments {
         match comment {
@@ -526,6 +528,7 @@ fn get_hakana_fixmes_and_ignores(
                                 pos.start_offset(),
                                 pos.end_offset(),
                                 pos.to_raw_span().start.beg_of_line(),
+                                false,
                             ),
                         ));
                 }

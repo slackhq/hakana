@@ -1,0 +1,6 @@
+function foo(): void {
+	$b = 0;
+	$a = 5;
+	echo $a;
+	echo $b;
+}

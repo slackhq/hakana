@@ -499,7 +499,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             for unused_fixme_position in analysis_data.get_unused_hakana_fixme_positions() {
                 analysis_data.replacements.insert(
                     (unused_fixme_position.0, unused_fixme_position.1),
-                    Replacement::TrimPrecedingWhitespace(unused_fixme_position.2),
+                    if unused_fixme_position.3 {
+                        Replacement::TrimTrailingWhitespace(unused_fixme_position.2)
+                    } else {
+                        Replacement::TrimPrecedingWhitespace(unused_fixme_position.2)
+                    },
                 );
             }
         }
