@@ -454,28 +454,7 @@ pub(crate) fn get_functionlike(
 
     functionlike_info.is_async = fun_kind.is_async();
     functionlike_info.effects = if let Some(contexts) = contexts {
-        if contexts.1.len() == 0 {
-            FnEffect::Pure
-        } else if contexts.1.len() == 1 {
-            let context = &contexts.1[0];
-
-            if let tast::Hint_::HfunContext(boxed) = &*context.1 {
-                let position = functionlike_info
-                    .params
-                    .iter()
-                    .position(|p| &p.name == boxed);
-
-                if let Some(position) = position {
-                    FnEffect::Arg(position as u8)
-                } else {
-                    panic!()
-                }
-            } else {
-                FnEffect::Some(EFFECT_IMPURE)
-            }
-        } else {
-            FnEffect::Some(EFFECT_IMPURE)
-        }
+        get_effect_from_contexts(contexts, &functionlike_info)
     } else {
         if is_anonymous {
             FnEffect::Unknown
@@ -505,6 +484,34 @@ pub(crate) fn get_functionlike(
     // todo light inference based on function body contents
 
     functionlike_info
+}
+
+fn get_effect_from_contexts(
+    contexts: &tast::Contexts,
+    functionlike_info: &FunctionLikeInfo,
+) -> FnEffect {
+    if contexts.1.len() == 0 {
+        FnEffect::Pure
+    } else if contexts.1.len() == 1 {
+        let context = &contexts.1[0];
+
+        if let tast::Hint_::HfunContext(boxed) = &*context.1 {
+            let position = functionlike_info
+                .params
+                .iter()
+                .position(|p| &p.name == boxed);
+
+            if let Some(position) = position {
+                FnEffect::Arg(position as u8)
+            } else {
+                panic!()
+            }
+        } else {
+            FnEffect::Some(EFFECT_IMPURE)
+        }
+    } else {
+        FnEffect::Some(EFFECT_IMPURE)
+    }
 }
 
 fn get_async_version(

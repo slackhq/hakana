@@ -1,9 +1,12 @@
+
 use hakana_reflection_info::functionlike_parameter::FnParameter;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_reflection_info::StrId;
+use hakana_reflection_info::EFFECT_IMPURE;
+use hakana_reflection_info::EFFECT_PURE;
 use hakana_reflection_info::STR_ANONYMOUS_FN;
 use hakana_reflection_info::STR_MEMBER_OF;
 use hakana_reflection_info::STR_THIS;
@@ -276,7 +279,15 @@ fn get_function_type_from_hints(
             type_context,
             resolved_names,
         ),
-        effects: None,
+        effects: if let Some(contexts) = &function_info.ctxs {
+            Some(if contexts.1.len() == 0 {
+                EFFECT_PURE
+            } else {
+                EFFECT_IMPURE
+            })
+        } else {
+            Some(EFFECT_IMPURE)
+        },
         closure_id: STR_ANONYMOUS_FN,
     }
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::classlike_info::Variance;
-use hakana_reflection_info::{StrId, STR_CONSTRUCT};
+use hakana_reflection_info::{StrId, EFFECT_WRITE_GLOBALS, STR_CONSTRUCT};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
@@ -218,6 +218,15 @@ fn analyze_atomic(
             return;
         }
     };
+
+    match statements_analyzer.get_interner().lookup(&classlike_name) {
+        "ReflectionClass" | "ReflectionTypeAlias" => {
+            analysis_data
+                .expr_effects
+                .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_GLOBALS);
+        }
+        _ => {}
+    }
 
     analyze_named_constructor(
         statements_analyzer,

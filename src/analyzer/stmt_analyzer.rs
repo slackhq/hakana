@@ -287,14 +287,28 @@ fn detect_unused_statement_expressions(
 
                         if function_name == "HH\\invariant"
                             || function_name == "HH\\invariant_violation"
-                            || function_name == "HH\\trigger_error"
+                            || function_name == "trigger_error"
+                            || function_name == "function_exists"
+                            || function_name == "class_exists"
+                            || function_name == "HH\\set_frame_metadata"
+                            || function_name == "HH\\Lib\\C\\firstx"
+                            || function_name == "HH\\Lib\\C\\lastx"
+                            || function_name == "HH\\Lib\\C\\onlyx"
+                            || function_name.contains("assert")
                         {
                             fn_can_throw = true;
                         }
                     }
-                    FunctionLikeIdentifier::Method(_, method_name) => {
-                        if method_name == STR_CONSTRUCT {
+                    FunctionLikeIdentifier::Method(_, method_name_id) => {
+                        if method_name_id == STR_CONSTRUCT {
                             is_constructor_call = true;
+                        }
+
+                        let method_name =
+                            statements_analyzer.get_interner().lookup(&method_name_id);
+
+                        if method_name == "assert" {
+                            fn_can_throw = true;
                         }
                     }
                 }

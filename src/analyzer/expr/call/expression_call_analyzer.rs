@@ -1,10 +1,11 @@
 use crate::expr::call::arguments_analyzer;
 
+use crate::expr::call_analyzer::apply_effects;
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
@@ -96,6 +97,8 @@ pub(crate) fn analyze(
                 &mut template_result,
                 pos,
             );
+
+            apply_effects(&lambda_storage, analysis_data, pos, &expr.2);
 
             stmt_type = Some(hakana_type::combine_optional_union_types(
                 stmt_type.as_ref(),

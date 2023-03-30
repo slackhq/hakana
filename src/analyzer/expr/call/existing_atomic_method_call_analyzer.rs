@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_reflection_info::{StrId, EFFECT_IMPURE, STR_STATIC, EFFECT_WRITE_LOCAL};
+use hakana_reflection_info::{StrId, EFFECT_IMPURE, EFFECT_WRITE_LOCAL, STR_STATIC, EFFECT_WRITE_PROPS};
 use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
 use hakana_type::{
@@ -115,8 +115,9 @@ pub(crate) fn analyze(
         }
     }
 
-    let class_template_params = if statements_analyzer.get_interner().lookup(&classlike_name)
-        != "HH\\Vector"
+    let classlike_name_str = statements_analyzer.get_interner().lookup(&classlike_name);
+
+    let class_template_params = if classlike_name_str != "HH\\Vector"
         || statements_analyzer.get_interner().lookup(method_name) != "fromItems"
     {
         let declaring_classlike_storage = codebase
@@ -168,6 +169,13 @@ pub(crate) fn analyze(
                 );
             }
         }
+    }
+
+    // .hhi for NumberFormatter was incorrect
+    if classlike_name_str == "NumberFormatter" {
+        analysis_data
+            .expr_effects
+            .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_PROPS);
     }
 
     if !check_method_args(

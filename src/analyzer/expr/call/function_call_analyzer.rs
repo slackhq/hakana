@@ -42,7 +42,7 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
-    let name = expr.0 .1.clone();
+    let name = expr.0 .1;
 
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
@@ -70,7 +70,7 @@ pub(crate) fn analyze(
         }
     }
 
-    if name == "unset" {
+    if name == "unset" || name == "\\unset" {
         if expr.2.len() > 0 {
             let first_arg = &expr.2.first().unwrap().1;
             context.inside_unset = true;
