@@ -79,7 +79,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             left,
             analysis_data,
             if_body_context,
-            root_not_left,
+            if has_arrayget_key { left } else { root_expr },
+            has_arrayget_key,
         ));
     } else if let Some(root_type) = root_type {
         if root_type.has_typealias() {
@@ -89,7 +90,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                 left,
                 analysis_data,
                 if_body_context,
-                root_not_left,
+                left,
+                true,
             ));
         }
     }
@@ -153,32 +155,34 @@ fn get_left_expr(
     left: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     if_body_context: &mut Option<ScopeContext>,
-    root_not_left: bool,
+    root_expr: &aast::Expr<(), ()>,
+    make_nullable: bool,
 ) -> aast::Expr<(), ()> {
     let mut isset_context = context.clone();
     isset_context.inside_isset = true;
     expression_analyzer::analyze(
         statements_analyzer,
-        left,
+        root_expr,
         analysis_data,
         &mut isset_context,
         if_body_context,
     );
     let mut condition_type = analysis_data
-        .get_expr_type(left.pos())
+        .get_rc_expr_type(root_expr.pos())
         .cloned()
-        .unwrap_or(get_mixed_any());
-    let left_var_id = format!(
-        "$<tmp coalesce var>{}",
+        .unwrap_or(Rc::new(get_mixed_any()));
+    let root_expr_var_id = format!(
+        "$tmp_coalesce_var {}",
         left.pos().start_offset().to_string()
     );
-    if root_not_left && !condition_type.is_nullable_mixed() {
-        condition_type = add_union_type(
-            condition_type,
+
+    if make_nullable && !condition_type.is_nullable_mixed() {
+        condition_type = Rc::new(add_union_type(
+            (*condition_type).clone(),
             &get_null(),
             statements_analyzer.get_codebase(),
             false,
-        );
+        ));
     }
 
     let redefined_vars = isset_context
@@ -202,14 +206,56 @@ fn get_left_expr(
 
     context
         .vars_in_scope
-        .insert(left_var_id.clone(), Rc::new(condition_type));
+        .insert(root_expr_var_id.clone(), condition_type);
 
-    aast::Expr(
-        (),
-        left.pos().clone(),
-        aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
-            left.pos().clone(),
-            (5, left_var_id.clone()),
-        ))),
-    )
+    if root_expr != left {
+        let mut left = left.clone();
+
+        let new_root_expr = aast::Expr(
+            (),
+            root_expr.pos().clone(),
+            aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
+                root_expr.pos().clone(),
+                (5, root_expr_var_id.clone()),
+            ))),
+        );
+
+        replace_expr_with_root(&mut left, new_root_expr);
+        left
+    } else {
+        return aast::Expr(
+            (),
+            root_expr.pos().clone(),
+            aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
+                root_expr.pos().clone(),
+                (5, root_expr_var_id.clone()),
+            ))),
+        );
+    }
+}
+
+fn replace_expr_with_root(expr: &mut aast::Expr<(), ()>, root: aast::Expr<(), ()>) {
+    match &expr.2 {
+        aast::Expr_::ArrayGet(boxed) => {
+            let mut left = boxed.0.clone();
+            replace_expr_with_root(&mut left, root);
+            *expr = aast::Expr(
+                (),
+                expr.pos().clone(),
+                aast::Expr_::ArrayGet(Box::new((left, boxed.1.clone()))),
+            );
+        }
+        aast::Expr_::ObjGet(boxed) => {
+            let mut left = boxed.0.clone();
+            replace_expr_with_root(&mut left, root);
+            *expr = aast::Expr(
+                (),
+                expr.pos().clone(),
+                aast::Expr_::ObjGet(Box::new((left, boxed.1.clone(), boxed.2, boxed.3))),
+            );
+        }
+        _ => {
+            *expr = root;
+        }
+    }
 }
