@@ -376,7 +376,9 @@ fn handle_special_functions(
                         false,
                         &mut TypeComparisonResult::new(),
                     ) {
-                        Some(get_string())
+                        let null_or_string =
+                            TUnion::new(vec![TAtomic::TString, TAtomic::TNull]);
+                        Some(null_or_string)
                     } else {
                         None
                     }
