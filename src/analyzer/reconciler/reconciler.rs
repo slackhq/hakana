@@ -1184,10 +1184,20 @@ fn get_impossible_issue(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     old_var_type_string: &String,
 ) -> Issue {
+    let old_var_type_string = if old_var_type_string.len() > 50 {
+        if key.contains("tmp_coalesce_var") {
+            "".to_string()
+        } else {
+            format!("of {} ", key)
+        }
+    } else {
+        format!("{} ", old_var_type_string)
+    };
+
     match assertion {
         Assertion::Truthy | Assertion::Falsy => Issue::new(
             IssueKind::ImpossibleTruthinessCheck,
-            format!("Type {} is never {}", old_var_type_string, assertion_string),
+            format!("Type {}is never {}", old_var_type_string, assertion_string),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
         ),
@@ -1200,7 +1210,7 @@ fn get_impossible_issue(
         Assertion::HasArrayKey(key) | Assertion::DoesNotHaveArrayKey(key) => Issue::new(
             IssueKind::ImpossibleKeyCheck,
             format!(
-                "Type {} never has key {}",
+                "Type {}never has key {}",
                 old_var_type_string,
                 key.to_string(Some(&statements_analyzer.get_interner()))
             ),
@@ -1210,7 +1220,7 @@ fn get_impossible_issue(
         Assertion::HasNonnullEntryForKey(dict_key) => Issue::new(
             IssueKind::ImpossibleNonnullEntryCheck,
             format!(
-                "Type {} does not have a nonnull entry for {}",
+                "Type {}does not have a nonnull entry for {}",
                 old_var_type_string,
                 dict_key.to_string(Some(&statements_analyzer.get_interner()))
             ),
@@ -1220,7 +1230,7 @@ fn get_impossible_issue(
         _ => Issue::new(
             IssueKind::ImpossibleTypeComparison,
             format!(
-                "Type {} is never {}",
+                "Type {}is never {}",
                 old_var_type_string, &assertion_string
             ),
             statements_analyzer.get_hpos(&pos),
@@ -1239,9 +1249,13 @@ fn get_redundant_issue(
     old_var_type_string: &String,
 ) -> Issue {
     let old_var_type_string = if old_var_type_string.len() > 50 {
-        format!("of {}", key)
+        if key.contains("tmp_coalesce_var") {
+            "".to_string()
+        } else {
+            format!("of {} ", key)
+        }
     } else {
-        old_var_type_string.clone()
+        format!("{} ", old_var_type_string)
     };
 
     match assertion {
@@ -1253,17 +1267,14 @@ fn get_redundant_issue(
         ),
         Assertion::Truthy | Assertion::Falsy => Issue::new(
             IssueKind::RedundantTruthinessCheck,
-            format!(
-                "Type {} is always {}",
-                old_var_type_string, assertion_string
-            ),
+            format!("Type {}is always {}", old_var_type_string, assertion_string),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
         ),
         Assertion::HasArrayKey(key) | Assertion::DoesNotHaveArrayKey(key) => Issue::new(
             IssueKind::RedundantKeyCheck,
             format!(
-                "Type {} always has entry {}",
+                "Type {}always has entry {}",
                 old_var_type_string,
                 key.to_string(Some(&statements_analyzer.get_interner()))
             ),
@@ -1273,7 +1284,7 @@ fn get_redundant_issue(
         Assertion::HasNonnullEntryForKey(key) => Issue::new(
             IssueKind::RedundantNonnullEntryCheck,
             format!(
-                "Type {} always has entry {}",
+                "Type {}always has entry {}",
                 old_var_type_string,
                 key.to_string(Some(&statements_analyzer.get_interner()))
             ),
@@ -1289,10 +1300,7 @@ fn get_redundant_issue(
         ),
         _ => Issue::new(
             IssueKind::RedundantTypeComparison,
-            format!(
-                "Type {} is always {}",
-                old_var_type_string, assertion_string
-            ),
+            format!("Type {}is always {}", old_var_type_string, assertion_string),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
         ),
