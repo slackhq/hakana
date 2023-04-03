@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "target": "ES6",
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "outDir": "out",
+        "lib": [
+          "es6"
+        ],
+        "noImplicitAny": true,
+        "sourceMap": true,
+        "rootDir": "src",
+        "strictNullChecks": true,
+        "noImplicitThis": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "esModuleInterop": true
+    },
+    "exclude": [
+        "node_modules",
+        "out"
+    ]
+}
