@@ -505,6 +505,7 @@ pub fn init(
             do_fix(
                 sub_matches,
                 all_custom_issues,
+                analysis_hooks,
                 root_dir,
                 config_path,
                 cwd,
@@ -553,6 +554,7 @@ pub fn init(
 fn do_fix(
     sub_matches: &clap::ArgMatches,
     all_custom_issues: FxHashSet<String>,
+    analysis_hooks: Vec<Box<dyn CustomHook>>,
     root_dir: String,
     config_path: Option<&Path>,
     cwd: String,
@@ -566,6 +568,8 @@ fn do_fix(
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 
     let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+    config.hooks = analysis_hooks;
+
     config.find_unused_expressions = issue_kind.is_unused_expression();
     config.find_unused_definitions = issue_kind.is_unused_definition();
     config.issues_to_fix.insert(issue_kind);
