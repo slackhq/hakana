@@ -37,9 +37,7 @@ pub fn analyze_files(
         paths.retain(|str_path| str_path.matches(filter.as_str()).count() > 0);
     }
 
-    paths.retain(|str_path| {
-        config.allow_issues_in_file(&get_relative_path(str_path, &config.root_dir))
-    });
+    paths.retain(|str_path| config.allow_issues_in_file(&str_path));
 
     if let Some(ignored_paths) = &ignored_paths {
         for ignored_path in ignored_paths {
