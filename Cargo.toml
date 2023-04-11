@@ -19,7 +19,7 @@ hakana-language-server = { path = "src/language_server" }
 hakana-workhorse = { path = "src/file_scanner_analyzer" }
 mimalloc = { version = "*", default-features = false }
 tokio = "1.26.0"
-tower-lsp = "0.19.0"
+tower-lsp = { git = "https://github.com/ebkalderon/tower-lsp", branch = "support-mutable-methods" }
 
 [profile.release]
 debug = true

@@ -1,9 +1,12 @@
+use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
 
 use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_workhorse::scanner::ScanFilesResult;
+use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_workhorse::{scan_and_analyze, SuccessfulScanData};
+use rustc_hash::FxHashMap;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
@@ -12,21 +15,34 @@ use tower_lsp::{Client, LanguageServer};
 pub struct Backend {
     pub client: Client,
     pub analysis_config: Arc<Config>,
-    pub scan_result: tokio::sync::Mutex<ScanFilesResult>,
+    pub previous_scan_data: Arc<Option<SuccessfulScanData>>,
+    pub previous_analysis_result: Arc<Option<AnalysisResult>>,
+    pub all_diagnostics: Option<FxHashMap<Url, Vec<Diagnostic>>>,
 }
 
-#[tower_lsp::async_trait]
+#[tower_lsp::async_trait(?Send)]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&mut self, _: InitializeParams) -> Result<InitializeResult> {
+        self.do_analysis().await;
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+                text_document_sync: Some(TextDocumentSyncCapability::Options(
+                    TextDocumentSyncOptions {
+                        open_close: Some(true),
+                        change: Some(TextDocumentSyncKind::NONE),
+                        will_save: Some(false),
+                        will_save_wait_until: Some(false),
+                        save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                    },
+                )),
                 ..ServerCapabilities::default()
             },
             ..InitializeResult::default()
         })
     }
 
-    async fn initialized(&self, _: InitializedParams) {
+    async fn initialized(&mut self, _: InitializedParams) {
         let registration = Registration {
             id: "watch-hack-files".to_string(),
             method: "workspace/didChangeWatchedFiles".to_string(),
@@ -48,40 +64,157 @@ impl LanguageServer for Backend {
             .await
             .unwrap();
 
+        self.emit_issues().await;
+
+        self.all_diagnostics = None;
+
         self.client
             .log_message(MessageType::INFO, "server initialized!")
             .await;
     }
 
-    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+    async fn did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
         for file_event in params.changes {
             //let uri = file_event.uri;
             let change_type = file_event.typ;
 
             match change_type {
                 FileChangeType::CREATED => {
-                    // Handle file creation
-                    // ...
+                    self.client
+                        .log_message(
+                            MessageType::INFO,
+                            format!("created {}", file_event.uri.path()),
+                        )
+                        .await;
                 }
                 FileChangeType::CHANGED => {
-                    // Handle file modification
-                    // ...
+                    self.client
+                        .log_message(
+                            MessageType::INFO,
+                            format!("Changed {}", file_event.uri.path()),
+                        )
+                        .await;
                 }
                 FileChangeType::DELETED => {
-                    // Handle file deletion
-                    // ...
+                    self.client
+                        .log_message(
+                            MessageType::INFO,
+                            format!("Deleted {}", file_event.uri.path()),
+                        )
+                        .await;
                 }
                 _ => {}
             }
         }
+
+        self.do_analysis().await;
+        self.emit_issues().await;
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    async fn shutdown(&mut self) -> Result<()> {
         Ok(())
     }
 }
 
-pub fn get_config(plugins: Vec<Box<dyn CustomHook>>, cwd: &String) -> Config {
+impl Backend {
+    async fn do_analysis(&mut self) {
+        let previous_scan_data = self.previous_scan_data.clone();
+        let previous_analysis_result = self.previous_analysis_result.clone();
+
+        self.previous_scan_data = Arc::new(None);
+        self.previous_analysis_result = Arc::new(None);
+
+        let successful_scan_data = Arc::try_unwrap(previous_scan_data).unwrap();
+        let analysis_result = Arc::try_unwrap(previous_analysis_result).unwrap();
+
+        let result = scan_and_analyze(
+            Vec::new(),
+            None,
+            None,
+            self.analysis_config.clone(),
+            None,
+            8,
+            config::Verbosity::Quiet,
+            "",
+            successful_scan_data,
+            analysis_result,
+        );
+
+        match result {
+            Ok((analysis_result, successful_scan_data)) => {
+                self.client
+                    .log_message(MessageType::INFO, "Analysis succeeded, sending diagnostics")
+                    .await;
+
+                let mut all_diagnostics = FxHashMap::default();
+
+                for (file, emitted_issues) in analysis_result.get_all_issues(
+                    &successful_scan_data.interner,
+                    &self.analysis_config.root_dir,
+                    false,
+                ) {
+                    self.client
+                        .log_message(
+                            MessageType::INFO,
+                            format!("{} issues for {}", emitted_issues.len(), file),
+                        )
+                        .await;
+
+                    let mut diagnostics = vec![];
+                    for emitted_issue in emitted_issues {
+                        diagnostics.push(Diagnostic::new(
+                            Range {
+                                start: Position {
+                                    line: emitted_issue.pos.start_line as u32 - 1,
+                                    character: emitted_issue.pos.start_column as u32 - 1,
+                                },
+                                end: Position {
+                                    line: emitted_issue.pos.end_line as u32 - 1,
+                                    character: emitted_issue.pos.end_column as u32 - 1,
+                                },
+                            },
+                            Some(DiagnosticSeverity::ERROR),
+                            Some(NumberOrString::String(emitted_issue.kind.to_string())),
+                            Some("Hakana".to_string()),
+                            emitted_issue.description.clone(),
+                            None,
+                            None,
+                        ));
+                    }
+
+                    all_diagnostics.insert(Url::from_file_path(&file).unwrap(), diagnostics);
+                }
+
+                self.all_diagnostics = Some(all_diagnostics);
+                self.previous_scan_data = Arc::new(Some(successful_scan_data));
+                self.previous_analysis_result = Arc::new(Some(analysis_result));
+            }
+            Err(error) => {
+                self.client
+                    .log_message(
+                        MessageType::ERROR,
+                        format!("Analysis failed with error {}", error.to_string()),
+                    )
+                    .await;
+            }
+        }
+    }
+
+    async fn emit_issues(&mut self) {
+        if let Some(ref mut all_diagnostics) = self.all_diagnostics {
+            for (uri, diagnostics) in all_diagnostics.drain() {
+                self.client
+                    .publish_diagnostics(uri.clone(), diagnostics.clone(), None)
+                    .await;
+            }
+        }
+    }
+}
+
+pub fn get_config(
+    plugins: Vec<Box<dyn CustomHook>>,
+    cwd: &String,
+) -> std::result::Result<Config, Box<dyn Error>> {
     let mut all_custom_issues = vec![];
 
     for analysis_hook in &plugins {
@@ -95,6 +228,7 @@ pub fn get_config(plugins: Vec<Box<dyn CustomHook>>, cwd: &String) -> Config {
             .map(|i| i.to_string())
             .collect(),
     );
+
     config.find_unused_expressions = true;
     config.find_unused_definitions = false;
     config.ignore_mixed_issues = true;
@@ -107,8 +241,8 @@ pub fn get_config(plugins: Vec<Box<dyn CustomHook>>, cwd: &String) -> Config {
     let config_path = Path::new(&config_path_str);
 
     if config_path.exists() {
-        config.update_from_file(&cwd, config_path);
+        config.update_from_file(&cwd, config_path)?;
     }
 
-    config
+    Ok(config)
 }

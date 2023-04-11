@@ -1,4 +1,4 @@
-use std::{path::Path, process::exit};
+use std::{error::Error, path::Path};
 
 use hakana_reflection_info::{
     data_flow::graph::GraphKind,
@@ -85,12 +85,12 @@ impl Config {
         }
     }
 
-    pub fn update_from_file(&mut self, cwd: &String, config_path: &Path) {
-        println!("Loading config from {:?}", config_path);
-        let json_config = json_config::read_from_file(config_path).unwrap_or_else(|e| {
-            println!("{}", e.to_string());
-            exit(1)
-        });
+    pub fn update_from_file(
+        &mut self,
+        cwd: &String,
+        config_path: &Path,
+    ) -> Result<(), Box<dyn Error>> {
+        let json_config = json_config::read_from_file(config_path)?;
 
         self.ignore_files = json_config
             .ignore_files
@@ -147,6 +147,8 @@ impl Config {
             .into_iter()
             .map(|(k, v)| (k, v.into_iter().map(|v| format!("{}/{}", cwd, v)).collect()))
             .collect();
+
+        Ok(())
     }
 
     pub fn can_add_issue(&self, issue: &Issue) -> bool {

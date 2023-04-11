@@ -577,7 +577,7 @@ fn do_fix(
     let config_path = config_path.unwrap();
 
     if config_path.exists() {
-        config.update_from_file(&cwd, config_path);
+        config.update_from_file(&cwd, config_path).ok();
     }
 
     config.allowed_issues = None;
@@ -620,7 +620,7 @@ fn do_remove_unused_fixmes(
     let config_path = config_path.unwrap();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path);
+        config.update_from_file(cwd, config_path).ok();
     }
     config.allowed_issues = None;
 
@@ -689,7 +689,7 @@ fn do_add_fixmes(
     let config_path = config_path.unwrap();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path);
+        config.update_from_file(cwd, config_path).ok();
     }
     config.allowed_issues = None;
 
@@ -747,7 +747,7 @@ fn do_migrate(
     let config_path = config_path.unwrap();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path);
+        config.update_from_file(cwd, config_path).ok();
     }
     config.allowed_issues = None;
 
@@ -803,7 +803,7 @@ fn do_find_paths(
     let config_path = config_path.unwrap();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path);
+        config.update_from_file(cwd, config_path).ok();
     }
     config.allowed_issues = None;
 
@@ -832,7 +832,7 @@ fn do_find_paths(
     );
     if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in
-            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir)
+            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir, true)
         {
             for issue in issues {
                 *had_error = true;
@@ -863,7 +863,7 @@ fn do_security_check(
     let config_path = config_path.unwrap();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path);
+        config.update_from_file(cwd, config_path).ok();
     }
     config.allowed_issues = None;
 
@@ -894,7 +894,7 @@ fn do_security_check(
     );
     if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in
-            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir)
+            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir, true)
         {
             for issue in issues {
                 *had_error = true;
@@ -975,7 +975,7 @@ fn do_analysis(
     let config_path = config_path.unwrap();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path);
+        config.update_from_file(cwd, config_path).ok();
     }
 
     // do this after we've loaded from file, as they can be overridden
@@ -1004,7 +1004,7 @@ fn do_analysis(
 
     if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in
-            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir)
+            analysis_result.get_all_issues(&successful_run_data.interner, &root_dir, true)
         {
             for issue in issues {
                 *had_error = true;
@@ -1070,7 +1070,7 @@ fn write_output_files(
         let mut output_path = fs::File::create(Path::new(&output_path)).unwrap();
         let mut checkpoint_entries = vec![];
 
-        for (file_path, issues) in analysis_result.get_all_issues(&interner, &cwd) {
+        for (file_path, issues) in analysis_result.get_all_issues(&interner, &cwd, true) {
             for issue in issues {
                 checkpoint_entries.push(CheckPointEntry::from_issue(issue, &file_path));
             }

@@ -7,10 +7,10 @@ edition = "2021"
 hakana-workhorse = { path = "../file_scanner_analyzer" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-reflection-info = { path = "../code_info" }
-tower-lsp = "0.19.0"
+tower-lsp = { git = "https://github.com/ebkalderon/tower-lsp", branch = "support-mutable-methods" }
 tokio = { version = "1.26.0", features = ["full"] }
 serde_json = "1.0"
-
+rustc-hash = "1.1.0"
 
 [lib]
 path = "lib.rs"

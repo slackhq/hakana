@@ -74,13 +74,18 @@ impl AnalysisResult {
         &self,
         interner: &Interner,
         root_dir: &str,
+        use_relative_path: bool,
     ) -> BTreeMap<String, Vec<&Issue>> {
         let mut issues = self
             .emitted_issues
             .iter()
             .map(|(k, v)| {
                 (
-                    k.get_relative_path(&interner, &root_dir),
+                    if use_relative_path {
+                        k.get_relative_path(&interner, &root_dir)
+                    } else {
+                        interner.lookup(&k.0).to_string()
+                    },
                     v.iter().collect::<Vec<_>>(),
                 )
             })

@@ -49,7 +49,7 @@ struct HhiAsset;
 #[include = "*.hack"]
 struct HslAsset;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SuccessfulScanData {
     pub codebase: CodebaseInfo,
     pub interner: Interner,

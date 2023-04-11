@@ -297,7 +297,7 @@ pub trait TestRunner {
 
                     let mut output = vec![];
                     for (file_path, issues) in
-                        analysis_result.get_all_issues(&run_data.interner, &dir)
+                        analysis_result.get_all_issues(&run_data.interner, &dir, true)
                     {
                         for issue in issues {
                             output.push(issue.format(&file_path));
@@ -432,7 +432,7 @@ pub trait TestRunner {
             Ok((analysis_result, run_data)) => {
                 let mut output = vec![];
                 for (file_path, issues) in
-                    analysis_result.get_all_issues(&run_data.interner, &workdir_base)
+                    analysis_result.get_all_issues(&run_data.interner, &workdir_base, true)
                 {
                     for issue in issues {
                         output.push(issue.format(&file_path));
