@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 hakana-workhorse = { path = "../file_scanner_analyzer" }
 hakana-analyzer = { path = "../analyzer" }
+hakana-logger = { path = "../logger" }
 hakana-reflection-info = { path = "../code_info" }
 walkdir = "2"
 clap = { version = "3.2.6", features = ["derive"] }

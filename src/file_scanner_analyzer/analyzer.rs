@@ -1,7 +1,8 @@
-use crate::{get_aast_for_path, get_relative_path, update_progressbar};
+use crate::{get_aast_for_path, update_progressbar};
 use hakana_aast_helper::ParserError;
-use hakana_analyzer::config::{Config, Verbosity};
+use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
+use hakana_logger::Logger;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -27,7 +28,7 @@ pub fn analyze_files(
     filter: Option<String>,
     ignored_paths: &Option<FxHashSet<String>>,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Arc<Logger>,
 ) -> io::Result<()> {
     let mut group_size = threads as usize;
 
@@ -47,9 +48,7 @@ pub fn analyze_files(
 
     let total_file_count = paths.len() as u64;
 
-    if !matches!(verbosity, Verbosity::Quiet) {
-        println!("Analyzing {} files", total_file_count);
-    }
+    logger.log(&format!("Analyzing {} files", total_file_count));
 
     if (paths.len() / group_size) < 4 {
         group_size = 1;
@@ -63,7 +62,7 @@ pub fn analyze_files(
             .push(str_path);
     }
 
-    let bar = if matches!(verbosity, Verbosity::Simple) {
+    let bar = if logger.show_progress() {
         let pb = ProgressBar::new(total_file_count);
         let sty = ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
         pb.set_style(sty);
@@ -89,7 +88,7 @@ pub fn analyze_files(
                     &config,
                     &mut new_analysis_result,
                     resolved_names,
-                    verbosity,
+                    &logger,
                     &asts,
                 );
             }
@@ -127,6 +126,8 @@ pub fn analyze_files(
 
             let asts = asts.clone();
 
+            let logger = logger.clone();
+
             let handle = std::thread::spawn(move || {
                 let mut new_analysis_result =
                     AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
@@ -143,7 +144,7 @@ pub fn analyze_files(
                             &analysis_config,
                             &mut new_analysis_result,
                             resolved_names,
-                            verbosity,
+                            &logger,
                             &asts,
                         );
                     }
@@ -180,12 +181,10 @@ fn analyze_file(
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<usize, StrId>,
-    verbosity: Verbosity,
+    logger: &Logger,
     asts: &Arc<FxHashMap<FilePath, Vec<u8>>>,
 ) {
-    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-        println!("Analyzing {}", &str_path);
-    }
+    logger.log(&format!("Analyzing {}", &str_path));
 
     let aast = if let Some(aast_result) = get_deserialized_ast(asts, file_path) {
         aast_result

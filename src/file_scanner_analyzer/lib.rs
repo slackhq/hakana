@@ -4,8 +4,9 @@ use analyzer::analyze_files;
 use diff::mark_safe_symbols_from_diff;
 use file::VirtualFileSystem;
 use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
-use hakana_analyzer::config::{Config, Verbosity};
+use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
+use hakana_logger::Logger;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
@@ -73,7 +74,7 @@ pub fn scan_and_analyze(
     config: Arc<Config>,
     cache_dir: Option<&String>,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Arc<Logger>,
     header: &str,
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
@@ -96,21 +97,18 @@ pub fn scan_and_analyze(
         cache_dir,
         &config,
         threads,
-        verbosity,
+        logger.clone(),
         header,
         previous_scan_data,
     )?;
 
     let file_discovery_and_scanning_elapsed = file_discovery_and_scanning_now.elapsed();
 
-    if matches!(
-        verbosity,
-        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
-    ) {
-        println!(
+    if logger.can_log_timing() {
+        logger.log(&format!(
             "File discovery & scanning took {:.2?}",
             file_discovery_and_scanning_elapsed
-        );
+        ));
     }
 
     if let Some(cache_dir) = cache_dir {
@@ -144,7 +142,7 @@ pub fn scan_and_analyze(
 
     if config.ast_diff {
         let cached_analysis = mark_safe_symbols_from_diff(
-            verbosity,
+            &logger,
             codebase_diff,
             &codebase,
             &mut interner,
@@ -160,9 +158,7 @@ pub fn scan_and_analyze(
         symbol_references = cached_analysis.symbol_references;
     }
 
-    if !matches!(verbosity, Verbosity::Quiet) {
-        println!("Calculating symbol inheritance");
-    }
+    logger.log("Calculating symbol inheritance");
 
     let populating_now = Instant::now();
 
@@ -170,11 +166,11 @@ pub fn scan_and_analyze(
 
     let populating_elapsed = populating_now.elapsed();
 
-    if matches!(
-        verbosity,
-        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
-    ) {
-        println!("Populating codebase took {:.2?}", populating_elapsed);
+    if logger.can_log_timing() {
+        logger.log(&format!(
+            "Populating codebase took {:.2?}",
+            populating_elapsed
+        ));
     }
 
     codebase.safe_symbols = safe_symbols;
@@ -202,16 +198,16 @@ pub fn scan_and_analyze(
         filter,
         &ignored_paths,
         threads,
-        verbosity,
+        logger.clone(),
     )?;
 
     let analyzed_files_elapsed = analyzed_files_now.elapsed();
 
-    if matches!(
-        verbosity,
-        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
-    ) {
-        println!("File analysis took {:.2?}", analyzed_files_elapsed);
+    if logger.can_log_timing() {
+        logger.log(&format!(
+            "File analysis took {:.2?}",
+            analyzed_files_elapsed
+        ));
     }
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
@@ -249,13 +245,13 @@ pub fn scan_and_analyze(
             WholeProgramKind::Taint => find_tainted_data(
                 &analysis_result.program_dataflow_graph,
                 &config,
-                verbosity,
+                &logger,
                 &interner,
             ),
             WholeProgramKind::Query => find_connections(
                 &analysis_result.program_dataflow_graph,
                 &config,
-                verbosity,
+                &logger,
                 &interner,
             ),
         };
@@ -311,13 +307,5 @@ pub fn get_aast_for_path(
 fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
     if let Some(bar) = bar {
         bar.set_position(percentage);
-    }
-}
-
-fn get_relative_path(str_path: &String, root_dir: &String) -> String {
-    if str_path.contains(root_dir) {
-        str_path[(root_dir.len() + 1)..].to_string()
-    } else {
-        str_path.clone()
     }
 }

@@ -1,8 +1,9 @@
 use hakana_aast_helper::name_context::NameContext;
 use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
-use hakana_analyzer::config::{Config, Verbosity};
+use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::find_tainted_data;
 use hakana_analyzer::file_analyzer;
+use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -70,7 +71,7 @@ pub fn scan_and_analyze_single_file(
         let issues = find_tainted_data(
             &analysis_result.program_dataflow_graph,
             &analysis_config,
-            Verbosity::Quiet,
+            &Logger::CommandLine(Verbosity::Quiet),
             &interner,
         );
 
@@ -97,6 +98,8 @@ pub fn get_single_file_codebase(
 
     let mut file_system = VirtualFileSystem::default();
 
+    let silent_logger = Logger::DevNull;
+
     // add HHVM libs
     for file in HhiAsset::iter() {
         let interned_file_path = FilePath(threaded_interner.intern(file.to_string()));
@@ -113,7 +116,7 @@ pub fn get_single_file_codebase(
             empty_name_context.clone(),
             false,
             false,
-            Verbosity::Quiet,
+            &silent_logger,
         )
         .unwrap();
     }
@@ -134,7 +137,7 @@ pub fn get_single_file_codebase(
             empty_name_context.clone(),
             false,
             false,
-            Verbosity::Quiet,
+            &silent_logger,
         )
         .unwrap();
     }
@@ -154,7 +157,7 @@ pub fn get_single_file_codebase(
             empty_name_context.clone(),
             false,
             false,
-            Verbosity::Quiet,
+            &silent_logger,
         )
         .unwrap();
     }

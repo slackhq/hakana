@@ -11,6 +11,7 @@ indexmap = "1.8.0"
 itertools = "0.10.1"
 hakana-type = { path = "../ttype" }
 hakana-algebra = { path = "../algebra" }
+hakana-logger = { path = "../logger" }
 hakana-reflection-info = { path = "../code_info" }
 hakana-reflector = { path = "../code_info_builder" }
 parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }

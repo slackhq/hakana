@@ -1,6 +1,7 @@
 use clap::{arg, Command};
-use hakana_analyzer::config::{self, Verbosity};
+use hakana_analyzer::config::{self};
 use hakana_analyzer::custom_hook::CustomHook;
+use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry, Replacement};
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::IssueKind;
@@ -431,7 +432,7 @@ pub fn init(
                 &cwd,
                 cache_dir,
                 threads,
-                verbosity,
+                Logger::CommandLine(verbosity),
                 header,
                 &mut had_error,
             );
@@ -444,7 +445,7 @@ pub fn init(
                 sub_matches,
                 analysis_hooks,
                 threads,
-                verbosity,
+                Logger::CommandLine(verbosity),
                 header,
                 &mut had_error,
             );
@@ -457,7 +458,7 @@ pub fn init(
                 sub_matches,
                 analysis_hooks,
                 threads,
-                verbosity,
+                Logger::CommandLine(verbosity),
                 header,
                 &mut had_error,
             );
@@ -471,7 +472,7 @@ pub fn init(
                 config_path,
                 &cwd,
                 threads,
-                verbosity,
+                Logger::CommandLine(verbosity),
                 header,
             );
         }
@@ -484,7 +485,7 @@ pub fn init(
                 config_path,
                 &cwd,
                 threads,
-                verbosity,
+                Logger::CommandLine(verbosity),
                 header,
             );
         }
@@ -497,7 +498,7 @@ pub fn init(
                 config_path,
                 &cwd,
                 threads,
-                verbosity,
+                Logger::CommandLine(verbosity),
                 header,
             );
         }
@@ -510,7 +511,7 @@ pub fn init(
                 config_path,
                 cwd,
                 threads,
-                verbosity,
+                Logger::CommandLine(verbosity),
                 header,
             );
         }
@@ -534,7 +535,7 @@ pub fn init(
 
             test_runner.run_test(
                 sub_matches.value_of("TEST").expect("required").to_string(),
-                verbosity,
+                Arc::new(Logger::CommandLine(verbosity)),
                 !sub_matches.is_present("no-cache"),
                 sub_matches.is_present("reuse-codebase"),
                 &mut had_error,
@@ -559,7 +560,7 @@ fn do_fix(
     config_path: Option<&Path>,
     cwd: String,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Logger,
     header: &str,
 ) {
     let issue_name = sub_matches.value_of("issue").unwrap().to_string();
@@ -589,7 +590,7 @@ fn do_fix(
         Arc::new(config),
         None,
         threads,
-        verbosity,
+        Arc::new(logger),
         &header,
         None,
         None,
@@ -608,7 +609,7 @@ fn do_remove_unused_fixmes(
     config_path: Option<&Path>,
     cwd: &String,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Logger,
     header: &str,
 ) {
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
@@ -636,7 +637,7 @@ fn do_remove_unused_fixmes(
         Arc::new(config),
         None,
         threads,
-        verbosity,
+        Arc::new(logger),
         &header,
         None,
         None,
@@ -655,7 +656,7 @@ fn do_add_fixmes(
     config_path: Option<&Path>,
     cwd: &String,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Logger,
     header: &str,
 ) {
     let filter_issue_strings = sub_matches
@@ -702,7 +703,7 @@ fn do_add_fixmes(
         Arc::new(config),
         None,
         threads,
-        verbosity,
+        Arc::new(logger),
         &header,
         None,
         None,
@@ -721,7 +722,7 @@ fn do_migrate(
     config_path: Option<&Path>,
     cwd: &String,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Logger,
     header: &str,
 ) {
     let migration_name = sub_matches.value_of("migration").unwrap().to_string();
@@ -775,7 +776,7 @@ fn do_migrate(
         Arc::new(config),
         None,
         threads,
-        verbosity,
+        Arc::new(logger),
         &header,
         None,
         None,
@@ -793,7 +794,7 @@ fn do_find_paths(
     sub_matches: &clap::ArgMatches,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Logger,
     header: &str,
     had_error: &mut bool,
 ) {
@@ -825,7 +826,7 @@ fn do_find_paths(
         Arc::new(config),
         None,
         threads,
-        verbosity,
+        Arc::new(logger),
         &header,
         None,
         None,
@@ -853,7 +854,7 @@ fn do_security_check(
     sub_matches: &clap::ArgMatches,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Logger,
     header: &str,
     had_error: &mut bool,
 ) {
@@ -887,7 +888,7 @@ fn do_security_check(
         Arc::new(config),
         None,
         threads,
-        verbosity,
+        Arc::new(logger),
         &header,
         None,
         None,
@@ -926,7 +927,7 @@ fn do_analysis(
     cwd: &String,
     cache_dir: String,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Logger,
     header: &str,
     had_error: &mut bool,
 ) {
@@ -996,7 +997,7 @@ fn do_analysis(
             Some(&cache_dir)
         },
         threads,
-        verbosity,
+        Arc::new(logger),
         &header,
         None,
         None,

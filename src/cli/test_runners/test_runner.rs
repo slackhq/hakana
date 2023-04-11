@@ -1,6 +1,6 @@
 use hakana_analyzer::config;
-use hakana_analyzer::config::Verbosity;
 use hakana_analyzer::custom_hook::CustomHook;
+use hakana_logger::Logger;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -24,7 +24,7 @@ pub trait TestRunner {
     fn run_test(
         &self,
         test_or_test_dir: String,
-        verbosity: Verbosity,
+        logger: Arc<Logger>,
         use_cache: bool,
         reuse_codebase: bool,
         had_error: &mut bool,
@@ -78,7 +78,7 @@ pub trait TestRunner {
 
                 let test_result = self.run_test_in_dir(
                     test_folder,
-                    verbosity,
+                    logger.clone(),
                     if use_cache { Some(&cache_dir) } else { None },
                     had_error,
                     &mut test_diagnostics,
@@ -194,7 +194,7 @@ pub trait TestRunner {
     fn run_test_in_dir(
         &self,
         dir: String,
-        verbosity: Verbosity,
+        logger: Arc<Logger>,
         cache_dir: Option<&String>,
         had_error: &mut bool,
         test_diagnostics: &mut Vec<(String, String)>,
@@ -214,7 +214,7 @@ pub trait TestRunner {
         if dir.contains("/diff/") {
             return self.run_diff_test(
                 dir,
-                verbosity,
+                logger,
                 cache_dir,
                 had_error,
                 test_diagnostics,
@@ -226,9 +226,7 @@ pub trait TestRunner {
 
         let analysis_config = self.get_config_for_test(&dir);
 
-        if matches!(verbosity, Verbosity::Debugging) {
-            println!("running test {}", dir);
-        }
+        logger.log_debug(&format!("running test {}", dir));
 
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
@@ -252,7 +250,7 @@ pub trait TestRunner {
                 None
             },
             1,
-            verbosity,
+            logger,
             build_checksum,
             previous_scan_data,
             previous_analysis_result,
@@ -360,7 +358,7 @@ pub trait TestRunner {
     fn run_diff_test(
         &self,
         dir: String,
-        verbosity: Verbosity,
+        logger: Arc<Logger>,
         cache_dir: Option<&String>,
         had_error: &mut bool,
         test_diagnostics: &mut Vec<(String, String)>,
@@ -368,9 +366,7 @@ pub trait TestRunner {
     ) -> (String, Option<SuccessfulScanData>, Option<AnalysisResult>) {
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
-        if matches!(verbosity, Verbosity::Debugging) {
-            println!("running test {}", dir);
-        }
+        logger.log_debug(&format!("running test {}", dir));
 
         if let Some(cache_dir) = cache_dir {
             fs::remove_dir_all(&cache_dir).unwrap();
@@ -398,7 +394,7 @@ pub trait TestRunner {
             config.clone(),
             None,
             1,
-            verbosity,
+            logger.clone(),
             build_checksum,
             None,
             None,
@@ -420,7 +416,7 @@ pub trait TestRunner {
             config.clone(),
             None,
             1,
-            verbosity,
+            logger.clone(),
             build_checksum,
             previous_scan_data,
             previous_analysis_result,

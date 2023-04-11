@@ -1,3 +1,5 @@
+use hakana_logger::Logger;
+use hakana_logger::Verbosity;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::StrId;
@@ -6,7 +8,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::config::Config;
-use crate::config::Verbosity;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::path::ArrayDataKind;
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -18,7 +19,7 @@ use hakana_reflection_info::taint::SinkType;
 pub fn find_tainted_data(
     graph: &DataFlowGraph,
     config: &Config,
-    verbosity: Verbosity,
+    logger: &Logger,
     interner: &Interner,
 ) -> Vec<Issue> {
     let mut new_issues = vec![];
@@ -29,12 +30,9 @@ pub fn find_tainted_data(
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    if !matches!(verbosity, Verbosity::Quiet) {
-        println!("Security analysis: detecting paths");
-
-        println!(" - initial sources count: {}", sources.len());
-        println!(" - initial sinks count:   {}", graph.sinks.len());
-    }
+    logger.log("Security analysis: detecting paths");
+    logger.log(&format!(" - initial sources count: {}", sources.len()));
+    logger.log(&format!(" - initial sinks count:   {}", graph.sinks.len()));
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, path) in to {
@@ -46,7 +44,7 @@ pub fn find_tainted_data(
         sources,
         graph,
         config,
-        verbosity,
+        logger,
         &mut new_issues,
         true,
         interner,
@@ -58,7 +56,7 @@ pub fn find_tainted_data(
 pub fn find_connections(
     graph: &DataFlowGraph,
     config: &Config,
-    verbosity: Verbosity,
+    logger: &Logger,
     interner: &Interner,
 ) -> Vec<Issue> {
     let mut new_issues = vec![];
@@ -70,9 +68,7 @@ pub fn find_connections(
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    if !matches!(verbosity, Verbosity::Quiet) {
-        println!(" - initial sources count: {}", sources.len());
-    }
+    logger.log(&format!(" - initial sources count: {}", sources.len()));
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, _) in to {
@@ -84,7 +80,7 @@ pub fn find_connections(
         sources,
         graph,
         config,
-        verbosity,
+        logger,
         &mut new_issues,
         false,
         interner,
@@ -98,7 +94,7 @@ fn find_paths_to_sinks(
     mut sources: Vec<Arc<TaintedNode>>,
     graph: &DataFlowGraph,
     config: &Config,
-    verbosity: Verbosity,
+    logger: &Logger,
     new_issues: &mut Vec<Issue>,
     match_sinks: bool,
     interner: &Interner,
@@ -112,7 +108,10 @@ fn find_paths_to_sinks(
     if !match_sinks || !graph.sinks.is_empty() {
         for i in 0..config.security_config.max_depth {
             if !sources.is_empty() {
-                let now = if matches!(verbosity, Verbosity::Debugging | Verbosity::Timing) {
+                let now = if matches!(
+                    logger.get_verbosity(),
+                    Verbosity::Debugging | Verbosity::Timing
+                ) {
                     Some(Instant::now())
                 } else {
                     None
@@ -121,7 +120,10 @@ fn find_paths_to_sinks(
                 let mut new_sources = Vec::new();
 
                 for source in sources {
-                    let inow = if matches!(verbosity, Verbosity::Debugging | Verbosity::Timing) {
+                    let inow = if matches!(
+                        logger.get_verbosity(),
+                        Verbosity::Debugging | Verbosity::Timing
+                    ) {
                         Some(Instant::now())
                     } else {
                         None
@@ -149,12 +151,15 @@ fn find_paths_to_sinks(
                     if let Some(inow) = inow {
                         let ielapsed = inow.elapsed();
                         if ielapsed.as_millis() > 100 {
-                            println!("    - took {:.2?} to generate from {}", ielapsed, source_id);
+                            logger.log(&format!(
+                                "    - took {:.2?} to generate from {}",
+                                ielapsed, source_id
+                            ));
                         }
                     }
                 }
 
-                if !matches!(verbosity, Verbosity::Quiet) {
+                if !matches!(logger.get_verbosity(), Verbosity::Quiet) {
                     println!(
                         " - generated {}{}",
                         actual_source_count,

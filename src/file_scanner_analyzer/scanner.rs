@@ -13,7 +13,7 @@ use crate::ast_differ;
 use crate::cache::get_file_manifest;
 use crate::cache::load_cached_aast_names;
 use crate::cache::load_cached_codebase;
-use crate::cache::load_cached_symbols;
+use crate::cache::load_cached_interner;
 use crate::file::FileStatus;
 use crate::file::VirtualFileSystem;
 use crate::get_aast_for_path;
@@ -22,7 +22,7 @@ use ast_differ::get_diff;
 use hakana_aast_helper::name_context::NameContext;
 use hakana_aast_helper::ParserError;
 use hakana_analyzer::config::Config;
-use hakana_analyzer::config::Verbosity;
+use hakana_logger::Logger;
 use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -54,13 +54,11 @@ pub fn scan_files(
     cache_dir: Option<&String>,
     config: &Arc<Config>,
     threads: u8,
-    verbosity: Verbosity,
+    logger: Arc<Logger>,
     build_checksum: &str,
     starter_data: Option<SuccessfulScanData>,
 ) -> io::Result<ScanFilesResult> {
-    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-        println!("{:#?}", scan_dirs);
-    }
+    logger.log_debug(&format!("{:#?}", scan_dirs));
 
     let mut files_to_scan = vec![];
 
@@ -131,47 +129,35 @@ pub fn scan_files(
         };
     }
 
-    let mut file_system = VirtualFileSystem::default();
     let file_discovery_now = Instant::now();
-
-    add_builtins_to_scan(&mut files_to_scan, &mut interner, &mut file_system);
-
-    if !matches!(verbosity, Verbosity::Quiet) {
-        println!("Looking for Hack files");
-    }
-
     let load_from_cache_now = Instant::now();
 
     if let Some(symbols_path) = &symbols_path {
         if let Some(cached_interner) =
-            load_cached_symbols(symbols_path, use_codebase_cache, verbosity)
+            load_cached_interner(symbols_path, use_codebase_cache, &logger)
         {
             interner = cached_interner;
         }
     }
 
-    for scan_dir in scan_dirs {
-        if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-            println!(" - in {}", scan_dir);
-        }
-
-        files_to_scan.extend(file_system.find_files_in_dir(
-            scan_dir,
-            &mut interner,
-            &existing_file_system,
-            config,
-            cache_dir.is_some() || config.ast_diff,
-            &mut files_to_analyze,
-        ));
-    }
+    let file_system = get_filesystem(
+        &mut files_to_scan,
+        &mut interner,
+        &logger,
+        scan_dirs,
+        &existing_file_system,
+        config,
+        cache_dir,
+        &mut files_to_analyze,
+    );
 
     let file_discovery_elapsed = file_discovery_now.elapsed();
 
-    if matches!(
-        verbosity,
-        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
-    ) {
-        println!("File discovery took {:.2?}", file_discovery_elapsed);
+    if logger.can_log_timing() {
+        logger.log(&format!(
+            "File discovery took {:.2?}",
+            file_discovery_elapsed
+        ));
     }
 
     let file_statuses =
@@ -187,7 +173,7 @@ pub fn scan_files(
     if !has_starter {
         if let Some(codebase_path) = &codebase_path {
             if let Some(cache_codebase) =
-                load_cached_codebase(codebase_path, use_codebase_cache, verbosity)
+                load_cached_codebase(codebase_path, use_codebase_cache, &logger)
             {
                 codebase = cache_codebase;
             }
@@ -198,7 +184,7 @@ pub fn scan_files(
 
     if let Some(aast_names_path) = &aast_names_path {
         if let Some(cached_resolved_names) =
-            load_cached_aast_names(aast_names_path, use_codebase_cache, verbosity)
+            load_cached_aast_names(aast_names_path, use_codebase_cache, &logger)
         {
             resolved_names = cached_resolved_names
         };
@@ -206,14 +192,11 @@ pub fn scan_files(
 
     let load_from_cache_elapsed = load_from_cache_now.elapsed();
 
-    if matches!(
-        verbosity,
-        Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
-    ) {
-        println!(
+    if logger.can_log_timing() {
+        logger.log(&format!(
             "Loading serialised codebase information from cache took {:.2?}",
             load_from_cache_elapsed
-        );
+        ));
     }
 
     invalidate_changed_codebase_elements(&mut codebase, &changed_files);
@@ -258,7 +241,7 @@ pub fn scan_files(
     if files_to_scan.len() > 0 {
         let file_scanning_now = Instant::now();
 
-        let bar = if matches!(verbosity, Verbosity::Simple) {
+        let bar = if logger.show_progress() {
             let pb = ProgressBar::new(files_to_scan.len() as u64);
             let sty =
                 ProgressStyle::with_template("{bar:40.green/yellow} {pos:>7}/{len:7}").unwrap();
@@ -270,9 +253,7 @@ pub fn scan_files(
 
         let files_processed: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 
-        if !matches!(verbosity, Verbosity::Quiet) {
-            println!("Scanning {} files", files_to_scan.len());
-        }
+        logger.log(&format!("Scanning {} files", files_to_scan.len()));
 
         let mut group_size = threads as usize;
 
@@ -320,7 +301,7 @@ pub fn scan_files(
                     empty_name_context.clone(),
                     analyze_map.contains(&str_path),
                     !test_patterns.iter().any(|p| p.matches(&str_path)),
-                    verbosity,
+                    &logger,
                 ) {
                     if analyze_map.contains(&str_path) {
                         asts.lock().unwrap().insert(
@@ -375,6 +356,7 @@ pub fn scan_files(
                 let config = config.clone();
                 let test_patterns = test_patterns.clone();
                 let asts = asts.clone();
+                let logger = logger.clone();
 
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
@@ -400,7 +382,7 @@ pub fn scan_files(
                             empty_name_context.clone(),
                             analyze_map.contains(&str_path),
                             !test_patterns.iter().any(|p| p.matches(&str_path)),
-                            verbosity,
+                            &logger,
                         ) {
                             if analyze_map.contains(&str_path) {
                                 local_asts.insert(
@@ -451,11 +433,11 @@ pub fn scan_files(
 
         let file_scanning_elapsed = file_scanning_now.elapsed();
 
-        if matches!(
-            verbosity,
-            Verbosity::Debugging | Verbosity::DebuggingByLine | Verbosity::Timing
-        ) {
-            println!("Scanning files took {:.2?}", file_scanning_elapsed);
+        if logger.can_log_timing() {
+            logger.log(&format!(
+                "Scanning files took {:.2?}",
+                file_scanning_elapsed
+            ));
         }
     }
 
@@ -499,6 +481,37 @@ pub fn scan_files(
     })
 }
 
+fn get_filesystem(
+    files_to_scan: &mut Vec<String>,
+    interner: &mut Interner,
+    logger: &Logger,
+    scan_dirs: &Vec<String>,
+    existing_file_system: &Option<VirtualFileSystem>,
+    config: &Arc<Config>,
+    cache_dir: Option<&String>,
+    files_to_analyze: &mut Vec<String>,
+) -> VirtualFileSystem {
+    let mut file_system = VirtualFileSystem::default();
+
+    add_builtins_to_scan(files_to_scan, interner, &mut file_system);
+
+    logger.log(&format!("Looking for Hack files"));
+
+    for scan_dir in scan_dirs {
+        logger.log_debug(&format!(" - in {}", scan_dir));
+
+        files_to_scan.extend(file_system.find_files_in_dir(
+            scan_dir,
+            interner,
+            existing_file_system,
+            config,
+            cache_dir.is_some() || config.ast_diff,
+            files_to_analyze,
+        ));
+    }
+    file_system
+}
+
 pub fn add_builtins_to_scan(
     files_to_scan: &mut Vec<String>,
     interner: &mut Interner,
@@ -532,7 +545,7 @@ pub(crate) fn scan_file(
     empty_name_context: NameContext,
     user_defined: bool,
     is_production_code: bool,
-    verbosity: Verbosity,
+    logger: &Logger,
 ) -> Result<
     (
         FxHashMap<usize, StrId>,
@@ -540,9 +553,7 @@ pub(crate) fn scan_file(
     ),
     ParserError,
 > {
-    if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-        println!("scanning {}", str_path);
-    }
+    logger.log_debug(&format!("scanning {}", str_path));
 
     let aast = get_aast_for_path(str_path);
 

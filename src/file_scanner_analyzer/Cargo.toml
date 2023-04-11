@@ -7,6 +7,7 @@ edition = "2021"
 hakana-reflector = { path = "../code_info_builder" }
 hakana-reflection-info = { path = "../code_info" }
 hakana-analyzer = { path = "../analyzer" }
+hakana-logger = { path = "../logger" }
 hakana-aast-helper = { path = "../aast_utils" }
 aast_parser = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/aast_parser" }
 ocamlrep = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
