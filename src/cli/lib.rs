@@ -24,7 +24,7 @@ pub fn init(
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     migration_hooks: Vec<Box<dyn CustomHook>>,
     header: &str,
-    test_runner: Box<dyn TestRunner>,
+    test_runner: &TestRunner,
 ) {
     println!("{}\n", header);
 
@@ -367,24 +367,22 @@ pub fn init(
         _ => 8,
     };
 
-    let verbosity = match matches.subcommand() {
+    let logger = match matches.subcommand() {
         Some(("test", sub_matches)) => {
             if sub_matches.is_present("debug") {
-                Verbosity::Debugging
+                Logger::CommandLine(Verbosity::Debugging)
             } else {
-                Verbosity::Quiet
+                Logger::DevNull
             }
         }
-        Some((_, sub_matches)) => {
-            if sub_matches.is_present("debug") {
-                Verbosity::Debugging
-            } else if sub_matches.is_present("show-timing") {
-                Verbosity::Timing
-            } else {
-                Verbosity::Simple
-            }
-        }
-        _ => Verbosity::Simple,
+        Some((_, sub_matches)) => Logger::CommandLine(if sub_matches.is_present("debug") {
+            Verbosity::Debugging
+        } else if sub_matches.is_present("show-timing") {
+            Verbosity::Timing
+        } else {
+            Verbosity::Simple
+        }),
+        _ => Logger::CommandLine(Verbosity::Simple),
     };
 
     let root_dir = match matches.subcommand() {
@@ -432,7 +430,7 @@ pub fn init(
                 &cwd,
                 cache_dir,
                 threads,
-                Logger::CommandLine(verbosity),
+                logger,
                 header,
                 &mut had_error,
             );
@@ -445,7 +443,7 @@ pub fn init(
                 sub_matches,
                 analysis_hooks,
                 threads,
-                Logger::CommandLine(verbosity),
+                logger,
                 header,
                 &mut had_error,
             );
@@ -458,7 +456,7 @@ pub fn init(
                 sub_matches,
                 analysis_hooks,
                 threads,
-                Logger::CommandLine(verbosity),
+                logger,
                 header,
                 &mut had_error,
             );
@@ -472,7 +470,7 @@ pub fn init(
                 config_path,
                 &cwd,
                 threads,
-                Logger::CommandLine(verbosity),
+                logger,
                 header,
             );
         }
@@ -485,7 +483,7 @@ pub fn init(
                 config_path,
                 &cwd,
                 threads,
-                Logger::CommandLine(verbosity),
+                logger,
                 header,
             );
         }
@@ -498,7 +496,7 @@ pub fn init(
                 config_path,
                 &cwd,
                 threads,
-                Logger::CommandLine(verbosity),
+                logger,
                 header,
             );
         }
@@ -511,7 +509,7 @@ pub fn init(
                 config_path,
                 cwd,
                 threads,
-                Logger::CommandLine(verbosity),
+                logger,
                 header,
             );
         }
@@ -533,16 +531,18 @@ pub fn init(
                 None
             };
 
-            test_runner.run_test(
-                sub_matches.value_of("TEST").expect("required").to_string(),
-                Arc::new(Logger::CommandLine(verbosity)),
-                !sub_matches.is_present("no-cache"),
-                sub_matches.is_present("reuse-codebase"),
-                &mut had_error,
-                header,
-                repeat,
-                random_seed,
-            );
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(test_runner.run_test(
+                    sub_matches.value_of("TEST").expect("required").to_string(),
+                    Arc::new(logger),
+                    !sub_matches.is_present("no-cache"),
+                    sub_matches.is_present("reuse-codebase"),
+                    &mut had_error,
+                    header,
+                    repeat,
+                    random_seed,
+                ));
         }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachabe!()
     }
@@ -583,18 +583,21 @@ fn do_fix(
 
     config.allowed_issues = None;
 
-    let result = hakana_workhorse::scan_and_analyze(
-        Vec::new(),
-        filter,
-        None,
-        Arc::new(config),
-        None,
-        threads,
-        Arc::new(logger),
-        &header,
-        None,
-        None,
-    );
+    let result =
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(hakana_workhorse::scan_and_analyze(
+                Vec::new(),
+                filter,
+                None,
+                Arc::new(config),
+                None,
+                threads,
+                Arc::new(logger),
+                &header,
+                None,
+                None,
+            ));
 
     if let Ok((analysis_result, successfull_run_data)) = result {
         update_files(analysis_result, &root_dir, &successfull_run_data.interner);
@@ -630,18 +633,21 @@ fn do_remove_unused_fixmes(
 
     config.remove_fixmes = true;
 
-    let result = hakana_workhorse::scan_and_analyze(
-        Vec::new(),
-        filter,
-        None,
-        Arc::new(config),
-        None,
-        threads,
-        Arc::new(logger),
-        &header,
-        None,
-        None,
-    );
+    let result =
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(hakana_workhorse::scan_and_analyze(
+                Vec::new(),
+                filter,
+                None,
+                Arc::new(config),
+                None,
+                threads,
+                Arc::new(logger),
+                &header,
+                None,
+                None,
+            ));
 
     if let Ok((analysis_result, successful_run_data)) = result {
         update_files(analysis_result, root_dir, &successful_run_data.interner);
@@ -696,18 +702,21 @@ fn do_add_fixmes(
 
     config.add_fixmes = true;
 
-    let result = hakana_workhorse::scan_and_analyze(
-        Vec::new(),
-        filter,
-        None,
-        Arc::new(config),
-        None,
-        threads,
-        Arc::new(logger),
-        &header,
-        None,
-        None,
-    );
+    let result =
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(hakana_workhorse::scan_and_analyze(
+                Vec::new(),
+                filter,
+                None,
+                Arc::new(config),
+                None,
+                threads,
+                Arc::new(logger),
+                &header,
+                None,
+                None,
+            ));
 
     if let Ok((analysis_result, successful_run_data)) = result {
         update_files(analysis_result, root_dir, &successful_run_data.interner);
@@ -769,18 +778,21 @@ fn do_migrate(
         exit(1);
     }
 
-    let result = hakana_workhorse::scan_and_analyze(
-        Vec::new(),
-        None,
-        None,
-        Arc::new(config),
-        None,
-        threads,
-        Arc::new(logger),
-        &header,
-        None,
-        None,
-    );
+    let result =
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(hakana_workhorse::scan_and_analyze(
+                Vec::new(),
+                None,
+                None,
+                Arc::new(config),
+                None,
+                threads,
+                Arc::new(logger),
+                &header,
+                None,
+                None,
+            ));
 
     if let Ok((analysis_result, successful_run_data)) = result {
         update_files(analysis_result, root_dir, &successful_run_data.interner);
@@ -819,18 +831,22 @@ fn do_find_paths(
 
     let root_dir = config.root_dir.clone();
 
-    let result = hakana_workhorse::scan_and_analyze(
-        Vec::new(),
-        None,
-        None,
-        Arc::new(config),
-        None,
-        threads,
-        Arc::new(logger),
-        &header,
-        None,
-        None,
-    );
+    let result =
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(hakana_workhorse::scan_and_analyze(
+                Vec::new(),
+                None,
+                None,
+                Arc::new(config),
+                None,
+                threads,
+                Arc::new(logger),
+                &header,
+                None,
+                None,
+            ));
+
     if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in
             analysis_result.get_all_issues(&successful_run_data.interner, &root_dir, true)
@@ -881,18 +897,22 @@ fn do_security_check(
 
     let root_dir = config.root_dir.clone();
 
-    let result = hakana_workhorse::scan_and_analyze(
-        Vec::new(),
-        None,
-        None,
-        Arc::new(config),
-        None,
-        threads,
-        Arc::new(logger),
-        &header,
-        None,
-        None,
-    );
+    let result =
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(hakana_workhorse::scan_and_analyze(
+                Vec::new(),
+                None,
+                None,
+                Arc::new(config),
+                None,
+                threads,
+                Arc::new(logger),
+                &header,
+                None,
+                None,
+            ));
+
     if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in
             analysis_result.get_all_issues(&successful_run_data.interner, &root_dir, true)
@@ -986,22 +1006,25 @@ fn do_analysis(
 
     let root_dir = config.root_dir.clone();
 
-    let result = hakana_workhorse::scan_and_analyze(
-        Vec::new(),
-        filter,
-        ignored,
-        Arc::new(config),
-        if sub_matches.is_present("no-cache") {
-            None
-        } else {
-            Some(&cache_dir)
-        },
-        threads,
-        Arc::new(logger),
-        &header,
-        None,
-        None,
-    );
+    let result =
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(hakana_workhorse::scan_and_analyze(
+                Vec::new(),
+                filter,
+                ignored,
+                Arc::new(config),
+                if sub_matches.is_present("no-cache") {
+                    None
+                } else {
+                    Some(&cache_dir)
+                },
+                threads,
+                Arc::new(logger),
+                &header,
+                None,
+                None,
+            ));
 
     if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in

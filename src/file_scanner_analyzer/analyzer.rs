@@ -17,7 +17,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::io;
 use std::sync::{Arc, Mutex};
 
-pub fn analyze_files(
+pub async fn analyze_files(
     mut paths: Vec<String>,
     codebase: Arc<CodebaseInfo>,
     interner: Arc<Interner>,
@@ -48,7 +48,9 @@ pub fn analyze_files(
 
     let total_file_count = paths.len() as u64;
 
-    logger.log(&format!("Analyzing {} files", total_file_count));
+    logger
+        .log(&format!("Analyzing {} files", total_file_count))
+        .await;
 
     if (paths.len() / group_size) < 4 {
         group_size = 1;
@@ -90,7 +92,7 @@ pub fn analyze_files(
                     resolved_names,
                     &logger,
                     &asts,
-                );
+                ).await;
             }
 
             update_progressbar(i as u64, bar.clone());
@@ -128,7 +130,7 @@ pub fn analyze_files(
 
             let logger = logger.clone();
 
-            let handle = std::thread::spawn(move || {
+            let handle = std::thread::spawn(move || async move {
                 let mut new_analysis_result =
                     AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
@@ -146,7 +148,7 @@ pub fn analyze_files(
                             resolved_names,
                             &logger,
                             &asts,
-                        );
+                        ).await;
                     }
 
                     let mut tally = files_processed.lock().unwrap();
@@ -162,7 +164,7 @@ pub fn analyze_files(
         }
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().unwrap().await;
         }
     }
 
@@ -173,7 +175,7 @@ pub fn analyze_files(
     Ok(())
 }
 
-fn analyze_file(
+async fn analyze_file(
     file_path: FilePath,
     str_path: &String,
     codebase: &Arc<CodebaseInfo>,
@@ -184,7 +186,7 @@ fn analyze_file(
     logger: &Logger,
     asts: &Arc<FxHashMap<FilePath, Vec<u8>>>,
 ) {
-    logger.log(&format!("Analyzing {}", &str_path));
+    logger.log(&format!("Analyzing {}", &str_path)).await;
 
     let aast = if let Some(aast_result) = get_deserialized_ast(asts, file_path) {
         aast_result

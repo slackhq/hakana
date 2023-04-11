@@ -3,7 +3,7 @@ use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::find_tainted_data;
 use hakana_analyzer::file_analyzer;
-use hakana_logger::{Logger, Verbosity};
+use hakana_logger::Logger;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -19,7 +19,7 @@ use crate::populator::populate_codebase;
 use crate::scanner::scan_file;
 use crate::{HhiAsset, HslAsset};
 
-pub fn scan_and_analyze_single_file(
+pub async fn scan_and_analyze_single_file(
     codebase: &mut CodebaseInfo,
     interner: &Interner,
     file_name: String,
@@ -71,9 +71,10 @@ pub fn scan_and_analyze_single_file(
         let issues = find_tainted_data(
             &analysis_result.program_dataflow_graph,
             &analysis_config,
-            &Logger::CommandLine(Verbosity::Quiet),
+            &Logger::DevNull,
             &interner,
-        );
+        )
+        .await;
 
         for issue in issues {
             analysis_result
@@ -87,7 +88,7 @@ pub fn scan_and_analyze_single_file(
     Ok((analysis_result, interner))
 }
 
-pub fn get_single_file_codebase(
+pub async fn get_single_file_codebase(
     additional_files: Vec<&str>,
 ) -> (CodebaseInfo, Interner, VirtualFileSystem) {
     let mut codebase = CodebaseInfo::new();
@@ -118,6 +119,7 @@ pub fn get_single_file_codebase(
             false,
             &silent_logger,
         )
+        .await
         .unwrap();
     }
 
@@ -139,6 +141,7 @@ pub fn get_single_file_codebase(
             false,
             &silent_logger,
         )
+        .await
         .unwrap();
     }
 
@@ -159,6 +162,7 @@ pub fn get_single_file_codebase(
             false,
             &silent_logger,
         )
+        .await
         .unwrap();
     }
 

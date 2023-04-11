@@ -49,7 +49,7 @@ pub struct ScanFilesResult {
     pub files_to_analyze: Vec<String>,
 }
 
-pub fn scan_files(
+pub async fn scan_files(
     scan_dirs: &Vec<String>,
     cache_dir: Option<&String>,
     config: &Arc<Config>,
@@ -58,7 +58,7 @@ pub fn scan_files(
     build_checksum: &str,
     starter_data: Option<SuccessfulScanData>,
 ) -> io::Result<ScanFilesResult> {
-    logger.log_debug(&format!("{:#?}", scan_dirs));
+    logger.log_debug(&format!("{:#?}", scan_dirs)).await;
 
     let mut files_to_scan = vec![];
 
@@ -134,7 +134,7 @@ pub fn scan_files(
 
     if let Some(symbols_path) = &symbols_path {
         if let Some(cached_interner) =
-            load_cached_interner(symbols_path, use_codebase_cache, &logger)
+            load_cached_interner(symbols_path, use_codebase_cache, &logger).await
         {
             interner = cached_interner;
         }
@@ -149,15 +149,18 @@ pub fn scan_files(
         config,
         cache_dir,
         &mut files_to_analyze,
-    );
+    )
+    .await;
 
     let file_discovery_elapsed = file_discovery_now.elapsed();
 
     if logger.can_log_timing() {
-        logger.log(&format!(
-            "File discovery took {:.2?}",
-            file_discovery_elapsed
-        ));
+        logger
+            .log(&format!(
+                "File discovery took {:.2?}",
+                file_discovery_elapsed
+            ))
+            .await;
     }
 
     let file_statuses =
@@ -173,7 +176,7 @@ pub fn scan_files(
     if !has_starter {
         if let Some(codebase_path) = &codebase_path {
             if let Some(cache_codebase) =
-                load_cached_codebase(codebase_path, use_codebase_cache, &logger)
+                load_cached_codebase(codebase_path, use_codebase_cache, &logger).await
             {
                 codebase = cache_codebase;
             }
@@ -184,7 +187,7 @@ pub fn scan_files(
 
     if let Some(aast_names_path) = &aast_names_path {
         if let Some(cached_resolved_names) =
-            load_cached_aast_names(aast_names_path, use_codebase_cache, &logger)
+            load_cached_aast_names(aast_names_path, use_codebase_cache, &logger).await
         {
             resolved_names = cached_resolved_names
         };
@@ -193,10 +196,12 @@ pub fn scan_files(
     let load_from_cache_elapsed = load_from_cache_now.elapsed();
 
     if logger.can_log_timing() {
-        logger.log(&format!(
-            "Loading serialised codebase information from cache took {:.2?}",
-            load_from_cache_elapsed
-        ));
+        logger
+            .log(&format!(
+                "Loading serialised codebase information from cache took {:.2?}",
+                load_from_cache_elapsed
+            ))
+            .await;
     }
 
     invalidate_changed_codebase_elements(&mut codebase, &changed_files);
@@ -253,7 +258,9 @@ pub fn scan_files(
 
         let files_processed: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 
-        logger.log(&format!("Scanning {} files", files_to_scan.len()));
+        logger
+            .log(&format!("Scanning {} files", files_to_scan.len()))
+            .await;
 
         let mut group_size = threads as usize;
 
@@ -302,7 +309,9 @@ pub fn scan_files(
                     analyze_map.contains(&str_path),
                     !test_patterns.iter().any(|p| p.matches(&str_path)),
                     &logger,
-                ) {
+                )
+                .await
+                {
                     if analyze_map.contains(&str_path) {
                         asts.lock().unwrap().insert(
                             **file_path,
@@ -358,7 +367,7 @@ pub fn scan_files(
                 let asts = asts.clone();
                 let logger = logger.clone();
 
-                let handle = std::thread::spawn(move || {
+                let handle = std::thread::spawn(move || async move {
                     let mut new_codebase = CodebaseInfo::new();
                     let mut new_interner = ThreadedInterner::new(interner);
                     let empty_name_context = NameContext::new(&mut new_interner);
@@ -382,8 +391,10 @@ pub fn scan_files(
                             empty_name_context.clone(),
                             analyze_map.contains(&str_path),
                             !test_patterns.iter().any(|p| p.matches(&str_path)),
-                            &logger,
-                        ) {
+                            &logger.clone(),
+                        )
+                        .await
+                        {
                             if analyze_map.contains(&str_path) {
                                 local_asts.insert(
                                     *file_path,
@@ -413,7 +424,7 @@ pub fn scan_files(
             }
 
             for handle in handles {
-                handle.join().unwrap();
+                handle.join().unwrap().await;
             }
 
             if let Ok(thread_codebases) = Arc::try_unwrap(thread_codebases) {
@@ -434,10 +445,12 @@ pub fn scan_files(
         let file_scanning_elapsed = file_scanning_now.elapsed();
 
         if logger.can_log_timing() {
-            logger.log(&format!(
-                "Scanning files took {:.2?}",
-                file_scanning_elapsed
-            ));
+            logger
+                .log(&format!(
+                    "Scanning files took {:.2?}",
+                    file_scanning_elapsed
+                ))
+                .await;
         }
     }
 
@@ -481,7 +494,7 @@ pub fn scan_files(
     })
 }
 
-fn get_filesystem(
+async fn get_filesystem(
     files_to_scan: &mut Vec<String>,
     interner: &mut Interner,
     logger: &Logger,
@@ -495,10 +508,10 @@ fn get_filesystem(
 
     add_builtins_to_scan(files_to_scan, interner, &mut file_system);
 
-    logger.log(&format!("Looking for Hack files"));
+    logger.log(&format!("Looking for Hack files")).await;
 
     for scan_dir in scan_dirs {
-        logger.log_debug(&format!(" - in {}", scan_dir));
+        logger.log_debug(&format!(" - in {}", scan_dir)).await;
 
         files_to_scan.extend(file_system.find_files_in_dir(
             scan_dir,
@@ -536,13 +549,13 @@ pub fn add_builtins_to_scan(
     }
 }
 
-pub(crate) fn scan_file(
+pub(crate) async fn scan_file(
     str_path: &str,
     file_path: FilePath,
     all_custom_issues: &FxHashSet<String>,
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
-    empty_name_context: NameContext,
+    empty_name_context: NameContext<'_>,
     user_defined: bool,
     is_production_code: bool,
     logger: &Logger,
@@ -553,7 +566,7 @@ pub(crate) fn scan_file(
     ),
     ParserError,
 > {
-    logger.log_debug(&format!("scanning {}", str_path));
+    logger.log_debug(&format!("scanning {}", str_path)).await;
 
     let aast = get_aast_for_path(str_path);
 

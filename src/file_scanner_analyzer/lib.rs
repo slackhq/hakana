@@ -67,7 +67,7 @@ impl Default for SuccessfulScanData {
     }
 }
 
-pub fn scan_and_analyze(
+pub async fn scan_and_analyze(
     stubs_dirs: Vec<String>,
     filter: Option<String>,
     ignored_paths: Option<FxHashSet<String>>,
@@ -100,15 +100,18 @@ pub fn scan_and_analyze(
         logger.clone(),
         header,
         previous_scan_data,
-    )?;
+    )
+    .await?;
 
     let file_discovery_and_scanning_elapsed = file_discovery_and_scanning_now.elapsed();
 
     if logger.can_log_timing() {
-        logger.log(&format!(
-            "File discovery & scanning took {:.2?}",
-            file_discovery_and_scanning_elapsed
-        ));
+        logger
+            .log(&format!(
+                "File discovery & scanning took {:.2?}",
+                file_discovery_and_scanning_elapsed
+            ))
+            .await;
     }
 
     if let Some(cache_dir) = cache_dir {
@@ -150,7 +153,8 @@ pub fn scan_and_analyze(
             &issues_path,
             &references_path,
             previous_analysis_result,
-        );
+        )
+        .await;
 
         safe_symbols = cached_analysis.safe_symbols;
         safe_symbol_members = cached_analysis.safe_symbol_members;
@@ -158,7 +162,7 @@ pub fn scan_and_analyze(
         symbol_references = cached_analysis.symbol_references;
     }
 
-    logger.log("Calculating symbol inheritance");
+    logger.log("Calculating symbol inheritance").await;
 
     let populating_now = Instant::now();
 
@@ -167,10 +171,12 @@ pub fn scan_and_analyze(
     let populating_elapsed = populating_now.elapsed();
 
     if logger.can_log_timing() {
-        logger.log(&format!(
-            "Populating codebase took {:.2?}",
-            populating_elapsed
-        ));
+        logger
+            .log(&format!(
+                "Populating codebase took {:.2?}",
+                populating_elapsed
+            ))
+            .await;
     }
 
     codebase.safe_symbols = safe_symbols;
@@ -199,15 +205,18 @@ pub fn scan_and_analyze(
         &ignored_paths,
         threads,
         logger.clone(),
-    )?;
+    )
+    .await?;
 
     let analyzed_files_elapsed = analyzed_files_now.elapsed();
 
     if logger.can_log_timing() {
-        logger.log(&format!(
-            "File analysis took {:.2?}",
-            analyzed_files_elapsed
-        ));
+        logger
+            .log(&format!(
+                "File analysis took {:.2?}",
+                analyzed_files_elapsed
+            ))
+            .await;
     }
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
@@ -242,18 +251,24 @@ pub fn scan_and_analyze(
 
     if let GraphKind::WholeProgram(whole_program_kind) = config.graph_kind {
         let issues = match whole_program_kind {
-            WholeProgramKind::Taint => find_tainted_data(
-                &analysis_result.program_dataflow_graph,
-                &config,
-                &logger,
-                &interner,
-            ),
-            WholeProgramKind::Query => find_connections(
-                &analysis_result.program_dataflow_graph,
-                &config,
-                &logger,
-                &interner,
-            ),
+            WholeProgramKind::Taint => {
+                find_tainted_data(
+                    &analysis_result.program_dataflow_graph,
+                    &config,
+                    &logger,
+                    &interner,
+                )
+                .await
+            }
+            WholeProgramKind::Query => {
+                find_connections(
+                    &analysis_result.program_dataflow_graph,
+                    &config,
+                    &logger,
+                    &interner,
+                )
+                .await
+            }
         };
 
         for issue in issues {

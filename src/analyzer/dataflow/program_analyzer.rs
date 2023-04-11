@@ -16,7 +16,7 @@ use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::taint::SinkType;
 
-pub fn find_tainted_data(
+pub async fn find_tainted_data(
     graph: &DataFlowGraph,
     config: &Config,
     logger: &Logger,
@@ -30,9 +30,13 @@ pub fn find_tainted_data(
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    logger.log("Security analysis: detecting paths");
-    logger.log(&format!(" - initial sources count: {}", sources.len()));
-    logger.log(&format!(" - initial sinks count:   {}", graph.sinks.len()));
+    logger.log("Security analysis: detecting paths").await;
+    logger
+        .log(&format!(" - initial sources count: {}", sources.len()))
+        .await;
+    logger
+        .log(&format!(" - initial sinks count:   {}", graph.sinks.len()))
+        .await;
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, path) in to {
@@ -48,12 +52,12 @@ pub fn find_tainted_data(
         &mut new_issues,
         true,
         interner,
-    );
+    ).await;
 
     new_issues
 }
 
-pub fn find_connections(
+pub async fn find_connections(
     graph: &DataFlowGraph,
     config: &Config,
     logger: &Logger,
@@ -68,7 +72,9 @@ pub fn find_connections(
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    logger.log(&format!(" - initial sources count: {}", sources.len()));
+    logger
+        .log(&format!(" - initial sources count: {}", sources.len()))
+        .await;
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, _) in to {
@@ -84,13 +90,13 @@ pub fn find_connections(
         &mut new_issues,
         false,
         interner,
-    );
+    ).await;
 
     new_issues
 }
 
 #[inline]
-fn find_paths_to_sinks(
+async fn find_paths_to_sinks(
     mut sources: Vec<Arc<TaintedNode>>,
     graph: &DataFlowGraph,
     config: &Config,
@@ -151,16 +157,18 @@ fn find_paths_to_sinks(
                     if let Some(inow) = inow {
                         let ielapsed = inow.elapsed();
                         if ielapsed.as_millis() > 100 {
-                            logger.log(&format!(
-                                "    - took {:.2?} to generate from {}",
-                                ielapsed, source_id
-                            ));
+                            logger
+                                .log(&format!(
+                                    "    - took {:.2?} to generate from {}",
+                                    ielapsed, source_id
+                                ))
+                                .await;
                         }
                     }
                 }
 
-                if !matches!(logger.get_verbosity(), Verbosity::Quiet) {
-                    println!(
+                logger
+                    .log(&format!(
                         " - generated {}{}",
                         actual_source_count,
                         if let Some(now) = now {
@@ -169,8 +177,8 @@ fn find_paths_to_sinks(
                         } else {
                             "".to_string()
                         }
-                    );
-                }
+                    ))
+                    .await;
 
                 sources = new_sources;
             }

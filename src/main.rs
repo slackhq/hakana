@@ -1,3 +1,4 @@
+use hakana_cli::test_runners::{core_test_runner::CoreHooksProvider, test_runner::TestRunner};
 use mimalloc::MiMalloc;
 
 #[global_allocator]
@@ -14,6 +15,6 @@ fn main() {
         vec![],
         vec![],
         header.as_str(),
-        Box::new(hakana_cli::test_runners::core_test_runner::CoreTestRunner {}),
+        &TestRunner(Box::new(CoreHooksProvider {})),
     );
 }

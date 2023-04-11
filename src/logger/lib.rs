@@ -1,26 +1,35 @@
+use tower_lsp::lsp_types::MessageType;
+
 pub enum Logger {
     DevNull,
     CommandLine(Verbosity),
+    LanguageServer(tower_lsp::Client, Verbosity),
 }
 
 impl Logger {
-    pub fn log(&self, message: &str) {
+    pub async fn log(&self, message: &str) {
         match self {
             Logger::DevNull => {}
-            Logger::CommandLine(verbosity) => {
-                if !matches!(verbosity, Verbosity::Quiet) {
-                    println!("{}", message);
-                }
+            Logger::CommandLine(_) => {
+                println!("{}", message);
+            }
+            Logger::LanguageServer(client, _) => {
+                client.log_message(MessageType::INFO, message).await;
             }
         }
     }
 
-    pub fn log_debug(&self, message: &str) -> () {
+    pub async fn log_debug(&self, message: &str) -> () {
         match self {
             Logger::DevNull => {}
             Logger::CommandLine(verbosity) => {
                 if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
                     println!("{}", message);
+                }
+            }
+            Logger::LanguageServer(client, verbosity) => {
+                if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+                    client.log_message(MessageType::INFO, message).await;
                 }
             }
         }
@@ -29,7 +38,7 @@ impl Logger {
     pub fn can_log_timing(&self) -> bool {
         match self {
             Logger::DevNull => false,
-            Logger::CommandLine(verbosity) => {
+            Logger::CommandLine(verbosity) | Logger::LanguageServer(_, verbosity) => {
                 matches!(verbosity, Verbosity::Debugging | Verbosity::Timing)
             }
         }
@@ -37,8 +46,8 @@ impl Logger {
 
     pub fn get_verbosity(&self) -> Verbosity {
         match self {
-            Logger::DevNull => Verbosity::Quiet,
-            Logger::CommandLine(verbosity) => *verbosity,
+            Logger::DevNull => Verbosity::Simple,
+            Logger::CommandLine(verbosity) | Logger::LanguageServer(_, verbosity) => *verbosity,
         }
     }
 
@@ -52,7 +61,6 @@ impl Logger {
 
 #[derive(Copy, Clone)]
 pub enum Verbosity {
-    Quiet,
     Simple,
     Timing,
     Debugging,

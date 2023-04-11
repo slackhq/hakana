@@ -20,8 +20,14 @@ use std::sync::Arc;
 use std::time::Duration;
 use walkdir::WalkDir;
 
-pub trait TestRunner {
-    fn run_test(
+pub trait HooksProvider {
+    fn get_hooks_for_test(&self, dir: &String) -> Vec<Box<dyn CustomHook>>;
+}
+
+pub struct TestRunner(pub Box<dyn HooksProvider>);
+
+impl TestRunner {
+    pub async fn run_test(
         &self,
         test_or_test_dir: String,
         logger: Arc<Logger>,
@@ -38,7 +44,7 @@ pub trait TestRunner {
 
         let starter_data = if candidate_test_folders.len() > 1 {
             let (codebase, interner, file_system) =
-                get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
+                get_single_file_codebase(vec!["tests/stubs/stubs.hack"]).await;
 
             Some(SuccessfulScanData {
                 codebase,
@@ -76,41 +82,43 @@ pub trait TestRunner {
 
                 let needs_fresh_codebase = test_folder.contains("xhp");
 
-                let test_result = self.run_test_in_dir(
-                    test_folder,
-                    logger.clone(),
-                    if use_cache { Some(&cache_dir) } else { None },
-                    had_error,
-                    &mut test_diagnostics,
-                    build_checksum,
-                    if let Some(last_run_data) = last_scan_data {
-                        if reuse_codebase {
-                            Some(last_run_data)
+                let test_result = self
+                    .run_test_in_dir(
+                        test_folder,
+                        logger.clone(),
+                        if use_cache { Some(&cache_dir) } else { None },
+                        had_error,
+                        &mut test_diagnostics,
+                        build_checksum,
+                        if let Some(last_run_data) = last_scan_data {
+                            if reuse_codebase {
+                                Some(last_run_data)
+                            } else {
+                                if !needs_fresh_codebase {
+                                    starter_data.clone()
+                                } else {
+                                    None
+                                }
+                            }
                         } else {
                             if !needs_fresh_codebase {
                                 starter_data.clone()
                             } else {
                                 None
                             }
-                        }
-                    } else {
-                        if !needs_fresh_codebase {
-                            starter_data.clone()
+                        },
+                        if let Some(last_analysis_result) = last_analysis_result {
+                            if reuse_codebase {
+                                Some(last_analysis_result)
+                            } else {
+                                None
+                            }
                         } else {
                             None
-                        }
-                    },
-                    if let Some(last_analysis_result) = last_analysis_result {
-                        if reuse_codebase {
-                            Some(last_analysis_result)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    },
-                    &mut time_in_analysis,
-                );
+                        },
+                        &mut time_in_analysis,
+                    )
+                    .await;
 
                 last_scan_data = test_result.1;
                 last_analysis_result = test_result.2;
@@ -148,7 +156,7 @@ pub trait TestRunner {
             GraphKind::FunctionBody
         };
 
-        analysis_config.hooks = self.get_hooks_for_test(dir);
+        analysis_config.hooks = self.0.get_hooks_for_test(dir);
 
         let mut dir_parts = dir.split("/").collect::<Vec<_>>();
 
@@ -187,11 +195,7 @@ pub trait TestRunner {
         analysis_config
     }
 
-    fn get_hooks_for_test(&self, _dir: &String) -> Vec<Box<dyn CustomHook>> {
-        vec![]
-    }
-
-    fn run_test_in_dir(
+    async fn run_test_in_dir(
         &self,
         dir: String,
         logger: Arc<Logger>,
@@ -212,21 +216,23 @@ pub trait TestRunner {
         }
 
         if dir.contains("/diff/") {
-            return self.run_diff_test(
-                dir,
-                logger,
-                cache_dir,
-                had_error,
-                test_diagnostics,
-                build_checksum,
-            );
+            return self
+                .run_diff_test(
+                    dir,
+                    logger,
+                    cache_dir,
+                    had_error,
+                    test_diagnostics,
+                    build_checksum,
+                )
+                .await;
         }
 
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
         let analysis_config = self.get_config_for_test(&dir);
 
-        logger.log_debug(&format!("running test {}", dir));
+        logger.log_debug(&format!("running test {}", dir)).await;
 
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
@@ -254,7 +260,8 @@ pub trait TestRunner {
             build_checksum,
             previous_scan_data,
             previous_analysis_result,
-        );
+        )
+        .await;
 
         if dir.contains("/migrations/")
             || dir.contains("/fix/")
@@ -355,7 +362,7 @@ pub trait TestRunner {
         }
     }
 
-    fn run_diff_test(
+    async fn run_diff_test(
         &self,
         dir: String,
         logger: Arc<Logger>,
@@ -366,7 +373,7 @@ pub trait TestRunner {
     ) -> (String, Option<SuccessfulScanData>, Option<AnalysisResult>) {
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
-        logger.log_debug(&format!("running test {}", dir));
+        logger.log_debug(&format!("running test {}", dir)).await;
 
         if let Some(cache_dir) = cache_dir {
             fs::remove_dir_all(&cache_dir).unwrap();
@@ -399,6 +406,7 @@ pub trait TestRunner {
             None,
             None,
         )
+        .await
         .unwrap();
 
         let previous_scan_data = Some(a_result.1);
@@ -420,7 +428,8 @@ pub trait TestRunner {
             build_checksum,
             previous_scan_data,
             previous_analysis_result,
-        );
+        )
+        .await;
 
         fs::remove_dir_all(&workdir_base).unwrap();
 

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_logger::Logger;
+use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_workhorse::{scan_and_analyze, SuccessfulScanData};
 use rustc_hash::FxHashMap;
@@ -135,11 +135,15 @@ impl Backend {
             self.analysis_config.clone(),
             None,
             8,
-            Arc::new(Logger::DevNull),
+            Arc::new(Logger::LanguageServer(
+                self.client.clone(),
+                Verbosity::Debugging,
+            )),
             "",
             successful_scan_data,
             analysis_result,
-        );
+        )
+        .await;
 
         match result {
             Ok((analysis_result, successful_scan_data)) => {
