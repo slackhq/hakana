@@ -128,78 +128,101 @@ impl VirtualFileSystem {
             .map(|ignore_file| glob::Pattern::new(ignore_file).unwrap())
             .collect::<Vec<_>>();
 
-        'walker_entry: for entry in walker {
+        for entry in walker {
             let path = entry.path();
 
-            let metadata = if let Ok(metadata) = fs::metadata(&path) {
-                metadata
-            } else {
-                println!("Could not get metadata");
-                panic!();
-            };
+            self.add_path(
+                path,
+                &ignore_patterns,
+                interner,
+                existing_file_system,
+                calculate_file_hashes,
+                &mut files_to_scan,
+                config,
+                files_to_analyze,
+            );
+        }
 
-            if metadata.is_file() {
-                if let Some(extension) = path.extension() {
-                    if extension.eq("hack") || extension.eq("php") || extension.eq("hhi") {
-                        let str_path = path.to_str().unwrap().to_string();
+        files_to_scan
+    }
 
-                        for ignore_pattern in &ignore_patterns {
-                            if ignore_pattern.matches(&str_path) {
-                                continue 'walker_entry;
-                            }
+    fn add_path(
+        &mut self,
+        path: &std::path::Path,
+        ignore_patterns: &Vec<glob::Pattern>,
+        interner: &mut Interner,
+        existing_file_system: &Option<VirtualFileSystem>,
+        calculate_file_hashes: bool,
+        files_to_scan: &mut Vec<String>,
+        config: &Config,
+        files_to_analyze: &mut Vec<String>,
+    ) {
+        let metadata = if let Ok(metadata) = fs::metadata(&path) {
+            metadata
+        } else {
+            println!("Could not get metadata");
+            panic!();
+        };
+
+        if metadata.is_file() {
+            if let Some(extension) = path.extension() {
+                if extension.eq("hack") || extension.eq("php") || extension.eq("hhi") {
+                    let str_path = path.to_str().unwrap().to_string();
+
+                    for ignore_pattern in ignore_patterns {
+                        if ignore_pattern.matches(&str_path) {
+                            return;
                         }
+                    }
 
-                        let interned_file_path = FilePath(interner.intern(str_path.clone()));
+                    let interned_file_path = FilePath(interner.intern(str_path.clone()));
 
-                        let updated_time = metadata
-                            .modified()
-                            .unwrap()
-                            .duration_since(SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_micros() as u64;
+                    let updated_time = metadata
+                        .modified()
+                        .unwrap()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_micros() as u64;
 
-                        let file_hash = if let Some(existing_file_system) = existing_file_system {
-                            if let Some((old_contents_hash, old_update_time)) = existing_file_system
-                                .file_hashes_and_times
-                                .get(&interned_file_path)
-                            {
-                                if old_update_time == &updated_time {
-                                    *old_contents_hash
-                                } else if calculate_file_hashes {
-                                    self.get_contents_hash(&str_path).unwrap_or(0)
-                                } else {
-                                    0
-                                }
-                            } else {
-                                0
-                            }
-                        } else {
-                            if calculate_file_hashes {
+                    let file_hash = if let Some(existing_file_system) = existing_file_system {
+                        if let Some((old_contents_hash, old_update_time)) = existing_file_system
+                            .file_hashes_and_times
+                            .get(&interned_file_path)
+                        {
+                            if old_update_time == &updated_time {
+                                *old_contents_hash
+                            } else if calculate_file_hashes {
                                 self.get_contents_hash(&str_path).unwrap_or(0)
                             } else {
                                 0
                             }
-                        };
+                        } else {
+                            0
+                        }
+                    } else {
+                        if calculate_file_hashes {
+                            self.get_contents_hash(&str_path).unwrap_or(0)
+                        } else {
+                            0
+                        }
+                    };
 
-                        self.file_hashes_and_times
-                            .insert(interned_file_path, (file_hash, updated_time));
+                    self.file_hashes_and_times
+                        .insert(interned_file_path, (file_hash, updated_time));
 
-                        files_to_scan.push(str_path.clone());
+                    files_to_scan.push(str_path.clone());
 
-                        if !extension.eq("hhi") {
-                            if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
-                                if config.allow_taints_in_file(&str_path) {
-                                    files_to_analyze.push(str_path.clone());
-                                }
-                            } else {
+                    if !extension.eq("hhi") {
+                        if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
+                            if config.allow_taints_in_file(&str_path) {
                                 files_to_analyze.push(str_path.clone());
                             }
+                        } else {
+                            files_to_analyze.push(str_path.clone());
                         }
                     }
                 }
             }
         }
-
-        files_to_scan
     }
 }
