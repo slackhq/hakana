@@ -165,13 +165,6 @@ impl Backend {
                     &self.analysis_config.root_dir,
                     false,
                 ) {
-                    self.client
-                        .log_message(
-                            MessageType::INFO,
-                            format!("{} issues for {}", emitted_issues.len(), file),
-                        )
-                        .await;
-
                     let mut diagnostics = vec![];
                     for emitted_issue in emitted_issues {
                         diagnostics.push(Diagnostic::new(
