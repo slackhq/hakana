@@ -50,13 +50,6 @@ async fn main() {
         }
     };
 
-    let (service, socket) = LspService::new(|client| Backend {
-        client,
-        analysis_config: config,
-        previous_analysis_result: Arc::new(None),
-        previous_scan_data: Arc::new(None),
-        all_diagnostics: None,
-        file_changes: None,
-    });
+    let (service, socket) = LspService::new(|client| Backend::new(client, config));
     Server::new(stdin, stdout, socket).serve(service).await;
 }

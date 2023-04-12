@@ -79,6 +79,7 @@ impl AnalysisResult {
         let mut issues = self
             .emitted_issues
             .iter()
+            .filter(|(_, v)| !v.is_empty())
             .map(|(k, v)| {
                 (
                     if use_relative_path {

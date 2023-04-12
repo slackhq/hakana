@@ -8,19 +8,34 @@ use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_workhorse::file::FileStatus;
 use hakana_workhorse::{scan_and_analyze, SuccessfulScanData};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
 #[derive(Debug)]
 pub struct Backend {
-    pub client: Client,
-    pub analysis_config: Arc<Config>,
-    pub previous_scan_data: Arc<Option<SuccessfulScanData>>,
-    pub previous_analysis_result: Arc<Option<AnalysisResult>>,
-    pub all_diagnostics: Option<FxHashMap<Url, Vec<Diagnostic>>>,
-    pub file_changes: Option<FxHashMap<String, FileStatus>>,
+    client: Client,
+    analysis_config: Arc<Config>,
+    previous_scan_data: Arc<Option<SuccessfulScanData>>,
+    previous_analysis_result: Arc<Option<AnalysisResult>>,
+    all_diagnostics: Option<FxHashMap<Url, Vec<Diagnostic>>>,
+    file_changes: Option<FxHashMap<String, FileStatus>>,
+    files_with_errors: FxHashSet<Url>,
+}
+
+impl Backend {
+    pub fn new(client: Client, analysis_config: Arc<Config>) -> Self {
+        Self {
+            client,
+            analysis_config,
+            previous_scan_data: Arc::new(None),
+            previous_analysis_result: Arc::new(None),
+            all_diagnostics: None,
+            file_changes: None,
+            files_with_errors: FxHashSet::default(),
+        }
+    }
 }
 
 #[tower_lsp::async_trait(?Send)]
@@ -154,11 +169,14 @@ impl Backend {
 
         match result {
             Ok((analysis_result, successful_scan_data)) => {
-                self.client
-                    .log_message(MessageType::INFO, "Analysis succeeded, sending diagnostics")
-                    .await;
-
                 let mut all_diagnostics = FxHashMap::default();
+
+                self.client
+                    .log_message(
+                        MessageType::INFO,
+                        "Analysis succeeded, computing diagnostics",
+                    )
+                    .await;
 
                 for (file, emitted_issues) in analysis_result.get_all_issues(
                     &successful_scan_data.interner,
@@ -207,11 +225,34 @@ impl Backend {
 
     async fn emit_issues(&mut self) {
         if let Some(ref mut all_diagnostics) = self.all_diagnostics {
+            let mut new_files_with_errors = FxHashSet::default();
+            self.client
+                .log_message(
+                    MessageType::INFO,
+                    format!("Sending diagnostics for {} files", all_diagnostics.len()),
+                )
+                .await;
+
             for (uri, diagnostics) in all_diagnostics.drain() {
                 self.client
-                    .publish_diagnostics(uri.clone(), diagnostics.clone(), None)
+                    .publish_diagnostics(uri.clone(), diagnostics, None)
                     .await;
+                new_files_with_errors.insert(uri);
             }
+
+            for old_uri in &self.files_with_errors {
+                if !new_files_with_errors.contains(old_uri) {
+                    self.client
+                        .publish_diagnostics(old_uri.clone(), vec![], None)
+                        .await;
+                }
+            }
+
+            self.files_with_errors = new_files_with_errors;
+
+            self.client
+                .log_message(MessageType::INFO, "Diagnostics sent")
+                .await;
         }
     }
 }
