@@ -86,6 +86,12 @@ pub(crate) fn analyze(
                                 name: classlike_name,
                                 ..
                             } => {
+                                analysis_data.symbol_references.add_reference_to_symbol(
+                                    &context.function_context,
+                                    *classlike_name,
+                                    false,
+                                );
+
                                 analysis_data.maybe_add_issue(
                                     Issue::new(
                                         IssueKind::NonExistentClasslike,
@@ -149,6 +155,12 @@ fn analyse_known_class_constant(
                 name: classlike_name.clone(),
             }));
         }
+
+        analysis_data.symbol_references.add_reference_to_symbol(
+            &context.function_context,
+            *classlike_name,
+            false,
+        );
 
         analysis_data.maybe_add_issue(
             if const_name == "class" {

@@ -86,7 +86,11 @@ impl AnalysisResult {
                     } else {
                         interner.lookup(&k.0).to_string()
                     },
-                    v.iter().collect::<Vec<_>>(),
+                    {
+                        let mut file_issues = v.iter().collect::<Vec<_>>();
+                        file_issues.sort_by(|a, b| a.pos.start_offset.cmp(&b.pos.start_offset));
+                        file_issues
+                    },
                 )
             })
             .collect::<BTreeMap<_, _>>();

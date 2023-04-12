@@ -98,6 +98,12 @@ impl SymbolReferences {
             in_signature,
         );
 
+        self.add_class_member_reference_to_symbol(
+            referencing_class_member.clone(),
+            class_member.0.clone(),
+            in_signature,
+        );
+
         if in_signature {
             self.symbol_references_to_symbols_in_signature
                 .entry(referencing_class_member)

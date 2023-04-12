@@ -265,6 +265,12 @@ fn analyze_named_constructor(
     let storage = if let Some(storage) = codebase.classlike_infos.get(&classlike_name) {
         storage
     } else {
+        analysis_data.symbol_references.add_reference_to_symbol(
+            &context.function_context,
+            classlike_name.clone(),
+            false,
+        );
+
         analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::NonExistentClass,
@@ -309,15 +315,15 @@ fn analyze_named_constructor(
     let method_id = MethodIdentifier(classlike_name.clone(), method_name);
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
-    if codebase.method_exists(&method_id.0, &method_id.1) {
-        analysis_data
-            .symbol_references
-            .add_reference_to_class_member(
-                &context.function_context,
-                (classlike_name.clone(), method_id.1),
-                false,
-            );
+    analysis_data
+        .symbol_references
+        .add_reference_to_class_member(
+            &context.function_context,
+            (classlike_name.clone(), method_id.1),
+            false,
+        );
 
+    if codebase.method_exists(&method_id.0, &method_id.1) {
         let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
         analysis_data
@@ -519,12 +525,6 @@ fn analyze_named_constructor(
             generic_type_params = Some(v);
         }
     } else {
-        analysis_data.symbol_references.add_reference_to_symbol(
-            &context.function_context,
-            classlike_name.clone(),
-            false,
-        );
-
         if !expr.2.is_empty() {
             // todo complain about too many arguments
         }

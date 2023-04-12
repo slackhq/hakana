@@ -1,0 +1,1 @@
+ERROR: InvalidReturnStatement - input.hack:21:16 - The type string(a) does not match the declared return type int for B::bat
