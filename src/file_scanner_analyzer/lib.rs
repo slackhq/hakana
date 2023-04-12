@@ -8,10 +8,11 @@ use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_logger::Logger;
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
-use hakana_reflection_info::Interner;
+use hakana_reflection_info::{Interner, StrId};
 use indicatif::ProgressBar;
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
@@ -55,6 +56,7 @@ pub struct SuccessfulScanData {
     pub codebase: CodebaseInfo,
     pub interner: Interner,
     pub file_system: VirtualFileSystem,
+    pub resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
 }
 
 impl Default for SuccessfulScanData {
@@ -63,6 +65,7 @@ impl Default for SuccessfulScanData {
             codebase: CodebaseInfo::new(),
             interner: Interner::default(),
             file_system: VirtualFileSystem::default(),
+            resolved_names: FxHashMap::default(),
         }
     }
 }
@@ -188,16 +191,20 @@ pub async fn scan_and_analyze(
 
     let analysis_result = Arc::new(Mutex::new(analysis_result));
 
-    let arc_codebase = Arc::new(codebase);
-    let arc_interner = Arc::new(interner);
+    let scan_data = SuccessfulScanData {
+        codebase,
+        interner,
+        file_system,
+        resolved_names,
+    };
+
+    let arc_scan_data = Arc::new(scan_data);
 
     let analyzed_files_now = Instant::now();
 
     analyze_files(
         files_to_analyze,
-        arc_codebase.clone(),
-        arc_interner.clone(),
-        resolved_names,
+        arc_scan_data.clone(),
         asts,
         config.clone(),
         &analysis_result,
@@ -236,15 +243,14 @@ pub async fn scan_and_analyze(
         issues_file.write_all(&serialized_issues)?;
     }
 
-    let codebase = Arc::try_unwrap(arc_codebase).unwrap();
-    let interner = Arc::try_unwrap(arc_interner).unwrap();
+    let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
 
     if config.find_unused_definitions {
         find_unused_definitions(
             &mut analysis_result,
             &config,
-            &codebase,
-            &interner,
+            &scan_data.codebase,
+            &scan_data.interner,
             &ignored_paths,
         );
     }
@@ -256,7 +262,7 @@ pub async fn scan_and_analyze(
                     &analysis_result.program_dataflow_graph,
                     &config,
                     &logger,
-                    &interner,
+                    &scan_data.interner,
                 )
                 .await
             }
@@ -265,7 +271,7 @@ pub async fn scan_and_analyze(
                     &analysis_result.program_dataflow_graph,
                     &config,
                     &logger,
-                    &interner,
+                    &scan_data.interner,
                 )
                 .await
             }
@@ -280,14 +286,7 @@ pub async fn scan_and_analyze(
         }
     }
 
-    Ok((
-        analysis_result,
-        SuccessfulScanData {
-            codebase,
-            interner,
-            file_system,
-        },
-    ))
+    Ok((analysis_result, scan_data))
 }
 
 pub fn get_aast_for_path(

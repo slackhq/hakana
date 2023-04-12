@@ -51,6 +51,7 @@ impl TestRunner {
                 codebase,
                 interner,
                 file_system,
+                resolved_names: FxHashMap::default(),
             })
         } else {
             None

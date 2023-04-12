@@ -1,4 +1,4 @@
-use crate::{get_aast_for_path, update_progressbar};
+use crate::{get_aast_for_path, update_progressbar, SuccessfulScanData};
 use hakana_aast_helper::ParserError;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
@@ -19,9 +19,7 @@ use std::sync::{Arc, Mutex};
 
 pub async fn analyze_files(
     mut paths: Vec<String>,
-    codebase: Arc<CodebaseInfo>,
-    interner: Arc<Interner>,
-    resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
+    scan_data: Arc<SuccessfulScanData>,
     asts: FxHashMap<FilePath, Vec<u8>>,
     config: Arc<Config>,
     analysis_result: &Arc<Mutex<AnalysisResult>>,
@@ -74,6 +72,10 @@ pub async fn analyze_files(
     };
 
     if path_groups.len() == 1 {
+        let codebase = &scan_data.codebase;
+        let interner = &scan_data.interner;
+        let resolved_names = &scan_data.resolved_names;
+
         let mut new_analysis_result =
             AnalysisResult::new(config.graph_kind, SymbolReferences::new());
 
@@ -104,13 +106,10 @@ pub async fn analyze_files(
 
         let files_processed = Arc::new(Mutex::new(0));
 
-        let resolved_names = Arc::new(resolved_names);
-
         let asts = Arc::new(asts);
 
         for (_, path_group) in path_groups {
-            let codebase = codebase.clone();
-            let interner = interner.clone();
+            let scan_data = scan_data.clone();
 
             let pgc = path_group
                 .iter()
@@ -124,13 +123,15 @@ pub async fn analyze_files(
             let files_processed = files_processed.clone();
             let bar = bar.clone();
 
-            let resolved_names = resolved_names.clone();
-
             let asts = asts.clone();
 
             let logger = logger.clone();
 
             let handle = std::thread::spawn(move || async move {
+                let codebase = &scan_data.codebase;
+                let interner = &scan_data.interner;
+                let resolved_names = &scan_data.resolved_names;
+
                 let mut new_analysis_result =
                     AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
@@ -178,7 +179,7 @@ pub async fn analyze_files(
 async fn analyze_file(
     file_path: FilePath,
     str_path: &String,
-    codebase: &Arc<CodebaseInfo>,
+    codebase: &CodebaseInfo,
     interner: &Interner,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,

@@ -31,6 +31,7 @@ use hakana_reflection_info::FileSource;
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::ThreadedInterner;
+use hakana_reflection_info::STR_EMPTY;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use oxidized::aast;
@@ -113,14 +114,17 @@ pub async fn scan_files(
 
     let mut interner;
     let mut codebase;
+    let mut resolved_names;
 
     if let Some(starter_data) = starter_data {
         existing_file_system = Some(starter_data.file_system);
         interner = starter_data.interner;
         codebase = starter_data.codebase;
+        resolved_names = starter_data.resolved_names;
     } else {
         interner = Interner::default();
         codebase = CodebaseInfo::new();
+        resolved_names = FxHashMap::default();
     }
 
     if existing_file_system.is_none() && use_codebase_cache {
@@ -182,8 +186,6 @@ pub async fn scan_files(
             }
         }
     }
-
-    let mut resolved_names = FxHashMap::default();
 
     if let Some(aast_names_path) = &aast_names_path {
         if let Some(cached_resolved_names) =
@@ -522,6 +524,7 @@ async fn get_filesystem(
             files_to_analyze,
         ));
     }
+
     file_system
 }
 
@@ -611,14 +614,14 @@ fn invalidate_changed_codebase_elements(
         .filter(|f| changed_files.contains(&f.0))
     {
         for ast_node in &file_storage.ast_nodes {
-            match codebase.symbols.all.get(&ast_node.name) {
+            match codebase.symbols.all.remove(&ast_node.name) {
                 Some(kind) => {
                     if let SymbolKind::TypeDefinition = kind {
                         codebase.type_definitions.remove(&ast_node.name);
                     } else {
                         codebase.classlike_infos.remove(&ast_node.name);
+                        codebase.symbols.classlike_files.remove(&ast_node.name);
                     }
-                    codebase.symbols.all.remove(&ast_node.name);
                 }
                 None => {
                     if ast_node.is_function {
