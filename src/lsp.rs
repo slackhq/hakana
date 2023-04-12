@@ -56,6 +56,7 @@ async fn main() {
         previous_analysis_result: Arc::new(None),
         previous_scan_data: Arc::new(None),
         all_diagnostics: None,
+        file_changes: None,
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }

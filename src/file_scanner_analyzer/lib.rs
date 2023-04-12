@@ -2,7 +2,7 @@ pub(crate) mod populator;
 
 use analyzer::analyze_files;
 use diff::mark_safe_symbols_from_diff;
-use file::VirtualFileSystem;
+use file::{FileStatus, VirtualFileSystem};
 use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
@@ -30,7 +30,7 @@ mod analyzer;
 mod ast_differ;
 mod cache;
 mod diff;
-mod file;
+pub mod file;
 pub mod scanner;
 mod unused_symbols;
 pub mod wasm;
@@ -81,6 +81,7 @@ pub async fn scan_and_analyze(
     header: &str,
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
+    language_server_changes: Option<FxHashMap<String, FileStatus>>,
 ) -> io::Result<(AnalysisResult, SuccessfulScanData)> {
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
@@ -103,6 +104,7 @@ pub async fn scan_and_analyze(
         logger.clone(),
         header,
         previous_scan_data,
+        language_server_changes,
     )
     .await?;
 

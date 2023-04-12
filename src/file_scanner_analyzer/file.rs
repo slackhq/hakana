@@ -1,4 +1,4 @@
-use std::{fs, time::SystemTime};
+use std::{fs, path::Path, time::SystemTime};
 
 use hakana_analyzer::config::Config;
 use hakana_reflection_info::{code_location::FilePath, data_flow::graph::GraphKind, Interner};
@@ -24,6 +24,61 @@ impl VirtualFileSystem {
         match fs::read_to_string(&file_path) {
             Ok(file_contents) => Ok(xxhash_rust::xxh3::xxh3_64(file_contents.as_bytes())),
             Err(error) => Err(error),
+        }
+    }
+
+    pub(crate) fn apply_language_server_changes(
+        &mut self,
+        language_server_changes: FxHashMap<String, FileStatus>,
+        files_to_scan: &mut Vec<String>,
+        interner: &mut Interner,
+        config: &Config,
+        files_to_analyze: &mut Vec<String>,
+    ) {
+        for (file, _) in &self.file_hashes_and_times {
+            let str_path = interner.lookup(&file.0).to_string();
+
+            if !language_server_changes.contains_key(&str_path) {
+                files_to_scan.push(str_path.clone());
+
+                let path = Path::new(&str_path);
+
+                if let Some(extension) = path.extension() {
+                    if !extension.eq("hhi") {
+                        if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
+                            if config.allow_taints_in_file(&str_path) {
+                                files_to_analyze.push(str_path.clone());
+                            }
+                        } else {
+                            files_to_analyze.push(str_path.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        for (file_path, status) in language_server_changes {
+            let path = Path::new(&file_path);
+
+            match status {
+                FileStatus::Unchanged(_, _) => panic!(),
+                FileStatus::Added(_, _) | FileStatus::Modified(_, _) => {
+                    self.add_path(
+                        path,
+                        &vec![],
+                        interner,
+                        &None,
+                        true,
+                        files_to_scan,
+                        config,
+                        files_to_analyze,
+                    );
+                }
+                FileStatus::Deleted => {
+                    let file_path = interner.intern(path.to_str().unwrap().to_string());
+                    self.file_hashes_and_times.remove(&FilePath(file_path));
+                }
+            }
         }
     }
 

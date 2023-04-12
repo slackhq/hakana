@@ -58,6 +58,7 @@ pub async fn scan_files(
     logger: Arc<Logger>,
     build_checksum: &str,
     starter_data: Option<SuccessfulScanData>,
+    language_server_changes: Option<FxHashMap<String, FileStatus>>,
 ) -> io::Result<ScanFilesResult> {
     logger.log_debug(&format!("{:#?}", scan_dirs)).await;
 
@@ -144,17 +145,35 @@ pub async fn scan_files(
         }
     }
 
-    let file_system = get_filesystem(
-        &mut files_to_scan,
-        &mut interner,
-        &logger,
-        scan_dirs,
-        &existing_file_system,
-        config,
-        cache_dir,
-        &mut files_to_analyze,
-    )
-    .await;
+    let file_system = if let Some(language_server_changes) = language_server_changes {
+        let mut file_system = existing_file_system.clone().unwrap();
+
+        logger.log_debug(&format!("{:#?}", file_system)).await;
+
+        file_system.apply_language_server_changes(
+            language_server_changes,
+            &mut files_to_scan,
+            &mut interner,
+            &config,
+            &mut files_to_analyze,
+        );
+
+        logger.log_debug(&format!("{:#?}", file_system)).await;
+
+        file_system
+    } else {
+        get_filesystem(
+            &mut files_to_scan,
+            &mut interner,
+            &logger,
+            scan_dirs,
+            &existing_file_system,
+            config,
+            cache_dir,
+            &mut files_to_analyze,
+        )
+        .await
+    };
 
     let file_discovery_elapsed = file_discovery_now.elapsed();
 

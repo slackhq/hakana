@@ -262,6 +262,7 @@ impl TestRunner {
             build_checksum,
             previous_scan_data,
             previous_analysis_result,
+            None,
         )
         .await;
 
@@ -407,6 +408,7 @@ impl TestRunner {
             build_checksum,
             None,
             None,
+            None,
         )
         .await
         .unwrap();
@@ -432,6 +434,7 @@ impl TestRunner {
             build_checksum,
             previous_scan_data,
             previous_analysis_result,
+            None,
         )
         .await;
 

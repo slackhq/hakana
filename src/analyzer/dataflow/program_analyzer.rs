@@ -52,7 +52,8 @@ pub async fn find_tainted_data(
         &mut new_issues,
         true,
         interner,
-    ).await;
+    )
+    .await;
 
     new_issues
 }
@@ -90,7 +91,8 @@ pub async fn find_connections(
         &mut new_issues,
         false,
         interner,
-    ).await;
+    )
+    .await;
 
     new_issues
 }

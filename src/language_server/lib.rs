@@ -6,6 +6,7 @@ use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_workhorse::file::FileStatus;
 use hakana_workhorse::{scan_and_analyze, SuccessfulScanData};
 use rustc_hash::FxHashMap;
 use tower_lsp::jsonrpc::Result;
@@ -19,6 +20,7 @@ pub struct Backend {
     pub previous_scan_data: Arc<Option<SuccessfulScanData>>,
     pub previous_analysis_result: Arc<Option<AnalysisResult>>,
     pub all_diagnostics: Option<FxHashMap<Url, Vec<Diagnostic>>>,
+    pub file_changes: Option<FxHashMap<String, FileStatus>>,
 }
 
 #[tower_lsp::async_trait(?Send)]
@@ -75,38 +77,29 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
+        let mut new_file_statuses = FxHashMap::default();
+
         for file_event in params.changes {
             //let uri = file_event.uri;
             let change_type = file_event.typ;
 
+            let file_path = file_event.uri.path().to_string();
+
             match change_type {
                 FileChangeType::CREATED => {
-                    self.client
-                        .log_message(
-                            MessageType::INFO,
-                            format!("created {}", file_event.uri.path()),
-                        )
-                        .await;
+                    new_file_statuses.insert(file_path, FileStatus::Added(0, 0));
                 }
                 FileChangeType::CHANGED => {
-                    self.client
-                        .log_message(
-                            MessageType::INFO,
-                            format!("Changed {}", file_event.uri.path()),
-                        )
-                        .await;
+                    new_file_statuses.insert(file_path, FileStatus::Modified(0, 0));
                 }
                 FileChangeType::DELETED => {
-                    self.client
-                        .log_message(
-                            MessageType::INFO,
-                            format!("Deleted {}", file_event.uri.path()),
-                        )
-                        .await;
+                    new_file_statuses.insert(file_path, FileStatus::Deleted);
                 }
                 _ => {}
             }
         }
+
+        self.file_changes = Some(new_file_statuses);
 
         self.do_analysis().await;
         self.emit_issues().await;
@@ -126,7 +119,18 @@ impl Backend {
         self.previous_analysis_result = Arc::new(None);
 
         let successful_scan_data = Arc::try_unwrap(previous_scan_data).unwrap();
+
         let analysis_result = Arc::try_unwrap(previous_analysis_result).unwrap();
+
+        let file_changes = if let Some(ref mut file_changes) = self.file_changes {
+            let file_changes = file_changes
+                .drain()
+                .into_iter()
+                .collect::<FxHashMap<_, _>>();
+            Some(file_changes)
+        } else {
+            None
+        };
 
         let result = scan_and_analyze(
             Vec::new(),
@@ -137,13 +141,16 @@ impl Backend {
             8,
             Arc::new(Logger::LanguageServer(
                 self.client.clone(),
-                Verbosity::Debugging,
+                Verbosity::Simple,
             )),
             "",
             successful_scan_data,
             analysis_result,
+            file_changes,
         )
         .await;
+
+        self.file_changes = None;
 
         match result {
             Ok((analysis_result, successful_scan_data)) => {

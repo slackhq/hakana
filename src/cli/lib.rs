@@ -597,6 +597,7 @@ fn do_fix(
                 &header,
                 None,
                 None,
+                None,
             ));
 
     if let Ok((analysis_result, successfull_run_data)) = result {
@@ -645,6 +646,7 @@ fn do_remove_unused_fixmes(
                 threads,
                 Arc::new(logger),
                 &header,
+                None,
                 None,
                 None,
             ));
@@ -714,6 +716,7 @@ fn do_add_fixmes(
                 threads,
                 Arc::new(logger),
                 &header,
+                None,
                 None,
                 None,
             ));
@@ -792,6 +795,7 @@ fn do_migrate(
                 &header,
                 None,
                 None,
+                None,
             ));
 
     if let Ok((analysis_result, successful_run_data)) = result {
@@ -843,6 +847,7 @@ fn do_find_paths(
                 threads,
                 Arc::new(logger),
                 &header,
+                None,
                 None,
                 None,
             ));
@@ -909,6 +914,7 @@ fn do_security_check(
                 threads,
                 Arc::new(logger),
                 &header,
+                None,
                 None,
                 None,
             ));
@@ -1022,6 +1028,7 @@ fn do_analysis(
                 threads,
                 Arc::new(logger),
                 &header,
+                None,
                 None,
                 None,
             ));
