@@ -124,7 +124,6 @@ pub async fn get_single_file_codebase(
             false,
             &silent_logger,
         )
-        .await
         .unwrap();
     }
 
@@ -146,7 +145,6 @@ pub async fn get_single_file_codebase(
             false,
             &silent_logger,
         )
-        .await
         .unwrap();
     }
 
@@ -167,7 +165,6 @@ pub async fn get_single_file_codebase(
             false,
             &silent_logger,
         )
-        .await
         .unwrap();
     }
 

@@ -94,7 +94,7 @@ pub async fn analyze_files(
                     resolved_names,
                     &logger,
                     &asts,
-                ).await;
+                );
             }
 
             update_progressbar(i as u64, bar.clone());
@@ -127,7 +127,7 @@ pub async fn analyze_files(
 
             let logger = logger.clone();
 
-            let handle = std::thread::spawn(move || async move {
+            let handle = std::thread::spawn(move || {
                 let codebase = &scan_data.codebase;
                 let interner = &scan_data.interner;
                 let resolved_names = &scan_data.resolved_names;
@@ -149,7 +149,7 @@ pub async fn analyze_files(
                             resolved_names,
                             &logger,
                             &asts,
-                        ).await;
+                        );
                     }
 
                     let mut tally = files_processed.lock().unwrap();
@@ -165,7 +165,7 @@ pub async fn analyze_files(
         }
 
         for handle in handles {
-            handle.join().unwrap().await;
+            handle.join().unwrap();
         }
     }
 
@@ -176,7 +176,7 @@ pub async fn analyze_files(
     Ok(())
 }
 
-async fn analyze_file(
+fn analyze_file(
     file_path: FilePath,
     str_path: &String,
     codebase: &CodebaseInfo,
@@ -187,7 +187,7 @@ async fn analyze_file(
     logger: &Logger,
     asts: &Arc<FxHashMap<FilePath, Vec<u8>>>,
 ) {
-    logger.log(&format!("Analyzing {}", &str_path)).await;
+    logger.log_debug_sync(&format!("Analyzing {}", &str_path));
 
     let aast = if let Some(aast_result) = get_deserialized_ast(asts, file_path) {
         aast_result

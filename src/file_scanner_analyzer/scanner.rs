@@ -323,9 +323,7 @@ pub async fn scan_files(
                     analyze_map.contains(&str_path),
                     !test_patterns.iter().any(|p| p.matches(&str_path)),
                     &logger,
-                )
-                .await
-                {
+                ) {
                     if analyze_map.contains(&str_path) {
                         asts.lock().unwrap().insert(
                             **file_path,
@@ -381,7 +379,7 @@ pub async fn scan_files(
                 let asts = asts.clone();
                 let logger = logger.clone();
 
-                let handle = std::thread::spawn(move || async move {
+                let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
                     let mut new_interner = ThreadedInterner::new(interner);
                     let empty_name_context = NameContext::new(&mut new_interner);
@@ -406,9 +404,7 @@ pub async fn scan_files(
                             analyze_map.contains(&str_path),
                             !test_patterns.iter().any(|p| p.matches(&str_path)),
                             &logger.clone(),
-                        )
-                        .await
-                        {
+                        ) {
                             if analyze_map.contains(&str_path) {
                                 local_asts.insert(
                                     *file_path,
@@ -438,7 +434,7 @@ pub async fn scan_files(
             }
 
             for handle in handles {
-                handle.join().unwrap().await;
+                handle.join().unwrap();
             }
 
             if let Ok(thread_codebases) = Arc::try_unwrap(thread_codebases) {
@@ -564,7 +560,7 @@ pub fn add_builtins_to_scan(
     }
 }
 
-pub(crate) async fn scan_file(
+pub(crate) fn scan_file(
     str_path: &str,
     file_path: FilePath,
     all_custom_issues: &FxHashSet<String>,
@@ -581,7 +577,7 @@ pub(crate) async fn scan_file(
     ),
     ParserError,
 > {
-    logger.log_debug(&format!("scanning {}", str_path)).await;
+    logger.log_debug_sync(&format!("scanning {}", str_path));
 
     let aast = get_aast_for_path(str_path);
 

@@ -35,6 +35,17 @@ impl Logger {
         }
     }
 
+    pub fn log_debug_sync(&self, message: &str) -> () {
+        match self {
+            Logger::CommandLine(verbosity) => {
+                if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+                    println!("{}", message);
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub fn can_log_timing(&self) -> bool {
         match self {
             Logger::DevNull => false,
