@@ -10,6 +10,7 @@ use hakana_workhorse::wasm::get_single_file_codebase;
 use hakana_workhorse::SuccessfulScanData;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
+use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::env;
 use std::fs;
@@ -411,6 +412,8 @@ impl TestRunner {
 
         let previous_scan_data = Some(a_result.1);
         let previous_analysis_result = Some(a_result.0);
+
+        fs::remove_dir_all(&workdir_base).unwrap();
 
         copy_recursively(dir.clone() + "/b", workdir_base.clone()).unwrap();
 
