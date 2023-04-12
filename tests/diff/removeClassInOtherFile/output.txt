@@ -1,0 +1,2 @@
+ERROR: NonExistentClass - input.hack:3:12 - Cannot call new on undefined class A
+ERROR: MixedAnyReturnStatement - input.hack:3:12 - Could not infer a proper return type — saw any
