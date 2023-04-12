@@ -48,6 +48,7 @@ pub(crate) fn scan_method(
     c: &mut Context,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
+    user_defined: bool,
 ) -> (StrId, FunctionLikeInfo) {
     let classlike_name = c.classlike_name.clone().unwrap();
     let method_name = interner.intern(m.name.1.clone());
@@ -83,6 +84,7 @@ pub(crate) fn scan_method(
         comments,
         file_source,
         false,
+        user_defined,
     );
 
     functionlike_info.is_production_code = file_source.is_production_code;
@@ -223,6 +225,7 @@ pub(crate) fn get_functionlike(
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
     is_anonymous: bool,
+    user_defined: bool,
 ) -> FunctionLikeInfo {
     let mut definition_location = HPos::new(def_pos, file_source.file_path, None);
 
@@ -359,6 +362,8 @@ pub(crate) fn get_functionlike(
     type_context.template_supers = template_supers;
     functionlike_info.return_type =
         get_type_from_optional_hint(ret.get_hint(), None, &type_context, resolved_names);
+
+    functionlike_info.user_defined = user_defined && !is_anonymous;
 
     for user_attribute in user_attributes {
         let name = resolved_names

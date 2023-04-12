@@ -79,6 +79,7 @@ pub(crate) fn check_arguments_match(
                     .function_context
                     .get_reference_source(&statements_analyzer.get_file_path().0),
                 &mut analysis_data.symbol_references,
+                false,
             );
 
             if let Some((template_name, map)) = template_result.template_types.get_index(i) {

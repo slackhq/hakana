@@ -1595,6 +1595,7 @@ pub fn populate_atomic_type(
     codebase_symbols: &Symbols,
     reference_source: &ReferenceSource,
     symbol_references: &mut SymbolReferences,
+    force: bool,
 ) {
     match t_atomic {
         TAtomic::TDict {
@@ -1608,12 +1609,14 @@ pub fn populate_atomic_type(
                     codebase_symbols,
                     reference_source,
                     symbol_references,
+                    force,
                 );
                 populate_union_type(
                     &mut params.1,
                     codebase_symbols,
                     reference_source,
                     symbol_references,
+                    force,
                 );
             }
 
@@ -1624,6 +1627,7 @@ pub fn populate_atomic_type(
                         codebase_symbols,
                         reference_source,
                         symbol_references,
+                        force,
                     );
                 }
             }
@@ -1639,6 +1643,7 @@ pub fn populate_atomic_type(
                     codebase_symbols,
                     reference_source,
                     symbol_references,
+                    force,
                 );
             }
 
@@ -1649,6 +1654,7 @@ pub fn populate_atomic_type(
                         codebase_symbols,
                         reference_source,
                         symbol_references,
+                        force,
                     );
                 }
             }
@@ -1661,6 +1667,7 @@ pub fn populate_atomic_type(
                 codebase_symbols,
                 reference_source,
                 symbol_references,
+                force,
             );
         }
         TAtomic::TNamedObject {
@@ -1675,6 +1682,7 @@ pub fn populate_atomic_type(
                         codebase_symbols,
                         reference_source,
                         symbol_references,
+                        force,
                     );
                 }
             }
@@ -1690,6 +1698,7 @@ pub fn populate_atomic_type(
                         codebase_symbols,
                         reference_source,
                         symbol_references,
+                        force,
                     );
                 }
             }
@@ -1704,6 +1713,7 @@ pub fn populate_atomic_type(
                 codebase_symbols,
                 reference_source,
                 symbol_references,
+                force,
             );
 
             if let Some(known_items) = known_items {
@@ -1713,6 +1723,7 @@ pub fn populate_atomic_type(
                         codebase_symbols,
                         reference_source,
                         symbol_references,
+                        force,
                     );
                 }
             }
@@ -1728,6 +1739,7 @@ pub fn populate_atomic_type(
                         codebase_symbols,
                         reference_source,
                         symbol_references,
+                        force,
                     );
                 }
             }
@@ -1788,6 +1800,7 @@ pub fn populate_atomic_type(
                 codebase_symbols,
                 reference_source,
                 symbol_references,
+                force,
             );
         }
         TAtomic::TClassTypeConstant { class_type, .. } => {
@@ -1796,6 +1809,7 @@ pub fn populate_atomic_type(
                 codebase_symbols,
                 reference_source,
                 symbol_references,
+                force,
             );
         }
         TAtomic::TGenericParam {
@@ -1806,6 +1820,7 @@ pub fn populate_atomic_type(
                 codebase_symbols,
                 reference_source,
                 symbol_references,
+                force,
             );
         }
         _ => {}

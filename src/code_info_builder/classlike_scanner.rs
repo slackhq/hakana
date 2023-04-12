@@ -974,25 +974,11 @@ fn get_classlike_storage(
     definition_pos: HPos,
     name_pos: HPos,
 ) -> Result<ClassLikeInfo, bool> {
-    let mut storage;
-    if let Some(duplicate_storage) = codebase.classlike_infos.get(class_name) {
-        if !codebase.register_stub_files {
-            return Err(false);
-        } else {
-            //is_classlike_overridden = true;
-
-            storage = duplicate_storage.clone();
-            storage.is_populated = false;
-            storage.all_class_interfaces = FxHashSet::default();
-            storage.direct_class_interfaces = FxHashSet::default();
-            storage.is_stubbed = true;
-
-            // todo maybe handle dependent classlikes
-        }
+    let storage;
+    if let Some(_) = codebase.classlike_infos.get(class_name) {
+        return Err(false);
     } else {
         storage = ClassLikeInfo::new(class_name.clone(), definition_pos, name_pos);
     }
-    storage.is_user_defined = !codebase.register_stub_files;
-    storage.is_stubbed = codebase.register_stub_files;
     Ok(storage)
 }

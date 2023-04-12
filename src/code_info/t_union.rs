@@ -670,7 +670,7 @@ impl TUnion {
     }
 
     pub fn needs_population(&self) -> bool {
-        !self.populated && self.types.iter().any(|v| v.needs_population())
+        !self.populated || self.types.iter().any(|v| v.needs_population())
     }
 
     pub fn is_json_compatible(&self, banned_type_aliases: &Vec<StrId>) -> bool {
@@ -722,8 +722,9 @@ pub fn populate_union_type(
     codebase_symbols: &Symbols,
     reference_source: &ReferenceSource,
     symbol_references: &mut SymbolReferences,
+    force: bool,
 ) {
-    if t_union.populated {
+    if t_union.populated && !force {
         return;
     }
 
@@ -747,6 +748,7 @@ pub fn populate_union_type(
                 codebase_symbols,
                 reference_source,
                 symbol_references,
+                force,
             );
             *as_type = Box::new(new_as_type);
         } else {
@@ -755,6 +757,7 @@ pub fn populate_union_type(
                 codebase_symbols,
                 reference_source,
                 symbol_references,
+                force,
             );
         }
     }

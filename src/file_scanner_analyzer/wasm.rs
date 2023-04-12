@@ -56,7 +56,12 @@ pub async fn scan_and_analyze_single_file(
 
     let mut symbol_references = SymbolReferences::new();
 
-    populate_codebase(codebase, &interner, &mut symbol_references);
+    populate_codebase(
+        codebase,
+        &interner,
+        &mut symbol_references,
+        &FxHashSet::default(),
+    );
 
     let mut analysis_result = analyze_single_file(
         file_name.clone(),
@@ -172,7 +177,12 @@ pub async fn get_single_file_codebase(
 
     let mut symbol_references = SymbolReferences::new();
 
-    populate_codebase(&mut codebase, &interner, &mut symbol_references);
+    populate_codebase(
+        &mut codebase,
+        &interner,
+        &mut symbol_references,
+        &FxHashSet::default(),
+    );
 
     (codebase, interner, file_system)
 }

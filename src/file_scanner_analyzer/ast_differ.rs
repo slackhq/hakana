@@ -123,6 +123,10 @@ pub(crate) fn get_diff(
             if !deletion_ranges.is_empty() {
                 deletion_ranges_map.insert(*file_id, deletion_ranges);
             }
+        } else {
+            for node in &new_file_info.ast_nodes {
+                add_or_delete.push((node.name, STR_EMPTY));
+            }
         }
     }
 

@@ -17,13 +17,16 @@ pub fn populate_codebase(
     codebase: &mut CodebaseInfo,
     interner: &Interner,
     symbol_references: &mut SymbolReferences,
+    safe_symbols: &FxHashSet<StrId>,
 ) {
     let mut all_classlike_descendants = FxHashMap::default();
 
     let new_classlike_names = codebase
         .classlike_infos
         .iter()
-        .filter(|(_, storage)| !storage.is_populated)
+        .filter(|(name, storage)| {
+            !storage.is_populated || (storage.user_defined && !safe_symbols.contains(name))
+        })
         .map(|(k, _)| k.clone())
         .collect::<Vec<_>>();
 
@@ -33,6 +36,7 @@ pub fn populate_codebase(
             &mut all_classlike_descendants,
             codebase,
             symbol_references,
+            safe_symbols,
         );
     }
 
@@ -42,16 +46,20 @@ pub fn populate_codebase(
             &codebase.symbols,
             &ReferenceSource::Symbol(true, *name),
             symbol_references,
+            v.user_defined && !safe_symbols.contains(name),
         );
     }
 
     for (name, storage) in codebase.classlike_infos.iter_mut() {
+        let userland_force_repopulation = storage.user_defined && safe_symbols.contains(name);
+
         for (method_name, v) in storage.methods.iter_mut() {
             populate_functionlike_storage(
                 v,
                 &codebase.symbols,
                 &ReferenceSource::ClasslikeMember(true, *name, *method_name),
                 symbol_references,
+                userland_force_repopulation,
             );
         }
 
@@ -61,17 +69,19 @@ pub fn populate_codebase(
                 &codebase.symbols,
                 &ReferenceSource::ClasslikeMember(true, *name, *prop_name),
                 symbol_references,
+                userland_force_repopulation,
             );
         }
 
         for (_, map) in storage.template_extended_params.iter_mut() {
             for (_, v) in map {
-                if v.needs_population() {
+                if v.needs_population() || userland_force_repopulation {
                     populate_union_type(
                         Arc::make_mut(v),
                         &codebase.symbols,
                         &ReferenceSource::Symbol(true, *name),
                         symbol_references,
+                        userland_force_repopulation,
                     );
                 }
             }
@@ -79,12 +89,13 @@ pub fn populate_codebase(
 
         for (_, map) in storage.template_types.iter_mut() {
             for (_, v) in map {
-                if v.needs_population() {
+                if v.needs_population() || userland_force_repopulation {
                     populate_union_type(
                         Arc::make_mut(v),
                         &codebase.symbols,
                         &ReferenceSource::Symbol(true, *name),
                         symbol_references,
+                        userland_force_repopulation,
                     );
                 }
             }
@@ -97,6 +108,7 @@ pub fn populate_codebase(
                     &codebase.symbols,
                     &ReferenceSource::Symbol(true, *name),
                     symbol_references,
+                    userland_force_repopulation,
                 );
             }
         }
@@ -109,6 +121,7 @@ pub fn populate_codebase(
                         &codebase.symbols,
                         &ReferenceSource::Symbol(true, *name),
                         symbol_references,
+                        userland_force_repopulation,
                     );
                 }
                 _ => {}
@@ -121,6 +134,7 @@ pub fn populate_codebase(
                 &codebase.symbols,
                 &ReferenceSource::Symbol(true, *name),
                 symbol_references,
+                userland_force_repopulation,
             );
         }
 
@@ -130,6 +144,7 @@ pub fn populate_codebase(
                 &codebase.symbols,
                 &ReferenceSource::Symbol(true, *name),
                 symbol_references,
+                userland_force_repopulation,
             );
         }
     }
@@ -140,6 +155,7 @@ pub fn populate_codebase(
             &codebase.symbols,
             &ReferenceSource::Symbol(true, *name),
             symbol_references,
+            type_alias.user_defined && !safe_symbols.contains(name),
         );
 
         if let Some(ref mut as_type) = type_alias.as_type {
@@ -148,6 +164,7 @@ pub fn populate_codebase(
                 &codebase.symbols,
                 &ReferenceSource::Symbol(true, *name),
                 symbol_references,
+                type_alias.user_defined && !safe_symbols.contains(name),
             );
         }
     }
@@ -159,6 +176,7 @@ pub fn populate_codebase(
                 &codebase.symbols,
                 &ReferenceSource::Symbol(true, *name),
                 symbol_references,
+                !safe_symbols.contains(name),
             );
         }
     }
@@ -170,6 +188,7 @@ pub fn populate_codebase(
                 &codebase.symbols,
                 &ReferenceSource::Symbol(true, name.0),
                 symbol_references,
+                false,
             );
         }
     }
@@ -207,13 +226,21 @@ fn populate_functionlike_storage(
     codebase_symbols: &Symbols,
     reference_source: &ReferenceSource,
     symbol_references: &mut SymbolReferences,
+    force_type_population: bool,
 ) {
+    if storage.is_populated && !force_type_population {
+        return;
+    }
+
+    storage.is_populated = true;
+
     if let Some(ref mut return_type) = storage.return_type {
         populate_union_type(
             return_type,
             &codebase_symbols,
             reference_source,
             symbol_references,
+            force_type_population,
         );
     }
 
@@ -224,18 +251,20 @@ fn populate_functionlike_storage(
                 &codebase_symbols,
                 reference_source,
                 symbol_references,
+                force_type_population,
             );
         }
     }
 
     for (_, type_param_map) in storage.template_types.iter_mut() {
         for (_, v) in type_param_map {
-            if v.needs_population() {
+            if force_type_population || v.needs_population() {
                 populate_union_type(
                     Arc::make_mut(v),
                     &codebase_symbols,
                     reference_source,
                     symbol_references,
+                    force_type_population,
                 );
             }
         }
@@ -247,6 +276,7 @@ fn populate_functionlike_storage(
             &codebase_symbols,
             reference_source,
             symbol_references,
+            force_type_population,
         );
     }
 }
@@ -256,6 +286,7 @@ fn populate_classlike_storage(
     all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     symbol_references: &mut SymbolReferences,
+    safe_symbols: &FxHashSet<StrId>,
 ) {
     let mut storage = if let Some(storage) = codebase.classlike_infos.remove(classlike_name) {
         storage
@@ -287,6 +318,7 @@ fn populate_classlike_storage(
                 &codebase.symbols,
                 &ReferenceSource::Symbol(true, *classlike_name),
                 symbol_references,
+                !safe_symbols.contains(classlike_name),
             );
         }
     }
@@ -298,6 +330,7 @@ fn populate_classlike_storage(
             codebase,
             trait_name,
             symbol_references,
+            safe_symbols,
         );
     }
 
@@ -308,6 +341,7 @@ fn populate_classlike_storage(
             codebase,
             parent_classname,
             symbol_references,
+            safe_symbols,
         );
     }
 
@@ -318,6 +352,7 @@ fn populate_classlike_storage(
             codebase,
             direct_parent_interface,
             symbol_references,
+            safe_symbols,
         );
     }
 
@@ -328,6 +363,7 @@ fn populate_classlike_storage(
             codebase,
             direct_class_interface,
             symbol_references,
+            safe_symbols,
         );
     }
 
@@ -394,12 +430,14 @@ fn populate_interface_data_from_parent_interface(
     codebase: &mut CodebaseInfo,
     parent_storage_interface: &StrId,
     symbol_references: &mut SymbolReferences,
+    safe_symbols: &FxHashSet<StrId>,
 ) {
     populate_classlike_storage(
         parent_storage_interface,
         all_classlike_descendants,
         codebase,
         symbol_references,
+        safe_symbols,
     );
 
     symbol_references.add_symbol_reference_to_symbol(storage.name, *parent_storage_interface, true);
@@ -429,14 +467,15 @@ fn populate_data_from_implemented_interface(
     all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     parent_storage_interface: &StrId,
-
     symbol_references: &mut SymbolReferences,
+    safe_symbols: &FxHashSet<StrId>,
 ) {
     populate_classlike_storage(
         parent_storage_interface,
         all_classlike_descendants,
         codebase,
         symbol_references,
+        safe_symbols,
     );
 
     symbol_references.add_symbol_reference_to_symbol(storage.name, *parent_storage_interface, true);
@@ -470,12 +509,14 @@ fn populate_data_from_parent_classlike(
     codebase: &mut CodebaseInfo,
     parent_storage_class: &StrId,
     symbol_references: &mut SymbolReferences,
+    safe_symbols: &FxHashSet<StrId>,
 ) {
     populate_classlike_storage(
         parent_storage_class,
         all_classlike_descendants,
         codebase,
         symbol_references,
+        safe_symbols,
     );
 
     symbol_references.add_symbol_reference_to_symbol(storage.name, *parent_storage_class, true);
@@ -543,12 +584,14 @@ fn populate_data_from_trait(
     codebase: &mut CodebaseInfo,
     trait_name: &StrId,
     symbol_references: &mut SymbolReferences,
+    safe_symbols: &FxHashSet<StrId>,
 ) {
     populate_classlike_storage(
         trait_name,
         all_classlike_descendants,
         codebase,
         symbol_references,
+        safe_symbols,
     );
 
     symbol_references.add_symbol_reference_to_symbol(storage.name, *trait_name, true);

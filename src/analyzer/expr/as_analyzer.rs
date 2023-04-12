@@ -153,6 +153,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                 .function_context
                 .get_reference_source(&statements_analyzer.get_file_path().0),
             &mut analysis_data.symbol_references,
+            false,
         );
         type_expander::expand_union(
             codebase,

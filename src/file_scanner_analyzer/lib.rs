@@ -169,7 +169,7 @@ pub async fn scan_and_analyze(
 
     let populating_now = Instant::now();
 
-    populate_codebase(&mut codebase, &interner, &mut symbol_references);
+    populate_codebase(&mut codebase, &interner, &mut symbol_references, &safe_symbols);
 
     let populating_elapsed = populating_now.elapsed();
 

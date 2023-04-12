@@ -216,6 +216,7 @@ fn get_is_assertions(
             &codebase.symbols,
             &assertion_context.reference_source,
             &mut analysis_data.symbol_references,
+            false,
         );
         type_expander::expand_union(
             codebase,

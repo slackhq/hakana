@@ -37,4 +37,5 @@ pub struct TypeDefinitionInfo {
 
     pub is_literal_string: bool,
     pub location: HPos,
+    pub user_defined: bool,
 }

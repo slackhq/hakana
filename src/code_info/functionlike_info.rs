@@ -63,6 +63,8 @@ pub struct FunctionLikeInfo {
 
     pub name: StrId,
 
+    pub is_populated: bool,
+
     pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
 
     pub deprecated: bool,
@@ -160,6 +162,8 @@ impl FunctionLikeInfo {
             return_type: None,
             return_type_location: None,
             name,
+            is_populated: false,
+            user_defined: false,
             suppressed_issues: None,
             deprecated: false,
             internal_to: None,
@@ -181,7 +185,6 @@ impl FunctionLikeInfo {
             is_async: false,
             must_use: false,
             ignore_taint_path: false,
-            user_defined: false,
             dynamically_callable: false,
             generated: false,
             ignore_taints_if_true: false,

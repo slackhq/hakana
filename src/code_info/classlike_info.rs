@@ -48,8 +48,6 @@ pub struct ClassLikeInfo {
 
     pub name: StrId,
 
-    pub is_user_defined: bool,
-
     /**
      * Interfaces this class implements directly
      */
@@ -220,7 +218,6 @@ impl ClassLikeInfo {
             is_populated: false,
             is_stubbed: false,
             is_deprecated: false,
-            is_user_defined: false,
             is_abstract: false,
             is_final: false,
             kind: SymbolKind::Class,

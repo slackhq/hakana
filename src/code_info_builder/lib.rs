@@ -323,6 +323,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 ) == "Hakana\\SpecialTypes\\LiteralString"
             }),
             location: definition_location,
+            user_defined: self.user_defined,
         };
 
         let shape_source_attribute = typedef
@@ -447,6 +448,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c,
             &self.file_source.comments,
             &self.file_source,
+            self.user_defined,
         );
 
         c.member_name = Some(method_name);
@@ -678,11 +680,11 @@ impl<'a> Scanner<'a> {
             &self.file_source.comments,
             &self.file_source,
             is_anonymous,
+            self.user_defined,
         );
 
         functionlike_storage.is_production_code = self.file_source.is_production_code;
 
-        functionlike_storage.user_defined = self.user_defined && !is_anonymous;
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
 
         if !self.user_defined {
