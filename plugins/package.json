@@ -20,7 +20,7 @@
 		"url": "https://github.com/slackhq/hakana"
 	},
 	"engines": {
-		"vscode": "^1.73.1"
+		"vscode": "^1.77.0"
 	},
 	"activationEvents": [
 		"onLanguage:hack",
