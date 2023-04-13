@@ -1,11 +1,11 @@
 {
 	"name": "hakana-vscode-plugin",
-	"displayName": "Hakana (PHP Static Analysis Linting Machine)",
+	"displayName": "Hakana",
 	"description": "VS Code Plugin for Hakana",
-	"author": "Matthew Brown",
+	"author": "Matt Brown",
 	"license": "MIT",
-	"version": "2.7.0",
-	"publisher": "gethakana",
+	"version": "2.7.1",
+	"publisher": "MattBrown",
 	"categories": [
 		"Linters",
 		"Programming Languages"
@@ -48,9 +48,9 @@
 			"type": "object",
 			"title": "Hack - Hakana Analyzer",
 			"properties": {
-				"hakana.hakanaPath": {
+				"hakana.path": {
 					"type": "string",
-					"default": "~/git/hakana/target/release/hakana-language-server",
+					"default": "hakana-language-server",
 					"description": "If provided, this overrides the Hakana path to use, e.g. bin/hakana-language-server. (Modifying requires VSCode reload)"
 				},
 				"hakana.logLevel": {
@@ -76,6 +76,19 @@
 					"type": "number",
 					"default": 5,
 					"description": "The number of times the Language Server is allowed to crash and restart before it will no longer try to restart (Modifying requires VSCode reload)"
+				},
+				"hakana.docker.enabled": {
+					"type": "boolean",
+					"default": false,
+					"description": "Run the Hack language tools inside Docker"
+				},
+				"hakana.docker.workspacePath": {
+					"type": "string",
+					"description": "Absolute location of workspace root in the remote file system"
+				},
+				"hakana.docker.docker.containerName": {
+					"type": "string",
+					"description": "Name of the local Docker container to run Hakana in"
 				}
 			}
 		},

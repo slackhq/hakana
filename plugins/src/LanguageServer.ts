@@ -8,7 +8,6 @@ import { StatusBar, LanguageServerStatus } from './StatusBar';
 import { spawn, ChildProcess } from 'child_process';
 import { workspace, Uri, Disposable } from 'vscode';
 import { format, URL } from 'url';
-import { join, isAbsolute } from 'path';
 import { ConfigurationService } from './ConfigurationService';
 import LanguageServerErrorHandler from './LanguageServerErrorHandler';
 import { statSync, constants } from 'fs';
@@ -343,39 +342,46 @@ export class LanguageServer {
     private async getHakanaPath(
         args: string[]
     ): Promise<{ file: string; args: string[] }> {
-        const hakanaPath =
-            this.configurationService.get('hakanaPath');
+        let executablePath =
+            this.configurationService.get('path');
 
-        if (!hakanaPath || !hakanaPath.length) {
+        if (!executablePath || !executablePath.length) {
             const msg =
-                'Unable to find any Hakana executable please set one in hakana.hakanaPath';
+                'Unable to find any Hakana executable please set one in hakana.path';
             await showOpenSettingsPrompt(`Hakana can not start: ${msg}`);
             throw new Error(msg);
         }
 
+        const useDocker = this.configurationService.get('useDocker');
+
+        if (useDocker) {
+            args = ["exec", "-i", this.configurationService.get('dockerContainer') || '', executablePath, ...args];
+            executablePath = 'docker';
+        }
+
         try {
-            await access(hakanaPath, constants.X_OK);
+            await access(executablePath, constants.X_OK);
         } catch {
-            const msg = `${hakanaPath} is not executable`;
+            const msg = `${executablePath} is not executable`;
             await showErrorMessage(`Hakana can not start: ${msg}`);
             throw new Error(msg);
         }
 
-        return { file: hakanaPath, args };
+        return { file: executablePath, args };
     }
 
     /**
-     * Returns true if hakana.hakanaPath supports the language server protocol.
+     * Returns true if hakana.path supports the language server protocol.
      * @return Promise<boolean> A promise that resolves to true if the language server protocol is supported
      */
     private async checkHakanaHasLanguageServer(): Promise<boolean> {
-        const hakanaPath = await this.resolveHakanaPath();
+        const { file: hakanaPath } = await this.getHakanaPath([]);
 
         const exists: boolean = this.isFile(hakanaPath);
 
         if (!exists) {
             this.loggingService.logError(
-                `The setting hakana.hakanaPath refers to a path that does not exist. path: ${hakanaPath}`
+                `The setting hakana.path refers to a path that does not exist. path: ${hakanaPath}`
             );
             return false;
         }
@@ -393,25 +399,5 @@ export class LanguageServer {
         } catch (e) {
             return false;
         }
-    }
-
-    /**
-     * Resolve Pslam Script Path if absolute or relative
-     */
-    private async resolveHakanaPath(): Promise<string> {
-        const hakanaPath =
-            this.configurationService.get('hakanaPath');
-
-        if (!hakanaPath) {
-            await showErrorMessage(
-                `Unable to find Hakana Language Server. Please set hakana.hakanaPath`
-            );
-            throw new Error('hakanaPath is not set');
-        }
-
-        if (isAbsolute(hakanaPath)) {
-            return hakanaPath;
-        }
-        return join(this.workspacePath, hakanaPath);
     }
 }

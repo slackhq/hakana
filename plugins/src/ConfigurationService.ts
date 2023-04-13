@@ -4,11 +4,13 @@ import { showOpenSettingsPrompt } from './utils';
 import { LogLevel } from './LoggingService';
 
 interface Config {
-    hakanaPath?: string;
+    path?: string;
     maxRestartCount: integer;
     connectToServerWithTcp: boolean;
     logLevel: LogLevel;
     hideStatusMessageWhenRunning: boolean;
+    useDocker: boolean,
+    dockerContainer?: string,
 }
 
 export class ConfigurationService {
@@ -17,6 +19,7 @@ export class ConfigurationService {
         connectToServerWithTcp: false,
         hideStatusMessageWhenRunning: false,
         logLevel: 'TRACE',
+        useDocker: false,
     };
 
     public constructor() { }
@@ -25,7 +28,7 @@ export class ConfigurationService {
         const workspaceConfiguration: WorkspaceConfiguration =
             workspace.getConfiguration('hakana');
 
-        this.config.hakanaPath = workspaceConfiguration.get('hakanaPath', 'hakana-language-server');
+        this.config.path = workspaceConfiguration.get('path', 'hakana-language-server');
 
         this.config.maxRestartCount = workspaceConfiguration.get(
             'maxRestartCount',
@@ -43,13 +46,16 @@ export class ConfigurationService {
             'hideStatusMessageWhenRunning',
             false
         );
+
+        this.config.useDocker = workspaceConfiguration.get('useDocker', false);
+        this.config.dockerContainer = workspaceConfiguration.get('docker.containerName');
     }
 
     public async validate(): Promise<boolean> {
         // Check if the hakanaServerScriptPath setting was provided.
-        if (!this.config.hakanaPath) {
+        if (!this.config.path) {
             await showOpenSettingsPrompt(
-                'The setting hakana.hakanaPath must be provided (e.g. vendor/bin/hakana-language-server)'
+                'The setting hakana.path must be provided (e.g. hakana-language-server)'
             );
             return false;
         }
