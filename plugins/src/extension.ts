@@ -71,8 +71,6 @@ export async function activate(
         configWatcher.dispose();
         configWatcher = vscode.workspace.createFileSystemWatcher(configPath);
         loggingService.logInfo(`Workspace changed: ${workspacePath}`);
-        languageServer.setWorkspacePath(workspacePath);
-        languageServer.setHakanaConfigPath(configPath);
         languageServer.restart();
     };
 

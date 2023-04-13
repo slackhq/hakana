@@ -1,28 +1,23 @@
 import {
     LanguageClient,
-    StreamInfo,
     ErrorHandler,
     RevealOutputChannelOn,
+    ServerOptions,
 } from 'vscode-languageclient/node';
 import { StatusBar, LanguageServerStatus } from './StatusBar';
-import { spawn, ChildProcess } from 'child_process';
+import { ChildProcess } from 'child_process';
 import { workspace, Uri, Disposable } from 'vscode';
 import { format, URL } from 'url';
 import { ConfigurationService } from './ConfigurationService';
 import LanguageServerErrorHandler from './LanguageServerErrorHandler';
-import { statSync, constants } from 'fs';
-import { access } from 'fs/promises';
+import { statSync } from 'fs';
 import { LoggingService } from './LoggingService';
-import { Writable } from 'stream';
-import { createServer } from 'net';
-import { showOpenSettingsPrompt, showErrorMessage } from './utils';
+import { showOpenSettingsPrompt } from './utils';
 
 export class LanguageServer {
     private languageClient: LanguageClient;
-    private workspacePath: string;
     private statusBar: StatusBar;
     private configurationService: ConfigurationService;
-    private hakanaConfigPath: string;
     private debug: boolean;
     private loggingService: LoggingService;
     private ready = false;
@@ -37,16 +32,21 @@ export class LanguageServer {
         configurationService: ConfigurationService,
         loggingService: LoggingService
     ) {
-        this.workspacePath = workspacePath;
         this.statusBar = statusBar;
         this.configurationService = configurationService;
-        this.hakanaConfigPath = hakanaConfigPath;
         this.loggingService = loggingService;
+
+        const { file, args: fileArgs } = this.getHakanaPath([]);
+
+        const serverOptions: ServerOptions = {
+            command: file,
+            args: fileArgs,
+        };
 
         this.languageClient = new LanguageClient(
             'hakana',
             'Hakana Language Server',
-            this.serverOptions.bind(this),
+            serverOptions,
             {
                 outputChannel: this.loggingService,
                 traceOutputChannel: this.loggingService,
@@ -76,22 +76,6 @@ export class LanguageServer {
         );
 
         this.languageClient.onTelemetry(this.onTelemetry.bind(this));
-    }
-
-    /**
-     * This will NOT restart the server.
-     * @param workspacePath
-     */
-    public setWorkspacePath(workspacePath: string): void {
-        this.workspacePath = workspacePath;
-    }
-
-    /**
-     * This will NOT restart the server.
-     * @param hakanaConfigPath
-     */
-    public setHakanaConfigPath(hakanaConfigPath: string): void {
-        this.hakanaConfigPath = hakanaConfigPath;
     }
 
     public createDefaultErrorHandler(maxRestartCount?: number): ErrorHandler {
@@ -231,140 +215,22 @@ export class LanguageServer {
         return this.languageClient;
     }
 
-    private serverOptions(): Promise<ChildProcess | StreamInfo> {
-        return new Promise<ChildProcess | StreamInfo>((resolve, reject) => {
-            const connectToServerWithTcp = this.configurationService.get(
-                'connectToServerWithTcp'
-            );
-
-            if (connectToServerWithTcp) {
-                const server = createServer((socket) => {
-                    // 'connection' listener
-                    this.loggingService.logDebug('PHP process connected');
-                    socket.on('end', () => {
-                        this.loggingService.logDebug(
-                            'PHP process disconnected'
-                        );
-                    });
-
-                    if (this.loggingService.getOutputLevel() === 'TRACE') {
-                        socket.on('data', (chunk: Buffer) => {
-                            this.loggingService.logDebug(
-                                `SERVER ==> ${chunk}\n`
-                            );
-                        });
-                    }
-
-                    const writeable = new Writable();
-
-                    // @ts-ignore
-                    writeable.write = (chunk, encoding, callback) => {
-                        if (this.loggingService.getOutputLevel() === 'TRACE') {
-                            this.loggingService.logDebug(
-                                chunk.toString
-                                    ? `SERVER <== ${chunk.toString()}\n`
-                                    : chunk
-                            );
-                        }
-                        return socket.write(chunk, encoding, callback);
-                    };
-
-                    server.close();
-                    resolve({ reader: socket, writer: writeable });
-                });
-                server.listen(0, '127.0.0.1', () => {
-                    // Start the language server
-                    // make the language server connect to the client listening on <addr> (e.g. 127.0.0.1:<port>)
-                    this.spawnServer([
-                        // @ts-ignore
-                        '--tcp=127.0.0.1:' + server.address().port,
-                    ]);
-                });
-            } else {
-                // Use STDIO on Linux / Mac if the user set
-                // the override `"hakana.connectToServerWithTcp": false` in their config.
-                resolve(this.spawnServer());
-            }
-        });
-    }
-
-    /**
-     * Spawn the Language Server as a child process
-     * @param args Extra arguments to pass to the server
-     * @return Promise<ChildProcess> A promise that resolves to the spawned process
-     */
-    private async spawnServer(args: string[] = []): Promise<ChildProcess> {
-        this.loggingService.logInfo('Config file should be ' + this.hakanaConfigPath);
-
-        const { file, args: fileArgs } = await this.getHakanaPath(args);
-
-        this.loggingService.logInfo('Spawning ' + file + ' with cwd ' + this.workspacePath + ' and args ' + args.toString());
-
-        const childProcess = spawn(file, fileArgs, {
-            cwd: this.workspacePath,
-        });
-        this.serverProcess = childProcess;
-        childProcess.stderr.on('data', (chunk: Buffer) => {
-            this.loggingService.logError(chunk + '');
-        });
-        if (this.loggingService.getOutputLevel() === 'TRACE') {
-            const orig = childProcess.stdin;
-
-            childProcess.stdin = new Writable();
-            // @ts-ignore
-            childProcess.stdin.write = (chunk, encoding, callback) => {
-                this.loggingService.logDebug(
-                    chunk.toString ? `SERVER <== ${chunk.toString()}\n` : chunk
-                );
-                return orig.write(chunk, encoding, callback);
-            };
-
-            childProcess.stdout.on('data', (chunk: Buffer) => {
-                this.loggingService.logDebug(`SERVER ==> ${chunk}\n`);
-            });
-        }
-
-        childProcess.on('exit', (code, signal) => {
-            this.loggingService.logInfo('Exited with ' + code + ' and signal ' + signal?.toString());
-            this.statusBar.update(
-                LanguageServerStatus.Exited,
-                'Exited (Should Restart)'
-            );
-        });
-        return childProcess;
-    }
-
     /**
      * Get the PHP Executable Location and Arguments to pass to PHP
      *
      * @param args The arguments to pass to PHP
      */
-    private async getHakanaPath(
+    private getHakanaPath(
         args: string[]
-    ): Promise<{ file: string; args: string[] }> {
+    ): { file: string; args: string[] } {
         let executablePath =
-            this.configurationService.get('path');
-
-        if (!executablePath || !executablePath.length) {
-            const msg =
-                'Unable to find any Hakana executable please set one in hakana.path';
-            await showOpenSettingsPrompt(`Hakana can not start: ${msg}`);
-            throw new Error(msg);
-        }
+            this.configurationService.get('path') || 'hakana-language-server';
 
         const useDocker = this.configurationService.get('useDocker');
 
         if (useDocker) {
             args = ["exec", "-i", this.configurationService.get('dockerContainer') || '', executablePath, ...args];
             executablePath = 'docker';
-        }
-
-        try {
-            await access(executablePath, constants.X_OK);
-        } catch {
-            const msg = `${executablePath} is not executable`;
-            await showErrorMessage(`Hakana can not start: ${msg}`);
-            throw new Error(msg);
         }
 
         return { file: executablePath, args };
@@ -375,7 +241,7 @@ export class LanguageServer {
      * @return Promise<boolean> A promise that resolves to true if the language server protocol is supported
      */
     private async checkHakanaHasLanguageServer(): Promise<boolean> {
-        const { file: hakanaPath } = await this.getHakanaPath([]);
+        const { file: hakanaPath } = this.getHakanaPath([]);
 
         const exists: boolean = this.isFile(hakanaPath);
 
