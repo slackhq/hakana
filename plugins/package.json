@@ -4,7 +4,7 @@
 	"description": "VS Code Plugin for Hakana",
 	"author": "Matt Brown",
 	"license": "MIT",
-	"version": "2.7.1",
+	"version": "2.7.2",
 	"publisher": "MattBrown",
 	"categories": [
 		"Linters",
@@ -86,7 +86,7 @@
 					"type": "string",
 					"description": "Absolute location of workspace root in the remote file system"
 				},
-				"hakana.docker.docker.containerName": {
+				"hakana.docker.containerName": {
 					"type": "string",
 					"description": "Name of the local Docker container to run Hakana in"
 				}
