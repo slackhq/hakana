@@ -10,9 +10,7 @@ import { workspace, Uri, Disposable } from 'vscode';
 import { format, URL } from 'url';
 import { ConfigurationService } from './ConfigurationService';
 import LanguageServerErrorHandler from './LanguageServerErrorHandler';
-import { statSync } from 'fs';
 import { LoggingService } from './LoggingService';
-import { showOpenSettingsPrompt } from './utils';
 
 export class LanguageServer {
     private languageClient: LanguageClient;
@@ -186,14 +184,6 @@ export class LanguageServer {
     }
 
     public async start() {
-        // Check if hakana is installed and supports the language server protocol.
-        const isValidHakanaVersion: boolean =
-            await this.checkHakanaHasLanguageServer();
-        if (!isValidHakanaVersion) {
-            showOpenSettingsPrompt('Hakana is not installed');
-            return;
-        }
-
         this.initalizing = true;
         this.statusBar.update(LanguageServerStatus.Initializing, 'starting');
         this.loggingService.logInfo('Starting language server');
@@ -234,36 +224,5 @@ export class LanguageServer {
         }
 
         return { file: executablePath, args };
-    }
-
-    /**
-     * Returns true if hakana.path supports the language server protocol.
-     * @return Promise<boolean> A promise that resolves to true if the language server protocol is supported
-     */
-    private async checkHakanaHasLanguageServer(): Promise<boolean> {
-        const { file: hakanaPath } = this.getHakanaPath([]);
-
-        const exists: boolean = this.isFile(hakanaPath);
-
-        if (!exists) {
-            this.loggingService.logError(
-                `The setting hakana.path refers to a path that does not exist. path: ${hakanaPath}`
-            );
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Returns true if the file exists.
-     */
-    private isFile(filePath: string): boolean {
-        try {
-            const stat = statSync(filePath);
-            return stat.isFile();
-        } catch (e) {
-            return false;
-        }
     }
 }
