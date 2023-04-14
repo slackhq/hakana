@@ -47,7 +47,7 @@ export class ConfigurationService {
             false
         );
 
-        this.config.useDocker = workspaceConfiguration.get('useDocker', false);
+        this.config.useDocker = workspaceConfiguration.get('docker.enabled', false);
         this.config.dockerContainer = workspaceConfiguration.get('docker.containerName');
     }
 
