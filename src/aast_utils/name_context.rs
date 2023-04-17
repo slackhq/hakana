@@ -171,6 +171,8 @@ impl NameContext<'_> {
         match name.as_str() {
             "this"
             | "static"
+            | "self"
+            | "parent"
             | "_"
             | "__AcceptDisposable"
             | "__ConsistentConstruct"
