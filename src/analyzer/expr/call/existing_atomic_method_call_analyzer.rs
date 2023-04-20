@@ -9,7 +9,9 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_reflection_info::{StrId, EFFECT_IMPURE, EFFECT_WRITE_LOCAL, STR_STATIC, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{
+    StrId, EFFECT_IMPURE, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, STR_STATIC,
+};
 use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
 use hakana_type::{
@@ -491,21 +493,29 @@ fn handle_defined_shape_idx(
         .contains(&IssueKind::UnnecessaryShapesIdx)
         && !statements_analyzer.get_config().add_fixmes
     {
-        analysis_data.replacements.insert(
+        if !analysis_data.add_replacement(
             (pos.start_offset(), call_expr.1[0].1.pos().start_offset()),
             Replacement::Remove,
-        );
-        analysis_data.replacements.insert(
+        ) {
+            return;
+        }
+
+        if !analysis_data.add_replacement(
             (
                 call_expr.1[0].1.pos().end_offset(),
                 call_expr.1[1].1.pos().start_offset(),
             ),
             Replacement::Substitute("[".to_string()),
-        );
-        analysis_data.replacements.insert(
+        ) {
+            return;
+        }
+
+        analysis_data.add_replacement(
             (call_expr.1[1].1.pos().end_offset(), pos.end_offset()),
             Replacement::Substitute("]".to_string()),
         );
+
+        return;
     }
 
     let expr_var_id = expression_identifier::get_var_id(

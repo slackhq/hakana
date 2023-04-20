@@ -121,7 +121,7 @@ impl FunctionAnalysisData {
 
     fn add_issue_fixme(&mut self, issue: &Issue) -> bool {
         if let Some(insertion_start) = &issue.pos.insertion_start {
-            self.replacements.insert(
+            self.add_replacement(
                 (insertion_start.offset, insertion_start.offset),
                 Replacement::Substitute(
                     format!(
@@ -499,6 +499,25 @@ impl FunctionAnalysisData {
         }
 
         unused_fixme_positions
+    }
+
+    pub fn add_replacement(&mut self, offsets: (usize, usize), replacement: Replacement) -> bool {
+        for ((start, end), _) in &self.replacements {
+            if (offsets.0 >= *start && offsets.0 <= *end)
+                || (offsets.1 >= *start && offsets.1 <= *end)
+            {
+                return false;
+            }
+
+            if (*start >= offsets.0 && *start <= offsets.1)
+                || (*end >= offsets.0 && *end <= offsets.1)
+            {
+                return false;
+            }
+        }
+
+        self.replacements.insert(offsets, replacement);
+        true
     }
 }
 

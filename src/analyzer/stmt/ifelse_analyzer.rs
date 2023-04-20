@@ -13,8 +13,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
 use crate::{
-    algebra_analyzer, formula_generator, reconciler::reconciler, scope_analyzer::ScopeAnalyzer,
-    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData,
+    algebra_analyzer, formula_generator, function_analysis_data::FunctionAnalysisData,
+    reconciler::reconciler, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
 };
 
 use super::{
@@ -383,7 +383,7 @@ pub(crate) fn analyze(
             .unwrap_or(&0);
 
         if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS = *effects {
-            analysis_data.replacements.insert(
+            analysis_data.add_replacement(
                 (
                     stmt_pos.to_raw_span().start.beg_of_line() as usize,
                     stmt_pos.end_offset() + 1,
@@ -391,11 +391,14 @@ pub(crate) fn analyze(
                 Replacement::Remove,
             );
         } else {
-            analysis_data.replacements.insert(
+            if !analysis_data.add_replacement(
                 (stmt_pos.start_offset() as usize, stmt.0 .1.start_offset()),
                 Replacement::Remove,
-            );
-            analysis_data.replacements.insert(
+            ) {
+                return true;
+            }
+            
+            analysis_data.add_replacement(
                 (stmt.0 .1.end_offset() as usize, stmt_pos.end_offset()),
                 Replacement::Substitute(";".to_string()),
             );

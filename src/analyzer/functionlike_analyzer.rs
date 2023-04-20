@@ -497,7 +497,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         if config.remove_fixmes && parent_analysis_data.is_none() {
             for unused_fixme_position in analysis_data.get_unused_hakana_fixme_positions() {
-                analysis_data.replacements.insert(
+                analysis_data.add_replacement(
                     (unused_fixme_position.0, unused_fixme_position.1),
                     if unused_fixme_position.3 {
                         Replacement::TrimTrailingWhitespace(unused_fixme_position.2)

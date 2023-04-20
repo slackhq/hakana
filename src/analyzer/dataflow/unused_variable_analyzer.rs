@@ -16,9 +16,9 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::dataflow::program_analyzer::{should_ignore_array_fetch, should_ignore_property_fetch};
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::ArrayDataKind;
@@ -208,7 +208,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 });
 
                 if has_matching_node {
-                    analysis_data.replacements.insert(
+                    analysis_data.add_replacement(
                         (list_expr.1.start_offset(), list_expr.1.end_offset()),
                         Replacement::Substitute("$_".to_string()),
                     );
@@ -261,7 +261,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         {
                             if !self.in_single_block {
                                 let span = stmt.0.to_raw_span();
-                                analysis_data.replacements.insert(
+                                analysis_data.add_replacement(
                                     (stmt.0.start_offset(), stmt.0.end_offset()),
                                     Replacement::TrimPrecedingWhitespace(span.start.beg_of_line()),
                                 );
@@ -273,7 +273,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                 );
                             }
                         } else {
-                            analysis_data.replacements.insert(
+                            analysis_data.add_replacement(
                                 (stmt.0.start_offset(), boxed.2 .1.start_offset()),
                                 Replacement::Remove,
                             );
@@ -292,7 +292,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                     if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
                                         *array_offset_effects
                                     {
-                                        analysis_data.replacements.insert(
+                                        analysis_data.add_replacement(
                                             (
                                                 array_offset_expr.pos().start_offset() - 1,
                                                 array_offset_expr.pos().end_offset() + 1,
@@ -324,7 +324,7 @@ impl<'a> Scanner<'a> {
                 match comment {
                     Comment::CmtBlock(block) => {
                         if block.trim() == "HHAST_FIXME[UnusedVariable]" {
-                            analysis_data.replacements.insert(
+                            analysis_data.add_replacement(
                                 (comment_pos.start_offset(), limit),
                                 Replacement::TrimPrecedingWhitespace(
                                     comment_pos.to_raw_span().start.beg_of_line(),
@@ -343,7 +343,7 @@ impl<'a> Scanner<'a> {
                         | "HAKANA_FIXME[UnusedAssignmentStatement]" = block.trim()
                         {
                             let stmt_start = stmt.0.to_raw_span().start;
-                            analysis_data.replacements.insert(
+                            analysis_data.add_replacement(
                                 (
                                     comment_pos.start_offset(),
                                     (stmt_start.beg_of_line() as usize) - 1,
