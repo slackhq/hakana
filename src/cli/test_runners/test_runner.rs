@@ -385,121 +385,115 @@ impl TestRunner {
 
         let workdir_base = dir.clone() + "/workdir";
 
-        copy_recursively(dir.clone() + "/a", workdir_base.clone()).unwrap();
+        let mut folders = vec![dir.clone() + "/a", dir.clone() + "/b"];
+
+        if Path::new(&(dir.clone() + "/c")).exists() {
+            folders.push(dir.clone() + "/c");
+        }
+
+        if Path::new(&(dir.clone() + "/d")).exists() {
+            folders.push(dir.clone() + "/d");
+        }
+
+        let mut previous_scan_data = None;
+        let mut previous_analysis_result = None;
 
         let mut config = self.get_config_for_test(&workdir_base);
         config.ast_diff = true;
         config.find_unused_definitions = true;
         let config = Arc::new(config);
-
         let stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
-        let a_result = hakana_workhorse::scan_and_analyze(
-            stub_dirs.clone(),
-            None,
-            Some(FxHashSet::from_iter([
-                "tests/stubs/stubs.hack".to_string(),
-                format!("{}/third-party/xhp-lib/src", cwd),
-            ])),
-            config.clone(),
-            None,
-            1,
-            logger.clone(),
-            build_checksum,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        for folder in folders {
+            copy_recursively(folder.clone(), workdir_base.clone()).unwrap();
 
-        let previous_scan_data = Some(a_result.1);
-        let previous_analysis_result = Some(a_result.0);
+            let run_result = hakana_workhorse::scan_and_analyze(
+                stub_dirs.clone(),
+                None,
+                Some(FxHashSet::from_iter([
+                    "tests/stubs/stubs.hack".to_string(),
+                    format!("{}/third-party/xhp-lib/src", cwd),
+                ])),
+                config.clone(),
+                None,
+                1,
+                logger.clone(),
+                build_checksum,
+                previous_scan_data,
+                previous_analysis_result,
+                None,
+            )
+            .await;
 
-        fs::remove_dir_all(&workdir_base).unwrap();
+            fs::remove_dir_all(&workdir_base).unwrap();
 
-        copy_recursively(dir.clone() + "/b", workdir_base.clone()).unwrap();
-
-        let b_result = hakana_workhorse::scan_and_analyze(
-            stub_dirs,
-            None,
-            Some(FxHashSet::from_iter([
-                "tests/stubs/stubs.hack".to_string(),
-                format!("{}/third-party/xhp-lib/src", cwd),
-            ])),
-            config.clone(),
-            None,
-            1,
-            logger.clone(),
-            build_checksum,
-            previous_scan_data,
-            previous_analysis_result,
-            None,
-        )
-        .await;
-
-        fs::remove_dir_all(&workdir_base).unwrap();
-
-        match b_result {
-            Ok((analysis_result, run_data)) => {
-                let mut output = vec![];
-                for (file_path, issues) in
-                    analysis_result.get_all_issues(&run_data.interner, &workdir_base, true)
-                {
-                    for issue in issues {
-                        output.push(issue.format(&file_path));
-                    }
+            match run_result {
+                Ok(run_result) => {
+                    previous_scan_data = Some(run_result.1);
+                    previous_analysis_result = Some(run_result.0);
                 }
-
-                let test_output = output;
-
-                let expected_output_path = dir.clone() + "/output.txt";
-                let expected_output = if Path::new(&expected_output_path).exists() {
-                    let expected = fs::read_to_string(expected_output_path)
-                        .unwrap()
-                        .trim()
-                        .to_string();
-                    Some(expected)
-                } else {
-                    None
-                };
-
-                if if let Some(expected_output) = &expected_output {
-                    if expected_output.trim() == test_output.join("").trim() {
-                        true
-                    } else {
-                        expected_output != ""
-                            && test_output.len() == 1
-                            && expected_output
-                                .as_bytes()
-                                .iter()
-                                .filter(|&&c| c == b'\n')
-                                .count()
-                                == 0
-                            && test_output.iter().any(|s| s.contains(expected_output))
-                    }
-                } else {
-                    test_output.is_empty()
-                } {
-                    return (".".to_string(), Some(run_data), Some(analysis_result));
-                } else {
-                    if let Some(expected_output) = &expected_output {
-                        test_diagnostics.push((
-                            dir,
-                            format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
-                        ));
-                    } else {
-                        test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
-                    }
-                    return ("F".to_string(), Some(run_data), Some(analysis_result));
+                Err(error) => {
+                    *had_error = true;
+                    test_diagnostics.push((dir, error.to_string()));
+                    return ("F".to_string(), None, None);
                 }
             }
-            Err(error) => {
-                *had_error = true;
-                test_diagnostics.push((dir, error.to_string()));
-                return ("F".to_string(), None, None);
+        }
+
+        let run_data = previous_scan_data.unwrap();
+        let analysis_result = previous_analysis_result.unwrap();
+
+        let mut output = vec![];
+        for (file_path, issues) in
+            analysis_result.get_all_issues(&run_data.interner, &workdir_base, true)
+        {
+            for issue in issues {
+                output.push(issue.format(&file_path));
             }
+        }
+
+        let test_output = output;
+
+        let expected_output_path = dir.clone() + "/output.txt";
+        let expected_output = if Path::new(&expected_output_path).exists() {
+            let expected = fs::read_to_string(expected_output_path)
+                .unwrap()
+                .trim()
+                .to_string();
+            Some(expected)
+        } else {
+            None
         };
+
+        if if let Some(expected_output) = &expected_output {
+            if expected_output.trim() == test_output.join("").trim() {
+                true
+            } else {
+                expected_output != ""
+                    && test_output.len() == 1
+                    && expected_output
+                        .as_bytes()
+                        .iter()
+                        .filter(|&&c| c == b'\n')
+                        .count()
+                        == 0
+                    && test_output.iter().any(|s| s.contains(expected_output))
+            }
+        } else {
+            test_output.is_empty()
+        } {
+            return (".".to_string(), Some(run_data), Some(analysis_result));
+        } else {
+            if let Some(expected_output) = &expected_output {
+                test_diagnostics.push((
+                    dir,
+                    format!("- {}\n+ {}", expected_output, test_output.join("+ ")),
+                ));
+            } else {
+                test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
+            }
+            return ("F".to_string(), Some(run_data), Some(analysis_result));
+        }
     }
 }
 
