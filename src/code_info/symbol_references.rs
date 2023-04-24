@@ -285,7 +285,7 @@ impl SymbolReferences {
     pub fn get_invalid_symbols(
         &self,
         codebase_diff: &CodebaseDiff,
-    ) -> (FxHashSet<(StrId, StrId)>, FxHashSet<StrId>) {
+    ) -> Option<(FxHashSet<(StrId, StrId)>, FxHashSet<StrId>)> {
         let mut invalid_symbols = FxHashSet::default();
         let mut invalid_symbol_members = FxHashSet::default();
 
@@ -293,7 +293,13 @@ impl SymbolReferences {
 
         let mut seen_symbols = FxHashSet::default();
 
+        let mut expense = 0;
+
         while !new_invalid_symbols.is_empty() {
+            if expense > 1000 {
+                return None;
+            }
+
             let new_invalid_symbol = new_invalid_symbols.pop().unwrap();
 
             if seen_symbols.contains(&new_invalid_symbol) {
@@ -312,8 +318,11 @@ impl SymbolReferences {
                     } else {
                         invalid_symbols.insert(*referencing_member);
                     }
+                    expense += 1;
                 }
             }
+
+            expense += 1;
 
             if !new_invalid_symbol.1.is_empty() {
                 invalid_symbol_members.insert(new_invalid_symbol);
@@ -359,7 +368,7 @@ impl SymbolReferences {
 
         invalid_symbols.extend(invalid_symbol_members);
 
-        (invalid_symbols, partially_invalid_symbols)
+        Some((invalid_symbols, partially_invalid_symbols))
     }
 
     pub fn remove_references_from_invalid_symbols(

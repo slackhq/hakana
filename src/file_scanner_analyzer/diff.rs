@@ -61,7 +61,12 @@ pub(crate) async fn mark_safe_symbols_from_diff(
         };
 
     let (invalid_symbols_and_members, partially_invalid_symbols) =
-        existing_references.get_invalid_symbols(&codebase_diff);
+        if let Some(invalid_symbols) = existing_references.get_invalid_symbols(&codebase_diff) {
+            invalid_symbols
+        } else {
+            // this happens when there are too many invalidated symbols
+            return CachedAnalysis::default();
+        };
 
     let mut cached_analysis = CachedAnalysis::default();
 
