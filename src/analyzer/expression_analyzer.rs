@@ -674,6 +674,7 @@ pub(crate) fn analyze(
             );
             return false;
         }
+        aast::Expr_::Package(_) => todo!(),
     }
 
     for hook in &statements_analyzer.get_config().hooks {
