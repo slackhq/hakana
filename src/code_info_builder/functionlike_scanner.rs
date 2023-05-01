@@ -4,6 +4,7 @@ use super::Context;
 use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
+use hakana_reflection_info::attribute_info::AttributeInfo;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
@@ -371,6 +372,8 @@ pub(crate) fn get_functionlike(
             .unwrap()
             .clone();
 
+        functionlike_info.attributes.push(AttributeInfo { name });
+
         match interner.lookup(name) {
             "Hakana\\SecurityAnalysis\\Source" => {
                 let mut source_types = FxHashSet::default();
@@ -693,6 +696,8 @@ fn convert_param_nodes(
                 let name = resolved_names
                     .get(&user_attribute.name.0.start_offset())
                     .unwrap();
+
+                param.attributes.push(AttributeInfo { name: *name });
 
                 match interner.lookup(*name) {
                     "Hakana\\SecurityAnalysis\\Sink" => {

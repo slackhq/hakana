@@ -150,6 +150,10 @@ pub fn populate_codebase(
     }
 
     for (name, type_alias) in codebase.type_definitions.iter_mut() {
+        for attribute_info in &type_alias.attributes {
+            symbol_references.add_symbol_reference_to_symbol(*name, attribute_info.name, true);
+        }
+
         populate_union_type(
             &mut type_alias.actual_type,
             &codebase.symbols,
@@ -234,6 +238,15 @@ fn populate_functionlike_storage(
 
     storage.is_populated = true;
 
+    for attribute_info in &storage.attributes {
+        match reference_source {
+            ReferenceSource::Symbol(in_signature, a) => symbol_references
+                .add_symbol_reference_to_symbol(*a, attribute_info.name, *in_signature),
+            ReferenceSource::ClasslikeMember(in_signature, a, b) => symbol_references
+                .add_class_member_reference_to_symbol((*a, *b), attribute_info.name, *in_signature),
+        }
+    }
+
     if let Some(ref mut return_type) = storage.return_type {
         populate_union_type(
             return_type,
@@ -253,6 +266,19 @@ fn populate_functionlike_storage(
                 symbol_references,
                 force_type_population,
             );
+        }
+
+        for attribute_info in &param.attributes {
+            match reference_source {
+                ReferenceSource::Symbol(in_signature, a) => symbol_references
+                    .add_symbol_reference_to_symbol(*a, attribute_info.name, *in_signature),
+                ReferenceSource::ClasslikeMember(in_signature, a, b) => symbol_references
+                    .add_class_member_reference_to_symbol(
+                        (*a, *b),
+                        attribute_info.name,
+                        *in_signature,
+                    ),
+            }
         }
     }
 
@@ -309,6 +335,10 @@ fn populate_classlike_storage(
             // todo complain about circular reference
             return;
         }
+    }
+
+    for attribute_info in &storage.attributes {
+        symbol_references.add_symbol_reference_to_symbol(storage.name, attribute_info.name, true);
     }
 
     for (_, param_types) in storage.template_extended_offsets.iter_mut() {

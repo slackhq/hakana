@@ -150,17 +150,17 @@ fn analyse_known_class_constant(
     pos: &Pos,
 ) -> Option<TUnion> {
     if !codebase.class_or_interface_or_enum_or_trait_exists(&classlike_name) {
-        if const_name == "class" && codebase.type_definitions.contains_key(classlike_name) {
-            return Some(wrap_atomic(TAtomic::TLiteralClassname {
-                name: classlike_name.clone(),
-            }));
-        }
-
         analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
             *classlike_name,
             false,
         );
+
+        if const_name == "class" && codebase.type_definitions.contains_key(classlike_name) {
+            return Some(wrap_atomic(TAtomic::TLiteralClassname {
+                name: classlike_name.clone(),
+            }));
+        }
 
         analysis_data.maybe_add_issue(
             if const_name == "class" {

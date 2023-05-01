@@ -6,6 +6,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    attribute_info::AttributeInfo,
     classlike_info::Variance,
     code_location::{FilePath, HPos},
     t_atomic::DictKey,
@@ -38,4 +39,7 @@ pub struct TypeDefinitionInfo {
     pub is_literal_string: bool,
     pub location: HPos,
     pub user_defined: bool,
+    pub generated: bool,
+
+    pub attributes: Vec<AttributeInfo>,
 }

@@ -6,6 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
     ast_signature::DefSignatureNode,
+    attribute_info::AttributeInfo,
     class_constant_info::ConstantInfo,
     classlike_info::{ClassConstantType, ClassLikeInfo, Variance},
     code_location::HPos,
@@ -524,6 +525,8 @@ pub(crate) fn scan(
         if name == codegen_id {
             storage.generated = true;
         }
+
+        storage.attributes.push(AttributeInfo { name });
 
         if name == sealed_id {
             let mut child_classlikes = FxHashSet::default();

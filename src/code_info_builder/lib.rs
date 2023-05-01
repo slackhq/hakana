@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::typehint_resolver::get_type_from_hint;
 use hakana_aast_helper::Uses;
+use hakana_reflection_info::attribute_info::AttributeInfo;
 use hakana_reflection_info::file_info::FileInfo;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_union::TUnion;
@@ -282,6 +283,40 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             is_constant: false,
         });
 
+        let mut is_literal_string = false;
+        let mut is_codegen = false;
+
+        let mut shape_source_attribute = None;
+
+        let mut attributes = vec![];
+
+        for user_attribute in &typedef.user_attributes {
+            let attribute_name = self
+                .resolved_names
+                .get(&user_attribute.name.0.start_offset())
+                .unwrap();
+
+            let attribute_str = self.interner.lookup(*attribute_name);
+
+            attributes.push(AttributeInfo {
+                name: *attribute_name,
+            });
+
+            match attribute_str {
+                "Hakana\\SecurityAnalysis\\ShapeSource" => {
+                    shape_source_attribute = Some(user_attribute);
+                    break;
+                }
+                "Hakana\\SpecialTypes\\LiteralString" => {
+                    is_literal_string = true;
+                }
+                "Codegen" => {
+                    is_codegen = true;
+                }
+                _ => {}
+            }
+        }
+
         let mut type_definition = TypeDefinitionInfo {
             newtype_file: if typedef.vis.is_opaque() {
                 Some(self.file_source.file_path)
@@ -314,30 +349,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             template_types: template_type_map,
             generic_variance,
             shape_field_taints: None,
-            is_literal_string: typedef.user_attributes.iter().any(|user_attribute| {
-                self.interner.lookup(
-                    *self
-                        .resolved_names
-                        .get(&user_attribute.name.0.start_offset())
-                        .unwrap(),
-                ) == "Hakana\\SpecialTypes\\LiteralString"
-            }),
+            is_literal_string,
+            generated: is_codegen,
             location: definition_location,
             user_defined: self.user_defined,
+            attributes,
         };
-
-        let shape_source_attribute = typedef
-            .user_attributes
-            .iter()
-            .filter(|user_attribute| {
-                self.interner.lookup(
-                    *self
-                        .resolved_names
-                        .get(&user_attribute.name.0.start_offset())
-                        .unwrap(),
-                ) == "Hakana\\SecurityAnalysis\\ShapeSource"
-            })
-            .next();
 
         if let Some(shape_source_attribute) = shape_source_attribute {
             let mut shape_sources = FxHashMap::default();
