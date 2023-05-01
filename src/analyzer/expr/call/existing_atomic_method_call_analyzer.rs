@@ -457,6 +457,42 @@ fn handle_shapes_static_method(
                 return Some(expr_type.unwrap_or(get_mixed_any()));
             }
         }
+        "at" => {
+            if call_expr.1.len() == 2 {
+                let dict_type = analysis_data
+                    .get_rc_expr_type(call_expr.1[0].1.pos())
+                    .cloned();
+                let dim_type = analysis_data
+                    .get_rc_expr_type(call_expr.1[1].1.pos())
+                    .cloned();
+
+                let mut expr_type = None;
+
+                if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
+                    for atomic_type in &dict_type.types {
+                        if let TAtomic::TDict { .. } = atomic_type {
+                            let expr_type_inner = handle_array_access_on_dict(
+                                statements_analyzer,
+                                pos,
+                                analysis_data,
+                                context,
+                                atomic_type,
+                                &*dim_type,
+                                false,
+                                &mut false,
+                                true,
+                                &mut false,
+                                &mut false,
+                            );
+
+                            expr_type = Some(expr_type_inner);
+                        }
+                    }
+                }
+
+                return Some(expr_type.unwrap_or(get_mixed_any()));
+            }
+        }
         "toDict" | "toArray" => {
             let arg_type = analysis_data.get_expr_type(call_expr.1[0].1.pos()).cloned();
 
