@@ -123,10 +123,10 @@ index 6972660fea5..574f249d9bb 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-index b03e0c42934..b6e0417cb68 100644
+index 33a47588685..5b9dc61eaf1 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-@@ -2115,7 +2115,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
+@@ -2133,7 +2133,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -135,10 +135,10 @@ index b03e0c42934..b6e0417cb68 100644
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-index 4bdfdba4391..7faf5ebc0cc 100644
+index e4430459744..06ea21523e1 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-@@ -2115,7 +2115,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
+@@ -2133,7 +2133,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -147,7 +147,7 @@ index 4bdfdba4391..7faf5ebc0cc 100644
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/manual/errors_impl.rs b/hphp/hack/src/oxidized/manual/errors_impl.rs
-index 2edf6f48803..42f0ed8edbc 100644
+index 1c6b99eac19..805260e81f4 100644
 --- a/hphp/hack/src/oxidized/manual/errors_impl.rs
 +++ b/hphp/hack/src/oxidized/manual/errors_impl.rs
 @@ -68,11 +68,7 @@ impl<PP: Ord + FileOrd, P: Ord + FileOrd> UserError<PP, P> {
@@ -820,10 +820,10 @@ index 8db2f3a3271..cadcc02dbbf 100644
                      }
                      _ => {
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index c31a13f0a85..85f1f9c97c2 100644
+index aa0f67fac65..bf35cfee079 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3428,12 +3428,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3443,12 +3443,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);
@@ -888,19 +888,6 @@ index 9bb0c19f13f..687e3a002fd 100644
                              if !(in_block
                                  || in_hhi
                                  || self.allowed_decl_fixme_codes.contains(&code))
-diff --git a/hphp/hack/src/utils/escaper/Cargo.toml b/hphp/hack/src/utils/escaper/Cargo.toml
-index 84ed3f72ed2..0505586258f 100644
---- a/hphp/hack/src/utils/escaper/Cargo.toml
-+++ b/hphp/hack/src/utils/escaper/Cargo.toml
-@@ -9,7 +9,7 @@ edition = "2021"
- path = "../escaper.rs"
- 
- [dependencies]
--bstr = { version = "1.0", features = ["serde", "std", "unicode"] }
-+bstr = { version = "=1.2.0", features = ["serde", "std", "unicode"] }
- bumpalo = { version = "3.11.1", features = ["collections"] }
- 
- [dev-dependencies]
 diff --git a/hphp/hack/src/utils/hh24_types/hh24_types.rs b/hphp/hack/src/utils/hh24_types/hh24_types.rs
 index 0febd35fe7d..4fd8c642cac 100644
 --- a/hphp/hack/src/utils/hh24_types/hh24_types.rs
