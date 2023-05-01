@@ -126,6 +126,7 @@ pub enum IssueKind {
     UnusedPublicOrProtectedMethod,
     UnusedStatement,
     UnusedTrait,
+    UnusedTypeDefinition,
 }
 
 impl IssueKind {
@@ -180,6 +181,7 @@ impl IssueKind {
     pub fn is_unused_definition(&self) -> bool {
         match &self {
             Self::UnusedClass
+            | Self::UnusedTypeDefinition
             | Self::UnusedFunction
             | Self::UnusedInterface
             | Self::UnusedProperty

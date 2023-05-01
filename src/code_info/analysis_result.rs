@@ -103,7 +103,9 @@ impl AnalysisResult {
                 file_issues.extend(file_definition_issues);
                 file_issues.sort_by(|a, b| a.pos.start_offset.cmp(&b.pos.start_offset));
             } else {
-                issues.insert(file_path, file_definition_issues.iter().collect::<Vec<_>>());
+                let mut file_issues: Vec<_> = file_definition_issues.iter().collect::<Vec<_>>();
+                file_issues.sort_by(|a, b| a.pos.start_offset.cmp(&b.pos.start_offset));
+                issues.insert(file_path, file_issues);
             }
         }
 

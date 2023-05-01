@@ -268,6 +268,62 @@ pub(crate) fn find_unused_definitions(
             }
         }
     }
+
+    'outer2: for (type_name, type_definition_info) in &codebase.type_definitions {
+        if type_definition_info.user_defined && !type_definition_info.generated {
+            let pos = &type_definition_info.location;
+            let file_path = interner.lookup(&pos.file_path.0);
+
+            if let Some(ignored_paths) = ignored_paths {
+                for ignored_path in ignored_paths {
+                    if file_path.matches(ignored_path.as_str()).count() > 0 {
+                        continue 'outer2;
+                    }
+                }
+            }
+
+            if !config.allow_issue_kind_in_file(&IssueKind::UnusedTypeDefinition, &file_path) {
+                continue;
+            }
+
+            if !referenced_symbols_and_members.contains(&(*type_name, STR_EMPTY)) {
+                let issue = Issue::new(
+                    IssueKind::UnusedTypeDefinition,
+                    format!("Unused type definition {}", interner.lookup(type_name)),
+                    pos.clone(),
+                    &Some(FunctionLikeIdentifier::Function(*type_name)),
+                );
+
+                if config.migration_symbols.contains(&(
+                    "unused_symbol".to_string(),
+                    interner.lookup(type_name).to_string(),
+                )) {
+                    analysis_result
+                        .replacements
+                        .entry(pos.file_path)
+                        .or_insert_with(BTreeMap::new)
+                        .insert(
+                            (pos.start_offset, pos.end_offset),
+                            Replacement::TrimPrecedingWhitespace(
+                                (pos.start_offset - (pos.start_column - 1)) as u64,
+                            ),
+                        );
+                }
+
+                if config.can_add_issue(&issue) {
+                    *analysis_result
+                        .issue_counts
+                        .entry(issue.kind.clone())
+                        .or_insert(0) += 1;
+                    analysis_result
+                        .emitted_definition_issues
+                        .entry(pos.file_path)
+                        .or_insert_with(Vec::new)
+                        .push(issue);
+                }
+            }
+        }
+    }
 }
 
 fn has_upstream_method_call(
