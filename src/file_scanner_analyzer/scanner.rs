@@ -274,7 +274,7 @@ pub async fn scan_files(
     let resolved_names = Arc::new(Mutex::new(resolved_names));
     let asts = Arc::new(Mutex::new(FxHashMap::default()));
 
-    let has_new_files = files_to_scan.len() > 0;
+    let has_new_files = files_to_scan.len() > 0 || changed_files.len() > 0;
 
     if files_to_scan.len() > 0 {
         let file_scanning_now = Instant::now();
