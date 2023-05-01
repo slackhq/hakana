@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
@@ -104,7 +104,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {
     match &expr.2 {
         aast::Expr_::Binop(x) => {
-            let (binop, e1, e2) = (&x.0, &x.1, &x.2);
+            let (binop, e1, e2) = (&x.bop, &x.lhs, &x.rhs);
             match binop {
                 oxidized::ast_defs::Bop::Dot => {
                     let mut concat_nodes = get_concat_nodes(e1);

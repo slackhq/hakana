@@ -114,11 +114,11 @@ pub(crate) fn analyze(
                     &aast::Expr(
                         (),
                         pos.clone(),
-                        aast::Expr_::Binop(Box::new((
-                            *assignment_type.clone(),
-                            assign_var.clone(),
-                            assign_value.clone(),
-                        ))),
+                        aast::Expr_::Binop(Box::new(oxidized::aast::Binop {
+                            bop: *assignment_type.clone(),
+                            lhs: assign_var.clone(),
+                            rhs: assign_value.clone(),
+                        })),
                     ),
                     analysis_data,
                     context,

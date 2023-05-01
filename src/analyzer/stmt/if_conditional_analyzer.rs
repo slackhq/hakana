@@ -15,8 +15,8 @@ use oxidized::{aast, ast, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    reconciler::reconciler, statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, reconciler::reconciler,
+    statements_analyzer::StatementsAnalyzer,
 };
 
 use super::if_conditional_scope::IfConditionalScope;
@@ -277,48 +277,52 @@ pub(crate) fn analyze<'a>(
 }
 
 fn get_definitely_evaluated_expression_after_if(stmt: &aast::Expr<(), ()>) -> &aast::Expr<(), ()> {
-    if let Some((bop, left, _)) = stmt.2.as_binop() {
-        // todo handle <expr> === true
+    match &stmt.2 {
+        aast::Expr_::Binop(boxed) => {
+            // todo handle <expr> === true
 
-        if let ast::Bop::Ampamp = bop {
-            return get_definitely_evaluated_expression_after_if(&left);
+            if let ast::Bop::Ampamp = boxed.bop {
+                return get_definitely_evaluated_expression_after_if(&boxed.lhs);
+            }
+
+            return stmt;
         }
+        aast::Expr_::Unop(boxed) => {
+            if let ast::Uop::Unot = boxed.0 {
+                let inner_expr = get_definitely_evaluated_expression_inside_if(&boxed.1);
 
-        return stmt;
-    }
-
-    if let Some((uop, expr)) = stmt.2.as_unop() {
-        if let ast::Uop::Unot = uop {
-            let inner_expr = get_definitely_evaluated_expression_inside_if(&expr);
-
-            if inner_expr != expr {
-                return inner_expr;
+                if inner_expr != &boxed.1 {
+                    return inner_expr;
+                }
             }
         }
+        _ => {}
     }
 
     stmt
 }
 
 fn get_definitely_evaluated_expression_inside_if(stmt: &aast::Expr<(), ()>) -> &aast::Expr<(), ()> {
-    if let Some((bop, left, _)) = stmt.2.as_binop() {
-        // todo handle <expr> === true
+    match &stmt.2 {
+        aast::Expr_::Binop(boxed) => {
+            // todo handle <expr> === true
 
-        if let ast::Bop::Barbar = bop {
-            return get_definitely_evaluated_expression_inside_if(&left);
+            if let ast::Bop::Barbar = boxed.bop {
+                return get_definitely_evaluated_expression_inside_if(&boxed.lhs);
+            }
+
+            return stmt;
         }
+        aast::Expr_::Unop(boxed) => {
+            if let ast::Uop::Unot = boxed.0 {
+                let inner_expr = get_definitely_evaluated_expression_after_if(&boxed.1);
 
-        return stmt;
-    }
-
-    if let Some((uop, expr)) = stmt.2.as_unop() {
-        if let ast::Uop::Unot = uop {
-            let inner_expr = get_definitely_evaluated_expression_after_if(&expr);
-
-            if inner_expr != expr {
-                return inner_expr;
+                if inner_expr != &boxed.1 {
+                    return inner_expr;
+                }
             }
         }
+        _ => {}
     }
 
     stmt

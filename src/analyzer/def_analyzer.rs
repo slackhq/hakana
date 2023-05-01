@@ -1,10 +1,10 @@
 use crate::classlike_analyzer::ClassLikeAnalyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::FunctionLikeAnalyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{expression_analyzer, stmt_analyzer};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::function_context::FunctionContext;
@@ -100,6 +100,5 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual(),
             );
         }
-        aast::Def::Package(_) => todo!(),
     }
 }

@@ -19,7 +19,7 @@ pub(crate) fn analyze(
     stmt: (
         &aast::Block<(), ()>,
         &Vec<aast::Catch<(), ()>>,
-        &aast::Block<(), ()>,
+        &aast::FinallyBlock<(), ()>,
     ),
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,

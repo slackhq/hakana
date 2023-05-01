@@ -1,8 +1,9 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_type::{get_bool, get_literal_int};
+use oxidized::ast::Binop;
 use oxidized::ast_defs::Bop;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast};
@@ -77,23 +78,23 @@ pub(crate) fn analyze(
                 &aast::Expr(
                     (),
                     pos.clone(),
-                    aast::Expr_::Binop(Box::new((
-                        Bop::Eq(None),
-                        expr.1.clone(),
-                        aast::Expr(
+                    aast::Expr_::Binop(Box::new(Binop {
+                        bop: Bop::Eq(None),
+                        lhs: expr.1.clone(),
+                        rhs: aast::Expr(
                             (),
                             pos.clone(),
-                            aast::Expr_::Binop(Box::new((
-                                if expr.0.is_upincr() || expr.0.is_uincr() {
+                            aast::Expr_::Binop(Box::new(Binop {
+                                bop: if expr.0.is_upincr() || expr.0.is_uincr() {
                                     Bop::Plus
                                 } else {
                                     Bop::Minus
                                 },
-                                expr.1.clone(),
-                                aast::Expr((), pos.clone(), aast::Expr_::Int("1".to_string())),
-                            ))),
+                                lhs: expr.1.clone(),
+                                rhs: aast::Expr((), pos.clone(), aast::Expr_::Int("1".to_string())),
+                            })),
                         ),
-                    ))),
+                    })),
                 ),
                 analysis_data,
                 context,

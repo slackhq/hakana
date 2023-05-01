@@ -13,10 +13,10 @@ use crate::expr::{
     unop_analyzer, variable_fetch_analyzer, xml_analyzer, yield_analyzer,
 };
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -70,7 +70,7 @@ pub(crate) fn analyze(
 
     match &expr.2 {
         aast::Expr_::Binop(x) => {
-            let (binop, e1, e2) = (&x.0, &x.1, &x.2);
+            let (binop, e1, e2) = (&x.bop, &x.lhs, &x.rhs);
 
             if !binop_analyzer::analyze(
                 statements_analyzer,

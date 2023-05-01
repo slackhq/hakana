@@ -6,6 +6,7 @@ use hakana_type::combine_union_types;
 
 use hakana_type::combine_optional_union_types;
 use oxidized::aast;
+use oxidized::ast::Binop;
 use oxidized::ast_defs::ParamKind;
 use oxidized::file_pos::FilePos;
 use oxidized::pos_span_raw::PosSpanRaw;
@@ -187,11 +188,11 @@ pub(crate) fn analyze_case(
                 aast::Expr(
                     (),
                     adjusted_pos,
-                    aast::Expr_::Binop(Box::new((
-                        ast_defs::Bop::Eqeqeq,
-                        switch_condition.clone(),
-                        case_cond.clone(),
-                    ))),
+                    aast::Expr_::Binop(Box::new(Binop {
+                        bop: ast_defs::Bop::Eqeqeq,
+                        lhs: switch_condition.clone(),
+                        rhs: case_cond.clone(),
+                    })),
                 )
             }
         });
@@ -219,11 +220,11 @@ pub(crate) fn analyze_case(
                         start: new_pos_start,
                         end: new_pos_end,
                     }),
-                    aast::Expr_::Binop(Box::new((
-                        ast_defs::Bop::Barbar,
-                        leftover_case_equality_expr.clone(),
-                        case_equality_expression,
-                    ))),
+                    aast::Expr_::Binop(Box::new(Binop {
+                        bop: ast_defs::Bop::Barbar,
+                        lhs: leftover_case_equality_expr.clone(),
+                        rhs: case_equality_expression,
+                    })),
                 )
             } else {
                 case_equality_expression
@@ -250,21 +251,21 @@ pub(crate) fn analyze_case(
         let case_or_default_equality_expr = case_equality_expr.unwrap_or(aast::Expr(
             (),
             switch_condition.pos().clone(),
-            aast::Expr_::Binop(Box::new((
-                ast_defs::Bop::Eqeqeq,
-                switch_condition.clone(),
-                switch_condition.clone(),
-            ))),
+            aast::Expr_::Binop(Box::new(Binop {
+                bop: ast_defs::Bop::Eqeqeq,
+                lhs: switch_condition.clone(),
+                rhs: switch_condition.clone(),
+            })),
         ));
 
         case_equality_expr = Some(aast::Expr(
             (),
             case_or_default_equality_expr.pos().clone(),
-            aast::Expr_::Binop(Box::new((
-                ast_defs::Bop::Barbar,
-                leftover_case_equality_expr.clone(),
-                case_or_default_equality_expr.clone(),
-            ))),
+            aast::Expr_::Binop(Box::new(Binop {
+                bop: ast_defs::Bop::Barbar,
+                lhs: leftover_case_equality_expr.clone(),
+                rhs: case_or_default_equality_expr.clone(),
+            })),
         ));
     }
 

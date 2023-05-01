@@ -250,10 +250,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         if has_matching_node {
             if let aast::Stmt_::Expr(boxed) = &stmt.1 {
                 if let aast::Expr_::Binop(boxed) = &boxed.2 {
-                    if let oxidized::ast_defs::Bop::Eq(_) = &boxed.0 {
+                    if let oxidized::ast_defs::Bop::Eq(_) = &boxed.bop {
                         let expression_effects = analysis_data
                             .expr_effects
-                            .get(&(boxed.2 .1.start_offset(), boxed.2 .1.end_offset()))
+                            .get(&(boxed.rhs.1.start_offset(), boxed.rhs.1.end_offset()))
                             .unwrap_or(&0);
 
                         if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
@@ -274,12 +274,12 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             }
                         } else {
                             analysis_data.add_replacement(
-                                (stmt.0.start_offset(), boxed.2 .1.start_offset()),
+                                (stmt.0.start_offset(), boxed.rhs.1.start_offset()),
                                 Replacement::Remove,
                             );
 
                             // remove trailing array fetches
-                            if let aast::Expr_::ArrayGet(array_get) = &boxed.2 .2 {
+                            if let aast::Expr_::ArrayGet(array_get) = &boxed.rhs.2 {
                                 if let Some(array_offset_expr) = &array_get.1 {
                                     let array_offset_effects = analysis_data
                                         .expr_effects

@@ -99,12 +99,12 @@ pub(crate) fn scrape_assertions(
     }
 
     if let aast::Expr_::Binop(binop) = &conditional.2 {
-        match binop.0 {
+        match binop.bop {
             ast_defs::Bop::Eqeq | ast_defs::Bop::Eqeqeq => {
                 return scrape_equality_assertions(
-                    &binop.0,
-                    &binop.1,
-                    &binop.2,
+                    &binop.bop,
+                    &binop.lhs,
+                    &binop.rhs,
                     &analysis_data,
                     assertion_context,
                     cache,
@@ -113,9 +113,9 @@ pub(crate) fn scrape_assertions(
             }
             ast_defs::Bop::Diff | ast_defs::Bop::Diff2 => {
                 return scrape_inequality_assertions(
-                    &binop.0,
-                    &binop.1,
-                    &binop.2,
+                    &binop.bop,
+                    &binop.lhs,
+                    &binop.rhs,
                     &analysis_data,
                     assertion_context,
                     cache,
@@ -123,9 +123,9 @@ pub(crate) fn scrape_assertions(
                 );
             }
             ast_defs::Bop::QuestionQuestion => {
-                if let aast::Expr_::False | aast::Expr_::Null = &binop.2 .2 {
+                if let aast::Expr_::False | aast::Expr_::Null = &binop.rhs.2 {
                     let var_name = get_var_id(
-                        &binop.1,
+                        &binop.lhs,
                         assertion_context.this_class_name,
                         assertion_context.file_source,
                         assertion_context.resolved_names,

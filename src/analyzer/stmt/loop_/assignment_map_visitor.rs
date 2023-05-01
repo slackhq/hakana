@@ -36,15 +36,15 @@ impl<'ast> Visitor<'ast> for Scanner {
 
     fn visit_expr(&mut self, c: &mut Context, expr: &aast::Expr<(), ()>) -> Result<(), ()> {
         match &expr.2 {
-            aast::Expr_::Binop(boxed) => match boxed.0 {
+            aast::Expr_::Binop(boxed) => match boxed.bop {
                 ast_defs::Bop::Eq(_) => {
                     let right_var_id = expression_identifier::get_root_var_id(
-                        &boxed.2,
+                        &boxed.rhs,
                         c.this_class_name.as_ref(),
                         None,
                     );
 
-                    if let aast::Expr_::List(contents) = &boxed.1 .2 {
+                    if let aast::Expr_::List(contents) = &boxed.lhs.2 {
                         for list_expr in contents {
                             let left_var_id = expression_identifier::get_root_var_id(
                                 &list_expr,
@@ -64,7 +64,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                         }
                     } else {
                         let left_var_id = expression_identifier::get_root_var_id(
-                            &boxed.1,
+                            &boxed.lhs,
                             c.this_class_name.as_ref(),
                             None,
                         );

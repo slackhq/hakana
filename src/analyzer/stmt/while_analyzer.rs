@@ -1,9 +1,9 @@
 use super::{control_analyzer::BreakContext, loop_analyzer};
 use crate::{
+    function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
 };
 use oxidized::{aast, ast_defs};
 use std::rc::Rc;
@@ -97,9 +97,9 @@ pub(crate) fn analyze(
 
 pub(crate) fn get_and_expressions(cond: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {
     if let aast::Expr_::Binop(boxed) = &cond.2 {
-        if let ast_defs::Bop::Ampamp = boxed.0 {
-            let mut anded = get_and_expressions(&boxed.1);
-            anded.extend(get_and_expressions(&boxed.2));
+        if let ast_defs::Bop::Ampamp = boxed.bop {
+            let mut anded = get_and_expressions(&boxed.lhs);
+            anded.extend(get_and_expressions(&boxed.rhs));
             return anded;
         }
     }

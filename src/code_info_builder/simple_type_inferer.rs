@@ -177,7 +177,7 @@ pub fn infer(
             }))
         }
         aast::Expr_::Binop(boxed) => {
-            if let ast_defs::Bop::Dot = boxed.0 {
+            if let ast_defs::Bop::Dot = boxed.bop {
                 Some(wrap_atomic(TAtomic::TStringWithFlags(true, false, true)))
             } else {
                 None

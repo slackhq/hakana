@@ -122,36 +122,66 @@ index 6972660fea5..574f249d9bb 100644
  use rusqlite::OptionalExtension;
  
  pub struct Names {
+diff --git a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
+index b03e0c42934..b6e0417cb68 100644
+--- a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
++++ b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
+@@ -2115,7 +2115,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
+         self.file_attributes.accept(c, v)?;
+         self.mode.accept(c, v)?;
+         self.vis.accept(c, v)?;
+-        self.namespace.accept(c, v)?;
+         self.span.accept(c, v)?;
+         self.emit_id.accept(c, v)?;
+         self.is_ctx.accept(c, v)?;
+diff --git a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
+index 4bdfdba4391..7faf5ebc0cc 100644
+--- a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
++++ b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
+@@ -2115,7 +2115,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
+         self.file_attributes.accept(c, v)?;
+         self.mode.accept(c, v)?;
+         self.vis.accept(c, v)?;
+-        self.namespace.accept(c, v)?;
+         self.span.accept(c, v)?;
+         self.emit_id.accept(c, v)?;
+         self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/manual/errors_impl.rs b/hphp/hack/src/oxidized/manual/errors_impl.rs
-index 7ccc591a940..f66c4470182 100644
+index 2edf6f48803..42f0ed8edbc 100644
 --- a/hphp/hack/src/oxidized/manual/errors_impl.rs
 +++ b/hphp/hack/src/oxidized/manual/errors_impl.rs
-@@ -5,8 +5,6 @@
- 
- use std::cmp::Ordering;
- 
--use ocamlrep::rc::RcOc;
--
- use crate::errors::*;
- use crate::message::Message;
- use crate::pos::Pos;
-@@ -50,11 +48,6 @@ pub trait FileOrd {
-     fn cmp_file(&self, other: &Self) -> Ordering;
+@@ -68,11 +68,7 @@ impl<PP: Ord + FileOrd, P: Ord + FileOrd> UserError<PP, P> {
+                 self_code.cmp(&other_code)
+             }
+         };
+-        // The primary sort order is by file of the claim (main message).
+-        self_pos
+-            .cmp_file(other_pos)
+-            // If the files are the same, sort by error code or phase, depending on parameter.
+-            .then(compare_code(*self_code, *other_code))
++        compare_code(*self_code, *other_code)
+             // If the phases are the same, sort by position.
+             .then(self_pos.cmp(other_pos))
+             // If the positions are the same, sort by claim message text.
+@@ -85,13 +81,9 @@ impl<PP: Ord + FileOrd, P: Ord + FileOrd> UserError<PP, P> {
  }
  
--impl FileOrd for Pos {
+ pub trait FileOrd {
+-    fn cmp_file(&self, other: &Self) -> Ordering;
+ }
+ 
+ impl FileOrd for Pos {
 -    fn cmp_file(&self, other: &Self) -> Ordering {
 -        self.filename().cmp(other.filename())
 -    }
--}
+ }
  
  impl<PP: Ord + FileOrd, P: Ord + FileOrd> Ord for UserError<PP, P> {
-     // Intended to match the implementation of `compare` in `Errors.sort` in OCaml.
-@@ -122,10 +115,9 @@ impl Naming {
+@@ -133,10 +125,9 @@ impl Naming {
  
      pub fn method_needs_visibility(first_token_p: Pos, name_p: Pos) -> Error {
          // Create a zero width position at the start of the first token.
--        let file = RcOc::clone(first_token_p.filename_rc_ref());
+-        let file = first_token_p.filename_rc();
          let mut p_span = first_token_p.to_raw_span();
          p_span.end = p_span.start;
 -        let fix_pos = Pos::from_raw_span(file, p_span);
@@ -691,7 +721,7 @@ index b22f1419210..22476a61291 100644
          assert_eq!(hash(&Id(pos, "foo")), hash(&Id(pos, "foo")));
          assert_eq!(hash(&Id(none, "foo")), hash(&Id(pos, "foo")));
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index b589bff13eb..abf8c06261d 100644
+index 6bae7308653..9db0c19f5e1 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
 @@ -78,11 +78,11 @@ impl<'src> AastParser {
@@ -767,7 +797,7 @@ index b589bff13eb..abf8c06261d 100644
                  error_peak,
                  arena_bytes: arena.allocated_bytes() as u64,
                  ..Default::default()
-@@ -318,7 +318,7 @@ impl<'src> AastParser {
+@@ -315,7 +315,7 @@ impl<'src> AastParser {
                      disable_hh_ignore_error: env.parser_options.po_disable_hh_ignore_error,
                      allowed_decl_fixme_codes: &env.parser_options.po_allowed_decl_fixme_codes,
                  };
@@ -790,10 +820,10 @@ index 8db2f3a3271..cadcc02dbbf 100644
                      }
                      _ => {
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index 62b4b77ff1c..766a7de210c 100644
+index c31a13f0a85..85f1f9c97c2 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3416,12 +3416,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3428,12 +3428,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);
@@ -808,7 +838,7 @@ index 62b4b77ff1c..766a7de210c 100644
                  && !(markup_suffix.is_missing())
              {
 diff --git a/hphp/hack/src/parser/lowerer/scour_comment.rs b/hphp/hack/src/parser/lowerer/scour_comment.rs
-index ff83849e0b8..644c59be990 100644
+index 9bb0c19f13f..687e3a002fd 100644
 --- a/hphp/hack/src/parser/lowerer/scour_comment.rs
 +++ b/hphp/hack/src/parser/lowerer/scour_comment.rs
 @@ -17,6 +17,7 @@ use parser_core_types::syntax_by_ref::syntax_variant_generated::SyntaxVariant::*
@@ -1178,40 +1208,22 @@ index ce3bd4e0172..66579bfceab 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/pos_impl.rs b/hphp/hack/src/utils/rust/pos/pos_impl.rs
-index 4d7d570596d..0e06a57a4f1 100644
+index 906d029a122..b58ac7fb7c7 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_impl.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_impl.rs
-@@ -6,15 +6,11 @@
- use std::borrow::Cow;
- use std::cmp::Ordering;
+@@ -8,10 +8,8 @@ use std::cmp::Ordering;
  use std::ops::Range;
--use std::path::PathBuf;
  
  use eq_modulo_pos::EqModuloPos;
 -use ocamlrep::rc::RcOc;
  use ocamlrep::FromOcamlRep;
- use ocamlrep::FromOcamlRepIn;
  use ocamlrep::ToOcamlRep;
--use relative_path::Prefix;
 -use relative_path::RelativePath;
  use relative_path::RelativePathCtx;
  use serde::Deserialize;
  use serde::Serialize;
-@@ -25,43 +21,23 @@ use crate::file_pos_small::FilePosSmall;
- use crate::pos_span_raw::PosSpanRaw;
- use crate::pos_span_tiny::PosSpanTiny;
- 
--#[derive(
--    Clone,
--    Debug,
--    Deserialize,
--    Hash,
--    FromOcamlRep,
--    FromOcamlRepIn,
--    ToOcamlRep,
--    Serialize
--)]
-+#[derive(Clone, Debug, Deserialize, Hash, FromOcamlRep, FromOcamlRepIn, ToOcamlRep, Serialize)]
+@@ -25,19 +23,14 @@ use crate::pos_span_tiny::PosSpanTiny;
+ #[derive(Clone, Deserialize, Hash, Serialize)]
  enum PosImpl {
      Small {
 -        file: RcOc<RelativePath>,
@@ -1224,52 +1236,40 @@ index 4d7d570596d..0e06a57a4f1 100644
          end: Box<FilePosLarge>,
      },
      Tiny {
--        file: RcOc<RelativePath>,
+-        /// Representation invariant: `RelativePath::EMPTY` is always encoded as
+-        /// `None`. This allows us to construct `Pos` in `const` contexts.
+-        file: Option<RcOc<RelativePath>>,
          span: PosSpanTiny,
      },
      FromReason(Box<PosImpl>),
- }
+@@ -50,13 +43,12 @@ pub type PosR<'a> = &'a Pos;
  
--#[derive(
--    Clone,
--    Debug,
--    Deserialize,
--    FromOcamlRep,
--    FromOcamlRepIn,
--    ToOcamlRep,
--    Serialize
--)]
-+#[derive(Clone, Debug, Deserialize, FromOcamlRep, FromOcamlRepIn, ToOcamlRep, Serialize)]
- pub struct Pos(PosImpl);
- 
- pub type PosR<'a> = &'a Pos;
-@@ -70,14 +46,13 @@ impl Pos {
-     pub fn make_none() -> Self {
-         // TODO: shiqicao make NONE static, lazy_static doesn't allow Rc
-         Pos(PosImpl::Tiny {
--            file: RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from(""))),
-             span: PosSpanTiny::make_dummy(),
-         })
-     }
+ impl Pos {
+     pub const NONE: Self = Self(PosImpl::Tiny {
+-        file: None,
+         span: PosSpanTiny::make_dummy(),
+     });
  
      pub fn is_none(&self) -> bool {
          match self {
--            Pos(PosImpl::Tiny { file, span }) => span.is_dummy() && file.is_empty(),
+-            Pos(PosImpl::Tiny { file, span }) => span.is_dummy() && file.is_none(),
 +            Pos(PosImpl::Tiny { span }) => span.is_dummy(),
              _ => false,
          }
      }
-@@ -88,19 +63,18 @@ impl Pos {
+@@ -67,10 +59,9 @@ impl Pos {
          line0 != 1 || char0 != 1 || line1 != 1 || char1 != 1
      }
  
 -    pub fn from_raw_span(file: RcOc<RelativePath>, span: PosSpanRaw) -> Self {
 +    pub fn from_raw_span(span: PosSpanRaw) -> Self {
          if let Some(span) = PosSpanTiny::make(&span.start, &span.end) {
--            return Pos(PosImpl::Tiny { file, span });
-+            return Pos(PosImpl::Tiny { span });
+             return Pos(PosImpl::Tiny {
+-                file: if file.is_empty() { None } else { Some(file) },
+                 span,
+             });
          }
-         let (lnum, bol, offset) = span.start.line_beg_offset();
+@@ -78,11 +69,10 @@ impl Pos {
          if let Some(start) = FilePosSmall::from_lnum_bol_offset(lnum, bol, offset) {
              let (lnum, bol, offset) = span.end.line_beg_offset();
              if let Some(end) = FilePosSmall::from_lnum_bol_offset(lnum, bol, offset) {
@@ -1282,19 +1282,30 @@ index 4d7d570596d..0e06a57a4f1 100644
              start: Box::new(span.start),
              end: Box::new(span.end),
          })
-@@ -121,28 +95,6 @@ impl Pos {
+@@ -103,42 +93,6 @@ impl Pos {
          }
      }
  
 -    pub fn filename(&self) -> &RelativePath {
--        self.filename_rc_ref()
--    }
--
--    pub fn filename_rc_ref(&self) -> &RcOc<RelativePath> {
 -        match &self.0 {
 -            PosImpl::Small { file, .. }
 -            | PosImpl::Large { file, .. }
--            | PosImpl::Tiny { file, .. } => file,
+-            | PosImpl::Tiny {
+-                file: Some(file), ..
+-            } => file,
+-            PosImpl::Tiny { file: None, .. } => &RelativePath::EMPTY,
+-            PosImpl::FromReason(_p) => unimplemented!(),
+-        }
+-    }
+-
+-    pub fn filename_rc(&self) -> RcOc<RelativePath> {
+-        match &self.0 {
+-            PosImpl::Small { file, .. }
+-            | PosImpl::Large { file, .. }
+-            | PosImpl::Tiny {
+-                file: Some(file), ..
+-            } => RcOc::clone(file),
+-            PosImpl::Tiny { file: None, .. } => RcOc::new(RelativePath::EMPTY),
 -            PosImpl::FromReason(_p) => unimplemented!(),
 -        }
 -    }
@@ -1303,7 +1314,10 @@ index 4d7d570596d..0e06a57a4f1 100644
 -        match self.0 {
 -            PosImpl::Small { file, .. }
 -            | PosImpl::Large { file, .. }
--            | PosImpl::Tiny { file, .. } => file,
+-            | PosImpl::Tiny {
+-                file: Some(file), ..
+-            } => file,
+-            PosImpl::Tiny { file: None, .. } => RcOc::new(RelativePath::EMPTY),
 -            PosImpl::FromReason(_p) => unimplemented!(),
 -        }
 -    }
@@ -1311,7 +1325,7 @@ index 4d7d570596d..0e06a57a4f1 100644
      /// Returns a closed interval that's incorrect for multi-line spans.
      pub fn info_pos(&self) -> (usize, usize, usize) {
          fn compute<P: FilePos>(pos_start: &P, pos_end: &P) -> (usize, usize, usize) {
-@@ -157,7 +109,7 @@ impl Pos {
+@@ -153,7 +107,7 @@ impl Pos {
              if end == start_minus1 {
                  end = start
              }
@@ -1320,7 +1334,7 @@ index 4d7d570596d..0e06a57a4f1 100644
          }
          match &self.0 {
              PosImpl::Small { start, end, .. } => compute(start, end),
-@@ -179,7 +131,7 @@ impl Pos {
+@@ -175,7 +129,7 @@ impl Pos {
              PosImpl::FromReason(_p) => unimplemented!(),
          }
          .0;
@@ -1329,7 +1343,7 @@ index 4d7d570596d..0e06a57a4f1 100644
      }
  
      pub fn info_raw(&self) -> (usize, usize) {
-@@ -188,29 +140,30 @@ impl Pos {
+@@ -184,29 +138,30 @@ impl Pos {
  
      pub fn line(&self) -> usize {
          match &self.0 {
@@ -1372,7 +1386,7 @@ index 4d7d570596d..0e06a57a4f1 100644
              PosImpl::Small { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
              PosImpl::Large { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
              PosImpl::Tiny { span, .. } => {
-@@ -218,40 +171,41 @@ impl Pos {
+@@ -214,40 +169,41 @@ impl Pos {
                  (start.line_beg_offset(), end.line_beg_offset())
              }
              PosImpl::FromReason(_p) => unimplemented!(),
@@ -1430,7 +1444,7 @@ index 4d7d570596d..0e06a57a4f1 100644
              Err(String::from("btw: invalid positions")
                  + &x1.end_offset().to_string()
                  + "and"
-@@ -262,14 +216,6 @@ impl Pos {
+@@ -258,14 +214,6 @@ impl Pos {
      }
  
      pub fn merge(x1: &Self, x2: &Self) -> Result<Self, String> {
@@ -1445,36 +1459,36 @@ index 4d7d570596d..0e06a57a4f1 100644
          let span1 = x1.to_raw_span();
          let span2 = x2.to_raw_span();
  
-@@ -289,10 +235,7 @@ impl Pos {
+@@ -285,10 +233,7 @@ impl Pos {
              span2.end
          };
  
 -        Ok(Self::from_raw_span(
--            RcOc::clone(x1.filename_rc_ref()),
+-            x1.filename_rc(),
 -            PosSpanRaw { start, end },
 -        ))
 +        Ok(Self::from_raw_span(PosSpanRaw { start, end }))
      }
  
      pub fn last_char(&self) -> Cow<'_, Self> {
-@@ -300,10 +243,7 @@ impl Pos {
+@@ -296,10 +241,7 @@ impl Pos {
              Cow::Borrowed(self)
          } else {
              let end = self.to_raw_span().end;
 -            Cow::Owned(Self::from_raw_span(
--                RcOc::clone(self.filename_rc_ref()),
+-                self.filename_rc(),
 -                PosSpanRaw { start: end, end },
 -            ))
 +            Cow::Owned(Self::from_raw_span(PosSpanRaw { start: end, end }))
          }
      }
  
-@@ -312,27 +252,24 @@ impl Pos {
+@@ -308,27 +250,24 @@ impl Pos {
              Cow::Borrowed(self)
          } else {
              let start = self.to_raw_span().start.with_column(0);
 -            Cow::Owned(Self::from_raw_span(
--                RcOc::clone(self.filename_rc_ref()),
+-                self.filename_rc(),
 -                PosSpanRaw { start, end: start },
 -            ))
 +            Cow::Owned(Self::from_raw_span(PosSpanRaw { start, end: start }))
@@ -1504,7 +1518,7 @@ index 4d7d570596d..0e06a57a4f1 100644
              PosImpl::FromReason(_p) => unimplemented!(),
          }
      }
-@@ -342,11 +279,9 @@ impl std::fmt::Display for Pos {
+@@ -338,11 +277,9 @@ impl std::fmt::Display for Pos {
      fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
          fn do_fmt<P: FilePos>(
              f: &mut std::fmt::Formatter<'_>,
@@ -1516,7 +1530,7 @@ index 4d7d570596d..0e06a57a4f1 100644
              let (start_line, start_col, _) = start.line_column_beg();
              let (end_line, end_col, _) = end.line_column_beg();
              if start_line == end_line {
-@@ -356,15 +291,11 @@ impl std::fmt::Display for Pos {
+@@ -352,18 +289,11 @@ impl std::fmt::Display for Pos {
              }
          }
          match &self.0 {
@@ -1526,17 +1540,20 @@ index 4d7d570596d..0e06a57a4f1 100644
 -            PosImpl::Large {
 -                file, start, end, ..
 -            } => do_fmt(f, file, &**start, &**end),
--            PosImpl::Tiny { file, span } => {
+-            PosImpl::Tiny { span, .. } => {
+-                if self.is_none() {
+-                    return write!(f, "Pos::NONE");
+-                }
 +            PosImpl::Small { start, end, .. } => do_fmt(f, start, end),
 +            PosImpl::Large { start, end, .. } => do_fmt(f, &**start, &**end),
 +            PosImpl::Tiny { span } => {
                  let PosSpanRaw { start, end } = span.to_raw_span();
--                do_fmt(f, file, &start, &end)
+-                do_fmt(f, self.filename(), &start, &end)
 +                do_fmt(f, &start, &end)
              }
              PosImpl::FromReason(_p) => unimplemented!(),
          }
-@@ -374,9 +305,8 @@ impl std::fmt::Display for Pos {
+@@ -385,9 +315,8 @@ impl Default for Pos {
  impl Ord for Pos {
      // Intended to match the implementation of `Pos.compare` in OCaml.
      fn cmp(&self, other: &Pos) -> Ordering {
@@ -1548,7 +1565,73 @@ index 4d7d570596d..0e06a57a4f1 100644
              .then(self.end_offset().cmp(&other.end_offset()))
      }
  }
-@@ -429,20 +359,10 @@ pub struct PosString<'a>(&'a Pos, Option<&'a RelativePathCtx>);
+@@ -425,25 +354,21 @@ impl EqModuloPos for Pos {
+ impl ToOcamlRep for PosImpl {
+     fn to_ocamlrep<'a, A: ocamlrep::Allocator>(&'a self, alloc: &'a A) -> ocamlrep::Value<'a> {
+         match self {
+-            PosImpl::Small { file, start, end } => {
+-                let mut block = alloc.block_with_size_and_tag(3, 0);
+-                alloc.set_field(&mut block, 0, alloc.add(file));
+-                alloc.set_field(&mut block, 1, alloc.add(start));
+-                alloc.set_field(&mut block, 2, alloc.add(end));
++            PosImpl::Small { start, end } => {
++                let mut block = alloc.block_with_size_and_tag(2, 0);
++                alloc.set_field(&mut block, 0, alloc.add(start));
++                alloc.set_field(&mut block, 1, alloc.add(end));
+                 block.build()
+             }
+-            PosImpl::Large { file, start, end } => {
+-                let mut block = alloc.block_with_size_and_tag(3, 1);
+-                alloc.set_field(&mut block, 0, alloc.add(file));
+-                alloc.set_field(&mut block, 1, alloc.add(start));
+-                alloc.set_field(&mut block, 2, alloc.add(end));
++            PosImpl::Large { start, end } => {
++                let mut block = alloc.block_with_size_and_tag(2, 1);
++                alloc.set_field(&mut block, 0, alloc.add(start));
++                alloc.set_field(&mut block, 1, alloc.add(end));
+                 block.build()
+             }
+-            PosImpl::Tiny { file, span } => {
+-                let file = file.as_deref().unwrap_or(&RelativePath::EMPTY);
+-                let mut block = alloc.block_with_size_and_tag(2, 2);
+-                alloc.set_field(&mut block, 0, alloc.add(file));
+-                alloc.set_field(&mut block, 1, alloc.add(span));
++            PosImpl::Tiny { span } => {
++                let mut block = alloc.block_with_size_and_tag(1, 2);
++                alloc.set_field(&mut block, 0, alloc.add(span));
+                 block.build()
+             }
+             PosImpl::FromReason(pos) => {
+@@ -463,7 +388,6 @@ impl FromOcamlRep for PosImpl {
+             0 => {
+                 from::expect_block_size(block, 3)?;
+                 Ok(PosImpl::Small {
+-                    file: from::field(block, 0)?,
+                     start: from::field(block, 1)?,
+                     end: from::field(block, 2)?,
+                 })
+@@ -471,20 +395,13 @@ impl FromOcamlRep for PosImpl {
+             1 => {
+                 from::expect_block_size(block, 3)?;
+                 Ok(PosImpl::Large {
+-                    file: from::field(block, 0)?,
+                     start: from::field(block, 1)?,
+                     end: from::field(block, 2)?,
+                 })
+             }
+             2 => {
+                 from::expect_block_size(block, 2)?;
+-                let file: RelativePath = from::field(block, 0)?;
+                 Ok(PosImpl::Tiny {
+-                    file: if file.is_empty() {
+-                        None
+-                    } else {
+-                        Some(RcOc::new(file))
+-                    },
+                     span: from::field(block, 1)?,
+                 })
+             }
+@@ -518,20 +435,10 @@ pub struct PosString<'a>(&'a Pos, Option<&'a RelativePathCtx>);
  
  impl std::fmt::Display for PosString<'_> {
      fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -1572,7 +1655,7 @@ index 4d7d570596d..0e06a57a4f1 100644
      }
  }
  
-@@ -457,7 +377,7 @@ pub mod map {
+@@ -546,7 +453,7 @@ pub mod map {
  
  impl From<parser_core_types::indexed_source_text::Pos> for Pos {
      fn from(pos: parser_core_types::indexed_source_text::Pos) -> Self {
@@ -1581,7 +1664,7 @@ index 4d7d570596d..0e06a57a4f1 100644
      }
  }
  
-@@ -468,66 +388,7 @@ mod tests {
+@@ -560,66 +467,7 @@ mod tests {
      use super::*;
  
      fn make_pos(name: &str, start: (usize, usize, usize), end: (usize, usize, usize)) -> Pos {
@@ -1594,7 +1677,7 @@ index 4d7d570596d..0e06a57a4f1 100644
 -
 -    #[test]
 -    fn test_pos() {
--        assert!(Pos::make_none().is_none());
+-        assert!(Pos::NONE.is_none());
 -        assert!(
 -            !Pos::from_lnum_bol_offset(
 -                RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from("a"))),
@@ -1620,7 +1703,7 @@ index 4d7d570596d..0e06a57a4f1 100644
 -            ..Default::default()
 -        };
 -        assert_eq!(
--            Pos::make_none().absolute(&ctx).to_string(),
+-            Pos::NONE.absolute(&ctx).to_string(),
 -            r#"File "dummy/", line 0, characters 0-0:"#
 -        );
 -        let path = RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from("a.php")));
@@ -1635,7 +1718,7 @@ index 4d7d570596d..0e06a57a4f1 100644
 -    #[test]
 -    fn test_pos_string() {
 -        assert_eq!(
--            Pos::make_none().string().to_string(),
+-            Pos::NONE.string().to_string(),
 -            r#"File "", line 0, characters 0-0:"#
 -        );
 -        let path = RcOc::new(RelativePath::make(Prefix::Dummy, PathBuf::from("a.php")));

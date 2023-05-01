@@ -551,13 +551,21 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .unwrap()
             .clone();
 
-        let functionlike_storage = self.visit_function(false, c, name, &f.fun, Some(&f.name.0));
+        let functionlike_storage = self.visit_function(
+            false,
+            c,
+            name,
+            &f.fun,
+            &f.tparams,
+            &f.where_constraints,
+            Some(&f.name.0),
+        );
 
         let (signature_hash, body_hash) = get_function_hashes(
             &self.file_source.file_contents,
             &functionlike_storage.def_location,
             &f.name,
-            &f.fun.tparams,
+            &f.tparams,
             &f.fun.params,
             &f.fun.ret,
             &self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
@@ -617,7 +625,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
             let name = self.interner.intern(function_id);
 
-            let functionlike_storage = self.visit_function(true, c, name, fun, None);
+            let functionlike_storage =
+                self.visit_function(true, c, name, fun, &vec![], &vec![], None);
 
             self.closures
                 .insert(fun.span.start_offset(), functionlike_storage);
@@ -634,6 +643,8 @@ impl<'a> Scanner<'a> {
         c: &mut Context,
         name: StrId,
         fun: &aast::Fun_<(), ()>,
+        tparams: &Vec<aast::Tparam<(), ()>>,
+        where_constraints: &Vec<aast::WhereConstraintHint>,
         name_pos: Option<&oxidized::tast::Pos>,
     ) -> FunctionLikeInfo {
         let parent_function_storage = if is_anonymous {
@@ -683,14 +694,14 @@ impl<'a> Scanner<'a> {
             name.clone(),
             &fun.span,
             name_pos,
-            &fun.tparams,
+            &tparams,
             &fun.params,
             &fun.body.fb_ast.0,
             &fun.ret,
             &fun.fun_kind,
             &fun.user_attributes.0,
             &fun.ctxs,
-            &fun.where_constraints,
+            &where_constraints,
             &mut type_resolution_context,
             None,
             &self.resolved_names,

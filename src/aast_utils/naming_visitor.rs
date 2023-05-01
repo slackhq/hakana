@@ -356,7 +356,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.resolved_names.insert(f.name.0.start_offset(), p);
 
-        for type_param_node in &f.fun.tparams {
+        for type_param_node in &f.tparams {
             nc.generic_params.push(&type_param_node.name.1);
             self.resolved_names.insert(
                 type_param_node.name.0.start_offset(),

@@ -8,9 +8,9 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
 use crate::{expression_analyzer, formula_generator};
-use crate::{scope_context::if_scope::IfScope, function_analysis_data::FunctionAnalysisData};
+use crate::{function_analysis_data::FunctionAnalysisData, scope_context::if_scope::IfScope};
 use hakana_type::combine_union_types;
-use oxidized::ast::Uop;
+use oxidized::ast::{Binop, Uop};
 use oxidized::{aast, ast};
 
 pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
@@ -333,7 +333,7 @@ fn is_or(cond: &aast::Expr<(), ()>, max_nesting: usize) -> bool {
         return true;
     }
 
-    if let Some((bop, left, _)) = cond.2.as_binop() {
+    if let Some(Binop { bop, lhs: left, .. }) = cond.2.as_binop() {
         if let ast::Bop::Barbar = bop {
             return is_or(left, max_nesting - 1);
         }

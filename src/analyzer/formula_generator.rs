@@ -37,9 +37,9 @@ pub(crate) fn get_formula(
     if let aast::Expr_::Binop(expr) = &conditional.2 {
         if let Some(clauses) = handle_binop(
             conditional_object_id,
-            &expr.0,
-            &expr.1,
-            &expr.2,
+            &expr.bop,
+            &expr.lhs,
+            &expr.rhs,
             assertion_context,
             analysis_data,
             cache,
@@ -273,18 +273,18 @@ fn handle_uop(
 ) -> Option<Result<Vec<Clause>, String>> {
     if let oxidized::ast::Uop::Unot = uop {
         if let aast::Expr_::Binop(inner_expr) = &expr.2 {
-            if let oxidized::ast::Bop::Barbar = inner_expr.0 {
+            if let oxidized::ast::Bop::Barbar = inner_expr.bop {
                 return Some(self::handle_and(
                     conditional_object_id,
                     &aast::Expr(
                         (),
                         expr.pos().clone(),
-                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.1.clone()))),
+                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.lhs.clone()))),
                     ),
                     &aast::Expr(
                         (),
                         expr.pos().clone(),
-                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.2.clone()))),
+                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.rhs.clone()))),
                     ),
                     assertion_context,
                     analysis_data,
@@ -293,18 +293,18 @@ fn handle_uop(
                 ));
             }
 
-            if let oxidized::ast::Bop::Ampamp = inner_expr.0 {
+            if let oxidized::ast::Bop::Ampamp = inner_expr.bop {
                 return Some(self::handle_or(
                     conditional_object_id,
                     &aast::Expr(
                         (),
                         expr.pos().clone(),
-                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.1.clone()))),
+                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.lhs.clone()))),
                     ),
                     &aast::Expr(
                         (),
                         expr.pos().clone(),
-                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.2.clone()))),
+                        aast::Expr_::Unop(Box::new((Uop::Unot, inner_expr.rhs.clone()))),
                     ),
                     assertion_context,
                     analysis_data,
