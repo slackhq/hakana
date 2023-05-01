@@ -383,37 +383,34 @@ fn get_child_nodes(
                 if let Some(sink) = graph.sinks.get(to_id) {
                     match &sink.kind {
                         DataFlowNodeKind::TaintSink { types, .. } => {
-                            let mut matching_taints = types.clone();
-                            matching_taints.retain(|t| new_taints.contains(t));
+                            let mut matching_sinks = types.clone();
+                            matching_sinks.retain(|t| new_taints.contains(t));
 
-                            if !matching_taints.is_empty() {
+                            if !matching_sinks.is_empty() {
                                 if let Some(issue_pos) = &generated_source.pos {
                                     let taint_sources = generated_source.get_taint_sources();
                                     for taint_source in taint_sources {
-                                        for matching_taint in &matching_taints {
-                                            if let Some(pos) = &new_destination.pos {
-                                                if !config.allow_sink_in_file(
-                                                    &matching_taint,
-                                                    &pos.file_path.get_relative_path(
-                                                        interner,
-                                                        &config.root_dir,
-                                                    ),
-                                                ) {
-                                                    continue;
-                                                }
+                                        for matching_sink in &matching_sinks {
+                                            if !config.allow_data_from_source_in_file(
+                                                &taint_source,
+                                                matching_sink,
+                                                &new_destination,
+                                                interner,
+                                            ) {
+                                                continue;
                                             }
 
-                                            new_destination.taint_sinks.remove(&matching_taint);
+                                            new_destination.taint_sinks.remove(&matching_sink);
 
                                             let message = format!(
                                                 "Data from {} found its way to {} using path {}",
                                                 taint_source.get_error_message(),
-                                                matching_taint.get_error_message(),
+                                                matching_sink.get_error_message(),
                                                 new_destination
                                                     .get_trace(interner, &config.root_dir)
                                             );
                                             new_issues.push(Issue::new(
-                                                IssueKind::TaintedData(matching_taint.clone()),
+                                                IssueKind::TaintedData(matching_sink.clone()),
                                                 message,
                                                 (**issue_pos).clone(),
                                                 &None,

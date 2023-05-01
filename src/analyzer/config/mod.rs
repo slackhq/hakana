@@ -1,9 +1,10 @@
 use std::{error::Error, path::Path};
 
 use hakana_reflection_info::{
-    data_flow::graph::GraphKind,
+    data_flow::{graph::GraphKind, tainted_node::TaintedNode},
     issue::{Issue, IssueKind},
-    taint::SinkType,
+    taint::{SinkType, SourceType},
+    Interner,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -184,13 +185,36 @@ impl Config {
         true
     }
 
-    pub fn allow_sink_in_file(&self, taint_type: &SinkType, file: &str) -> bool {
-        let str_type = taint_type.to_string();
+    pub fn allow_data_from_source_in_file(
+        &self,
+        source_type: &SourceType,
+        sink_type: &SinkType,
+        node: &TaintedNode,
+        interner: &Interner,
+    ) -> bool {
+        let str_type = source_type.to_string() + " -> " + &sink_type.to_string();
 
         if let Some(issue_entries) = self.security_config.ignore_sink_files.get(&str_type) {
-            for ignore_file_path in issue_entries {
-                if glob::Pattern::new(ignore_file_path).unwrap().matches(&file) {
-                    return false;
+            let ignore_patterns = issue_entries
+                .iter()
+                .map(|ignore_file_path| glob::Pattern::new(ignore_file_path).unwrap())
+                .collect::<Vec<_>>();
+
+            let mut previous = node;
+
+            loop {
+                if let Some(pos) = &previous.pos {
+                    for ignore_pattern in &ignore_patterns {
+                        if ignore_pattern.matches(&interner.lookup(&pos.file_path.0)) {
+                            return false;
+                        }
+                    }
+                }
+
+                if let Some(more_previous) = &previous.previous {
+                    previous = &more_previous;
+                } else {
+                    return true;
                 }
             }
         }
