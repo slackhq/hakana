@@ -127,6 +127,7 @@ pub enum IssueKind {
     UnusedStatement,
     UnusedTrait,
     UnusedTypeDefinition,
+    UnusedXhpAttribute,
 }
 
 impl IssueKind {
@@ -187,6 +188,7 @@ impl IssueKind {
             | Self::UnusedPrivateProperty
             | Self::UnusedPublicOrProtectedProperty
             | Self::UnusedPublicOrProtectedMethod
+            | Self::UnusedXhpAttribute
             | Self::UnusedTrait => true,
             _ => false,
         }

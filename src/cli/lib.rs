@@ -1154,6 +1154,10 @@ fn replace_contents(
                     }
                 }
 
+                if &file_contents[end..end + 1] == "," {
+                    end += 1;
+                }
+
                 file_contents =
                     file_contents[..start].to_string() + &*file_contents[end..].to_string();
             }

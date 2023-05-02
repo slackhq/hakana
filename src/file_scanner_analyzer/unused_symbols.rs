@@ -6,6 +6,7 @@ use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
+use hakana_reflection_info::property_info::PropertyKind;
 use hakana_reflection_info::{Interner, StrId, STR_CONSTRUCT, STR_EMPTY};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
@@ -293,6 +294,21 @@ pub(crate) fn find_unused_definitions(
                                         *property_name_ptr,
                                     )),
                                 )
+                            } else if let PropertyKind::XhpAttribute { .. } = property_storage.kind
+                            {
+                                Issue::new(
+                                    IssueKind::UnusedXhpAttribute,
+                                    format!(
+                                        "Unused XHP attribute {} in class {}",
+                                        interner.lookup(property_name_ptr),
+                                        interner.lookup(classlike_name),
+                                    ),
+                                    property_storage.pos.clone().unwrap(),
+                                    &Some(FunctionLikeIdentifier::Method(
+                                        *classlike_name,
+                                        *property_name_ptr,
+                                    )),
+                                )
                             } else {
                                 Issue::new(
                                     IssueKind::UnusedPublicOrProtectedProperty,
@@ -315,7 +331,20 @@ pub(crate) fn find_unused_definitions(
                             continue;
                         }
 
-                        if config.can_add_issue(&issue) {
+                        if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+                            if let Some(stmt_pos) = property_storage.stmt_pos {
+                                analysis_result
+                                    .replacements
+                                    .entry(pos.file_path)
+                                    .or_insert_with(BTreeMap::new)
+                                    .insert(
+                                        (stmt_pos.start_offset, stmt_pos.end_offset),
+                                        Replacement::TrimPrecedingWhitespace(
+                                            (stmt_pos.start_offset - stmt_pos.start_column) as u64,
+                                        ),
+                                    );
+                            }
+                        } else if config.can_add_issue(&issue) {
                             *analysis_result
                                 .issue_counts
                                 .entry(issue.kind.clone())

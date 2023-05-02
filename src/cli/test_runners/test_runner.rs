@@ -82,7 +82,7 @@ impl TestRunner {
                     panic!("could not create aast cache directory");
                 }
 
-                let needs_fresh_codebase = test_folder.contains("xhp");
+                let needs_fresh_codebase = test_folder.to_ascii_lowercase().contains("xhp");
 
                 let test_result = self
                     .run_test_in_dir(
@@ -147,9 +147,8 @@ impl TestRunner {
         analysis_config.find_unused_expressions = dir.contains("/unused/")
             || dir.contains("UnusedAssignment")
             || dir.contains("UnusedParameter");
-        analysis_config.find_unused_definitions = dir.contains("/unused/UnusedCode/")
-            || dir.contains("/migrations/unused_symbol/")
-            || dir.contains("UnusedParameter");
+        analysis_config.find_unused_definitions =
+            dir.to_ascii_lowercase().contains("unused") && !dir.contains("UnusedExpression");
         analysis_config.graph_kind = if dir.contains("/security/") {
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         } else if dir.contains("/find-paths/") {
@@ -238,7 +237,7 @@ impl TestRunner {
 
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
-        if dir.contains("xhp") || dir.contains("XHP") {
+        if dir.to_ascii_lowercase().contains("xhp") {
             stub_dirs.push(cwd.clone() + "/third-party/xhp-lib/src");
         }
 

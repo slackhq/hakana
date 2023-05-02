@@ -668,6 +668,15 @@ fn visit_xhp_attribute(
         attribute_type.types.push(TAtomic::TNull);
     }
 
+    let mut stmt_pos = HPos::new(&xhp_attribute.1.span, file_source.file_path, None);
+
+    if let Some(type_hint) = &xhp_attribute.0 .1 {
+        let (line, bol, offset) = type_hint.0.to_start_and_end_lnum_bol_offset().0;
+        stmt_pos.start_offset = offset;
+        stmt_pos.start_line = line;
+        stmt_pos.start_column = offset - bol;
+    }
+
     let property_storage = PropertyInfo {
         is_static: false,
         visibility: MemberVisibility::Protected,
@@ -677,11 +686,7 @@ fn visit_xhp_attribute(
             file_source.file_path,
             None,
         )),
-        stmt_pos: Some(HPos::new(
-            &xhp_attribute.1.span,
-            file_source.file_path,
-            None,
-        )),
+        stmt_pos: Some(stmt_pos),
         type_pos: attribute_type_location,
         type_: attribute_type,
         has_default: xhp_attribute.1.expr.is_some(),
