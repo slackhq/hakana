@@ -1,9 +1,13 @@
+#[cfg(not(target_arch = "wasm32"))]
 use tower_lsp::lsp_types::MessageType;
 
 pub enum Logger {
     DevNull,
     CommandLine(Verbosity),
+    #[cfg(not(target_arch = "wasm32"))]
     LanguageServer(tower_lsp::Client, Verbosity),
+    #[cfg(target_arch = "wasm32")]
+    LanguageServer((), Verbosity),
 }
 
 impl Logger {
@@ -14,8 +18,19 @@ impl Logger {
                 println!("{}", message);
             }
             Logger::LanguageServer(client, _) => {
+                #[cfg(not(target_arch = "wasm32"))]
                 client.log_message(MessageType::INFO, message).await;
             }
+        }
+    }
+
+    pub fn log_sync(&self, message: &str) {
+        match self {
+            Logger::DevNull => {}
+            Logger::CommandLine(_) => {
+                println!("{}", message);
+            }
+            Logger::LanguageServer(_, _) => {}
         }
     }
 
@@ -29,6 +44,7 @@ impl Logger {
             }
             Logger::LanguageServer(client, verbosity) => {
                 if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+                    #[cfg(not(target_arch = "wasm32"))]
                     client.log_message(MessageType::INFO, message).await;
                 }
             }

@@ -17,7 +17,7 @@ impl ScannerAndAnalyzer {
     pub fn new() -> Self {
         console_error_panic_hook::set_once();
 
-        let (codebase, interner) = get_single_file_codebase(vec![]);
+        let (codebase, interner, file_system) = get_single_file_codebase(vec![]);
 
         Self { codebase, interner }
     }
@@ -35,7 +35,8 @@ impl ScannerAndAnalyzer {
                 self.interner = interner;
 
                 let mut issue_json_objects = vec![];
-                for (file_path, issues) in analysis_result.get_all_issues(&self.interner, &"") {
+                for (file_path, issues) in analysis_result.get_all_issues(&self.interner, &"", true)
+                {
                     for issue in issues {
                         issue_json_objects.push(json!({
                             "severity": "ERROR",

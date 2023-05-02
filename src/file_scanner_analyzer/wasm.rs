@@ -19,7 +19,7 @@ use crate::populator::populate_codebase;
 use crate::scanner::scan_file;
 use crate::{HhiAsset, HslAsset};
 
-pub async fn scan_and_analyze_single_file(
+pub fn scan_and_analyze_single_file(
     codebase: &mut CodebaseInfo,
     interner: &Interner,
     file_name: String,
@@ -78,8 +78,7 @@ pub async fn scan_and_analyze_single_file(
             &analysis_config,
             &Logger::DevNull,
             &interner,
-        )
-        .await;
+        );
 
         for issue in issues {
             analysis_result
@@ -93,7 +92,7 @@ pub async fn scan_and_analyze_single_file(
     Ok((analysis_result, interner))
 }
 
-pub async fn get_single_file_codebase(
+pub fn get_single_file_codebase(
     additional_files: Vec<&str>,
 ) -> (CodebaseInfo, Interner, VirtualFileSystem) {
     let mut codebase = CodebaseInfo::new();

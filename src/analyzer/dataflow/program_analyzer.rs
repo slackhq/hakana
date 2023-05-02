@@ -16,7 +16,7 @@ use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::taint::SinkType;
 
-pub async fn find_tainted_data(
+pub fn find_tainted_data(
     graph: &DataFlowGraph,
     config: &Config,
     logger: &Logger,
@@ -30,13 +30,9 @@ pub async fn find_tainted_data(
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    logger.log("Security analysis: detecting paths").await;
-    logger
-        .log(&format!(" - initial sources count: {}", sources.len()))
-        .await;
-    logger
-        .log(&format!(" - initial sinks count:   {}", graph.sinks.len()))
-        .await;
+    logger.log_sync("Security analysis: detecting paths");
+    logger.log_sync(&format!(" - initial sources count: {}", sources.len()));
+    logger.log_sync(&format!(" - initial sinks count:   {}", graph.sinks.len()));
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, path) in to {
@@ -52,13 +48,12 @@ pub async fn find_tainted_data(
         &mut new_issues,
         true,
         interner,
-    )
-    .await;
+    );
 
     new_issues
 }
 
-pub async fn find_connections(
+pub fn find_connections(
     graph: &DataFlowGraph,
     config: &Config,
     logger: &Logger,
@@ -73,9 +68,7 @@ pub async fn find_connections(
         .map(|(_, v)| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
-    logger
-        .log(&format!(" - initial sources count: {}", sources.len()))
-        .await;
+    logger.log_sync(&format!(" - initial sources count: {}", sources.len()));
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, _) in to {
@@ -91,14 +84,13 @@ pub async fn find_connections(
         &mut new_issues,
         false,
         interner,
-    )
-    .await;
+    );
 
     new_issues
 }
 
 #[inline]
-async fn find_paths_to_sinks(
+fn find_paths_to_sinks(
     mut sources: Vec<Arc<TaintedNode>>,
     graph: &DataFlowGraph,
     config: &Config,
@@ -159,28 +151,24 @@ async fn find_paths_to_sinks(
                     if let Some(inow) = inow {
                         let ielapsed = inow.elapsed();
                         if ielapsed.as_millis() > 100 {
-                            logger
-                                .log(&format!(
-                                    "    - took {:.2?} to generate from {}",
-                                    ielapsed, source_id
-                                ))
-                                .await;
+                            logger.log_sync(&format!(
+                                "    - took {:.2?} to generate from {}",
+                                ielapsed, source_id
+                            ));
                         }
                     }
                 }
 
-                logger
-                    .log(&format!(
-                        " - generated {}{}",
-                        actual_source_count,
-                        if let Some(now) = now {
-                            let elapsed = now.elapsed();
-                            format!(" sources in {:.2?}", elapsed)
-                        } else {
-                            "".to_string()
-                        }
-                    ))
-                    .await;
+                logger.log_sync(&format!(
+                    " - generated {}{}",
+                    actual_source_count,
+                    if let Some(now) = now {
+                        let elapsed = now.elapsed();
+                        format!(" sources in {:.2?}", elapsed)
+                    } else {
+                        "".to_string()
+                    }
+                ));
 
                 sources = new_sources;
             }

@@ -264,15 +264,12 @@ pub async fn scan_and_analyze(
 
     if let GraphKind::WholeProgram(whole_program_kind) = config.graph_kind {
         let issues = match whole_program_kind {
-            WholeProgramKind::Taint => {
-                find_tainted_data(
-                    &analysis_result.program_dataflow_graph,
-                    &config,
-                    &logger,
-                    &scan_data.interner,
-                )
-                .await
-            }
+            WholeProgramKind::Taint => find_tainted_data(
+                &analysis_result.program_dataflow_graph,
+                &config,
+                &logger,
+                &scan_data.interner,
+            ),
             WholeProgramKind::Query => {
                 find_connections(
                     &analysis_result.program_dataflow_graph,
@@ -280,7 +277,6 @@ pub async fn scan_and_analyze(
                     &logger,
                     &scan_data.interner,
                 )
-                .await
             }
         };
 
