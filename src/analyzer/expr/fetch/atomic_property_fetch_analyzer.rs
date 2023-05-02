@@ -1,6 +1,7 @@
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::{
-    expr::call::arguments_analyzer::get_template_types_for_call, function_analysis_data::FunctionAnalysisData,
+    expr::call::arguments_analyzer::get_template_types_for_call,
+    function_analysis_data::FunctionAnalysisData,
 };
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::code_location::HPos;
@@ -113,20 +114,29 @@ pub(crate) fn analyze(
         return false;
     }
 
+    let declaring_property_class = if let Some(declaring_property_class) =
+        codebase.get_declaring_class_for_property(&classlike_name, &prop_name)
+    {
+        declaring_property_class
+    } else {
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(
+                &context.function_context,
+                (classlike_name.clone(), prop_name),
+                false,
+            );
+
+        return false;
+    };
+
     analysis_data
         .symbol_references
         .add_reference_to_class_member(
             &context.function_context,
-            (classlike_name.clone(), prop_name),
+            (*declaring_property_class, prop_name),
             false,
         );
-
-    let declaring_property_class =
-        codebase.get_declaring_class_for_property(&classlike_name, &prop_name);
-
-    if let None = declaring_property_class {
-        return false;
-    }
 
     // TODO: self::propertyFetchCanBeAnalyzed
 
@@ -138,7 +148,7 @@ pub(crate) fn analyze(
         statements_analyzer,
         &classlike_name,
         &prop_name,
-        declaring_property_class.unwrap(),
+        declaring_property_class,
         lhs_type_part,
         analysis_data,
     );

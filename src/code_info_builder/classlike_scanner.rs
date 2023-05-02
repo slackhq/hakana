@@ -677,6 +677,19 @@ fn visit_xhp_attribute(
         stmt_pos.start_column = offset - bol;
     }
 
+    if let Some(attr_tag) = &xhp_attribute.2 {
+        match attr_tag {
+            oxidized::tast::XhpAttrTag::Required => {
+                stmt_pos.end_offset += 10;
+                stmt_pos.end_column += 10;
+            },
+            oxidized::tast::XhpAttrTag::LateInit => {
+                stmt_pos.end_offset += 11;
+                stmt_pos.end_column += 11;
+            },
+        }
+    }
+
     let property_storage = PropertyInfo {
         is_static: false,
         visibility: MemberVisibility::Protected,
