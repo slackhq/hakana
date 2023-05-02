@@ -6,6 +6,7 @@ use crate::classlike_info::ClassLikeInfo;
 use crate::file_info::FileInfo;
 use crate::functionlike_info::FunctionLikeInfo;
 use crate::method_identifier::MethodIdentifier;
+use crate::property_info::PropertyInfo;
 use crate::t_atomic::TAtomic;
 use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
@@ -300,6 +301,18 @@ impl CodebaseInfo {
         }
 
         return None;
+    }
+
+    pub fn get_property_storage(
+        &self,
+        fq_class_name: &StrId,
+        property_name: &StrId,
+    ) -> Option<&PropertyInfo> {
+        if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
+            classlike_storage.properties.get(property_name)
+        } else {
+            None
+        }
     }
 
     pub fn get_property_type(

@@ -265,6 +265,69 @@ pub(crate) fn find_unused_definitions(
                         }
                     }
                 }
+
+                for (property_name_ptr, property_storage) in &classlike_info.properties {
+                    let pair = (classlike_name.clone(), *property_name_ptr);
+
+                    if !referenced_symbols_and_members.contains(&pair)
+                        && !referenced_overridden_class_members.contains(&pair)
+                    {
+                        if let Some(suppressed_issues) = &property_storage.suppressed_issues {
+                            if suppressed_issues.contains_key(&IssueKind::UnusedPrivateProperty) {
+                                continue;
+                            }
+                        }
+
+                        let issue =
+                            if matches!(property_storage.visibility, MemberVisibility::Private) {
+                                Issue::new(
+                                    IssueKind::UnusedPrivateProperty,
+                                    format!(
+                                        "Unused private property {}::${}",
+                                        interner.lookup(classlike_name),
+                                        interner.lookup(property_name_ptr)
+                                    ),
+                                    property_storage.pos.clone().unwrap(),
+                                    &Some(FunctionLikeIdentifier::Method(
+                                        *classlike_name,
+                                        *property_name_ptr,
+                                    )),
+                                )
+                            } else {
+                                Issue::new(
+                                    IssueKind::UnusedPublicOrProtectedProperty,
+                                    format!(
+                                        "Unused public or protected property {}::${}",
+                                        interner.lookup(classlike_name),
+                                        interner.lookup(property_name_ptr)
+                                    ),
+                                    property_storage.pos.clone().unwrap(),
+                                    &Some(FunctionLikeIdentifier::Method(
+                                        *classlike_name,
+                                        *property_name_ptr,
+                                    )),
+                                )
+                            };
+
+                        let file_path = interner.lookup(&pos.file_path.0);
+
+                        if !config.allow_issue_kind_in_file(&issue.kind, &file_path) {
+                            continue;
+                        }
+
+                        if config.can_add_issue(&issue) {
+                            *analysis_result
+                                .issue_counts
+                                .entry(issue.kind.clone())
+                                .or_insert(0) += 1;
+                            analysis_result
+                                .emitted_definition_issues
+                                .entry(pos.file_path)
+                                .or_insert_with(Vec::new)
+                                .push(issue);
+                        }
+                    }
+                }
             }
         }
     }

@@ -688,6 +688,7 @@ fn visit_xhp_attribute(
         soft_readonly: false,
         is_promoted: false,
         is_internal: false,
+        suppressed_issues: None,
     };
 
     let attribute_id = interner.intern(xhp_attribute.1.id.1.clone());
@@ -950,6 +951,7 @@ fn visit_property_declaration(
         soft_readonly: false,
         is_promoted: false,
         is_internal: matches!(property_node.visibility, ast_defs::Visibility::Internal),
+        suppressed_issues: None,
     };
 
     classlike_storage

@@ -17,7 +17,6 @@ use hakana_reflection_info::issue::get_issue_from_comment;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_info::MethodInfo;
-use hakana_reflection_info::property_info::PropertyInfo;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::taint::string_to_sink_types;
 use hakana_reflection_info::taint::string_to_source_types;
@@ -121,16 +120,8 @@ pub(crate) fn scan_method(
     }
 
     for param_node in &m.params {
-        if let Some(param_visibility) = param_node.visibility {
-            add_promoted_param_property(
-                param_node,
-                param_visibility,
-                resolved_names,
-                &classlike_name,
-                &mut classlike_storage,
-                file_source,
-                interner,
-            );
+        if let Some(_) = param_node.visibility {
+            add_promoted_param_property(param_node, &mut classlike_storage, interner);
         }
     }
 
@@ -142,67 +133,14 @@ pub(crate) fn scan_method(
 
 fn add_promoted_param_property(
     param_node: &aast::FunParam<(), ()>,
-    param_visibility: ast_defs::Visibility,
-    resolved_names: &FxHashMap<usize, StrId>,
-    classlike_name: &StrId,
     classlike_storage: &mut ClassLikeInfo,
-    file_source: &FileSource,
     interner: &mut ThreadedInterner,
 ) {
-    let signature_type_location = if let Some(param_type) = &param_node.type_hint.1 {
-        Some(HPos::new(&param_type.0, file_source.file_path, None))
-    } else {
-        None
-    };
-    let property_storage = PropertyInfo {
-        is_static: false,
-        visibility: match param_visibility {
-            ast_defs::Visibility::Private => MemberVisibility::Private,
-            ast_defs::Visibility::Public | ast_defs::Visibility::Internal => {
-                MemberVisibility::Public
-            }
-            ast_defs::Visibility::Protected => MemberVisibility::Protected,
-        },
-        kind: hakana_reflection_info::property_info::PropertyKind::Property,
-        pos: Some(HPos::new(&param_node.pos, file_source.file_path, None)),
-        stmt_pos: Some(HPos::new(&param_node.pos, file_source.file_path, None)),
-        type_pos: signature_type_location,
-        type_: get_type_from_optional_hint(
-            &param_node.type_hint.1,
-            None,
-            &TypeResolutionContext {
-                template_type_map: classlike_storage.template_types.clone(),
-                template_supers: FxHashMap::default(),
-            },
-            resolved_names,
-        )
-        .unwrap_or(get_mixed_any()),
-        has_default: param_node.expr.is_some(),
-        soft_readonly: false,
-        is_promoted: false,
-        is_internal: matches!(param_visibility, ast_defs::Visibility::Internal),
-    };
+    let param_node_id = interner.intern(param_node.name[1..].to_string());
 
-    let param_node_id = interner.intern(param_node.name.clone());
-
-    if !matches!(param_visibility, ast_defs::Visibility::Private) {
-        classlike_storage
-            .inheritable_property_ids
-            .insert(param_node_id, classlike_name.clone());
-    };
-
-    classlike_storage
-        .declaring_property_ids
-        .insert(param_node_id, classlike_name.clone());
-    classlike_storage
-        .appearing_property_ids
-        .insert(param_node_id, classlike_name.clone());
-    classlike_storage
-        .initialized_properties
-        .insert(param_node_id);
-    classlike_storage
-        .properties
-        .insert(param_node_id, property_storage);
+    if let Some(property_storage) = classlike_storage.properties.get_mut(&param_node_id) {
+        property_storage.is_promoted = true;
+    }
 }
 
 pub(crate) fn get_functionlike(

@@ -1,0 +1,4 @@
+ERROR: UnusedPrivateProperty - input.hack:2:20 - Unused private property A::$a
+ERROR: UnusedPublicOrProtectedProperty - input.hack:3:16 - Unused public or protected property A::$b
+ERROR: UnusedPrivateProperty - input.hack:5:24 - Unused private property A::$c
+ERROR: UnusedPublicOrProtectedProperty - input.hack:6:20 - Unused public or protected property A::$d

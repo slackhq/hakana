@@ -1,6 +1,9 @@
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{code_location::HPos, member_visibility::MemberVisibility, t_union::TUnion};
+use crate::{
+    code_location::HPos, issue::IssueKind, member_visibility::MemberVisibility, t_union::TUnion,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PropertyKind {
@@ -33,4 +36,6 @@ pub struct PropertyInfo {
     pub is_promoted: bool,
 
     pub is_internal: bool,
+
+    pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
 }

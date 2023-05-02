@@ -441,13 +441,25 @@ pub(crate) fn analyze_atomic_assignment(
     let declaring_property_class =
         codebase.get_declaring_class_for_property(&fq_class_name, &prop_name);
 
-    analysis_data
-        .symbol_references
-        .add_reference_to_class_member(
-            &context.function_context,
-            (fq_class_name, prop_name),
-            false,
-        );
+    if let Some(property_storage) = codebase.get_property_storage(&fq_class_name, &prop_name) {
+        if !property_storage.is_promoted {
+            analysis_data
+                .symbol_references
+                .add_reference_to_class_member(
+                    &context.function_context,
+                    (fq_class_name, prop_name),
+                    false,
+                );
+        }
+    } else {
+        analysis_data
+            .symbol_references
+            .add_reference_to_class_member(
+                &context.function_context,
+                (fq_class_name, prop_name),
+                false,
+            );
+    }
 
     if let Some(declaring_property_class) = declaring_property_class {
         let declaring_classlike_storage = codebase

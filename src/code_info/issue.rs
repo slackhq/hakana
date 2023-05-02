@@ -92,7 +92,6 @@ pub enum IssueKind {
     PossiblyNullPropertyFetch,
     PossiblyUndefinedIntArrayOffset,
     PossiblyUndefinedStringArrayOffset,
-    PossiblyUnusedProperty,
     PropertyTypeCoercion,
     RedundantIssetCheck,
     RedundantKeyCheck,
@@ -122,8 +121,9 @@ pub enum IssueKind {
     UnusedParameter,
     UnusedPipeVariable,
     UnusedPrivateMethod,
-    UnusedProperty,
+    UnusedPrivateProperty,
     UnusedPublicOrProtectedMethod,
+    UnusedPublicOrProtectedProperty,
     UnusedStatement,
     UnusedTrait,
     UnusedTypeDefinition,
@@ -184,7 +184,8 @@ impl IssueKind {
             | Self::UnusedTypeDefinition
             | Self::UnusedFunction
             | Self::UnusedInterface
-            | Self::UnusedProperty
+            | Self::UnusedPrivateProperty
+            | Self::UnusedPublicOrProtectedProperty
             | Self::UnusedPublicOrProtectedMethod
             | Self::UnusedTrait => true,
             _ => false,
