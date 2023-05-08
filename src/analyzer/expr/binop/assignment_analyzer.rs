@@ -15,6 +15,8 @@ use crate::expr::expression_identifier::get_root_var_id;
 use crate::expr::expression_identifier::get_var_id;
 use crate::expr::fetch::array_fetch_analyzer;
 use crate::expression_analyzer;
+use crate::expression_analyzer::expr_has_logic;
+use crate::expression_analyzer::find_expr_logic_issues;
 use crate::formula_generator;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -151,6 +153,10 @@ pub(crate) fn analyze(
                 &mut None,
             ),
         };
+
+        if expr_has_logic(assign_value) {
+            find_expr_logic_issues(statements_analyzer, context, assign_value, analysis_data);
+        }
 
         context.inside_general_use = false;
 

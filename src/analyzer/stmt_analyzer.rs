@@ -2,6 +2,7 @@ use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::{EFFECT_PURE, STR_AWAITABLE, STR_CONSTRUCT};
 use hakana_type::get_arrayish_params;
+use rustc_hash::FxHashSet;
 
 use crate::custom_hook::AfterStmtAnalysisData;
 use crate::expr::assertion_finder::get_functionlike_id_from_call;
@@ -251,6 +252,8 @@ pub(crate) fn analyze(
             return false;
         }
     }
+
+    context.cond_referenced_var_ids = FxHashSet::default();
 
     for hook in &statements_analyzer.get_config().hooks {
         hook.after_stmt_analysis(

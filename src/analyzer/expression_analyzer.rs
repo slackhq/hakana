@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::custom_hook::AfterExprAnalysisData;
@@ -12,11 +13,13 @@ use crate::expr::{
     pipe_analyzer, prefixed_string_analyzer, shape_analyzer, ternary_analyzer, tuple_analyzer,
     unop_analyzer, variable_fetch_analyzer, xml_analyzer, yield_analyzer,
 };
-use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::reconciler::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope_context::{var_has_root, ScopeContext};
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::{algebra_analyzer, expression_analyzer, formula_generator};
+use hakana_algebra::Clause;
 use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -37,7 +40,7 @@ use hakana_type::{
 use oxidized::ast::Field;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -689,6 +692,142 @@ pub(crate) fn analyze(
     }
 
     true
+}
+
+pub(crate) fn expr_has_logic(expr: &aast::Expr<(), ()>) -> bool {
+    match &expr.2 {
+        aast::Expr_::Binop(boxed) => match boxed.bop {
+            oxidized::nast::Bop::Eqeq
+            | oxidized::nast::Bop::Eqeqeq
+            | oxidized::nast::Bop::Diff
+            | oxidized::nast::Bop::Diff2
+            | oxidized::nast::Bop::Ampamp
+            | oxidized::nast::Bop::Barbar
+            | oxidized::nast::Bop::QuestionQuestion => true,
+            _ => false,
+        },
+        aast::Expr_::Is(_) => true,
+        _ => false,
+    }
+}
+
+pub(crate) fn find_expr_logic_issues(
+    statements_analyzer: &StatementsAnalyzer,
+    context: &ScopeContext,
+    expr: &aast::Expr<(), ()>,
+    analysis_data: &mut FunctionAnalysisData,
+) {
+    let assertion_context = statements_analyzer.get_assertion_context(
+        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_functionlike_id.as_ref(),
+    );
+
+    let mut if_context = context.clone();
+    let mut cond_referenced_var_ids = if_context.cond_referenced_var_ids.clone();
+
+    let cond_object_id = (expr.pos().start_offset(), expr.pos().end_offset());
+
+    let if_clauses = formula_generator::get_formula(
+        cond_object_id,
+        cond_object_id,
+        expr,
+        &assertion_context,
+        analysis_data,
+        false,
+        false,
+    );
+
+    let mut expr_clauses = if let Ok(if_clauses) = if_clauses {
+        if if_clauses.len() > 200 {
+            vec![]
+        } else {
+            if_clauses
+        }
+    } else {
+        vec![]
+    };
+
+    let mut mixed_var_ids = Vec::new();
+
+    for (var_id, var_type) in &context.vars_in_scope {
+        if var_type.is_mixed() && context.vars_in_scope.contains_key(var_id) {
+            mixed_var_ids.push(var_id);
+        }
+    }
+
+    expr_clauses = expr_clauses
+        .into_iter()
+        .map(|c| {
+            let keys = &c
+                .possibilities
+                .iter()
+                .map(|(k, _)| k)
+                .collect::<Vec<&String>>();
+
+            let mut new_mixed_var_ids = vec![];
+            for i in mixed_var_ids.clone() {
+                if !keys.contains(&i) {
+                    new_mixed_var_ids.push(i);
+                }
+            }
+            mixed_var_ids = new_mixed_var_ids;
+
+            for key in keys {
+                for mixed_var_id in &mixed_var_ids {
+                    if var_has_root(key, mixed_var_id) {
+                        return Clause::new(
+                            BTreeMap::new(),
+                            cond_object_id,
+                            cond_object_id,
+                            Some(true),
+                            None,
+                            None,
+                        );
+                    }
+                }
+            }
+
+            return c;
+        })
+        .collect::<Vec<Clause>>();
+
+    // this will see whether any of the clauses in set A conflict with the clauses in set B
+    algebra_analyzer::check_for_paradox(
+        statements_analyzer,
+        &context.clauses,
+        &expr_clauses,
+        analysis_data,
+        expr.pos(),
+        &context.function_context.calling_functionlike_id,
+    );
+
+    expr_clauses.extend(
+        context
+            .clauses
+            .iter()
+            .map(|v| (**v).clone())
+            .collect::<Vec<_>>(),
+    );
+
+    let (reconcilable_if_types, active_if_types) = hakana_algebra::get_truths_from_formula(
+        expr_clauses.iter().collect(),
+        Some(cond_object_id),
+        &mut cond_referenced_var_ids,
+    );
+
+    reconciler::reconcile_keyed_types(
+        &reconcilable_if_types,
+        active_if_types,
+        &mut if_context,
+        &mut FxHashSet::default(),
+        &cond_referenced_var_ids,
+        statements_analyzer,
+        analysis_data,
+        expr.pos(),
+        true,
+        false,
+        &FxHashMap::default(),
+    );
 }
 
 fn analyze_function_pointer(
