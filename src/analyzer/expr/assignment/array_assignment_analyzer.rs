@@ -420,26 +420,14 @@ fn add_array_assignment_dataflow(
                             } else if let Some(value) = literal_value.get_literal_int_value() {
                                 value.to_string()
                             } else {
-                                println!(
-                                    "{},",
-                                    key_value.get_id(Some(&statements_analyzer.get_interner()))
-                                );
-                                panic!()
+                                continue;
                             }
                         } else {
-                            println!(
-                                "{},",
-                                key_value.get_id(Some(&statements_analyzer.get_interner()))
-                            );
-                            panic!();
+                            continue;
                         }
                     }
                     _ => {
-                        println!(
-                            "{},",
-                            key_value.get_id(Some(&statements_analyzer.get_interner()))
-                        );
-                        panic!()
+                        continue;
                     }
                 };
 
