@@ -276,7 +276,7 @@ pub fn get_config(
     );
 
     config.find_unused_expressions = true;
-    config.find_unused_definitions = false;
+    config.find_unused_definitions = true;
     config.ignore_mixed_issues = true;
     config.ast_diff = true;
 
