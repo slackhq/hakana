@@ -1,4 +1,5 @@
 use crate::classlike_analyzer::ClassLikeAnalyzer;
+use crate::custom_hook::AfterDefAnalysisData;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::FunctionLikeAnalyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -26,11 +27,11 @@ pub(crate) fn analyze(
             let mut function_analyzer = FunctionLikeAnalyzer::new(file_analyzer);
             function_analyzer.analyze_fun(def.as_fun().unwrap(), analysis_result);
         }
-        aast::Def::Class(_) => {
+        aast::Def::Class(boxed) => {
             let file_analyzer = scope_analyzer.get_file_analyzer();
             let mut class_analyzer = ClassLikeAnalyzer::new(file_analyzer);
             class_analyzer.analyze(
-                def.as_class().unwrap(),
+                &boxed,
                 statements_analyzer,
                 analysis_result,
             );
@@ -100,5 +101,16 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual(),
             );
         }
+    }
+
+    for hook in &statements_analyzer.get_config().hooks {
+        hook.after_def_analysis(
+            analysis_data,
+            AfterDefAnalysisData {
+                statements_analyzer,
+                def: &def,
+                context,
+            },
+        );
     }
 }

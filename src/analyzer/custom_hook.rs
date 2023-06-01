@@ -9,8 +9,8 @@ use oxidized::{
 };
 
 use crate::{
-    config, scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    config, function_analysis_data::FunctionAnalysisData, scope_context::ScopeContext,
+    statements_analyzer::StatementsAnalyzer,
 };
 
 pub struct AfterExprAnalysisData<'a> {
@@ -23,6 +23,12 @@ pub struct AfterStmtAnalysisData<'a> {
     pub context: &'a ScopeContext,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
     pub stmt: &'a aast::Stmt<(), ()>,
+}
+
+pub struct AfterDefAnalysisData<'a> {
+    pub context: &'a ScopeContext,
+    pub statements_analyzer: &'a StatementsAnalyzer<'a>,
+    pub def: &'a aast::Def<(), ()>,
 }
 
 pub struct FunctionLikeParamData<'a> {
@@ -48,6 +54,15 @@ pub struct AfterArgAnalysisData<'a> {
 pub trait InternalHook {
     fn get_migration_name(&self) -> Option<&str> {
         None
+    }
+
+    // This hook is run after analysing every top-level definition (class, function etc)
+    #[allow(unused_variables)]
+    fn after_def_analysis(
+        &self,
+        analysis_data: &mut FunctionAnalysisData,
+        after_def_analysis_data: AfterDefAnalysisData,
+    ) {
     }
 
     // This hook is run after analysing every AST statement
