@@ -94,13 +94,14 @@ fn get_classname_type_from_hint(
         if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
+            as_type,
             ..
-        } = &as_type
+        } = as_type
         {
             TAtomic::TGenericClassname {
-                param_name: param_name.clone(),
-                defining_entity: defining_entity.clone(),
-                as_type: Box::new(as_type),
+                param_name,
+                defining_entity,
+                as_type: Box::new(as_type.get_single_owned()),
             }
         } else {
             TAtomic::TClassname {
@@ -126,13 +127,14 @@ fn get_typename_type_from_hint(
         if let TAtomic::TGenericParam {
             param_name,
             defining_entity,
+            as_type,
             ..
-        } = &as_type
+        } = as_type
         {
             TAtomic::TGenericTypename {
-                param_name: param_name.clone(),
-                defining_entity: defining_entity.clone(),
-                as_type: Box::new(as_type),
+                param_name,
+                defining_entity,
+                as_type: Box::new(as_type.get_single_owned()),
             }
         } else {
             TAtomic::TTypename {

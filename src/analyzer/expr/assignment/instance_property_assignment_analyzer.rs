@@ -166,7 +166,7 @@ pub(crate) fn analyze(
                 Issue::new(
                     IssueKind::InvalidPropertyAssignmentValue,
                     format!(
-                        "{} with declared type {}, cannot be assigned type {}",
+                        "Property ${} with declared type {}, cannot be assigned type {}",
                         statements_analyzer.get_interner().lookup(property_id),
                         invalid_class_property_type,
                         assignment_type.get_id(Some(&statements_analyzer.get_interner())),

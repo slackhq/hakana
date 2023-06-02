@@ -145,7 +145,7 @@ pub fn replace(
                         {
                             let first_atomic_type = as_type.get_single();
 
-                            class_template_type = Some(TAtomic::TGenericClassname {
+                            class_template_type = Some(TAtomic::TGenericTypename {
                                 param_name: param_name.clone(),
                                 as_type: Box::new(first_atomic_type.clone()),
                                 defining_entity: defining_entity.clone(),
