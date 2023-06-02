@@ -1,6 +1,6 @@
 final class Resource<T> {
 	public function __construct(
-		private classname<T> $t,
+		private typename<T> $t,
 	) {}
 }
 

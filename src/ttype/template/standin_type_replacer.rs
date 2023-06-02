@@ -1180,8 +1180,11 @@ fn handle_template_param_class_standin(
                         from_class: false,
                         extra_types: None,
                     });
-                } else if let TAtomic::TClassname { .. } = input_atomic_type {
-                    valid_input_atomic_types.push(atomic_type_as.clone());
+                } else if let TAtomic::TClassname {
+                    as_type: atomic_type_as,
+                } = input_atomic_type
+                {
+                    valid_input_atomic_types.push((**atomic_type_as).clone());
                 }
             }
 
@@ -1348,6 +1351,14 @@ fn handle_template_param_type_standin(
                             valid_input_atomic_types
                                 .extend(typedefinition_info.actual_type.clone().types);
                         }
+                    } else if let Some(_) = codebase.classlike_infos.get(name) {
+                        valid_input_atomic_types.push(TAtomic::TNamedObject {
+                            name: *name,
+                            type_params: None,
+                            is_this: false,
+                            extra_types: None,
+                            remapped_params: false,
+                        });
                     }
                 } else if let TAtomic::TGenericTypename {
                     param_name,
