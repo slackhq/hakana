@@ -7,6 +7,7 @@ use hakana_type::template::standin_type_replacer::get_relevant_bounds;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use itertools::Itertools;
+use oxidized::ast::CallExpr;
 use rustc_hash::FxHashMap;
 
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -31,24 +32,24 @@ use super::call::{
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (
-        &aast::Expr<(), ()>,
-        &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
-        &Option<aast::Expr<(), ()>>,
-    ),
+    expr: &CallExpr,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> bool {
-    let function_name_expr = expr.0;
+    let function_name_expr = &expr.func;
 
     match &function_name_expr.2 {
         aast::Expr_::Id(boxed_id) => {
             return function_call_analyzer::analyze(
                 statements_analyzer,
-                ((&boxed_id.0, &boxed_id.1), expr.1, expr.2, expr.3),
+                (
+                    (&boxed_id.0, &boxed_id.1),
+                    &expr.targs,
+                    &expr.args,
+                    &expr.unpacked_arg,
+                ),
                 pos,
                 analysis_data,
                 context,
@@ -63,7 +64,7 @@ pub(crate) fn analyze(
                 ast_defs::PropOrMethod::IsMethod => {
                     return instance_call_analyzer::analyze(
                         statements_analyzer,
-                        (lhs_expr, rhs_expr, expr.1, expr.2, expr.3),
+                        (lhs_expr, rhs_expr, &expr.targs, &expr.args, &expr.unpacked_arg),
                         &pos,
                         analysis_data,
                         context,
@@ -74,7 +75,7 @@ pub(crate) fn analyze(
                 _ => {
                     return expression_call_analyzer::analyze(
                         statements_analyzer,
-                        (expr.0, expr.1, expr.2, expr.3),
+                        expr,
                         pos,
                         analysis_data,
                         context,
@@ -88,7 +89,7 @@ pub(crate) fn analyze(
 
             return static_call_analyzer::analyze(
                 statements_analyzer,
-                (class_id, rhs_expr, expr.1, expr.2, expr.3),
+                (class_id, rhs_expr, &expr.targs, &expr.args, &expr.unpacked_arg),
                 &pos,
                 analysis_data,
                 context,
@@ -98,7 +99,7 @@ pub(crate) fn analyze(
         _ => {
             return expression_call_analyzer::analyze(
                 statements_analyzer,
-                (expr.0, expr.1, expr.2, expr.3),
+                expr,
                 pos,
                 analysis_data,
                 context,

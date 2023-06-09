@@ -467,17 +467,17 @@ fn get_async_version(
     interner: &mut ThreadedInterner,
 ) -> Option<FunctionLikeIdentifier> {
     if let aast::Expr_::Call(call) = &expr.2 {
-        if let aast::Expr_::Id(boxed_id) = &call.0 .2 {
+        if let aast::Expr_::Id(boxed_id) = &call.func .2 {
             if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset()) {
-                if fn_id == &STR_ASIO_JOIN && call.2.len() == 1 {
-                    let first_join_expr = &call.2[0].1;
+                if fn_id == &STR_ASIO_JOIN && call.args.len() == 1 {
+                    let first_join_expr = &call.args[0].1;
 
                     if let aast::Expr_::Call(call) = &first_join_expr.2 {
-                        if !is_async_call_is_same_as_sync(&call.2, params) {
+                        if !is_async_call_is_same_as_sync(&call.args, params) {
                             return None;
                         }
 
-                        match &call.0 .2 {
+                        match &call.func .2 {
                             aast::Expr_::Id(boxed_id) => {
                                 if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset())
                                 {

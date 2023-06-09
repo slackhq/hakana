@@ -1,18 +1,18 @@
 diff --git a/hphp/hack/src/deps/rust/file_info/Cargo.toml b/hphp/hack/src/deps/rust/file_info/Cargo.toml
-index e18d598acef..f6bcfff8735 100644
+index f80cf432bcf..369cb5adb75 100644
 --- a/hphp/hack/src/deps/rust/file_info/Cargo.toml
 +++ b/hphp/hack/src/deps/rust/file_info/Cargo.toml
 @@ -18,7 +18,9 @@ ocamlrep = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", b
  parser_core_types = { version = "0.0.0", path = "../../../parser/cargo/core_types" }
  rc_pos = { version = "0.0.0", path = "../../../utils/rust/pos" }
  relative_path = { version = "0.0.0", path = "../../../utils/rust/relative_path" }
--rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
+-rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype"] }
  serde = { version = "1.0.136", features = ["derive", "rc"] }
  thiserror = "1.0.36"
  typing_deps_hash = { version = "0.0.0", path = "../../cargo/typing_deps_hash" }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-+rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
++rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype"] }
 \ No newline at end of file
 diff --git a/hphp/hack/src/deps/rust/file_info_lib.rs b/hphp/hack/src/deps/rust/file_info_lib.rs
 index 6092c509de9..6c9bc532695 100644
@@ -66,19 +66,19 @@ index 6092c509de9..6c9bc532695 100644
      fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
          Ok(rusqlite::types::ToSqlOutput::from(*self as i64))
 diff --git a/hphp/hack/src/naming/names_rust/Cargo.toml b/hphp/hack/src/naming/names_rust/Cargo.toml
-index 5a208a46ea0..928361a5bf8 100644
+index 3e23c579a0f..9f629b69046 100644
 --- a/hphp/hack/src/naming/names_rust/Cargo.toml
 +++ b/hphp/hack/src/naming/names_rust/Cargo.toml
 @@ -16,6 +16,8 @@ oxidized = { version = "0.0.0", path = "../../oxidized" }
  oxidized_by_ref = { version = "0.0.0", path = "../../oxidized_by_ref" }
  rand = { version = "0.8", features = ["small_rng"] }
  relative_path = { version = "0.0.0", path = "../../utils/rust/relative_path" }
--rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
+-rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype"] }
  serde = { version = "1.0.136", features = ["derive", "rc"] }
  typing_deps_hash = { version = "0.0.0", path = "../../deps/cargo/typing_deps_hash" }
 +
 +[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-+rusqlite = { version = "0.28.0", features = ["backup", "blob", "column_decltype"] }
++rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype"] }
 \ No newline at end of file
 diff --git a/hphp/hack/src/naming/names_rust/datatypes.rs b/hphp/hack/src/naming/names_rust/datatypes.rs
 index 91106097aa3..930dfa897c5 100644
@@ -123,10 +123,10 @@ index 6972660fea5..574f249d9bb 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-index 33a47588685..5b9dc61eaf1 100644
+index 171f2c60f13..50545f09284 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-@@ -2133,7 +2133,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
+@@ -2147,7 +2147,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -135,10 +135,10 @@ index 33a47588685..5b9dc61eaf1 100644
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-index e4430459744..06ea21523e1 100644
+index ec07cddcf68..900ba40ab03 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-@@ -2133,7 +2133,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
+@@ -2147,7 +2147,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -147,10 +147,10 @@ index e4430459744..06ea21523e1 100644
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/manual/errors_impl.rs b/hphp/hack/src/oxidized/manual/errors_impl.rs
-index 1c6b99eac19..805260e81f4 100644
+index 3428fe2d569..8e24f45e798 100644
 --- a/hphp/hack/src/oxidized/manual/errors_impl.rs
 +++ b/hphp/hack/src/oxidized/manual/errors_impl.rs
-@@ -68,11 +68,7 @@ impl<PP: Ord + FileOrd, P: Ord + FileOrd> UserError<PP, P> {
+@@ -72,11 +72,7 @@ impl<PP: Ord + FileOrd, P: Ord + FileOrd> UserError<PP, P> {
                  self_code.cmp(&other_code)
              }
          };
@@ -163,7 +163,7 @@ index 1c6b99eac19..805260e81f4 100644
              // If the phases are the same, sort by position.
              .then(self_pos.cmp(other_pos))
              // If the positions are the same, sort by claim message text.
-@@ -85,13 +81,9 @@ impl<PP: Ord + FileOrd, P: Ord + FileOrd> UserError<PP, P> {
+@@ -89,13 +85,9 @@ impl<PP: Ord + FileOrd, P: Ord + FileOrd> UserError<PP, P> {
  }
  
  pub trait FileOrd {
@@ -177,7 +177,7 @@ index 1c6b99eac19..805260e81f4 100644
  }
  
  impl<PP: Ord + FileOrd, P: Ord + FileOrd> Ord for UserError<PP, P> {
-@@ -133,10 +125,9 @@ impl Naming {
+@@ -139,10 +131,9 @@ impl Naming {
  
      pub fn method_needs_visibility(first_token_p: Pos, name_p: Pos) -> Error {
          // Create a zero width position at the start of the first token.
@@ -721,7 +721,7 @@ index b22f1419210..22476a61291 100644
          assert_eq!(hash(&Id(pos, "foo")), hash(&Id(pos, "foo")));
          assert_eq!(hash(&Id(none, "foo")), hash(&Id(pos, "foo")));
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index 6bae7308653..9db0c19f5e1 100644
+index cc5265f23be..c168883aa6b 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
 @@ -78,11 +78,11 @@ impl<'src> AastParser {
@@ -758,7 +758,7 @@ index 6bae7308653..9db0c19f5e1 100644
          match language {
              Language::Hack => {}
              _ => return Err(Error::NotAHackFile()),
-@@ -155,14 +155,14 @@ impl<'src> AastParser {
+@@ -154,14 +154,14 @@ impl<'src> AastParser {
          );
          stack_limit::reset();
          let ret = lower(&mut lowerer_env, tree.root());
@@ -775,7 +775,7 @@ index 6bae7308653..9db0c19f5e1 100644
          stack_limit::reset();
          let syntax_errors =
              Self::check_syntax_error(env, indexed_source_text, &tree, Some(&mut ret));
-@@ -170,7 +170,7 @@ impl<'src> AastParser {
+@@ -169,7 +169,7 @@ impl<'src> AastParser {
          let lowerer_parsing_errors = lowerer_env.parsing_errors().borrow().to_vec();
          let errors = lowerer_env.hh_errors().borrow().to_vec();
          let lint_errors = lowerer_env.lint_errors().borrow().to_vec();
@@ -784,7 +784,7 @@ index 6bae7308653..9db0c19f5e1 100644
  
          Ok(ParserResult {
              file_mode: mode,
-@@ -182,9 +182,9 @@ impl<'src> AastParser {
+@@ -181,9 +181,9 @@ impl<'src> AastParser {
              lint_errors,
              profile: ParserProfile {
                  lower_peak,
@@ -820,10 +820,10 @@ index 8db2f3a3271..cadcc02dbbf 100644
                      }
                      _ => {
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index aa0f67fac65..bf35cfee079 100644
+index ecfeffa2d08..1ae95b946af 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3443,12 +3443,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3466,12 +3466,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);
@@ -838,7 +838,7 @@ index aa0f67fac65..bf35cfee079 100644
                  && !(markup_suffix.is_missing())
              {
 diff --git a/hphp/hack/src/parser/lowerer/scour_comment.rs b/hphp/hack/src/parser/lowerer/scour_comment.rs
-index 9bb0c19f13f..687e3a002fd 100644
+index 88c2e445a47..7aab53c3f1c 100644
 --- a/hphp/hack/src/parser/lowerer/scour_comment.rs
 +++ b/hphp/hack/src/parser/lowerer/scour_comment.rs
 @@ -17,6 +17,7 @@ use parser_core_types::syntax_by_ref::syntax_variant_generated::SyntaxVariant::*
@@ -849,7 +849,7 @@ index 9bb0c19f13f..687e3a002fd 100644
  use rescan_trivia::RescanTrivia;
  
  /** The full fidelity parser considers all comments "simply" trivia. Some
-@@ -42,7 +43,11 @@ where
+@@ -41,7 +42,11 @@ where
      V: 'arena,
      Syntax<'arena, T, V>: SyntaxTrait,
  {
@@ -862,7 +862,7 @@ index 9bb0c19f13f..687e3a002fd 100644
      where
          'r: 'arena,
      {
-@@ -64,7 +69,7 @@ where
+@@ -62,7 +67,7 @@ where
                          let leading = t.scan_leading(self.source_text());
                          let trailing = t.scan_trailing(self.source_text());
                          for tr in leading.iter().chain(trailing.iter()) {
@@ -871,7 +871,7 @@ index 9bb0c19f13f..687e3a002fd 100644
                          }
                      }
                      continue;
-@@ -85,6 +90,7 @@ where
+@@ -83,6 +88,7 @@ where
          node: &Syntax<'arena, T, V>,
          t: &PositionedTrivium,
          acc: &mut ScouredComments,
@@ -879,15 +879,15 @@ index 9bb0c19f13f..687e3a002fd 100644
      ) {
          use relative_path::Prefix;
          use TriviaKind::*;
-@@ -130,7 +136,7 @@ where
-                         Some(code) => {
-                             let code = std::str::from_utf8(code).unwrap();
-                             let code: isize = std::str::FromStr::from_str(code).unwrap();
--                            let in_hhi = pos.filename().prefix() == Prefix::Hhi;
-+                            let in_hhi = file_path.prefix() == Prefix::Hhi;
-                             if !(in_block
-                                 || in_hhi
-                                 || self.allowed_decl_fixme_codes.contains(&code))
+@@ -127,7 +133,7 @@ where
+                     Some(code) => {
+                         let code = std::str::from_utf8(code).unwrap();
+                         let code: isize = std::str::FromStr::from_str(code).unwrap();
+-                        let in_hhi = pos.filename().prefix() == Prefix::Hhi;
++                        let in_hhi = file_path.prefix() == Prefix::Hhi;
+                         if !(in_block || in_hhi || self.allowed_decl_fixme_codes.contains(&code)) {
+                             acc.add_to_misuses(line, code, p);
+                         } else if self.disable_hh_ignore_error == 1 && t.kind() == IgnoreError {
 diff --git a/hphp/hack/src/utils/hh24_types/hh24_types.rs b/hphp/hack/src/utils/hh24_types/hh24_types.rs
 index 0febd35fe7d..4fd8c642cac 100644
 --- a/hphp/hack/src/utils/hh24_types/hh24_types.rs

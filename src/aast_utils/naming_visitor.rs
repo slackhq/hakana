@@ -194,7 +194,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 }
                 e.recurse(nc, self)
             }
-            aast::Expr_::Call(boxed) => match &boxed.0 .2 {
+            aast::Expr_::Call(boxed) => match &boxed.func.2 {
                 aast::Expr_::Id(_) => {
                     nc.in_function_id = true;
                     e.recurse(nc, self)

@@ -14,17 +14,12 @@ use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_type::get_mixed_any;
 use hakana_type::template::TemplateResult;
 use indexmap::IndexMap;
+use oxidized::ast::CallExpr;
 use oxidized::pos::Pos;
-use oxidized::{aast, ast_defs};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    expr: (
-        &aast::Expr<(), ()>,
-        &Vec<aast::Targ<()>>,
-        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
-        &Option<aast::Expr<(), ()>>,
-    ),
+    expr: &CallExpr,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
@@ -34,7 +29,7 @@ pub(crate) fn analyze(
     context.inside_general_use = true;
     if !expression_analyzer::analyze(
         statements_analyzer,
-        expr.0,
+        &expr.func,
         analysis_data,
         context,
         if_body_context,
@@ -44,7 +39,7 @@ pub(crate) fn analyze(
     context.inside_general_use = was_inside_general_use;
 
     let lhs_type = analysis_data
-        .get_expr_type(expr.0.pos())
+        .get_expr_type(expr.func.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
 
@@ -69,8 +64,8 @@ pub(crate) fn analyze(
                 .map(|fn_param| {
                     let mut param = FunctionLikeParameter::new(
                         "".to_string(),
-                        HPos::new(expr.0.pos(), *statements_analyzer.get_file_path(), None),
-                        HPos::new(expr.0.pos(), *statements_analyzer.get_file_path(), None),
+                        HPos::new(expr.func.pos(), *statements_analyzer.get_file_path(), None),
+                        HPos::new(expr.func.pos(), *statements_analyzer.get_file_path(), None),
                     );
                     param.signature_type = fn_param.signature_type.clone();
                     param.is_inout = fn_param.is_inout;
@@ -85,9 +80,9 @@ pub(crate) fn analyze(
 
             arguments_analyzer::check_arguments_match(
                 statements_analyzer,
-                expr.1,
-                expr.2,
-                expr.3,
+                &expr.targs,
+                &expr.args,
+                &expr.unpacked_arg,
                 &functionlike_id,
                 &lambda_storage,
                 None,
@@ -98,7 +93,7 @@ pub(crate) fn analyze(
                 pos,
             );
 
-            apply_effects(&lambda_storage, analysis_data, pos, &expr.2);
+            apply_effects(&lambda_storage, analysis_data, pos, &expr.args);
 
             stmt_type = Some(hakana_type::combine_optional_union_types(
                 stmt_type.as_ref(),

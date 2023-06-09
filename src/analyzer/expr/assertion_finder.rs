@@ -65,7 +65,7 @@ pub(crate) fn scrape_assertions(
             if let Some(FunctionLikeIdentifier::Function(name)) = functionlike_id {
                 return scrape_function_assertions(
                     &name,
-                    &call.2,
+                    &call.args,
                     &conditional.1,
                     assertion_context,
                     analysis_data,
@@ -285,7 +285,7 @@ fn scrape_shapes_isset(
                 if let Some((codebase, interner)) = assertion_context.codebase {
                     if class_name == STR_SHAPES && interner.lookup(&member_name) == "idx" {
                         let shape_name = get_var_id(
-                            &call.2[0].1,
+                            &call.args[0].1,
                             assertion_context.this_class_name,
                             assertion_context.file_source,
                             assertion_context.resolved_names,
@@ -293,7 +293,7 @@ fn scrape_shapes_isset(
                         );
 
                         let dim_id = get_dim_id(
-                            &call.2[1].1,
+                            &call.args[1].1,
                             Some((codebase, interner)),
                             assertion_context.resolved_names,
                         );
@@ -326,16 +326,11 @@ fn scrape_shapes_isset(
 }
 
 pub(crate) fn get_functionlike_id_from_call(
-    call: &(
-        aast::Expr<(), ()>,
-        Vec<aast::Targ<()>>,
-        Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
-        Option<aast::Expr<(), ()>>,
-    ),
+    call: &oxidized::ast::CallExpr,
     interner: Option<&Interner>,
     resolved_names: &FxHashMap<usize, StrId>,
 ) -> Option<FunctionLikeIdentifier> {
-    match &call.0 .2 {
+    match &call.func .2 {
         aast::Expr_::Id(boxed_id) => {
             if let Some(interner) = interner {
                 let name = if boxed_id.1 == "isset" {

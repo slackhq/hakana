@@ -106,7 +106,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 _ => {}
             },
             aast::Expr_::Call(boxed) => {
-                for arg_expr in &boxed.2 {
+                for arg_expr in &boxed.args {
                     if let ParamKind::Pinout(..) = arg_expr.0 {
                         let arg_var_id = expression_identifier::get_root_var_id(
                             &arg_expr.1,
@@ -126,10 +126,10 @@ impl<'ast> Visitor<'ast> for Scanner {
                     }
                 }
 
-                if let aast::Expr_::Id(_) = &boxed.0 .2 {
+                if let aast::Expr_::Id(_) = &boxed.func .2 {
                     // do nothing
                 } else {
-                    match &boxed.0 .2 {
+                    match &boxed.func .2 {
                         aast::Expr_::ObjGet(boxed) => {
                             let (lhs_expr, _, _, prop_or_method) =
                                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3);

@@ -33,7 +33,7 @@ pub fn get_aast_for_path_and_contents(
     let indexed_source_text = IndexedSourceText::new(text.clone());
 
     let mut parser_env = AastParserEnv::default();
-    parser_env.keep_errors = true;
+    parser_env.show_all_errors = true;
     parser_env.parser_options.po_disable_hh_ignore_error = 0;
     parser_env.include_line_comments = true;
     parser_env.scour_comments = true;

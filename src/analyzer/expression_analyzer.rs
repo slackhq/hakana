@@ -165,7 +165,7 @@ pub(crate) fn analyze(
         aast::Expr_::Call(boxed) => {
             if !call_analyzer::analyze(
                 statements_analyzer,
-                (&boxed.0, &boxed.1, &boxed.2, &boxed.3),
+                boxed,
                 &expr.1,
                 analysis_data,
                 context,

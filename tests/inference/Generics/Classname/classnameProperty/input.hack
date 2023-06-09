@@ -1,4 +1,4 @@
-final class Resource<T> {
+final class Reesource<T> {
 	public function __construct(
 		private classname<T> $t,
 	) {}
@@ -6,9 +6,9 @@ final class Resource<T> {
 
 class A {}
 
-function expectsResourceA(Resource<A> $_res): void {}
+function expectsResourceA(Reesource<A> $_res): void {}
 
 function bar(): void {
-	$a = new Resource(A::class);
+	$a = new Reesource(A::class);
 	expectsResourceA($a);
 }

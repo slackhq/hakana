@@ -102,8 +102,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                 if null_if_false {
                     aast::Expr_::Null
                 } else {
-                    aast::Expr_::Call(Box::new((
-                        aast::Expr(
+                    aast::Expr_::Call(Box::new(aast::CallExpr {
+                        func: aast::Expr(
                             (),
                             stmt_pos.clone(),
                             aast::Expr_::Id(Box::new(oxidized::ast_defs::Id(
@@ -111,10 +111,10 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                                 "exit".to_string(),
                             ))),
                         ),
-                        vec![],
-                        vec![],
-                        None,
-                    )))
+                        targs: vec![],
+                        args: vec![],
+                        unpacked_arg: None,
+                    }))
                 },
             ),
         ))),

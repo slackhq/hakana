@@ -7,7 +7,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_type::{add_union_type, combine_union_types, get_mixed_any, get_null};
-use oxidized::aast;
+use oxidized::aast::{self, CallExpr};
 use oxidized::ast_defs::ParamKind;
 use rustc_hash::FxHashSet;
 
@@ -103,8 +103,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             aast::Expr(
                 (),
                 left.pos().clone(),
-                aast::Expr_::Call(Box::new((
-                    aast::Expr(
+                aast::Expr_::Call(Box::new(CallExpr {
+                    func: aast::Expr(
                         (),
                         left.pos().clone(),
                         aast::Expr_::Id(Box::new(oxidized::ast_defs::Id(
@@ -112,13 +112,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                             "isset".to_string(),
                         ))),
                     ),
-                    vec![],
-                    vec![(
+                    targs: vec![],
+                    args: vec![(
                         ParamKind::Pnormal,
                         replacement_left.clone().unwrap_or(left.clone()),
                     )],
-                    None,
-                ))),
+                    unpacked_arg: None,
+                })),
             ),
             Some(replacement_left.unwrap_or(left.clone())),
             right.clone(),

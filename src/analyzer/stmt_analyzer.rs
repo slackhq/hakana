@@ -251,6 +251,7 @@ pub(crate) fn analyze(
             );
             return false;
         }
+        aast::Stmt_::DeclareLocal(_) => {},
     }
 
     context.cond_referenced_var_ids = FxHashSet::default();

@@ -2,7 +2,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::scope_context::control_action::ControlAction;
 use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId};
-use oxidized::aast;
+use oxidized::{aast, ast::CallExpr};
 
 use crate::function_analysis_data::FunctionAnalysisData;
 
@@ -463,6 +463,7 @@ pub(crate) fn get_control_actions(
             aast::Stmt_::Noop => {}
             aast::Stmt_::Markup(_) => {}
             aast::Stmt_::AssertEnv(_) => {}
+            aast::Stmt_::DeclareLocal(_) => {},
         }
     }
 
@@ -474,18 +475,13 @@ pub(crate) fn get_control_actions(
 }
 
 fn handle_call(
-    call_expr: &Box<(
-        aast::Expr<(), ()>,
-        Vec<aast::Targ<()>>,
-        Vec<(oxidized::ast_defs::ParamKind, aast::Expr<(), ()>)>,
-        Option<aast::Expr<(), ()>>,
-    )>,
+    call_expr: &CallExpr,
     resolved_names: &FxHashMap<usize, StrId>,
     codebase: &CodebaseInfo,
     interner: &Interner,
     control_actions: &FxHashSet<ControlAction>,
 ) -> Option<FxHashSet<ControlAction>> {
-    match &call_expr.0 .2 {
+    match &call_expr.func .2 {
         aast::Expr_::Id(id) => {
             if id.1.eq("exit") || id.1.eq("die") {
                 return Some(control_end(control_actions.clone()));

@@ -6,6 +6,7 @@ use hakana_type::combine_union_types;
 
 use hakana_type::combine_optional_union_types;
 use oxidized::aast;
+use oxidized::aast::CallExpr;
 use oxidized::ast::Binop;
 use oxidized::ast_defs::ParamKind;
 use oxidized::file_pos::FilePos;
@@ -139,8 +140,8 @@ pub(crate) fn analyze_case(
             aast::Expr(
                 (),
                 case_cond.pos().clone(),
-                aast::Expr_::Call(Box::new((
-                    aast::Expr(
+                aast::Expr_::Call(Box::new(CallExpr {
+                    func: aast::Expr(
                         (),
                         case_cond.pos().clone(),
                         aast::Expr_::Id(Box::new(oxidized::ast_defs::Id(
@@ -148,8 +149,8 @@ pub(crate) fn analyze_case(
                             "\\in_array".to_string(),
                         ))),
                     ),
-                    vec![],
-                    vec![
+                    targs: vec![],
+                    args: vec![
                         (ParamKind::Pnormal, switch_condition.clone()),
                         (
                             ParamKind::Pnormal,
@@ -164,8 +165,8 @@ pub(crate) fn analyze_case(
                             ),
                         ),
                     ],
-                    None,
-                ))),
+                    unpacked_arg: None,
+                })),
             )
         } else {
             if switch_cond_type.is_true() {
