@@ -10,7 +10,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
-use hakana_reflection_info::{FileSource, Interner, StrId, ThreadedInterner};
+use hakana_reflection_info::{FileSource, Interner, StrId, ThreadedInterner, STR_EMPTY};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Mutex};
 
@@ -189,7 +189,7 @@ pub fn scan_single_file(
     path: String,
     file_contents: String,
 ) -> std::result::Result<FxHashMap<usize, StrId>, ParserError> {
-    let aast = match get_aast_for_path_and_contents(&path, file_contents) {
+    let aast = match get_aast_for_path_and_contents(FilePath(STR_EMPTY), &path, file_contents) {
         Ok(aast) => aast,
         Err(err) => return Err(err),
     };
@@ -229,19 +229,18 @@ pub fn analyze_single_file(
     resolved_names: &FxHashMap<usize, StrId>,
     analysis_config: &Config,
 ) -> std::result::Result<AnalysisResult, String> {
-    let aast_result = get_aast_for_path_and_contents(&path, file_contents);
-
     let mut analysis_result =
         AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
     let file_path = FilePath(interner.get(path.as_str()).unwrap());
 
+    let aast_result = get_aast_for_path_and_contents(file_path, &path, file_contents);
+
     let aast = match aast_result {
         Ok(aast) => aast,
         Err(error) => match error {
             ParserError::NotAHackFile => return Err("Not a Hack file".to_string()),
-            ParserError::SyntaxError { message, mut pos } => {
-                pos.file_path = file_path;
+            ParserError::SyntaxError { message, pos } => {
                 analysis_result.emitted_issues.insert(
                     file_path,
                     vec![Issue::new(IssueKind::InvalidHackFile, message, pos, &None)],

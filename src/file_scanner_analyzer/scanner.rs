@@ -598,7 +598,7 @@ pub(crate) fn scan_file(
 > {
     logger.log_debug_sync(&format!("scanning {}", str_path));
 
-    let aast = get_aast_for_path(str_path);
+    let aast = get_aast_for_path(file_path, str_path);
 
     let aast = match aast {
         Ok(aast) => aast,

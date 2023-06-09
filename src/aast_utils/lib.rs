@@ -24,16 +24,19 @@ pub enum ParserError {
 }
 
 pub fn get_aast_for_path_and_contents(
-    local_path: &str,
+    file_path: FilePath,
+    file_path_str: &str,
     file_contents: String,
 ) -> Result<(aast::Program<(), ()>, ScouredComments, String), ParserError> {
-    let rc_path = RcOc::new(RelativePath::make(Prefix::Root, PathBuf::from(&local_path)));
+    let rc_path = RcOc::new(RelativePath::make(
+        Prefix::Root,
+        PathBuf::from(&file_path_str),
+    ));
 
     let text = SourceText::make(rc_path.clone(), file_contents.as_bytes());
     let indexed_source_text = IndexedSourceText::new(text.clone());
 
     let mut parser_env = AastParserEnv::default();
-    parser_env.show_all_errors = true;
     parser_env.parser_options.po_disable_hh_ignore_error = 0;
     parser_env.include_line_comments = true;
     parser_env.scour_comments = true;
@@ -65,7 +68,7 @@ pub fn get_aast_for_path_and_contents(
         return Err(ParserError::SyntaxError {
             message: first_error.message.to_string(),
             pos: HPos {
-                file_path: FilePath(STR_EMPTY),
+                file_path: file_path,
                 start_offset: first_error.start_offset,
                 end_offset: first_error.end_offset,
                 start_line: line_count,

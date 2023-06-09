@@ -192,7 +192,7 @@ fn analyze_file(
     let aast = if let Some(aast_result) = get_deserialized_ast(asts, file_path) {
         aast_result
     } else {
-        match get_aast_for_path(str_path) {
+        match get_aast_for_path(file_path, str_path) {
             Ok(aast) => (aast.0, aast.1),
             Err(err) => {
                 analysis_result.emitted_issues.insert(
@@ -213,8 +213,7 @@ fn analyze_file(
                             },
                             &None,
                         ),
-                        ParserError::SyntaxError { message, mut pos } => {
-                            pos.file_path = file_path;
+                        ParserError::SyntaxError { message, pos } => {
                             Issue::new(IssueKind::InvalidHackFile, message, pos, &None)
                         }
                     }],

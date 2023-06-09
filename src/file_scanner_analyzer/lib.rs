@@ -293,32 +293,33 @@ pub async fn scan_and_analyze(
 }
 
 pub fn get_aast_for_path(
-    path: &str,
+    file_path: FilePath,
+    file_path_str: &str,
 ) -> Result<(aast::Program<(), ()>, ScouredComments, String), ParserError> {
-    let file_contents = if path.starts_with("hsl_embedded_") {
+    let file_contents = if file_path_str.starts_with("hsl_embedded_") {
         std::str::from_utf8(
-            &HslAsset::get(path)
-                .unwrap_or_else(|| panic!("Could not read HSL file {}", path))
+            &HslAsset::get(file_path_str)
+                .unwrap_or_else(|| panic!("Could not read HSL file {}", file_path_str))
                 .data,
         )
-        .unwrap_or_else(|_| panic!("Could not convert HSL file {}", path))
+        .unwrap_or_else(|_| panic!("Could not convert HSL file {}", file_path_str))
         .to_string()
-    } else if path.starts_with("hhi_embedded_") {
+    } else if file_path_str.starts_with("hhi_embedded_") {
         std::str::from_utf8(
-            &HhiAsset::get(path)
-                .unwrap_or_else(|| panic!("Could not read HSL file {}", path))
+            &HhiAsset::get(file_path_str)
+                .unwrap_or_else(|| panic!("Could not read HSL file {}", file_path_str))
                 .data,
         )
-        .unwrap_or_else(|_| panic!("Could not convert HHI file {}", path))
+        .unwrap_or_else(|_| panic!("Could not convert HHI file {}", file_path_str))
         .to_string()
     } else {
-        match fs::read_to_string(path) {
+        match fs::read_to_string(file_path_str) {
             Ok(str_file) => str_file,
             Err(_) => return Err(ParserError::NotAHackFile),
         }
     };
 
-    get_aast_for_path_and_contents(path, file_contents)
+    get_aast_for_path_and_contents(file_path, file_path_str, file_contents)
 }
 
 fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
