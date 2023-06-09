@@ -17,7 +17,7 @@ Good type inference allows Hakana to do several other valuable things:
 
 This is not intended to replace Hack's default typechecker, which supports extra features (e.g. contexts and capabilities) that aren't immediately relevant to type inference.
 
-This tool is not designed to be run on every keypress, but LSP integration on save is coming.
+This tool is not designed to be run on every keypress, but it has a language server with support for on-save checks.
 
 ## Building from source
 
