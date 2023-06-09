@@ -205,7 +205,25 @@ impl Backend {
                         ));
                     }
 
-                    all_diagnostics.insert(Url::from_file_path(&file).unwrap(), diagnostics);
+                    match Url::from_file_path(&file) {
+                        Ok(url) => {
+                            all_diagnostics.insert(url, diagnostics);
+                            self.client
+                                .log_message(
+                                    MessageType::INFO,
+                                    format!("Got url from file {}", file),
+                                )
+                                .await;
+                        }
+                        Err(_) => {
+                            self.client
+                                .log_message(
+                                    MessageType::ERROR,
+                                    format!("Failure to get url from file {}", file),
+                                )
+                                .await;
+                        }
+                    }
                 }
 
                 self.all_diagnostics = Some(all_diagnostics);

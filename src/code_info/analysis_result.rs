@@ -97,7 +97,11 @@ impl AnalysisResult {
             .collect::<BTreeMap<_, _>>();
 
         for (file_path, file_definition_issues) in &self.emitted_definition_issues {
-            let file_path = file_path.get_relative_path(&interner, &root_dir);
+            let file_path = if use_relative_path {
+                file_path.get_relative_path(&interner, &root_dir)
+            } else {
+                interner.lookup(&file_path.0).to_string()
+            };
 
             if let Some(file_issues) = issues.get_mut(&file_path) {
                 file_issues.extend(file_definition_issues);
