@@ -79,7 +79,7 @@ pub fn combine(
         combination.value_types.remove("true");
         combination
             .value_types
-            .insert("null".to_string(), TAtomic::TBool);
+            .insert("bool".to_string(), TAtomic::TBool);
     }
 
     let mut new_types = Vec::new();
