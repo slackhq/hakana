@@ -285,9 +285,9 @@ impl DataFlowNode {
             DataFlowNodeKind::Vertex { label, .. }
             | DataFlowNodeKind::TaintSource { label, .. }
             | DataFlowNodeKind::TaintSink { label, .. }
+            | DataFlowNodeKind::VariableUseSource { label, .. }
             | DataFlowNodeKind::DataSource { label, .. } => label,
-            DataFlowNodeKind::VariableUseSource { .. }
-            | DataFlowNodeKind::ForLoopInit { .. }
+            DataFlowNodeKind::ForLoopInit { .. }
             | DataFlowNodeKind::VariableUseSink { .. } => &self.id,
         }
     }
