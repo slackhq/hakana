@@ -271,6 +271,26 @@ impl SymbolReferences {
         referenced_symbols_and_members
     }
 
+    pub fn get_referenced_symbols_and_members_with_counts(&self) -> FxHashMap<(StrId, StrId), u32> {
+        let mut referenced_symbols_and_members = FxHashMap::default();
+
+        for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols {
+            for r in symbol_references_to_symbols {
+                let v = referenced_symbols_and_members.entry(*r).or_insert(0);
+                *v += 1;
+            }
+        }
+
+        for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols_in_signature {
+            for r in symbol_references_to_symbols {
+                let v = referenced_symbols_and_members.entry(*r).or_insert(0);
+                *v += 1;
+            }
+        }
+
+        referenced_symbols_and_members
+    }
+
     pub fn get_referenced_overridden_class_members(&self) -> FxHashSet<&(StrId, StrId)> {
         let mut referenced_class_members = FxHashSet::default();
 

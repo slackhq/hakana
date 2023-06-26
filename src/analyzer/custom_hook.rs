@@ -1,3 +1,4 @@
+use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::{
@@ -117,6 +118,16 @@ pub trait InternalHook {
     }
 
     fn get_custom_issue_names(&self) -> Vec<&str> {
+        vec![]
+    }
+
+    #[allow(unused_variables)]
+    fn get_candidates(
+        &self,
+        codebase: &CodebaseInfo,
+        interner: &Interner,
+        analysis_result: &AnalysisResult,
+    ) -> Vec<String> {
         vec![]
     }
 }

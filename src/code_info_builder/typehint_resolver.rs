@@ -610,3 +610,95 @@ pub fn get_type_from_optional_hint(
         _ => None,
     }
 }
+
+pub fn get_type_references_from_hint(
+    hint: &Hint,
+    resolved_names: &FxHashMap<usize, StrId>,
+) -> Vec<(StrId, usize, usize)> {
+    let mut refs = vec![];
+    match &*hint.1 {
+        Hint_::Happly(id, type_params) => {
+            let applied_type = &id.1;
+
+            match applied_type.as_str() {
+                "int"
+                | "string"
+                | "arraykey"
+                | "bool"
+                | "float"
+                | "nonnull"
+                | "null"
+                | "nothing"
+                | "noreturn"
+                | "void"
+                | "num"
+                | "mixed"
+                | "dynamic"
+                | "vec"
+                | "HH\\vec"
+                | "HH\\varray"
+                | "varray"
+                | "dict"
+                | "HH\\dict"
+                | "HH\\darray"
+                | "darray"
+                | "classname"
+                | "typename"
+                | "vec_or_dict"
+                | "varray_or_darray"
+                | "resource"
+                | "_"
+                | "HH\\FIXME\\MISSING_RETURN_TYPE"
+                | "\\HH\\FIXME\\MISSING_RETURN_TYPE" => {}
+                _ => {
+                    if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                        refs.push((*resolved_name, id.0.start_offset(), id.0.end_offset()));
+                    }
+                }
+            }
+
+            for type_param in type_params {
+                refs.extend(get_type_references_from_hint(type_param, resolved_names));
+            }
+        }
+        Hint_::Hshape(shape_info) => {
+            for field in &shape_info.field_map {
+                refs.extend(get_type_references_from_hint(&field.hint, resolved_names));
+
+                match &field.name {
+                    ast_defs::ShapeFieldName::SFclassConst(lhs, _) => {
+                        let lhs_name = resolved_names.get(&lhs.0.start_offset()).unwrap();
+                        refs.push((*lhs_name, lhs.0.start_offset(), lhs.0.end_offset()));
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Hint_::Htuple(tuple_hints) => {
+            for hint in tuple_hints {
+                refs.extend(get_type_references_from_hint(hint, resolved_names));
+            }
+        }
+        Hint_::Hoption(inner) => {
+            refs.extend(get_type_references_from_hint(inner, resolved_names));
+        }
+        Hint_::Hfun(hint_fun) => {
+            for param_hint in &hint_fun.param_tys {
+                refs.extend(get_type_references_from_hint(param_hint, resolved_names));
+            }
+            refs.extend(get_type_references_from_hint(
+                &hint_fun.return_ty,
+                resolved_names,
+            ));
+        }
+        Hint_::Haccess(class, _) => {
+            refs.extend(get_type_references_from_hint(class, resolved_names));
+        }
+        Hint_::Hsoft(hint) => {
+            refs.extend(get_type_references_from_hint(hint, resolved_names));
+        }
+        _ => {}
+    }
+
+    refs
+}

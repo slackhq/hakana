@@ -138,6 +138,33 @@ pub fn init(
                 ),
         )
         .subcommand(
+            Command::new("migration-candidates")
+                .about("Generates a list of all migration candidates")
+                .arg(arg!(--"root" <PATH>).required(false).help(
+                    "The root directory that Hakana runs in. Defaults to the current directory",
+                ))
+                .arg(
+                    arg!(--"config" <PATH>)
+                        .required(false)
+                        .help("Hakana config path — defaults to ./hakana.json"),
+                )
+                .arg(
+                    arg!(--"migration" <PATH>)
+                        .required(true)
+                        .help("The migration you want to perform"),
+                )
+                .arg(
+                    arg!(--"threads" <PATH>)
+                        .required(false)
+                        .help("How many threads to use"),
+                )
+                .arg(
+                    arg!(--"debug")
+                        .required(false)
+                        .help("Add output for debugging"),
+                ),
+        )
+        .subcommand(
             Command::new("migrate")
                 .about("Migrates code in the current directory")
                 .arg(arg!(--"root" <PATH>).required(false).help(
@@ -463,6 +490,19 @@ pub fn init(
         }
         Some(("migrate", sub_matches)) => {
             do_migrate(
+                sub_matches,
+                &root_dir,
+                all_custom_issues,
+                migration_hooks,
+                config_path,
+                &cwd,
+                threads,
+                logger,
+                header,
+            );
+        }
+        Some(("migration-candidates", sub_matches)) => {
+            do_migration_candidates(
                 sub_matches,
                 &root_dir,
                 all_custom_issues,
@@ -800,6 +840,75 @@ fn do_migrate(
 
     if let Ok((analysis_result, successful_run_data)) = result {
         update_files(analysis_result, root_dir, &successful_run_data.interner);
+    }
+}
+
+fn do_migration_candidates(
+    sub_matches: &clap::ArgMatches,
+    root_dir: &String,
+    all_custom_issues: FxHashSet<String>,
+    migration_hooks: Vec<Box<dyn CustomHook>>,
+    config_path: Option<&Path>,
+    cwd: &String,
+    threads: u8,
+    logger: Logger,
+    header: &str,
+) {
+    let migration_name = sub_matches.value_of("migration").unwrap().to_string();
+
+    let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+    config.hooks = migration_hooks
+        .into_iter()
+        .filter(|m| {
+            if let Some(name) = m.get_migration_name() {
+                migration_name == name
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    if config.hooks.is_empty() {
+        println!("Migration {} not recognised", migration_name);
+        exit(1);
+    }
+
+    let config_path = config_path.unwrap();
+
+    if config_path.exists() {
+        config.update_from_file(cwd, config_path).ok();
+    }
+    config.allowed_issues = None;
+
+    let config = Arc::new(config);
+
+    let result =
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(hakana_workhorse::scan_and_analyze(
+                Vec::new(),
+                None,
+                None,
+                config.clone(),
+                None,
+                threads,
+                Arc::new(logger),
+                &header,
+                None,
+                None,
+                None,
+            ));
+
+    if let Ok(result) = result {
+        println!("\nSymbols to migrate:\n");
+        for config_hook in &config.hooks {
+            let migration_candidates =
+                config_hook.get_candidates(&result.1.codebase, &result.1.interner, &result.0);
+
+            for migration_candidate in migration_candidates {
+                println!("{}", migration_candidate);
+            }
+        }
     }
 }
 
