@@ -104,6 +104,12 @@ pub(crate) fn analyze(
         panic!()
     };
 
+    analysis_data.symbol_references.add_reference_to_symbol(
+        &context.function_context,
+        name.clone(),
+        false,
+    );
+
     let function_storage = if let Some(function_storage) =
         get_named_function_info(statements_analyzer, &name, expr.0 .0)
     {
@@ -125,14 +131,6 @@ pub(crate) fn analyze(
 
         return false;
     };
-
-    let name = function_storage.name.clone();
-
-    analysis_data.symbol_references.add_reference_to_symbol(
-        &context.function_context,
-        name.clone(),
-        false,
-    );
 
     let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
 

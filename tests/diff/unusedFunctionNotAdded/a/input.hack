@@ -1,0 +1,3 @@
+function ex(): void {
+    a();
+}
