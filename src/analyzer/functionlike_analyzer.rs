@@ -1086,7 +1086,7 @@ fn report_unused_expressions(
                 }
 
                 match &kind {
-                    VariableSourceKind::PrivateParam => {
+                    VariableSourceKind::PrivateParam | VariableSourceKind::ClosureParam => {
                         analysis_data.expr_fixme_positions.insert(
                             (pos.start_offset, pos.end_offset),
                             StmtStart {
@@ -1110,9 +1110,6 @@ fn report_unused_expressions(
                     }
                     VariableSourceKind::NonPrivateParam => {
                         // todo register public/private param
-                    }
-                    VariableSourceKind::ClosureParam => {
-                        // todo register closure param
                     }
                     VariableSourceKind::Default => {
                         handle_unused_assignment(
