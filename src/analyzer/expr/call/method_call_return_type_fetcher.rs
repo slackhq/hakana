@@ -228,9 +228,9 @@ fn add_dataflow(
 
     let codebase = statements_analyzer.get_codebase();
 
-    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        let method_call_node;
+    let method_call_node;
 
+    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if method_id != declaring_method_id {
             method_call_node = DataFlowNode::get_for_method_return(
                 method_id.to_string(&statements_analyzer.get_interner()),
@@ -408,11 +408,21 @@ fn add_dataflow(
             };
             data_flow_graph.add_node(method_call_node_source);
         }
-
-        data_flow_graph.add_node(method_call_node.clone());
-
-        return_type_candidate.parent_nodes = FxHashSet::from_iter([method_call_node.clone()]);
+    } else {
+        method_call_node = DataFlowNode::get_for_method_return(
+            method_id.to_string(&statements_analyzer.get_interner()),
+            functionlike_storage.return_type_location.clone(),
+            if functionlike_storage.specialize_call {
+                Some(statements_analyzer.get_hpos(call_pos))
+            } else {
+                None
+            },
+        );
     }
+
+    data_flow_graph.add_node(method_call_node.clone());
+
+    return_type_candidate.parent_nodes = FxHashSet::from_iter([method_call_node.clone()]);
 
     return_type_candidate
 }
