@@ -386,6 +386,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         if let Some(parent_analysis_data) = &parent_analysis_data {
             analysis_data.type_variable_bounds = parent_analysis_data.type_variable_bounds.clone();
+            analysis_data.data_flow_graph = parent_analysis_data.data_flow_graph.clone();
         }
 
         if let Some(issue_filter) = &statements_analyzer.get_config().allowed_issues {
@@ -930,7 +931,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 DataFlowNode {
                     id,
                     kind: DataFlowNodeKind::VariableUseSource {
-                        pos: param.location.clone(),
+                        pos: param.name_location.clone(),
                         kind: if param.is_inout {
                             VariableSourceKind::InoutParam
                         } else if context.calling_closure_id.is_some() {
@@ -1086,7 +1087,7 @@ fn report_unused_expressions(
                 }
 
                 match &kind {
-                    VariableSourceKind::PrivateParam | VariableSourceKind::ClosureParam => {
+                    VariableSourceKind::PrivateParam => {
                         analysis_data.expr_fixme_positions.insert(
                             (pos.start_offset, pos.end_offset),
                             StmtStart {
@@ -1107,6 +1108,31 @@ fn report_unused_expressions(
                             statements_analyzer.get_config(),
                             statements_analyzer.get_file_path_actual(),
                         );
+                    }
+                    VariableSourceKind::ClosureParam => {
+                        if config
+                            .issues_to_fix
+                            .contains(&IssueKind::UnusedClosureParameter)
+                            && !config.add_fixmes
+                        {
+                            if !analysis_data.add_replacement(
+                                (pos.start_offset + 1, pos.start_offset + 1),
+                                Replacement::Substitute("_".to_string()),
+                            ) {
+                                return;
+                            }
+                        } else {
+                            analysis_data.maybe_add_issue(
+                                Issue::new(
+                                    IssueKind::UnusedClosureParameter,
+                                    "Unused closure param ".to_string() + label,
+                                    pos.clone(),
+                                    calling_functionlike_id,
+                                ),
+                                statements_analyzer.get_config(),
+                                statements_analyzer.get_file_path_actual(),
+                            );
+                        }
                     }
                     VariableSourceKind::NonPrivateParam => {
                         // todo register public/private param

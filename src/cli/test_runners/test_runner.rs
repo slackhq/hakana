@@ -146,7 +146,8 @@ impl TestRunner {
         let mut analysis_config = config::Config::new(dir.clone(), FxHashSet::default());
         analysis_config.find_unused_expressions = dir.contains("/unused/")
             || dir.contains("UnusedAssignment")
-            || dir.contains("UnusedParameter");
+            || dir.contains("UnusedParameter")
+            || dir.contains("UnusedClosureParameter");
         analysis_config.find_unused_definitions =
             dir.to_ascii_lowercase().contains("unused") && !dir.contains("UnusedExpression");
         analysis_config.graph_kind = if dir.contains("/security/") {

@@ -16,6 +16,7 @@ pub enum IssueKind {
     EmptyBlock,
     FalsableReturnStatement,
     FalseArgument,
+    ForLoopInvalidation,
     ImpossibleArrayAssignment,
     ImpossibleAssignment,
     ImpossibleKeyCheck,
@@ -23,8 +24,8 @@ pub enum IssueKind {
     ImpossibleNullTypeComparison,
     ImpossibleTruthinessCheck,
     ImpossibleTypeComparison,
-    InternalError,
     IncompatibleTypeParameters,
+    InternalError,
     InvalidArgument,
     InvalidArrayOffset,
     InvalidContainsCheck,
@@ -41,7 +42,6 @@ pub enum IssueKind {
     LessSpecificNestedArgumentType,
     LessSpecificNestedReturnStatement,
     LessSpecificReturnStatement,
-    ForLoopInvalidation,
     MethodCallOnNull,
     MissingRequiredXhpAttribute,
     MixedAnyArgument,
@@ -64,8 +64,8 @@ pub enum IssueKind {
     MixedReturnStatement,
     NoValue,
     NonExistentClass,
-    NonExistentClasslike,
     NonExistentClassConstant,
+    NonExistentClasslike,
     NonExistentFunction,
     NonExistentMethod,
     NonExistentProperty,
@@ -111,10 +111,11 @@ pub enum IssueKind {
     UnrecognizedUnaryOp,
     UnusedAssignment,
     UnusedAssignmentInClosure,
+    UnusedAssignmentStatement,
     UnusedAwaitable,
     UnusedBuiltinReturnValue,
     UnusedClass,
-    UnusedAssignmentStatement,
+    UnusedClosureParameter,
     UnusedFunction,
     UnusedFunctionCall,
     UnusedInterface,
@@ -196,8 +197,12 @@ impl IssueKind {
 
     pub fn is_unused_expression(&self) -> bool {
         match &self {
-            Self::UnusedAssignment => true,
-            Self::UnusedAssignmentStatement => true,
+            Self::UnusedAssignment
+            | Self::UnusedAssignmentStatement
+            | Self::UnusedAssignmentInClosure
+            | Self::UnusedParameter
+            | Self::UnusedClosureParameter
+            | Self::UnusedPipeVariable => true,
             _ => false,
         }
     }

@@ -1,1 +1,1 @@
-ERROR: UnusedParameter - input.hack:3:19 - Unused param $chunk
+ERROR: UnusedClosureParameter - input.hack:3:19 - Unused closure param $chunk
