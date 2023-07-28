@@ -1,8 +1,10 @@
 use hakana_logger::Logger;
 use hakana_logger::Verbosity;
+use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::StrId;
+use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::sync::Arc;
 use std::time::Instant;
@@ -119,6 +121,8 @@ fn find_paths_to_sinks(
                 let mut actual_source_count = 0;
                 let mut new_sources = Vec::new();
 
+                let mut file_nodes = FxHashMap::default();
+
                 for source in sources {
                     let inow = if matches!(
                         logger.get_verbosity(),
@@ -141,6 +145,7 @@ fn find_paths_to_sinks(
                             &generated_source,
                             &source_taints,
                             &mut seen_sources,
+                            &mut file_nodes,
                             new_issues,
                             i == config.security_config.max_depth - 1,
                             match_sinks,
@@ -160,14 +165,22 @@ fn find_paths_to_sinks(
                 }
 
                 logger.log_sync(&format!(
-                    " - generated {}{}",
-                    actual_source_count,
+                    " - generated {} new destinations{}",
+                    new_sources.len(),
                     if let Some(now) = now {
                         let elapsed = now.elapsed();
-                        format!(" sources in {:.2?}", elapsed)
+                        format!(" in {:.2?}", elapsed)
                     } else {
                         "".to_string()
                     }
+                ));
+
+                let top_file = file_nodes.iter().max_by(|a, b| a.1.cmp(&b.1)).unwrap();
+
+                logger.log_sync(&format!(
+                    "   - {} in {}",
+                    top_file.1,
+                    top_file.0.get_relative_path(interner, &config.root_dir),
                 ));
 
                 sources = new_sources;
@@ -246,6 +259,7 @@ fn get_child_nodes(
     generated_source: &Arc<TaintedNode>,
     source_taints: &FxHashSet<SinkType>,
     seen_sources: &mut FxHashSet<String>,
+    file_nodes: &mut FxHashMap<FilePath, usize>,
     new_issues: &mut Vec<Issue>,
     is_last: bool,
     match_sinks: bool,
@@ -417,6 +431,11 @@ fn get_child_nodes(
 
             if seen_sources.contains(&source_id) {
                 continue;
+            }
+
+            if let Some(pos) = &new_destination.pos {
+                let entry = file_nodes.entry(pos.file_path).or_insert(0);
+                *entry += 1;
             }
 
             seen_sources.insert(source_id);

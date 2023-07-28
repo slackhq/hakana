@@ -163,7 +163,7 @@ impl TaintedNode {
                 .path_types
                 .iter()
                 .filter(|t| !matches!(t, PathKind::Default))
-                .map(|k| k.to_string())
+                .map(|k| k.to_unique_string())
                 .collect::<Vec<_>>()
                 .join("-")
                 .as_str()
