@@ -376,8 +376,7 @@ fn handle_special_functions(
                         false,
                         &mut TypeComparisonResult::new(),
                     ) {
-                        let null_or_string =
-                            TUnion::new(vec![TAtomic::TString, TAtomic::TNull]);
+                        let null_or_string = TUnion::new(vec![TAtomic::TString, TAtomic::TNull]);
                         Some(null_or_string)
                     } else {
                         None
@@ -753,6 +752,10 @@ fn add_dataflow(
     stmt_type
 }
 
+/*
+Returns a list of paths with (input_argument_position, path to return output).
+The optional path is for functions with ... params.
+*/
 fn get_special_argument_nodes(
     functionlike_id: &FunctionLikeIdentifier,
     interner: &Interner,
@@ -849,6 +852,36 @@ fn get_special_argument_nodes(
                     1,
                     PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 )],
+                None,
+            ),
+            "pathinfo" => (
+                vec![
+                    (
+                        0,
+                        PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, "dirname".to_string()),
+                    ),
+                    (
+                        0,
+                        PathKind::ArrayAssignment(
+                            ArrayDataKind::ArrayValue,
+                            "basename".to_string(),
+                        ),
+                    ),
+                    (
+                        0,
+                        PathKind::ArrayAssignment(
+                            ArrayDataKind::ArrayValue,
+                            "extension".to_string(),
+                        ),
+                    ),
+                    (
+                        0,
+                        PathKind::ArrayAssignment(
+                            ArrayDataKind::ArrayValue,
+                            "filename".to_string(),
+                        ),
+                    ),
+                ],
                 None,
             ),
             "str_split"
