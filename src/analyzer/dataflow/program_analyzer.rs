@@ -165,8 +165,9 @@ fn find_paths_to_sinks(
                 }
 
                 logger.log_sync(&format!(
-                    " - generated {} new destinations{}",
+                    " - generated {} new destinations from {} sources{}",
                     new_sources.len(),
+                    actual_source_count,
                     if let Some(now) = now {
                         let elapsed = now.elapsed();
                         format!(" in {:.2?}", elapsed)
@@ -175,13 +176,17 @@ fn find_paths_to_sinks(
                     }
                 ));
 
-                let top_file = file_nodes.iter().max_by(|a, b| a.1.cmp(&b.1)).unwrap();
+                let top_file = file_nodes.iter().max_by(|a, b| a.1.cmp(&b.1));
 
-                logger.log_sync(&format!(
-                    "   - {} in {}",
-                    top_file.1,
-                    top_file.0.get_relative_path(interner, &config.root_dir),
-                ));
+                if let Some(top_file) = top_file {
+                    if *top_file.1 > 10000 {
+                        logger.log_sync(&format!(
+                            "   - {} in {}",
+                            top_file.1,
+                            top_file.0.get_relative_path(interner, &config.root_dir),
+                        ));
+                    }
+                }
 
                 sources = new_sources;
             }
