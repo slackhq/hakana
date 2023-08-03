@@ -165,7 +165,11 @@ impl DataFlowGraph {
         self.sinks.extend(graph.sinks);
     }
 
-    pub fn get_origin_nodes(&self, assignment_node: &DataFlowNode) -> Vec<DataFlowNode> {
+    pub fn get_origin_nodes(
+        &self,
+        assignment_node: &DataFlowNode,
+        ignore_paths: Vec<PathKind>,
+    ) -> Vec<DataFlowNode> {
         let mut visited_child_ids = FxHashSet::default();
 
         let mut origin_nodes = vec![];
@@ -183,6 +187,14 @@ impl DataFlowGraph {
 
                 if let Some(backward_edges) = self.backward_edges.get(child_node.get_id()) {
                     for from_id in backward_edges {
+                        if let Some(forward_flows) = self.forward_edges.get(from_id) {
+                            if let Some(path) = forward_flows.get(child_node.get_id()) {
+                                if ignore_paths.contains(&path.kind) {
+                                    break;
+                                }
+                            }
+                        }
+
                         if let Some(node) = self.vertices.get(from_id) {
                             if !visited_child_ids.contains(from_id) {
                                 new_parent_nodes.insert(node.clone());
@@ -216,7 +228,7 @@ impl DataFlowGraph {
     }
 
     pub fn add_mixed_data(&mut self, assignment_node: &DataFlowNode, pos: &Pos) {
-        let origin_nodes = self.get_origin_nodes(assignment_node);
+        let origin_nodes = self.get_origin_nodes(assignment_node, vec![]);
 
         for origin_node in origin_nodes {
             if origin_node.get_label().contains("()") {

@@ -245,7 +245,11 @@ pub(crate) fn analyze(
             let mut origin_nodes = vec![];
 
             for parent_node in &existing_var_type.parent_nodes {
-                origin_nodes.extend(analysis_data.data_flow_graph.get_origin_nodes(parent_node));
+                origin_nodes.extend(
+                    analysis_data
+                        .data_flow_graph
+                        .get_origin_nodes(parent_node, vec![]),
+                );
             }
 
             origin_nodes.retain(|n| match &n.kind {

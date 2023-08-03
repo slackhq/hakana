@@ -386,7 +386,14 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         if let Some(parent_analysis_data) = &parent_analysis_data {
             analysis_data.type_variable_bounds = parent_analysis_data.type_variable_bounds.clone();
-            analysis_data.data_flow_graph = parent_analysis_data.data_flow_graph.clone();
+
+            if !statements_analyzer
+                .get_config()
+                .migration_symbols
+                .is_empty()
+            {
+                analysis_data.data_flow_graph = parent_analysis_data.data_flow_graph.clone();
+            }
         }
 
         if let Some(issue_filter) = &statements_analyzer.get_config().allowed_issues {
