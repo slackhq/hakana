@@ -1,0 +1,1 @@
+ERROR: ImpossibleTypeComparison - input.hack:11:21 - Type A is never C

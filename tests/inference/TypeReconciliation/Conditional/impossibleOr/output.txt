@@ -1,0 +1,1 @@
+ERROR: ImpossibleTypeComparison - input.hack:4:23 - Type int is never A

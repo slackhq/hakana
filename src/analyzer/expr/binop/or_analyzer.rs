@@ -167,11 +167,10 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         }
     }
 
-    let clauses_for_right_analysis = hakana_algebra::simplify_cnf({
-        let mut clauses = context.clauses.iter().map(|v| &**v).collect::<Vec<_>>();
-        clauses.extend(negated_left_clauses.iter());
-        clauses
-    });
+    let mut clauses_for_right_analysis = context.clauses.iter().map(|v| &**v).collect::<Vec<_>>();
+    clauses_for_right_analysis.extend(negated_left_clauses.iter());
+
+    let clauses_for_right_analysis = hakana_algebra::simplify_cnf(clauses_for_right_analysis);
 
     let (negated_type_assertions, active_negated_type_assertions) =
         hakana_algebra::get_truths_from_formula(
@@ -251,7 +250,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         );
     }
 
-    let _right_referenced_var_ids = right_context.cond_referenced_var_ids.clone();
+    let mut right_referenced_var_ids = right_context.cond_referenced_var_ids.clone();
     right_context
         .cond_referenced_var_ids
         .extend(pre_referenced_var_ids);
@@ -285,6 +284,36 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     .0;
 
     clauses_for_right_analysis.extend(right_clauses.unwrap());
+
+    let combined_right_clauses =
+        hakana_algebra::simplify_cnf(clauses_for_right_analysis.iter().collect());
+
+    let (right_type_assertions, active_right_type_assertions) =
+        hakana_algebra::get_truths_from_formula(
+            combined_right_clauses.iter().collect(),
+            Some(right_cond_id),
+            &mut right_referenced_var_ids,
+        );
+
+    // todo handle conditional assignment for inout refs
+
+    if !right_type_assertions.is_empty() {
+        let mut right_changed_var_ids = FxHashSet::default();
+
+        reconciler::reconcile_keyed_types(
+            &right_type_assertions,
+            active_right_type_assertions,
+            &mut right_context.clone(),
+            &mut right_changed_var_ids,
+            &right_referenced_var_ids,
+            statements_analyzer,
+            analysis_data,
+            right.pos(),
+            true,
+            context.inside_negation,
+            &FxHashMap::default(),
+        );
+    }
 
     // todo handle exit in right branch of if
 
