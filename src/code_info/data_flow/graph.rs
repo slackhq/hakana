@@ -165,6 +165,7 @@ impl DataFlowGraph {
         self.sinks.extend(graph.sinks);
     }
 
+    /// Returns a set of nodes that are origin nodes for the given assignment
     pub fn get_origin_nodes(
         &self,
         assignment_node: &DataFlowNode,

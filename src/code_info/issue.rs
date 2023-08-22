@@ -71,6 +71,7 @@ pub enum IssueKind {
     NonExistentProperty,
     NonExistentType,
     NonExistentXhpAttribute,
+    NoJoinInAsyncFunction,
     NonNullableReturnType,
     NothingReturn,
     NullArgument,
@@ -273,6 +274,8 @@ pub fn get_issue_from_comment(
         return Some(Ok(IssueKind::UnusedParameter));
     } else if trimmed_text == "HHAST_FIXME[UnusedVariable]" {
         return Some(Ok(IssueKind::UnusedAssignment));
+    } else if trimmed_text == "HHAST_FIXME[NoJoinInAsyncFunction]" {
+        return Some(Ok(IssueKind::NoJoinInAsyncFunction));
     }
 
     return None;

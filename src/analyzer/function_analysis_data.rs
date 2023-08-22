@@ -168,26 +168,14 @@ impl FunctionAnalysisData {
             return false;
         }
 
-        for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
-            if hakana_fixme_or_ignores.0 == &issue.pos.start_line
-                || hakana_fixme_or_ignores.0 == &(issue.pos.start_line - 1)
-                || hakana_fixme_or_ignores.0 == &(issue.pos.end_line - 1)
-            {
-                for line_issue in hakana_fixme_or_ignores.1 {
-                    if line_issue.0 == issue.kind
-                        || (line_issue.0 == IssueKind::UnusedAssignment
-                            && issue.kind == IssueKind::UnusedAssignmentStatement)
-                    {
-                        self.matched_ignore_positions
-                            .insert((line_issue.1 .0, line_issue.1 .1));
+        if let Some(start_end) = self.get_matching_hakana_fixme(issue) {
+            self.matched_ignore_positions.insert(start_end);
 
-                        if self.recorded_issues.is_empty() {
-                            *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;
-                        }
-                        return false;
-                    }
-                }
+            if self.recorded_issues.is_empty() {
+                *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;
             }
+
+            return false;
         }
 
         if let Some(recorded_issues) = self.recorded_issues.last_mut() {
@@ -204,6 +192,26 @@ impl FunctionAnalysisData {
         }
 
         return true;
+    }
+
+    pub(crate) fn get_matching_hakana_fixme(&self, issue: &Issue) -> Option<(usize, usize)> {
+        for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
+            if hakana_fixme_or_ignores.0 == &issue.pos.start_line
+                || hakana_fixme_or_ignores.0 == &(issue.pos.start_line - 1)
+                || hakana_fixme_or_ignores.0 == &(issue.pos.end_line - 1)
+            {
+                for line_issue in hakana_fixme_or_ignores.1 {
+                    if line_issue.0 == issue.kind
+                        || (line_issue.0 == IssueKind::UnusedAssignment
+                            && issue.kind == IssueKind::UnusedAssignmentStatement)
+                    {
+                        return Some((line_issue.1 .0, line_issue.1 .1));
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     fn covered_by_hh_fixme(&mut self, issue_kind: &IssueKind, start_line: usize) -> bool {

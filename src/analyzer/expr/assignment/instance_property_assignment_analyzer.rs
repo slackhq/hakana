@@ -329,10 +329,11 @@ pub(crate) fn analyze_regular_assignment(
     // TODO if ($invalid_assignment_types) {
 
     if let Some(var_id) = var_id {
-        context.vars_in_scope.insert(
-            var_id.to_owned(),
-            Rc::new(context_type.unwrap_or(get_mixed_any()).clone()),
-        );
+        let context_type = Rc::new(context_type.unwrap_or(get_mixed_any()).clone());
+
+        context
+            .vars_in_scope
+            .insert(var_id.to_owned(), context_type);
     }
 
     assigned_properties

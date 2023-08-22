@@ -104,6 +104,7 @@ pub struct ScopeContext {
      */
     pub inside_assignment: bool,
 
+    /// Whether or not we're inside an assignment operator (i.e. +=, -=, *=, /=, %=, etc)
     pub inside_assignment_op: bool,
 
     pub inside_awaitall: bool,
@@ -135,12 +136,17 @@ pub struct ScopeContext {
 
     pub inside_loop: bool,
 
+    /// The current case scope, if we're in a switch
     pub case_scope: Option<CaseScope>,
 
+    /// The current finally scope, if we're in a try
     pub finally_scope: Option<Rc<RefCell<FinallyScope>>>,
 
+    /// Details of the function that's being analyzed
     pub function_context: FunctionContext,
 
+    /// The id of the closure that's being analyzed, if any.
+    /// This may be different from the overall function context.
     pub calling_closure_id: Option<StrId>,
 
     pub inside_negation: bool,

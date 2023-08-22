@@ -1,3 +1,4 @@
+use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_union::TUnion;
@@ -429,6 +430,44 @@ pub(crate) fn analyze(
                             }
                         }
                     }
+                }
+            }
+        }
+        "HH\\Asio\\join" => {
+            if context.inside_async {
+                let issue = Issue::new(
+                    IssueKind::NoJoinInAsyncFunction,
+                    "Prefer to use the await keyword instead of blocking by calling HH\\Asio\\join() inside an async function.".to_string(),
+                    statements_analyzer.get_hpos(&pos),
+                    &context.function_context.calling_functionlike_id,
+                );
+
+                let config = statements_analyzer.get_config();
+
+                if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+                    // Only replace code that's not already covered by a FIXME
+                    if analysis_data.get_matching_hakana_fixme(&issue).is_none() {
+                        analysis_data.add_replacement(
+                            (
+                                pos.start_offset(),
+                                expr.0.0.end_offset() + 1,
+                            ),
+                            Replacement::Substitute("await ".to_string()),
+                        );
+                        analysis_data.add_replacement(
+                            (
+                                pos.end_offset() - 1,
+                                pos.end_offset(),
+                            ),
+                            Replacement::Remove,
+                        );
+                    }
+                } else {
+                    analysis_data.maybe_add_issue(
+                        issue,
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
                 }
             }
         }
