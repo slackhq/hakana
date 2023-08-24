@@ -149,7 +149,7 @@
 		"fs-extra": "^11.1.0",
 		"mz": "^2.7.0",
 		"promisify-child-process": "^4.1.1",
-		"semver": "^7.3.8",
+		"semver": "^7.5.2",
 		"vscode-languageclient": "^8.1.0",
 		"which": "^3.0.0"
 	}
