@@ -69,10 +69,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let Some(f) = self.file_analyzer.codebase.functionlike_infos.get(&name) {
                 f
             } else {
-                panic!(
-                    "Function {} could not be loaded",
-                    self.get_interner().lookup(&name)
-                );
+                return;
             };
 
         let mut statements_analyzer = StatementsAnalyzer::new(

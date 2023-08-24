@@ -102,7 +102,7 @@ pub(crate) fn analyze(
     } else if let Some(fq_name) = resolved_names.get(&expr.0 .0.start_offset()) {
         fq_name.clone()
     } else {
-        panic!()
+        return false;
     };
 
     analysis_data.symbol_references.add_reference_to_symbol(
