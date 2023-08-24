@@ -39,7 +39,14 @@ pub fn get_id_name(
 
             self_name.clone()
         }
-        _ => resolved_names.get(&id.0.start_offset()).unwrap().clone(),
+        _ => {
+            if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                resolved_name.clone()
+            } else {
+                // this is bad
+                return None;
+            }
+        }
     })
 }
 

@@ -52,10 +52,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         analysis_result: &mut AnalysisResult,
     ) {
         let resolved_names = self.file_analyzer.resolved_names.clone();
-        let name = resolved_names
-            .get(&stmt.name.0.start_offset())
-            .unwrap()
-            .clone();
+
+        let name = if let Some(name) = resolved_names.get(&stmt.name.0.start_offset()) {
+            *name
+        } else {
+            return;
+        };
 
         if self.file_analyzer.analysis_config.ast_diff {
             if self.file_analyzer.codebase.safe_symbols.contains(&name) {

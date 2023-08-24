@@ -99,11 +99,15 @@ pub(crate) fn analyze(
                     _ => {
                         let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                        let name_string = resolved_names.get(&id.0.start_offset()).unwrap().clone();
+                        if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                            let name_string = *resolved_name;
 
-                        classlike_name = Some(name_string);
+                            classlike_name = Some(name_string);
 
-                        get_named_object(name_string)
+                            get_named_object(name_string)
+                        } else {
+                            return false;
+                        }
                     }
                 }
             } else {
