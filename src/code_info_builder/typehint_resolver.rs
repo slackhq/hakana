@@ -358,7 +358,11 @@ fn get_reference_type(
         };
     }
 
-    let resolved_name = resolved_names.get(&applied_type.0.start_offset()).unwrap();
+    let resolved_name = if let Some(resolved_name) = resolved_names.get(&applied_type.0.start_offset()) {
+        resolved_name
+    } else {
+        return TAtomic::TMixed;
+    };
 
     if let Some(defining_entities) = type_context.template_type_map.get(resolved_name) {
         return get_template_type(defining_entities, resolved_name);

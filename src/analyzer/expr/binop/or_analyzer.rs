@@ -7,6 +7,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
 use crate::{function_analysis_data::FunctionAnalysisData, scope_context::if_scope::IfScope};
 use hakana_type::combine_union_types;
@@ -20,7 +21,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
     let mut left_context;
@@ -38,7 +39,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             analysis_data,
             context,
             &mut if_scope,
-        );
+        )?;
 
         left_context = if_conditional_scope.if_body_context;
         *context = if_conditional_scope.outer_context;
@@ -52,15 +53,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         left_context = context.clone();
         left_context.assigned_var_ids = FxHashMap::default();
 
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             left,
             analysis_data,
             &mut left_context,
             &mut None,
-        ) {
-            return false;
-        }
+        )?;
 
         for var_id in &left_context.parent_conflicting_clause_vars {
             context.remove_var_from_conflicting_clauses(var_id, None, None, analysis_data);
@@ -124,7 +123,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     ) {
         left_clauses
     } else {
-        return false;
+        return Err(AnalysisError::UserError);
     };
 
     let mut negated_left_clauses =
@@ -146,7 +145,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             ) {
                 good_clauses
             } else {
-                return false;
+                return Err(AnalysisError::UserError);
             }
         };
 
@@ -230,15 +229,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     let pre_assigned_var_ids = right_context.assigned_var_ids.clone();
     right_context.assigned_var_ids = FxHashMap::default();
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         right,
         analysis_data,
         &mut right_context,
         &mut None,
-    ) {
-        return false;
-    }
+    )?;
 
     if let Some(cond_type) = analysis_data.get_expr_type(right.pos()).cloned() {
         handle_paradoxical_condition(
@@ -271,7 +268,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     );
 
     if let Err(_) = right_clauses {
-        return false;
+        return Err(AnalysisError::UserError);
     }
 
     let mut clauses_for_right_analysis = ScopeContext::remove_reconciled_clauses(
@@ -354,7 +351,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             .extend(context.assigned_var_ids.clone());
     }
 
-    true
+    Ok(())
 }
 
 fn is_or(cond: &aast::Expr<(), ()>, max_nesting: usize) -> bool {

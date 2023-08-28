@@ -5,7 +5,7 @@ use hakana_analyzer::dataflow::program_analyzer::find_tainted_data;
 use hakana_analyzer::file_analyzer;
 use hakana_logger::Logger;
 use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::code_location::FilePath;
+use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -268,7 +268,29 @@ pub fn analyze_single_file(
         analysis_config,
     );
 
-    file_analyzer.analyze(&aast.0, &mut analysis_result);
+    match file_analyzer.analyze(&aast.0, &mut analysis_result) {
+        Ok(()) => {}
+        Err(err) => {
+            analysis_result.emitted_issues.insert(
+                file_path,
+                vec![Issue::new(
+                    IssueKind::InternalError,
+                    err.0,
+                    HPos {
+                        file_path,
+                        start_offset: 1,
+                        end_offset: 1,
+                        start_line: 1,
+                        end_line: 1,
+                        start_column: 1,
+                        end_column: 1,
+                        insertion_start: None,
+                    },
+                    &None,
+                )],
+            );
+        }
+    }
 
     Ok(analysis_result)
 }

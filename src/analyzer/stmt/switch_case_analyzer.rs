@@ -14,6 +14,7 @@ use oxidized::pos_span_raw::PosSpanRaw;
 
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::CaseScope;
+use crate::stmt_analyzer::AnalysisError;
 
 use rustc_hash::FxHashMap;
 
@@ -76,7 +77,7 @@ pub(crate) fn analyze_case(
     is_last: bool,
     switch_scope: &mut SwitchScope,
     loop_scope: &mut Option<LoopScope>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let has_ending_statements =
         case_actions.len() == 1 && case_actions.contains(&ControlAction::End);
     let has_leaving_statements = has_ending_statements
@@ -89,15 +90,13 @@ pub(crate) fn analyze_case(
     let mut case_equality_expr = None;
 
     if let Some(case_cond) = case_cond {
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             case_cond,
             analysis_data,
             context,
             &mut None,
-        ) {
-            return false;
-        }
+        )?;
 
         add_branch_dataflow(statements_analyzer, case_cond, analysis_data);
 
@@ -121,15 +120,13 @@ pub(crate) fn analyze_case(
 
         case_equality_expr = Some(if !previous_empty_cases.is_empty() {
             for previous_empty_case in previous_empty_cases {
-                if !expression_analyzer::analyze(
+                expression_analyzer::analyze(
                     statements_analyzer,
                     &previous_empty_case.0,
                     analysis_data,
                     context,
                     &mut None,
-                ) {
-                    return false;
-                }
+                )?;
             }
             let mut case_conds = previous_empty_cases
                 .clone()
@@ -245,7 +242,7 @@ pub(crate) fn analyze_case(
 
         analysis_data.case_scopes.pop();
 
-        return true;
+        return Ok(());
     }
 
     if let Some(leftover_case_equality_expr) = &switch_scope.leftover_case_equality_expr {
@@ -419,10 +416,10 @@ pub(crate) fn analyze_case(
 
     analysis_data.case_scopes.push(CaseScope::new());
 
-    statements_analyzer.analyze(&case_stmts, analysis_data, &mut case_context, loop_scope);
+    statements_analyzer.analyze(&case_stmts, analysis_data, &mut case_context, loop_scope)?;
 
     if analysis_data.case_scopes.is_empty() {
-        return false;
+        return Ok(());
     }
 
     let case_scope = analysis_data.case_scopes.pop().unwrap();
@@ -432,7 +429,7 @@ pub(crate) fn analyze_case(
     analysis_data.expr_types = old_node_data;
 
     if !matches!(case_exit_type, ControlAction::Return) {
-        if !handle_non_returning_case(
+        handle_non_returning_case(
             statements_analyzer,
             switch_var_id,
             case_cond.is_none(),
@@ -443,9 +440,7 @@ pub(crate) fn analyze_case(
             original_context,
             &case_exit_type,
             switch_scope,
-        ) {
-            return false;
-        }
+        )?;
     }
 
     let codebase = statements_analyzer.get_codebase();
@@ -513,7 +508,7 @@ pub(crate) fn analyze_case(
         }
     }
 
-    true
+   Ok(())
 }
 
 pub(crate) fn handle_non_returning_case(
@@ -527,7 +522,7 @@ pub(crate) fn handle_non_returning_case(
     original_context: &ScopeContext,
     case_exit_type: &ControlAction,
     switch_scope: &mut SwitchScope,
-) -> bool {
+) -> Result<(), AnalysisError> {
     if is_default_case {
         if let Some(switch_type) = case_context.vars_in_scope.get(switch_var_id) {
             if switch_type.is_nothing() {
@@ -543,7 +538,7 @@ pub(crate) fn handle_non_returning_case(
                     statements_analyzer.get_file_path_actual(),
                 );
 
-                return false;
+                return Ok(());
             }
         }
     }
@@ -632,5 +627,5 @@ pub(crate) fn handle_non_returning_case(
         }
     }
 
-    true
+   Ok(())
 }

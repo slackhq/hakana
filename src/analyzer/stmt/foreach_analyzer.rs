@@ -5,10 +5,11 @@ use crate::{
         fetch::array_fetch_analyzer::add_array_fetch_dataflow,
     },
     expression_analyzer,
+    function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
     scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -34,7 +35,7 @@ pub(crate) fn analyze(
     pos: &ast_defs::Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut value_is_async = false;
 
     let value_expr = match stmt.1 {
@@ -50,18 +51,13 @@ pub(crate) fn analyze(
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
 
-    if expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         stmt.0,
         analysis_data,
         context,
         &mut None,
-    ) == false
-    {
-        context.inside_general_use = was_inside_general_use;
-
-        return false;
-    }
+    )?;
 
     context.inside_general_use = was_inside_general_use;
 
@@ -107,13 +103,9 @@ pub(crate) fn analyze(
             context,
         );
 
-        if !result.0 {
-            return false;
-        }
-
-        key_type = Some(result.1.unwrap_or(get_arraykey(true)));
-        value_type = Some(result.2.unwrap_or(get_mixed_any()));
-        always_non_empty_array = result.3;
+        key_type = Some(result.0.unwrap_or(get_arraykey(true)));
+        value_type = Some(result.1.unwrap_or(get_mixed_any()));
+        always_non_empty_array = result.2;
     }
 
     let mut foreach_context = context.clone();
@@ -151,12 +143,11 @@ pub(crate) fn analyze(
         analysis_data,
         &mut foreach_context,
         false,
-    )
-    .ok();
+    )?;
 
     foreach_context.for_loop_init_bounds = None;
 
-    let (analysis_result, _) = loop_analyzer::analyze(
+    loop_analyzer::analyze(
         statements_analyzer,
         &stmt.2 .0,
         vec![],
@@ -167,15 +158,11 @@ pub(crate) fn analyze(
         analysis_data,
         false,
         always_non_empty_array,
-    );
-
-    if !analysis_result {
-        return false;
-    }
+    )?;
 
     // todo do we need to remove the loop scope from analysis_data here? unsure
 
-    return true;
+    return Ok(());
 }
 
 fn check_iterator_type(
@@ -186,7 +173,7 @@ fn check_iterator_type(
     iterator_type: &TUnion,
     is_async: bool,
     context: &mut ScopeContext,
-) -> (bool, Option<TUnion>, Option<TUnion>, bool) {
+) -> (Option<TUnion>, Option<TUnion>, bool) {
     let mut always_non_empty_array = true;
 
     if iterator_type.is_null() {
@@ -201,7 +188,7 @@ fn check_iterator_type(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return (true, None, None, false);
+        return (None, None, false);
     }
 
     if iterator_type.is_nullable() {
@@ -216,7 +203,7 @@ fn check_iterator_type(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return (true, None, None, false);
+        return (None, None, false);
     }
 
     let mut has_valid_iterator = false;
@@ -560,5 +547,5 @@ fn check_iterator_type(
         analysis_data.data_flow_graph.add_node(foreach_node);
     }
 
-    (true, key_type, value_type, always_non_empty_array)
+    (key_type, value_type, always_non_empty_array)
 }

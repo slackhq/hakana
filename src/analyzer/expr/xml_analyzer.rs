@@ -1,8 +1,9 @@
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
@@ -41,9 +42,16 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     if_body_context: &mut Option<ScopeContext>,
-) {
+) -> Result<(), AnalysisError> {
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
-    let xhp_class_name = resolved_names.get(&boxed.0 .0.start_offset()).unwrap();
+    let xhp_class_name = if let Some(resolved_name) = resolved_names.get(&boxed.0 .0.start_offset())
+    {
+        resolved_name
+    } else {
+        return Err(AnalysisError::InternalError(
+            "could not resolve XML name".to_string(),
+        ));
+    };
 
     analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
@@ -67,7 +75,7 @@ pub(crate) fn analyze(
                     analysis_data,
                     context,
                     &xhp_class_name,
-                );
+                )?;
 
                 used_attributes.insert(attribute_name);
 
@@ -79,7 +87,7 @@ pub(crate) fn analyze(
                     analysis_data,
                     context,
                     if_body_context,
-                );
+                )?;
             }
             aast::XhpAttribute::XhpSpread(xhp_expr) => {
                 used_attributes.extend(handle_attribute_spread(
@@ -90,7 +98,7 @@ pub(crate) fn analyze(
                     context,
                     if_body_context,
                     codebase,
-                ));
+                )?);
             }
         }
     }
@@ -150,7 +158,7 @@ pub(crate) fn analyze(
             analysis_data,
             context,
             if_body_context,
-        );
+        )?;
 
         analysis_data.combine_effects(inner_expr.pos(), pos, pos);
 
@@ -218,6 +226,8 @@ pub(crate) fn analyze(
         (pos.start_offset(), pos.end_offset()),
         Rc::new(get_named_object(*xhp_class_name)),
     );
+
+    Ok(())
 }
 
 fn handle_attribute_spread(
@@ -228,14 +238,14 @@ fn handle_attribute_spread(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     codebase: &CodebaseInfo,
-) -> FxHashSet<StrId> {
+) -> Result<FxHashSet<StrId>, AnalysisError> {
     expression_analyzer::analyze(
         statements_analyzer,
         xhp_expr,
         analysis_data,
         context,
         if_body_context,
-    );
+    )?;
 
     let mut used_attributes = FxHashSet::default();
 
@@ -272,7 +282,7 @@ fn handle_attribute_spread(
                                     .lookup(spread_attribute.0),
                                 &None,
                                 &None,
-                            );
+                            )?;
 
                             used_attributes.insert(*spread_attribute.0);
 
@@ -306,7 +316,7 @@ fn handle_attribute_spread(
         );
     }
 
-    used_attributes
+    Ok(used_attributes)
 }
 
 fn analyze_xhp_attribute_assignment(
@@ -317,14 +327,14 @@ fn analyze_xhp_attribute_assignment(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) {
+) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(
         statements_analyzer,
         &attribute_info.expr,
         analysis_data,
         context,
         if_body_context,
-    );
+    )?;
 
     let property_id = (*element_name, attribute_name);
 
@@ -376,6 +386,8 @@ fn analyze_xhp_attribute_assignment(
             &attribute_info.name.1,
         );
     }
+
+    Ok(())
 }
 
 fn add_all_dataflow(
@@ -419,15 +431,21 @@ fn get_attribute_name(
     analysis_data: &mut FunctionAnalysisData,
     context: &ScopeContext,
     element_name: &StrId,
-) -> StrId {
+) -> Result<StrId, AnalysisError> {
     if attribute_info.name.1.starts_with("data-") {
-        STR_DATA_ATTRIBUTE
+        Ok(STR_DATA_ATTRIBUTE)
     } else if attribute_info.name.1.starts_with("aria-") {
-        STR_DATA_ATTRIBUTE
+        Ok(STR_DATA_ATTRIBUTE)
     } else {
-        let attribute_name = *resolved_names
-            .get(&attribute_info.name.0.start_offset())
-            .unwrap();
+        let attribute_name = if let Some(resolved_name) =
+            resolved_names.get(&attribute_info.name.0.start_offset())
+        {
+            *resolved_name
+        } else {
+            return Err(AnalysisError::InternalError(
+                "could not resolve XML name".to_string(),
+            ));
+        };
 
         analysis_data
             .symbol_references
@@ -437,7 +455,7 @@ fn get_attribute_name(
                 false,
             );
 
-        attribute_name
+        Ok(attribute_name)
     }
 }
 

@@ -1,7 +1,8 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 
 use hakana_type::{get_bool, get_int};
 use oxidized::pos::Pos;
@@ -14,7 +15,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     match &expr.0 {
         oxidized::ast_defs::Bop::Plus
         | oxidized::ast_defs::Bop::Minus
@@ -35,12 +36,12 @@ pub(crate) fn analyze(
                 expr.2,
                 analysis_data,
                 context,
-            );
-            return true;
+            )?;
+            return Ok(());
         }
 
         oxidized::ast_defs::Bop::Ampamp => {
-            let result = crate::expr::binop::and_analyzer::analyze(
+            crate::expr::binop::and_analyzer::analyze(
                 statements_analyzer,
                 pos,
                 expr.1,
@@ -48,7 +49,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )?;
 
             add_decision_dataflow(
                 statements_analyzer,
@@ -59,18 +60,18 @@ pub(crate) fn analyze(
                 get_bool(),
             );
 
-            return result;
+            return Ok(());
         }
 
         oxidized::ast_defs::Bop::Barbar => {
-            let result = crate::expr::binop::or_analyzer::analyze(
+            crate::expr::binop::or_analyzer::analyze(
                 statements_analyzer,
                 expr.1,
                 expr.2,
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )?;
 
             add_decision_dataflow(
                 statements_analyzer,
@@ -81,7 +82,7 @@ pub(crate) fn analyze(
                 get_bool(),
             );
 
-            return result;
+            return Ok(());
         }
 
         oxidized::ast_defs::Bop::Eqeq
@@ -92,25 +93,21 @@ pub(crate) fn analyze(
         | oxidized::ast_defs::Bop::Lte
         | oxidized::ast_defs::Bop::Gt
         | oxidized::ast_defs::Bop::Gte => {
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 expr.1,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
 
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 expr.2,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
 
             add_decision_dataflow(
                 statements_analyzer,
@@ -123,7 +120,7 @@ pub(crate) fn analyze(
 
             analysis_data.combine_effects(expr.1.pos(), expr.2.pos(), pos);
 
-            return true;
+            return Ok(());
         }
 
         oxidized::ast_defs::Bop::Dot => {
@@ -134,31 +131,27 @@ pub(crate) fn analyze(
                 expr.2,
                 analysis_data,
                 context,
-            );
+            )?;
 
-            return true;
+            return Ok(());
         }
 
         oxidized::ast_defs::Bop::Cmp => {
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 expr.1,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
 
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 expr.2,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
 
             add_decision_dataflow(
                 statements_analyzer,
@@ -171,11 +164,11 @@ pub(crate) fn analyze(
 
             analysis_data.combine_effects(expr.1.pos(), expr.2.pos(), pos);
 
-            return true;
+            return Ok(());
         }
 
         oxidized::ast_defs::Bop::QuestionQuestion => {
-            return crate::expr::binop::coalesce_analyzer::analyze(
+            crate::expr::binop::coalesce_analyzer::analyze(
                 statements_analyzer,
                 pos,
                 expr.1,
@@ -183,11 +176,13 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )?;
+
+            return Ok(());
         }
 
         oxidized::ast_defs::Bop::Eq(_) => {
-            if crate::expr::binop::assignment_analyzer::analyze(
+            crate::expr::binop::assignment_analyzer::analyze(
                 statements_analyzer,
                 (expr.0, expr.1, Some(expr.2)),
                 pos,
@@ -195,12 +190,9 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 false,
-            )
-            .is_err()
-            {
-                return false;
-            }
-            return true;
+            )?;
+
+            return Ok(());
         }
     }
 }

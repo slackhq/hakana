@@ -3,6 +3,7 @@ use super::{
     instance_property_fetch_analyzer,
 };
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::ast::get_id_name;
@@ -27,7 +28,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
     let stmt_class = expr.0;
     let stmt_name = expr.1;
@@ -36,14 +37,19 @@ pub(crate) fn analyze(
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
                 let mut is_static = false;
-                get_id_name(
+                if let Some(id) = get_id_name(
                     id,
                     &context.function_context.calling_class,
                     codebase,
                     &mut is_static,
                     statements_analyzer.get_file_analyzer().resolved_names,
-                )
-                .unwrap()
+                ) {
+                    id
+                } else {
+                    return Err(AnalysisError::InternalError(
+                        "Unable to resolve static classlike name".to_string(),
+                    ));
+                }
             } else {
                 analyze_variable_static_property_fetch(
                     statements_analyzer,
@@ -51,8 +57,8 @@ pub(crate) fn analyze(
                     pos,
                     analysis_data,
                     context,
-                );
-                return true;
+                )?;
+                return Ok(());
             }
         }
         _ => {
@@ -60,7 +66,7 @@ pub(crate) fn analyze(
         }
     };
 
-    if !codebase.class_exists(&classlike_name) {
+    if !codebase.class_exists(&classlike_name) && !codebase.trait_exists(&classlike_name) {
         analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
             classlike_name,
@@ -81,7 +87,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return false;
+        return Ok(());
     }
 
     analysis_data
@@ -101,10 +107,10 @@ pub(crate) fn analyze(
                     if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
                         value.clone()
                     } else {
-                        return false;
+                        return Err(AnalysisError::UserError);
                     }
                 } else {
-                    return false;
+                    return Err(AnalysisError::UserError);
                 }
             }
         }
@@ -147,7 +153,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return false;
+        return Err(AnalysisError::UserError);
     };
 
     analysis_data
@@ -175,7 +181,7 @@ pub(crate) fn analyze(
         // we don't need to check anything since this variable is known in this scope
         analysis_data.set_expr_type(&pos, stmt_type);
 
-        return true;
+        return Ok(());
     }
 
     let declaring_property_class = if let Some(declaring_property_class) =
@@ -198,7 +204,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return false;
+        return Err(AnalysisError::UserError);
     };
 
     // TODO AtomicPropertyFetchAnalyzer::checkPropertyDeprecation
@@ -252,7 +258,7 @@ pub(crate) fn analyze(
         analysis_data.set_rc_expr_type(&pos, rc)
     }
 
-    true
+    Ok(())
 }
 
 /**
@@ -265,7 +271,7 @@ fn analyze_variable_static_property_fetch(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) {
+) -> Result<(), AnalysisError> {
     let stmt_class_type = if let aast::ClassId_::CIexpr(stmt_class_expr) = &expr.0 .2 {
         let was_inside_general_use = context.inside_general_use;
         context.inside_general_use = true;
@@ -276,7 +282,7 @@ fn analyze_variable_static_property_fetch(
             analysis_data,
             context,
             &mut None,
-        );
+        )?;
 
         context.inside_general_use = was_inside_general_use;
         analysis_data.get_expr_type(stmt_class_expr.pos()).cloned()
@@ -319,9 +325,11 @@ fn analyze_variable_static_property_fetch(
             context,
             context.inside_assignment,
             false,
-        );
+        )?;
 
         let stmt_type = analysis_data.get_expr_type(&pos).unwrap();
         analysis_data.set_expr_type(&pos, stmt_type.clone());
     }
+
+    Ok(())
 }

@@ -1,6 +1,6 @@
 use crate::{
     scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData,
+    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
     data_flow::{
@@ -24,7 +24,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     if !context.has_variable(&lid.1 .1) {
         let superglobal_type = match lid.1 .1.as_str() {
             "$_FILES" | "$_POST" | "$_GET" | "$_ENV" | "$_SERVER" | "$_REQUEST" | "$_COOKIE" => {
@@ -84,7 +84,7 @@ pub(crate) fn analyze(
         }
     }
 
-    true
+   Ok(())
 }
 
 pub(crate) fn get_type_for_superglobal(

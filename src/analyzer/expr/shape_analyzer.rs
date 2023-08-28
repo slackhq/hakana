@@ -1,6 +1,6 @@
 use crate::{
     expression_analyzer, scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData,
+    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
     code_location::StmtStart,
@@ -26,7 +26,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
     let mut parent_nodes = FxHashSet::default();
@@ -100,15 +100,13 @@ pub(crate) fn analyze(
         };
 
         // Now check types of the values
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             value_expr,
             analysis_data,
             context,
             &mut None,
-        ) {
-            return false;
-        }
+        )?;
 
         effects |= analysis_data
             .expr_effects
@@ -168,7 +166,7 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(&pos, new_dict);
 
-    true
+   Ok(())
 }
 
 fn add_shape_value_dataflow(

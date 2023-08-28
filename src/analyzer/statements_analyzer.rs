@@ -1,11 +1,11 @@
 use crate::config::Config;
 use crate::file_analyzer::FileAnalyzer;
 use crate::formula_generator::AssertionContext;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
-use crate::stmt_analyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::{self, AnalysisError};
 use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
@@ -39,13 +39,13 @@ impl<'a> StatementsAnalyzer<'a> {
         }
     }
 
-    pub fn analyze(
+    pub(crate) fn analyze(
         &self,
         stmts: &Vec<aast::Stmt<(), ()>>,
         analysis_data: &mut FunctionAnalysisData,
         context: &mut ScopeContext,
         loop_scope: &mut Option<LoopScope>,
-    ) -> bool {
+    ) -> Result<(), AnalysisError> {
         for stmt in stmts {
             if context.has_returned
                 && self.get_config().allow_issue_kind_in_file(
@@ -66,13 +66,11 @@ impl<'a> StatementsAnalyzer<'a> {
                     );
                 }
             } else {
-                if !stmt_analyzer::analyze(self, stmt, analysis_data, context, loop_scope) {
-                    return false;
-                }
+                stmt_analyzer::analyze(self, stmt, analysis_data, context, loop_scope)?;
             }
         }
 
-        true
+        Ok(())
     }
 
     pub fn set_function_info(&mut self, function_info: &'a FunctionLikeInfo) {

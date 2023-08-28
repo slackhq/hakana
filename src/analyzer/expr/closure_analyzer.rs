@@ -1,8 +1,9 @@
 use std::rc::Rc;
 
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{functionlike_analyzer::FunctionLikeAnalyzer, scope_analyzer::ScopeAnalyzer};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -23,17 +24,21 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     fun: &aast::Fun_<(), ()>,
     expr: &aast::Expr<(), ()>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut function_analyzer = FunctionLikeAnalyzer::new(statements_analyzer.get_file_analyzer());
     let mut analysis_result =
         AnalysisResult::new(analysis_data.data_flow_graph.kind, SymbolReferences::new());
-    let mut lambda_storage = function_analyzer.analyze_lambda(
+    let mut lambda_storage = if let Ok(lambda_storage) = function_analyzer.analyze_lambda(
         fun,
         context.clone(),
         analysis_data,
         &mut analysis_result,
         expr.pos(),
-    );
+    ) {
+        lambda_storage
+    } else {
+        return Err(AnalysisError::UserError);
+    };
 
     for param in lambda_storage.params.iter_mut() {
         if let Some(ref mut param_type) = param.signature_type {
@@ -123,5 +128,5 @@ pub(crate) fn analyze(
         Rc::new(closure_type),
     );
 
-    true
+    Ok(())
 }

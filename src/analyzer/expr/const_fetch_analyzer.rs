@@ -5,8 +5,9 @@ use hakana_type::get_string;
 use hakana_type::type_expander;
 use hakana_type::type_expander::TypeExpansionOptions;
 
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::scope_analyzer::ScopeAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 
 use oxidized::ast_defs;
 
@@ -16,14 +17,18 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     boxed: &Box<ast_defs::Id>,
     analysis_data: &mut FunctionAnalysisData,
-) {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
-    let name = statements_analyzer
+    let name = if let Some(name) = statements_analyzer
         .get_file_analyzer()
         .resolved_names
         .get(&boxed.0.start_offset())
-        .unwrap();
+    {
+        name
+    } else {
+        return Err(AnalysisError::InternalError("unable to resolve const name".to_string()));
+    };
 
     let mut stmt_type = if let Some(constant_storage) = codebase.constant_infos.get(name) {
         if let Some(t) = &constant_storage.inferred_type {
@@ -54,4 +59,6 @@ pub(crate) fn analyze(
         (boxed.0.start_offset(), boxed.0.end_offset()),
         Rc::new(stmt_type),
     );
+
+    Ok(())
 }

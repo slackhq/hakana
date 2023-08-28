@@ -20,7 +20,7 @@ use oxidized::{
 };
 use rustc_hash::FxHashSet;
 
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
@@ -74,7 +74,7 @@ pub(crate) fn analyze_vals(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
         match vc_kind {
@@ -110,7 +110,7 @@ pub(crate) fn analyze_vals(
             _ => {}
         }
 
-        return true;
+        return Ok(());
     }
 
     let codebase = statements_analyzer.get_codebase();
@@ -127,7 +127,7 @@ pub(crate) fn analyze_vals(
             vc_kind,
             analysis_data,
             offset,
-        );
+        )?;
     }
 
     match vc_kind {
@@ -213,7 +213,7 @@ pub(crate) fn analyze_vals(
         array_creation_info.effects,
     );
 
-    true
+    Ok(())
 }
 
 pub(crate) fn analyze_keyvals(
@@ -223,7 +223,7 @@ pub(crate) fn analyze_keyvals(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
         analysis_data.set_expr_type(
@@ -235,7 +235,7 @@ pub(crate) fn analyze_keyvals(
                 shape_name: None,
             }),
         );
-        return true;
+        return Ok(());
     }
 
     let codebase = statements_analyzer.get_codebase();
@@ -251,7 +251,7 @@ pub(crate) fn analyze_keyvals(
             item,
             kvc_kind,
             analysis_data,
-        );
+        )?;
     }
 
     let mut known_items = BTreeMap::new();
@@ -306,7 +306,7 @@ pub(crate) fn analyze_keyvals(
         array_creation_info.effects,
     );
 
-    true
+    Ok(())
 }
 
 fn analyze_vals_item(
@@ -317,7 +317,7 @@ fn analyze_vals_item(
     container_type: &VcKind,
     analysis_data: &mut FunctionAnalysisData,
     offset: usize,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let key_item_type = get_literal_int(offset.try_into().unwrap());
 
     // Now check types of the values
@@ -327,7 +327,7 @@ fn analyze_vals_item(
         analysis_data,
         context,
         &mut None,
-    );
+    )?;
 
     array_creation_info.effects |= analysis_data
         .expr_effects
@@ -368,7 +368,7 @@ fn analyze_vals_item(
             .extend(value_item_type.types);
     }
 
-    true
+    Ok(())
 }
 
 fn analyze_keyvals_item(
@@ -378,7 +378,7 @@ fn analyze_keyvals_item(
     item: &oxidized::tast::Field<(), ()>,
     container_type: &KvcKind,
     analysis_data: &mut FunctionAnalysisData,
-) -> bool {
+) -> Result<(), AnalysisError> {
     // Analyze type for key
     expression_analyzer::analyze(
         statements_analyzer,
@@ -386,7 +386,7 @@ fn analyze_keyvals_item(
         analysis_data,
         context,
         &mut None,
-    );
+    )?;
 
     array_creation_info.effects |= analysis_data
         .expr_effects
@@ -413,7 +413,7 @@ fn analyze_keyvals_item(
         analysis_data,
         context,
         &mut None,
-    );
+    )?;
 
     array_creation_info.effects |= analysis_data
         .expr_effects
@@ -453,7 +453,7 @@ fn analyze_keyvals_item(
             .extend(value_item_type.types);
     }
 
-    true
+    Ok(())
 }
 
 fn add_array_value_dataflow(

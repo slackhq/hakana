@@ -3,6 +3,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_WRITE_PROPS;
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
@@ -25,7 +26,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
     let mut classlike_name = None;
@@ -40,7 +41,7 @@ pub(crate) fn analyze(
                             if let Some(calling_class) = &context.function_context.calling_class {
                                 calling_class
                             } else {
-                                return false;
+                                return Err(AnalysisError::UserError);
                             };
 
                         classlike_name = Some(*self_name);
@@ -52,7 +53,7 @@ pub(crate) fn analyze(
                             if let Some(calling_class) = &context.function_context.calling_class {
                                 calling_class
                             } else {
-                                return false;
+                                return Err(AnalysisError::UserError);
                             };
 
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
@@ -63,7 +64,7 @@ pub(crate) fn analyze(
                             parent_class
                         } else {
                             // todo handle for traits
-                            return false;
+                            return Err(AnalysisError::UserError);
                         };
 
                         classlike_name = Some(parent_name);
@@ -81,7 +82,7 @@ pub(crate) fn analyze(
                             if let Some(calling_class) = &context.function_context.calling_class {
                                 calling_class
                             } else {
-                                return false;
+                                return Err(AnalysisError::UserError);
                             };
 
                         classlike_name = Some(*self_name);
@@ -99,11 +100,17 @@ pub(crate) fn analyze(
                     _ => {
                         let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                        let name_string = resolved_names.get(&id.0.start_offset()).unwrap().clone();
+                        if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                            let name_string = *resolved_name;
 
-                        classlike_name = Some(name_string);
+                            classlike_name = Some(name_string);
 
-                        get_named_object(name_string)
+                            get_named_object(name_string)
+                        } else {
+                            return Err(AnalysisError::InternalError(
+                                "Cannot resolve class name in static call".to_string(),
+                            ));
+                        }
                     }
                 }
             } else {
@@ -115,7 +122,7 @@ pub(crate) fn analyze(
                     analysis_data,
                     context,
                     if_body_context,
-                );
+                )?;
                 context.inside_general_use = was_inside_general_use;
                 analysis_data
                     .get_expr_type(&lhs_expr.1)
@@ -141,7 +148,7 @@ pub(crate) fn analyze(
             lhs_type_part,
             classlike_name,
             &mut result,
-        );
+        )?;
     }
 
     if analysis_data
@@ -155,5 +162,5 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(&pos, result.return_type.clone().unwrap_or(get_mixed_any()));
 
-    true
+    Ok(())
 }

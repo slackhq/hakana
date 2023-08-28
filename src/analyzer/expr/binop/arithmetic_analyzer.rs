@@ -8,6 +8,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, expression_analyzer};
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -26,15 +27,15 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) {
-    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context, &mut None);
+) -> Result<(), AnalysisError> {
+    expression_analyzer::analyze(statements_analyzer, left, analysis_data, context, &mut None)?;
     expression_analyzer::analyze(
         statements_analyzer,
         right,
         analysis_data,
         context,
         &mut None,
-    );
+    )?;
 
     let fallback = get_mixed_any();
     let e1_type = match analysis_data.get_rc_expr_type(&left.1).cloned() {
@@ -176,7 +177,7 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
                                 if let Ok(result) = (*e2_value).try_into() {
                                     result
                                 } else {
-                                    return;
+                                    return Ok(());
                                 },
                             ),
                         },
@@ -185,7 +186,7 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
                                 if let Ok(result) = (*e2_value).try_into() {
                                     result
                                 } else {
-                                    return;
+                                    return Ok(());
                                 },
                             ),
                         },
@@ -222,6 +223,8 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
         right,
         stmt_pos,
     );
+
+    Ok(())
 }
 
 pub(crate) fn assign_arithmetic_type(

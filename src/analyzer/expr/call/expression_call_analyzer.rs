@@ -6,6 +6,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
@@ -24,18 +25,16 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         &expr.func,
         analysis_data,
         context,
         if_body_context,
-    ) {
-        return false;
-    }
+    )?;
     context.inside_general_use = was_inside_general_use;
 
     let lhs_type = analysis_data
@@ -91,7 +90,7 @@ pub(crate) fn analyze(
                 if_body_context,
                 &mut template_result,
                 pos,
-            );
+            )?;
 
             apply_effects(&lambda_storage, analysis_data, pos, &expr.args);
 
@@ -111,5 +110,5 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(&pos, stmt_type);
 
-    true
+    Ok(())
 }

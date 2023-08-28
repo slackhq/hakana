@@ -14,6 +14,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
@@ -37,7 +38,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let function_name_expr = &expr.func;
 
     match &function_name_expr.2 {
@@ -73,14 +74,15 @@ pub(crate) fn analyze(
                     )
                 }
                 _ => {
-                    return expression_call_analyzer::analyze(
+                    expression_call_analyzer::analyze(
                         statements_analyzer,
                         expr,
                         pos,
                         analysis_data,
                         context,
                         if_body_context,
-                    );
+                    )?;
+                    return Ok(());
                 }
             }
         }
@@ -316,14 +318,14 @@ pub(crate) fn check_method_args(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     pos: &Pos,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
     let calling_class_storage = codebase.classlike_infos.get(&method_id.0).unwrap();
 
     let functionlike_id = FunctionLikeIdentifier::Method(method_id.0.clone(), method_id.1.clone());
 
-    if !arguments_analyzer::check_arguments_match(
+    arguments_analyzer::check_arguments_match(
         statements_analyzer,
         call_expr.0,
         call_expr.1,
@@ -336,9 +338,7 @@ pub(crate) fn check_method_args(
         if_body_context,
         template_result,
         pos,
-    ) {
-        return false;
-    }
+    )?;
 
     apply_effects(functionlike_storage, analysis_data, pos, &call_expr.1);
 
@@ -346,7 +346,7 @@ pub(crate) fn check_method_args(
         check_template_result(statements_analyzer, template_result, pos, &functionlike_id);
     }
 
-    return true;
+    return Ok(());
 }
 
 pub(crate) fn apply_effects(

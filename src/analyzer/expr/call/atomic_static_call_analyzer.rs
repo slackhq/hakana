@@ -10,7 +10,7 @@ use oxidized::{
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
+    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer, stmt_analyzer::AnalysisError,
 };
 
 use super::{
@@ -43,14 +43,14 @@ pub(crate) fn analyze(
     lhs_type_part: &TAtomic,
     classlike_name: Option<StrId>,
     result: &mut AtomicMethodCallAnalysisResult,
-) {
+) -> Result<(), AnalysisError> {
     if let TAtomic::TNamedObject {
         name, extra_types, ..
     } = &lhs_type_part
     {
         if let aast::ClassId_::CIexpr(lhs_expr) = &expr.0 .2 {
             if !matches!(&lhs_expr.2, aast::Expr_::Id(_)) {
-                handle_method_call_on_named_object(
+                return handle_method_call_on_named_object(
                     result,
                     name,
                     extra_types,
@@ -76,7 +76,6 @@ pub(crate) fn analyze(
                     context,
                     if_body_context,
                 );
-                return;
             }
         }
     }
@@ -92,7 +91,7 @@ pub(crate) fn analyze(
                     // todo check class name and register usage
                     name
                 } else {
-                    return;
+                    return Ok(());
                 }
             }
             TAtomic::TLiteralClassname { name } => name.clone(),
@@ -103,7 +102,7 @@ pub(crate) fn analyze(
                         classlike_name = Some(name.clone());
                         break;
                     } else {
-                        return;
+                        return Ok(());
                     }
                 }
 
@@ -111,7 +110,7 @@ pub(crate) fn analyze(
                     classlike_name
                 } else {
                     // todo emit issue
-                    return;
+                    return Err(AnalysisError::InternalError("no classlike name".to_string()));
                 }
             }
             _ => {
@@ -128,7 +127,7 @@ pub(crate) fn analyze(
                     );
                 }
 
-                return;
+                return Ok(());
             }
         }
     };
@@ -157,7 +156,7 @@ pub(crate) fn analyze(
             .expr_effects
             .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
 
-        return;
+        return Ok(());
     }
 
     result.return_type = Some(existing_atomic_method_call_analyzer::analyze(
@@ -173,5 +172,7 @@ pub(crate) fn analyze(
         None,
         None,
         result,
-    ));
+    )?);
+
+    Ok(())
 }

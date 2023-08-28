@@ -3,7 +3,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
-    statements_analyzer::StatementsAnalyzer,
+    statements_analyzer::StatementsAnalyzer, stmt_analyzer::AnalysisError,
 };
 use oxidized::{aast, ast_defs};
 use std::rc::Rc;
@@ -13,7 +13,7 @@ pub(crate) fn analyze(
     stmt: (&aast::Expr<(), ()>, &aast::Block<(), ()>),
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let while_true = match &stmt.0 .2 {
         aast::Expr_::True => true,
         aast::Expr_::Int(value) => value.parse::<i64>().unwrap() > 0,
@@ -29,7 +29,7 @@ pub(crate) fn analyze(
 
     let mut loop_scope = LoopScope::new(context.vars_in_scope.clone());
 
-    let (analysis_result, inner_loop_context) = loop_analyzer::analyze(
+    let inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
         &stmt.1 .0,
         get_and_expressions(stmt.0),
@@ -40,11 +40,7 @@ pub(crate) fn analyze(
         analysis_data,
         false,
         false,
-    );
-
-    if !analysis_result {
-        return false;
-    }
+    )?;
 
     let always_enters_loop = if while_true {
         true
@@ -92,7 +88,7 @@ pub(crate) fn analyze(
 
     // todo do we need to remove the loop scope from analysis_data here? unsure
 
-    return true;
+    return Ok(());
 }
 
 pub(crate) fn get_and_expressions(cond: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {

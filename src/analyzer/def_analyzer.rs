@@ -1,11 +1,13 @@
 use crate::classlike_analyzer::ClassLikeAnalyzer;
 use crate::custom_hook::AfterDefAnalysisData;
+use crate::file_analyzer::InternalError;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::FunctionLikeAnalyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, stmt_analyzer};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::function_context::FunctionContext;
@@ -20,53 +22,73 @@ pub(crate) fn analyze(
     loop_scope: &mut Option<LoopScope>,
     analysis_data: &mut FunctionAnalysisData,
     analysis_result: &mut AnalysisResult,
-) {
+) -> Result<(), InternalError> {
     match def {
         aast::Def::Fun(_) => {
             let file_analyzer = scope_analyzer.get_file_analyzer();
             let mut function_analyzer = FunctionLikeAnalyzer::new(file_analyzer);
-            function_analyzer.analyze_fun(def.as_fun().unwrap(), analysis_result);
+            match function_analyzer.analyze_fun(def.as_fun().unwrap(), analysis_result) {
+                Err(AnalysisError::InternalError(error)) => {
+                    return Err(InternalError(error));
+                }
+                _ => {}
+            }
         }
         aast::Def::Class(boxed) => {
             let file_analyzer = scope_analyzer.get_file_analyzer();
             let mut class_analyzer = ClassLikeAnalyzer::new(file_analyzer);
-            class_analyzer.analyze(
-                &boxed,
-                statements_analyzer,
-                analysis_result,
-            );
+            match class_analyzer.analyze(&boxed, statements_analyzer, analysis_result) {
+                Err(AnalysisError::InternalError(error)) => {
+                    return Err(InternalError(error));
+                }
+                _ => {}
+            }
         }
         aast::Def::Typedef(_) | aast::Def::NamespaceUse(_) => {
             // already handled
         }
         aast::Def::Stmt(boxed) => {
-            stmt_analyzer::analyze(
+            match stmt_analyzer::analyze(
                 statements_analyzer,
                 boxed,
                 analysis_data,
                 context,
                 loop_scope,
-            );
+            ) {
+                Err(AnalysisError::InternalError(error)) => {
+                    return Err(InternalError(error));
+                }
+                _ => {}
+            }
         }
         aast::Def::Constant(boxed) => {
             let mut function_context = FunctionContext::new();
             function_context.calling_class = Some(
-                *statements_analyzer
+                if let Some(resolved_name) = statements_analyzer
                     .get_file_analyzer()
                     .resolved_names
                     .get(&boxed.name.pos().start_offset())
-                    .unwrap(),
+                {
+                    *resolved_name
+                } else {
+                    return Err(InternalError("Could not resolve constant name".to_string()));
+                },
             );
 
             let mut context = ScopeContext::new(function_context);
 
-            expression_analyzer::analyze(
+            match expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed.value,
                 analysis_data,
                 &mut context,
                 &mut None,
-            );
+            ) {
+                Err(AnalysisError::InternalError(error)) => {
+                    return Err(InternalError(error));
+                }
+                _ => {}
+            }
         }
         aast::Def::Namespace(_) => {
             // already handled?
@@ -113,4 +135,6 @@ pub(crate) fn analyze(
             },
         );
     }
+
+    Ok(())
 }

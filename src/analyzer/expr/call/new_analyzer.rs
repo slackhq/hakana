@@ -14,6 +14,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
@@ -43,7 +44,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     //let method_id = None;
 
     let codebase = statements_analyzer.get_codebase();
@@ -87,7 +88,14 @@ pub(crate) fn analyze(
                     _ => {
                         let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                        let name_string = resolved_names.get(&id.0.start_offset()).unwrap().clone();
+                        let name_string =
+                            if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                                *resolved_name
+                            } else {
+                                return Err(AnalysisError::InternalError(
+                                    "Unable to resolve new constructor class name".to_string(),
+                                ));
+                            };
 
                         get_named_object(name_string)
                     }
@@ -101,7 +109,7 @@ pub(crate) fn analyze(
                     analysis_data,
                     context,
                     if_body_context,
-                );
+                )?;
                 context.inside_general_use = was_inside_general_use;
                 analysis_data
                     .get_expr_type(&lhs_expr.1)
@@ -127,12 +135,12 @@ pub(crate) fn analyze(
             lhs_type_part,
             can_extend,
             &mut result,
-        );
+        )?;
     }
 
     analysis_data.set_expr_type(&pos, result.return_type.clone().unwrap_or(get_mixed_any()));
 
-    true
+    Ok(())
 }
 
 fn analyze_atomic(
@@ -150,7 +158,7 @@ fn analyze_atomic(
     lhs_type_part: &TAtomic,
     can_extend: bool,
     result: &mut AtomicMethodCallAnalysisResult,
-) {
+) -> Result<(), AnalysisError> {
     let mut from_static = false;
     let mut from_classname = false;
 
@@ -178,7 +186,7 @@ fn analyze_atomic(
                     statements_analyzer.get_file_path_actual(),
                 );
 
-                return;
+                return Ok(());
             }
         }
         TAtomic::TLiteralClassname { name } => name.clone(),
@@ -189,7 +197,7 @@ fn analyze_atomic(
                     classlike_name = Some(name.clone());
                     break;
                 } else {
-                    return;
+                    return Ok(());
                 }
             }
 
@@ -197,7 +205,7 @@ fn analyze_atomic(
                 classlike_name
             } else {
                 // todo emit issue
-                return;
+                return Ok(());
             }
         }
         _ => {
@@ -215,7 +223,7 @@ fn analyze_atomic(
             }
 
             // todo handle nonobject call
-            return;
+            return Ok(());
         }
     };
 
@@ -260,7 +268,7 @@ fn analyze_named_constructor(
     from_classname: bool,
     can_extend: bool,
     result: &mut AtomicMethodCallAnalysisResult,
-) {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
     let storage = if let Some(storage) = codebase.classlike_infos.get(&classlike_name) {
         storage
@@ -285,7 +293,7 @@ fn analyze_named_constructor(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return;
+        return Ok(());
     };
 
     if from_static {
@@ -345,7 +353,7 @@ fn analyze_named_constructor(
 
         let method_storage = codebase.get_method(&declaring_method_id).unwrap();
 
-        if !check_method_args(
+        check_method_args(
             statements_analyzer,
             analysis_data,
             &method_id,
@@ -363,9 +371,7 @@ fn analyze_named_constructor(
             context,
             if_body_context,
             pos,
-        ) {
-            return;
-        }
+        )?;
 
         // todo check method visibility
 
@@ -613,6 +619,8 @@ fn analyze_named_constructor(
         result.return_type.as_ref(),
         codebase,
     ));
+
+    Ok(())
 }
 
 fn add_dataflow<'a>(

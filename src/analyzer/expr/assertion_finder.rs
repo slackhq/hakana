@@ -330,7 +330,7 @@ pub(crate) fn get_functionlike_id_from_call(
     interner: Option<&Interner>,
     resolved_names: &FxHashMap<usize, StrId>,
 ) -> Option<FunctionLikeIdentifier> {
-    match &call.func .2 {
+    match &call.func.2 {
         aast::Expr_::Id(boxed_id) => {
             if let Some(interner) = interner {
                 let name = if boxed_id.1 == "isset" {
@@ -338,10 +338,11 @@ pub(crate) fn get_functionlike_id_from_call(
                 } else if boxed_id.1 == "\\in_array" {
                     interner.get("in_array").unwrap()
                 } else {
-                    resolved_names
-                        .get(&boxed_id.0.start_offset())
-                        .unwrap()
-                        .clone()
+                    if let Some(resolved_name) = resolved_names.get(&boxed_id.0.start_offset()) {
+                        *resolved_name
+                    } else {
+                        return None;
+                    }
                 };
 
                 Some(FunctionLikeIdentifier::Function(name))

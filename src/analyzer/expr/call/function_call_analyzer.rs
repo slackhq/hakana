@@ -16,6 +16,7 @@ use crate::reconciler::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -42,7 +43,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let name = expr.0 .1;
 
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
@@ -52,7 +53,8 @@ pub(crate) fn analyze(
     // we special-case this because exit is used in
     // `as` ternaries where the positions may be fake
     if name == "exit" || name == "die" {
-        return exit_analyzer::analyze(statements_analyzer, expr.2, pos, analysis_data, context);
+        exit_analyzer::analyze(statements_analyzer, expr.2, pos, analysis_data, context)?;
+        return Ok(());
     }
 
     // we special-case this because isset is used in
@@ -75,13 +77,13 @@ pub(crate) fn analyze(
         if expr.2.len() > 0 {
             let first_arg = &expr.2.first().unwrap().1;
             context.inside_unset = true;
-            let result = expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 first_arg,
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )?;
             context.inside_unset = false;
             analysis_data
                 .expr_effects
@@ -89,7 +91,7 @@ pub(crate) fn analyze(
             analysis_data.combine_effects(first_arg.pos(), pos, pos);
             analysis_data.set_expr_type(&pos, get_void());
 
-            return result;
+            return Ok(());
         }
     }
 
@@ -102,7 +104,7 @@ pub(crate) fn analyze(
     } else if let Some(fq_name) = resolved_names.get(&expr.0 .0.start_offset()) {
         fq_name.clone()
     } else {
-        panic!()
+        return Err(AnalysisError::InternalError("Cannot resolve function name".to_string()));
     };
 
     analysis_data.symbol_references.add_reference_to_symbol(
@@ -130,7 +132,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return false;
+        return Ok(());
     };
 
     let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
@@ -156,7 +158,7 @@ pub(crate) fn analyze(
         if_body_context,
         &mut template_result,
         pos,
-    );
+    )?;
 
     apply_effects(function_storage, analysis_data, pos, &expr.2);
 
@@ -474,7 +476,7 @@ pub(crate) fn analyze(
         _ => {}
     }
 
-    true
+    Ok(())
 }
 
 fn process_invariant(

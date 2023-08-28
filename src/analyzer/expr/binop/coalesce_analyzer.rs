@@ -6,6 +6,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_type::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use oxidized::aast::{self, CallExpr};
 use oxidized::ast_defs::ParamKind;
@@ -19,7 +20,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut root_expr = left;
     let mut root_not_left = false;
     let mut has_arrayget_key = false;
@@ -52,7 +53,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             analysis_data,
             context,
             if_body_context,
-        );
+        )
+        .ok();
 
         analysis_data.get_expr_type(root_expr.pos()).cloned()
     } else {
@@ -134,7 +136,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         analysis_data,
         context,
         if_body_context,
-    );
+    ).ok();
 
     let ternary_type = analysis_data
         .get_expr_type(&pos)
@@ -146,7 +148,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     analysis_data.combine_effects(left.pos(), right.pos(), pos);
 
-    true
+    Ok(())
 }
 
 fn get_left_expr(
@@ -166,7 +168,8 @@ fn get_left_expr(
         analysis_data,
         &mut isset_context,
         if_body_context,
-    );
+    )
+    .ok();
     let mut condition_type = analysis_data
         .get_rc_expr_type(root_expr.pos())
         .cloned()
@@ -223,14 +226,14 @@ fn get_left_expr(
         replace_expr_with_root(&mut left, new_root_expr);
         left
     } else {
-        return aast::Expr(
+        aast::Expr(
             (),
             root_expr.pos().clone(),
             aast::Expr_::Lvar(Box::new(oxidized::tast::Lid(
                 root_expr.pos().clone(),
                 (5, root_expr_var_id.clone()),
             ))),
-        );
+        )
     }
 }
 

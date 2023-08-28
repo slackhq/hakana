@@ -6,10 +6,12 @@ use crate::dataflow::unused_variable_analyzer::{
 use crate::expr::call_analyzer::reconcile_lower_bounds_with_upper_bounds;
 use crate::expr::fetch::atomic_property_fetch_analyzer;
 use crate::expression_analyzer;
+use crate::file_analyzer::InternalError;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{file_analyzer::FileAnalyzer, function_analysis_data::FunctionAnalysisData};
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
@@ -50,16 +52,20 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         &mut self,
         stmt: &aast::FunDef<(), ()>,
         analysis_result: &mut AnalysisResult,
-    ) {
+    ) -> Result<(), AnalysisError> {
         let resolved_names = self.file_analyzer.resolved_names.clone();
-        let name = resolved_names
-            .get(&stmt.name.0.start_offset())
-            .unwrap()
-            .clone();
+
+        let name = if let Some(name) = resolved_names.get(&stmt.name.0.start_offset()) {
+            *name
+        } else {
+            return Err(AnalysisError::InternalError(
+                "Cannot resolve function name".to_string(),
+            ));
+        };
 
         if self.file_analyzer.analysis_config.ast_diff {
             if self.file_analyzer.codebase.safe_symbols.contains(&name) {
-                return;
+                return Ok(());
             }
         }
 
@@ -67,10 +73,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let Some(f) = self.file_analyzer.codebase.functionlike_infos.get(&name) {
                 f
             } else {
-                panic!(
-                    "Function {} could not be loaded",
-                    self.get_interner().lookup(&name)
-                );
+                return Err(AnalysisError::InternalError(
+                    "Cannot load function storage".to_string(),
+                ));
             };
 
         let mut statements_analyzer = StatementsAnalyzer::new(
@@ -103,7 +108,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &stmt.fun.body.fb_ast.0,
             analysis_result,
             None,
-        );
+        )?;
+        Ok(())
     }
 
     pub fn analyze_lambda(
@@ -113,7 +119,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         analysis_data: &mut FunctionAnalysisData,
         analysis_result: &mut AnalysisResult,
         expr_pos: &Pos,
-    ) -> FunctionLikeInfo {
+    ) -> Result<FunctionLikeInfo, AnalysisError> {
         let lambda_storage = analysis_data.closures.get(expr_pos).cloned();
 
         let mut lambda_storage = if let Some(lambda_storage) = lambda_storage {
@@ -121,8 +127,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             match get_closure_storage(&self.file_analyzer, stmt.span.start_offset()) {
                 None => {
-                    println!("{}", stmt.span.start_offset());
-                    panic!();
+                    return Err(AnalysisError::InternalError(format!(
+                        "Cannot get closure storage at {}",
+                        stmt.span.start_offset()
+                    )));
                 }
                 Some(value) => value,
             }
@@ -158,12 +166,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &stmt.body.fb_ast.0,
             analysis_result,
             Some(analysis_data),
-        );
+        )?;
 
         lambda_storage.return_type = Some(inferred_return_type.unwrap_or(get_mixed_any()));
         lambda_storage.effects = FnEffect::from_u8(&Some(effects));
 
-        lambda_storage
+        Ok(lambda_storage)
     }
 
     pub fn analyze_method(
@@ -171,12 +179,18 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         stmt: &aast::Method_<(), ()>,
         classlike_storage: &ClassLikeInfo,
         analysis_result: &mut AnalysisResult,
-    ) {
+    ) -> Result<(), AnalysisError> {
         if stmt.abstract_ {
-            return;
+            return Ok(());
         }
 
-        let method_name = self.get_interner().get(&stmt.name.1).unwrap();
+        let method_name = if let Some(method_name) = self.get_interner().get(&stmt.name.1) {
+            method_name
+        } else {
+            return Err(AnalysisError::InternalError(
+                "Cannot resolve method name".to_string(),
+            ));
+        };
 
         if self.file_analyzer.analysis_config.ast_diff {
             if self
@@ -185,7 +199,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .safe_symbol_members
                 .contains(&(classlike_storage.name, method_name))
             {
-                return;
+                return Ok(());
             }
         }
 
@@ -193,7 +207,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let Some(functionlike_storage) = classlike_storage.methods.get(&method_name) {
                 functionlike_storage
             } else {
-                return;
+                return Err(AnalysisError::InternalError(
+                    "Cannot resolve function storage".to_string(),
+                ));
             };
 
         let mut statements_analyzer = StatementsAnalyzer::new(
@@ -279,7 +295,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &stmt.body.fb_ast.0,
             analysis_result,
             None,
-        );
+        )?;
+
+        Ok(())
     }
 
     fn add_properties_to_context(
@@ -288,20 +306,30 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         analysis_data: &mut FunctionAnalysisData,
         function_storage: &FunctionLikeInfo,
         context: &mut ScopeContext,
-    ) {
+    ) -> Result<(), InternalError> {
         let interner = &self.get_interner();
         for (property_name, declaring_class) in &classlike_storage.declaring_property_ids {
-            let property_class_storage = self
+            let property_class_storage = if let Some(s) = self
                 .file_analyzer
                 .codebase
                 .classlike_infos
                 .get(declaring_class)
-                .unwrap();
+            {
+                s
+            } else {
+                return Err(InternalError(
+                    "Could not load property class storage".to_string(),
+                ));
+            };
 
-            let property_storage = property_class_storage
-                .properties
-                .get(property_name)
-                .unwrap();
+            let property_storage =
+                if let Some(s) = property_class_storage.properties.get(property_name) {
+                    s
+                } else {
+                    return Err(InternalError(
+                        "Could not load property class storage".to_string(),
+                    ));
+                };
 
             if property_storage.is_static {
                 let mut property_type = property_storage.type_.clone();
@@ -353,6 +381,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     .insert(expr_id, Rc::new(property_type));
             }
         }
+
+        Ok(())
     }
 
     fn analyze_functionlike(
@@ -364,7 +394,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         fb_ast: &Vec<aast::Stmt<(), ()>>,
         analysis_result: &mut AnalysisResult,
         parent_analysis_data: Option<&mut FunctionAnalysisData>,
-    ) -> (Option<TUnion>, u8) {
+    ) -> Result<(Option<TUnion>, u8), AnalysisError> {
         context.inside_async = functionlike_storage.is_async;
 
         let mut analysis_data = FunctionAnalysisData::new(
@@ -402,61 +432,80 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let mut completed_analysis = false;
 
-        if self.add_param_types_to_context(
+        match self.add_param_types_to_context(
             params,
             functionlike_storage,
             &mut analysis_data,
             &mut context,
             statements_analyzer,
         ) {
-            if let Some(calling_class) = &context.function_context.calling_class {
-                if let Some(classlike_storage) = self
-                    .file_analyzer
-                    .get_codebase()
-                    .classlike_infos
-                    .get(calling_class)
-                {
-                    self.add_properties_to_context(
-                        classlike_storage,
-                        &mut analysis_data,
+            Err(AnalysisError::InternalError(error)) => {
+                return Err(AnalysisError::InternalError(error));
+            }
+            _ => {
+                if let Some(calling_class) = &context.function_context.calling_class {
+                    if let Some(classlike_storage) = self
+                        .file_analyzer
+                        .get_codebase()
+                        .classlike_infos
+                        .get(calling_class)
+                    {
+                        if let Err(error) = self.add_properties_to_context(
+                            classlike_storage,
+                            &mut analysis_data,
+                            functionlike_storage,
+                            &mut context,
+                        ) {
+                            return Err(AnalysisError::InternalError(error.0));
+                        }
+                    }
+                }
+
+                //let start_t = std::time::Instant::now();
+
+                match statements_analyzer.analyze(
+                    &fb_ast,
+                    &mut analysis_data,
+                    &mut context,
+                    &mut None,
+                ) {
+                    Ok(_) => {
+                        completed_analysis = true;
+                    }
+                    Err(AnalysisError::InternalError(error)) => {
+                        return Err(AnalysisError::InternalError(error))
+                    }
+                    _ => {}
+                };
+
+                // let end_t = start_t.elapsed();
+
+                // if let Some(functionlike_id) = &context.function_context.calling_functionlike_id {
+                //     if fb_ast.len() > 1 {
+                //         let first_line = fb_ast[0].0.line() as u64;
+
+                //         let last_line = fb_ast.last().unwrap().0.to_raw_span().end.line();
+
+                //         if last_line - first_line > 10 && last_line - first_line < 100000 {
+                //             println!(
+                //                 "{}\t{}\t{}",
+                //                 functionlike_id.to_string(&statements_analyzer.get_interner()),
+                //                 last_line - first_line,
+                //                 end_t.as_micros() as u64 / (last_line - first_line)
+                //             );
+                //         }
+                //     }
+                // }
+
+                if !context.has_returned {
+                    handle_inout_at_return(
                         functionlike_storage,
+                        statements_analyzer,
                         &mut context,
+                        &mut analysis_data,
+                        None,
                     );
                 }
-            }
-
-            //let start_t = std::time::Instant::now();
-
-            completed_analysis =
-                statements_analyzer.analyze(&fb_ast, &mut analysis_data, &mut context, &mut None);
-
-            // let end_t = start_t.elapsed();
-
-            // if let Some(functionlike_id) = &context.function_context.calling_functionlike_id {
-            //     if fb_ast.len() > 1 {
-            //         let first_line = fb_ast[0].0.line() as u64;
-
-            //         let last_line = fb_ast.last().unwrap().0.to_raw_span().end.line();
-
-            //         if last_line - first_line > 10 && last_line - first_line < 100000 {
-            //             println!(
-            //                 "{}\t{}\t{}",
-            //                 functionlike_id.to_string(&statements_analyzer.get_interner()),
-            //                 last_line - first_line,
-            //                 end_t.as_micros() as u64 / (last_line - first_line)
-            //             );
-            //         }
-            //     }
-            // }
-
-            if !context.has_returned {
-                handle_inout_at_return(
-                    functionlike_storage,
-                    statements_analyzer,
-                    &mut context,
-                    &mut analysis_data,
-                    None,
-                );
             }
         }
 
@@ -492,7 +541,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let config = statements_analyzer.get_config();
 
-        if config.find_unused_expressions && parent_analysis_data.is_none() {
+        if completed_analysis && config.find_unused_expressions && parent_analysis_data.is_none() {
             report_unused_expressions(
                 &mut analysis_data,
                 config,
@@ -717,7 +766,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             );
         }
 
-        (inferred_return_type, effects)
+        Ok((inferred_return_type, effects))
     }
 
     fn add_param_types_to_context(
@@ -727,7 +776,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         analysis_data: &mut FunctionAnalysisData,
         context: &mut ScopeContext,
         statements_analyzer: &mut StatementsAnalyzer,
-    ) -> bool {
+    ) -> Result<(), AnalysisError> {
         let interner = &statements_analyzer.get_interner();
 
         for (i, param) in functionlike_storage.params.iter().enumerate() {
@@ -889,7 +938,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                     &context.function_context.calling_functionlike_id,
                                 ));
 
-                                return false;
+                                return Err(AnalysisError::UserError);
                             }
                             _ => {}
                         }
@@ -901,7 +950,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 get_mixed_any()
             };
 
-            let param_node = &params[i];
+            let param_node = if let Some(param_node) = params.get(i) {
+                param_node
+            } else {
+                return Err(AnalysisError::InternalError(
+                    "Param cannot be found".to_string(),
+                ));
+            };
 
             if let Some(default) = &param_node.expr {
                 expression_analyzer::analyze(
@@ -910,7 +965,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     analysis_data,
                     context,
                     &mut None,
-                );
+                )?;
             }
 
             if param.is_variadic {
@@ -1026,7 +1081,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .insert(param.name.clone(), Rc::new(param_type.clone()));
         }
 
-        true
+        Ok(())
     }
 }
 

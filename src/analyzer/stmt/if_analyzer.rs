@@ -5,7 +5,10 @@ use crate::scope_context::control_action::ControlAction;
 use crate::scope_context::loop_scope::LoopScope;
 use crate::scope_context::var_has_root;
 use crate::scope_context::{if_scope::IfScope, ScopeContext};
-use crate::{statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData};
+use crate::stmt_analyzer::AnalysisError;
+use crate::{
+    function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
+};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_type::add_union_type;
 use oxidized::aast;
@@ -24,7 +27,7 @@ pub(crate) fn analyze(
     if_context: &mut ScopeContext,
     outer_context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
     let cond_object_id = (stmt.0.pos().start_offset(), stmt.0.pos().end_offset());
@@ -109,9 +112,7 @@ pub(crate) fn analyze(
     if_context.assigned_var_ids.clear();
     if_context.possibly_assigned_var_ids.clear();
 
-    if !statements_analyzer.analyze(&stmt.1 .0, analysis_data, if_context, loop_scope) {
-        return false;
-    }
+    statements_analyzer.analyze(&stmt.1 .0, analysis_data, if_context, loop_scope)?;
 
     let final_actions = control_analyzer::get_control_actions(
         codebase,
@@ -178,7 +179,7 @@ pub(crate) fn analyze(
         if_scope.reasonable_clauses = Vec::new();
     }
 
-    true
+    Ok(())
 }
 
 pub(crate) fn update_if_scope(

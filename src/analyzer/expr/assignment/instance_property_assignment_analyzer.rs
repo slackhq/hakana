@@ -25,6 +25,7 @@ use crate::{
         fetch::atomic_property_fetch_analyzer::localize_property_type,
     },
     function_analysis_data::FunctionAnalysisData,
+    stmt_analyzer::AnalysisError,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
@@ -37,7 +38,7 @@ pub(crate) fn analyze(
     assign_value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
     let stmt_var = expr.0;
 
@@ -51,10 +52,10 @@ pub(crate) fn analyze(
         assign_value_type,
         analysis_data,
         context,
-    );
+    )?;
 
     if assigned_properties.len() == 0 || assign_value_type.is_mixed() {
-        return false;
+        return Ok(());
     }
 
     for assigned_property in &assigned_properties {
@@ -178,10 +179,10 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual(),
             );
 
-            return false;
+            return Ok(());
         }
     }
-    true
+    Ok(())
 }
 
 pub(crate) fn analyze_regular_assignment(
@@ -192,7 +193,7 @@ pub(crate) fn analyze_regular_assignment(
     assign_value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> Vec<(TUnion, (StrId, StrId), TUnion)> {
+) -> Result<Vec<(TUnion, (StrId, StrId), TUnion)>, AnalysisError> {
     let stmt_var = expr.0;
 
     let mut assigned_properties = Vec::new();
@@ -208,7 +209,7 @@ pub(crate) fn analyze_regular_assignment(
         analysis_data,
         context,
         &mut None,
-    );
+    )?;
 
     context.inside_general_use = was_inside_general_use;
 
@@ -219,7 +220,7 @@ pub(crate) fn analyze_regular_assignment(
     let lhs_type = analysis_data.get_expr_type(&stmt_var.pos()).cloned();
 
     if let None = lhs_type {
-        return assigned_properties;
+        return Ok(assigned_properties);
     }
 
     let lhs_var_id = expression_identifier::get_var_id(
@@ -272,8 +273,10 @@ pub(crate) fn analyze_regular_assignment(
                 );
             }
 
-            return assigned_properties;
-        } else if lhs_type.is_null() {
+            return Ok(assigned_properties);
+        }
+
+        if lhs_type.is_null() {
             analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::NullablePropertyAssignment,
@@ -285,8 +288,10 @@ pub(crate) fn analyze_regular_assignment(
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
             );
-            return assigned_properties;
-        } else if lhs_type.is_nullable() {
+            return Ok(assigned_properties);
+        }
+
+        if lhs_type.is_nullable() {
             analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::NullablePropertyAssignment,
@@ -336,7 +341,7 @@ pub(crate) fn analyze_regular_assignment(
             .insert(var_id.to_owned(), context_type);
     }
 
-    assigned_properties
+    Ok(assigned_properties)
 }
 
 pub(crate) fn analyze_atomic_assignment(

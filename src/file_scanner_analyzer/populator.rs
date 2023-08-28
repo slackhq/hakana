@@ -31,6 +31,12 @@ pub fn populate_codebase(
         .collect::<Vec<_>>();
 
     for k in &new_classlike_names {
+        if let Some(classlike_info) = codebase.classlike_infos.get_mut(k) {
+            classlike_info.is_populated = false;
+        }
+    }
+
+    for k in &new_classlike_names {
         populate_classlike_storage(
             k,
             &mut all_classlike_descendants,
@@ -240,10 +246,10 @@ fn populate_functionlike_storage(
 
     for attribute_info in &storage.attributes {
         match reference_source {
-            ReferenceSource::Symbol(in_signature, a) => symbol_references
-                .add_symbol_reference_to_symbol(*a, attribute_info.name, *in_signature),
-            ReferenceSource::ClasslikeMember(in_signature, a, b) => symbol_references
-                .add_class_member_reference_to_symbol((*a, *b), attribute_info.name, *in_signature),
+            ReferenceSource::Symbol(_, a) => symbol_references
+                .add_symbol_reference_to_symbol(*a, attribute_info.name, true),
+            ReferenceSource::ClasslikeMember(_, a, b) => symbol_references
+                .add_class_member_reference_to_symbol((*a, *b), attribute_info.name, true),
         }
     }
 

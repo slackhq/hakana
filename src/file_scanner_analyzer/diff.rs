@@ -74,7 +74,9 @@ pub(crate) async fn mark_safe_symbols_from_diff(
 
     for keep_symbol in &codebase_diff.keep {
         if keep_symbol.1.is_empty() {
-            if !invalid_symbols_and_members.contains(&keep_symbol) {
+            if !invalid_symbols_and_members.contains(&keep_symbol)
+                && !partially_invalid_symbols.contains(&keep_symbol.0)
+            {
                 cached_analysis.safe_symbols.insert(keep_symbol.0);
             }
         } else {

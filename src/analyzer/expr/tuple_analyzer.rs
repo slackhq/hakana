@@ -1,5 +1,6 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::{
@@ -23,21 +24,19 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut parent_nodes = FxHashSet::default();
 
     let mut known_items = BTreeMap::new();
     for (i, value_expr) in tuple_fields.iter().enumerate() {
         // Now check types of the values
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             value_expr,
             analysis_data,
             context,
             &mut None,
-        ) {
-            return false;
-        }
+        )?;
 
         let value_item_type = analysis_data
             .get_expr_type(&value_expr.pos())
@@ -72,7 +71,7 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(&pos, new_dict);
 
-    true
+   Ok(())
 }
 
 fn add_tuple_value_dataflow(

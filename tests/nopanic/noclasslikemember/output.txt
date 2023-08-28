@@ -10,5 +10,4 @@ ERROR: MixedAnyArgument - input.hack:32:10 - Argument 1 of echo expects arraykey
 ERROR: NonExistentProperty - input.hack:36:10 - Cannot access undefined property Foo::$b8
 ERROR: InvalidArgument - input.hack:36:10 - Argument 1 of echo expects arraykey, different type Foo provided
 ERROR: NonExistentProperty - input.hack:40:10 - Property Foo::$b9 is undefined
-ERROR: InvalidArgument - input.hack:40:10 - Argument 1 of echo expects arraykey, different type Foo provided
 ERROR: NonExistentProperty - input.hack:44:9 - Undefined property Foo::$b10

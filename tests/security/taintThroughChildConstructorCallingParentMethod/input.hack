@@ -1,5 +1,5 @@
 class A {
-    private $taint;
+    private string $taint;
 
     public function __construct($taint) {
         $this->taint = $taint;

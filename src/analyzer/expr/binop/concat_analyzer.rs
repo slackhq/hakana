@@ -1,4 +1,4 @@
-use crate::expression_analyzer;
+use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
@@ -18,7 +18,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) {
+) -> Result<(), AnalysisError> {
     let mut concat_nodes = get_concat_nodes(left);
     concat_nodes.push(right);
 
@@ -43,7 +43,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             analysis_data,
             context,
             &mut None,
-        );
+        )?;
 
         let expr_type = analysis_data.expr_types.get(&(
             concat_node.pos().start_offset(),
@@ -99,6 +99,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         .add_node(decision_node.clone());
 
     analysis_data.set_expr_type(&stmt_pos, result_type);
+
+    Ok(())
 }
 
 fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {

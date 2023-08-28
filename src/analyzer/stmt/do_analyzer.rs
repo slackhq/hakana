@@ -6,10 +6,11 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     formula_generator,
+    function_analysis_data::FunctionAnalysisData,
     reconciler::reconciler,
     scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    stmt_analyzer::AnalysisError,
 };
 
 use super::{
@@ -22,7 +23,7 @@ pub(crate) fn analyze(
     stmt: (&aast::Block<(), ()>, &aast::Expr<(), ()>),
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut do_context = context.clone();
     do_context.break_types.push(BreakContext::Loop);
     do_context.inside_loop = true;
@@ -68,7 +69,7 @@ pub(crate) fn analyze(
         ));
     }
 
-    let (analysis_result, mut inner_loop_context) = loop_analyzer::analyze(
+    let mut inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
         &stmt.0 .0,
         get_and_expressions(stmt.1),
@@ -79,7 +80,7 @@ pub(crate) fn analyze(
         analysis_data,
         true,
         true,
-    );
+    )?;
 
     let clauses_to_simplify = {
         let mut c = context
@@ -121,5 +122,5 @@ pub(crate) fn analyze(
             .insert(var_id.clone(), var_type.clone());
     }
 
-    return analysis_result;
+    return Ok(());
 }

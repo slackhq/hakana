@@ -4,6 +4,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_WRITE_PROPS;
@@ -27,35 +28,27 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     nullsafe: bool,
-) -> bool {
-    let was_inside_general_use = context.inside_general_use;
-
+) -> Result<(), AnalysisError> {
     context.inside_general_use = true;
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         expr.0,
         analysis_data,
         context,
         if_body_context,
-    ) {
-        context.inside_general_use = was_inside_general_use;
-        return false;
-    }
+    )?;
 
     if let aast::Expr_::Id(_) = &expr.1 .2 {
         // do nothing
     } else {
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             expr.1,
             analysis_data,
             context,
             if_body_context,
-        ) {
-            context.inside_general_use = was_inside_general_use;
-            return false;
-        }
+        )?;
     }
 
     let lhs_var_id = expression_identifier::get_var_id(
@@ -153,7 +146,7 @@ pub(crate) fn analyze(
                 lhs_atomic_type,
                 &lhs_var_id,
                 &mut analysis_result,
-            );
+            )?;
         }
     }
 
@@ -181,5 +174,5 @@ pub(crate) fn analyze(
         analysis_data.set_expr_type(&pos, stmt_type);
     }
 
-    true
+    Ok(())
 }

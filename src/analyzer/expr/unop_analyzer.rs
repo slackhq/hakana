@@ -2,6 +2,7 @@ use crate::expression_analyzer::{self, add_decision_dataflow};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_type::{get_bool, get_literal_int};
 use oxidized::ast::Binop;
 use oxidized::ast_defs::Bop;
@@ -15,7 +16,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
         context.inside_negation = !context.inside_negation;
     }
@@ -25,7 +26,7 @@ pub(crate) fn analyze(
         analysis_data,
         context,
         if_body_context,
-    );
+    )?;
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
         context.inside_negation = !context.inside_negation;
     }
@@ -111,5 +112,5 @@ pub(crate) fn analyze(
         }
     }
 
-    true
+    Ok(())
 }

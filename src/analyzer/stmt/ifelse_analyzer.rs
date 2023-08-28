@@ -1,7 +1,7 @@
-use crate::scope_context::{
+use crate::{scope_context::{
     control_action::ControlAction, if_scope::IfScope, loop_scope::LoopScope, var_has_root,
     ScopeContext,
-};
+}, stmt_analyzer::AnalysisError};
 use hakana_algebra::Clause;
 use hakana_reflection_info::{
     analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS,
@@ -54,7 +54,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_file_analyzer().codebase;
 
     let mut if_scope = IfScope::new();
@@ -71,7 +71,7 @@ pub(crate) fn analyze(
         analysis_data,
         context,
         &mut if_scope,
-    );
+    )?;
 
     add_branch_dataflow(statements_analyzer, &stmt.0, analysis_data);
 
@@ -246,7 +246,7 @@ pub(crate) fn analyze(
     }
 
     // check the if
-    if !if_analyzer::analyze(
+    if_analyzer::analyze(
         statements_analyzer,
         stmt,
         analysis_data,
@@ -255,13 +255,11 @@ pub(crate) fn analyze(
         &mut if_body_context,
         context,
         loop_scope,
-    ) {
-        return false;
-    }
+    )?;
 
     let mut else_context = post_if_context.clone();
 
-    if !else_analyzer::analyze(
+    else_analyzer::analyze(
         statements_analyzer,
         stmt.0.pos(),
         stmt.2,
@@ -270,9 +268,7 @@ pub(crate) fn analyze(
         &mut else_context,
         context,
         loop_scope,
-    ) {
-        return false;
-    }
+    )?;
 
     if !if_scope.if_actions.is_empty() && !if_scope.if_actions.contains(&ControlAction::None) {
         context.clauses = else_context.clauses;
@@ -395,7 +391,7 @@ pub(crate) fn analyze(
                 (stmt_pos.start_offset() as usize, stmt.0 .1.start_offset()),
                 Replacement::Remove,
             ) {
-                return true;
+                return Ok(());
             }
             
             analysis_data.add_replacement(
@@ -405,7 +401,7 @@ pub(crate) fn analyze(
         }
     }
 
-    true
+   Ok(())
 }
 
 pub(crate) fn remove_clauses_with_mixed_vars(

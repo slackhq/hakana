@@ -270,14 +270,12 @@ pub async fn scan_and_analyze(
                 &logger,
                 &scan_data.interner,
             ),
-            WholeProgramKind::Query => {
-                find_connections(
-                    &analysis_result.program_dataflow_graph,
-                    &config,
-                    &logger,
-                    &scan_data.interner,
-                )
-            }
+            WholeProgramKind::Query => find_connections(
+                &analysis_result.program_dataflow_graph,
+                &config,
+                &logger,
+                &scan_data.interner,
+            ),
         };
 
         for issue in issues {

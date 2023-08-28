@@ -22,13 +22,18 @@ use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use oxidized::{aast, ast_defs};
 
+pub enum AnalysisError {
+    UserError,
+    InternalError(String),
+}
+
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: &aast::Stmt<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
         if current_stmt_offset.line != stmt.0.line() {
             analysis_data.current_stmt_offset = Some(StmtStart {
@@ -60,15 +65,13 @@ pub(crate) fn analyze(
 
     match &stmt.1 {
         aast::Stmt_::Expr(boxed) => {
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed,
                 analysis_data,
                 context,
                 &mut None,
-            ) {
-                return false;
-            }
+            )?;
 
             if statements_analyzer.get_config().find_unused_expressions {
                 detect_unused_statement_expressions(
@@ -81,61 +84,51 @@ pub(crate) fn analyze(
             }
         }
         aast::Stmt_::Return(_) => {
-            return_analyzer::analyze(stmt, statements_analyzer, analysis_data, context);
+            return_analyzer::analyze(stmt, statements_analyzer, analysis_data, context)?;
         }
         aast::Stmt_::If(boxed) => {
-            if !ifelse_analyzer::analyze(
+            ifelse_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &stmt.0,
                 analysis_data,
                 context,
                 loop_scope,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Stmt_::While(boxed) => {
-            if !while_analyzer::analyze(
+            while_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1),
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Stmt_::Do(boxed) => {
-            if !do_analyzer::analyze(
+            do_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1),
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Stmt_::For(boxed) => {
-            if !for_analyzer::analyze(
+            for_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3),
                 &stmt.0,
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Stmt_::Foreach(boxed) => {
-            if !foreach_analyzer::analyze(
+            foreach_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &stmt.0,
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Stmt_::Noop => {
             // ignore
@@ -154,36 +147,30 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 loop_scope,
-            );
+            )?;
         }
         aast::Stmt_::Throw(boxed) => {
             context.inside_throw = true;
 
-            let analysis_result = expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed,
                 analysis_data,
                 context,
                 &mut None,
-            );
+            )?;
 
             context.inside_throw = false;
             context.has_returned = true;
-
-            if !analysis_result {
-                return false;
-            }
         }
         aast::Stmt_::Try(boxed) => {
-            if !try_analyzer::analyze(
+            try_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 analysis_data,
                 context,
                 loop_scope,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Stmt_::Markup(_) => {
             // opening tag, do nothing
@@ -196,44 +183,38 @@ pub(crate) fn analyze(
                 context,
                 stmt,
                 loop_scope,
-            );
+            )?;
         }
         aast::Stmt_::Using(boxed) => {
             for boxed_expr in &boxed.exprs.1 {
-                if !expression_analyzer::analyze(
+                expression_analyzer::analyze(
                     statements_analyzer,
                     &boxed_expr,
                     analysis_data,
                     context,
                     &mut None,
-                ) {
-                    return false;
-                }
+                )?;
             }
 
             for using_stmt in &boxed.block {
-                if !analyze(
+                analyze(
                     statements_analyzer,
                     using_stmt,
                     analysis_data,
                     context,
                     loop_scope,
-                ) {
-                    return false;
-                }
+                )?;
             }
         }
         aast::Stmt_::Block(boxed) => {
             for boxed_stmt in boxed {
-                if !analyze(
+                analyze(
                     statements_analyzer,
                     boxed_stmt,
                     analysis_data,
                     context,
                     loop_scope,
-                ) {
-                    return false;
-                }
+                )?;
             }
         }
         aast::Stmt_::Fallthrough => {} // do nothing
@@ -249,9 +230,9 @@ pub(crate) fn analyze(
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
             );
-            return false;
+            return Err(AnalysisError::UserError);
         }
-        aast::Stmt_::DeclareLocal(_) => {},
+        aast::Stmt_::DeclareLocal(_) => {}
     }
 
     context.cond_referenced_var_ids = FxHashSet::default();
@@ -267,7 +248,7 @@ pub(crate) fn analyze(
         );
     }
 
-    true
+    Ok(())
 }
 
 fn detect_unused_statement_expressions(
@@ -424,11 +405,11 @@ fn analyze_awaitall(
     context: &mut ScopeContext,
     stmt: &aast::Stmt<(), ()>,
     loop_scope: &mut Option<LoopScope>,
-) {
+) -> Result<(), AnalysisError> {
     context.inside_awaitall = true;
 
     for (assignment_id, expr) in boxed.0 {
-        expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, &mut None);
+        expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, &mut None)?;
 
         if let Some(assignment_id) = assignment_id {
             let mut assignment_type = None;
@@ -467,8 +448,7 @@ fn analyze_awaitall(
                 analysis_data,
                 context,
                 false,
-            )
-            .ok();
+            )?;
         }
     }
 
@@ -479,8 +459,10 @@ fn analyze_awaitall(
             analysis_data,
             context,
             loop_scope,
-        );
+        )?;
     }
 
     context.inside_awaitall = false;
+
+    Ok(())
 }

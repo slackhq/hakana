@@ -18,6 +18,7 @@ use crate::reconciler::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::{var_has_root, ScopeContext};
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
 use hakana_algebra::Clause;
 use hakana_reflection_info::ast::get_id_name;
@@ -48,7 +49,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     if statements_analyzer.get_config().add_fixmes {
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
             if current_stmt_offset.line != expr.1.line() {
@@ -75,16 +76,14 @@ pub(crate) fn analyze(
         aast::Expr_::Binop(x) => {
             let (binop, e1, e2) = (&x.bop, &x.lhs, &x.rhs);
 
-            if !binop_analyzer::analyze(
+            binop_analyzer::analyze(
                 statements_analyzer,
                 (binop, e1, e2),
                 &expr.1,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::Lvar(lid) => {
             variable_fetch_analyzer::analyze(
@@ -93,7 +92,7 @@ pub(crate) fn analyze(
                 &expr.1,
                 analysis_data,
                 context,
-            );
+            )?;
         }
         aast::Expr_::Int(value) => {
             analysis_data.expr_types.insert(
@@ -129,15 +128,13 @@ pub(crate) fn analyze(
         aast::Expr_::Is(boxed) => {
             let (lhs_expr, _) = (&boxed.0, &boxed.1);
 
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 lhs_expr,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
 
             add_decision_dataflow(
                 statements_analyzer,
@@ -149,7 +146,7 @@ pub(crate) fn analyze(
             );
         }
         aast::Expr_::As(boxed) => {
-            if !as_analyzer::analyze(
+            as_analyzer::analyze(
                 statements_analyzer,
                 expr.pos(),
                 &boxed.0,
@@ -158,21 +155,17 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::Call(boxed) => {
-            if !call_analyzer::analyze(
+            call_analyzer::analyze(
                 statements_analyzer,
                 boxed,
                 &expr.1,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::ArrayGet(boxed) => {
             let keyed_array_var_id = expression_identifier::get_var_id(
@@ -186,62 +179,52 @@ pub(crate) fn analyze(
                 )),
             );
 
-            if !array_fetch_analyzer::analyze(
+            array_fetch_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, boxed.1.as_ref()),
                 &expr.1,
                 analysis_data,
                 context,
                 keyed_array_var_id,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::Eif(boxed) => {
-            if !ternary_analyzer::analyze(
+            ternary_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &expr.1,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::Shape(shape_fields) => {
-            if !shape_analyzer::analyze(
+            shape_analyzer::analyze(
                 statements_analyzer,
                 shape_fields,
                 &expr.1,
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::Tuple(shape_fields) => {
-            if !tuple_analyzer::analyze(
+            tuple_analyzer::analyze(
                 statements_analyzer,
                 shape_fields,
                 &expr.1,
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::Pipe(boxed) => {
-            if !pipe_analyzer::analyze(
+            pipe_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, &boxed.1, &boxed.2),
                 &expr.1,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::ObjGet(boxed) => {
             let (lhs_expr, rhs_expr, nullfetch, prop_or_method) =
@@ -249,7 +232,7 @@ pub(crate) fn analyze(
 
             match prop_or_method {
                 ast_defs::PropOrMethod::IsProp => {
-                    if !instance_property_fetch_analyzer::analyze(
+                    instance_property_fetch_analyzer::analyze(
                         statements_analyzer,
                         (&lhs_expr, &rhs_expr),
                         &expr.1,
@@ -257,9 +240,7 @@ pub(crate) fn analyze(
                         context,
                         context.inside_assignment,
                         matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
-                    ) {
-                        return false;
-                    }
+                    )?;
                 }
                 ast_defs::PropOrMethod::IsMethod => {
                     panic!("should be handled in call_analyzer")
@@ -279,22 +260,20 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )?;
         }
         aast::Expr_::ClassGet(boxed) => {
             let (lhs, rhs, prop_or_method) = (&boxed.0, &boxed.1, &boxed.2);
 
             match prop_or_method {
                 ast_defs::PropOrMethod::IsProp => {
-                    if !static_property_fetch_analyzer::analyze(
+                    static_property_fetch_analyzer::analyze(
                         statements_analyzer,
                         (lhs, &rhs),
                         &expr.1,
                         analysis_data,
                         context,
-                    ) {
-                        return false;
-                    }
+                    )?;
                 }
                 ast_defs::PropOrMethod::IsMethod => {
                     panic!("should be handled in call_analyzer")
@@ -322,61 +301,45 @@ pub(crate) fn analyze(
         aast::Expr_::Unop(x) => {
             let (unop, inner_expr) = (&x.0, &x.1);
 
-            if !unop_analyzer::analyze(
+            unop_analyzer::analyze(
                 statements_analyzer,
                 (unop, inner_expr),
                 &expr.1,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::Lfun(boxed) => {
-            if !closure_analyzer::analyze(
-                statements_analyzer,
-                context,
-                analysis_data,
-                &boxed.0,
-                expr,
-            ) {
-                return false;
-            }
+            closure_analyzer::analyze(statements_analyzer, context, analysis_data, &boxed.0, expr)?;
         }
         aast::Expr_::Efun(boxed) => {
-            if !closure_analyzer::analyze(
+            closure_analyzer::analyze(
                 statements_analyzer,
                 context,
                 analysis_data,
                 &boxed.fun,
                 expr,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::ClassConst(boxed) => {
-            if !class_constant_fetch_analyzer::analyze(
+            class_constant_fetch_analyzer::analyze(
                 statements_analyzer,
                 (&boxed.0, (&boxed.1 .0, &boxed.1 .1)),
                 &expr.1,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::Clone(boxed) => {
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
 
             if let Some(stmt_type) = analysis_data
                 .expr_types
@@ -395,15 +358,13 @@ pub(crate) fn analyze(
             let mut parent_nodes = FxHashSet::default();
 
             for (offset, inner_expr) in exprs.iter().enumerate() {
-                if !expression_analyzer::analyze(
+                expression_analyzer::analyze(
                     statements_analyzer,
                     inner_expr,
                     analysis_data,
                     context,
                     if_body_context,
-                ) {
-                    return false;
-                }
+                )?;
 
                 let expr_part_type = analysis_data.expr_types.get(&(
                     inner_expr.pos().start_offset(),
@@ -462,19 +423,17 @@ pub(crate) fn analyze(
             );
         }
         aast::Expr_::PrefixedString(boxed) => {
-            if let Some(value) = prefixed_string_analyzer::analyze(
+            prefixed_string_analyzer::analyze(
                 statements_analyzer,
                 boxed,
                 analysis_data,
                 context,
                 if_body_context,
                 expr,
-            ) {
-                return value;
-            }
+            )?;
         }
         aast::Expr_::Id(boxed) => {
-            const_fetch_analyzer::analyze(statements_analyzer, boxed, analysis_data);
+            const_fetch_analyzer::analyze(statements_analyzer, boxed, analysis_data)?;
         }
         aast::Expr_::Xml(boxed) => {
             xml_analyzer::analyze(
@@ -484,18 +443,16 @@ pub(crate) fn analyze(
                 statements_analyzer,
                 analysis_data,
                 if_body_context,
-            );
+            )?;
         }
         aast::Expr_::Await(boxed) => {
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
 
             let mut awaited_stmt_type = analysis_data
                 .get_expr_type(boxed.pos())
@@ -539,7 +496,7 @@ pub(crate) fn analyze(
             );
         }
         aast::Expr_::FunctionPointer(boxed) => {
-            analyze_function_pointer(statements_analyzer, boxed, context, analysis_data, expr);
+            analyze_function_pointer(statements_analyzer, boxed, context, analysis_data, expr)?;
         }
         aast::Expr_::Cast(boxed) => {
             return cast_analyzer::analyze(
@@ -560,21 +517,19 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )?;
         }
         aast::Expr_::List(_) => {
             panic!("should not happen")
         }
         aast::Expr_::Import(boxed) => {
-            if !include_analyzer::analyze(
+            include_analyzer::analyze(
                 statements_analyzer,
                 &boxed.1,
                 expr.pos(),
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::EnumClassLabel(boxed) => {
             let class_name = if let Some(id) = &boxed.0 {
@@ -606,16 +561,14 @@ pub(crate) fn analyze(
                 .map(|(key_expr, value_expr)| Field(key_expr.clone(), value_expr.clone()))
                 .collect::<Vec<_>>();
 
-            if !collection_analyzer::analyze_keyvals(
+            collection_analyzer::analyze_keyvals(
                 statements_analyzer,
                 &oxidized::tast::KvcKind::Dict,
                 &fields,
                 expr.pos(),
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::Varray(boxed) => {
             collection_analyzer::analyze_vals(
@@ -625,31 +578,27 @@ pub(crate) fn analyze(
                 expr.pos(),
                 analysis_data,
                 context,
-            );
+            )?;
         }
         aast::Expr_::ValCollection(boxed) => {
-            if !collection_analyzer::analyze_vals(
+            collection_analyzer::analyze_vals(
                 statements_analyzer,
                 &boxed.0 .1,
                 &boxed.2,
                 expr.pos(),
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
         aast::Expr_::KeyValCollection(boxed) => {
-            if !collection_analyzer::analyze_keyvals(
+            collection_analyzer::analyze_keyvals(
                 statements_analyzer,
                 &boxed.0 .1,
                 &boxed.2,
                 expr.pos(),
                 analysis_data,
                 context,
-            ) {
-                return false;
-            }
+            )?;
         }
 
         aast::Expr_::Collection(_)
@@ -675,7 +624,7 @@ pub(crate) fn analyze(
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
             );
-            return false;
+            //return Err(AnalysisError::UserError);
         }
         aast::Expr_::Package(_) => todo!(),
     }
@@ -691,7 +640,7 @@ pub(crate) fn analyze(
         );
     }
 
-    true
+    Ok(())
 }
 
 pub(crate) fn expr_has_logic(expr: &aast::Expr<(), ()>) -> bool {
@@ -836,13 +785,19 @@ fn analyze_function_pointer(
     context: &mut ScopeContext,
     analysis_data: &mut FunctionAnalysisData,
     expr: &aast::Expr<(), ()>,
-) {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
     let id = match &boxed.0 {
         aast::FunctionPtrId::FPId(id) => FunctionLikeIdentifier::Function({
             let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-            resolved_names.get(&id.0.start_offset()).cloned().unwrap()
+            if let Some(name) = resolved_names.get(&id.0.start_offset()).cloned() {
+                name
+            } else {
+                return Err(AnalysisError::InternalError(
+                    "Cannot resolve name for function pointer".to_string(),
+                ));
+            }
         }),
         aast::FunctionPtrId::FPClassConst(class_id, method_name) => {
             let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
@@ -851,8 +806,15 @@ fn analyze_function_pointer(
             let class_name = match &class_id.2 {
                 aast::ClassId_::CIexpr(inner_expr) => {
                     if let aast::Expr_::Id(id) = &inner_expr.2 {
-                        get_id_name(id, &calling_class, codebase, &mut false, resolved_names)
-                            .unwrap()
+                        if let Some(name) =
+                            get_id_name(id, &calling_class, codebase, &mut false, resolved_names)
+                        {
+                            name
+                        } else {
+                            return Err(AnalysisError::InternalError(
+                                "Cannot resolve function pointer class constant".to_string(),
+                            ));
+                        }
                     } else {
                         panic!("Unrecognised expression type for class constant reference");
                     }
@@ -865,7 +827,7 @@ fn analyze_function_pointer(
             if let Some(method_name) = method_name {
                 FunctionLikeIdentifier::Method(class_name, method_name)
             } else {
-                return;
+                return Ok(());
             }
         }
     };
@@ -893,7 +855,7 @@ fn analyze_function_pointer(
                     statements_analyzer.get_file_path_actual(),
                 );
 
-                return;
+                return Ok(());
             }
         }
         FunctionLikeIdentifier::Method(class_name, method_name) => {
@@ -939,7 +901,7 @@ fn analyze_function_pointer(
                     statements_analyzer.get_file_path_actual(),
                 );
 
-                return;
+                return Ok(());
             }
         }
     }
@@ -955,6 +917,8 @@ fn analyze_function_pointer(
             Rc::new(wrap_atomic(closure)),
         );
     }
+
+    Ok(())
 }
 
 pub(crate) fn add_decision_dataflow(

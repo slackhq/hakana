@@ -234,7 +234,30 @@ fn analyze_file(
     };
     let mut file_analyzer =
         file_analyzer::FileAnalyzer::new(file_source, &resolved_names, codebase, interner, config);
-    file_analyzer.analyze(&aast.0, analysis_result);
+
+    match file_analyzer.analyze(&aast.0, analysis_result) {
+        Ok(()) => {}
+        Err(err) => {
+            analysis_result.emitted_issues.insert(
+                file_path,
+                vec![Issue::new(
+                    IssueKind::InternalError,
+                    err.0,
+                    HPos {
+                        file_path,
+                        start_offset: 1,
+                        end_offset: 1,
+                        start_line: 1,
+                        end_line: 1,
+                        start_column: 1,
+                        end_column: 1,
+                        insertion_start: None,
+                    },
+                    &None,
+                )],
+            );
+        }
+    };
 }
 
 fn get_deserialized_ast(

@@ -22,6 +22,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_algebra::Clause;
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
@@ -51,7 +52,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     is_inout: bool,
-) -> Result<(), ()> {
+) -> Result<(), AnalysisError> {
     let (binop, assign_var, assign_value) = (expr.0, expr.1, expr.2);
 
     let var_id = get_var_id(
@@ -104,14 +105,14 @@ pub(crate) fn analyze(
             context.inside_general_use = true;
         }
 
-        let analyzed_ok = match binop {
+        match binop {
             // this rewrites $a += 4 and $a ??= 4 to $a = $a + 4 and $a = $a ?? 4 respectively
             Bop::Eq(Some(assignment_type)) => {
                 let tast_expr_types = analysis_data.expr_types.clone();
 
                 context.inside_assignment_op = true;
 
-                let analyzed_ok = expression_analyzer::analyze(
+                expression_analyzer::analyze(
                     statements_analyzer,
                     &aast::Expr(
                         (),
@@ -125,7 +126,7 @@ pub(crate) fn analyze(
                     analysis_data,
                     context,
                     &mut None,
-                );
+                )?;
 
                 context.inside_assignment_op = false;
 
@@ -142,16 +143,16 @@ pub(crate) fn analyze(
                         expr_type,
                     );
                 };
-
-                analyzed_ok
             }
-            _ => expression_analyzer::analyze(
-                statements_analyzer,
-                assign_value,
-                analysis_data,
-                context,
-                &mut None,
-            ),
+            _ => {
+                expression_analyzer::analyze(
+                    statements_analyzer,
+                    assign_value,
+                    analysis_data,
+                    context,
+                    &mut None,
+                )?;
+            }
         };
 
         if expr_has_logic(assign_value) {
@@ -159,27 +160,6 @@ pub(crate) fn analyze(
         }
 
         context.inside_general_use = false;
-
-        if !analyzed_ok {
-            if let Some(var_id) = &var_id {
-                if let Some(existing_type) = context.vars_in_scope.clone().get(var_id) {
-                    context.remove_descendants(
-                        var_id,
-                        existing_type,
-                        assign_value_type,
-                        None,
-                        analysis_data,
-                    );
-                }
-
-                // if we're not exiting immediately, make everything mixed
-                context
-                    .vars_in_scope
-                    .insert(var_id.clone(), Rc::new(get_mixed_any()));
-            }
-
-            return Err(());
-        }
     }
 
     let mut assign_value_type = if let Some(assign_value_type) = assign_value_type {
@@ -336,7 +316,7 @@ pub(crate) fn analyze(
                 pos,
                 analysis_data,
                 context,
-            );
+            )?;
         }
         aast::Expr_::ObjGet(boxed) => {
             instance_property_assignment_analyzer::analyze(
@@ -347,7 +327,7 @@ pub(crate) fn analyze(
                 &assign_value_type,
                 analysis_data,
                 context,
-            );
+            )?;
         }
         aast::Expr_::ClassGet(boxed) => {
             let (lhs, rhs, _) = (&boxed.0, &boxed.1, &boxed.2);
@@ -364,7 +344,7 @@ pub(crate) fn analyze(
                 &var_id,
                 analysis_data,
                 context,
-            );
+            )?;
         }
         aast::Expr_::List(expressions) => analyze_list_assignment(
             statements_analyzer,
@@ -722,8 +702,8 @@ pub(crate) fn analyze_inout_param(
     inout_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) {
-    if let Ok(_) = analyze(
+) -> Result<(), AnalysisError> {
+    analyze(
         statements_analyzer,
         (&ast_defs::Bop::Eq(None), expr, None),
         expr.pos(),
@@ -731,12 +711,14 @@ pub(crate) fn analyze_inout_param(
         analysis_data,
         context,
         true,
-    ) {
-        analysis_data.set_expr_type(expr.pos(), arg_type.clone());
-    }
+    )?;
+
+    analysis_data.set_expr_type(expr.pos(), arg_type.clone());
 
     analysis_data.expr_effects.insert(
         (expr.pos().start_offset(), expr.pos().end_offset()),
         EFFECT_WRITE_LOCAL,
     );
+
+    Ok(())
 }

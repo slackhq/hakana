@@ -6,6 +6,7 @@ use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
 use hakana_type::get_bool;
 use oxidized::aast;
@@ -18,7 +19,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut left_context = context.clone();
 
     let pre_referenced_var_ids = left_context.cond_referenced_var_ids.clone();
@@ -31,15 +32,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     analysis_data.set_expr_type(&stmt_pos, get_bool());
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         left,
         analysis_data,
         &mut left_context,
         if_body_context,
-    ) {
-        return false;
-    }
+    )?;
 
     if let Some(cond_type) = analysis_data.get_expr_type(left.pos()).cloned() {
         handle_paradoxical_condition(
@@ -153,15 +152,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     );
     right_context.clauses = partitioned_clauses.0;
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         right,
         analysis_data,
         &mut right_context,
         if_body_context,
-    ) {
-        return false;
-    }
+    )?;
 
     if let Some(cond_type) = analysis_data.get_expr_type(right.pos()).cloned() {
         handle_paradoxical_condition(
@@ -212,5 +209,5 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         context.vars_in_scope = left_context.vars_in_scope;
     }
 
-    true
+    Ok(())
 }

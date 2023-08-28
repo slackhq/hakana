@@ -463,7 +463,7 @@ pub(crate) fn get_control_actions(
             aast::Stmt_::Noop => {}
             aast::Stmt_::Markup(_) => {}
             aast::Stmt_::AssertEnv(_) => {}
-            aast::Stmt_::DeclareLocal(_) => {},
+            aast::Stmt_::DeclareLocal(_) => {}
         }
     }
 
@@ -481,13 +481,18 @@ fn handle_call(
     interner: &Interner,
     control_actions: &FxHashSet<ControlAction>,
 ) -> Option<FxHashSet<ControlAction>> {
-    match &call_expr.func .2 {
+    match &call_expr.func.2 {
         aast::Expr_::Id(id) => {
             if id.1.eq("exit") || id.1.eq("die") {
                 return Some(control_end(control_actions.clone()));
             }
 
-            let resolved_name = resolved_names.get(&id.0.start_offset()).unwrap();
+            let resolved_name =
+                if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                    resolved_name
+                } else {
+                    return None;
+                };
             if let Some(functionlike_storage) = codebase.functionlike_infos.get(resolved_name) {
                 if let Some(return_type) = &functionlike_storage.return_type {
                     if return_type.is_nothing() {
@@ -507,7 +512,13 @@ fn handle_call(
                                 // do nothing
                             }
                             _ => {
-                                let name_string = resolved_names.get(&id.0.start_offset()).unwrap();
+                                let name_string = if let Some(resolved_name) =
+                                    resolved_names.get(&id.0.start_offset())
+                                {
+                                    resolved_name
+                                } else {
+                                    return None;
+                                };
 
                                 if let Some(classlike_storage) =
                                     codebase.classlike_infos.get(name_string)

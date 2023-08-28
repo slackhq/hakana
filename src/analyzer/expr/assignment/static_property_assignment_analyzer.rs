@@ -16,7 +16,7 @@ use oxidized::{
     tast::Pos,
 };
 
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
@@ -30,7 +30,7 @@ pub(crate) fn analyze(
     var_id: &Option<String>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
     let stmt_class = expr.0;
     let stmt_name = expr.1;
@@ -76,10 +76,10 @@ pub(crate) fn analyze(
         if let Some(prop_name_id) = statements_analyzer.get_interner().get(&prop_name) {
             prop_name_id
         } else {
-            return false;
+            return Err(AnalysisError::UserError);
         }
     } else {
-        return false;
+        return Err(AnalysisError::UserError);
     };
 
     let mut fq_class_names = Vec::new();
@@ -110,7 +110,7 @@ pub(crate) fn analyze(
                         analysis_data,
                         context,
                         &mut None,
-                    );
+                    )?;
                     context.inside_general_use = was_inside_general_use;
 
                     let lhs_type = analysis_data.get_expr_type(&expr.1.clone());
@@ -134,7 +134,7 @@ pub(crate) fn analyze(
     }
 
     if fq_class_names.is_empty() {
-        return false;
+        return Err(AnalysisError::UserError);
     }
 
     for fq_class_name in fq_class_names {
@@ -285,5 +285,5 @@ pub(crate) fn analyze(
         }
     }
 
-    true
+    Ok(())
 }

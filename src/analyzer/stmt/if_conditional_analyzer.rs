@@ -4,6 +4,7 @@ use crate::{
     expression_analyzer,
     scope_analyzer::ScopeAnalyzer,
     scope_context::{if_scope::IfScope, ScopeContext},
+    stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
@@ -27,7 +28,7 @@ pub(crate) fn analyze<'a>(
     analysis_data: &mut FunctionAnalysisData,
     outer_context: &ScopeContext,
     if_scope: &mut IfScope,
-) -> IfConditionalScope {
+) -> Result<IfConditionalScope, AnalysisError> {
     let mut outer_context = outer_context.clone();
     let mut old_outer_context = outer_context.clone();
     let mut has_outer_context_changes = false;
@@ -123,7 +124,7 @@ pub(crate) fn analyze<'a>(
 
     outer_context.inside_conditional = true;
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         externally_applied_if_cond_expr,
         analysis_data,
@@ -133,9 +134,7 @@ pub(crate) fn analyze<'a>(
             &mut old_outer_context
         },
         &mut None,
-    ) {
-        // do something here
-    }
+    )?;
 
     let first_cond_assigned_var_ids = if has_outer_context_changes {
         &outer_context
@@ -211,15 +210,13 @@ pub(crate) fn analyze<'a>(
 
         if_conditional_context.inside_conditional = true;
 
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             cond,
             analysis_data,
             &mut if_conditional_context,
             &mut if_context,
-        ) {
-            // do something here
-        }
+        )?;
 
         add_branch_dataflow(statements_analyzer, cond, analysis_data);
 
@@ -264,7 +261,7 @@ pub(crate) fn analyze<'a>(
 
     cond_referenced_var_ids.extend(newish_var_ids);
 
-    IfConditionalScope {
+    Ok(IfConditionalScope {
         if_body_context: if_context.unwrap(),
         post_if_context,
         outer_context: if has_outer_context_changes {
@@ -273,7 +270,7 @@ pub(crate) fn analyze<'a>(
             old_outer_context
         },
         cond_referenced_var_ids,
-    }
+    })
 }
 
 fn get_definitely_evaluated_expression_after_if(stmt: &aast::Expr<(), ()>) -> &aast::Expr<(), ()> {

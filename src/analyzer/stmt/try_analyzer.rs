@@ -1,6 +1,7 @@
 use crate::scope_context::{
     control_action::ControlAction, loop_scope::LoopScope, FinallyScope, ScopeContext,
 };
+use crate::stmt_analyzer::AnalysisError;
 use crate::{
     scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
     function_analysis_data::FunctionAnalysisData,
@@ -24,7 +25,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut all_catches_leave = true;
 
     let codebase = statements_analyzer.get_codebase();
@@ -59,9 +60,7 @@ pub(crate) fn analyze(
     let was_inside_try = context.inside_try;
     context.inside_try = true;
 
-    if !statements_analyzer.analyze(&stmt.0 .0, analysis_data, context, loop_scope) {
-        return false;
-    }
+    statements_analyzer.analyze(&stmt.0 .0, analysis_data, context, loop_scope)?;
 
     context.inside_try = was_inside_try;
 
@@ -153,7 +152,11 @@ pub(crate) fn analyze(
             }
         }
 
-        let catch_classlike_name = resolved_names.get(&catch.0 .0.start_offset()).unwrap();
+        let catch_classlike_name = if let Some(name) = resolved_names.get(&catch.0 .0.start_offset()) {
+            name
+        } else {
+            return Err(AnalysisError::InternalError("Could not resolve catch classlike name".to_string()));
+        };
 
         // discard all clauses because crazy stuff may have happened in try block
         catch_context.clauses = vec![];
@@ -184,7 +187,7 @@ pub(crate) fn analyze(
         let old_catch_assigned_var_ids = catch_context.assigned_var_ids.clone();
 
         catch_context.assigned_var_ids = FxHashMap::default();
-        statements_analyzer.analyze(&catch.2 .0, analysis_data, &mut catch_context, loop_scope);
+        statements_analyzer.analyze(&catch.2 .0, analysis_data, &mut catch_context, loop_scope)?;
 
         // recalculate in case there's a nothing function call
         let catch_actions = control_analyzer::get_control_actions(
@@ -296,7 +299,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 &mut finally_context,
                 loop_scope,
-            );
+            )?;
 
             finally_has_returned = finally_context.has_returned;
 
@@ -353,5 +356,5 @@ pub(crate) fn analyze(
     let body_has_returned = !try_block_control_actions.contains(&ControlAction::None);
     context.has_returned = (body_has_returned && all_catches_leave) || finally_has_returned;
 
-    true
+   Ok(())
 }

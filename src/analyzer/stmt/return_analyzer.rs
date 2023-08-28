@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crate::scope_context::ScopeContext;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
     data_flow::{
@@ -35,7 +36,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) {
+) -> Result<(), AnalysisError> {
     let return_expr = stmt.1.as_return().unwrap();
 
     let interner = &statements_analyzer.get_interner();
@@ -48,7 +49,7 @@ pub(crate) fn analyze(
             analysis_data,
             context,
             &mut None,
-        );
+        )?;
         context.inside_return = false;
 
         if let Some(mut inferred_return_type) = analysis_data.get_expr_type(&return_expr.1).cloned()
@@ -104,7 +105,7 @@ pub(crate) fn analyze(
         s
     } else {
         // should never happen, but some tests have return in the flow
-        return;
+        return Ok(());
     };
 
     handle_inout_at_return(
@@ -213,13 +214,13 @@ pub(crate) fn analyze(
 
         if !expected_return_type.is_mixed() {
             if expected_return_type.is_generator(interner) && functionlike_storage.has_yield {
-                return;
+                return Ok(());
             }
 
             let mut mixed_with_any = false;
 
             if expected_return_type.is_mixed() {
-                return;
+                return Ok(());
             }
 
             if inferred_return_type.is_mixed_with_any(&mut mixed_with_any) {
@@ -243,7 +244,7 @@ pub(crate) fn analyze(
                         statements_analyzer.get_file_path_actual(),
                     );
 
-                    return;
+                    return Ok(());
                 }
 
                 for origin in &inferred_return_type.parent_nodes {
@@ -272,7 +273,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_file_path_actual(),
                 );
 
-                return;
+                return Ok(());
             }
 
             // todo increment non-mixed count
@@ -297,7 +298,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_file_path_actual(),
                 );
 
-                return;
+                return Ok(());
             }
 
             let mut union_comparison_result = TypeComparisonResult::new();
@@ -486,6 +487,8 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
     }
+
+    Ok(())
 }
 
 pub(crate) fn handle_inout_at_return(

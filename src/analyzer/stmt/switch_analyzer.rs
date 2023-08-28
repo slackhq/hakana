@@ -14,7 +14,7 @@ use crate::{
         ScopeContext,
     },
     statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError,
 };
 
 use super::{
@@ -34,21 +34,18 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     loop_scope: &mut Option<LoopScope>,
-) {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
     context.inside_conditional = true;
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         stmt.0,
         analysis_data,
         context,
         &mut None,
-    ) {
-        context.inside_conditional = false;
-        return;
-    }
+    )?;
 
     context.inside_conditional = false;
 
@@ -165,7 +162,7 @@ pub(crate) fn analyze(
             continue;
         }
 
-        if !analyze_case(
+        analyze_case(
             statements_analyzer,
             stmt,
             fake_switch_condition.as_ref().unwrap_or(stmt.0),
@@ -183,9 +180,7 @@ pub(crate) fn analyze(
             *i == (cases.len() - 1) && stmt.2.is_none(),
             &mut switch_scope,
             loop_scope,
-        ) {
-            return;
-        }
+        )?;
 
         previous_empty_cases = vec![];
     }
@@ -201,7 +196,7 @@ pub(crate) fn analyze(
 
         let case_actions = case_action_map.get(&i).unwrap();
 
-        if !analyze_case(
+        analyze_case(
             statements_analyzer,
             stmt,
             fake_switch_condition.as_ref().unwrap_or(stmt.0),
@@ -219,9 +214,7 @@ pub(crate) fn analyze(
             true,
             &mut switch_scope,
             loop_scope,
-        ) {
-            return;
-        }
+        )?;
     }
 
     let mut possibly_redefined_vars = switch_scope
@@ -259,6 +252,8 @@ pub(crate) fn analyze(
         .assigned_var_ids
         .extend(switch_scope.new_assigned_var_ids);
     context.has_returned = all_options_returned && has_default;
+
+    Ok(())
 }
 
 fn update_case_exit_map(

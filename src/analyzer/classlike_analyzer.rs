@@ -1,10 +1,11 @@
 use crate::expression_analyzer;
 use crate::file_analyzer::FileAnalyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::FunctionLikeAnalyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
@@ -25,18 +26,19 @@ impl<'a> ClassLikeAnalyzer<'a> {
         stmt: &aast::Class_<(), ()>,
         statements_analyzer: &StatementsAnalyzer,
         analysis_result: &mut AnalysisResult,
-    ) {
+    ) -> Result<(), AnalysisError> {
         let resolved_names = self.file_analyzer.resolved_names.clone();
-        let name = resolved_names
-            .get(&stmt.name.0.start_offset())
-            .unwrap()
-            .clone();
+        let name = if let Some(resolved_name) = resolved_names.get(&stmt.name.0.start_offset()) {
+            *resolved_name
+        } else {
+            return Err(AnalysisError::InternalError("Cannot resolve class name".to_string()));
+        };
 
         let codebase = self.file_analyzer.get_codebase();
 
         if self.file_analyzer.analysis_config.ast_diff {
             if self.file_analyzer.codebase.safe_symbols.contains(&name) {
-                return;
+                return Ok(());
             }
         }
 
@@ -84,7 +86,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
                         &mut analysis_data,
                         &mut class_context,
                         &mut None,
-                    );
+                    )?;
                 }
                 _ => {}
             }
@@ -98,7 +100,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
                     &mut analysis_data,
                     &mut class_context,
                     &mut None,
-                );
+                )?;
             }
         }
 
@@ -112,7 +114,9 @@ impl<'a> ClassLikeAnalyzer<'a> {
             }
 
             let mut method_analyzer = FunctionLikeAnalyzer::new(self.file_analyzer);
-            method_analyzer.analyze_method(method, classlike_storage, analysis_result);
+            method_analyzer.analyze_method(method, classlike_storage, analysis_result)?;
         }
+
+        Ok(())
     }
 }

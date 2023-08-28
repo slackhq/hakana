@@ -1,4 +1,5 @@
 use crate::scope_analyzer::ScopeAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{
     expr::call::arguments_analyzer::get_template_types_for_call,
     function_analysis_data::FunctionAnalysisData,
@@ -35,7 +36,7 @@ pub(crate) fn analyze(
     prop_name: &str,
     var_id: &Option<String>,
     lhs_var_id: &Option<String>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     if lhs_type_part.is_mixed() {
         analysis_data.set_expr_type(&expr.0.pos(), get_mixed_any());
     }
@@ -67,10 +68,10 @@ pub(crate) fn analyze(
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
             );
-            return false;
+            return Ok(());
         }
         _ => {
-            return false;
+            return Ok(());
         }
     };
 
@@ -92,7 +93,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return true;
+        return Ok(());
     };
 
     if !codebase.property_exists(&classlike_name, &prop_name) {
@@ -111,7 +112,7 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return false;
+        return Ok(());
     }
 
     let declaring_property_class = if let Some(declaring_property_class) =
@@ -127,7 +128,7 @@ pub(crate) fn analyze(
                 false,
             );
 
-        return false;
+        return Ok(());
     };
 
     analysis_data
@@ -203,7 +204,7 @@ pub(crate) fn analyze(
         ),
     );
 
-    true
+    Ok(())
 }
 
 fn get_class_property_type(

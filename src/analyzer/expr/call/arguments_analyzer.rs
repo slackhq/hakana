@@ -16,6 +16,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, functionlike_analyzer};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -54,7 +55,7 @@ pub(crate) fn check_arguments_match(
     if_body_context: &mut Option<ScopeContext>,
     template_result: &mut TemplateResult,
     function_call_pos: &Pos,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let functionlike_params = &functionlike_info.params;
     // todo handle map and filter
 
@@ -170,15 +171,13 @@ pub(crate) fn check_arguments_match(
 
         // don't analyse closures here
         if !matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 arg_expr,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
         }
 
         if !was_inside_call {
@@ -241,15 +240,13 @@ pub(crate) fn check_arguments_match(
                 &param_type,
             );
 
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 arg_expr,
                 analysis_data,
                 context,
                 if_body_context,
-            ) {
-                return false;
-            }
+            )?;
 
             arg_value_type = analysis_data
                 .get_expr_type(arg_expr.pos())
@@ -313,15 +310,13 @@ pub(crate) fn check_arguments_match(
 
         last_param_type = Some(param_type.clone());
 
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             unpacked_arg,
             analysis_data,
             context,
             if_body_context,
-        ) {
-            return false;
-        }
+        )?;
     }
 
     let function_params = &functionlike_info.params;
@@ -390,7 +385,7 @@ pub(crate) fn check_arguments_match(
                     context,
                     template_result,
                     function_call_pos,
-                );
+                )?;
             }
         }
 
@@ -404,7 +399,7 @@ pub(crate) fn check_arguments_match(
             continue;
         };
 
-        if !argument_analyzer::check_argument_matches(
+        argument_analyzer::check_argument_matches(
             statements_analyzer,
             functionlike_id,
             &method_call_info,
@@ -419,9 +414,7 @@ pub(crate) fn check_arguments_match(
             functionlike_info.ignore_taint_path,
             functionlike_info.specialize_call,
             function_call_pos,
-        ) {
-            return false;
-        }
+        );
 
         if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
             if let Some(removed_taints) = &function_param.removed_taints_when_returning_true {
@@ -471,7 +464,7 @@ pub(crate) fn check_arguments_match(
                     get_mixed_any()
                 };
 
-                if !argument_analyzer::check_argument_matches(
+                argument_analyzer::check_argument_matches(
                     statements_analyzer,
                     functionlike_id,
                     &method_call_info,
@@ -486,14 +479,12 @@ pub(crate) fn check_arguments_match(
                     functionlike_info.ignore_taint_path,
                     functionlike_info.specialize_call,
                     function_call_pos,
-                ) {
-                    return false;
-                }
+                );
             }
         }
     }
 
-    true
+    Ok(())
 }
 
 fn adjust_param_type(
@@ -878,19 +869,17 @@ pub(crate) fn evaluate_arbitrary_param(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let was_inside_call = context.inside_general_use;
     context.inside_general_use = true;
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         expr,
         analysis_data,
         context,
         if_body_context,
-    ) {
-        return false;
-    }
+    )?;
 
     if !was_inside_call {
         context.inside_general_use = false;
@@ -934,7 +923,7 @@ pub(crate) fn evaluate_arbitrary_param(
         );
     }
 
-    true
+    Ok(())
 }
 
 fn handle_possibly_matching_inout_param(
@@ -949,7 +938,7 @@ fn handle_possibly_matching_inout_param(
     context: &mut ScopeContext,
     template_result: &mut TemplateResult,
     function_call_pos: &Pos,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut inout_type = functionlike_param
         .signature_type
         .clone()
@@ -1051,9 +1040,9 @@ fn handle_possibly_matching_inout_param(
         &inout_type,
         analysis_data,
         context,
-    );
+    )?;
 
-    true
+    Ok(())
 }
 
 fn refine_template_result_for_functionlike(

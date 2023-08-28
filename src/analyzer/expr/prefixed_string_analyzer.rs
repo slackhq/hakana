@@ -19,6 +19,7 @@ use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 
 use oxidized::aast;
 
@@ -31,16 +32,14 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     expr: &aast::Expr<(), ()>,
-) -> Option<bool> {
-    if !expression_analyzer::analyze(
+) -> Result<(), AnalysisError> {
+    expression_analyzer::analyze(
         statements_analyzer,
         &boxed.1,
         analysis_data,
         context,
         if_body_context,
-    ) {
-        return Some(false);
-    }
+    )?;
 
     let inner_type = if let Some(t) = analysis_data
         .expr_types
@@ -85,7 +84,8 @@ pub(crate) fn analyze(
             inner_type
         }),
     );
-    None
+
+    Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

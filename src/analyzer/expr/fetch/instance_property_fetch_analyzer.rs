@@ -1,4 +1,5 @@
 use super::atomic_property_fetch_analyzer;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, function_analysis_data::FunctionAnalysisData};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
@@ -20,22 +21,20 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     in_assignment: bool,
     nullsafe: bool,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let was_inside_general_use = context.inside_general_use;
     context.inside_general_use = true;
 
     let prop_name = if let aast::Expr_::Id(id) = &expr.1 .2 {
         Some(id.1.clone())
     } else {
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             &expr.1,
             analysis_data,
             context,
             &mut None,
-        ) {
-            return false;
-        }
+        )?;
 
         if let Some(stmt_name_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
             if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
@@ -48,15 +47,13 @@ pub(crate) fn analyze(
         }
     };
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         &expr.0,
         analysis_data,
         context,
         &mut None,
-    ) {
-        return false;
-    }
+    )?;
 
     analysis_data.combine_effects_with(expr.0.pos(), expr.1.pos(), pos, EFFECT_READ_PROPS);
 
@@ -88,7 +85,7 @@ pub(crate) fn analyze(
             // short circuit if the type is known in scope
             handle_scoped_property(context, analysis_data, pos, var_id);
 
-            return true;
+            return Ok(());
         }
     }
 
@@ -146,7 +143,7 @@ pub(crate) fn analyze(
                 &prop_name,
                 &var_id,
                 &stmt_var_id,
-            );
+            )?;
         }
     }
 
@@ -183,7 +180,7 @@ pub(crate) fn analyze(
         );
     }
 
-    true
+   Ok(())
 }
 
 /**

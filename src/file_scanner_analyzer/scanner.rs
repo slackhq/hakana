@@ -259,7 +259,7 @@ pub async fn scan_files(
             if let FileStatus::Deleted = status {
                 if let Some(deleted_file_info) = updated_files.get(target_file) {
                     for node in &deleted_file_info.ast_nodes {
-                        codebase_diff.add_or_delete.push((node.name, STR_EMPTY));
+                        codebase_diff.add_or_delete.insert((node.name, STR_EMPTY));
                     }
                 }
             }

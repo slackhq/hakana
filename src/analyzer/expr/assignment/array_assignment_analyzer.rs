@@ -22,7 +22,7 @@ use rustc_hash::FxHashSet;
 
 use crate::{
     expr::{expression_identifier, fetch::array_fetch_analyzer},
-    function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
@@ -34,7 +34,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut root_array_expr = (expr.0, expr.1, pos);
     let mut array_exprs = Vec::new();
 
@@ -46,16 +46,13 @@ pub(crate) fn analyze(
     array_exprs.push(root_array_expr.clone());
     let root_array_expr = root_array_expr.0;
 
-    if expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         root_array_expr,
         analysis_data,
         context,
         &mut None,
-    ) == false
-    {
-        // fall through
-    }
+    )?;
 
     let mut root_type = analysis_data
         .get_expr_type(root_array_expr.pos())
@@ -69,7 +66,7 @@ pub(crate) fn analyze(
             analysis_data,
             context,
             &mut None,
-        );
+        )?;
 
         if let Some(dim_expr) = expr.1 {
             expression_analyzer::analyze(
@@ -78,7 +75,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 &mut None,
-            );
+            )?;
         }
     }
 
@@ -104,7 +101,7 @@ pub(crate) fn analyze(
         root_var_id.clone(),
         &mut root_type,
         &mut current_type,
-    );
+    )?;
 
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
         if let Some(root_var_id) = &root_var_id {
@@ -182,7 +179,7 @@ pub(crate) fn analyze(
 
     // StaticPropertyAssignmentAnalyzer (do we need it?)
 
-    true
+    Ok(())
 }
 
 pub(crate) fn update_type_with_key_values(
@@ -588,7 +585,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
     root_var_id: Option<String>,
     root_type: &mut TUnion,
     last_array_expr_type: &mut TUnion,
-) -> Option<&'a Expr<(), ()>> {
+) -> Result<Option<&'a Expr<(), ()>>, AnalysisError> {
     let mut var_id_additions = Vec::new();
     let mut last_array_expr_dim = None;
     let mut extended_var_id = None;
@@ -606,18 +603,13 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             let was_inside_general_use = context.inside_general_use;
             context.inside_general_use = true;
 
-            if expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 dim,
                 analysis_data,
                 context,
                 &mut None,
-            ) == false
-            {
-                context.inside_general_use = was_inside_general_use;
-
-                return array_expr.1;
-            }
+            )?;
 
             context.inside_general_use = was_inside_general_use;
             let dim_type = analysis_data.get_expr_type(dim.pos()).cloned();
@@ -666,7 +658,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             if let Some(t) = analysis_data.get_rc_expr_type(array_expr.0.pos()) {
                 t.clone()
             } else {
-                return array_expr.1;
+                return Ok(array_expr.1);
             };
 
         if array_expr_var_type.is_nothing() && !context.inside_loop {
@@ -890,7 +882,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         var_id_additions.pop();
     }
 
-    last_array_expr_dim
+    Ok(last_array_expr_dim)
 }
 
 fn get_array_assignment_offset_types(child_stmt_dim_type: &TUnion) -> Vec<TAtomic> {

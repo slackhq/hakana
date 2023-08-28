@@ -10,7 +10,7 @@ use hakana_reflection_info::{
     t_union::TUnion,
 };
 use hakana_reflection_info::{
-    StrId, EFFECT_IMPURE, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, STR_STATIC,
+    StrId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, STR_STATIC,
 };
 use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
@@ -24,6 +24,7 @@ use oxidized::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use crate::stmt_analyzer::AnalysisError;
 use crate::{
     expr::{
         call_analyzer::check_method_args, expression_identifier,
@@ -57,7 +58,7 @@ pub(crate) fn analyze(
     lhs_var_id: Option<&String>,
     lhs_var_pos: Option<&Pos>,
     result: &mut AtomicMethodCallAnalysisResult,
-) -> TUnion {
+) -> Result<TUnion, AnalysisError> {
     analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
         classlike_name.clone(),
@@ -180,7 +181,7 @@ pub(crate) fn analyze(
             .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_PROPS);
     }
 
-    if !check_method_args(
+    check_method_args(
         statements_analyzer,
         analysis_data,
         &method_id,
@@ -190,13 +191,7 @@ pub(crate) fn analyze(
         context,
         if_body_context,
         pos,
-    ) {
-        analysis_data
-            .expr_effects
-            .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
-
-        return get_mixed_any();
-    }
+    )?;
 
     if functionlike_storage.ignore_taints_if_true {
         analysis_data.if_true_assertions.insert(
@@ -215,7 +210,7 @@ pub(crate) fn analyze(
             pos,
             codebase,
         ) {
-            return value;
+            return Ok(value);
         }
     }
 
@@ -244,7 +239,7 @@ pub(crate) fn analyze(
 
     // todo dispatch after method call analysis events
 
-    return_type_candidate
+    Ok(return_type_candidate)
 }
 
 fn handle_shapes_static_method(

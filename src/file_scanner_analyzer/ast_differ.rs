@@ -4,15 +4,15 @@ use hakana_reflection_info::{
     ast_signature::DefSignatureNode, code_location::FilePath, diff::CodebaseDiff,
     file_info::FileInfo, STR_EMPTY,
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn get_diff(
     existing_files: &FxHashMap<FilePath, FileInfo>,
     new_files: &FxHashMap<FilePath, FileInfo>,
 ) -> CodebaseDiff {
-    let mut keep = vec![];
-    let mut keep_signature = vec![];
-    let mut add_or_delete = vec![];
+    let mut keep = FxHashSet::default();
+    let mut keep_signature = FxHashSet::default();
+    let mut add_or_delete = FxHashSet::default();
     let mut diff_map = FxHashMap::default();
     let mut deletion_ranges_map = FxHashMap::default();
 
@@ -53,7 +53,7 @@ pub(crate) fn get_diff(
                         for class_diff_elem in class_diff {
                             match class_diff_elem {
                                 AstDiffElem::Keep(a_child, b_child) => {
-                                    keep.push((a.name, a_child.name));
+                                    keep.insert((a.name, a_child.name));
 
                                     if b_child.start_offset != a_child.start_offset
                                         || b_child.start_line != a_child.start_line
@@ -70,27 +70,27 @@ pub(crate) fn get_diff(
                                 }
                                 AstDiffElem::KeepSignature(a_child, _) => {
                                     has_change = true;
-                                    keep_signature.push((a.name, a_child.name));
+                                    keep_signature.insert((a.name, a_child.name));
                                     deletion_ranges
                                         .push((a_child.start_offset, a_child.end_offset));
                                 }
                                 AstDiffElem::Remove(child_node) => {
                                     has_change = true;
-                                    add_or_delete.push((a.name, child_node.name));
+                                    add_or_delete.insert((a.name, child_node.name));
                                     deletion_ranges
                                         .push((child_node.start_offset, child_node.end_offset));
                                 }
                                 AstDiffElem::Add(child_node) => {
                                     has_change = true;
-                                    add_or_delete.push((a.name, child_node.name));
+                                    add_or_delete.insert((a.name, child_node.name));
                                 }
                             }
                         }
 
                         if has_change {
-                            keep_signature.push((a.name, STR_EMPTY));
+                            keep_signature.insert((a.name, STR_EMPTY));
                         } else {
-                            keep.push((a.name, STR_EMPTY));
+                            keep.insert((a.name, STR_EMPTY));
 
                             if b.start_offset != a.start_offset || b.start_line != a.start_line {
                                 file_diffs.push((
@@ -103,15 +103,15 @@ pub(crate) fn get_diff(
                         }
                     }
                     AstDiffElem::KeepSignature(a, _) => {
-                        keep_signature.push((a.name, STR_EMPTY));
+                        keep_signature.insert((a.name, STR_EMPTY));
                         deletion_ranges.push((a.start_offset, a.end_offset));
                     }
                     AstDiffElem::Remove(node) => {
-                        add_or_delete.push((node.name, STR_EMPTY));
+                        add_or_delete.insert((node.name, STR_EMPTY));
                         deletion_ranges.push((node.start_offset, node.end_offset));
                     }
                     AstDiffElem::Add(node) => {
-                        add_or_delete.push((node.name, STR_EMPTY));
+                        add_or_delete.insert((node.name, STR_EMPTY));
                     }
                 }
             }
@@ -125,7 +125,7 @@ pub(crate) fn get_diff(
             }
         } else {
             for node in &new_file_info.ast_nodes {
-                add_or_delete.push((node.name, STR_EMPTY));
+                add_or_delete.insert((node.name, STR_EMPTY));
             }
         }
     }

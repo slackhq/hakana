@@ -105,10 +105,6 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, &file_path) {
-                continue;
-            }
-
             for parent_class in &classlike_info.all_parent_classes {
                 if let Some(parent_classlike_info) = codebase.classlike_infos.get(parent_class) {
                     if !parent_classlike_info.user_defined {
@@ -118,11 +114,15 @@ pub(crate) fn find_unused_definitions(
             }
 
             if !referenced_symbols_and_members.contains(&(*classlike_name, STR_EMPTY)) {
+                if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, &file_path) {
+                    continue;
+                }
+
                 let issue = Issue::new(
                     IssueKind::UnusedClass,
                     format!(
                         "Unused class, interface or enum {}",
-                        interner.lookup(classlike_name)
+                        interner.lookup(classlike_name),
                     ),
                     pos.clone(),
                     &Some(FunctionLikeIdentifier::Function(*classlike_name)),

@@ -41,17 +41,13 @@ impl VirtualFileSystem {
             if !language_server_changes.contains_key(&str_path) {
                 files_to_scan.push(str_path.clone());
 
-                let path = Path::new(&str_path);
-
-                if let Some(extension) = path.extension() {
-                    if !extension.eq("hhi") {
-                        if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
-                            if config.allow_taints_in_file(&str_path) {
-                                files_to_analyze.push(str_path.clone());
-                            }
-                        } else {
+                if !str_path.starts_with("hsl_embedded") && !str_path.ends_with(".hhi") {
+                    if matches!(config.graph_kind, GraphKind::WholeProgram(_)) {
+                        if config.allow_taints_in_file(&str_path) {
                             files_to_analyze.push(str_path.clone());
                         }
+                    } else {
+                        files_to_analyze.push(str_path.clone());
                     }
                 }
             }
@@ -215,8 +211,7 @@ impl VirtualFileSystem {
         let metadata = if let Ok(metadata) = fs::metadata(&path) {
             metadata
         } else {
-            println!("Could not get metadata");
-            panic!();
+            return;
         };
 
         if metadata.is_file() {

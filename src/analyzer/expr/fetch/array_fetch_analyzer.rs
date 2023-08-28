@@ -18,7 +18,7 @@ use hakana_type::{
 use oxidized::{aast, ast_defs::Pos};
 use rustc_hash::FxHashSet;
 
-use crate::{expr::expression_identifier, function_analysis_data::FunctionAnalysisData};
+use crate::{expr::expression_identifier, function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
@@ -29,7 +29,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     keyed_array_var_id: Option<String>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let extended_var_id = expression_identifier::get_var_id(
         &expr.0,
         context.function_context.calling_class.as_ref(),
@@ -44,25 +44,17 @@ pub(crate) fn analyze(
     let mut used_key_type;
 
     if let Some(dim) = expr.1 {
-        let was_inside_general_use = context.inside_general_use;
         context.inside_general_use = true;
 
-        let was_inside_unset = context.inside_unset;
         context.inside_unset = false;
 
-        let analysis_result = expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             dim,
             analysis_data,
             context,
             &mut None,
-        );
-        context.inside_general_use = was_inside_general_use;
-        context.inside_unset = was_inside_unset;
-
-        if !analysis_result {
-            return false;
-        }
+        )?;
 
         used_key_type = if let Some(dim_type) = analysis_data.get_expr_type(dim.pos()) {
             dim_type.clone()
@@ -73,15 +65,13 @@ pub(crate) fn analyze(
         used_key_type = get_int();
     }
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         expr.0,
         analysis_data,
         context,
         &mut None,
-    ) {
-        return false;
-    }
+    )?;
 
     if let Some(keyed_array_var_id) = &keyed_array_var_id {
         if context.has_variable(keyed_array_var_id) {
@@ -102,7 +92,7 @@ pub(crate) fn analyze(
                 .vars_in_scope
                 .insert(keyed_array_var_id.clone(), stmt_type.clone());
 
-            return true;
+            return Ok(());
         }
     }
 
@@ -150,7 +140,7 @@ pub(crate) fn analyze(
         analysis_data.combine_effects(expr.0.pos(), dim_expr.pos(), pos);
     }
 
-    true
+   Ok(())
 }
 
 /**

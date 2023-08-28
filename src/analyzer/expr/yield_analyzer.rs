@@ -1,7 +1,8 @@
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -15,7 +16,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) {
+) -> Result<(), AnalysisError> {
     match &field {
         aast::Afield::AFkvalue(key_expr, _) => {
             expression_analyzer::analyze(
@@ -24,7 +25,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )?;
         }
         _ => {}
     };
@@ -39,7 +40,7 @@ pub(crate) fn analyze(
         analysis_data,
         context,
         if_body_context,
-    );
+    )?;
 
     if let Some(inferred_type) = analysis_data.expr_types.get(&(
         value_expr.pos().start_offset(),
@@ -65,4 +66,6 @@ pub(crate) fn analyze(
             // todo handle taint flows in yield
         }
     }
+
+    Ok(())
 }

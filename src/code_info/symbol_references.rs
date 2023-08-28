@@ -309,14 +309,18 @@ impl SymbolReferences {
         let mut invalid_symbols = FxHashSet::default();
         let mut invalid_symbol_members = FxHashSet::default();
 
-        let mut new_invalid_symbols = codebase_diff.add_or_delete.clone();
+        let mut new_invalid_symbols = codebase_diff
+            .add_or_delete
+            .iter()
+            .map(|v| *v)
+            .collect::<Vec<_>>();
 
         let mut seen_symbols = FxHashSet::default();
 
         let mut expense = 0;
 
         while !new_invalid_symbols.is_empty() {
-            if expense > 1000 {
+            if expense > 5000 {
                 return None;
             }
 
@@ -325,6 +329,8 @@ impl SymbolReferences {
             if seen_symbols.contains(&new_invalid_symbol) {
                 continue;
             }
+
+            invalid_symbols.insert(new_invalid_symbol);
 
             seen_symbols.insert(new_invalid_symbol);
 
@@ -352,12 +358,17 @@ impl SymbolReferences {
         }
 
         let mut invalid_symbol_bodies = FxHashSet::default();
+        let mut invalid_symbol_member_bodies = FxHashSet::default();
 
         for invalid_symbol_member in &invalid_symbols {
             for (referencing_member, referenced_members) in &self.symbol_references_to_symbols {
                 if referenced_members.contains(&(invalid_symbol_member.0, invalid_symbol_member.1))
                 {
-                    invalid_symbol_bodies.insert(*referencing_member);
+                    if invalid_symbol_member.1.is_empty() {
+                        invalid_symbol_bodies.insert(*referencing_member);
+                    } else {
+                        invalid_symbol_member_bodies.insert(*referencing_member);
+                    }
                 }
             }
         }
@@ -366,27 +377,34 @@ impl SymbolReferences {
             for (referencing_member, referenced_members) in &self.symbol_references_to_symbols {
                 if referenced_members.contains(&(invalid_symbol_member.0, invalid_symbol_member.1))
                 {
-                    invalid_symbol_bodies.insert(*referencing_member);
+                    if invalid_symbol_member.1.is_empty() {
+                        invalid_symbol_bodies.insert(*referencing_member);
+                    } else {
+                        invalid_symbol_member_bodies.insert(*referencing_member);
+                    }
                 }
             }
         }
 
-        invalid_symbols.extend(invalid_symbol_bodies);
+        for keep_signature in &codebase_diff.keep_signature {
+            if !keep_signature.1.is_empty() {
+                invalid_symbol_member_bodies.insert((keep_signature.0, keep_signature.1));
+            } else {
+                invalid_symbol_bodies.insert(*keep_signature);
+            }
+        }
 
-        let partially_invalid_symbols = invalid_symbol_members
+        let mut partially_invalid_symbols = invalid_symbol_members
             .iter()
             .map(|(a, _)| *a)
             .collect::<FxHashSet<_>>();
 
-        for keep_signature in &codebase_diff.keep_signature {
-            if !keep_signature.1.is_empty() {
-                invalid_symbol_members.insert((keep_signature.0, keep_signature.1));
-            } else {
-                invalid_symbols.insert(*keep_signature);
-            }
-        }
+        partially_invalid_symbols.extend(invalid_symbol_member_bodies.iter().map(|(a, _)| *a));
 
         invalid_symbols.extend(invalid_symbol_members);
+
+        invalid_symbols.extend(invalid_symbol_bodies);
+        invalid_symbols.extend(invalid_symbol_member_bodies);
 
         Some((invalid_symbols, partially_invalid_symbols))
     }

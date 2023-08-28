@@ -8,6 +8,7 @@ use crate::scope_context::{var_has_root, ScopeContext};
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::{self, add_branch_dataflow};
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
 use hakana_algebra::Clause;
 use hakana_reflection_info::assertion::Assertion;
@@ -28,7 +29,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
     let mut if_scope = IfScope::new();
@@ -39,7 +40,7 @@ pub(crate) fn analyze(
         analysis_data,
         context,
         &mut if_scope,
-    );
+    )?;
 
     analysis_data.copy_effects(expr.0.pos(), pos);
 
@@ -236,15 +237,13 @@ pub(crate) fn analyze(
     let mut temp_else_context = post_if_context.clone();
     // Check if there is an expression for the true case
     if let Some(if_branch) = expr.1 {
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             if_branch,
             analysis_data,
             &mut if_context,
             if_body_context,
-        ) {
-            return false;
-        }
+        )?;
 
         analysis_data.combine_effects(if_branch.pos(), pos, pos);
 
@@ -298,15 +297,13 @@ pub(crate) fn analyze(
         .0;
     }
 
-    if !expression_analyzer::analyze(
+    expression_analyzer::analyze(
         statements_analyzer,
         &expr.2,
         analysis_data,
         &mut temp_else_context,
         if_body_context,
-    ) {
-        return false;
-    }
+    )?;
 
     analysis_data.combine_effects(expr.2.pos(), pos, pos);
 
@@ -443,5 +440,5 @@ pub(crate) fn analyze(
         analysis_data.set_expr_type(&pos, get_mixed_any());
     }
 
-    true
+   Ok(())
 }

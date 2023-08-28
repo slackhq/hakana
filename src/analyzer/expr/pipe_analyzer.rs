@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
@@ -16,16 +17,14 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
-    if !expression_analyzer::analyze(
+) -> Result<(), AnalysisError> {
+    expression_analyzer::analyze(
         statements_analyzer,
         expr.1,
         analysis_data,
         context,
         if_body_context,
-    ) {
-        return false;
-    }
+    )?;
 
     let mut pipe_expr_type = analysis_data
         .get_expr_type(&expr.1 .1)

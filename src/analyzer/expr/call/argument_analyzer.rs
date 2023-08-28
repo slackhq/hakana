@@ -40,7 +40,7 @@ pub(crate) fn check_argument_matches(
     ignore_taints: bool,
     specialize_taint: bool,
     function_call_pos: &Pos,
-) -> bool {
+) {
     let mut arg_value_type = arg_value_type;
 
     if arg_unpacked {
@@ -85,7 +85,7 @@ pub(crate) fn check_argument_matches(
         ignore_taints,
         specialize_taint,
         function_call_pos,
-    )
+    );
 }
 
 fn get_unpacked_type(
@@ -226,7 +226,7 @@ pub(crate) fn verify_type(
     ignore_taints: bool,
     specialize_taint: bool,
     function_call_pos: &Pos,
-) -> bool {
+) {
     let codebase = statements_analyzer.get_codebase();
 
     if param_type.is_mixed() {
@@ -256,7 +256,7 @@ pub(crate) fn verify_type(
             function_call_pos,
         );
 
-        return true;
+        return;
     }
 
     let mut mixed_from_any = false;
@@ -307,7 +307,7 @@ pub(crate) fn verify_type(
             function_call_pos,
         );
 
-        return true;
+        return;
     }
 
     if input_type.is_nothing() {
@@ -327,7 +327,7 @@ pub(crate) fn verify_type(
             statements_analyzer.get_file_path_actual(),
         );
 
-        return true;
+        return;
     }
 
     let mut union_comparison_result = TypeComparisonResult::new();
@@ -476,7 +476,7 @@ pub(crate) fn verify_type(
             );
         }
 
-        return true;
+        return;
     } else {
         for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
             if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(&name) {
@@ -522,7 +522,7 @@ pub(crate) fn verify_type(
                 statements_analyzer.get_file_path_actual(),
             );
 
-            return true;
+            return;
         }
 
         if input_type.is_nullable() {
@@ -575,7 +575,7 @@ pub(crate) fn verify_type(
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
             );
-            return true;
+            return;
         }
 
         if input_type.is_falsable() && !input_type.ignore_falsable_issues {
@@ -597,8 +597,6 @@ pub(crate) fn verify_type(
             );
         }
     }
-
-    true
 }
 
 fn add_dataflow(

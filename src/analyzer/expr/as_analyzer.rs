@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext};
 
 use crate::expression_analyzer;
@@ -22,7 +23,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     analysis_data: &'tast mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let mut root_expr = left.clone();
     let mut has_arrayget_key = false;
 
@@ -129,7 +130,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         analysis_data,
         context,
         if_body_context,
-    );
+    )?;
 
     let mut ternary_type = analysis_data
         .get_expr_type(&stmt_pos)
@@ -176,7 +177,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     analysis_data.set_expr_type(&stmt_pos, ternary_type);
 
-    true
+    Ok(())
 }
 
 fn get_fake_as_var(
@@ -197,7 +198,7 @@ fn get_fake_as_var(
         analysis_data,
         context,
         if_body_context,
-    );
+    ).ok();
 
     let condition_type = analysis_data
         .get_expr_type(left.pos())

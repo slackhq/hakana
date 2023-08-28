@@ -1,5 +1,5 @@
 class StringHolder {
-    public $x;
+    public string $x;
 
     public function __construct(string $x) {
         $this->x = $x;

@@ -3,6 +3,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
@@ -18,7 +19,7 @@ pub(crate) fn analyze(
     call_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let echo_param = FunctionLikeParameter::new(
         "var".to_string(),
         HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
@@ -33,7 +34,7 @@ pub(crate) fn analyze(
             analysis_data,
             context,
             &mut None,
-        );
+        )?;
         context.inside_general_use = false;
 
         let arg_type = analysis_data.get_expr_type(arg_expr.pos()).cloned();
@@ -61,5 +62,5 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(&call_pos, get_nothing());
 
-    true
+   Ok(())
 }

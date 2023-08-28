@@ -2,6 +2,7 @@ use crate::expression_analyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
@@ -18,18 +19,18 @@ pub(crate) fn analyze(
     call_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let echo_param = FunctionLikeParameter::new(
         "var".to_string(),
         HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
         HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
     );
 
-    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, &mut None);
+    expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, &mut None)?;
 
     let arg_type = analysis_data.get_expr_type(expr.pos()).cloned();
 
-    if !argument_analyzer::verify_type(
+    argument_analyzer::verify_type(
         statements_analyzer,
         &arg_type.unwrap_or(get_mixed_any()),
         &get_string(),
@@ -43,11 +44,9 @@ pub(crate) fn analyze(
         false,
         true,
         call_pos,
-    ) {
-        return false;
-    }
+    );
 
     // TODO handle mutations
 
-    true
+   Ok(())
 }

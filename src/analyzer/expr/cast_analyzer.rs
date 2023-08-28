@@ -5,6 +5,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::get_mixed_any;
@@ -18,17 +19,14 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
-    if expression_analyzer::analyze(
+) -> Result<(), AnalysisError> {
+    expression_analyzer::analyze(
         statements_analyzer,
         inner_expr,
         analysis_data,
         context,
         if_body_context,
-    ) == false
-    {
-        return false;
-    }
+    )?;
 
     let expr_type = analysis_data
         .get_expr_type(inner_expr.pos())
@@ -64,5 +62,5 @@ pub(crate) fn analyze(
             .unwrap_or(&0),
     );
 
-    true
+    Ok(())
 }

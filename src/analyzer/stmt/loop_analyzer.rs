@@ -9,11 +9,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     expression_analyzer, formula_generator,
+    function_analysis_data::FunctionAnalysisData,
     reconciler::reconciler,
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    stmt_analyzer::AnalysisError,
 };
 
 use super::{
@@ -33,7 +34,7 @@ pub(crate) fn analyze<'a>(
     analysis_data: &'a mut FunctionAnalysisData,
     is_do: bool,
     always_enters_loop: bool,
-) -> (bool, ScopeContext) {
+) -> Result<ScopeContext, AnalysisError> {
     let (assignment_map, first_var_id) = get_assignment_map(
         &pre_conditions,
         &post_expressions,
@@ -115,7 +116,7 @@ pub(crate) fn analyze<'a>(
                 loop_parent_context,
                 analysis_data,
                 is_do,
-            );
+            )?;
         }
 
         let mut wrapped_loop_scope = Some(loop_scope.clone());
@@ -125,7 +126,7 @@ pub(crate) fn analyze<'a>(
             analysis_data,
             &mut continue_context,
             &mut wrapped_loop_scope,
-        );
+        )?;
         *loop_scope = wrapped_loop_scope.unwrap();
         update_loop_scope_contexts(
             loop_scope,
@@ -136,15 +137,13 @@ pub(crate) fn analyze<'a>(
         );
 
         for post_expression in post_expressions {
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 post_expression,
                 analysis_data,
                 loop_context,
                 &mut None,
-            ) {
-                return (false, continue_context);
-            }
+            )?;
         }
     } else {
         let original_parent_context = loop_parent_context.clone();
@@ -163,7 +162,7 @@ pub(crate) fn analyze<'a>(
                     loop_parent_context,
                     analysis_data,
                     is_do,
-                );
+                )?;
             }
         }
 
@@ -176,7 +175,7 @@ pub(crate) fn analyze<'a>(
             analysis_data,
             &mut continue_context,
             &mut wrapped_loop_scope,
-        );
+        )?;
 
         *loop_scope = wrapped_loop_scope.unwrap();
 
@@ -200,20 +199,18 @@ pub(crate) fn analyze<'a>(
                     loop_parent_context,
                     analysis_data,
                     is_do,
-                ));
+                )?);
             }
         }
 
         for post_expression in &post_expressions {
-            if !expression_analyzer::analyze(
+            expression_analyzer::analyze(
                 statements_analyzer,
                 post_expression,
                 analysis_data,
                 &mut continue_context,
                 &mut None,
-            ) {
-                return (false, continue_context);
-            }
+            )?;
         }
 
         let mut recorded_issues = analysis_data.clear_currently_recorded_issues();
@@ -346,7 +343,7 @@ pub(crate) fn analyze<'a>(
                         loop_parent_context,
                         analysis_data,
                         is_do,
-                    );
+                    )?;
                 }
             }
 
@@ -385,7 +382,7 @@ pub(crate) fn analyze<'a>(
                 analysis_data,
                 &mut continue_context,
                 &mut wrapped_loop_scope,
-            );
+            )?;
 
             *loop_scope = wrapped_loop_scope.unwrap();
 
@@ -409,20 +406,18 @@ pub(crate) fn analyze<'a>(
                         loop_parent_context,
                         analysis_data,
                         is_do,
-                    );
+                    )?;
                 }
             }
 
             for post_expression in &post_expressions {
-                if !expression_analyzer::analyze(
+                expression_analyzer::analyze(
                     statements_analyzer,
                     post_expression,
                     analysis_data,
                     &mut continue_context,
                     &mut None,
-                ) {
-                    return (false, continue_context);
-                }
+                )?;
             }
 
             recorded_issues = analysis_data.clear_currently_recorded_issues();
@@ -659,10 +654,10 @@ pub(crate) fn analyze<'a>(
     }
 
     if let Some(inner_do_context) = inner_do_context {
-        return (true, inner_do_context);
+        return Ok(inner_do_context);
     }
 
-    (true, loop_context.clone())
+    Ok(loop_context.clone())
 }
 
 fn get_assignment_map_depth(
@@ -702,7 +697,7 @@ fn apply_pre_condition_to_loop_context(
     loop_parent_context: &mut ScopeContext,
     analysis_data: &mut FunctionAnalysisData,
     is_do: bool,
-) -> FxHashSet<String> {
+) -> Result<FxHashSet<String>, AnalysisError> {
     let pre_referenced_var_ids = loop_context.cond_referenced_var_ids.clone();
     loop_context.cond_referenced_var_ids = FxHashSet::default();
 
@@ -714,7 +709,7 @@ fn apply_pre_condition_to_loop_context(
         analysis_data,
         loop_context,
         &mut None,
-    );
+    )?;
 
     add_branch_dataflow(statements_analyzer, &pre_condition, analysis_data);
 
@@ -767,7 +762,7 @@ fn apply_pre_condition_to_loop_context(
     }
 
     if is_do {
-        return FxHashSet::default();
+        return Ok(FxHashSet::default());
     }
 
     if !loop_context.clauses.is_empty() {
@@ -786,7 +781,7 @@ fn apply_pre_condition_to_loop_context(
         loop_context.clauses = loop_context_clauses;
     }
 
-    always_assigned_before_loop_body_vars
+    Ok(always_assigned_before_loop_body_vars)
 }
 
 fn update_loop_scope_contexts(

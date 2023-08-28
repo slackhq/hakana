@@ -2,9 +2,10 @@ use oxidized::{aast, tast::Pos};
 
 use crate::{
     expression_analyzer,
+    function_analysis_data::FunctionAnalysisData,
     scope_context::{loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    stmt_analyzer::AnalysisError,
 };
 
 use super::{control_analyzer::BreakContext, loop_analyzer};
@@ -20,7 +21,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let pre_assigned_var_ids = context.assigned_var_ids.clone();
     context.assigned_var_ids.clear();
 
@@ -30,15 +31,13 @@ pub(crate) fn analyze(
     }
 
     for init_expr in stmt.0 {
-        if !expression_analyzer::analyze(
+        expression_analyzer::analyze(
             statements_analyzer,
             init_expr,
             analysis_data,
             context,
             &mut None,
-        ) {
-            return false;
-        }
+        )?;
     }
 
     context.for_loop_init_bounds = None;
@@ -51,7 +50,7 @@ pub(crate) fn analyze(
     for_context.inside_loop = true;
     for_context.break_types.push(BreakContext::Loop);
 
-    let (analysis_result, _) = loop_analyzer::analyze(
+    loop_analyzer::analyze(
         statements_analyzer,
         &stmt.3 .0,
         if let Some(cond_expr) = stmt.1 {
@@ -66,16 +65,12 @@ pub(crate) fn analyze(
         analysis_data,
         false,
         while_true,
-    );
-
-    if !analysis_result {
-        return false;
-    }
+    )?;
 
     // theoretically we could also port over always_enters_loop logic from Psalm here
     // but I'm not sure that would be massively useful
 
     // todo do we need to remove the loop scope from analysis_data here? unsure
 
-    return true;
+    Ok(())
 }

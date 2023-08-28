@@ -1,4 +1,5 @@
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::ast::get_id_name;
@@ -25,7 +26,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
-) -> bool {
+) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
     let const_name = expr.1 .1;
@@ -41,22 +42,19 @@ pub(crate) fn analyze(
                     statements_analyzer.get_file_analyzer().resolved_names,
                 ) {
                     Some(value) => value,
-                    None => return false,
+                    None => return Err(AnalysisError::UserError),
                 }
             } else {
                 let was_inside_general_use = context.inside_general_use;
                 context.inside_general_use = true;
 
-                if !expression_analyzer::analyze(
+                expression_analyzer::analyze(
                     statements_analyzer,
                     lhs_expr,
                     analysis_data,
                     context,
                     if_body_context,
-                ) {
-                    context.inside_general_use = was_inside_general_use;
-                    return false;
-                }
+                )?;
 
                 context.inside_general_use = was_inside_general_use;
 
@@ -115,7 +113,7 @@ pub(crate) fn analyze(
 
                 analysis_data.set_expr_type(&pos, stmt_type.unwrap_or(get_mixed_any()));
 
-                return true;
+                return Ok(());
             }
         }
         _ => {
@@ -136,7 +134,7 @@ pub(crate) fn analyze(
     .unwrap_or(get_mixed_any());
     analysis_data.set_expr_type(&pos, stmt_type);
 
-    return true;
+    return Ok(());
 }
 
 fn analyse_known_class_constant(

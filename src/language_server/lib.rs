@@ -66,10 +66,16 @@ impl LanguageServer for Backend {
             method: "workspace/didChangeWatchedFiles".to_string(),
             register_options: Some(
                 serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
-                    watchers: vec![FileSystemWatcher {
-                        glob_pattern: GlobPattern::String("**/*.{hack,php,hhi}".to_string()),
-                        kind: None,
-                    }],
+                    watchers: vec![
+                        FileSystemWatcher {
+                            glob_pattern: GlobPattern::String("**/*.{hack,php,hhi}".to_string()),
+                            kind: None,
+                        },
+                        FileSystemWatcher {
+                            glob_pattern: GlobPattern::String("**/index.lock".to_string()),
+                            kind: None,
+                        },
+                    ],
                 })
                 .unwrap(),
             ),
@@ -114,10 +120,34 @@ impl LanguageServer for Backend {
             }
         }
 
-        self.file_changes = Some(new_file_statuses);
+        // self.client
+        //     .log_message(
+        //         MessageType::INFO,
+        //         format!("adding changes {:?}", new_file_statuses),
+        //     )
+        //     .await;
 
-        self.do_analysis().await;
-        self.emit_issues().await;
+        if let Some(ref mut existing_file_changes) = self.file_changes {
+            existing_file_changes.extend(new_file_statuses);
+        } else {
+            self.file_changes = Some(new_file_statuses);
+        }
+
+        if Path::new(".git/index.lock").exists() {
+            self.client
+                .log_message(MessageType::INFO, "Waiting a sec while git is doing stuff")
+                .await;
+        } else {
+            // self.client
+            //     .log_message(
+            //         MessageType::INFO,
+            //         format!("analyzing changes {:?}", self.file_changes),
+            //     )
+            //     .await;
+            self.do_analysis().await;
+            self.file_changes = None;
+            self.emit_issues().await;
+        }
     }
 
     async fn shutdown(&mut self) -> Result<()> {

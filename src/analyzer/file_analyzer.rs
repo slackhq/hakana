@@ -14,6 +14,8 @@ use hakana_reflection_info::{FileSource, Interner, StrId};
 use oxidized::aast;
 use rustc_hash::FxHashMap;
 
+pub struct InternalError(pub String);
+
 #[derive(Clone)]
 pub struct FileAnalyzer<'a> {
     file_source: FileSource<'a>,
@@ -46,7 +48,7 @@ impl<'a> FileAnalyzer<'a> {
         &mut self,
         program: &aast::Program<(), ()>,
         analysis_result: &mut AnalysisResult,
-    ) {
+    ) -> Result<(), InternalError> {
         let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(self.analysis_config.graph_kind),
             &self.file_source,
@@ -80,7 +82,7 @@ impl<'a> FileAnalyzer<'a> {
                         &mut None,
                         &mut analysis_data,
                         analysis_result,
-                    );
+                    )?;
                 }
 
                 if namespace_declaration.1.len() > 0 {
@@ -95,7 +97,7 @@ impl<'a> FileAnalyzer<'a> {
                     &mut None,
                     &mut analysis_data,
                     analysis_result,
-                );
+                )?;
             }
         }
 
@@ -108,6 +110,8 @@ impl<'a> FileAnalyzer<'a> {
                 .file_path,
             false,
         );
+
+        Ok(())
     }
 
     pub fn get_file_source(&self) -> &FileSource {
