@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 pub async fn analyze_files(
     mut paths: Vec<String>,
     scan_data: Arc<SuccessfulScanData>,
-    asts: FxHashMap<FilePath, Vec<u8>>,
+    asts: FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>,
     config: Arc<Config>,
     analysis_result: &Arc<Mutex<AnalysisResult>>,
     filter: Option<String>,
@@ -203,14 +203,23 @@ fn analyze_file(
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<usize, StrId>,
     logger: &Logger,
-    asts: &Arc<FxHashMap<FilePath, Vec<u8>>>,
+    asts: &Arc<FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>>,
 ) {
     logger.log_debug_sync(&format!("Analyzing {}", &str_path));
 
-    let aast = if let Some(aast_result) = get_deserialized_ast(asts, file_path) {
-        aast_result
+    if let Some(aast) = asts.get(&file_path) {
+        analyze_loaded_ast(
+            str_path,
+            file_path,
+            aast,
+            resolved_names,
+            codebase,
+            interner,
+            config,
+            analysis_result,
+        );
     } else {
-        match get_aast_for_path(file_path, str_path) {
+        let aast = match get_aast_for_path(file_path, str_path) {
             Ok(aast) => (aast.0, aast.1),
             Err(err) => {
                 analysis_result.emitted_issues.insert(
@@ -239,9 +248,31 @@ fn analyze_file(
 
                 return;
             }
-        }
-    };
+        };
 
+        analyze_loaded_ast(
+            str_path,
+            file_path,
+            &aast,
+            resolved_names,
+            codebase,
+            interner,
+            config,
+            analysis_result,
+        );
+    };
+}
+
+fn analyze_loaded_ast(
+    str_path: &String,
+    file_path: FilePath,
+    aast: &(aast::Program<(), ()>, ScouredComments),
+    resolved_names: &FxHashMap<usize, StrId>,
+    codebase: &CodebaseInfo,
+    interner: &Interner,
+    config: &Arc<Config>,
+    analysis_result: &mut AnalysisResult,
+) {
     let file_source = FileSource {
         is_production_code: true,
         file_path_actual: str_path.clone(),
@@ -276,21 +307,4 @@ fn analyze_file(
             );
         }
     };
-}
-
-fn get_deserialized_ast(
-    asts: &Arc<FxHashMap<FilePath, Vec<u8>>>,
-    file_path: FilePath,
-) -> Option<(aast::Program<(), ()>, ScouredComments)> {
-    if let Some(serialized_ast) = &asts.get(&file_path) {
-        if let Ok(d) =
-            bincode::deserialize::<(aast::Program<(), ()>, ScouredComments)>(&serialized_ast)
-        {
-            Some(d)
-        } else {
-            None
-        }
-    } else {
-        None
-    }
 }

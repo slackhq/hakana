@@ -11,6 +11,7 @@ use oxidized::ast::Binop;
 use oxidized::ast_defs::ParamKind;
 use oxidized::file_pos::FilePos;
 use oxidized::pos_span_raw::PosSpanRaw;
+use relative_path::RelativePath;
 
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::CaseScope;
@@ -19,6 +20,7 @@ use crate::stmt_analyzer::AnalysisError;
 use rustc_hash::FxHashMap;
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::reconciler::reconciler;
 
@@ -171,6 +173,7 @@ pub(crate) fn analyze_case(
             } else {
                 let adjusted_pos = case_cond.pos().to_raw_span();
                 let adjusted_pos = Pos::from_lnum_bol_offset(
+                    Arc::new(RelativePath::EMPTY),
                     (
                         adjusted_pos.start.line() as usize,
                         adjusted_pos.start.beg_of_line() as usize,
@@ -214,10 +217,13 @@ pub(crate) fn analyze_case(
 
                 aast::Expr(
                     (),
-                    Pos::from_raw_span(PosSpanRaw {
-                        start: new_pos_start,
-                        end: new_pos_end,
-                    }),
+                    Pos::from_raw_span(
+                        Arc::new(RelativePath::EMPTY),
+                        PosSpanRaw {
+                            start: new_pos_start,
+                            end: new_pos_end,
+                        },
+                    ),
                     aast::Expr_::Binop(Box::new(Binop {
                         bop: ast_defs::Bop::Barbar,
                         lhs: leftover_case_equality_expr.clone(),
@@ -508,7 +514,7 @@ pub(crate) fn analyze_case(
         }
     }
 
-   Ok(())
+    Ok(())
 }
 
 pub(crate) fn handle_non_returning_case(
@@ -627,5 +633,5 @@ pub(crate) fn handle_non_returning_case(
         }
     }
 
-   Ok(())
+    Ok(())
 }

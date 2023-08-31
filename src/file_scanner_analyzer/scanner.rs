@@ -46,7 +46,7 @@ pub struct ScanFilesResult {
     pub file_system: VirtualFileSystem,
     pub resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
     pub codebase_diff: CodebaseDiff,
-    pub asts: FxHashMap<FilePath, Vec<u8>>,
+    pub asts: FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>,
     pub files_to_analyze: Vec<String>,
 }
 
@@ -344,10 +344,7 @@ pub async fn scan_files(
                     &logger,
                 ) {
                     if analyze_map.contains(&str_path) {
-                        asts.lock().unwrap().insert(
-                            **file_path,
-                            bincode::serialize(&scanner_result.1).unwrap().to_vec(),
-                        );
+                        asts.lock().unwrap().insert(**file_path, scanner_result.1);
                     }
 
                     resolved_names
@@ -422,10 +419,7 @@ pub async fn scan_files(
                             &logger.clone(),
                         ) {
                             if analyze_map.contains(&str_path) {
-                                local_asts.insert(
-                                    *file_path,
-                                    bincode::serialize(&scanner_result.1).unwrap().to_vec(),
-                                );
+                                local_asts.insert(*file_path, scanner_result.1);
                             }
 
                             local_resolved_names.insert(*file_path, scanner_result.0);

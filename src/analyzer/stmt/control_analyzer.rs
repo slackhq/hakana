@@ -464,6 +464,7 @@ pub(crate) fn get_control_actions(
             aast::Stmt_::Markup(_) => {}
             aast::Stmt_::AssertEnv(_) => {}
             aast::Stmt_::DeclareLocal(_) => {}
+            aast::Stmt_::Match(_) => {},
         }
     }
 

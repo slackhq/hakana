@@ -4,15 +4,15 @@ use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::{StrId, ThreadedInterner, STR_EMPTY};
 use name_context::NameContext;
 use naming_visitor::Scanner;
-use ocamlrep::rc::RcOc;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;
 use oxidized::scoured_comments::ScouredComments;
 use oxidized::{aast, aast_visitor::visit};
 use parser_core_types::{indexed_source_text::IndexedSourceText, source_text::SourceText};
 use relative_path::{Prefix, RelativePath};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 pub mod name_context;
 mod naming_visitor;
@@ -28,12 +28,12 @@ pub fn get_aast_for_path_and_contents(
     file_path_str: &str,
     file_contents: String,
 ) -> Result<(aast::Program<(), ()>, ScouredComments, String), ParserError> {
-    let rc_path = RcOc::new(RelativePath::make(
+    let relative_path = Arc::new(RelativePath::make(
         Prefix::Root,
         PathBuf::from(&file_path_str),
     ));
 
-    let text = SourceText::make(rc_path.clone(), file_contents.as_bytes());
+    let text = SourceText::make(relative_path.clone(), file_contents.as_bytes());
     let indexed_source_text = IndexedSourceText::new(text.clone());
 
     let mut parser_env = AastParserEnv::default();
@@ -42,19 +42,22 @@ pub fn get_aast_for_path_and_contents(
     parser_env.scour_comments = true;
     parser_env.parser_options.po_enable_xhp_class_modifier = true;
 
-    let mut parser_result =
-        match aast_parser::AastParser::from_text(&parser_env, &indexed_source_text) {
-            Ok(parser_result) => parser_result,
-            Err(err) => {
-                return Err(match err {
-                    aast_parser::Error::ParserFatal(err, pos) => ParserError::SyntaxError {
-                        message: err.message.to_string(),
-                        pos: HPos::new(&pos, FilePath(STR_EMPTY), None),
-                    },
-                    _ => ParserError::NotAHackFile,
-                })
-            }
-        };
+    let mut parser_result = match aast_parser::AastParser::from_text(
+        &parser_env,
+        &indexed_source_text,
+        FxHashSet::default(),
+    ) {
+        Ok(parser_result) => parser_result,
+        Err(err) => {
+            return Err(match err {
+                aast_parser::Error::ParserFatal(err, pos) => ParserError::SyntaxError {
+                    message: err.message.to_string(),
+                    pos: HPos::new(&pos, FilePath(STR_EMPTY), None),
+                },
+                _ => ParserError::NotAHackFile,
+            })
+        }
+    };
 
     if !parser_result.syntax_errors.is_empty() {
         let first_error = &parser_result.syntax_errors[0];
@@ -88,7 +91,7 @@ pub fn get_aast_for_path_and_contents(
             Comment::CmtLine(_) => {
                 let mut offsets = pos.to_start_and_end_lnum_bol_offset();
                 offsets.0 .2 -= 2;
-                *pos = Pos::from_lnum_bol_offset(offsets.0, offsets.1);
+                *pos = Pos::from_lnum_bol_offset(relative_path.clone(), offsets.0, offsets.1);
             }
             Comment::CmtBlock(text) => {
                 let mut offsets = pos.to_start_and_end_lnum_bol_offset();
@@ -102,7 +105,7 @@ pub fn get_aast_for_path_and_contents(
                     offsets.0 .1 = offsets.0 .2;
                 }
                 offsets.1 .2 += 1;
-                *pos = Pos::from_lnum_bol_offset(offsets.0, offsets.1);
+                *pos = Pos::from_lnum_bol_offset(relative_path.clone(), offsets.0, offsets.1);
             }
         }
     }
