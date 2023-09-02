@@ -95,6 +95,27 @@ pub async fn analyze_files(
                     &logger,
                     &asts,
                 );
+            } else {
+                new_analysis_result.emitted_issues.insert(
+                    file_path,
+                    vec![
+                        Issue::new(
+                            IssueKind::InvalidHackFile,
+                            "Invalid Hack file".to_string(),
+                            HPos {
+                                file_path,
+                                start_offset: 1,
+                                end_offset: 1,
+                                start_line: 1,
+                                end_line: 1,
+                                start_column: 1,
+                                end_column: 1,
+                                insertion_start: None,
+                            },
+                            &None,
+                        )
+                    ],
+                );
             }
 
             update_progressbar(i as u64, bar.clone());
@@ -111,10 +132,7 @@ pub async fn analyze_files(
         for (_, path_group) in path_groups {
             let scan_data = scan_data.clone();
 
-            let pgc = path_group
-                .iter()
-                .map(|c| (*c).clone())
-                .collect::<Vec<_>>();
+            let pgc = path_group.iter().map(|c| (*c).clone()).collect::<Vec<_>>();
 
             let analysis_result = analysis_result.clone();
 

@@ -332,7 +332,7 @@ pub async fn scan_files(
                     .lookup(&file_path.0)
                     .to_string();
 
-                let file_resolved_names = if let Ok(scanner_result) = scan_file(
+                if let Ok(scanner_result) = scan_file(
                     &str_path,
                     **file_path,
                     &config.all_custom_issues,
@@ -350,15 +350,14 @@ pub async fn scan_files(
                         );
                     }
 
-                    scanner_result.0
+                    resolved_names
+                        .lock()
+                        .unwrap()
+                        .insert(**file_path, scanner_result.0);
                 } else {
-                    FxHashMap::default()
-                };
-
-                resolved_names
-                    .lock()
-                    .unwrap()
-                    .insert(**file_path, file_resolved_names);
+                    asts.lock().unwrap().remove(*file_path);
+                    resolved_names.lock().unwrap().remove(*file_path);
+                }
 
                 update_progressbar(i as u64, bar.clone());
             }
@@ -374,10 +373,7 @@ pub async fn scan_files(
             let thread_codebases = Arc::new(Mutex::new(vec![]));
 
             for (_, path_group) in path_groups {
-                let pgc = path_group
-                    .iter()
-                    .map(|c| (*c).clone())
-                    .collect::<Vec<_>>();
+                let pgc = path_group.iter().map(|c| (*c).clone()).collect::<Vec<_>>();
 
                 let codebases = thread_codebases.clone();
 
