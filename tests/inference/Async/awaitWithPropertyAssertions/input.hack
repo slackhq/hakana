@@ -5,7 +5,7 @@ class B {
 }
 
 final class A {
-	private ?B $b = null;
+	private ?B $b;
 
 	private async function convert(): Awaitable<void> {
 		if ($this->b is nonnull) {
