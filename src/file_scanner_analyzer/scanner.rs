@@ -357,6 +357,7 @@ pub async fn scan_files(
                 } else {
                     asts.lock().unwrap().remove(*file_path);
                     resolved_names.lock().unwrap().remove(*file_path);
+                    new_codebase.files.remove(*file_path);
                 }
 
                 update_progressbar(i as u64, bar.clone());
@@ -429,7 +430,9 @@ pub async fn scan_files(
 
                             local_resolved_names.insert(*file_path, scanner_result.0);
                         } else {
-                            local_resolved_names.insert(*file_path, FxHashMap::default());
+                            local_asts.remove(file_path);
+                            local_resolved_names.remove(file_path);
+                            new_codebase.files.remove(file_path);
                         };
 
                         let mut tally = files_processed.lock().unwrap();
