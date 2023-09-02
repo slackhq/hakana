@@ -164,7 +164,7 @@ pub(crate) fn analyze(
                     &var_id,
                     reasonable_clauses,
                     if let Some(t) = if_context.vars_in_scope.get(&var_id) {
-                        Some((&t).clone())
+                        Some(t)
                     } else {
                         None
                     },

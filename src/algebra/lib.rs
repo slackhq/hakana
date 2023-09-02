@@ -108,7 +108,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
                     }
 
                     if opposing_keys.len() == 1 {
-                        removed_clauses.insert(clause_a.clone());
+                        removed_clauses.insert(*clause_a);
 
                         let maybe_new_clause = clause_a.remove_possibilities(&opposing_keys[0]);
 
@@ -142,7 +142,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
                         clause_var_possibilities.retain(|k, _| k != &negated_hash);
 
-                        removed_clauses.insert(clause_b.clone());
+                        removed_clauses.insert(*clause_b);
 
                         if clause_var_possibilities.len() == 0 {
                             let maybe_updated_clause = clause_b.remove_possibilities(&clause_var);

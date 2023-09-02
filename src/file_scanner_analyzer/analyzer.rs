@@ -113,7 +113,7 @@ pub async fn analyze_files(
 
             let pgc = path_group
                 .iter()
-                .map(|c| c.clone().clone())
+                .map(|c| (*c).clone())
                 .collect::<Vec<_>>();
 
             let analysis_result = analysis_result.clone();

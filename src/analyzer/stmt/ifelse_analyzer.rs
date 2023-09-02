@@ -417,7 +417,7 @@ pub(crate) fn remove_clauses_with_mixed_vars(
             let mut new_mixed_var_ids = vec![];
             for i in &mixed_var_ids {
                 if !keys.contains(&i) {
-                    new_mixed_var_ids.push(i.clone());
+                    new_mixed_var_ids.push(*i);
                 }
             }
             mixed_var_ids = new_mixed_var_ids;

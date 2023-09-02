@@ -599,7 +599,7 @@ fn convert_param_nodes(
             let mut suppressed_issues = FxHashMap::default();
 
             adjust_location_from_comments(
-                &comments.iter().map(|c| c.clone().clone()).collect(),
+                &comments.iter().map(|c| (*c).clone()).collect(),
                 &mut location,
                 file_source,
                 &mut suppressed_issues,

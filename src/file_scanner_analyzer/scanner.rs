@@ -376,7 +376,7 @@ pub async fn scan_files(
             for (_, path_group) in path_groups {
                 let pgc = path_group
                     .iter()
-                    .map(|c| c.clone().clone())
+                    .map(|c| (*c).clone())
                     .collect::<Vec<_>>();
 
                 let codebases = thread_codebases.clone();
