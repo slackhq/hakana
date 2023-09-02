@@ -44,6 +44,7 @@ pub(crate) fn analyze(
     let mut used_key_type;
 
     if let Some(dim) = expr.1 {
+        let was_inside_use = context.inside_general_use;
         context.inside_general_use = true;
 
         context.inside_unset = false;
@@ -55,6 +56,8 @@ pub(crate) fn analyze(
             context,
             &mut None,
         )?;
+
+        context.inside_general_use = was_inside_use;
 
         used_key_type = if let Some(dim_type) = analysis_data.get_expr_type(dim.pos()) {
             dim_type.clone()

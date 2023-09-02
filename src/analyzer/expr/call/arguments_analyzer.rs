@@ -165,10 +165,6 @@ pub(crate) fn check_arguments_match(
     );
 
     for (_, arg_expr) in args.iter() {
-        let was_inside_call = context.inside_general_use;
-
-        context.inside_general_use = true;
-
         // don't analyse closures here
         if !matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
             expression_analyzer::analyze(
@@ -178,10 +174,6 @@ pub(crate) fn check_arguments_match(
                 context,
                 if_body_context,
             )?;
-        }
-
-        if !was_inside_call {
-            context.inside_general_use = false;
         }
     }
 
@@ -214,14 +206,6 @@ pub(crate) fn check_arguments_match(
             statements_analyzer,
             analysis_data,
         );
-
-        let was_inside_call = context.inside_general_use;
-
-        context.inside_general_use = true;
-
-        if !was_inside_call {
-            context.inside_general_use = false;
-        }
 
         let mut arg_value_type = analysis_data
             .get_expr_type(arg_expr.pos())
@@ -282,14 +266,6 @@ pub(crate) fn check_arguments_match(
             statements_analyzer,
             analysis_data,
         );
-
-        let was_inside_call = context.inside_general_use;
-
-        context.inside_general_use = true;
-
-        if !was_inside_call {
-            context.inside_general_use = false;
-        }
 
         let arg_value_type = analysis_data
             .get_expr_type(unpacked_arg.pos())
