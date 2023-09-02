@@ -198,16 +198,17 @@ fn get_fake_as_var(
         analysis_data,
         context,
         if_body_context,
-    ).ok();
+    )
+    .ok();
 
     let condition_type = analysis_data
-        .get_expr_type(left.pos())
+        .get_rc_expr_type(left.pos())
         .cloned()
-        .unwrap_or(get_mixed_any());
+        .unwrap_or(Rc::new(get_mixed_any()));
 
     context
         .vars_in_scope
-        .insert(left_var_id.clone(), Rc::new(condition_type));
+        .insert(left_var_id.clone(), condition_type);
 
     return Some(aast::Expr(
         (),

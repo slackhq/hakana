@@ -22,7 +22,8 @@ use rustc_hash::FxHashSet;
 
 use crate::{
     expr::{expression_identifier, fetch::array_fetch_analyzer},
-    function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError,
+    function_analysis_data::FunctionAnalysisData,
+    stmt_analyzer::AnalysisError,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
@@ -125,9 +126,9 @@ pub(crate) fn analyze(
     let dim_type = if let Some(current_dim) = current_dim {
         Some(
             analysis_data
-                .get_expr_type(current_dim.pos())
+                .get_rc_expr_type(current_dim.pos())
                 .cloned()
-                .unwrap_or(get_arraykey(true)),
+                .unwrap_or(Rc::new(get_arraykey(true))),
         )
     } else {
         None
@@ -153,12 +154,12 @@ pub(crate) fn analyze(
             root_type,
             current_type,
             &key_values,
-            dim_type.as_ref(),
+            dim_type,
         )
     } else if !root_is_string {
         update_array_assignment_child_type(
             statements_analyzer.get_codebase(),
-            dim_type.as_ref(),
+            dim_type,
             context,
             current_type,
             root_type,
@@ -187,7 +188,7 @@ pub(crate) fn update_type_with_key_values(
     mut new_type: TUnion,
     current_type: TUnion,
     key_values: &Vec<TAtomic>,
-    key_type: Option<&TUnion>,
+    key_type: Option<Rc<TUnion>>,
 ) -> TUnion {
     let mut has_matching_item = false;
     let codebase = statements_analyzer.get_codebase();
@@ -213,7 +214,7 @@ pub(crate) fn update_type_with_key_values(
 fn update_atomic_given_key(
     mut atomic_type: TAtomic,
     key_values: &Vec<TAtomic>,
-    key_type: Option<&TUnion>,
+    key_type: Option<Rc<TUnion>>,
     has_matching_item: &mut bool,
     current_type: &TUnion,
     codebase: &CodebaseInfo,
@@ -307,8 +308,6 @@ fn update_atomic_given_key(
             }
         }
     } else {
-        let key_type = key_type.cloned().unwrap_or(get_int());
-
         let arrayish_params = get_arrayish_params(&atomic_type, codebase);
 
         match atomic_type {
@@ -346,6 +345,7 @@ fn update_atomic_given_key(
                 ..
             } => {
                 let params = arrayish_params.unwrap();
+                let key_type = key_type.clone().unwrap_or(Rc::new(get_int()));
 
                 *existing_params = Some((
                     hakana_type::add_union_type(params.0, &key_type, codebase, false),
@@ -455,16 +455,16 @@ fn add_array_assignment_dataflow(
 */
 fn update_array_assignment_child_type(
     codebase: &CodebaseInfo,
-    key_type: Option<&TUnion>,
+    key_type: Option<Rc<TUnion>>,
     context: &mut ScopeContext,
     value_type: TUnion,
     root_type: TUnion,
 ) -> TUnion {
     let mut collection_types = Vec::new();
 
-    if let Some(key_type) = key_type {
+    if let Some(key_type) = &key_type {
         let key_type = if key_type.is_mixed() {
-            get_arraykey(true)
+            Rc::new(get_arraykey(true))
         } else {
             key_type.clone()
         };
@@ -487,7 +487,7 @@ fn update_array_assignment_child_type(
                     non_empty: true,
                 }),
                 TAtomic::TDict { known_items, .. } => collection_types.push(TAtomic::TDict {
-                    params: Some((key_type.clone(), value_type.clone())),
+                    params: Some(((*key_type).clone(), value_type.clone())),
                     known_items: if let Some(known_items) = known_items {
                         let known_item = Arc::new(value_type.clone());
                         Some(
@@ -612,13 +612,13 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             )?;
 
             context.inside_general_use = was_inside_general_use;
-            let dim_type = analysis_data.get_expr_type(dim.pos()).cloned();
+            let dim_type = analysis_data.get_rc_expr_type(dim.pos()).cloned();
             array_expr_offset_type = if let Some(dim_type) = dim_type {
                 array_expr_offset_atomic_types = get_array_assignment_offset_types(&dim_type);
 
                 Some(dim_type)
             } else {
-                Some(get_arraykey(true))
+                Some(Rc::new(get_arraykey(true)))
             };
 
             var_id_additions.push(
@@ -684,7 +684,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             }
         }
 
-        let new_offset_type = array_expr_offset_type.clone().unwrap_or(get_int());
+        let new_offset_type = array_expr_offset_type.clone().unwrap_or(Rc::new(get_int()));
 
         context.inside_assignment = true;
 
@@ -692,7 +692,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             statements_analyzer,
             analysis_data,
             *array_expr,
-            (*array_expr_var_type).clone(),
+            &array_expr_var_type,
             &new_offset_type,
             true,
             &extended_var_id,
@@ -788,12 +788,12 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         let mut array_expr_type = analysis_data.get_expr_type(array_expr.2).unwrap().clone();
 
         let dim_type = if let Some(current_dim) = last_array_expr_dim {
-            analysis_data.get_expr_type(current_dim.pos())
+            analysis_data.get_rc_expr_type(current_dim.pos()).cloned()
         } else {
             None
         };
 
-        let key_values = if let Some(dim_type) = dim_type {
+        let key_values = if let Some(dim_type) = &dim_type {
             get_array_assignment_offset_types(dim_type)
         } else {
             vec![]
@@ -850,7 +850,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
         // recalculate dim_type
         let dim_type = if let Some(current_dim) = array_expr.1 {
-            analysis_data.get_expr_type(current_dim.pos())
+            analysis_data.get_rc_expr_type(current_dim.pos()).clone()
         } else {
             None
         };

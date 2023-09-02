@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
@@ -35,11 +37,11 @@ pub(crate) fn analyze(
             &mut None,
         )?;
 
-        let arg_type = analysis_data.get_expr_type(arg_expr.pos()).cloned();
+        let arg_type = analysis_data.get_rc_expr_type(arg_expr.pos()).cloned();
 
         argument_analyzer::verify_type(
             statements_analyzer,
-            &arg_type.unwrap_or(get_mixed_any()),
+            &arg_type.unwrap_or(Rc::new(get_mixed_any())),
             &get_arraykey(false),
             &FunctionLikeIdentifier::Function(STR_ECHO),
             i,
@@ -59,5 +61,5 @@ pub(crate) fn analyze(
         EFFECT_IMPURE,
     );
 
-   Ok(())
+    Ok(())
 }

@@ -217,7 +217,7 @@ pub(crate) fn analyze_regular_assignment(
         .expr_effects
         .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_PROPS);
 
-    let lhs_type = analysis_data.get_expr_type(&stmt_var.pos()).cloned();
+    let lhs_type = analysis_data.get_rc_expr_type(&stmt_var.pos()).cloned();
 
     if let None = lhs_type {
         return Ok(assigned_properties);

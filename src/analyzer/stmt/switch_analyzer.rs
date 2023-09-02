@@ -8,13 +8,14 @@ use std::{collections::BTreeMap, rc::Rc};
 use crate::{
     expr::expression_identifier,
     expression_analyzer,
+    function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
     scope_context::{
         control_action::ControlAction, loop_scope::LoopScope, switch_scope::SwitchScope,
         ScopeContext,
     },
     statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError,
+    stmt_analyzer::AnalysisError,
 };
 
 use super::{
@@ -67,12 +68,10 @@ pub(crate) fn analyze(
 
         context.vars_in_scope.insert(
             switch_var_id.clone(),
-            Rc::new(
-                analysis_data
-                    .get_expr_type(&stmt.0 .1)
-                    .cloned()
-                    .unwrap_or(get_mixed_any()),
-            ),
+            analysis_data
+                .get_rc_expr_type(&stmt.0 .1)
+                .cloned()
+                .unwrap_or(Rc::new(get_mixed_any())),
         );
         switch_var_id
     };

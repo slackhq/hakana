@@ -114,9 +114,9 @@ pub(crate) fn analyze_case(
         }
 
         let switch_cond_type = analysis_data
-            .get_expr_type(switch_condition.pos())
+            .get_rc_expr_type(switch_condition.pos())
             .cloned()
-            .unwrap_or(get_mixed_any());
+            .unwrap_or(Rc::new(get_mixed_any()));
 
         case_equality_expr = Some(if !previous_empty_cases.is_empty() {
             for previous_empty_case in previous_empty_cases {

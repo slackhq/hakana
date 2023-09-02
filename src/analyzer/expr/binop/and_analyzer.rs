@@ -40,7 +40,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         if_body_context,
     )?;
 
-    if let Some(cond_type) = analysis_data.get_expr_type(left.pos()).cloned() {
+    if let Some(cond_type) = analysis_data.get_rc_expr_type(left.pos()).cloned() {
         handle_paradoxical_condition(
             statements_analyzer,
             analysis_data,
@@ -160,7 +160,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         if_body_context,
     )?;
 
-    if let Some(cond_type) = analysis_data.get_expr_type(right.pos()).cloned() {
+    if let Some(cond_type) = analysis_data.get_rc_expr_type(right.pos()).cloned() {
         handle_paradoxical_condition(
             statements_analyzer,
             analysis_data,

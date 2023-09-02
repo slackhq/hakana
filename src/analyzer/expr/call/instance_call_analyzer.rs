@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::expr::expression_identifier;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -63,9 +65,9 @@ pub(crate) fn analyze(
     );
 
     let class_type = analysis_data
-        .get_expr_type(expr.0.pos())
+        .get_rc_expr_type(expr.0.pos())
         .cloned()
-        .unwrap_or(get_mixed_any());
+        .unwrap_or(Rc::new(get_mixed_any()));
 
     let mut analysis_result = AtomicMethodCallAnalysisResult::new();
 

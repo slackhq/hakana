@@ -99,7 +99,7 @@ pub(crate) fn analyze(
         }
     }
 
-    let stmt_var_type = analysis_data.get_expr_type(expr.0.pos()).cloned();
+    let stmt_var_type = analysis_data.get_rc_expr_type(expr.0.pos()).cloned();
 
     if let Some(stmt_var_type) = stmt_var_type {
         // maybe todo handle access on null
@@ -108,7 +108,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             analysis_data,
             (expr.0, expr.1, pos),
-            stmt_var_type.clone(),
+            &stmt_var_type,
             &used_key_type,
             false,
             &extended_var_id,
@@ -280,7 +280,7 @@ pub(crate) fn get_array_access_type_given_offset(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     stmt: (&aast::Expr<(), ()>, Option<&aast::Expr<(), ()>>, &Pos),
-    array_type: TUnion,
+    array_type: &TUnion,
     offset_type: &TUnion,
     in_assignment: bool,
     extended_var_id: &Option<String>,
@@ -552,11 +552,6 @@ pub(crate) fn get_array_access_type_given_offset(
 
     let array_access_type = stmt_type;
     if let Some(array_access_type) = array_access_type {
-        if context.inside_assignment {
-            // does not do anything right now
-            // array_type.bust_cache();
-        }
-
         return array_access_type;
     } else {
         // shouldn’t happen, but don’t crash

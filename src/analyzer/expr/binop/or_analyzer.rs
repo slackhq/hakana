@@ -65,7 +65,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             context.remove_var_from_conflicting_clauses(var_id, None, None, analysis_data);
         }
 
-        if let Some(cond_type) = analysis_data.get_expr_type(left.pos()).cloned() {
+        if let Some(cond_type) = analysis_data.get_rc_expr_type(left.pos()).cloned() {
             handle_paradoxical_condition(
                 statements_analyzer,
                 analysis_data,
@@ -237,7 +237,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         &mut None,
     )?;
 
-    if let Some(cond_type) = analysis_data.get_expr_type(right.pos()).cloned() {
+    if let Some(cond_type) = analysis_data.get_rc_expr_type(right.pos()).cloned() {
         handle_paradoxical_condition(
             statements_analyzer,
             analysis_data,

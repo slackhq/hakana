@@ -1,8 +1,10 @@
+use std::rc::Rc;
+
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
@@ -37,13 +39,13 @@ pub(crate) fn analyze(
         )?;
         context.inside_general_use = false;
 
-        let arg_type = analysis_data.get_expr_type(arg_expr.pos()).cloned();
+        let arg_type = analysis_data.get_rc_expr_type(arg_expr.pos()).cloned();
 
         // TODO handle exit taint sink
 
         argument_analyzer::verify_type(
             statements_analyzer,
-            &arg_type.unwrap_or(get_mixed_any()),
+            &arg_type.unwrap_or(Rc::new(get_mixed_any())),
             &get_arraykey(false),
             &FunctionLikeIdentifier::Function(
                 statements_analyzer.get_interner().get("exit").unwrap(),
@@ -62,5 +64,5 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(&call_pos, get_nothing());
 
-   Ok(())
+    Ok(())
 }

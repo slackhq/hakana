@@ -36,7 +36,7 @@ pub(crate) fn analyze(
             &mut None,
         )?;
 
-        if let Some(stmt_name_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
+        if let Some(stmt_name_type) = analysis_data.get_rc_expr_type(expr.1.pos()) {
             if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
                 Some(value.clone())
             } else {
@@ -91,14 +91,14 @@ pub(crate) fn analyze(
 
     let stmt_var_type = if let Some(stmt_var_id) = &stmt_var_id {
         if context.has_variable(&stmt_var_id) {
-            Some((**context.vars_in_scope.get(stmt_var_id).unwrap()).clone())
+            Some(context.vars_in_scope.get(stmt_var_id).unwrap().clone())
         } else {
-            analysis_data.get_expr_type(expr.0.pos()).cloned()
+            analysis_data.get_rc_expr_type(expr.0.pos()).cloned()
         }
     } else {
-        analysis_data.get_expr_type(expr.0.pos()).cloned()
+        analysis_data.get_rc_expr_type(expr.0.pos()).cloned()
     }
-    .unwrap_or(get_mixed_any());
+    .unwrap_or(Rc::new(get_mixed_any()));
 
     // TODO $stmt_var_type->isNull()
     // TODO $stmt_var_type->isEmpty()
@@ -180,7 +180,7 @@ pub(crate) fn analyze(
         );
     }
 
-   Ok(())
+    Ok(())
 }
 
 /**

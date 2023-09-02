@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler::{assertion_reconciler, reconciler};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::if_scope::IfScope;
 use crate::scope_context::{var_has_root, ScopeContext};
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::{self, add_branch_dataflow};
-use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
 use hakana_algebra::Clause;
@@ -228,7 +228,7 @@ pub(crate) fn analyze(
 
     if_context.reconciled_expression_clauses = Vec::new();
 
-    let stmt_cond_type = analysis_data.get_expr_type(expr.0.pos()).cloned();
+    let stmt_cond_type = analysis_data.get_rc_expr_type(expr.0.pos()).cloned();
 
     let mut lhs_type = None;
 
@@ -308,7 +308,7 @@ pub(crate) fn analyze(
     analysis_data.combine_effects(expr.2.pos(), pos, pos);
 
     // we do this here so it's accurate, analysis_data might get overwritten for the same position later
-    let stmt_else_type = analysis_data.get_expr_type(expr.2.pos()).cloned();
+    let stmt_else_type = analysis_data.get_rc_expr_type(expr.2.pos()).cloned();
 
     let assign_var_ifs = if_context.assigned_var_ids.clone();
     let assign_var_else = temp_else_context.assigned_var_ids.clone();
@@ -422,7 +422,7 @@ pub(crate) fn analyze(
     } {
         if if let Some(stmt_cond_type) = stmt_cond_type {
             if stmt_cond_type.is_always_falsy() {
-                analysis_data.set_expr_type(&pos, stmt_else_type.clone());
+                analysis_data.set_rc_expr_type(&pos, stmt_else_type.clone());
                 false
             } else if stmt_cond_type.is_always_truthy() {
                 analysis_data.set_expr_type(&pos, lhs_type.clone());
@@ -433,12 +433,12 @@ pub(crate) fn analyze(
         } else {
             true
         } {
-            let union_type = add_union_type(stmt_else_type, &lhs_type, codebase, false);
+            let union_type = add_union_type((*stmt_else_type).clone(), &lhs_type, codebase, false);
             analysis_data.set_expr_type(&pos, union_type);
         }
     } else {
         analysis_data.set_expr_type(&pos, get_mixed_any());
     }
 
-   Ok(())
+    Ok(())
 }

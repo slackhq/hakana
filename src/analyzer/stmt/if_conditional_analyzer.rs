@@ -247,7 +247,7 @@ pub(crate) fn analyze<'a>(
         })
         .collect::<FxHashSet<_>>();
 
-    if let Some(cond_type) = analysis_data.get_expr_type(cond.pos()).cloned() {
+    if let Some(cond_type) = analysis_data.get_rc_expr_type(cond.pos()).cloned() {
         handle_paradoxical_condition(
             statements_analyzer,
             analysis_data,

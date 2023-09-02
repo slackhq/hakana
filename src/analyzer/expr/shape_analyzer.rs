@@ -1,6 +1,7 @@
 use crate::{
-    expression_analyzer, scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError,
+    expression_analyzer, function_analysis_data::FunctionAnalysisData,
+    scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
+    statements_analyzer::StatementsAnalyzer, stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
     code_location::StmtStart,
@@ -166,7 +167,7 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(&pos, new_dict);
 
-   Ok(())
+    Ok(())
 }
 
 fn add_shape_value_dataflow(

@@ -41,8 +41,8 @@ pub(crate) fn analyze(
 
     match expr.0 {
         oxidized::ast_defs::Uop::Utild => {
-            if let Some(stmt_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
-                analysis_data.set_expr_type(&pos, stmt_type);
+            if let Some(stmt_type) = analysis_data.get_rc_expr_type(expr.1.pos()).cloned() {
+                analysis_data.set_rc_expr_type(&pos, stmt_type);
             }
         }
         oxidized::ast_defs::Uop::Unot => {
@@ -56,8 +56,8 @@ pub(crate) fn analyze(
             );
         }
         oxidized::ast_defs::Uop::Uplus => {
-            if let Some(stmt_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
-                analysis_data.set_expr_type(&pos, stmt_type);
+            if let Some(stmt_type) = analysis_data.get_rc_expr_type(expr.1.pos()).cloned() {
+                analysis_data.set_rc_expr_type(&pos, stmt_type);
             }
         }
         oxidized::ast_defs::Uop::Uminus => {
@@ -106,8 +106,8 @@ pub(crate) fn analyze(
             return analyzed_ok;
         }
         oxidized::ast_defs::Uop::Usilence => {
-            if let Some(stmt_type) = analysis_data.get_expr_type(expr.1.pos()).cloned() {
-                analysis_data.set_expr_type(&pos, stmt_type);
+            if let Some(stmt_type) = analysis_data.get_rc_expr_type(expr.1.pos()).cloned() {
+                analysis_data.set_rc_expr_type(&pos, stmt_type);
             }
         }
     }

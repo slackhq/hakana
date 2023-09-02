@@ -63,12 +63,12 @@ pub(crate) fn analyze(
     context.vars_in_scope.remove(&"$$".to_string());
     context.pipe_var_effects = EFFECT_PURE;
 
-    analysis_data.set_expr_type(
+    analysis_data.set_rc_expr_type(
         &pos,
         analysis_data
-            .get_expr_type(&expr.2 .1)
+            .get_rc_expr_type(&expr.2 .1)
             .cloned()
-            .unwrap_or(get_mixed_any()),
+            .unwrap_or(Rc::new(get_mixed_any())),
     );
 
     analysis_data.expr_effects.insert(

@@ -56,7 +56,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         )
         .ok();
 
-        analysis_data.get_expr_type(root_expr.pos()).cloned()
+        analysis_data.get_rc_expr_type(root_expr.pos()).cloned()
     } else {
         None
     };
@@ -136,15 +136,16 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         analysis_data,
         context,
         if_body_context,
-    ).ok();
+    )
+    .ok();
 
     let ternary_type = analysis_data
-        .get_expr_type(&pos)
+        .get_rc_expr_type(&pos)
         .cloned()
-        .unwrap_or(get_mixed_any());
+        .unwrap_or(Rc::new(get_mixed_any()));
     analysis_data.expr_types = old_expr_types;
 
-    analysis_data.set_expr_type(&pos, ternary_type);
+    analysis_data.set_rc_expr_type(&pos, ternary_type);
 
     analysis_data.combine_effects(left.pos(), right.pos(), pos);
 

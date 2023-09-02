@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use rustc_hash::FxHashMap;
 
 use crate::scope_context::ScopeContext;
@@ -29,9 +31,9 @@ pub(crate) fn analyze(
     )?;
 
     let expr_type = analysis_data
-        .get_expr_type(inner_expr.pos())
+        .get_rc_expr_type(inner_expr.pos())
         .cloned()
-        .unwrap_or(get_mixed_any());
+        .unwrap_or(Rc::new(get_mixed_any()));
 
     let mut hint_type = get_type_from_hint(
         &hint.1,
@@ -46,7 +48,7 @@ pub(crate) fn analyze(
     if hint_type.has_taintable_value()
         || analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
     {
-        hint_type.parent_nodes = expr_type.parent_nodes;
+        hint_type.parent_nodes = expr_type.parent_nodes.clone();
     }
 
     analysis_data.set_expr_type(&expr_pos, hint_type);

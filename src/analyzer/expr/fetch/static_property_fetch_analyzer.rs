@@ -101,9 +101,7 @@ pub(crate) fn analyze(
             if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
                 id.1.clone()
             } else {
-                if let Some(stmt_name_type) =
-                    analysis_data.get_expr_type(stmt_name_expr.pos()).cloned()
-                {
+                if let Some(stmt_name_type) = analysis_data.get_rc_expr_type(stmt_name_expr.pos()) {
                     if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
                         value.clone()
                     } else {

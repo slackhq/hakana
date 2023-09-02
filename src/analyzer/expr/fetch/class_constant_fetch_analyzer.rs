@@ -60,7 +60,7 @@ pub(crate) fn analyze(
 
                 let mut stmt_type = None;
 
-                if let Some(lhs_type) = analysis_data.get_expr_type(lhs_expr.pos()).cloned() {
+                if let Some(lhs_type) = analysis_data.get_rc_expr_type(lhs_expr.pos()).cloned() {
                     for atomic_type in &lhs_type.types {
                         match atomic_type {
                             TAtomic::TNamedObject { name, is_this, .. } => {

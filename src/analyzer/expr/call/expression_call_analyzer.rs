@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::expr::call::arguments_analyzer;
 
 use crate::expr::call_analyzer::apply_effects;
@@ -38,9 +40,9 @@ pub(crate) fn analyze(
     context.inside_general_use = was_inside_general_use;
 
     let lhs_type = analysis_data
-        .get_expr_type(expr.func.pos())
+        .get_rc_expr_type(expr.func.pos())
         .cloned()
-        .unwrap_or(get_mixed_any());
+        .unwrap_or(Rc::new(get_mixed_any()));
 
     let mut stmt_type = None;
 
