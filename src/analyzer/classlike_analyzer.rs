@@ -31,7 +31,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
         let name = if let Some(resolved_name) = resolved_names.get(&stmt.name.0.start_offset()) {
             *resolved_name
         } else {
-            return Err(AnalysisError::InternalError("Cannot resolve class name".to_string()));
+            return Err(AnalysisError::InternalError(format!("Cannot resolve class name {}", &stmt.name.1)));
         };
 
         let codebase = self.file_analyzer.get_codebase();
@@ -42,7 +42,11 @@ impl<'a> ClassLikeAnalyzer<'a> {
             }
         }
 
-        let classlike_storage = codebase.classlike_infos.get(&name).unwrap();
+        let classlike_storage = if let Some(storage) = codebase.classlike_infos.get(&name) {
+            storage
+        } else {
+            return Err(AnalysisError::InternalError(format!("Cannot get class storage for {}", &stmt.name.1)));
+        };
 
         for parent_class in &classlike_storage.all_parent_classes {
             analysis_result

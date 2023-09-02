@@ -560,7 +560,11 @@ pub fn get_type_from_hint(
             for type_id in type_names {
                 inner_type = TAtomic::TClassTypeConstant {
                     class_type: Box::new(inner_type),
-                    member_name: *resolved_names.get(&type_id.0.start_offset()).unwrap(),
+                    member_name: if let Some(resolved_name) = resolved_names.get(&type_id.0.start_offset()) {
+                        *resolved_name
+                    } else {
+                        return None;
+                    },
                 };
             }
 
