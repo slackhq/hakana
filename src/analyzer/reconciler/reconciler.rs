@@ -1229,10 +1229,7 @@ fn get_impossible_issue(
         ),
         _ => Issue::new(
             IssueKind::ImpossibleTypeComparison,
-            format!(
-                "Type {}is never {}",
-                old_var_type_string, &assertion_string
-            ),
+            format!("Type {}is never {}", old_var_type_string, &assertion_string),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
         ),

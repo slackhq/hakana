@@ -1,4 +1,5 @@
 use super::expression_identifier::{get_dim_id, get_var_id};
+use crate::expr::expression_identifier::get_functionlike_id_from_call;
 use crate::{formula_generator::AssertionContext, function_analysis_data::FunctionAnalysisData};
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::t_atomic::DictKey;
@@ -8,7 +9,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::populate_union_type,
 };
-use hakana_reflection_info::{Interner, StrId, STR_ISSET, STR_SHAPES};
+use hakana_reflection_info::{StrId, STR_ISSET, STR_SHAPES};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::type_expander::{self, TypeExpansionOptions};
 use oxidized::{
@@ -105,7 +106,7 @@ pub(crate) fn scrape_assertions(
                     &binop.bop,
                     &binop.lhs,
                     &binop.rhs,
-                    &analysis_data,
+                    analysis_data,
                     assertion_context,
                     cache,
                     inside_conditional,
@@ -325,67 +326,11 @@ fn scrape_shapes_isset(
     }
 }
 
-pub(crate) fn get_functionlike_id_from_call(
-    call: &oxidized::ast::CallExpr,
-    interner: Option<&Interner>,
-    resolved_names: &FxHashMap<usize, StrId>,
-) -> Option<FunctionLikeIdentifier> {
-    match &call.func.2 {
-        aast::Expr_::Id(boxed_id) => {
-            if let Some(interner) = interner {
-                let name = if boxed_id.1 == "isset" {
-                    STR_ISSET
-                } else if boxed_id.1 == "\\in_array" {
-                    interner.get("in_array").unwrap()
-                } else {
-                    if let Some(resolved_name) = resolved_names.get(&boxed_id.0.start_offset()) {
-                        *resolved_name
-                    } else {
-                        return None;
-                    }
-                };
-
-                Some(FunctionLikeIdentifier::Function(name))
-            } else {
-                None
-            }
-        }
-        aast::Expr_::ClassConst(boxed) => {
-            if let Some(interner) = interner {
-                let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
-
-                match &class_id.2 {
-                    aast::ClassId_::CIexpr(lhs_expr) => {
-                        if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                            let resolved_names = resolved_names;
-
-                            if let (Some(class_name), Some(method_name)) = (
-                                resolved_names.get(&id.0.start_offset()),
-                                interner.get(&rhs_expr.1),
-                            ) {
-                                Some(FunctionLikeIdentifier::Method(*class_name, method_name))
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    }
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
 fn scrape_equality_assertions(
     bop: &ast_defs::Bop,
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
-    analysis_data: &FunctionAnalysisData,
+    analysis_data: &mut FunctionAnalysisData,
     assertion_context: &AssertionContext,
     _cache: bool,
     _inside_conditional: bool,

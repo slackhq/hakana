@@ -73,6 +73,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                 | aast::Expr_::As(..)
                 | aast::Expr_::ClassConst(..)
                 | aast::Expr_::Pipe(..)
+                | aast::Expr_::Await(..)
         )
     {
         replacement_left = Some(get_left_expr(

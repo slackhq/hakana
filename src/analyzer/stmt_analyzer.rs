@@ -5,9 +5,9 @@ use hakana_type::get_arrayish_params;
 use rustc_hash::FxHashSet;
 
 use crate::custom_hook::AfterStmtAnalysisData;
-use crate::expr::assertion_finder::get_functionlike_id_from_call;
 use crate::expr::binop::assignment_analyzer;
 
+use crate::expr::expression_identifier::get_functionlike_id_from_call;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
