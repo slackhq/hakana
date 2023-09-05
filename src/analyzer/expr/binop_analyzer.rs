@@ -1,9 +1,12 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
 use crate::function_analysis_data::FunctionAnalysisData;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
+use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{get_bool, get_int};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast};
@@ -109,6 +112,40 @@ pub(crate) fn analyze(
                 if_body_context,
             )?;
 
+            let lhs_type = analysis_data.get_rc_expr_type(expr.1.pos());
+            let rhs_type = analysis_data.get_rc_expr_type(expr.2.pos());
+
+            let interner = statements_analyzer.get_interner();
+
+            if let (Some(lhs_type), Some(rhs_type)) = (lhs_type, rhs_type) {
+                if is_resolvable(expr.1)
+                    && is_resolvable(expr.2)
+                    && (!lhs_type.is_single() || !rhs_type.is_single())
+                {
+                    if !union_type_comparator::can_expression_types_be_identical(
+                        &statements_analyzer.get_codebase(),
+                        lhs_type,
+                        rhs_type,
+                        true,
+                    ) {
+                        analysis_data.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::ImpossibleTypeComparison,
+                                format!(
+                                    "Type {} cannot be compared to {}",
+                                    lhs_type.get_id(Some(interner)),
+                                    rhs_type.get_id(Some(interner)),
+                                ),
+                                statements_analyzer.get_hpos(pos),
+                                &None,
+                            ),
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
+                        );
+                    }
+                }
+            }
+
             add_decision_dataflow(
                 statements_analyzer,
                 analysis_data,
@@ -194,5 +231,13 @@ pub(crate) fn analyze(
 
             return Ok(());
         }
+    }
+}
+
+fn is_resolvable(expr: &aast::Expr<(), ()>) -> bool {
+    match expr.2 {
+        aast::Expr_::Lvar(_) => true,
+        aast::Expr_::ObjGet(_) => true,
+        _ => false,
     }
 }

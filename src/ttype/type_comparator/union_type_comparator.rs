@@ -323,7 +323,7 @@ pub fn can_expression_types_be_identical(
         return true;
     }
 
-    if type1.is_nullable() || type2.is_nullable() {
+    if type1.is_nullable() && type2.is_nullable() {
         return true;
     }
 
