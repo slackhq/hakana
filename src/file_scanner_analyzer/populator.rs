@@ -246,8 +246,9 @@ fn populate_functionlike_storage(
 
     for attribute_info in &storage.attributes {
         match reference_source {
-            ReferenceSource::Symbol(_, a) => symbol_references
-                .add_symbol_reference_to_symbol(*a, attribute_info.name, true),
+            ReferenceSource::Symbol(_, a) => {
+                symbol_references.add_symbol_reference_to_symbol(*a, attribute_info.name, true)
+            }
             ReferenceSource::ClasslikeMember(_, a, b) => symbol_references
                 .add_class_member_reference_to_symbol((*a, *b), attribute_info.name, true),
         }
@@ -740,10 +741,11 @@ fn inherit_methods_from_parent(
                 {
                     &storage
                 } else {
-                    codebase
-                        .classlike_infos
-                        .get(existing_declaring_class)
-                        .unwrap()
+                    if let Some(storage) = codebase.classlike_infos.get(existing_declaring_class) {
+                        storage
+                    } else {
+                        continue;
+                    }
                 };
 
                 if !matches!(existing_declaring_class_storage.kind, SymbolKind::Interface) {

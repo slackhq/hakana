@@ -16,8 +16,8 @@ use oxidized::{
     tast::Pos,
 };
 
-use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
+use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
 use super::instance_property_assignment_analyzer::add_unspecialized_property_assignment_dataflow;
@@ -57,7 +57,9 @@ pub(crate) fn analyze(
         if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
             Some(id.1.clone())
         } else {
-            if let Some(stmt_name_type) = analysis_data.get_rc_expr_type(stmt_name_expr.pos()).cloned()
+            if let Some(stmt_name_type) = analysis_data
+                .get_rc_expr_type(stmt_name_expr.pos())
+                .cloned()
             {
                 if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
                     Some(value.clone())
@@ -89,14 +91,21 @@ pub(crate) fn analyze(
             match &expr.2 {
                 aast::Expr_::Id(id) => {
                     let mut is_static = false;
-                    let classlike_name = get_id_name(
+
+                    let classlike_name = if let Some(name) = get_id_name(
                         id,
                         &context.function_context.calling_class,
                         codebase,
                         &mut is_static,
                         statements_analyzer.get_file_analyzer().resolved_names,
-                    )
-                    .unwrap();
+                    ) {
+                        name
+                    } else {
+                        return Err(AnalysisError::InternalError(
+                            "Could not resolve class name for static property assignment"
+                                .to_string(),
+                        ));
+                    };
 
                     fq_class_names.push(classlike_name);
                 }

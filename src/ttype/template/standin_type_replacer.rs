@@ -1740,7 +1740,11 @@ pub fn get_mapped_generic_type_params(
         _ => panic!(),
     };
 
-    let input_class_storage = codebase.classlike_infos.get(input_name).unwrap();
+    let input_class_storage = if let Some(storage) = codebase.classlike_infos.get(input_name) {
+        storage
+    } else {
+        return vec![];
+    };
 
     if input_name == container_name {
         return input_type_params;
