@@ -179,6 +179,22 @@ pub(crate) fn find_unused_definitions(
                             continue;
                         }
 
+                        for descendant_classlike in codebase.get_all_descendants(classlike_name) {
+                            if let Some(descendant_classlike_storage) =
+                                codebase.classlike_infos.get(&descendant_classlike)
+                            {
+                                for parent_interface in
+                                    &descendant_classlike_storage.all_class_interfaces
+                                {
+                                    if referenced_symbols_and_members
+                                        .contains(&(*parent_interface, *method_name_ptr))
+                                    {
+                                        continue 'inner;
+                                    }
+                                }
+                            }
+                        }
+
                         for trait_user in get_trait_users(
                             classlike_name,
                             &codebase.symbols,

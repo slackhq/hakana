@@ -89,21 +89,6 @@ pub(crate) fn analyze(
             false,
         );
 
-    for classlike_descendant in codebase.get_all_descendants(&classlike_name) {
-        let descendant_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
-            classlike_descendant,
-            declaring_method_id.1,
-        ));
-
-        analysis_data
-            .symbol_references
-            .add_reference_to_class_member(
-                &context.function_context,
-                (descendant_method_id.0, descendant_method_id.1),
-                false,
-            );
-    }
-
     if let Some(overridden_classlikes) = classlike_storage
         .overridden_method_ids
         .get(&declaring_method_id.1)
