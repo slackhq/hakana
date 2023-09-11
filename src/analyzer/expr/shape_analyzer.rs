@@ -90,12 +90,11 @@ pub(crate) fn analyze(
                         panic!();
                     }
                 } else {
-                    println!(
+                    return Err(AnalysisError::InternalError(format!(
                         "unknown constant {}::{}",
                         &statements_analyzer.get_interner().lookup(lhs_name),
                         &name.1
-                    );
-                    panic!();
+                    )));
                 }
             }
         };
