@@ -12,6 +12,12 @@ pub enum ReferenceSource {
     ClasslikeMember(bool, StrId, StrId),
 }
 
+pub struct InvalidSymbols {
+    pub invalid_symbol_and_member_signatures: FxHashSet<(StrId, StrId)>,
+    pub invalid_symbol_and_member_bodies: FxHashSet<(StrId, StrId)>,
+    pub partially_invalid_symbols: FxHashSet<StrId>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SymbolReferences {
     // A lookup table of all symbols (classes, functions, enums etc) that reference another symbol
@@ -79,6 +85,15 @@ impl SymbolReferences {
                 .or_insert_with(FxHashSet::default)
                 .insert((symbol, STR_EMPTY));
         } else {
+            if let Some(symbol_refs_in_signature) = self
+                .symbol_references_to_symbols_in_signature
+                .get(&(referencing_symbol, STR_EMPTY))
+            {
+                if symbol_refs_in_signature.contains(&(symbol, STR_EMPTY)) {
+                    return;
+                }
+            }
+
             self.symbol_references_to_symbols
                 .entry((referencing_symbol, STR_EMPTY))
                 .or_insert_with(FxHashSet::default)
@@ -135,6 +150,15 @@ impl SymbolReferences {
                 .or_insert_with(FxHashSet::default)
                 .insert((symbol, STR_EMPTY));
         } else {
+            if let Some(symbol_refs_in_signature) = self
+                .symbol_references_to_symbols_in_signature
+                .get(&referencing_class_member)
+            {
+                if symbol_refs_in_signature.contains(&(symbol, STR_EMPTY)) {
+                    return;
+                }
+            }
+
             self.symbol_references_to_symbols
                 .entry(referencing_class_member)
                 .or_insert_with(FxHashSet::default)

@@ -104,14 +104,10 @@ pub(crate) fn analyze(
     } else if let Some(fq_name) = resolved_names.get(&expr.0 .0.start_offset()) {
         fq_name.clone()
     } else {
-        return Err(AnalysisError::InternalError("Cannot resolve function name".to_string()));
+        return Err(AnalysisError::InternalError(
+            "Cannot resolve function name".to_string(),
+        ));
     };
-
-    analysis_data.symbol_references.add_reference_to_symbol(
-        &context.function_context,
-        name.clone(),
-        false,
-    );
 
     let function_storage = if let Some(function_storage) =
         get_named_function_info(statements_analyzer, &name, expr.0 .0)
@@ -132,8 +128,22 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
+        analysis_data.symbol_references.add_reference_to_symbol(
+            &context.function_context,
+            name.clone(),
+            false,
+        );
+
         return Ok(());
     };
+
+    if function_storage.user_defined {
+        analysis_data.symbol_references.add_reference_to_symbol(
+            &context.function_context,
+            name.clone(),
+            false,
+        );
+    }
 
     let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
 
@@ -450,17 +460,11 @@ pub(crate) fn analyze(
                     // Only replace code that's not already covered by a FIXME
                     if analysis_data.get_matching_hakana_fixme(&issue).is_none() {
                         analysis_data.add_replacement(
-                            (
-                                pos.start_offset(),
-                                expr.0.0.end_offset() + 1,
-                            ),
+                            (pos.start_offset(), expr.0 .0.end_offset() + 1),
                             Replacement::Substitute("await ".to_string()),
                         );
                         analysis_data.add_replacement(
-                            (
-                                pos.end_offset() - 1,
-                                pos.end_offset(),
-                            ),
+                            (pos.end_offset() - 1, pos.end_offset()),
                             Replacement::Remove,
                         );
                     }
