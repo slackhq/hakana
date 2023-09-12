@@ -608,6 +608,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     &mut inferred_return_type,
                     codebase,
                     statements_analyzer,
+                    fb_ast,
                 )
             });
 

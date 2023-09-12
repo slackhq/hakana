@@ -295,6 +295,27 @@ impl SymbolReferences {
         referenced_symbols_and_members
     }
 
+    pub fn get_references_to_symbol(&self, symbol: (StrId, StrId)) -> FxHashSet<&(StrId, StrId)> {
+        let mut referencing_symbols_and_members = FxHashSet::default();
+
+        for (referencing_symbol, symbol_references_to_symbols) in &self.symbol_references_to_symbols
+        {
+            if symbol_references_to_symbols.contains(&symbol) {
+                referencing_symbols_and_members.insert(referencing_symbol);
+            }
+        }
+
+        for (referencing_symbol, symbol_references_to_symbols) in
+            &self.symbol_references_to_symbols_in_signature
+        {
+            if symbol_references_to_symbols.contains(&symbol) {
+                referencing_symbols_and_members.insert(referencing_symbol);
+            }
+        }
+
+        referencing_symbols_and_members
+    }
+
     pub fn get_referenced_symbols_and_members_with_counts(&self) -> FxHashMap<(StrId, StrId), u32> {
         let mut referenced_symbols_and_members = FxHashMap::default();
 
