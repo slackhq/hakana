@@ -657,25 +657,27 @@ fn add_dataflow(
         }
     }
 
-    let function_call_node = DataFlowNode::get_for_method_return(
-        functionlike_id.to_string(&statements_analyzer.get_interner()),
-        if let Some(return_pos) = &functionlike_storage.return_type_location {
-            Some(return_pos.clone())
-        } else {
-            functionlike_storage.name_location.clone()
-        },
-        if functionlike_storage.specialize_call {
-            Some(statements_analyzer.get_hpos(pos))
-        } else {
-            None
-        },
-    );
-
     let mut stmt_type = stmt_type;
 
     // todo conditionally remove taints
 
+    let function_call_node;
+
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
+        function_call_node = DataFlowNode::get_for_method_return(
+            functionlike_id.to_string(&statements_analyzer.get_interner()),
+            if let Some(return_pos) = &functionlike_storage.return_type_location {
+                Some(return_pos.clone())
+            } else {
+                functionlike_storage.name_location.clone()
+            },
+            if functionlike_storage.specialize_call {
+                Some(statements_analyzer.get_hpos(pos))
+            } else {
+                None
+            },
+        );
+
         if !functionlike_storage.return_source_params.is_empty() {
             // todo dispatch AddRemoveTaintEvent
             // and also handle simple preg_replace calls
@@ -744,6 +746,12 @@ fn add_dataflow(
 
         data_flow_graph.add_node(function_call_node.clone());
     } else {
+        function_call_node = DataFlowNode::get_for_method_return(
+            functionlike_id.to_string(&statements_analyzer.get_interner()),
+            Some(statements_analyzer.get_hpos(pos)),
+            Some(statements_analyzer.get_hpos(pos)),
+        );
+
         data_flow_graph.add_node(function_call_node.clone());
     }
 

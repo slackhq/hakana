@@ -221,7 +221,12 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_for_variable_source(label: String, assignment_location: HPos, pure: bool, has_awaitable: bool) -> Self {
+    pub fn get_for_variable_source(
+        label: String,
+        assignment_location: HPos,
+        pure: bool,
+        has_awaitable: bool,
+    ) -> Self {
         let id = format!(
             "{}-{}:{}-{}",
             label,
@@ -245,15 +250,15 @@ impl DataFlowNode {
     pub fn get_for_method_return(
         method_id: String,
         pos: Option<HPos>,
-        function_location: Option<HPos>,
+        specialization_location: Option<HPos>,
     ) -> Self {
         let mut specialization_key = None;
 
-        if let Some(function_location) = function_location {
+        if let Some(specialization_location) = specialization_location {
             specialization_key = Some(
-                (function_location.file_path).0 .0.to_string()
+                (specialization_location.file_path).0 .0.to_string()
                     + ":"
-                    + function_location.start_offset.to_string().as_str(),
+                    + specialization_location.start_offset.to_string().as_str(),
             );
         }
 
@@ -287,8 +292,9 @@ impl DataFlowNode {
             | DataFlowNodeKind::TaintSink { label, .. }
             | DataFlowNodeKind::VariableUseSource { label, .. }
             | DataFlowNodeKind::DataSource { label, .. } => label,
-            DataFlowNodeKind::ForLoopInit { .. }
-            | DataFlowNodeKind::VariableUseSink { .. } => &self.id,
+            DataFlowNodeKind::ForLoopInit { .. } | DataFlowNodeKind::VariableUseSink { .. } => {
+                &self.id
+            }
         }
     }
 

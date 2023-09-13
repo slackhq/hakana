@@ -600,19 +600,17 @@ fn analyze_named_constructor(
         }
     }
 
-    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-        result_type = add_dataflow(
-            statements_analyzer,
-            result_type,
-            context,
-            &declaring_method_id,
-            codebase.get_method(&declaring_method_id),
-            storage.specialize_instance,
-            from_classname,
-            analysis_data,
-            pos,
-        );
-    }
+    result_type = add_dataflow(
+        statements_analyzer,
+        result_type,
+        context,
+        &declaring_method_id,
+        codebase.get_method(&declaring_method_id),
+        storage.specialize_instance,
+        from_classname,
+        analysis_data,
+        pos,
+    );
 
     result.return_type = Some(add_optional_union_type(
         result_type,
@@ -642,52 +640,62 @@ fn add_dataflow<'a>(
         if !context.allow_taints {
             return return_type_candidate;
         }
-    }
 
-    let codebase = statements_analyzer.get_codebase();
+        let codebase = statements_analyzer.get_codebase();
 
-    let new_call_node = DataFlowNode::get_for_this_after_method(
-        method_id,
-        if let Some(functionlike_storage) = functionlike_storage {
-            functionlike_storage.return_type_location.clone()
-        } else {
-            None
-        },
-        if specialize_instance {
-            Some(statements_analyzer.get_hpos(call_pos))
-        } else {
-            None
-        },
-        &statements_analyzer.get_interner(),
-    );
+        let new_call_node = DataFlowNode::get_for_this_after_method(
+            method_id,
+            if let Some(functionlike_storage) = functionlike_storage {
+                functionlike_storage.return_type_location.clone()
+            } else {
+                None
+            },
+            if specialize_instance {
+                Some(statements_analyzer.get_hpos(call_pos))
+            } else {
+                None
+            },
+            &statements_analyzer.get_interner(),
+        );
 
-    data_flow_graph.add_node(new_call_node.clone());
+        data_flow_graph.add_node(new_call_node.clone());
 
-    return_type_candidate.parent_nodes = FxHashSet::from_iter([new_call_node.clone()]);
+        return_type_candidate.parent_nodes = FxHashSet::from_iter([new_call_node.clone()]);
 
-    if from_classname {
-        let descendants = codebase.get_all_descendants(&method_id.0);
+        if from_classname {
+            let descendants = codebase.get_all_descendants(&method_id.0);
 
-        for descendant_class in descendants {
-            let new_call_node = DataFlowNode::get_for_this_after_method(
-                &MethodIdentifier(descendant_class, method_id.1),
-                if let Some(functionlike_storage) = functionlike_storage {
-                    functionlike_storage.return_type_location.clone()
-                } else {
-                    None
-                },
-                if specialize_instance {
-                    Some(statements_analyzer.get_hpos(call_pos))
-                } else {
-                    None
-                },
-                &statements_analyzer.get_interner(),
-            );
+            for descendant_class in descendants {
+                let new_call_node = DataFlowNode::get_for_this_after_method(
+                    &MethodIdentifier(descendant_class, method_id.1),
+                    if let Some(functionlike_storage) = functionlike_storage {
+                        functionlike_storage.return_type_location.clone()
+                    } else {
+                        None
+                    },
+                    if specialize_instance {
+                        Some(statements_analyzer.get_hpos(call_pos))
+                    } else {
+                        None
+                    },
+                    &statements_analyzer.get_interner(),
+                );
 
-            data_flow_graph.add_node(new_call_node.clone());
+                data_flow_graph.add_node(new_call_node.clone());
 
-            return_type_candidate.parent_nodes.insert(new_call_node);
+                return_type_candidate.parent_nodes.insert(new_call_node);
+            }
         }
+    } else {
+        let new_call_node = DataFlowNode::get_for_method_return(
+            method_id.to_string(statements_analyzer.get_interner()),
+            Some(statements_analyzer.get_hpos(call_pos)),
+            Some(statements_analyzer.get_hpos(call_pos)),
+        );
+
+        data_flow_graph.add_node(new_call_node.clone());
+
+        return_type_candidate.parent_nodes = FxHashSet::from_iter([new_call_node.clone()]);
     }
 
     return_type_candidate
