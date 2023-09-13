@@ -652,26 +652,41 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 }
             }
         } else {
-            if !analysis_data.inferred_return_types.is_empty() {
-                for callsite_return_type in &analysis_data.inferred_return_types {
-                    inferred_return_type = Some(add_optional_union_type(
-                        callsite_return_type.clone(),
-                        inferred_return_type.as_ref(),
-                        codebase,
-                    ));
-                }
-            } else {
-                inferred_return_type = Some(if functionlike_storage.is_async {
-                    wrap_atomic(TAtomic::TNamedObject {
-                        name: STR_AWAITABLE,
-                        type_params: Some(vec![get_void()]),
-                        is_this: false,
-                        extra_types: None,
-                        remapped_params: false,
-                    })
+            let return_result_handled = config.hooks.iter().any(|hook| {
+                hook.after_functionlike_analysis(
+                    &mut context,
+                    functionlike_storage,
+                    completed_analysis,
+                    &mut analysis_data,
+                    &mut inferred_return_type,
+                    codebase,
+                    statements_analyzer,
+                    fb_ast,
+                )
+            });
+
+            if !return_result_handled {
+                if !analysis_data.inferred_return_types.is_empty() {
+                    for callsite_return_type in &analysis_data.inferred_return_types {
+                        inferred_return_type = Some(add_optional_union_type(
+                            callsite_return_type.clone(),
+                            inferred_return_type.as_ref(),
+                            codebase,
+                        ));
+                    }
                 } else {
-                    get_void()
-                });
+                    inferred_return_type = Some(if functionlike_storage.is_async {
+                        wrap_atomic(TAtomic::TNamedObject {
+                            name: STR_AWAITABLE,
+                            type_params: Some(vec![get_void()]),
+                            is_this: false,
+                            extra_types: None,
+                            remapped_params: false,
+                        })
+                    } else {
+                        get_void()
+                    });
+                }
             }
         }
 
