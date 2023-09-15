@@ -65,6 +65,7 @@ pub(crate) fn analyze(
 
                 let constant_type = codebase.get_class_constant_type(
                     &lhs_name,
+                    false,
                     &statements_analyzer.get_interner().get(&name.1).unwrap(),
                     FxHashSet::default(),
                 );

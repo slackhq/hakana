@@ -5,6 +5,8 @@ use crate::{symbol_references::ReferenceSource, StrId};
 pub struct FunctionContext {
     pub calling_class: Option<StrId>,
 
+    pub calling_class_final: bool,
+
     pub is_static: bool,
 
     pub calling_functionlike_id: Option<FunctionLikeIdentifier>,
@@ -16,6 +18,7 @@ impl FunctionContext {
             calling_class: None,
             is_static: false,
             calling_functionlike_id: None,
+            calling_class_final: false,
         }
     }
 

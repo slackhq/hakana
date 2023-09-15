@@ -747,7 +747,12 @@ fn get_value_for_key(
             }
 
             let class_constant = if let Some(const_name) = interner.get(&const_name) {
-                codebase.get_class_constant_type(fq_class_name, &const_name, FxHashSet::default())
+                codebase.get_class_constant_type(
+                    fq_class_name,
+                    false,
+                    &const_name,
+                    FxHashSet::default(),
+                )
             } else {
                 None
             };

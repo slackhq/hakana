@@ -37,6 +37,7 @@ pub(crate) fn analyze(
                 match get_id_name(
                     id,
                     &context.function_context.calling_class,
+                    context.function_context.calling_class_final,
                     codebase,
                     &mut is_static,
                     statements_analyzer.get_file_analyzer().resolved_names,
@@ -264,8 +265,12 @@ fn analyse_known_class_constant(
         );
     }
 
-    let mut class_constant_type =
-        codebase.get_class_constant_type(&classlike_name, &const_name, FxHashSet::default());
+    let mut class_constant_type = codebase.get_class_constant_type(
+        &classlike_name,
+        is_this,
+        &const_name,
+        FxHashSet::default(),
+    );
 
     if let Some(ref mut class_constant_type) = class_constant_type {
         type_expander::expand_union(

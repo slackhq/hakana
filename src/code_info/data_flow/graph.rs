@@ -181,6 +181,10 @@ impl DataFlowGraph {
             let mut all_parent_nodes = vec![];
 
             for child_node in child_nodes {
+                if visited_child_ids.contains(child_node.get_id()) {
+                    continue;
+                }
+
                 visited_child_ids.insert(child_node.get_id().clone());
 
                 let mut new_parent_nodes = FxHashSet::default();

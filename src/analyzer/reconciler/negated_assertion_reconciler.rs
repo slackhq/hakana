@@ -487,6 +487,7 @@ fn handle_literal_negated_equality(
                                 if &const_inferred_value != assertion_value {
                                     if let Some(constant_type) = codebase.get_class_constant_type(
                                         &existing_name,
+                                        false,
                                         cname,
                                         FxHashSet::default(),
                                     ) {
@@ -524,6 +525,7 @@ fn handle_literal_negated_equality(
                                 if &const_inferred_value != assertion_value {
                                     if let Some(constant_type) = codebase.get_class_constant_type(
                                         &existing_name,
+                                        false,
                                         cname,
                                         FxHashSet::default(),
                                     ) {

@@ -95,6 +95,7 @@ pub(crate) fn analyze(
                     let classlike_name = if let Some(name) = get_id_name(
                         id,
                         &context.function_context.calling_class,
+                        context.function_context.calling_class_final,
                         codebase,
                         &mut is_static,
                         statements_analyzer.get_file_analyzer().resolved_names,

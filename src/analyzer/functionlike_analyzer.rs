@@ -235,6 +235,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             method_name.clone(),
         ));
         function_context.calling_class = Some(classlike_storage.name.clone());
+        function_context.calling_class_final = classlike_storage.is_final;
 
         let mut context = ScopeContext::new(function_context);
 

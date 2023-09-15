@@ -68,6 +68,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
 
         let mut function_context = FunctionContext::new();
         function_context.calling_class = Some(name.clone());
+        function_context.calling_class_final = stmt.final_;
 
         let mut class_context = ScopeContext::new(function_context);
 

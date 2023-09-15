@@ -806,9 +806,14 @@ fn analyze_function_pointer(
             let class_name = match &class_id.2 {
                 aast::ClassId_::CIexpr(inner_expr) => {
                     if let aast::Expr_::Id(id) = &inner_expr.2 {
-                        if let Some(name) =
-                            get_id_name(id, &calling_class, codebase, &mut false, resolved_names)
-                        {
+                        if let Some(name) = get_id_name(
+                            id,
+                            &calling_class,
+                            context.function_context.calling_class_final,
+                            codebase,
+                            &mut false,
+                            resolved_names,
+                        ) {
                             name
                         } else {
                             return Err(AnalysisError::InternalError(

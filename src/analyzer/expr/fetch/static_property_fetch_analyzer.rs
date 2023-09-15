@@ -40,6 +40,7 @@ pub(crate) fn analyze(
                 if let Some(id) = get_id_name(
                     id,
                     &context.function_context.calling_class,
+                    context.function_context.calling_class_final,
                     codebase,
                     &mut is_static,
                     statements_analyzer.get_file_analyzer().resolved_names,

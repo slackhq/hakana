@@ -1,6 +1,7 @@
 use crate::{
-    scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
-    statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError,
+    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
+    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
+    stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
     data_flow::{
@@ -84,7 +85,7 @@ pub(crate) fn analyze(
         }
     }
 
-   Ok(())
+    Ok(())
 }
 
 pub(crate) fn get_type_for_superglobal(
@@ -141,11 +142,17 @@ fn add_dataflow_to_variable(
 
     if data_flow_graph.kind == GraphKind::FunctionBody {
         if context.inside_general_use || context.inside_throw || context.inside_isset {
+            let pos = statements_analyzer.get_hpos(pos);
+
             let assignment_node = DataFlowNode {
-                id: lid.1 .1.to_string(),
-                kind: DataFlowNodeKind::VariableUseSink {
-                    pos: statements_analyzer.get_hpos(pos),
-                },
+                id: lid.1 .1.to_string()
+                    + "-"
+                    + &pos.file_path.0 .0.to_string()
+                    + ":"
+                    + &pos.start_offset.to_string()
+                    + "-"
+                    + &pos.end_offset.to_string(),
+                kind: DataFlowNodeKind::VariableUseSink { pos },
             };
 
             data_flow_graph.add_node(assignment_node.clone());

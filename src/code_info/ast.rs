@@ -5,6 +5,7 @@ use crate::{codebase_info::CodebaseInfo, Interner, StrId};
 pub fn get_id_name(
     id: &Box<oxidized::ast_defs::Id>,
     calling_class: &Option<StrId>,
+    calling_class_final: bool,
     codebase: &CodebaseInfo,
     is_static: &mut bool,
     resolved_names: &FxHashMap<usize, StrId>,
@@ -30,7 +31,10 @@ pub fn get_id_name(
             classlike_storage.direct_parent_class.clone().unwrap()
         }
         "static" => {
-            *is_static = true;
+            if !calling_class_final {
+                *is_static = true;
+            }
+
             let self_name = if let Some(calling_class) = calling_class {
                 calling_class
             } else {

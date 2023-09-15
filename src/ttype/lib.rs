@@ -315,7 +315,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
                         DictKey::Int(i) => TAtomic::TLiteralInt { value: *i as i64 },
                         DictKey::String(k) => TAtomic::TLiteralString { value: k.clone() },
                         DictKey::Enum(c, m) => codebase
-                            .get_class_constant_type(c, m, FxHashSet::default())
+                            .get_class_constant_type(c, false, m, FxHashSet::default())
                             .unwrap()
                             .get_single_owned(),
                     });

@@ -195,6 +195,7 @@ impl CodebaseInfo {
     pub fn get_class_constant_type(
         &self,
         fq_class_name: &StrId,
+        is_this: bool,
         const_name: &StrId,
         _visited_constant_ids: FxHashSet<String>,
     ) -> Option<TUnion> {
@@ -215,7 +216,8 @@ impl CodebaseInfo {
                         };
                     } else {
                         return if let Some(provided_type) = &constant_storage.provided_type {
-                            if provided_type.types.iter().all(|v| v.is_boring_scalar()) {
+                            if provided_type.types.iter().all(|v| v.is_boring_scalar()) && !is_this
+                            {
                                 if let Some(inferred_type) = &constant_storage.inferred_type {
                                     Some(inferred_type.clone())
                                 } else {
@@ -225,7 +227,11 @@ impl CodebaseInfo {
                                 Some(provided_type.clone())
                             }
                         } else if let Some(inferred_type) = &constant_storage.inferred_type {
-                            Some(inferred_type.clone())
+                            if !is_this {
+                                Some(inferred_type.clone())
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         };

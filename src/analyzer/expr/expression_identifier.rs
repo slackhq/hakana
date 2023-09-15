@@ -39,6 +39,7 @@ pub fn get_var_id(
                                 get_id_name(
                                     id,
                                     &this_class_name.cloned(),
+                                    false,
                                     codebase,
                                     &mut false,
                                     resolved_names,
@@ -132,6 +133,7 @@ pub(crate) fn get_dim_id(
                             let classlike_name = match get_id_name(
                                 id,
                                 &None,
+                                false,
                                 codebase,
                                 &mut is_static,
                                 resolved_names,
@@ -142,6 +144,7 @@ pub(crate) fn get_dim_id(
 
                             let constant_type = codebase.get_class_constant_type(
                                 &classlike_name,
+                                is_static,
                                 &interner.get(&boxed.1 .1).unwrap(),
                                 FxHashSet::default(),
                             );
