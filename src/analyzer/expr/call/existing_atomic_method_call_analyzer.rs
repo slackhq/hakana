@@ -9,9 +9,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_reflection_info::{
-    StrId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, STR_STATIC,
-};
+use hakana_reflection_info::{StrId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, STR_STATIC};
 use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
 use hakana_type::{
@@ -108,10 +106,14 @@ pub(crate) fn analyze(
     let class_template_params = if classlike_name_str != "HH\\Vector"
         || statements_analyzer.get_interner().lookup(method_name) != "fromItems"
     {
-        let declaring_classlike_storage = codebase
-            .classlike_infos
-            .get(&declaring_method_id.0)
-            .unwrap();
+        let declaring_classlike_storage =
+            if let Some(s) = codebase.classlike_infos.get(&declaring_method_id.0) {
+                s
+            } else {
+                return Err(AnalysisError::InternalError(
+                    "could not load storage for declaring method".to_string(),
+                ));
+            };
 
         class_template_param_collector::collect(
             codebase,
