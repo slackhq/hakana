@@ -946,6 +946,9 @@ fn intersect_enum_with_literal(
     type_2_atomic: &TAtomic,
 ) -> Option<TAtomic> {
     let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
+
+    let mut all_inferred = true;
+
     for (case_name, enum_case) in &enum_storage.constants {
         if let Some(inferred_type) = &enum_case.inferred_type {
             if inferred_type.get_single() == type_2_atomic {
@@ -955,7 +958,13 @@ fn intersect_enum_with_literal(
                     constraint_type: enum_storage.enum_constraint.clone(),
                 });
             }
+        } else {
+            all_inferred = false;
         }
+    }
+
+    if all_inferred {
+        return None;
     }
 
     Some(type_2_atomic.clone())
