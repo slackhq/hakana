@@ -4,6 +4,7 @@ use crate::{formula_generator::AssertionContext, function_analysis_data::Functio
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_reflection_info::symbol_references::ReferenceSource;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -287,7 +288,14 @@ fn get_is_assertions(
                             assertion_context.file_source.file_path,
                             None,
                         ),
-                        &None,
+                        &Some(match assertion_context.reference_source {
+                            ReferenceSource::Symbol(_, fn_id) => {
+                                FunctionLikeIdentifier::Function(fn_id)
+                            }
+                            ReferenceSource::ClasslikeMember(_, a, b) => {
+                                FunctionLikeIdentifier::Method(a, b)
+                            }
+                        }),
                     ),
                     assertion_context.config,
                     &assertion_context.file_source.file_path_actual,
@@ -314,7 +322,14 @@ fn get_is_assertions(
                             assertion_context.file_source.file_path,
                             None,
                         ),
-                        &None,
+                        &Some(match assertion_context.reference_source {
+                            ReferenceSource::Symbol(_, fn_id) => {
+                                FunctionLikeIdentifier::Function(fn_id)
+                            }
+                            ReferenceSource::ClasslikeMember(_, a, b) => {
+                                FunctionLikeIdentifier::Method(a, b)
+                            }
+                        }),
                     ),
                     assertion_context.config,
                     &assertion_context.file_source.file_path_actual,

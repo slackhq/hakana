@@ -186,6 +186,11 @@ pub fn init(
                         .help("The path to a list of symbols, separated by newlines"),
                 )
                 .arg(
+                    arg!(--"filter" <PATH>)
+                        .required(false)
+                        .help("Filter the files that are analyzed"),
+                )
+                .arg(
                     arg!(--"threads" <PATH>)
                         .required(false)
                         .help("How many threads to use"),
@@ -821,12 +826,14 @@ fn do_migrate(
         exit(1);
     }
 
+    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+
     let result =
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(hakana_workhorse::scan_and_analyze(
                 Vec::new(),
-                None,
+                filter,
                 None,
                 Arc::new(config),
                 None,

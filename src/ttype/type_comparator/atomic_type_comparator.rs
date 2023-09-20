@@ -48,7 +48,12 @@ pub fn is_contained_by(
 
     if container_type_part.is_mixed() || container_type_part.is_templated_as_mixed(&mut false) {
         if matches!(container_type_part, TAtomic::TMixedWithFlags(_, _, _, true))
-            && matches!(input_type_part, TAtomic::TNull { .. })
+            && matches!(
+                input_type_part,
+                TAtomic::TNull { .. }
+                    | TAtomic::TMixed
+                    | TAtomic::TMixedWithFlags(_, false, _, false)
+            )
         {
             return false;
         }
