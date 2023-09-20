@@ -1,7 +1,9 @@
 use super::expression_identifier::{get_dim_id, get_var_id};
 use crate::expr::expression_identifier::get_functionlike_id_from_call;
 use crate::{formula_generator::AssertionContext, function_analysis_data::FunctionAnalysisData};
+use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
+use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -11,6 +13,8 @@ use hakana_reflection_info::{
 };
 use hakana_reflection_info::{StrId, STR_ISSET, STR_SHAPES};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
+use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
+use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::{self, TypeExpansionOptions};
 use oxidized::{
     aast,
@@ -258,6 +262,64 @@ fn get_is_assertions(
                 scrape_shapes_isset(var_expr, assertion_context, &mut if_types, true);
             }
             _ => {}
+        }
+
+        if let (Some(lhs_type), Some((codebase, interner))) = (
+            analysis_data
+                .expr_types
+                .get(&(var_expr.1.start_offset(), var_expr.1.end_offset()))
+                .clone(),
+            assertion_context.codebase,
+        ) {
+            if !union_type_comparator::can_expression_types_be_identical(
+                codebase, lhs_type, &is_type, true,
+            ) {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::ImpossibleTypeComparison,
+                        format!(
+                            "Type {} is never {}",
+                            lhs_type.get_id(Some(interner)),
+                            is_type.get_id(Some(interner)),
+                        ),
+                        HPos::new(
+                            var_expr.pos(),
+                            assertion_context.file_source.file_path,
+                            None,
+                        ),
+                        &None,
+                    ),
+                    assertion_context.config,
+                    &assertion_context.file_source.file_path_actual,
+                );
+            } else if union_type_comparator::is_contained_by(
+                codebase,
+                &lhs_type,
+                &is_type,
+                false,
+                false,
+                true,
+                &mut TypeComparisonResult::new(),
+            ) {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::RedundantTypeComparison,
+                        format!(
+                            "Type {} is always {}",
+                            lhs_type.get_id(Some(interner)),
+                            is_type.get_id(Some(interner)),
+                        ),
+                        HPos::new(
+                            var_expr.pos(),
+                            assertion_context.file_source.file_path,
+                            None,
+                        ),
+                        &None,
+                    ),
+                    assertion_context.config,
+                    &assertion_context.file_source.file_path_actual,
+                );
+            }
         }
     }
 

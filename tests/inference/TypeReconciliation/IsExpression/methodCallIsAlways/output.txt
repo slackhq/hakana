@@ -1,0 +1,2 @@
+ERROR: RedundantTypeComparison - input.hack:8:9 - Type string is always string
+ERROR: RedundantTypeComparison - input.hack:12:11 - Type string is always string

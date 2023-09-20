@@ -113,6 +113,7 @@ impl<'a> StatementsAnalyzer<'a> {
                 },
                 None => ReferenceSource::Symbol(false, self.get_file_path().0),
             },
+            config: &self.file_analyzer.analysis_config,
         }
     }
 

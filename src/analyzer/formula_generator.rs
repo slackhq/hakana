@@ -14,6 +14,7 @@ use oxidized::{
     ast::{Bop, Uop},
 };
 
+use crate::config::Config;
 use crate::{expr::assertion_finder, function_analysis_data::FunctionAnalysisData};
 
 pub(crate) struct AssertionContext<'a> {
@@ -22,6 +23,7 @@ pub(crate) struct AssertionContext<'a> {
     pub codebase: Option<(&'a CodebaseInfo, &'a Interner)>,
     pub this_class_name: Option<&'a StrId>,
     pub type_resolution_context: &'a TypeResolutionContext,
+    pub config: &'a Config,
     pub reference_source: ReferenceSource,
 }
 

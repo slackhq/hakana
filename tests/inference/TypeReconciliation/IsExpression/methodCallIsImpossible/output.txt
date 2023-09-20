@@ -1,0 +1,2 @@
+ERROR: ImpossibleTypeComparison - input.hack:8:9 - Type string is never int
+ERROR: ImpossibleTypeComparison - input.hack:12:11 - Type string is never int
