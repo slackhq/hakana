@@ -1167,6 +1167,8 @@ fn report_unused_expressions(
 
                 match &kind {
                     VariableSourceKind::PrivateParam => {
+                        let pos = get_param_pos(functionlike_storage, label);
+
                         analysis_data.expr_fixme_positions.insert(
                             (pos.start_offset, pos.end_offset),
                             StmtStart {
@@ -1249,6 +1251,16 @@ fn report_unused_expressions(
             statements_analyzer,
         )
     }
+}
+
+fn get_param_pos(functionlike_storage: &FunctionLikeInfo, label: &String) -> HPos {
+    functionlike_storage
+        .params
+        .iter()
+        .filter(|p| &p.name == label)
+        .next()
+        .unwrap()
+        .location
 }
 
 fn handle_unused_assignment(
