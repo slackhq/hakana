@@ -137,7 +137,7 @@ pub(crate) fn analyze(
                                     rhs_type.get_id(Some(interner)),
                                 ),
                                 statements_analyzer.get_hpos(pos),
-                                &None,
+                                &context.function_context.calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
                             statements_analyzer.get_file_path_actual(),

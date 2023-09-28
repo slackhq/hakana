@@ -1002,7 +1002,11 @@ fn get_value_for_key(
                                     &codebase,
                                     interner,
                                     &fq_class_name,
-                                    &interner.get(&property_name).unwrap(),
+                                    &if let Some(property_name) = interner.get(&property_name) {
+                                        property_name
+                                    } else {
+                                        return None;
+                                    },
                                     analysis_data,
                                 );
 
