@@ -402,7 +402,11 @@ impl TestRunner {
         config.ast_diff = true;
         config.find_unused_definitions = true;
         let config = Arc::new(config);
-        let stub_dirs = vec![cwd.clone() + "/tests/stubs"];
+        let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
+
+        if dir.to_ascii_lowercase().contains("xhp") {
+            stub_dirs.push(cwd.clone() + "/third-party/xhp-lib/src");
+        }
 
         for folder in folders {
             copy_recursively(folder.clone(), workdir_base.clone()).unwrap();

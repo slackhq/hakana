@@ -430,6 +430,37 @@ pub(crate) fn scan(
 
     let uses_hash = get_uses_hash(all_uses.symbol_uses.get(&class_name).unwrap_or(&vec![]));
 
+    let mut signature_hash = xxhash_rust::xxh3::xxh3_64(
+        file_source.file_contents[storage.def_location.start_offset..signature_end].as_bytes(),
+    )
+    .wrapping_add(uses_hash);
+
+    for xhp_attribute in &classlike_node.xhp_attrs {
+        if let Some(r) = xhp_attribute.2 {
+            // required attributes are _essentially_ part of the
+            // XHP class's signature
+            if r.is_required() {
+                let attr_name_pos = xhp_attribute.1.id.pos();
+                let attribute_id = interner.intern(xhp_attribute.1.id.1.clone());
+
+                let attr_uses_hash = get_uses_hash(
+                    all_uses
+                        .symbol_member_uses
+                        .get(&(*class_name, attribute_id))
+                        .unwrap_or(&vec![]),
+                );
+
+                signature_hash = signature_hash
+                    .wrapping_add(xxhash_rust::xxh3::xxh3_64(
+                        file_source.file_contents
+                            [attr_name_pos.start_offset()..attr_name_pos.end_offset()]
+                            .as_bytes(),
+                    ))
+                    .wrapping_add(attr_uses_hash);
+            }
+        }
+    }
+
     let mut def_signature_node = DefSignatureNode {
         name: *class_name,
         start_offset: storage.def_location.start_offset,
@@ -437,10 +468,7 @@ pub(crate) fn scan(
         start_line: storage.def_location.start_line,
         end_line: storage.def_location.end_line,
         children: Vec::new(),
-        signature_hash: xxhash_rust::xxh3::xxh3_64(
-            file_source.file_contents[storage.def_location.start_offset..signature_end].as_bytes(),
-        )
-        .wrapping_add(uses_hash),
+        signature_hash: signature_hash,
         body_hash: None,
         is_function: false,
         is_constant: false,
@@ -575,7 +603,9 @@ pub(crate) fn scan(
             resolved_names,
             &mut storage,
             &file_source,
+            &mut def_signature_node.children,
             interner,
+            all_uses,
         );
     }
 
@@ -639,7 +669,9 @@ fn visit_xhp_attribute(
     resolved_names: &FxHashMap<usize, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
+    def_child_signature_nodes: &mut Vec<DefSignatureNode>,
     interner: &mut ThreadedInterner,
+    all_uses: &Uses,
 ) {
     let mut attribute_type_location = None;
     let mut attribute_type = if let Some(hint) = &xhp_attribute.0 .1 {
@@ -682,23 +714,46 @@ fn visit_xhp_attribute(
             oxidized::tast::XhpAttrTag::Required => {
                 stmt_pos.end_offset += 10;
                 stmt_pos.end_column += 10;
-            },
+            }
             oxidized::tast::XhpAttrTag::LateInit => {
                 stmt_pos.end_offset += 11;
                 stmt_pos.end_column += 11;
-            },
+            }
         }
     }
+
+    let attribute_id = interner.intern(xhp_attribute.1.id.1.clone());
+
+    let uses_hash = get_uses_hash(
+        all_uses
+            .symbol_member_uses
+            .get(&(classlike_storage.name, attribute_id))
+            .unwrap_or(&vec![]),
+    );
+
+    def_child_signature_nodes.push(DefSignatureNode {
+        name: attribute_id,
+        start_offset: stmt_pos.start_offset,
+        end_offset: stmt_pos.end_offset,
+        start_line: stmt_pos.start_line,
+        end_line: stmt_pos.end_line,
+        signature_hash: xxhash_rust::xxh3::xxh3_64(
+            file_source.file_contents[stmt_pos.start_offset..stmt_pos.end_offset].as_bytes(),
+        )
+        .wrapping_add(uses_hash),
+        body_hash: None,
+        children: vec![],
+        is_function: false,
+        is_constant: false,
+    });
+
+    let name_pos = HPos::new(xhp_attribute.1.id.pos(), file_source.file_path, None);
 
     let property_storage = PropertyInfo {
         is_static: false,
         visibility: MemberVisibility::Protected,
         kind: PropertyKind::XhpAttribute { is_required },
-        pos: Some(HPos::new(
-            xhp_attribute.1.id.pos(),
-            file_source.file_path,
-            None,
-        )),
+        pos: Some(name_pos),
         stmt_pos: Some(stmt_pos),
         type_pos: attribute_type_location,
         type_: attribute_type,
@@ -708,8 +763,6 @@ fn visit_xhp_attribute(
         is_internal: false,
         suppressed_issues: None,
     };
-
-    let attribute_id = interner.intern(xhp_attribute.1.id.1.clone());
 
     classlike_storage
         .declaring_property_ids
