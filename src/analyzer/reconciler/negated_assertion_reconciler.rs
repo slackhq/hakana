@@ -475,7 +475,12 @@ fn handle_literal_negated_equality(
                     value: assertion_value,
                     ..
                 } => {
-                    let enum_storage = codebase.classlike_infos.get(&existing_name).unwrap();
+                    let enum_storage = if let Some(s) = codebase.classlike_infos.get(&existing_name)
+                    {
+                        s
+                    } else {
+                        return get_nothing();
+                    };
                     let mut matched_string = false;
 
                     let mut member_enum_literals = vec![];
