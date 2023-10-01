@@ -112,6 +112,7 @@ pub(crate) fn analyze(
             } else {
                 return Err(AnalysisError::InternalError(
                     "could not load storage for declaring method".to_string(),
+                    statements_analyzer.get_hpos(pos),
                 ));
             };
 

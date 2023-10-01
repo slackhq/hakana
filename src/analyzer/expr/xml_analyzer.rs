@@ -50,6 +50,7 @@ pub(crate) fn analyze(
     } else {
         return Err(AnalysisError::InternalError(
             "could not resolve XML name".to_string(),
+            statements_analyzer.get_hpos(pos),
         ));
     };
 
@@ -70,6 +71,7 @@ pub(crate) fn analyze(
         match attribute {
             aast::XhpAttribute::XhpSimple(xhp_simple) => {
                 let attribute_name = get_attribute_name(
+                    statements_analyzer,
                     xhp_simple,
                     resolved_names,
                     analysis_data,
@@ -426,6 +428,7 @@ fn add_all_dataflow(
 }
 
 fn get_attribute_name(
+    statements_analyzer: &StatementsAnalyzer,
     attribute_info: &oxidized::tast::XhpSimple<(), ()>,
     resolved_names: &FxHashMap<usize, StrId>,
     analysis_data: &mut FunctionAnalysisData,
@@ -444,6 +447,7 @@ fn get_attribute_name(
         } else {
             return Err(AnalysisError::InternalError(
                 "could not resolve XML name".to_string(),
+                statements_analyzer.get_hpos(&attribute_info.name.0),
             ));
         };
 

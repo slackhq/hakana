@@ -105,6 +105,7 @@ pub(crate) fn analyze(
                         return Err(AnalysisError::InternalError(
                             "Could not resolve class name for static property assignment"
                                 .to_string(),
+                            statements_analyzer.get_hpos(&id.0),
                         ));
                     };
 

@@ -33,6 +33,7 @@ pub fn populate_codebase(
     for k in &new_classlike_names {
         if let Some(classlike_info) = codebase.classlike_infos.get_mut(k) {
             classlike_info.is_populated = false;
+            classlike_info.declaring_property_ids = FxHashMap::default();
         }
     }
 
@@ -57,7 +58,7 @@ pub fn populate_codebase(
     }
 
     for (name, storage) in codebase.classlike_infos.iter_mut() {
-        let userland_force_repopulation = storage.user_defined && safe_symbols.contains(name);
+        let userland_force_repopulation = storage.user_defined && !safe_symbols.contains(name);
 
         for (method_name, v) in storage.methods.iter_mut() {
             populate_functionlike_storage(
@@ -346,6 +347,15 @@ fn populate_classlike_storage(
 
     for attribute_info in &storage.attributes {
         symbol_references.add_symbol_reference_to_symbol(storage.name, attribute_info.name, true);
+    }
+
+    for (property_id, _) in &storage.properties {
+        storage
+            .declaring_property_ids
+            .insert(*property_id, *classlike_name);
+        storage
+            .appearing_property_ids
+            .insert(*property_id, *classlike_name);
     }
 
     for (_, param_types) in storage.template_extended_offsets.iter_mut() {

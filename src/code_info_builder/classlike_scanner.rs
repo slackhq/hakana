@@ -765,12 +765,6 @@ fn visit_xhp_attribute(
     };
 
     classlike_storage
-        .declaring_property_ids
-        .insert(attribute_id, classlike_storage.name.clone());
-    classlike_storage
-        .appearing_property_ids
-        .insert(attribute_id, classlike_storage.name.clone());
-    classlike_storage
         .inheritable_property_ids
         .insert(attribute_id, classlike_storage.name.clone());
     classlike_storage
@@ -1024,14 +1018,6 @@ fn visit_property_declaration(
         is_internal: matches!(property_node.visibility, ast_defs::Visibility::Internal),
         suppressed_issues: None,
     };
-
-    classlike_storage
-        .declaring_property_ids
-        .insert(property_ref_id, classlike_storage.name.clone());
-
-    classlike_storage
-        .appearing_property_ids
-        .insert(property_ref_id, classlike_storage.name.clone());
 
     if !matches!(property_node.visibility, ast_defs::Visibility::Private) {
         classlike_storage

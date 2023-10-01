@@ -28,8 +28,8 @@ pub(crate) fn analyze(
             let file_analyzer = scope_analyzer.get_file_analyzer();
             let mut function_analyzer = FunctionLikeAnalyzer::new(file_analyzer);
             match function_analyzer.analyze_fun(def.as_fun().unwrap(), analysis_result) {
-                Err(AnalysisError::InternalError(error)) => {
-                    return Err(InternalError(error));
+                Err(AnalysisError::InternalError(error, pos)) => {
+                    return Err(InternalError(error, pos));
                 }
                 _ => {}
             }
@@ -38,8 +38,8 @@ pub(crate) fn analyze(
             let file_analyzer = scope_analyzer.get_file_analyzer();
             let mut class_analyzer = ClassLikeAnalyzer::new(file_analyzer);
             match class_analyzer.analyze(&boxed, statements_analyzer, analysis_result) {
-                Err(AnalysisError::InternalError(error)) => {
-                    return Err(InternalError(error));
+                Err(AnalysisError::InternalError(error, pos)) => {
+                    return Err(InternalError(error, pos));
                 }
                 _ => {}
             }
@@ -55,8 +55,8 @@ pub(crate) fn analyze(
                 context,
                 loop_scope,
             ) {
-                Err(AnalysisError::InternalError(error)) => {
-                    return Err(InternalError(error));
+                Err(AnalysisError::InternalError(error, pos)) => {
+                    return Err(InternalError(error, pos));
                 }
                 _ => {}
             }
@@ -71,7 +71,10 @@ pub(crate) fn analyze(
                 {
                     *resolved_name
                 } else {
-                    return Err(InternalError("Could not resolve constant name".to_string()));
+                    return Err(InternalError(
+                        "Could not resolve constant name".to_string(),
+                        statements_analyzer.get_hpos(boxed.name.pos()),
+                    ));
                 },
             );
 
@@ -84,8 +87,8 @@ pub(crate) fn analyze(
                 &mut context,
                 &mut None,
             ) {
-                Err(AnalysisError::InternalError(error)) => {
-                    return Err(InternalError(error));
+                Err(AnalysisError::InternalError(error, pos)) => {
+                    return Err(InternalError(error, pos));
                 }
                 _ => {}
             }

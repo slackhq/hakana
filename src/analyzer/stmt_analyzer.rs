@@ -1,4 +1,4 @@
-use hakana_reflection_info::code_location::StmtStart;
+use hakana_reflection_info::code_location::{HPos, StmtStart};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::{EFFECT_PURE, STR_AWAITABLE, STR_CONSTRUCT};
 use hakana_type::get_arrayish_params;
@@ -24,7 +24,7 @@ use oxidized::{aast, ast_defs};
 
 pub enum AnalysisError {
     UserError,
-    InternalError(String),
+    InternalError(String, HPos),
 }
 
 pub(crate) fn analyze(

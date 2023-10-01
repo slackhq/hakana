@@ -60,6 +60,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve function name".to_string(),
+                HPos::new(
+                    stmt.name.pos(),
+                    self.file_analyzer.get_file_source().file_path,
+                    None,
+                ),
             ));
         };
 
@@ -75,6 +80,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 return Err(AnalysisError::InternalError(
                     "Cannot load function storage".to_string(),
+                    HPos::new(
+                        stmt.name.pos(),
+                        self.file_analyzer.get_file_source().file_path,
+                        None,
+                    ),
                 ));
             };
 
@@ -127,10 +137,14 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             match get_closure_storage(&self.file_analyzer, stmt.span.start_offset()) {
                 None => {
-                    return Err(AnalysisError::InternalError(format!(
-                        "Cannot get closure storage at {}",
-                        stmt.span.start_offset()
-                    )));
+                    return Err(AnalysisError::InternalError(
+                        "Cannot get closure storage".to_string(),
+                        HPos::new(
+                            &stmt.span,
+                            self.file_analyzer.get_file_source().file_path,
+                            None,
+                        ),
+                    ));
                 }
                 Some(value) => value,
             }
@@ -189,6 +203,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve method name".to_string(),
+                HPos::new(
+                    &stmt.name.0,
+                    self.file_analyzer.get_file_source().file_path,
+                    None,
+                ),
             ));
         };
 
@@ -209,6 +228,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 return Err(AnalysisError::InternalError(
                     "Cannot resolve function storage".to_string(),
+                    HPos::new(
+                        &stmt.name.0,
+                        self.file_analyzer.get_file_source().file_path,
+                        None,
+                    ),
                 ));
             };
 
@@ -319,7 +343,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 s
             } else {
                 return Err(InternalError(
-                    "Could not load property class storage".to_string(),
+                    format!(
+                        "Could not load property class storage for {}",
+                        interner.lookup(declaring_class)
+                    ),
+                    classlike_storage.name_location,
                 ));
             };
 
@@ -328,7 +356,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     s
                 } else {
                     return Err(InternalError(
-                        "Could not load property class storage".to_string(),
+                        format!(
+                            "Could not load property class storage for property {}",
+                            interner.lookup(property_name)
+                        ),
+                        classlike_storage.name_location,
                     ));
                 };
 
@@ -440,8 +472,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &mut context,
             statements_analyzer,
         ) {
-            Err(AnalysisError::InternalError(error)) => {
-                return Err(AnalysisError::InternalError(error));
+            Err(AnalysisError::InternalError(error, pos)) => {
+                return Err(AnalysisError::InternalError(error, pos));
             }
             _ => {
                 if let Some(calling_class) = &context.function_context.calling_class {
@@ -457,7 +489,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             functionlike_storage,
                             &mut context,
                         ) {
-                            return Err(AnalysisError::InternalError(error.0));
+                            return Err(AnalysisError::InternalError(error.0, error.1));
                         }
                     }
                 }
@@ -473,8 +505,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     Ok(_) => {
                         completed_analysis = true;
                     }
-                    Err(AnalysisError::InternalError(error)) => {
-                        return Err(AnalysisError::InternalError(error))
+                    Err(AnalysisError::InternalError(error, pos)) => {
+                        return Err(AnalysisError::InternalError(error, pos))
                     }
                     _ => {}
                 };
@@ -972,6 +1004,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 return Err(AnalysisError::InternalError(
                     "Param cannot be found".to_string(),
+                    param.location,
                 ));
             };
 

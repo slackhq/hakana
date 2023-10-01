@@ -796,6 +796,7 @@ fn analyze_function_pointer(
             } else {
                 return Err(AnalysisError::InternalError(
                     "Cannot resolve name for function pointer".to_string(),
+                    statements_analyzer.get_hpos(&id.0),
                 ));
             }
         }),
@@ -818,6 +819,7 @@ fn analyze_function_pointer(
                         } else {
                             return Err(AnalysisError::InternalError(
                                 "Cannot resolve function pointer class constant".to_string(),
+                                statements_analyzer.get_hpos(&id.0),
                             ));
                         }
                     } else {

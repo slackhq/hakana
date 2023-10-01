@@ -49,6 +49,7 @@ pub(crate) fn analyze(
                 } else {
                     return Err(AnalysisError::InternalError(
                         "Unable to resolve static classlike name".to_string(),
+                        statements_analyzer.get_hpos(pos),
                     ));
                 }
             } else {

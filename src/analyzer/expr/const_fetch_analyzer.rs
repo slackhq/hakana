@@ -27,7 +27,10 @@ pub(crate) fn analyze(
     {
         name
     } else {
-        return Err(AnalysisError::InternalError("unable to resolve const name".to_string()));
+        return Err(AnalysisError::InternalError(
+            "unable to resolve const name".to_string(),
+            statements_analyzer.get_hpos(boxed.pos()),
+        ));
     };
 
     let mut stmt_type = if let Some(constant_storage) = codebase.constant_infos.get(name) {

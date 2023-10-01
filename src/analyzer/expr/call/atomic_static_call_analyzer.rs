@@ -10,7 +10,8 @@ use oxidized::{
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer, stmt_analyzer::AnalysisError,
+    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
+    stmt_analyzer::AnalysisError,
 };
 
 use super::{
@@ -110,7 +111,10 @@ pub(crate) fn analyze(
                     classlike_name
                 } else {
                     // todo emit issue
-                    return Err(AnalysisError::InternalError("no classlike name".to_string()));
+                    return Err(AnalysisError::InternalError(
+                        "no classlike name".to_string(),
+                        statements_analyzer.get_hpos(pos),
+                    ));
                 }
             }
             _ => {

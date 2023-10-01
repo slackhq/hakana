@@ -3,8 +3,8 @@ use crate::scope_context::{
 };
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
-    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
+    statements_analyzer::StatementsAnalyzer,
 };
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_type::{combine_union_types, get_named_object};
@@ -152,11 +152,15 @@ pub(crate) fn analyze(
             }
         }
 
-        let catch_classlike_name = if let Some(name) = resolved_names.get(&catch.0 .0.start_offset()) {
-            name
-        } else {
-            return Err(AnalysisError::InternalError("Could not resolve catch classlike name".to_string()));
-        };
+        let catch_classlike_name =
+            if let Some(name) = resolved_names.get(&catch.0 .0.start_offset()) {
+                name
+            } else {
+                return Err(AnalysisError::InternalError(
+                    "Could not resolve catch classlike name".to_string(),
+                    statements_analyzer.get_hpos(&catch.0 .0),
+                ));
+            };
 
         // discard all clauses because crazy stuff may have happened in try block
         catch_context.clauses = vec![];
@@ -356,5 +360,5 @@ pub(crate) fn analyze(
     let body_has_returned = !try_block_control_actions.contains(&ControlAction::None);
     context.has_returned = (body_has_returned && all_catches_leave) || finally_has_returned;
 
-   Ok(())
+    Ok(())
 }

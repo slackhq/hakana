@@ -94,6 +94,7 @@ pub(crate) fn analyze(
                             } else {
                                 return Err(AnalysisError::InternalError(
                                     "Unable to resolve new constructor class name".to_string(),
+                                    statements_analyzer.get_hpos(pos),
                                 ));
                             };
 

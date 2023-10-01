@@ -98,23 +98,21 @@ pub async fn analyze_files(
             } else {
                 new_analysis_result.emitted_issues.insert(
                     file_path,
-                    vec![
-                        Issue::new(
-                            IssueKind::InvalidHackFile,
-                            "Invalid Hack file".to_string(),
-                            HPos {
-                                file_path,
-                                start_offset: 1,
-                                end_offset: 1,
-                                start_line: 1,
-                                end_line: 1,
-                                start_column: 1,
-                                end_column: 1,
-                                insertion_start: None,
-                            },
-                            &None,
-                        )
-                    ],
+                    vec![Issue::new(
+                        IssueKind::InvalidHackFile,
+                        "Invalid Hack file".to_string(),
+                        HPos {
+                            file_path,
+                            start_offset: 1,
+                            end_offset: 1,
+                            start_line: 1,
+                            end_line: 1,
+                            start_column: 1,
+                            end_column: 1,
+                            insertion_start: None,
+                        },
+                        &None,
+                    )],
                 );
             }
 
@@ -289,21 +287,7 @@ fn analyze_loaded_ast(
         Err(err) => {
             analysis_result.emitted_issues.insert(
                 file_path,
-                vec![Issue::new(
-                    IssueKind::InternalError,
-                    err.0,
-                    HPos {
-                        file_path,
-                        start_offset: 1,
-                        end_offset: 1,
-                        start_line: 1,
-                        end_line: 1,
-                        start_column: 1,
-                        end_column: 1,
-                        insertion_start: None,
-                    },
-                    &None,
-                )],
+                vec![Issue::new(IssueKind::InternalError, err.0, err.1, &None)],
             );
         }
     };

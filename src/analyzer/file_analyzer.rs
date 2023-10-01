@@ -1,11 +1,12 @@
 use crate::config::Config;
 use crate::def_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::update_analysis_result_with_tast;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::function_context::FunctionContext;
@@ -14,7 +15,7 @@ use hakana_reflection_info::{FileSource, Interner, StrId};
 use oxidized::aast;
 use rustc_hash::FxHashMap;
 
-pub struct InternalError(pub String);
+pub struct InternalError(pub String, pub HPos);
 
 #[derive(Clone)]
 pub struct FileAnalyzer<'a> {

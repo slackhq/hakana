@@ -106,6 +106,7 @@ pub(crate) fn analyze(
     } else {
         return Err(AnalysisError::InternalError(
             "Cannot resolve function name".to_string(),
+            statements_analyzer.get_hpos(pos),
         ));
     };
 
