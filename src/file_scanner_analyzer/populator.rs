@@ -34,6 +34,9 @@ pub fn populate_codebase(
         if let Some(classlike_info) = codebase.classlike_infos.get_mut(k) {
             classlike_info.is_populated = false;
             classlike_info.declaring_property_ids = FxHashMap::default();
+            classlike_info.appearing_property_ids = FxHashMap::default();
+            classlike_info.declaring_method_ids = FxHashMap::default();
+            classlike_info.appearing_method_ids = FxHashMap::default();
         }
     }
 
@@ -350,6 +353,15 @@ fn populate_classlike_storage(
         storage
             .appearing_property_ids
             .insert(*property_id, *classlike_name);
+    }
+
+    for method_name in &storage.methods {
+        storage
+            .declaring_method_ids
+            .insert(*method_name, *classlike_name);
+        storage
+            .appearing_method_ids
+            .insert(*method_name, *classlike_name);
     }
 
     for (_, param_types) in storage.template_extended_offsets.iter_mut() {

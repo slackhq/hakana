@@ -1,0 +1,1 @@
+ERROR: NonExistentMethod - input.hack:3:9 - Method B::foo does not exist

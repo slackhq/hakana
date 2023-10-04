@@ -103,13 +103,6 @@ pub(crate) fn scan_method(
         ast_defs::Visibility::Protected => MemberVisibility::Protected,
     };
 
-    classlike_storage
-        .appearing_method_ids
-        .insert(method_name.clone(), classlike_name.clone());
-    classlike_storage
-        .declaring_method_ids
-        .insert(method_name.clone(), classlike_name.clone());
-
     if !matches!(m.visibility, ast_defs::Visibility::Private)
         || method_name != STR_CONSTRUCT
         || matches!(classlike_storage.kind, SymbolKind::Trait)
