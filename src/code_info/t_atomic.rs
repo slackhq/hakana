@@ -61,7 +61,7 @@ pub enum TAtomic {
     TFloat,
     TClosure {
         params: Vec<FnParameter>,
-        return_type: Option<TUnion>,
+        return_type: Option<Box<TUnion>>,
         effects: Option<u8>,
         closure_id: StrId,
     },
@@ -70,7 +70,7 @@ pub enum TAtomic {
     },
     TInt,
     TKeyset {
-        type_param: TUnion,
+        type_param: Box<TUnion>,
     },
     TLiteralClassname {
         name: StrId,
@@ -116,7 +116,7 @@ pub enum TAtomic {
     TStringWithFlags(bool, bool, bool),
     TGenericParam {
         param_name: StrId,
-        as_type: TUnion,
+        as_type: Box<TUnion>,
         defining_entity: StrId,
         from_class: bool,
         extra_types: Option<Vec<TAtomic>>,
@@ -138,7 +138,7 @@ pub enum TAtomic {
     TTypeAlias {
         name: StrId,
         type_params: Option<Vec<TUnion>>,
-        as_type: Option<TUnion>,
+        as_type: Option<Box<TUnion>>,
     },
     TTypename {
         as_type: Box<self::TAtomic>,
@@ -998,7 +998,7 @@ impl TAtomic {
         } = self
         {
             return TAtomic::TGenericParam {
-                as_type: new_as_type,
+                as_type: Box::new(new_as_type),
                 param_name: param_name.clone(),
                 defining_entity: defining_entity.clone(),
                 extra_types: extra_types.clone(),
@@ -1315,7 +1315,8 @@ impl TAtomic {
             }
             TAtomic::TKeyset { ref mut type_param } => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
-                    *type_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
+                    *type_param =
+                        Box::new(TUnion::new(vec![TAtomic::TArraykey { from_any: true }]));
                 }
             }
             TAtomic::TNamedObject {

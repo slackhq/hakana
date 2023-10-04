@@ -250,7 +250,7 @@ pub fn is_contained_by(
                         codebase,
                         input_type_part,
                         &TAtomic::TKeyset {
-                            type_param: arrayish_params.0,
+                            type_param: Box::new(arrayish_params.0),
                         },
                         inside_assertion,
                         atomic_comparison_result,

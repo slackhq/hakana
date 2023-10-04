@@ -126,7 +126,7 @@ fn get_unpacked_type(
             ),
             TAtomic::TKeyset { type_param } => {
                 has_valid_expected_offset = true;
-                type_param
+                (*type_param).clone()
             }
             TAtomic::TMixedWithFlags(true, ..) => {
                 for origin in &arg_value_type.parent_nodes {

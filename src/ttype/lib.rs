@@ -149,7 +149,9 @@ pub fn get_dict(key_param: TUnion, value_param: TUnion) -> TUnion {
 }
 
 pub fn get_keyset(type_param: TUnion) -> TUnion {
-    wrap_atomic(TAtomic::TKeyset { type_param })
+    wrap_atomic(TAtomic::TKeyset {
+        type_param: Box::new(type_param),
+    })
 }
 
 pub fn get_mixed_vec() -> TUnion {
@@ -354,7 +356,9 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
 
             Some((key_param, type_param))
         }
-        TAtomic::TKeyset { type_param, .. } => Some((type_param.clone(), type_param.clone())),
+        TAtomic::TKeyset { type_param, .. } => {
+            Some(((**type_param).clone(), (**type_param).clone()))
+        }
         TAtomic::TNamedObject {
             name,
             type_params: Some(type_params),

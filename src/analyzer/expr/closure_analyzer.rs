@@ -85,13 +85,19 @@ pub(crate) fn analyze(
             .params
             .into_iter()
             .map(|param| FnParameter {
-                signature_type: param.signature_type,
+                signature_type: match param.signature_type {
+                    Some(t) => Some(Box::new(t)),
+                    None => None,
+                },
                 is_inout: param.is_inout,
                 is_variadic: param.is_variadic,
                 is_optional: param.is_optional,
             })
             .collect(),
-        return_type: lambda_storage.return_type,
+        return_type: match lambda_storage.return_type {
+            Some(t) => Some(Box::new(t)),
+            None => None,
+        },
         effects: lambda_storage.effects.to_u8(),
         closure_id: statements_analyzer.get_interner().get(&closure_id).unwrap(),
     });

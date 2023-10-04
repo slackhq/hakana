@@ -68,13 +68,19 @@ pub(crate) fn analyze(
                         HPos::new(expr.func.pos(), *statements_analyzer.get_file_path(), None),
                         HPos::new(expr.func.pos(), *statements_analyzer.get_file_path(), None),
                     );
-                    param.signature_type = fn_param.signature_type.clone();
+                    param.signature_type = match &fn_param.signature_type {
+                        Some(t) => Some((**t).clone()),
+                        None => None,
+                    };
                     param.is_inout = fn_param.is_inout;
                     param.is_variadic = fn_param.is_variadic;
                     param
                 })
                 .collect();
-            lambda_storage.return_type = closure_return_type.clone();
+            lambda_storage.return_type = match closure_return_type.clone() {
+                Some(t) => Some((*t).clone()),
+                None => None,
+            };
             lambda_storage.effects = FnEffect::from_u8(effects);
 
             let functionlike_id = FunctionLikeIdentifier::Function(*closure_id);
@@ -98,7 +104,10 @@ pub(crate) fn analyze(
 
             stmt_type = Some(hakana_type::combine_optional_union_types(
                 stmt_type.as_ref(),
-                closure_return_type.as_ref(),
+                match closure_return_type {
+                    Some(t) => Some(&t),
+                    None => None,
+                },
                 codebase,
             ));
         }

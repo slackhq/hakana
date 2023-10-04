@@ -120,7 +120,7 @@ pub fn combine(
 
     if let Some(keyset_type_param) = combination.keyset_type_param {
         new_types.push(TAtomic::TKeyset {
-            type_param: keyset_type_param,
+            type_param: Box::new(keyset_type_param),
         });
     }
 
@@ -524,7 +524,7 @@ fn scrape_type_properties(
                     overwrite_empty_array,
                 ))
             } else {
-                Some(type_param.clone())
+                Some((**type_param).clone())
             };
 
         return;

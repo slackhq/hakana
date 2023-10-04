@@ -288,7 +288,7 @@ fn replace_atomic(
         TAtomic::TKeyset {
             ref mut type_param, ..
         } => {
-            *type_param = replace(&type_param, template_result, codebase);
+            *type_param = Box::new(replace(&type_param, template_result, codebase));
         }
         TAtomic::TNamedObject {
             type_params: Some(ref mut type_params),
@@ -305,12 +305,12 @@ fn replace_atomic(
         } => {
             for param in params {
                 if let Some(ref mut t) = param.signature_type {
-                    *t = replace(&t, template_result, codebase);
+                    *t = Box::new(replace(&t, template_result, codebase));
                 }
             }
 
             if let Some(ref mut return_type) = return_type {
-                *return_type = replace(&return_type, template_result, codebase);
+                *return_type = Box::new(replace(&return_type, template_result, codebase));
             }
         }
         TAtomic::TTypeAlias {

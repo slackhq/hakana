@@ -149,7 +149,7 @@ pub(crate) fn analyze(
                     &mut template_result,
                     statements_analyzer.get_codebase(),
                     &Some(statements_analyzer.get_interner()),
-                    &Some(template_type.clone()),
+                    &Some(template_type),
                     None,
                     None,
                     context.function_context.calling_functionlike_id.as_ref(),

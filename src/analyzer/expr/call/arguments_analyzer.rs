@@ -525,7 +525,7 @@ fn adjust_param_type(
                 template_result,
                 statements_analyzer.get_codebase(),
                 &Some(statements_analyzer.get_interner()),
-                &Some(arg_value_type),
+                &Some(&arg_value_type),
                 Some(argument_offset),
                 if let Some(calling_class) = &context.function_context.calling_class {
                     if !context.function_context.is_static {
@@ -575,10 +575,10 @@ fn adjust_param_type(
                         if let Some(upper_bound) = bounds_by_param.get(&defining_entity) {
                             upper_bound.bound_type.clone()
                         } else {
-                            as_type.clone()
+                            (*as_type).clone()
                         }
                     } else {
-                        as_type.clone()
+                        (*as_type).clone()
                     };
 
                     template_result
@@ -834,7 +834,7 @@ fn map_class_generic_params(
         &mut readonly_template_result,
         codebase,
         &Some(interner),
-        &Some(arg_value_type.clone()),
+        &Some(arg_value_type),
         Some(argument_offset),
         context.function_context.calling_class.as_ref(),
         context.function_context.calling_functionlike_id.as_ref(),
@@ -850,7 +850,7 @@ fn map_class_generic_params(
             template_result,
             codebase,
             &Some(interner),
-            &Some(arg_value_type.clone()),
+            &Some(arg_value_type),
             Some(argument_offset),
             context.function_context.calling_class.as_ref(),
             context.function_context.calling_functionlike_id.as_ref(),
@@ -957,7 +957,7 @@ fn handle_possibly_matching_inout_param(
             codebase,
             &Some(statements_analyzer.get_interner()),
             &if let Some(arg_type) = &arg_type {
-                Some(arg_type.clone())
+                Some(arg_type)
             } else {
                 None
             },

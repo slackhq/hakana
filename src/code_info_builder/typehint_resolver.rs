@@ -75,8 +75,9 @@ fn get_keyset_type_from_hint(
     resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     TAtomic::TKeyset {
-        type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
-            .unwrap(),
+        type_param: Box::new(
+            get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names).unwrap(),
+        ),
     }
 }
 
@@ -245,12 +246,15 @@ fn get_function_type_from_hints(
                 } else {
                     false
                 },
-                signature_type: get_type_from_hint(
+                signature_type: match get_type_from_hint(
                     &param_type.1,
                     classlike_name,
                     type_context,
                     resolved_names,
-                ),
+                ) {
+                    Some(t) => Some(Box::new(t)),
+                    None => None,
+                },
                 is_variadic: false,
                 is_optional: false,
             }
@@ -260,12 +264,15 @@ fn get_function_type_from_hints(
     if let Some(variadic_type) = &function_info.variadic_ty {
         let param = FnParameter {
             is_inout: false,
-            signature_type: get_type_from_hint(
+            signature_type: match get_type_from_hint(
                 &variadic_type.1,
                 classlike_name,
                 type_context,
                 resolved_names,
-            ),
+            ) {
+                Some(t) => Some(Box::new(t)),
+                None => None,
+            },
             is_variadic: true,
             is_optional: false,
         };
@@ -275,12 +282,15 @@ fn get_function_type_from_hints(
 
     TAtomic::TClosure {
         params,
-        return_type: get_type_from_hint(
+        return_type: match get_type_from_hint(
             &function_info.return_ty.1,
             classlike_name,
             type_context,
             resolved_names,
-        ),
+        ) {
+            Some(t) => Some(Box::new(t)),
+            None => None,
+        },
         effects: if let Some(contexts) = &function_info.ctxs {
             Some(if contexts.1.len() == 0 {
                 EFFECT_PURE
@@ -387,7 +397,7 @@ fn get_template_type(
 
     return TAtomic::TGenericParam {
         param_name: type_name.clone(),
-        as_type: (**as_type).clone(),
+        as_type: Box::new((**as_type).clone()),
         defining_entity: *defining_entity,
         from_class: false,
         extra_types: None,
@@ -455,7 +465,7 @@ pub fn get_type_from_hint(
                         )
                     } else {
                         TAtomic::TKeyset {
-                            type_param: get_mixed_any(),
+                            type_param: Box::new(get_mixed_any()),
                         }
                     }
                 }

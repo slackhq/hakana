@@ -463,7 +463,7 @@ fn expand_atomic(
                     data_flow_graph,
                 );
 
-                *as_type = Some(definition_as_type);
+                *as_type = Some(Box::new(definition_as_type));
             }
         }
 
@@ -611,7 +611,7 @@ fn get_expanded_closure(
                         },
                         data_flow_graph,
                     );
-                    Some(t)
+                    Some(Box::new(t))
                 } else {
                     None
                 },
@@ -631,7 +631,7 @@ fn get_expanded_closure(
                 },
                 data_flow_graph,
             );
-            Some(return_type)
+            Some(Box::new(return_type))
         } else {
             None
         },

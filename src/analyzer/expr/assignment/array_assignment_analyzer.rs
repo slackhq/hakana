@@ -260,12 +260,12 @@ fn update_atomic_given_key(
                 } => {
                     *has_matching_item = true;
 
-                    *type_param = combine_union_types(
+                    *type_param = Box::new(combine_union_types(
                         type_param,
                         &wrap_atomic(key_value.clone()),
                         codebase,
                         true,
-                    );
+                    ));
                 }
                 TAtomic::TDict {
                     ref mut known_items,
@@ -330,12 +330,12 @@ fn update_atomic_given_key(
             TAtomic::TKeyset {
                 ref mut type_param, ..
             } => {
-                *type_param = hakana_type::add_union_type(
+                *type_param = Box::new(hakana_type::add_union_type(
                     arrayish_params.unwrap().1,
                     &current_type,
                     codebase,
                     false,
-                );
+                ));
             }
             TAtomic::TDict {
                 ref mut known_items,
@@ -510,7 +510,7 @@ fn update_array_assignment_child_type(
                     shape_name: None,
                 }),
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
-                    type_param: value_type.clone(),
+                    type_param: Box::new(value_type.clone()),
                 }),
                 _ => collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false)),
             }
@@ -554,7 +554,7 @@ fn update_array_assignment_child_type(
                     })
                 }
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
-                    type_param: value_type.clone(),
+                    type_param: Box::new(value_type.clone()),
                 }),
                 TAtomic::TMixed | TAtomic::TMixedWithFlags(..) => {
                     // todo handle illegal

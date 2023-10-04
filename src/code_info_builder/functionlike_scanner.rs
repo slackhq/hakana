@@ -225,11 +225,11 @@ pub(crate) fn get_functionlike(
 
                     super_type.types.push(TAtomic::TGenericParam {
                         param_name: *param_name,
-                        as_type: if let Some(template_as_type) = &template_as_type {
+                        as_type: Box::new(if let Some(template_as_type) = &template_as_type {
                             template_as_type.clone()
                         } else {
                             get_mixed_any()
-                        },
+                        }),
                         defining_entity: fn_id.clone(),
                         from_class: false,
                         extra_types: None,
@@ -460,7 +460,7 @@ fn get_async_version(
     interner: &mut ThreadedInterner,
 ) -> Option<FunctionLikeIdentifier> {
     if let aast::Expr_::Call(call) = &expr.2 {
-        if let aast::Expr_::Id(boxed_id) = &call.func .2 {
+        if let aast::Expr_::Id(boxed_id) = &call.func.2 {
             if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset()) {
                 if fn_id == &STR_ASIO_JOIN && call.args.len() == 1 {
                     let first_join_expr = &call.args[0].1;
@@ -470,7 +470,7 @@ fn get_async_version(
                             return None;
                         }
 
-                        match &call.func .2 {
+                        match &call.func.2 {
                             aast::Expr_::Id(boxed_id) => {
                                 if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset())
                                 {

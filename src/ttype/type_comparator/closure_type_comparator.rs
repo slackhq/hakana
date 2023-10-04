@@ -53,7 +53,7 @@ pub(crate) fn is_contained_by(
                                 &input_param
                                     .signature_type
                                     .clone()
-                                    .unwrap_or(get_mixed_any()),
+                                    .unwrap_or(Box::new(get_mixed_any())),
                                 false,
                                 false,
                                 false,

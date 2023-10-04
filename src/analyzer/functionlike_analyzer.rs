@@ -282,7 +282,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                                 wrap_atomic(TAtomic::TGenericParam {
                                     param_name: param_name.clone(),
-                                    as_type: (**first_map_entry.1).clone(),
+                                    as_type: Box::new((**first_map_entry.1).clone()),
                                     defining_entity: first_map_entry.0.clone(),
                                     from_class: false,
                                     extra_types: None,

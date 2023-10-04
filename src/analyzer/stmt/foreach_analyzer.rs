@@ -415,7 +415,7 @@ fn check_iterator_type(
 
                         (key_param, value_param)
                     }
-                    TAtomic::TKeyset { type_param, .. } => (type_param.clone(), type_param),
+                    TAtomic::TKeyset { type_param, .. } => ((*type_param).clone(), *type_param),
                     _ => panic!(),
                 };
 

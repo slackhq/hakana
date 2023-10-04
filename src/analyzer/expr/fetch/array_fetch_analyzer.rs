@@ -655,7 +655,7 @@ pub(crate) fn handle_array_access_on_vec(
     } else if let TAtomic::TVec { type_param, .. } = vec {
         return *type_param;
     } else if let TAtomic::TKeyset { type_param, .. } = vec {
-        return type_param;
+        return *type_param;
     }
 
     return get_nothing();

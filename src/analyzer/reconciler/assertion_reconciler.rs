@@ -403,7 +403,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 Some(TAtomic::TTypeAlias {
                     name: *name,
                     type_params: type_params.clone(),
-                    as_type: Some(intersected),
+                    as_type: Some(Box::new(intersected)),
                 })
             } else {
                 None
@@ -423,7 +423,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                 Some(TAtomic::TTypeAlias {
                     name: *name,
                     type_params: type_params.clone(),
-                    as_type: Some(intersected),
+                    as_type: Some(Box::new(intersected)),
                 })
             } else {
                 None
@@ -571,7 +571,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     ref mut as_type, ..
                 } = type_1_atomic
                 {
-                    *as_type = new_as;
+                    *as_type = Box::new(new_as);
                 }
 
                 return Some(type_1_atomic);
@@ -587,7 +587,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     ref mut as_type, ..
                 } = type_2_atomic
                 {
-                    *as_type = new_as;
+                    *as_type = Box::new(new_as);
                 }
 
                 return Some(type_2_atomic);
@@ -1013,7 +1013,7 @@ fn intersect_contained_atomic_with_another(
                 let type_1_as = intersect_union_with_atomic(codebase, &type_1_as_type, sub_atomic);
 
                 if let Some(type_1_as) = type_1_as {
-                    *type_1_as_type = type_1_as;
+                    *type_1_as_type = Box::new(type_1_as);
                 } else {
                     return None;
                 }

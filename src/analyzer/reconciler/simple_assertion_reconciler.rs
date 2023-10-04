@@ -810,17 +810,17 @@ fn intersect_keyset(
                 match *name {
                     STR_CONTAINER => {
                         acceptable_types.push(TAtomic::TKeyset {
-                            type_param: get_arraykey(true),
+                            type_param: Box::new(get_arraykey(true)),
                         });
                     }
                     STR_KEYED_CONTAINER | STR_ANY_ARRAY => {
                         acceptable_types.push(TAtomic::TKeyset {
-                            type_param: typed_params.get(0).unwrap().clone(),
+                            type_param: Box::new(typed_params.get(0).unwrap().clone()),
                         });
                     }
                     STR_XHP_CHILD => {
                         acceptable_types.push(TAtomic::TKeyset {
-                            type_param: wrap_atomic(atomic.clone()),
+                            type_param: Box::new(wrap_atomic(atomic.clone())),
                         });
                     }
                     _ => {}

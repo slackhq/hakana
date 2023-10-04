@@ -25,7 +25,7 @@ pub fn replace(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
-    input_type: &Option<TUnion>,
+    input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
@@ -38,7 +38,7 @@ pub fn replace(
 
     let original_atomic_types = union_type.types.clone();
 
-    let mut input_type = input_type.clone();
+    let mut input_type = input_type.cloned();
 
     if let Some(ref mut input_type_inner) = input_type {
         if !input_type_inner.is_single() {
@@ -63,7 +63,7 @@ pub fn replace(
             template_result,
             codebase,
             interner,
-            &input_type,
+            &input_type.as_ref(),
             input_arg_offset,
             calling_class,
             calling_function,
@@ -104,7 +104,7 @@ fn handle_atomic_standin(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
-    input_type: &Option<TUnion>,
+    input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
@@ -312,7 +312,7 @@ fn replace_atomic(
                         template_result,
                         codebase,
                         interner,
-                        &input_type_param,
+                        &input_type_param.as_ref(),
                         input_arg_offset,
                         calling_class,
                         calling_function,
@@ -340,7 +340,7 @@ fn replace_atomic(
                         codebase,
                         interner,
                         &if let Some(input_params) = &input_params {
-                            Some(input_params.0.clone())
+                            Some(&input_params.0)
                         } else {
                             None
                         },
@@ -359,7 +359,7 @@ fn replace_atomic(
                         codebase,
                         interner,
                         &if let Some(input_params) = &input_params {
-                            Some(input_params.1.clone())
+                            Some(&input_params.1)
                         } else {
                             None
                         },
@@ -402,7 +402,7 @@ fn replace_atomic(
                         template_result,
                         codebase,
                         interner,
-                        &input_type_param.cloned(),
+                        &input_type_param,
                         input_arg_offset,
                         calling_class,
                         calling_function,
@@ -424,7 +424,7 @@ fn replace_atomic(
                     template_result,
                     codebase,
                     interner,
-                    &if let Some(input_param) = input_param {
+                    &if let Some(input_param) = &input_param {
                         Some(input_param)
                     } else {
                         None
@@ -444,7 +444,7 @@ fn replace_atomic(
         TAtomic::TKeyset {
             ref mut type_param, ..
         } => {
-            *type_param = self::replace(
+            *type_param = Box::new(self::replace(
                 &type_param,
                 template_result,
                 codebase,
@@ -453,7 +453,7 @@ fn replace_atomic(
                     type_param: input_param,
                 }) = &input_type
                 {
-                    Some(input_param.clone())
+                    Some(input_param)
                 } else {
                     None
                 },
@@ -464,7 +464,7 @@ fn replace_atomic(
                 add_lower_bound,
                 None,
                 depth,
-            );
+            ));
 
             return atomic_type;
         }
@@ -530,13 +530,13 @@ fn replace_atomic(
                         codebase,
                         interner,
                         &if let Some(mapped_type_params) = &mapped_type_params {
-                            if let Some(matched) = mapped_type_params.get(offset).cloned() {
-                                Some(matched.1)
+                            if let Some(matched) = mapped_type_params.get(offset) {
+                                Some(&matched.1)
                             } else {
                                 None
                             }
                         } else {
-                            input_type_param
+                            input_type_param.as_ref()
                         },
                         input_arg_offset,
                         calling_class,
@@ -582,7 +582,7 @@ fn replace_atomic(
                         codebase,
                         interner,
                         &if let Some(mapped_type_params) = &mapped_type_params {
-                            mapped_type_params.get(offset).cloned()
+                            mapped_type_params.get(offset)
                         } else {
                             None
                         },
@@ -623,12 +623,16 @@ fn replace_atomic(
                 };
 
                 if let Some(ref mut param_type) = param.signature_type {
-                    *param_type = self::replace(
+                    *param_type = Box::new(self::replace(
                         &param_type,
                         template_result,
                         codebase,
                         interner,
-                        &input_type_param.clone(),
+                        &if let Some(input_type_param) = input_type_param {
+                            Some(input_type_param)
+                        } else {
+                            None
+                        },
                         input_arg_offset,
                         calling_class,
                         calling_function,
@@ -636,26 +640,30 @@ fn replace_atomic(
                         !add_lower_bound,
                         None,
                         depth,
-                    );
+                    ));
                 }
 
                 offset += 1;
             }
 
             if let Some(ref mut return_type) = return_type {
-                *return_type = self::replace(
+                *return_type = Box::new(self::replace(
                     &return_type,
                     template_result,
                     codebase,
                     interner,
-                    if let Some(TAtomic::TClosure {
+                    &if let Some(TAtomic::TClosure {
                         return_type: input_return_type,
                         ..
                     }) = &input_type
                     {
-                        &input_return_type
+                        if let Some(t) = input_return_type {
+                            Some(t)
+                        } else {
+                            None
+                        }
                     } else {
-                        &None
+                        None
                     },
                     input_arg_offset,
                     calling_class,
@@ -664,7 +672,7 @@ fn replace_atomic(
                     add_lower_bound,
                     None,
                     depth - 1,
-                );
+                ));
             }
 
             return atomic_type;
@@ -730,7 +738,7 @@ fn handle_template_param_standin(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
-    input_type: &Option<TUnion>,
+    input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
@@ -928,7 +936,7 @@ fn handle_template_param_standin(
                         &mut matching_input_keys,
                     ))
             {
-                let mut generic_param = input_type.clone();
+                let mut generic_param = (*input_type).clone();
 
                 if !matching_input_keys.is_empty() {
                     for atomic in &generic_param.clone().types {
@@ -978,7 +986,7 @@ fn handle_template_param_standin(
                             .entry(defining_entity.clone())
                             .or_insert_with(Vec::new)
                             .push(TemplateBound {
-                                bound_type: generic_param,
+                                bound_type: generic_param.clone(),
                                 appearance_depth: depth,
                                 arg_offset: input_arg_offset,
                                 equality_bound_classlike: bound_equality_classlike,
@@ -992,7 +1000,7 @@ fn handle_template_param_standin(
                         .or_insert_with(FxHashMap::default)
                         .entry(defining_entity.clone())
                         .or_insert(vec![TemplateBound {
-                            bound_type: generic_param,
+                            bound_type: generic_param.clone(),
                             appearance_depth: depth,
                             arg_offset: input_arg_offset,
                             equality_bound_classlike: bound_equality_classlike,
@@ -1039,7 +1047,7 @@ fn handle_template_param_standin(
                 false,
                 &mut matching_input_keys,
             ) {
-                let mut generic_param = input_type.clone();
+                let mut generic_param = (*input_type).clone();
 
                 if !matching_input_keys.is_empty() {
                     for atomic in &generic_param.clone().types {
@@ -1120,7 +1128,7 @@ fn handle_template_param_class_standin(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
-    input_type: &Option<TUnion>,
+    input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
@@ -1175,7 +1183,7 @@ fn handle_template_param_class_standin(
                 {
                     valid_input_atomic_types.push(TAtomic::TGenericParam {
                         param_name: param_name.clone(),
-                        as_type: wrap_atomic(*as_type.clone()),
+                        as_type: Box::new(wrap_atomic(*as_type.clone())),
                         defining_entity: defining_entity.clone(),
                         from_class: false,
                         extra_types: None,
@@ -1204,7 +1212,7 @@ fn handle_template_param_class_standin(
                 template_result,
                 codebase,
                 interner,
-                &generic_param,
+                &generic_param.as_ref(),
                 input_arg_offset,
                 calling_class,
                 calling_function,
@@ -1301,7 +1309,7 @@ fn handle_template_param_type_standin(
     template_result: &mut TemplateResult,
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
-    input_type: &Option<TUnion>,
+    input_type: &Option<&TUnion>,
     input_arg_offset: Option<usize>,
     calling_class: Option<&StrId>,
     calling_function: Option<&FunctionLikeIdentifier>,
@@ -1345,7 +1353,10 @@ fn handle_template_param_type_standin(
                             valid_input_atomic_types.push(TAtomic::TTypeAlias {
                                 name: *name,
                                 type_params: None,
-                                as_type: typedefinition_info.as_type.clone(),
+                                as_type: match &typedefinition_info.as_type {
+                                    Some(t) => Some(Box::new(t.clone())),
+                                    None => None,
+                                },
                             });
                         } else {
                             valid_input_atomic_types
@@ -1369,7 +1380,7 @@ fn handle_template_param_type_standin(
                 {
                     valid_input_atomic_types.push(TAtomic::TGenericParam {
                         param_name: param_name.clone(),
-                        as_type: wrap_atomic(*as_type.clone()),
+                        as_type: Box::new(wrap_atomic(*as_type.clone())),
                         defining_entity: defining_entity.clone(),
                         from_class: false,
                         extra_types: None,
@@ -1395,7 +1406,7 @@ fn handle_template_param_type_standin(
                 template_result,
                 codebase,
                 interner,
-                &generic_param,
+                &generic_param.as_ref(),
                 input_arg_offset,
                 calling_class,
                 calling_function,

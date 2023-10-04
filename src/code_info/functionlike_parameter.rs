@@ -88,7 +88,7 @@ impl FunctionLikeParameter {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct FnParameter {
-    pub signature_type: Option<TUnion>,
+    pub signature_type: Option<Box<TUnion>>,
     pub is_inout: bool,
     pub is_variadic: bool,
     pub is_optional: bool,
