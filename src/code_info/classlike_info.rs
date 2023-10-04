@@ -3,8 +3,8 @@ use std::sync::Arc;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    code_location::HPos, codebase_info::symbols::SymbolKind, functionlike_info::FunctionLikeInfo,
-    t_atomic::TAtomic, t_union::TUnion, StrId,
+    code_location::HPos, codebase_info::symbols::SymbolKind, t_atomic::TAtomic, t_union::TUnion,
+    StrId,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -99,7 +99,7 @@ pub struct ClassLikeInfo {
 
     pub specialize_instance: bool,
 
-    pub methods: FxHashMap<StrId, FunctionLikeInfo>,
+    pub methods: Vec<StrId>,
 
     pub declaring_method_ids: FxHashMap<StrId, StrId>,
 
@@ -251,7 +251,7 @@ impl ClassLikeInfo {
             invalid_dependencies: Vec::new(),
             def_location,
             name_location,
-            methods: FxHashMap::default(),
+            methods: vec![],
             overridden_method_ids: FxHashMap::default(),
             overridden_property_ids: FxHashMap::default(),
             potential_declaring_method_ids: FxHashMap::default(),

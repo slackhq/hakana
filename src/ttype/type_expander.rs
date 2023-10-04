@@ -13,7 +13,7 @@ use hakana_reflection_info::{
     functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    Interner, StrId, STR_THIS,
+    Interner, StrId, STR_EMPTY, STR_THIS,
 };
 use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
@@ -561,7 +561,7 @@ pub fn get_closure_from_id(
 ) -> Option<TAtomic> {
     match id {
         FunctionLikeIdentifier::Function(name) => {
-            if let Some(functionlike_info) = codebase.functionlike_infos.get(&name) {
+            if let Some(functionlike_info) = codebase.functionlike_infos.get(&(*name, STR_EMPTY)) {
                 return Some(get_expanded_closure(
                     functionlike_info,
                     codebase,
@@ -576,16 +576,13 @@ pub fn get_closure_from_id(
                 method_name.clone(),
             ));
 
-            if let Some(classlike_info) = codebase.classlike_infos.get(&declaring_method_id.0) {
-                if let Some(functionlike_info) = classlike_info.methods.get(&declaring_method_id.1)
-                {
-                    return Some(get_expanded_closure(
-                        functionlike_info,
-                        codebase,
-                        interner,
-                        data_flow_graph,
-                    ));
-                }
+            if let Some(functionlike_info) = codebase.get_method(&declaring_method_id) {
+                return Some(get_expanded_closure(
+                    functionlike_info,
+                    codebase,
+                    interner,
+                    data_flow_graph,
+                ));
             }
         }
     }

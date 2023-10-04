@@ -32,7 +32,7 @@ use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::{EFFECT_IMPURE, STR_AWAITABLE};
+use hakana_reflection_info::{EFFECT_IMPURE, STR_AWAITABLE, STR_EMPTY};
 use hakana_type::type_expander::get_closure_from_id;
 use hakana_type::{
     get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
@@ -847,7 +847,7 @@ fn analyze_function_pointer(
                 false,
             );
 
-            if !codebase.functionlike_infos.contains_key(name) {
+            if !codebase.functionlike_infos.contains_key(&(*name, STR_EMPTY)) {
                 analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentFunction,

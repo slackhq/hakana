@@ -13,7 +13,7 @@ use hakana_reflection_info::{
     taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
     type_resolution::TypeResolutionContext, StrId,
 };
-use hakana_reflection_info::{FileSource, ThreadedInterner, STR_CONSTRUCT};
+use hakana_reflection_info::{FileSource, ThreadedInterner, STR_CONSTRUCT, STR_EMPTY};
 use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
 use indexmap::IndexMap;
 use no_pos_hash::{position_insensitive_hash, Hasher};
@@ -520,9 +520,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 }
             }
 
-            classlike_storage
-                .methods
-                .insert(method_name, functionlike_storage);
+            classlike_storage.methods.push(method_name);
+
+            self.codebase
+                .functionlike_infos
+                .insert((classlike_storage.name, method_name), functionlike_storage);
         }
 
         let result = m.recurse(c, self);
@@ -531,11 +533,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         if c.has_yield {
             self.codebase
-                .classlike_infos
-                .get_mut(c.classlike_name.as_ref().unwrap())
-                .unwrap()
-                .methods
-                .get_mut(&method_name)
+                .functionlike_infos
+                .get_mut(&(*c.classlike_name.as_ref().unwrap(), method_name))
                 .unwrap()
                 .has_yield = true;
             c.has_yield = false;
@@ -586,7 +585,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.codebase
             .functionlike_infos
-            .insert(name.clone(), functionlike_storage);
+            .insert((name, STR_EMPTY), functionlike_storage);
 
         c.function_name = Some(name);
 
@@ -649,15 +648,15 @@ impl<'a> Scanner<'a> {
     ) -> FunctionLikeInfo {
         let parent_function_storage = if is_anonymous {
             if let Some(parent_function_id) = &c.function_name {
-                self.codebase.functionlike_infos.get(parent_function_id)
+                self.codebase
+                    .functionlike_infos
+                    .get(&(*parent_function_id, STR_EMPTY))
             } else if let (Some(parent_class_id), Some(parent_method_id)) =
                 (&c.classlike_name, &c.member_name)
             {
-                if let Some(classlike_info) = self.codebase.classlike_infos.get(parent_class_id) {
-                    classlike_info.methods.get(parent_method_id)
-                } else {
-                    None
-                }
+                self.codebase
+                    .functionlike_infos
+                    .get(&(*parent_class_id, *parent_method_id))
             } else {
                 None
             }

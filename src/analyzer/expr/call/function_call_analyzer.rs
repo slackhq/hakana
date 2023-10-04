@@ -2,7 +2,7 @@ use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{StrId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, STR_EMPTY};
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{get_arrayish_params, get_void};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -21,7 +21,6 @@ use crate::{expression_analyzer, formula_generator};
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::taint::SinkType;
 use hakana_type::template::TemplateResult;
@@ -47,8 +46,6 @@ pub(crate) fn analyze(
     let name = expr.0 .1;
 
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
-
-    let codebase = statements_analyzer.get_codebase();
 
     // we special-case this because exit is used in
     // `as` ternaries where the positions may be fake
@@ -110,33 +107,34 @@ pub(crate) fn analyze(
         ));
     };
 
-    let function_storage = if let Some(function_storage) =
-        get_named_function_info(statements_analyzer, &name, expr.0 .0)
-    {
-        function_storage
-    } else {
-        analysis_data.maybe_add_issue(
-            Issue::new(
-                IssueKind::NonExistentFunction,
-                format!(
-                    "Function {} is not defined",
-                    statements_analyzer.get_interner().lookup(&name)
+    let codebase = statements_analyzer.get_codebase();
+
+    let function_storage =
+        if let Some(function_storage) = codebase.functionlike_infos.get(&(name, STR_EMPTY)) {
+            function_storage
+        } else {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::NonExistentFunction,
+                    format!(
+                        "Function {} is not defined",
+                        statements_analyzer.get_interner().lookup(&name)
+                    ),
+                    statements_analyzer.get_hpos(&expr.0 .0),
+                    &context.function_context.calling_functionlike_id,
                 ),
-                statements_analyzer.get_hpos(&expr.0 .0),
-                &context.function_context.calling_functionlike_id,
-            ),
-            statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual(),
-        );
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
 
-        analysis_data.symbol_references.add_reference_to_symbol(
-            &context.function_context,
-            name.clone(),
-            false,
-        );
+            analysis_data.symbol_references.add_reference_to_symbol(
+                &context.function_context,
+                name.clone(),
+                false,
+            );
 
-        return Ok(());
-    };
+            return Ok(());
+        };
 
     if function_storage.user_defined {
         analysis_data.symbol_references.add_reference_to_symbol(
@@ -549,16 +547,6 @@ fn process_invariant(
         .map(|v| Rc::new(v))
         .collect();
     }
-}
-
-fn get_named_function_info<'a>(
-    statements_analyzer: &'a StatementsAnalyzer,
-    name: &StrId,
-    _pos: &Pos,
-) -> Option<&'a FunctionLikeInfo> {
-    let codebase = statements_analyzer.get_codebase();
-
-    codebase.functionlike_infos.get(name)
 }
 
 fn check_array_key_or_value_type(

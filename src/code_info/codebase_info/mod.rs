@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct CodebaseInfo {
     pub classlike_infos: FxHashMap<StrId, ClassLikeInfo>,
-    pub functionlike_infos: FxHashMap<StrId, FunctionLikeInfo>,
+    pub functionlike_infos: FxHashMap<(StrId, StrId), FunctionLikeInfo>,
     pub type_definitions: FxHashMap<StrId, TypeDefinitionInfo>,
     pub symbols: Symbols,
     pub infer_types_from_usage: bool,
@@ -387,12 +387,9 @@ impl CodebaseInfo {
         method_id.clone()
     }
 
+    #[inline]
     pub fn get_method(&self, method_id: &MethodIdentifier) -> Option<&FunctionLikeInfo> {
-        if let Some(classlike_storage) = self.classlike_infos.get(&method_id.0) {
-            return classlike_storage.methods.get(&method_id.1);
-        }
-
-        None
+        self.functionlike_infos.get(&(method_id.0, method_id.1))
     }
 
     pub fn get_all_descendants(&self, classlike_name: &StrId) -> FxHashSet<StrId> {

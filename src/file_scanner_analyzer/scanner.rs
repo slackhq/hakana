@@ -645,7 +645,9 @@ fn invalidate_changed_codebase_elements(
                 }
                 None => {
                     if ast_node.is_function {
-                        codebase.functionlike_infos.remove(&ast_node.name);
+                        codebase
+                            .functionlike_infos
+                            .remove(&(ast_node.name, STR_EMPTY));
                     } else if ast_node.is_constant {
                         codebase.constant_infos.remove(&ast_node.name);
                     }
@@ -665,5 +667,5 @@ fn invalidate_changed_codebase_elements(
 
     codebase
         .functionlike_infos
-        .retain(|k, _| !closures_to_remove.contains(k));
+        .retain(|k, _| !closures_to_remove.contains(&k.0));
 }

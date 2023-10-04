@@ -51,24 +51,18 @@ pub fn populate_codebase(
         populate_functionlike_storage(
             v,
             &codebase.symbols,
-            &ReferenceSource::Symbol(true, *name),
+            &if name.1 == STR_EMPTY {
+                ReferenceSource::Symbol(true, name.0)
+            } else {
+                ReferenceSource::ClasslikeMember(true, name.0, name.1)
+            },
             symbol_references,
-            v.user_defined && !safe_symbols.contains(name),
+            v.user_defined && !safe_symbols.contains(&name.0),
         );
     }
 
     for (name, storage) in codebase.classlike_infos.iter_mut() {
         let userland_force_repopulation = storage.user_defined && !safe_symbols.contains(name);
-
-        for (method_name, v) in storage.methods.iter_mut() {
-            populate_functionlike_storage(
-                v,
-                &codebase.symbols,
-                &ReferenceSource::ClasslikeMember(true, *name, *method_name),
-                symbol_references,
-                userland_force_repopulation,
-            );
-        }
 
         for (prop_name, v) in storage.properties.iter_mut() {
             populate_union_type(
@@ -417,7 +411,12 @@ fn populate_classlike_storage(
     // todo add file references for cache invalidation
 
     if storage.immutable {
-        for (_, functionlike_storage) in storage.methods.iter_mut() {
+        for method_name in &storage.methods {
+            let functionlike_storage = codebase
+                .functionlike_infos
+                .get_mut(&(storage.name, *method_name))
+                .unwrap();
+
             if let Some(method_storage) = functionlike_storage.method_info.as_mut() {
                 if !method_storage.is_static {
                     method_storage.immutable = true;
@@ -433,8 +432,12 @@ fn populate_classlike_storage(
     }
 
     if storage.specialize_instance {
-        for (_, functionlike_storage) in storage.methods.iter_mut() {
-            if let Some(method_storage) = functionlike_storage.method_info.as_mut() {
+        for method_name in &storage.methods {
+            let functionlike_storage = codebase
+                .functionlike_infos
+                .get_mut(&(storage.name, *method_name))
+                .unwrap();
+            if let Some(method_storage) = &functionlike_storage.method_info {
                 if !method_storage.is_static {
                     functionlike_storage.specialize_call = true;
                 }
@@ -698,7 +701,10 @@ fn inherit_methods_from_parent(
             },
         );
 
-        if storage.methods.contains_key(method_name) {
+        if codebase
+            .functionlike_infos
+            .contains_key(&(*classlike_name, *method_name))
+        {
             storage
                 .potential_declaring_method_ids
                 .insert(method_name.clone(), {
@@ -759,15 +765,19 @@ fn inherit_methods_from_parent(
                 };
 
                 if !matches!(existing_declaring_class_storage.kind, SymbolKind::Interface) {
-                    if let Some(functionlike_storage) =
-                        existing_declaring_class_storage.methods.get(method_name)
+                    if let Some(functionlike_storage) = codebase
+                        .functionlike_infos
+                        .get(&(existing_declaring_class_storage.name, *method_name))
                     {
                         if let Some(method_info) = &functionlike_storage.method_info {
                             if !method_info.is_abstract {
                                 continue;
                             }
 
-                            if let Some(functionlike_storage) = storage.methods.get(method_name) {
+                            if let Some(functionlike_storage) = codebase
+                                .functionlike_infos
+                                .get(&(storage.name, *method_name))
+                            {
                                 if let Some(method_info) = &functionlike_storage.method_info {
                                     if method_info.is_abstract {
                                         continue;

@@ -26,8 +26,9 @@ pub(crate) fn find_unused_definitions(
         .symbol_references
         .get_referenced_overridden_class_members();
 
-    'outer1: for (function_name, functionlike_info) in &codebase.functionlike_infos {
-        if functionlike_info.user_defined
+    'outer1: for (functionlike_name, functionlike_info) in &codebase.functionlike_infos {
+        if functionlike_name.1 == STR_EMPTY
+            && functionlike_info.user_defined
             && !functionlike_info.dynamically_callable
             && !functionlike_info.generated
         {
@@ -42,7 +43,7 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            if !referenced_symbols_and_members.contains(&(*function_name, STR_EMPTY)) {
+            if !referenced_symbols_and_members.contains(&functionlike_name) {
                 if let Some(suppressed_issues) = &functionlike_info.suppressed_issues {
                     if suppressed_issues.contains_key(&IssueKind::UnusedFunction) {
                         continue;
@@ -55,7 +56,7 @@ pub(crate) fn find_unused_definitions(
 
                 if config.migration_symbols.contains(&(
                     "unused_symbol".to_string(),
-                    interner.lookup(function_name).to_string(),
+                    interner.lookup(&functionlike_name.0).to_string(),
                 )) {
                     let def_pos = &functionlike_info.def_location;
                     analysis_result
@@ -72,9 +73,9 @@ pub(crate) fn find_unused_definitions(
 
                 let issue = Issue::new(
                     IssueKind::UnusedFunction,
-                    format!("Unused function {}", interner.lookup(&function_name)),
+                    format!("Unused function {}", interner.lookup(&functionlike_name.0)),
                     pos.clone(),
-                    &Some(FunctionLikeIdentifier::Function(*function_name)),
+                    &Some(FunctionLikeIdentifier::Function(functionlike_name.0)),
                 );
 
                 if config.can_add_issue(&issue) {
@@ -157,7 +158,7 @@ pub(crate) fn find_unused_definitions(
                         .push(issue);
                 }
             } else {
-                'inner: for (method_name_ptr, functionlike_storage) in &classlike_info.methods {
+                'inner: for method_name_ptr in &classlike_info.methods {
                     if *method_name_ptr != STR_EMPTY {
                         let method_name = interner.lookup(method_name_ptr);
 
@@ -211,6 +212,11 @@ pub(crate) fn find_unused_definitions(
                                 }
                             }
                         }
+
+                        let functionlike_storage = codebase
+                            .functionlike_infos
+                            .get(&(*classlike_name, *method_name_ptr))
+                            .unwrap();
 
                         let method_storage = functionlike_storage.method_info.as_ref().unwrap();
 

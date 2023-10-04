@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::scope_context::control_action::ControlAction;
-use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId, STR_EMPTY};
 use oxidized::{aast, ast::CallExpr};
 
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -464,7 +464,7 @@ pub(crate) fn get_control_actions(
             aast::Stmt_::Markup(_) => {}
             aast::Stmt_::AssertEnv(_) => {}
             aast::Stmt_::DeclareLocal(_) => {}
-            aast::Stmt_::Match(_) => {},
+            aast::Stmt_::Match(_) => {}
         }
     }
 
@@ -494,7 +494,10 @@ fn handle_call(
                 } else {
                     return None;
                 };
-            if let Some(functionlike_storage) = codebase.functionlike_infos.get(resolved_name) {
+            if let Some(functionlike_storage) = codebase
+                .functionlike_infos
+                .get(&(*resolved_name, STR_EMPTY))
+            {
                 if let Some(return_type) = &functionlike_storage.return_type {
                     if return_type.is_nothing() {
                         return Some(control_end(control_actions.clone()));
@@ -521,24 +524,20 @@ fn handle_call(
                                     return None;
                                 };
 
-                                if let Some(classlike_storage) =
-                                    codebase.classlike_infos.get(name_string)
-                                {
-                                    let method_name = interner.get(&boxed.1 .1);
+                                let method_name =
+                                    if let Some(resolved_name) = interner.get(&boxed.1 .1) {
+                                        resolved_name
+                                    } else {
+                                        return None;
+                                    };
 
-                                    if let Some(method_name) = method_name {
-                                        if let Some(functionlike_storage) =
-                                            classlike_storage.methods.get(&method_name)
-                                        {
-                                            if let Some(return_type) =
-                                                &functionlike_storage.return_type
-                                            {
-                                                if return_type.is_nothing() {
-                                                    return Some(control_end(
-                                                        control_actions.clone(),
-                                                    ));
-                                                }
-                                            }
+                                if let Some(functionlike_storage) = codebase
+                                    .functionlike_infos
+                                    .get(&(*name_string, method_name))
+                                {
+                                    if let Some(return_type) = &functionlike_storage.return_type {
+                                        if return_type.is_nothing() {
+                                            return Some(control_end(control_actions.clone()));
                                         }
                                     }
                                 }

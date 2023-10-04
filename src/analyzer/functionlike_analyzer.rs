@@ -27,7 +27,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{Interner, STR_AWAITABLE};
+use hakana_reflection_info::{Interner, STR_AWAITABLE, STR_EMPTY};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
@@ -74,19 +74,23 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         }
 
-        let function_storage =
-            if let Some(f) = self.file_analyzer.codebase.functionlike_infos.get(&name) {
-                f
-            } else {
-                return Err(AnalysisError::InternalError(
-                    "Cannot load function storage".to_string(),
-                    HPos::new(
-                        stmt.name.pos(),
-                        self.file_analyzer.get_file_source().file_path,
-                        None,
-                    ),
-                ));
-            };
+        let function_storage = if let Some(f) = self
+            .file_analyzer
+            .codebase
+            .functionlike_infos
+            .get(&(name, STR_EMPTY))
+        {
+            f
+        } else {
+            return Err(AnalysisError::InternalError(
+                "Cannot load function storage".to_string(),
+                HPos::new(
+                    stmt.name.pos(),
+                    self.file_analyzer.get_file_source().file_path,
+                    None,
+                ),
+            ));
+        };
 
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
@@ -211,10 +215,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             ));
         };
 
+        let codebase = self.file_analyzer.codebase;
+
         if self.file_analyzer.analysis_config.ast_diff {
-            if self
-                .file_analyzer
-                .codebase
+            if codebase
                 .safe_symbol_members
                 .contains(&(classlike_storage.name, method_name))
             {
@@ -222,19 +226,21 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         }
 
-        let functionlike_storage =
-            if let Some(functionlike_storage) = classlike_storage.methods.get(&method_name) {
-                functionlike_storage
-            } else {
-                return Err(AnalysisError::InternalError(
-                    "Cannot resolve function storage".to_string(),
-                    HPos::new(
-                        &stmt.name.0,
-                        self.file_analyzer.get_file_source().file_path,
-                        None,
-                    ),
-                ));
-            };
+        let functionlike_storage = if let Some(functionlike_storage) = codebase
+            .functionlike_infos
+            .get(&(classlike_storage.name, method_name))
+        {
+            functionlike_storage
+        } else {
+            return Err(AnalysisError::InternalError(
+                "Cannot resolve function storage".to_string(),
+                HPos::new(
+                    &stmt.name.0,
+                    self.file_analyzer.get_file_source().file_path,
+                    None,
+                ),
+            ));
+        };
 
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
@@ -255,10 +261,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let mut function_context = FunctionContext::new();
         function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Method(
-            classlike_storage.name.clone(),
+            classlike_storage.name,
             method_name.clone(),
         ));
-        function_context.calling_class = Some(classlike_storage.name.clone());
+        function_context.calling_class = Some(classlike_storage.name);
         function_context.calling_class_final = classlike_storage.is_final;
 
         let mut context = ScopeContext::new(function_context);
@@ -295,7 +301,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let GraphKind::WholeProgram(_) = &analysis_result.program_dataflow_graph.kind {
                 if classlike_storage.specialize_instance {
                     let new_call_node = DataFlowNode::get_for_this_before_method(
-                        &MethodIdentifier(classlike_storage.name.clone(), method_name.clone()),
+                        &MethodIdentifier(classlike_storage.name, method_name.clone()),
                         functionlike_storage.return_type_location.clone(),
                         None,
                         &statements_analyzer.get_interner(),

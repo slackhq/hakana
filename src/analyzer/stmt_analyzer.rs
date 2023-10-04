@@ -1,6 +1,6 @@
 use hakana_reflection_info::code_location::{HPos, StmtStart};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::{EFFECT_PURE, STR_AWAITABLE, STR_CONSTRUCT};
+use hakana_reflection_info::{EFFECT_PURE, STR_AWAITABLE, STR_CONSTRUCT, STR_EMPTY};
 use hakana_type::get_arrayish_params;
 use rustc_hash::FxHashSet;
 
@@ -329,7 +329,9 @@ fn detect_unused_statement_expressions(
     if let Some(functionlike_id) = functionlike_id {
         if let FunctionLikeIdentifier::Function(function_id) = functionlike_id {
             let codebase = statements_analyzer.get_codebase();
-            if let Some(functionlike_info) = codebase.functionlike_infos.get(&function_id) {
+            if let Some(functionlike_info) =
+                codebase.functionlike_infos.get(&(function_id, STR_EMPTY))
+            {
                 if functionlike_info.must_use {
                     analysis_data.maybe_add_issue(
                         Issue::new(
