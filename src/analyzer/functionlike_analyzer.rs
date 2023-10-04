@@ -1027,7 +1027,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if param.is_variadic {
                 param_type = wrap_atomic(TAtomic::TVec {
                     known_items: None,
-                    type_param: param_type,
+                    type_param: Box::new(param_type),
                     known_count: None,
                     non_empty: false,
                 });

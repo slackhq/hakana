@@ -96,7 +96,7 @@ pub fn infer(
                 oxidized::tast::VcKind::Vec => Some(wrap_atomic(TAtomic::TVec {
                     known_count: Some(entries.len()),
                     known_items: Some(entries),
-                    type_param: get_nothing(),
+                    type_param: Box::new(get_nothing()),
                     non_empty: true,
                 })),
                 oxidized::tast::VcKind::Keyset => None,
@@ -172,7 +172,7 @@ pub fn infer(
             Some(wrap_atomic(TAtomic::TVec {
                 known_count: Some(entries.len()),
                 known_items: Some(entries),
-                type_param: get_nothing(),
+                type_param: Box::new(get_nothing()),
                 non_empty: true,
             }))
         }
@@ -253,7 +253,7 @@ pub fn infer(
             Some(wrap_atomic(TAtomic::TVec {
                 known_count: Some(entries.len()),
                 known_items: Some(entries),
-                type_param: get_nothing(),
+                type_param: Box::new(get_nothing()),
                 non_empty: true,
             }))
         }

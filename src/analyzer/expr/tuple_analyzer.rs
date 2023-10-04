@@ -63,7 +63,7 @@ pub(crate) fn analyze(
         } else {
             None
         },
-        type_param: get_nothing(),
+        type_param: Box::new(get_nothing()),
         non_empty: true,
     });
 
@@ -71,7 +71,7 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(&pos, new_dict);
 
-   Ok(())
+    Ok(())
 }
 
 fn add_tuple_value_dataflow(

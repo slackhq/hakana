@@ -261,7 +261,7 @@ fn replace_atomic(
             ref mut known_items,
             ..
         } => {
-            *type_param = replace(&type_param, template_result, codebase);
+            *type_param = Box::new(replace(&type_param, template_result, codebase));
 
             if let Some(known_items) = known_items {
                 for (_, (_, t)) in known_items {
@@ -275,8 +275,8 @@ fn replace_atomic(
             ..
         } => {
             if let Some(params) = params {
-                params.0 = replace(&params.0, template_result, codebase);
-                params.1 = replace(&params.1, template_result, codebase);
+                params.0 = Box::new(replace(&params.0, template_result, codebase));
+                params.1 = Box::new(replace(&params.1, template_result, codebase));
             }
 
             if let Some(known_items) = known_items {

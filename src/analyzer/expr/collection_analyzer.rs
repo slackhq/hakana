@@ -20,8 +20,8 @@ use oxidized::{
 };
 use rustc_hash::FxHashSet;
 
-use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
+use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
 #[derive(Debug)]
@@ -83,7 +83,7 @@ pub(crate) fn analyze_vals(
                     &pos,
                     wrap_atomic(TAtomic::TVec {
                         known_items: None,
-                        type_param: get_nothing(),
+                        type_param: Box::new(get_nothing()),
                         known_count: Some(0),
                         non_empty: false,
                     }),
@@ -155,18 +155,18 @@ pub(crate) fn analyze_vals(
             let mut new_vec = wrap_atomic(if known_items.len() > 0 {
                 TAtomic::TVec {
                     known_items: Some(known_items),
-                    type_param: get_nothing(),
+                    type_param: Box::new(get_nothing()),
                     known_count: Some(types.len()),
                     non_empty: true,
                 }
             } else {
                 TAtomic::TVec {
                     known_items: None,
-                    type_param: TUnion::new(type_combiner::combine(
+                    type_param: Box::new(TUnion::new(type_combiner::combine(
                         array_creation_info.item_value_atomic_types.clone(),
                         codebase,
                         false,
-                    )),
+                    ))),
                     known_count: None,
                     non_empty: true,
                 }
@@ -281,16 +281,16 @@ pub(crate) fn analyze_keyvals(
             None
         } else {
             Some((
-                TUnion::new(type_combiner::combine(
+                Box::new(TUnion::new(type_combiner::combine(
                     array_creation_info.item_key_atomic_types.clone(),
                     codebase,
                     false,
-                )),
-                TUnion::new(type_combiner::combine(
+                ))),
+                Box::new(TUnion::new(type_combiner::combine(
                     array_creation_info.item_value_atomic_types.clone(),
                     codebase,
                     false,
-                )),
+                ))),
             ))
         },
         non_empty: true,

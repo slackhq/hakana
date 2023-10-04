@@ -334,7 +334,7 @@ fn replace_atomic(
                         None
                     };
 
-                    params.0 = self::replace(
+                    params.0 = Box::new(self::replace(
                         &params.0,
                         template_result,
                         codebase,
@@ -351,9 +351,9 @@ fn replace_atomic(
                         add_lower_bound,
                         None,
                         depth,
-                    );
+                    ));
 
-                    params.1 = self::replace(
+                    params.1 = Box::new(self::replace(
                         &params.1,
                         template_result,
                         codebase,
@@ -370,7 +370,7 @@ fn replace_atomic(
                         add_lower_bound,
                         None,
                         depth,
-                    );
+                    ));
                 }
             }
 
@@ -419,7 +419,7 @@ fn replace_atomic(
                     None
                 };
 
-                *type_param = self::replace(
+                *type_param = Box::new(self::replace(
                     &type_param,
                     template_result,
                     codebase,
@@ -436,7 +436,7 @@ fn replace_atomic(
                     add_lower_bound,
                     None,
                     depth,
-                );
+                ));
             }
 
             return atomic_type;

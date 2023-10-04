@@ -1,4 +1,3 @@
-
 use hakana_reflection_info::functionlike_parameter::FnParameter;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -29,8 +28,9 @@ fn get_vec_type_from_hint(
     resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     TAtomic::TVec {
-        type_param: get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
-            .unwrap(),
+        type_param: Box::new(
+            get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names).unwrap(),
+        ),
         known_count: None,
         non_empty: false,
         known_items: None,
@@ -44,7 +44,7 @@ fn get_tuple_type_from_hints(
     resolved_names: &FxHashMap<usize, StrId>,
 ) -> TAtomic {
     TAtomic::TVec {
-        type_param: get_nothing(),
+        type_param: Box::new(get_nothing()),
         known_count: Some(hints.len()),
         non_empty: true,
         known_items: Some({
@@ -155,16 +155,16 @@ fn get_dict_type_from_hints(
 ) -> TAtomic {
     TAtomic::TDict {
         params: Some((
-            if let Some(k) = &key_hint {
+            Box::new(if let Some(k) = &key_hint {
                 get_type_from_hint(&k.1, classlike_name, type_context, resolved_names).unwrap()
             } else {
                 get_arraykey(true)
-            },
-            if let Some(v) = &value_hint {
+            }),
+            Box::new(if let Some(v) = &value_hint {
                 get_type_from_hint(&v.1, classlike_name, type_context, resolved_names).unwrap()
             } else {
                 get_mixed_any()
-            },
+            }),
         )),
         known_items: None,
         non_empty: false,
@@ -211,7 +211,7 @@ fn get_shape_type_from_hints(
 
     TAtomic::TDict {
         params: if shape_info.allows_unknown_fields {
-            Some((get_arraykey(true), get_mixed_any()))
+            Some((Box::new(get_arraykey(true)), Box::new(get_mixed_any())))
         } else {
             None
         },
@@ -358,11 +358,12 @@ fn get_reference_type(
         };
     }
 
-    let resolved_name = if let Some(resolved_name) = resolved_names.get(&applied_type.0.start_offset()) {
-        resolved_name
-    } else {
-        return TAtomic::TMixed;
-    };
+    let resolved_name =
+        if let Some(resolved_name) = resolved_names.get(&applied_type.0.start_offset()) {
+            resolved_name
+        } else {
+            return TAtomic::TMixed;
+        };
 
     if let Some(defining_entities) = type_context.template_type_map.get(resolved_name) {
         return get_template_type(defining_entities, resolved_name);
@@ -430,7 +431,7 @@ pub fn get_type_from_hint(
                         get_vec_type_from_hint(first, classlike_name, type_context, resolved_names)
                     } else {
                         TAtomic::TVec {
-                            type_param: get_mixed_any(),
+                            type_param: Box::new(get_mixed_any()),
                             known_items: None,
                             known_count: None,
                             non_empty: false,
@@ -497,17 +498,19 @@ pub fn get_type_from_hint(
                 "vec_or_dict" | "varray_or_darray" => {
                     types.push(TAtomic::TVec {
                         known_items: None,
-                        type_param: wrap_atomic(TAtomic::TMixedWithFlags(
+                        type_param: Box::new(wrap_atomic(TAtomic::TMixedWithFlags(
                             true, false, false, false,
-                        )),
+                        ))),
                         non_empty: false,
                         known_count: None,
                     });
                     TAtomic::TDict {
                         known_items: None,
                         params: Some((
-                            get_arraykey(true),
-                            wrap_atomic(TAtomic::TMixedWithFlags(true, false, false, false)),
+                            Box::new(get_arraykey(true)),
+                            Box::new(wrap_atomic(TAtomic::TMixedWithFlags(
+                                true, false, false, false,
+                            ))),
                         )),
                         non_empty: false,
                         shape_name: None,
@@ -560,7 +563,9 @@ pub fn get_type_from_hint(
             for type_id in type_names {
                 inner_type = TAtomic::TClassTypeConstant {
                     class_type: Box::new(inner_type),
-                    member_name: if let Some(resolved_name) = resolved_names.get(&type_id.0.start_offset()) {
+                    member_name: if let Some(resolved_name) =
+                        resolved_names.get(&type_id.0.start_offset())
+                    {
                         *resolved_name
                     } else {
                         return None;

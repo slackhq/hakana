@@ -49,7 +49,7 @@ pub enum TAtomic {
     },
     TDict {
         known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
-        params: Option<(TUnion, TUnion)>,
+        params: Option<(Box<TUnion>, Box<TUnion>)>,
         non_empty: bool,
         shape_name: Option<(StrId, Option<StrId>)>,
     },
@@ -145,7 +145,7 @@ pub enum TAtomic {
     },
     TVec {
         known_items: Option<BTreeMap<usize, (bool, TUnion)>>,
-        type_param: TUnion,
+        type_param: Box<TUnion>,
         known_count: Option<usize>,
         non_empty: bool,
     },
@@ -1298,17 +1298,19 @@ impl TAtomic {
                 ..
             } => {
                 if let TAtomic::TPlaceholder = params.0.get_single() {
-                    params.0 = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
+                    params.0 = Box::new(TUnion::new(vec![TAtomic::TArraykey { from_any: true }]));
                 }
                 if let TAtomic::TPlaceholder = params.1.get_single() {
-                    params.1 =
-                        TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
+                    params.1 = Box::new(TUnion::new(vec![TAtomic::TMixedWithFlags(
+                        true, false, false, false,
+                    )]));
                 }
             }
             TAtomic::TVec { type_param, .. } => {
                 if let TAtomic::TPlaceholder = type_param.get_single() {
-                    *type_param =
-                        TUnion::new(vec![TAtomic::TMixedWithFlags(true, false, false, false)]);
+                    *type_param = Box::new(TUnion::new(vec![TAtomic::TMixedWithFlags(
+                        true, false, false, false,
+                    )]));
                 }
             }
             TAtomic::TKeyset { ref mut type_param } => {

@@ -215,7 +215,10 @@ pub fn is_contained_by(
                         codebase,
                         input_type_part,
                         &TAtomic::TDict {
-                            params: Some(arrayish_params),
+                            params: Some((
+                                Box::new(arrayish_params.0),
+                                Box::new(arrayish_params.1),
+                            )),
                             known_items: None,
                             non_empty: false,
                             shape_name: None,
@@ -231,7 +234,7 @@ pub fn is_contained_by(
                         codebase,
                         input_type_part,
                         &TAtomic::TVec {
-                            type_param: value_param,
+                            type_param: Box::new(value_param),
                             known_items: None,
                             non_empty: false,
                             known_count: None,

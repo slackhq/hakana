@@ -91,7 +91,11 @@ pub fn combine(
             } else {
                 Some(combination.dict_entries)
             },
-            params: combination.dict_type_params,
+            params: if let Some((k, v)) = combination.dict_type_params {
+                Some((Box::new(k), Box::new(v)))
+            } else {
+                None
+            },
             non_empty: combination.dict_always_filled,
             shape_name: if let Some(dict_alias_name) = combination.dict_alias_name {
                 dict_alias_name.clone()
@@ -108,7 +112,7 @@ pub fn combine(
             } else {
                 Some(combination.vec_entries)
             },
-            type_param: vec_type_param,
+            type_param: Box::new(vec_type_param),
             non_empty: combination.vec_always_filled,
             known_count: None,
         });
@@ -504,7 +508,7 @@ fn scrape_type_properties(
                 overwrite_empty_array,
             ))
         } else {
-            Some(type_param.clone())
+            Some((**type_param).clone())
         };
 
         return;
@@ -657,7 +661,7 @@ fn scrape_type_properties(
         combination.dict_type_params = match (&combination.dict_type_params, params) {
             (None, None) => None,
             (Some(existing_types), None) => Some(existing_types.clone()),
-            (None, Some(params)) => Some(params.clone()),
+            (None, Some(params)) => Some(((*params.0).clone(), (*params.1).clone())),
             (Some(existing_types), Some(params)) => Some((
                 combine_union_types(
                     &existing_types.0,

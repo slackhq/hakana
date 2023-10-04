@@ -688,7 +688,7 @@ fn intersect_vec(
             TAtomic::TClassTypeConstant { .. } => {
                 acceptable_types.push(TAtomic::TVec {
                     known_items: None,
-                    type_param: get_mixed_any(),
+                    type_param: Box::new(get_mixed_any()),
                     non_empty: false,
                     known_count: None,
                 });
@@ -716,7 +716,7 @@ fn intersect_vec(
                 match *name {
                     STR_CONTAINER => {
                         acceptable_types.push(TAtomic::TVec {
-                            type_param: typed_params.get(0).unwrap().clone(),
+                            type_param: Box::new(typed_params.get(0).unwrap().clone()),
                             known_items: None,
                             non_empty: false,
                             known_count: None,
@@ -724,7 +724,7 @@ fn intersect_vec(
                     }
                     STR_KEYED_CONTAINER | STR_ANY_ARRAY => {
                         acceptable_types.push(TAtomic::TVec {
-                            type_param: typed_params.get(1).unwrap().clone(),
+                            type_param: Box::new(typed_params.get(1).unwrap().clone()),
                             known_items: None,
                             non_empty: false,
                             known_count: None,
@@ -732,7 +732,7 @@ fn intersect_vec(
                     }
                     STR_XHP_CHILD => {
                         acceptable_types.push(TAtomic::TVec {
-                            type_param: wrap_atomic(atomic.clone()),
+                            type_param: Box::new(wrap_atomic(atomic.clone())),
                             known_items: None,
                             non_empty: false,
                             known_count: None,
@@ -912,7 +912,7 @@ fn intersect_dict(
             TAtomic::TClassTypeConstant { .. } => {
                 acceptable_types.push(TAtomic::TDict {
                     known_items: None,
-                    params: Some((get_arraykey(true), get_mixed_any())),
+                    params: Some((Box::new(get_arraykey(true)), Box::new(get_mixed_any()))),
                     non_empty: false,
                     shape_name: None,
                 });
@@ -940,8 +940,8 @@ fn intersect_dict(
                         if let Some(typed_params) = type_params {
                             acceptable_types.push(TAtomic::TDict {
                                 params: Some((
-                                    get_arraykey(true),
-                                    typed_params.get(0).unwrap().clone(),
+                                    Box::new(get_arraykey(true)),
+                                    Box::new(typed_params.get(0).unwrap().clone()),
                                 )),
                                 known_items: None,
                                 non_empty: false,
@@ -953,8 +953,8 @@ fn intersect_dict(
                         if let Some(typed_params) = type_params {
                             acceptable_types.push(TAtomic::TDict {
                                 params: Some((
-                                    typed_params.get(0).unwrap().clone(),
-                                    typed_params.get(1).unwrap().clone(),
+                                    Box::new(typed_params.get(0).unwrap().clone()),
+                                    Box::new(typed_params.get(1).unwrap().clone()),
                                 )),
                                 known_items: None,
                                 non_empty: false,
@@ -964,7 +964,10 @@ fn intersect_dict(
                     }
                     STR_XHP_CHILD => {
                         acceptable_types.push(TAtomic::TDict {
-                            params: Some((get_arraykey(true), wrap_atomic(atomic.clone()))),
+                            params: Some((
+                                Box::new(get_arraykey(true)),
+                                Box::new(wrap_atomic(atomic.clone())),
+                            )),
                             known_items: None,
                             non_empty: false,
                             shape_name: None,
@@ -1938,7 +1941,7 @@ fn reconcile_has_array_key(
                         }
                     } else if let Some((_, value_param)) = params {
                         known_items
-                            .insert(key_name.clone(), (false, Arc::new(value_param.clone())));
+                            .insert(key_name.clone(), (false, Arc::new((**value_param).clone())));
                         did_remove_type = true;
                     } else {
                         did_remove_type = true;
@@ -1964,7 +1967,7 @@ fn reconcile_has_array_key(
                         ) {
                             *known_items = Some(BTreeMap::from([(
                                 key_name.clone(),
-                                (false, Arc::new(value_param.clone())),
+                                (false, Arc::new((**value_param).clone())),
                             )]));
                         } else {
                             continue;
@@ -1990,7 +1993,7 @@ fn reconcile_has_array_key(
                                 did_remove_type = true;
                             }
                         } else if !type_param.is_nothing() {
-                            known_items.insert(*i as usize, (false, type_param.clone()));
+                            known_items.insert(*i as usize, (false, (**type_param).clone()));
                             did_remove_type = true;
                         } else {
                             did_remove_type = true;
@@ -1998,8 +2001,10 @@ fn reconcile_has_array_key(
                         }
                     } else {
                         if !type_param.is_nothing() {
-                            *known_items =
-                                Some(BTreeMap::from([(*i as usize, (false, type_param.clone()))]));
+                            *known_items = Some(BTreeMap::from([(
+                                *i as usize,
+                                (false, (**type_param).clone()),
+                            )]));
                             did_remove_type = true;
                         }
                     }

@@ -133,7 +133,7 @@ pub fn get_scalar() -> TUnion {
 pub fn get_vec(type_param: TUnion) -> TUnion {
     wrap_atomic(TAtomic::TVec {
         known_items: None,
-        type_param,
+        type_param: Box::new(type_param),
         known_count: None,
         non_empty: false,
     })
@@ -142,7 +142,7 @@ pub fn get_vec(type_param: TUnion) -> TUnion {
 pub fn get_dict(key_param: TUnion, value_param: TUnion) -> TUnion {
     wrap_atomic(TAtomic::TDict {
         known_items: None,
-        params: Some((key_param, value_param)),
+        params: Some((Box::new(key_param), Box::new(value_param))),
         non_empty: false,
         shape_name: None,
     })
@@ -303,7 +303,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
 
             if let Some(params) = params {
                 key_types.extend(params.0.types.clone());
-                value_param = params.1.clone();
+                value_param = (*params.1).clone();
             } else {
                 key_types.push(TAtomic::TNothing);
                 value_param = get_nothing();
@@ -333,7 +333,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             ..
         } => {
             let mut key_types = vec![TAtomic::TNothing];
-            let mut type_param = type_param.clone();
+            let mut type_param = (**type_param).clone();
 
             if let Some(known_items) = known_items {
                 for (key, (_, property_type)) in known_items {
@@ -383,7 +383,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             let mut value_param;
 
             if let Some(params) = params {
-                value_param = params.1.clone();
+                value_param = (*params.1).clone();
             } else {
                 value_param = get_nothing();
             }
@@ -401,7 +401,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             known_items,
             ..
         } => {
-            let mut type_param = type_param.clone();
+            let mut type_param = (**type_param).clone();
 
             if let Some(known_items) = known_items {
                 for (_, (_, property_type)) in known_items {

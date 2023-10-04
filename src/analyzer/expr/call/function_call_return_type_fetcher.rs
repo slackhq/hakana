@@ -225,7 +225,7 @@ fn handle_special_functions(
                                 let mut false_or_string_vec = TUnion::new(vec![
                                     TAtomic::TVec {
                                         known_items: None,
-                                        type_param: get_string(),
+                                        type_param: Box::new(get_string()),
                                         known_count: None,
                                         non_empty: true,
                                     },
@@ -238,7 +238,7 @@ fn handle_special_functions(
                                 let mut false_or_string_vec = TUnion::new(vec![
                                     TAtomic::TVec {
                                         known_items: None,
-                                        type_param: get_string(),
+                                        type_param: Box::new(get_string()),
                                         known_count: None,
                                         non_empty: false,
                                     },
@@ -251,15 +251,15 @@ fn handle_special_functions(
                                 let mut false_or_string_vec = TUnion::new(vec![
                                     TAtomic::TVec {
                                         known_items: None,
-                                        type_param: wrap_atomic(TAtomic::TVec {
+                                        type_param: Box::new(wrap_atomic(TAtomic::TVec {
                                             known_items: Some(BTreeMap::from([
                                                 (0, (false, get_string())),
                                                 (1, (false, get_int())),
                                             ])),
-                                            type_param: get_nothing(),
+                                            type_param: Box::new(get_nothing()),
                                             known_count: None,
                                             non_empty: true,
-                                        }),
+                                        })),
                                         known_count: None,
                                         non_empty: false,
                                     },
@@ -273,7 +273,7 @@ fn handle_special_functions(
                         let mut false_or_string_vec = TUnion::new(vec![
                             TAtomic::TVec {
                                 known_items: None,
-                                type_param: get_mixed(),
+                                type_param: Box::new(get_mixed()),
                                 known_count: None,
                                 non_empty: true,
                             },
@@ -287,7 +287,7 @@ fn handle_special_functions(
                 let mut false_or_string_vec = TUnion::new(vec![
                     TAtomic::TVec {
                         known_items: None,
-                        type_param: get_string(),
+                        type_param: Box::new(get_string()),
                         known_count: None,
                         non_empty: true,
                     },
@@ -301,7 +301,7 @@ fn handle_special_functions(
         }
         "debug_backtrace" => Some(wrap_atomic(TAtomic::TVec {
             known_items: None,
-            type_param: wrap_atomic(TAtomic::TDict {
+            type_param: Box::new(wrap_atomic(TAtomic::TDict {
                 known_items: Some(BTreeMap::from([
                     (
                         DictKey::String("file".to_string()),
@@ -335,7 +335,7 @@ fn handle_special_functions(
                 params: None,
                 non_empty: true,
                 shape_name: None,
-            }),
+            })),
             known_count: None,
             non_empty: true,
         })),

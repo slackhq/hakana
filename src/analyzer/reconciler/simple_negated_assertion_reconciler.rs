@@ -1520,7 +1520,7 @@ fn reconcile_falsy(
                 }
                 TAtomic::TVec { .. } => {
                     let new_atomic = TAtomic::TVec {
-                        type_param: get_nothing(),
+                        type_param: Box::new(get_nothing()),
                         known_items: None,
                         non_empty: false,
                         known_count: None,
@@ -1643,7 +1643,7 @@ fn reconcile_empty_countable(
                 // don't keep
             } else {
                 let new_atomic = TAtomic::TVec {
-                    type_param: get_nothing(),
+                    type_param: Box::new(get_nothing()),
                     known_items: None,
                     non_empty: false,
                     known_count: None,

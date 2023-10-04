@@ -471,10 +471,10 @@ fn analyze_list_assignment(
 
                         value_type.clone()
                     } else {
-                        type_param.clone()
+                        (**type_param).clone()
                     }
                 } else {
-                    type_param.clone()
+                    (**type_param).clone()
                 }
             } else if let TAtomic::TNamedObject {
                 name,

@@ -550,7 +550,7 @@ pub(crate) fn intersect_atomic_with_atomic(
 
             if let Some(ref mut params) = params {
                 if params.0.is_arraykey() {
-                    params.0 = type_1_key_param;
+                    params.0 = Box::new(type_1_key_param);
                 }
             }
 
@@ -646,7 +646,7 @@ fn intersect_vecs(
             if let Some(type_param) = type_param {
                 return Some(TAtomic::TVec {
                     known_items: Some(type_2_known_items),
-                    type_param,
+                    type_param: Box::new(type_param),
                     non_empty: true,
                     known_count: None,
                 });
@@ -670,7 +670,7 @@ fn intersect_vecs(
             if let Some(type_param) = type_param {
                 return Some(TAtomic::TVec {
                     known_items: Some(type_2_known_items),
-                    type_param,
+                    type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
                 });
@@ -694,7 +694,7 @@ fn intersect_vecs(
             if let Some(type_param) = type_param {
                 return Some(TAtomic::TVec {
                     known_items: Some(type_1_known_items),
-                    type_param,
+                    type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
                 });
@@ -706,7 +706,7 @@ fn intersect_vecs(
             if let Some(type_param) = type_param {
                 return Some(TAtomic::TVec {
                     known_items: None,
-                    type_param,
+                    type_param: Box::new(type_param),
                     non_empty: false,
                     known_count: None,
                 });
@@ -718,8 +718,8 @@ fn intersect_vecs(
 }
 
 fn intersect_dicts(
-    type_1_params: &Option<(TUnion, TUnion)>,
-    type_2_params: &Option<(TUnion, TUnion)>,
+    type_1_params: &Option<(Box<TUnion>, Box<TUnion>)>,
+    type_2_params: &Option<(Box<TUnion>, Box<TUnion>)>,
     type_1_known_items: &Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
     type_2_known_items: &Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
     codebase: &CodebaseInfo,
@@ -730,7 +730,7 @@ fn intersect_dicts(
             let value = intersect_union_with_union(&type_1_params.1, &type_2_params.1, codebase);
 
             if let (Some(key), Some(value)) = (key, value) {
-                Some((key, value))
+                Some((Box::new(key), Box::new(value)))
             } else {
                 return None;
             }

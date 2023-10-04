@@ -18,7 +18,10 @@ use hakana_type::{
 use oxidized::{aast, ast_defs::Pos};
 use rustc_hash::FxHashSet;
 
-use crate::{expr::expression_identifier, function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
+use crate::{
+    expr::expression_identifier, function_analysis_data::FunctionAnalysisData,
+    stmt_analyzer::AnalysisError,
+};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
@@ -49,13 +52,7 @@ pub(crate) fn analyze(
 
         context.inside_unset = false;
 
-        expression_analyzer::analyze(
-            statements_analyzer,
-            dim,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
+        expression_analyzer::analyze(statements_analyzer, dim, analysis_data, context, &mut None)?;
 
         context.inside_general_use = was_inside_use;
 
@@ -143,7 +140,7 @@ pub(crate) fn analyze(
         analysis_data.combine_effects(expr.0.pos(), dim_expr.pos(), pos);
     }
 
-   Ok(())
+    Ok(())
 }
 
 /**
@@ -593,6 +590,7 @@ pub(crate) fn handle_array_access_on_vec(
         ..
     } = vec.clone()
     {
+        let type_param = *type_param;
         if let Some(val) = dim_type.get_single_literal_int_value() {
             let index = val as usize;
 
@@ -655,7 +653,7 @@ pub(crate) fn handle_array_access_on_vec(
 
         return type_param;
     } else if let TAtomic::TVec { type_param, .. } = vec {
-        return type_param;
+        return *type_param;
     } else if let TAtomic::TKeyset { type_param, .. } = vec {
         return type_param;
     }
@@ -684,7 +682,7 @@ pub(crate) fn handle_array_access_on_dict(
     } else {
         if let TAtomic::TDict { params, .. } = &dict {
             if let Some(params) = params {
-                params.0.clone()
+                (*params.0).clone()
             } else {
                 get_nothing()
             }
@@ -753,7 +751,7 @@ pub(crate) fn handle_array_access_on_dict(
 
             if !in_assignment {
                 if let Some(params) = params {
-                    return params.1.clone();
+                    return (*params.1).clone();
                 }
 
                 if !context.inside_isset {
@@ -798,7 +796,7 @@ pub(crate) fn handle_array_access_on_dict(
         }
 
         let mut value_param = if let Some(params) = params {
-            params.1.clone()
+            (*params.1).clone()
         } else {
             get_nothing()
         };
@@ -863,7 +861,7 @@ pub(crate) fn handle_array_access_on_dict(
                 }
             }
 
-            params.1.clone()
+            (*params.1).clone()
         } else {
             get_nothing()
         };

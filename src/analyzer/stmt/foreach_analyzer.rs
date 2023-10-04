@@ -236,8 +236,14 @@ fn check_iterator_type(
                 type_param,
                 known_items: None,
                 ..
+            } => {
+                if type_param.is_nothing() {
+                    always_non_empty_array = false;
+                    has_valid_iterator = true;
+                    continue;
+                }
             }
-            | TAtomic::TKeyset { type_param, .. } => {
+            TAtomic::TKeyset { type_param, .. } => {
                 if type_param.is_nothing() {
                     always_non_empty_array = false;
                     has_valid_iterator = true;
@@ -296,8 +302,8 @@ fn check_iterator_type(
                         let mut value_param;
 
                         if let Some(params) = params {
-                            key_param = params.0;
-                            value_param = params.1;
+                            key_param = (*params.0).clone();
+                            value_param = (*params.1).clone();
                         } else {
                             key_param = get_nothing();
                             value_param = get_nothing();
@@ -392,7 +398,7 @@ fn check_iterator_type(
                         } else {
                             get_int()
                         };
-                        let mut value_param = type_param;
+                        let mut value_param = *type_param;
 
                         if let Some(known_items) = known_items {
                             for (offset, (_, known_item)) in known_items {
