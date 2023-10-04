@@ -39,23 +39,24 @@ impl TestRunner {
         repeat: u16,
         random_seed: Option<u64>,
     ) {
-        let candidate_test_folders = get_all_test_folders(test_or_test_dir);
+        let candidate_test_folders = get_all_test_folders(test_or_test_dir.clone());
 
         let mut test_diagnostics = vec![];
 
-        let starter_data = if candidate_test_folders.len() > 1 {
-            let (codebase, interner, file_system) =
-                get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
+        let starter_data =
+            if candidate_test_folders.len() > 1 && !test_or_test_dir.ends_with("/diff") {
+                let (codebase, interner, file_system) =
+                    get_single_file_codebase(vec!["tests/stubs/stubs.hack"]);
 
-            Some(SuccessfulScanData {
-                codebase,
-                interner,
-                file_system,
-                resolved_names: FxHashMap::default(),
-            })
-        } else {
-            None
-        };
+                Some(SuccessfulScanData {
+                    codebase,
+                    interner,
+                    file_system,
+                    resolved_names: FxHashMap::default(),
+                })
+            } else {
+                None
+            };
 
         let mut last_scan_data = None;
         let mut last_analysis_result = None;
