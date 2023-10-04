@@ -63,11 +63,7 @@ impl TestRunner {
 
         let mut time_in_analysis = Duration::default();
 
-        let mut test_folders = vec![];
-
-        for _ in 0..(repeat + 1) {
-            test_folders.extend(candidate_test_folders.clone());
-        }
+        let mut test_folders = candidate_test_folders.clone();
 
         if let Some(random_seed) = random_seed {
             println!("Running with random seed: {}\n", random_seed);
