@@ -330,7 +330,7 @@ pub fn scan_files(
                     !test_patterns.iter().any(|p| p.matches(&str_path)),
                     &logger,
                 ) {
-                    if analyze_map.contains(&str_path) {
+                    if !config.ast_diff && analyze_map.contains(&str_path) {
                         asts.lock().unwrap().insert(**file_path, scanner_result.1);
                     }
 
@@ -405,7 +405,7 @@ pub fn scan_files(
                             !test_patterns.iter().any(|p| p.matches(&str_path)),
                             &logger.clone(),
                         ) {
-                            if analyze_map.contains(&str_path) {
+                            if !config.ast_diff && analyze_map.contains(&str_path) {
                                 local_asts.insert(*file_path, scanner_result.1);
                             }
 
@@ -489,10 +489,6 @@ pub fn scan_files(
             aast_names_file.write_all(&serialized_aast_names)?;
         }
     }
-
-    codebase.classlike_infos.shrink_to_fit();
-    codebase.functionlike_infos.shrink_to_fit();
-    codebase.type_definitions.shrink_to_fit();
 
     Ok(ScanFilesResult {
         codebase,
