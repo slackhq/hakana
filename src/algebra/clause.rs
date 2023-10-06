@@ -51,32 +51,20 @@ impl Clause {
         reconcilable: Option<bool>,
         generated: Option<bool>,
     ) -> Clause {
-        let reconcilable = match reconcilable {
-            None => true,
-            Some(x) => x,
-        };
-
-        let generated = match generated {
-            None => false,
-            Some(x) => x,
-        };
-
-        let wedge = match wedge {
-            None => false,
-            Some(x) => x,
-        };
-
-        let hash = get_hash(&possibilities, creating_object_id, wedge, reconcilable);
-
-        return Clause {
-            possibilities,
+        Clause {
             creating_conditional_id,
             creating_object_id,
-            wedge,
-            reconcilable,
-            generated,
-            hash,
-        };
+            wedge: wedge.unwrap_or(false),
+            reconcilable: reconcilable.unwrap_or(true),
+            generated: generated.unwrap_or(false),
+            hash: get_hash(
+                &possibilities,
+                creating_object_id,
+                wedge.unwrap_or(false),
+                reconcilable.unwrap_or(true),
+            ),
+            possibilities,
+        }
     }
 
     pub fn remove_possibilities(&self, var_id: &String) -> Option<Clause> {
@@ -134,21 +122,19 @@ impl Clause {
             return false;
         }
 
-        for (var, possible_types) in &other_clause.possibilities {
-            let local_possibilities = self.possibilities.get(var);
-
-            if let Some(local_possibilities) = local_possibilities {
-                for (k, _) in possible_types {
-                    if !local_possibilities.contains_key(k) {
-                        return false;
-                    }
-                }
-            } else {
-                return false;
-            }
-        }
-
-        return true;
+        other_clause
+            .possibilities
+            .iter()
+            .all(|(var, possible_types)| {
+                self.possibilities
+                    .get(var)
+                    .map(|local_possibilities| {
+                        possible_types
+                            .keys()
+                            .all(|k| local_possibilities.contains_key(k))
+                    })
+                    .unwrap_or(false)
+            })
     }
 
     pub fn get_impossibilities(&self) -> BTreeMap<String, Vec<Assertion>> {
@@ -230,11 +216,13 @@ impl Clause {
             }
         }
 
-        if clause_strings.len() > 1 {
-            return "(".to_string() + &clause_strings.join(") || (") + ")";
-        }
+        let joined_clause = clause_strings.join(") || (");
 
-        return clause_strings[0].clone();
+        if clause_strings.len() > 1 {
+            format!("({})", joined_clause)
+        } else {
+            joined_clause
+        }
     }
 }
 
