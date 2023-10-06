@@ -7,7 +7,7 @@ use hakana_analyzer::custom_hook::CustomHook;
 use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_workhorse::file::FileStatus;
-use hakana_workhorse::{scan_and_analyze, SuccessfulScanData};
+use hakana_workhorse::{scan_and_analyze_async, SuccessfulScanData};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
@@ -177,12 +177,11 @@ impl Backend {
             None
         };
 
-        let result = scan_and_analyze(
+        let result = scan_and_analyze_async(
             Vec::new(),
             None,
             None,
             self.analysis_config.clone(),
-            None,
             8,
             Arc::new(Logger::LanguageServer(
                 self.client.clone(),

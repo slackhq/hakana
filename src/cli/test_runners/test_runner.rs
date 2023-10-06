@@ -260,8 +260,7 @@ impl TestRunner {
             previous_scan_data,
             previous_analysis_result,
             None,
-        )
-        .await;
+        );
 
         if dir.contains("/migrations/")
             || dir.contains("/fix/")
@@ -423,8 +422,7 @@ impl TestRunner {
                 previous_scan_data,
                 previous_analysis_result,
                 None,
-            )
-            .await;
+            );
 
             fs::remove_dir_all(&workdir_base).unwrap();
 

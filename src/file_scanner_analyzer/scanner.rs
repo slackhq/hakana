@@ -50,7 +50,7 @@ pub struct ScanFilesResult {
     pub files_to_analyze: Vec<String>,
 }
 
-pub async fn scan_files(
+pub fn scan_files(
     scan_dirs: &Vec<String>,
     cache_dir: Option<&String>,
     config: &Arc<Config>,
@@ -60,7 +60,7 @@ pub async fn scan_files(
     starter_data: Option<SuccessfulScanData>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
 ) -> io::Result<ScanFilesResult> {
-    logger.log_debug(&format!("{:#?}", scan_dirs)).await;
+    logger.log_debug_sync(&format!("{:#?}", scan_dirs));
 
     let mut files_to_scan = vec![];
 
@@ -139,7 +139,7 @@ pub async fn scan_files(
 
     if let Some(symbols_path) = &symbols_path {
         if let Some(cached_interner) =
-            load_cached_interner(symbols_path, use_codebase_cache, &logger).await
+            load_cached_interner(symbols_path, use_codebase_cache, &logger)
         {
             interner = cached_interner;
         }
@@ -148,8 +148,6 @@ pub async fn scan_files(
     let file_system = if let Some(language_server_changes) = language_server_changes {
         let mut file_system = existing_file_system.clone().unwrap();
 
-        logger.log_debug(&format!("{:#?}", file_system)).await;
-
         file_system.apply_language_server_changes(
             language_server_changes,
             &mut files_to_scan,
@@ -157,8 +155,6 @@ pub async fn scan_files(
             &config,
             &mut files_to_analyze,
         );
-
-        logger.log_debug(&format!("{:#?}", file_system)).await;
 
         file_system
     } else {
@@ -172,18 +168,15 @@ pub async fn scan_files(
             cache_dir,
             &mut files_to_analyze,
         )
-        .await
     };
 
     let file_discovery_elapsed = file_discovery_now.elapsed();
 
     if logger.can_log_timing() {
-        logger
-            .log(&format!(
-                "File discovery took {:.2?}",
-                file_discovery_elapsed
-            ))
-            .await;
+        logger.log_sync(&format!(
+            "File discovery took {:.2?}",
+            file_discovery_elapsed
+        ));
     }
 
     let file_statuses =
@@ -199,7 +192,7 @@ pub async fn scan_files(
     if !has_starter {
         if let Some(codebase_path) = &codebase_path {
             if let Some(cache_codebase) =
-                load_cached_codebase(codebase_path, use_codebase_cache, &logger).await
+                load_cached_codebase(codebase_path, use_codebase_cache, &logger)
             {
                 codebase = cache_codebase;
             }
@@ -208,7 +201,7 @@ pub async fn scan_files(
 
     if let Some(aast_names_path) = &aast_names_path {
         if let Some(cached_resolved_names) =
-            load_cached_aast_names(aast_names_path, use_codebase_cache, &logger).await
+            load_cached_aast_names(aast_names_path, use_codebase_cache, &logger)
         {
             resolved_names = cached_resolved_names
         };
@@ -217,12 +210,10 @@ pub async fn scan_files(
     let load_from_cache_elapsed = load_from_cache_now.elapsed();
 
     if logger.can_log_timing() {
-        logger
-            .log(&format!(
-                "Loading serialised codebase information from cache took {:.2?}",
-                load_from_cache_elapsed
-            ))
-            .await;
+        logger.log_sync(&format!(
+            "Loading serialised codebase information from cache took {:.2?}",
+            load_from_cache_elapsed
+        ));
     }
 
     invalidate_changed_codebase_elements(&mut codebase, &changed_files);
@@ -290,10 +281,6 @@ pub async fn scan_files(
         };
 
         let files_processed: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
-
-        logger
-            .log(&format!("Scanning {} files", files_to_scan.len()))
-            .await;
 
         let mut group_size = threads as usize;
 
@@ -467,12 +454,10 @@ pub async fn scan_files(
         let file_scanning_elapsed = file_scanning_now.elapsed();
 
         if logger.can_log_timing() {
-            logger
-                .log(&format!(
-                    "Scanning files took {:.2?}",
-                    file_scanning_elapsed
-                ))
-                .await;
+            logger.log_sync(&format!(
+                "Scanning files took {:.2?}",
+                file_scanning_elapsed
+            ));
         }
     }
 
@@ -505,6 +490,10 @@ pub async fn scan_files(
         }
     }
 
+    codebase.classlike_infos.shrink_to_fit();
+    codebase.functionlike_infos.shrink_to_fit();
+    codebase.type_definitions.shrink_to_fit();
+
     Ok(ScanFilesResult {
         codebase,
         interner,
@@ -516,7 +505,7 @@ pub async fn scan_files(
     })
 }
 
-async fn get_filesystem(
+fn get_filesystem(
     files_to_scan: &mut Vec<String>,
     interner: &mut Interner,
     logger: &Logger,
@@ -530,10 +519,10 @@ async fn get_filesystem(
 
     add_builtins_to_scan(files_to_scan, interner, &mut file_system);
 
-    logger.log(&format!("Looking for Hack files")).await;
+    logger.log_sync(&format!("Looking for Hack files"));
 
     for scan_dir in scan_dirs {
-        logger.log_debug(&format!(" - in {}", scan_dir)).await;
+        logger.log_debug_sync(&format!(" - in {}", scan_dir));
 
         files_to_scan.extend(file_system.find_files_in_dir(
             scan_dir,

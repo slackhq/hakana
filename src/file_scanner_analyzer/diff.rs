@@ -22,7 +22,7 @@ pub(crate) struct CachedAnalysis {
     pub symbol_references: SymbolReferences,
 }
 
-pub(crate) async fn mark_safe_symbols_from_diff(
+pub(crate) fn mark_safe_symbols_from_diff(
     logger: &Logger,
     codebase_diff: CodebaseDiff,
     codebase: &CodebaseInfo,
@@ -32,33 +32,33 @@ pub(crate) async fn mark_safe_symbols_from_diff(
     references_path: &Option<String>,
     previous_analysis_result: Option<AnalysisResult>,
 ) -> CachedAnalysis {
-    let (existing_references, mut existing_issues) =
-        if let Some(previous_analysis_result) = previous_analysis_result {
-            (
-                previous_analysis_result.symbol_references,
-                previous_analysis_result.emitted_issues,
-            )
-        } else if let (Some(issues_path), Some(references_path)) = (issues_path, references_path) {
-            let existing_references = if let Some(existing_references) =
-                load_cached_existing_references(references_path, true, logger).await
-            {
-                existing_references
-            } else {
-                return CachedAnalysis::default();
-            };
+    let (existing_references, mut existing_issues) = if let Some(previous_analysis_result) =
+        previous_analysis_result
+    {
+        (
+            previous_analysis_result.symbol_references,
+            previous_analysis_result.emitted_issues,
+        )
+    } else if let (Some(issues_path), Some(references_path)) = (issues_path, references_path) {
+        let existing_references = if let Some(existing_references) =
+            load_cached_existing_references(references_path, true, logger)
+        {
+            existing_references
+        } else {
+            return CachedAnalysis::default();
+        };
 
-            let existing_issues = if let Some(existing_issues) =
-                load_cached_existing_issues(issues_path, true, logger).await
-            {
+        let existing_issues =
+            if let Some(existing_issues) = load_cached_existing_issues(issues_path, true, logger) {
                 existing_issues
             } else {
                 return CachedAnalysis::default();
             };
 
-            (existing_references, existing_issues)
-        } else {
-            return CachedAnalysis::default();
-        };
+        (existing_references, existing_issues)
+    } else {
+        return CachedAnalysis::default();
+    };
 
     let (invalid_symbols_and_members, partially_invalid_symbols) =
         if let Some(invalid_symbols) = existing_references.get_invalid_symbols(&codebase_diff) {

@@ -17,7 +17,8 @@ pub fn populate_codebase(
     codebase: &mut CodebaseInfo,
     interner: &Interner,
     symbol_references: &mut SymbolReferences,
-    safe_symbols: &FxHashSet<StrId>,
+    safe_symbols: FxHashSet<StrId>,
+    safe_symbol_members: FxHashSet<(StrId, StrId)>,
 ) {
     let mut all_classlike_descendants = FxHashMap::default();
 
@@ -46,7 +47,7 @@ pub fn populate_codebase(
             &mut all_classlike_descendants,
             codebase,
             symbol_references,
-            safe_symbols,
+            &safe_symbols,
         );
     }
 
@@ -227,6 +228,8 @@ pub fn populate_codebase(
     all_classlike_descendants.retain(|k, _| !interner.lookup(k).starts_with("HH\\"));
 
     codebase.classlike_descendants = all_classlike_descendants;
+    codebase.safe_symbols = safe_symbols;
+    codebase.safe_symbol_members = safe_symbol_members;
 }
 
 fn populate_functionlike_storage(

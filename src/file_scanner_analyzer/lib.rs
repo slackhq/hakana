@@ -1,7 +1,7 @@
 pub(crate) mod populator;
 
 use analyzer::analyze_files;
-use diff::mark_safe_symbols_from_diff;
+use diff::{mark_safe_symbols_from_diff, CachedAnalysis};
 use file::{FileStatus, VirtualFileSystem};
 use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
 use hakana_analyzer::config::Config;
@@ -11,7 +11,6 @@ use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
-use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::{Interner, StrId};
 use indicatif::ProgressBar;
 use oxidized::aast;
@@ -70,7 +69,117 @@ impl Default for SuccessfulScanData {
     }
 }
 
-pub async fn scan_and_analyze(
+pub async fn scan_and_analyze_async(
+    stubs_dirs: Vec<String>,
+    filter: Option<String>,
+    ignored_paths: Option<FxHashSet<String>>,
+    config: Arc<Config>,
+    threads: u8,
+    logger: Arc<Logger>,
+    header: &str,
+    previous_scan_data: Option<SuccessfulScanData>,
+    previous_analysis_result: Option<AnalysisResult>,
+    language_server_changes: Option<FxHashMap<String, FileStatus>>,
+) -> io::Result<(AnalysisResult, SuccessfulScanData)> {
+    let mut all_scanned_dirs = stubs_dirs.clone();
+    all_scanned_dirs.push(config.root_dir.clone());
+
+    logger.log("Scanning files").await;
+
+    let ScanFilesResult {
+        mut codebase,
+        mut interner,
+        resolved_names,
+        codebase_diff,
+        file_system,
+        asts,
+        mut files_to_analyze,
+    } = scan_files(
+        &all_scanned_dirs,
+        None,
+        &config,
+        threads,
+        logger.clone(),
+        header,
+        previous_scan_data,
+        language_server_changes,
+    )?;
+
+    let mut cached_analysis = if config.ast_diff {
+        mark_safe_symbols_from_diff(
+            &logger,
+            codebase_diff,
+            &codebase,
+            &mut interner,
+            &mut files_to_analyze,
+            &None,
+            &None,
+            previous_analysis_result,
+        )
+    } else {
+        CachedAnalysis::default()
+    };
+
+    logger.log("Calculating symbol inheritance").await;
+
+    populate_codebase(
+        &mut codebase,
+        &interner,
+        &mut cached_analysis.symbol_references,
+        cached_analysis.safe_symbols,
+        cached_analysis.safe_symbol_members,
+    );
+
+    let mut analysis_result =
+        AnalysisResult::new(config.graph_kind, cached_analysis.symbol_references);
+
+    analysis_result.emitted_issues = cached_analysis.existing_issues;
+
+    let analysis_result = Arc::new(Mutex::new(analysis_result));
+
+    let scan_data = SuccessfulScanData {
+        codebase,
+        interner,
+        file_system,
+        resolved_names,
+    };
+
+    let arc_scan_data = Arc::new(scan_data);
+
+    logger
+        .log(&format!("Analyzing {} files", files_to_analyze.len()))
+        .await;
+
+    analyze_files(
+        files_to_analyze,
+        arc_scan_data.clone(),
+        asts,
+        config.clone(),
+        &analysis_result,
+        filter,
+        &ignored_paths,
+        threads,
+        logger.clone(),
+    )?;
+
+    let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
+
+    let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
+
+    if config.find_unused_definitions {
+        find_unused_definitions(
+            &mut analysis_result,
+            &config,
+            &scan_data.codebase,
+            &scan_data.interner,
+            &ignored_paths,
+        );
+    }
+
+    Ok((analysis_result, scan_data))
+}
+
+pub fn scan_and_analyze(
     stubs_dirs: Vec<String>,
     filter: Option<String>,
     ignored_paths: Option<FxHashSet<String>>,
@@ -87,6 +196,8 @@ pub async fn scan_and_analyze(
     all_scanned_dirs.push(config.root_dir.clone());
 
     let file_discovery_and_scanning_now = Instant::now();
+
+    logger.log_sync("Scanning files");
 
     let ScanFilesResult {
         mut codebase,
@@ -105,18 +216,15 @@ pub async fn scan_and_analyze(
         header,
         previous_scan_data,
         language_server_changes,
-    )
-    .await?;
+    )?;
 
     let file_discovery_and_scanning_elapsed = file_discovery_and_scanning_now.elapsed();
 
     if logger.can_log_timing() {
-        logger
-            .log(&format!(
-                "File discovery & scanning took {:.2?}",
-                file_discovery_and_scanning_elapsed
-            ))
-            .await;
+        logger.log_sync(&format!(
+            "File discovery & scanning took {:.2?}",
+            file_discovery_and_scanning_elapsed
+        ));
     }
 
     if let Some(cache_dir) = cache_dir {
@@ -131,70 +239,46 @@ pub async fn scan_and_analyze(
             .unwrap_or_else(|_| panic!("Could not write aast manifest {}", &aast_manifest_path));
     }
 
-    let references_path = if let Some(cache_dir) = cache_dir {
-        Some(format!("{}/references", cache_dir))
-    } else {
-        None
-    };
-
-    let issues_path = if let Some(cache_dir) = cache_dir {
-        Some(format!("{}/issues", cache_dir))
-    } else {
-        None
-    };
-
-    let mut safe_symbols = FxHashSet::default();
-    let mut safe_symbol_members = FxHashSet::default();
-    let mut existing_issues = FxHashMap::default();
-    let mut symbol_references = SymbolReferences::new();
-
-    if config.ast_diff {
-        let cached_analysis = mark_safe_symbols_from_diff(
+    let mut cached_analysis = if config.ast_diff {
+        mark_safe_symbols_from_diff(
             &logger,
             codebase_diff,
             &codebase,
             &mut interner,
             &mut files_to_analyze,
-            &issues_path,
-            &references_path,
+            &get_issues_path(cache_dir),
+            &get_references_path(cache_dir),
             previous_analysis_result,
         )
-        .await;
+    } else {
+        CachedAnalysis::default()
+    };
 
-        safe_symbols = cached_analysis.safe_symbols;
-        safe_symbol_members = cached_analysis.safe_symbol_members;
-        existing_issues = cached_analysis.existing_issues;
-        symbol_references = cached_analysis.symbol_references;
-    }
-
-    logger.log("Calculating symbol inheritance").await;
+    logger.log_sync("Calculating symbol inheritance");
 
     let populating_now = Instant::now();
 
     populate_codebase(
         &mut codebase,
         &interner,
-        &mut symbol_references,
-        &safe_symbols,
+        &mut cached_analysis.symbol_references,
+        cached_analysis.safe_symbols,
+        cached_analysis.safe_symbol_members,
     );
 
     let populating_elapsed = populating_now.elapsed();
 
     if logger.can_log_timing() {
-        logger
-            .log(&format!(
-                "Populating codebase took {:.2?}",
-                populating_elapsed
-            ))
-            .await;
+        logger.log_sync(&format!(
+            "Populating codebase took {:.2?}",
+            populating_elapsed
+        ));
     }
 
-    codebase.safe_symbols = safe_symbols;
-    codebase.safe_symbol_members = safe_symbol_members;
+    let mut analysis_result =
+        AnalysisResult::new(config.graph_kind, cached_analysis.symbol_references);
 
-    let mut analysis_result = AnalysisResult::new(config.graph_kind, symbol_references);
-
-    analysis_result.emitted_issues = existing_issues;
+    analysis_result.emitted_issues = cached_analysis.existing_issues;
 
     let analysis_result = Arc::new(Mutex::new(analysis_result));
 
@@ -209,6 +293,8 @@ pub async fn scan_and_analyze(
 
     let analyzed_files_now = Instant::now();
 
+    logger.log_sync(&format!("Analyzing {} files", files_to_analyze.len()));
+
     analyze_files(
         files_to_analyze,
         arc_scan_data.clone(),
@@ -219,36 +305,22 @@ pub async fn scan_and_analyze(
         &ignored_paths,
         threads,
         logger.clone(),
-    )
-    .await?;
+    )?;
 
     let analyzed_files_elapsed = analyzed_files_now.elapsed();
 
     if logger.can_log_timing() {
-        logger
-            .log(&format!(
-                "File analysis took {:.2?}",
-                analyzed_files_elapsed
-            ))
-            .await;
+        logger.log_sync(&format!(
+            "File analysis took {:.2?}",
+            analyzed_files_elapsed
+        ));
     }
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
 
     analysis_result.time_in_analysis = analyzed_files_elapsed;
 
-    if let Some(references_path) = references_path {
-        let mut symbols_file = fs::File::create(&references_path).unwrap();
-        let serialized_symbol_references =
-            bincode::serialize(&analysis_result.symbol_references).unwrap();
-        symbols_file.write_all(&serialized_symbol_references)?;
-    }
-
-    if let Some(issues_path) = issues_path {
-        let mut issues_file = fs::File::create(&issues_path).unwrap();
-        let serialized_issues = bincode::serialize(&analysis_result.emitted_issues).unwrap();
-        issues_file.write_all(&serialized_issues)?;
-    }
+    cache_analysis_data(cache_dir, &analysis_result)?;
 
     let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
 
@@ -288,6 +360,39 @@ pub async fn scan_and_analyze(
     }
 
     Ok((analysis_result, scan_data))
+}
+
+fn cache_analysis_data(
+    cache_dir: Option<&String>,
+    analysis_result: &AnalysisResult,
+) -> Result<(), io::Error> {
+    if let Some(references_path) = get_references_path(cache_dir) {
+        let mut symbols_file = fs::File::create(&references_path).unwrap();
+        let serialized_symbol_references =
+            bincode::serialize(&analysis_result.symbol_references).unwrap();
+        symbols_file.write_all(&serialized_symbol_references)?;
+    }
+    Ok(if let Some(issues_path) = get_issues_path(cache_dir) {
+        let mut issues_file = fs::File::create(&issues_path).unwrap();
+        let serialized_issues = bincode::serialize(&analysis_result.emitted_issues).unwrap();
+        issues_file.write_all(&serialized_issues)?;
+    })
+}
+
+fn get_issues_path(cache_dir: Option<&String>) -> Option<String> {
+    if let Some(cache_dir) = cache_dir {
+        Some(format!("{}/issues", cache_dir))
+    } else {
+        None
+    }
+}
+
+fn get_references_path(cache_dir: Option<&String>) -> Option<String> {
+    if let Some(cache_dir) = cache_dir {
+        Some(format!("{}/references", cache_dir))
+    } else {
+        None
+    }
 }
 
 pub fn get_aast_for_path(

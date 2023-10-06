@@ -628,22 +628,19 @@ fn do_fix(
 
     config.allowed_issues = None;
 
-    let result =
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(hakana_workhorse::scan_and_analyze(
-                Vec::new(),
-                filter,
-                None,
-                Arc::new(config),
-                None,
-                threads,
-                Arc::new(logger),
-                &header,
-                None,
-                None,
-                None,
-            ));
+    let result = hakana_workhorse::scan_and_analyze(
+        Vec::new(),
+        filter,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        Arc::new(logger),
+        &header,
+        None,
+        None,
+        None,
+    );
 
     if let Ok((analysis_result, successfull_run_data)) = result {
         update_files(analysis_result, &root_dir, &successfull_run_data.interner);
@@ -679,22 +676,19 @@ fn do_remove_unused_fixmes(
 
     config.remove_fixmes = true;
 
-    let result =
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(hakana_workhorse::scan_and_analyze(
-                Vec::new(),
-                filter,
-                None,
-                Arc::new(config),
-                None,
-                threads,
-                Arc::new(logger),
-                &header,
-                None,
-                None,
-                None,
-            ));
+    let result = hakana_workhorse::scan_and_analyze(
+        Vec::new(),
+        filter,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        Arc::new(logger),
+        &header,
+        None,
+        None,
+        None,
+    );
 
     if let Ok((analysis_result, successful_run_data)) = result {
         update_files(analysis_result, root_dir, &successful_run_data.interner);
@@ -749,22 +743,19 @@ fn do_add_fixmes(
 
     config.add_fixmes = true;
 
-    let result =
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(hakana_workhorse::scan_and_analyze(
-                Vec::new(),
-                filter,
-                None,
-                Arc::new(config),
-                None,
-                threads,
-                Arc::new(logger),
-                &header,
-                None,
-                None,
-                None,
-            ));
+    let result = hakana_workhorse::scan_and_analyze(
+        Vec::new(),
+        filter,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        Arc::new(logger),
+        &header,
+        None,
+        None,
+        None,
+    );
 
     if let Ok((analysis_result, successful_run_data)) = result {
         update_files(analysis_result, root_dir, &successful_run_data.interner);
@@ -828,22 +819,19 @@ fn do_migrate(
 
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 
-    let result =
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(hakana_workhorse::scan_and_analyze(
-                Vec::new(),
-                filter,
-                None,
-                Arc::new(config),
-                None,
-                threads,
-                Arc::new(logger),
-                &header,
-                None,
-                None,
-                None,
-            ));
+    let result = hakana_workhorse::scan_and_analyze(
+        Vec::new(),
+        filter,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        Arc::new(logger),
+        &header,
+        None,
+        None,
+        None,
+    );
 
     if let Ok((analysis_result, successful_run_data)) = result {
         update_files(analysis_result, root_dir, &successful_run_data.interner);
@@ -889,22 +877,19 @@ fn do_migration_candidates(
 
     let config = Arc::new(config);
 
-    let result =
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(hakana_workhorse::scan_and_analyze(
-                Vec::new(),
-                None,
-                None,
-                config.clone(),
-                None,
-                threads,
-                Arc::new(logger),
-                &header,
-                None,
-                None,
-                None,
-            ));
+    let result = hakana_workhorse::scan_and_analyze(
+        Vec::new(),
+        None,
+        None,
+        config.clone(),
+        None,
+        threads,
+        Arc::new(logger),
+        &header,
+        None,
+        None,
+        None,
+    );
 
     if let Ok(result) = result {
         println!("\nSymbols to migrate:\n");
@@ -951,22 +936,19 @@ fn do_find_paths(
 
     let root_dir = config.root_dir.clone();
 
-    let result =
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(hakana_workhorse::scan_and_analyze(
-                Vec::new(),
-                None,
-                None,
-                Arc::new(config),
-                None,
-                threads,
-                Arc::new(logger),
-                &header,
-                None,
-                None,
-                None,
-            ));
+    let result = hakana_workhorse::scan_and_analyze(
+        Vec::new(),
+        None,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        Arc::new(logger),
+        &header,
+        None,
+        None,
+        None,
+    );
 
     if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in
@@ -1018,22 +1000,19 @@ fn do_security_check(
 
     let root_dir = config.root_dir.clone();
 
-    let result =
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(hakana_workhorse::scan_and_analyze(
-                Vec::new(),
-                None,
-                None,
-                Arc::new(config),
-                None,
-                threads,
-                Arc::new(logger),
-                &header,
-                None,
-                None,
-                None,
-            ));
+    let result = hakana_workhorse::scan_and_analyze(
+        Vec::new(),
+        None,
+        None,
+        Arc::new(config),
+        None,
+        threads,
+        Arc::new(logger),
+        &header,
+        None,
+        None,
+        None,
+    );
 
     if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in
@@ -1128,26 +1107,23 @@ fn do_analysis(
 
     let root_dir = config.root_dir.clone();
 
-    let result =
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(hakana_workhorse::scan_and_analyze(
-                Vec::new(),
-                filter,
-                ignored,
-                Arc::new(config),
-                if sub_matches.is_present("no-cache") {
-                    None
-                } else {
-                    Some(&cache_dir)
-                },
-                threads,
-                Arc::new(logger),
-                &header,
-                None,
-                None,
-                None,
-            ));
+    let result = hakana_workhorse::scan_and_analyze(
+        Vec::new(),
+        filter,
+        ignored,
+        Arc::new(config),
+        if sub_matches.is_present("no-cache") {
+            None
+        } else {
+            Some(&cache_dir)
+        },
+        threads,
+        Arc::new(logger),
+        &header,
+        None,
+        None,
+        None,
+    );
 
     if let Ok((analysis_result, successful_run_data)) = result {
         for (file_path, issues) in

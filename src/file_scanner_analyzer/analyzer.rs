@@ -17,7 +17,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::io;
 use std::sync::{Arc, Mutex};
 
-pub async fn analyze_files(
+pub fn analyze_files(
     mut paths: Vec<String>,
     scan_data: Arc<SuccessfulScanData>,
     asts: FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>,
@@ -45,10 +45,6 @@ pub async fn analyze_files(
     }
 
     let total_file_count = paths.len() as u64;
-
-    logger
-        .log(&format!("Analyzing {} files", total_file_count))
-        .await;
 
     if (paths.len() / group_size) < 4 {
         group_size = 1;
