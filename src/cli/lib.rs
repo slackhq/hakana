@@ -576,18 +576,16 @@ pub fn init(
                 None
             };
 
-            tokio::runtime::Runtime::new()
-                .unwrap()
-                .block_on(test_runner.run_test(
-                    sub_matches.value_of("TEST").expect("required").to_string(),
-                    Arc::new(logger),
-                    !sub_matches.is_present("no-cache"),
-                    sub_matches.is_present("reuse-codebase"),
-                    &mut had_error,
-                    header,
-                    repeat,
-                    random_seed,
-                ));
+            test_runner.run_test(
+                sub_matches.value_of("TEST").expect("required").to_string(),
+                Arc::new(logger),
+                !sub_matches.is_present("no-cache"),
+                sub_matches.is_present("reuse-codebase"),
+                &mut had_error,
+                header,
+                repeat,
+                random_seed,
+            );
         }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachabe!()
     }

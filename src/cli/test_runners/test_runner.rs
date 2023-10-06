@@ -29,7 +29,7 @@ pub trait HooksProvider {
 pub struct TestRunner(pub Box<dyn HooksProvider>);
 
 impl TestRunner {
-    pub async fn run_test(
+    pub fn run_test(
         &self,
         test_or_test_dir: String,
         logger: Arc<Logger>,
@@ -82,43 +82,41 @@ impl TestRunner {
 
                 let needs_fresh_codebase = test_folder.to_ascii_lowercase().contains("xhp");
 
-                let test_result = self
-                    .run_test_in_dir(
-                        test_folder,
-                        logger.clone(),
-                        if use_cache { Some(&cache_dir) } else { None },
-                        had_error,
-                        &mut test_diagnostics,
-                        build_checksum,
-                        if let Some(last_run_data) = last_scan_data {
-                            if reuse_codebase {
-                                Some(last_run_data)
-                            } else {
-                                if !needs_fresh_codebase {
-                                    starter_data.clone()
-                                } else {
-                                    None
-                                }
-                            }
+                let test_result = self.run_test_in_dir(
+                    test_folder,
+                    logger.clone(),
+                    if use_cache { Some(&cache_dir) } else { None },
+                    had_error,
+                    &mut test_diagnostics,
+                    build_checksum,
+                    if let Some(last_run_data) = last_scan_data {
+                        if reuse_codebase {
+                            Some(last_run_data)
                         } else {
                             if !needs_fresh_codebase {
                                 starter_data.clone()
                             } else {
                                 None
                             }
-                        },
-                        if let Some(last_analysis_result) = last_analysis_result {
-                            if reuse_codebase {
-                                Some(last_analysis_result)
-                            } else {
-                                None
-                            }
+                        }
+                    } else {
+                        if !needs_fresh_codebase {
+                            starter_data.clone()
                         } else {
                             None
-                        },
-                        &mut time_in_analysis,
-                    )
-                    .await;
+                        }
+                    },
+                    if let Some(last_analysis_result) = last_analysis_result {
+                        if reuse_codebase {
+                            Some(last_analysis_result)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    },
+                    &mut time_in_analysis,
+                );
 
                 last_scan_data = test_result.1;
                 last_analysis_result = test_result.2;
@@ -198,7 +196,7 @@ impl TestRunner {
         analysis_config
     }
 
-    async fn run_test_in_dir(
+    fn run_test_in_dir(
         &self,
         dir: String,
         logger: Arc<Logger>,
@@ -219,23 +217,21 @@ impl TestRunner {
         }
 
         if dir.contains("/diff/") {
-            return self
-                .run_diff_test(
-                    dir,
-                    logger,
-                    cache_dir,
-                    had_error,
-                    test_diagnostics,
-                    build_checksum,
-                )
-                .await;
+            return self.run_diff_test(
+                dir,
+                logger,
+                cache_dir,
+                had_error,
+                test_diagnostics,
+                build_checksum,
+            );
         }
 
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
         let analysis_config = self.get_config_for_test(&dir);
 
-        logger.log_debug(&format!("running test {}", dir)).await;
+        logger.log_debug_sync(&format!("running test {}", dir));
 
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
@@ -375,7 +371,7 @@ impl TestRunner {
         }
     }
 
-    async fn run_diff_test(
+    fn run_diff_test(
         &self,
         dir: String,
         logger: Arc<Logger>,
@@ -386,7 +382,7 @@ impl TestRunner {
     ) -> (String, Option<SuccessfulScanData>, Option<AnalysisResult>) {
         let cwd = env::current_dir().unwrap().to_str().unwrap().to_string();
 
-        logger.log_debug(&format!("running test {}", dir)).await;
+        logger.log_debug_sync(&format!("running test {}", dir));
 
         if let Some(cache_dir) = cache_dir {
             fs::remove_dir_all(&cache_dir).unwrap();
