@@ -84,7 +84,7 @@ pub(crate) fn analyze(
             context.inside_unset = false;
             analysis_data
                 .expr_effects
-                .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_LOCAL);
+                .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_WRITE_LOCAL);
             analysis_data.combine_effects(first_arg.pos(), pos, pos);
             analysis_data.set_expr_type(&pos, get_void());
 
@@ -173,7 +173,7 @@ pub(crate) fn analyze(
 
     if let Some(effects) = analysis_data
         .expr_effects
-        .get(&(pos.start_offset(), pos.end_offset()))
+        .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
     {
         if effects > &EFFECT_WRITE_PROPS {
             context.remove_mutable_object_vars();
@@ -182,7 +182,7 @@ pub(crate) fn analyze(
 
     if function_storage.ignore_taints_if_true {
         analysis_data.if_true_assertions.insert(
-            (pos.start_offset(), pos.end_offset()),
+            (pos.start_offset() as u32, pos.end_offset() as u32),
             FxHashMap::from_iter([("hakana taints".to_string(), vec![Assertion::IgnoreTaints])]),
         );
     }
@@ -257,7 +257,7 @@ pub(crate) fn analyze(
                     if let aast::Expr_::String(boxed) = &expr.2[1].1 .2 {
                         let dim_var_id = boxed.to_string();
                         analysis_data.if_true_assertions.insert(
-                            (pos.start_offset(), pos.end_offset()),
+                            (pos.start_offset() as u32, pos.end_offset() as u32),
                             FxHashMap::from_iter([(
                                 expr_var_id.clone(),
                                 vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
@@ -265,7 +265,7 @@ pub(crate) fn analyze(
                         );
                     } else if let aast::Expr_::Int(boxed) = &expr.2[1].1 .2 {
                         analysis_data.if_true_assertions.insert(
-                            (pos.start_offset(), pos.end_offset()),
+                            (pos.start_offset() as u32, pos.end_offset() as u32),
                             FxHashMap::from_iter([(
                                 expr_var_id.clone(),
                                 vec![Assertion::HasArrayKey(DictKey::Int(
@@ -283,7 +283,7 @@ pub(crate) fn analyze(
                             resolved_names,
                         ) {
                             analysis_data.if_true_assertions.insert(
-                                (pos.start_offset(), pos.end_offset()),
+                                (pos.start_offset() as u32, pos.end_offset() as u32),
                                 FxHashMap::from_iter([(
                                     format!("{}[{}]", expr_var_id, dim_var_id),
                                     vec![Assertion::ArrayKeyExists],
@@ -323,7 +323,7 @@ pub(crate) fn analyze(
 
                 if let Some(expr_var_id) = second_arg_var_id {
                     analysis_data.if_true_assertions.insert(
-                        (pos.start_offset(), pos.end_offset()),
+                        (pos.start_offset() as u32, pos.end_offset() as u32),
                         FxHashMap::from_iter([(
                             "hakana taints".to_string(),
                             vec![Assertion::RemoveTaints(
@@ -359,7 +359,7 @@ pub(crate) fn analyze(
                         if let Some(str) = second_arg_type.get_single_literal_string_value() {
                             if str.len() > 1 && str != "http://" && str != "https://" {
                                 analysis_data.if_true_assertions.insert(
-                                    (pos.start_offset(), pos.end_offset()),
+                                    (pos.start_offset() as u32, pos.end_offset() as u32),
                                     FxHashMap::from_iter([(
                                         "hakana taints".to_string(),
                                         vec![Assertion::RemoveTaints(
@@ -429,7 +429,7 @@ pub(crate) fn analyze(
 
                             if !hashes_to_remove.is_empty() {
                                 analysis_data.if_true_assertions.insert(
-                                    (pos.start_offset(), pos.end_offset()),
+                                    (pos.start_offset() as u32, pos.end_offset() as u32),
                                     FxHashMap::from_iter([(
                                         "hakana taints".to_string(),
                                         vec![Assertion::RemoveTaints(

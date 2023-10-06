@@ -1,7 +1,10 @@
-use crate::{scope_context::{
-    control_action::ControlAction, if_scope::IfScope, loop_scope::LoopScope, var_has_root,
-    ScopeContext,
-}, stmt_analyzer::AnalysisError};
+use crate::{
+    scope_context::{
+        control_action::ControlAction, if_scope::IfScope, loop_scope::LoopScope, var_has_root,
+        ScopeContext,
+    },
+    stmt_analyzer::AnalysisError,
+};
 use hakana_algebra::Clause;
 use hakana_reflection_info::{
     analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS,
@@ -375,7 +378,10 @@ pub(crate) fn analyze(
     {
         let effects = analysis_data
             .expr_effects
-            .get(&(stmt.0 .1.start_offset(), stmt.0 .1.end_offset()))
+            .get(&(
+                stmt.0 .1.start_offset() as u32,
+                stmt.0 .1.end_offset() as u32,
+            ))
             .unwrap_or(&0);
 
         if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS = *effects {
@@ -393,7 +399,7 @@ pub(crate) fn analyze(
             ) {
                 return Ok(());
             }
-            
+
             analysis_data.add_replacement(
                 (stmt.0 .1.end_offset() as usize, stmt_pos.end_offset()),
                 Replacement::Substitute(";".to_string()),
@@ -401,7 +407,7 @@ pub(crate) fn analyze(
         }
     }
 
-   Ok(())
+    Ok(())
 }
 
 pub(crate) fn remove_clauses_with_mixed_vars(

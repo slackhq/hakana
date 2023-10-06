@@ -57,7 +57,7 @@ pub(crate) fn analyze(
     }
 
     analysis_data.expr_effects.insert(
-        (call_pos.start_offset(), call_pos.end_offset()),
+        (call_pos.start_offset() as u32, call_pos.end_offset() as u32),
         EFFECT_IMPURE,
     );
 

@@ -115,8 +115,8 @@ pub(crate) fn analyze(
         effects |= analysis_data
             .expr_effects
             .get(&(
-                value_expr.pos().start_offset(),
-                value_expr.pos().end_offset(),
+                value_expr.pos().start_offset() as u32,
+                value_expr.pos().end_offset() as u32,
             ))
             .unwrap_or(&0);
 
@@ -151,9 +151,10 @@ pub(crate) fn analyze(
         }
     }
 
-    analysis_data
-        .expr_effects
-        .insert((pos.start_offset(), pos.end_offset()), effects);
+    analysis_data.expr_effects.insert(
+        (pos.start_offset() as u32, pos.end_offset() as u32),
+        effects,
+    );
 
     let mut new_dict = wrap_atomic(TAtomic::TDict {
         known_items: if known_items.len() > 0 {

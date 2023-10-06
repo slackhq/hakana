@@ -30,12 +30,12 @@ impl FilePath {
 pub struct HPos {
     pub file_path: FilePath,
 
-    pub start_offset: usize,
-    pub end_offset: usize,
-    pub start_line: usize,
-    pub end_line: usize,
-    pub start_column: usize,
-    pub end_column: usize,
+    pub start_offset: u32,
+    pub end_offset: u32,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub start_column: u16,
+    pub end_column: u16,
 
     pub insertion_start: Option<StmtStart>,
 }
@@ -53,12 +53,12 @@ impl HPos {
 
         return HPos {
             file_path,
-            start_line,
-            end_line,
-            start_offset,
-            end_offset,
-            start_column,
-            end_column,
+            start_line: start_line as u32,
+            end_line: end_line as u32,
+            start_offset: start_offset as u32,
+            end_offset: end_offset as u32,
+            start_column: start_column as u16,
+            end_column: end_column as u16,
             insertion_start: stmt_start,
         };
     }

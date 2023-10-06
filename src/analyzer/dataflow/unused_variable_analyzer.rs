@@ -202,7 +202,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             for list_expr in exprs {
                 let has_matching_node = self.unused_variable_nodes.iter().any(|n| match &n.kind {
                     DataFlowNodeKind::VariableUseSource { pos, .. } => {
-                        pos.start_offset == list_expr.1.start_offset()
+                        pos.start_offset == list_expr.1.start_offset() as u32
                     }
                     _ => false,
                 });
@@ -242,7 +242,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let has_matching_node = self.unused_variable_nodes.iter().any(|n| match &n.kind {
             DataFlowNodeKind::VariableUseSource { pos, .. } => {
-                pos.start_offset == stmt.0.start_offset()
+                pos.start_offset == stmt.0.start_offset() as u32
             }
             _ => false,
         });
@@ -253,7 +253,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     if let oxidized::ast_defs::Bop::Eq(_) = &boxed.bop {
                         let expression_effects = analysis_data
                             .expr_effects
-                            .get(&(boxed.rhs.1.start_offset(), boxed.rhs.1.end_offset()))
+                            .get(&(
+                                boxed.rhs.1.start_offset() as u32,
+                                boxed.rhs.1.end_offset() as u32,
+                            ))
                             .unwrap_or(&0);
 
                         if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS =
@@ -284,8 +287,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                     let array_offset_effects = analysis_data
                                         .expr_effects
                                         .get(&(
-                                            array_offset_expr.1.start_offset(),
-                                            array_offset_expr.1.end_offset(),
+                                            array_offset_expr.1.start_offset() as u32,
+                                            array_offset_expr.1.end_offset() as u32,
                                         ))
                                         .unwrap_or(&0);
 

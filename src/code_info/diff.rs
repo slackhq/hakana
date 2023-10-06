@@ -7,8 +7,8 @@ pub struct CodebaseDiff {
     pub keep: FxHashSet<(StrId, StrId)>,
     pub keep_signature: FxHashSet<(StrId, StrId)>,
     pub add_or_delete: FxHashSet<(StrId, StrId)>,
-    pub diff_map: FxHashMap<FilePath, Vec<(usize, usize, isize, isize)>>,
-    pub deletion_ranges_map: FxHashMap<FilePath, Vec<(usize, usize)>>,
+    pub diff_map: FxHashMap<FilePath, Vec<(u32, u32, isize, isize)>>,
+    pub deletion_ranges_map: FxHashMap<FilePath, Vec<(u32, u32)>>,
 }
 
 impl CodebaseDiff {

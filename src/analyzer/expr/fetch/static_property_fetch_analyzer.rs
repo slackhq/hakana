@@ -94,7 +94,7 @@ pub(crate) fn analyze(
 
     analysis_data
         .expr_effects
-        .insert((pos.start_offset(), pos.end_offset()), EFFECT_READ_PROPS);
+        .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_READ_PROPS);
 
     analysis_data.set_expr_type(&stmt_class.1, get_named_object(classlike_name.clone()));
 

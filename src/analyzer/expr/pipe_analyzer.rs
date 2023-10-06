@@ -49,7 +49,10 @@ pub(crate) fn analyze(
 
     context.pipe_var_effects = *analysis_data
         .expr_effects
-        .get(&(expr.1 .1.start_offset(), expr.1 .1.end_offset()))
+        .get(&(
+            expr.1 .1.start_offset() as u32,
+            expr.1 .1.end_offset() as u32,
+        ))
         .unwrap_or(&EFFECT_PURE);
 
     let analyzed_ok = expression_analyzer::analyze(
@@ -72,10 +75,13 @@ pub(crate) fn analyze(
     );
 
     analysis_data.expr_effects.insert(
-        (pos.start_offset(), pos.end_offset()),
+        (pos.start_offset() as u32, pos.end_offset() as u32),
         *analysis_data
             .expr_effects
-            .get(&(expr.2 .1.start_offset(), expr.2 .1.end_offset()))
+            .get(&(
+                expr.2 .1.start_offset() as u32,
+                expr.2 .1.end_offset() as u32,
+            ))
             .unwrap_or(&EFFECT_IMPURE),
     );
 

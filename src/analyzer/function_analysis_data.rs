@@ -16,28 +16,28 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
 pub struct FunctionAnalysisData {
-    pub expr_types: FxHashMap<(usize, usize), Rc<TUnion>>,
-    pub if_true_assertions: FxHashMap<(usize, usize), FxHashMap<String, Vec<Assertion>>>,
-    pub if_false_assertions: FxHashMap<(usize, usize), FxHashMap<String, Vec<Assertion>>>,
+    pub expr_types: FxHashMap<(u32, u32), Rc<TUnion>>,
+    pub if_true_assertions: FxHashMap<(u32, u32), FxHashMap<String, Vec<Assertion>>>,
+    pub if_false_assertions: FxHashMap<(u32, u32), FxHashMap<String, Vec<Assertion>>>,
     pub data_flow_graph: DataFlowGraph,
     pub case_scopes: Vec<CaseScope>,
     pub issues_to_emit: Vec<Issue>,
     pub inferred_return_types: Vec<TUnion>,
     pub fully_matched_switch_offsets: FxHashSet<usize>,
     pub closures: FxHashMap<Pos, FunctionLikeInfo>,
-    pub closure_spans: Vec<(usize, usize)>,
-    pub replacements: BTreeMap<(usize, usize), Replacement>,
+    pub closure_spans: Vec<(u32, u32)>,
+    pub replacements: BTreeMap<(u32, u32), Replacement>,
     pub current_stmt_offset: Option<StmtStart>,
-    pub expr_fixme_positions: FxHashMap<(usize, usize), StmtStart>,
+    pub expr_fixme_positions: FxHashMap<(u32, u32), StmtStart>,
     pub symbol_references: SymbolReferences,
     pub issue_filter: Option<FxHashSet<IssueKind>>,
-    pub expr_effects: FxHashMap<(usize, usize), u8>,
+    pub expr_effects: FxHashMap<(u32, u32), u8>,
     pub issue_counts: FxHashMap<IssueKind, usize>,
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
-    pub hakana_fixme_or_ignores: BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64, bool))>>,
-    pub matched_ignore_positions: FxHashSet<(usize, usize)>,
+    pub hakana_fixme_or_ignores: BTreeMap<u32, Vec<(IssueKind, (u32, u32, u64, bool))>>,
+    pub matched_ignore_positions: FxHashSet<(u32, u32)>,
     pub type_variable_bounds: FxHashMap<String, (Vec<TemplateBound>, Vec<TemplateBound>)>,
 }
 
@@ -48,9 +48,7 @@ impl FunctionAnalysisData {
         comments: &Vec<&(Pos, Comment)>,
         all_custom_issues: &FxHashSet<String>,
         current_stmt_offset: Option<StmtStart>,
-        hakana_fixme_or_ignores: Option<
-            BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64, bool))>>,
-        >,
+        hakana_fixme_or_ignores: Option<BTreeMap<u32, Vec<(IssueKind, (u32, u32, u64, bool))>>>,
     ) -> Self {
         Self {
             expr_types: FxHashMap::default(),
@@ -194,7 +192,7 @@ impl FunctionAnalysisData {
         return true;
     }
 
-    pub(crate) fn get_matching_hakana_fixme(&self, issue: &Issue) -> Option<(usize, usize)> {
+    pub(crate) fn get_matching_hakana_fixme(&self, issue: &Issue) -> Option<(u32, u32)> {
         for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
             if hakana_fixme_or_ignores.0 == &issue.pos.start_line
                 || hakana_fixme_or_ignores.0 == &(issue.pos.start_line - 1)
@@ -214,7 +212,7 @@ impl FunctionAnalysisData {
         None
     }
 
-    fn covered_by_hh_fixme(&mut self, issue_kind: &IssueKind, start_line: usize) -> bool {
+    fn covered_by_hh_fixme(&mut self, issue_kind: &IssueKind, start_line: u32) -> bool {
         if let Some(fixmes) = self.hh_fixmes.get(&(start_line as isize)) {
             for (hack_error, _) in fixmes {
                 match *hack_error {
@@ -405,10 +403,16 @@ impl FunctionAnalysisData {
 
     pub(crate) fn copy_effects(&mut self, source_pos_1: &Pos, destination_pos: &Pos) {
         self.expr_effects.insert(
-            (destination_pos.start_offset(), destination_pos.end_offset()),
+            (
+                destination_pos.start_offset() as u32,
+                destination_pos.end_offset() as u32,
+            ),
             *self
                 .expr_effects
-                .get(&(source_pos_1.start_offset(), source_pos_1.end_offset()))
+                .get(&(
+                    source_pos_1.start_offset() as u32,
+                    source_pos_1.end_offset() as u32,
+                ))
                 .unwrap_or(&0),
         );
     }
@@ -420,13 +424,22 @@ impl FunctionAnalysisData {
         destination_pos: &Pos,
     ) {
         self.expr_effects.insert(
-            (destination_pos.start_offset(), destination_pos.end_offset()),
+            (
+                destination_pos.start_offset() as u32,
+                destination_pos.end_offset() as u32,
+            ),
             self.expr_effects
-                .get(&(source_pos_1.start_offset(), source_pos_1.end_offset()))
+                .get(&(
+                    source_pos_1.start_offset() as u32,
+                    source_pos_1.end_offset() as u32,
+                ))
                 .unwrap_or(&0)
                 | self
                     .expr_effects
-                    .get(&(source_pos_2.start_offset(), source_pos_2.end_offset()))
+                    .get(&(
+                        source_pos_2.start_offset() as u32,
+                        source_pos_2.end_offset() as u32,
+                    ))
                     .unwrap_or(&0),
         );
     }
@@ -439,23 +452,32 @@ impl FunctionAnalysisData {
         effect: u8,
     ) {
         self.expr_effects.insert(
-            (destination_pos.start_offset(), destination_pos.end_offset()),
+            (
+                destination_pos.start_offset() as u32,
+                destination_pos.end_offset() as u32,
+            ),
             self.expr_effects
-                .get(&(source_pos_1.start_offset(), source_pos_1.end_offset()))
+                .get(&(
+                    source_pos_1.start_offset() as u32,
+                    source_pos_1.end_offset() as u32,
+                ))
                 .unwrap_or(&0)
                 | self
                     .expr_effects
-                    .get(&(source_pos_2.start_offset(), source_pos_2.end_offset()))
+                    .get(&(
+                        source_pos_2.start_offset() as u32,
+                        source_pos_2.end_offset() as u32,
+                    ))
                     .unwrap_or(&0)
                 | effect,
         );
     }
 
     pub(crate) fn is_pure(&self, source_pos: &Pos) -> bool {
-        if let Some(expr_effect) = self
-            .expr_effects
-            .get(&(source_pos.start_offset(), source_pos.end_offset()))
-        {
+        if let Some(expr_effect) = self.expr_effects.get(&(
+            source_pos.start_offset() as u32,
+            source_pos.end_offset() as u32,
+        )) {
             expr_effect == &0
         } else {
             true
@@ -464,13 +486,18 @@ impl FunctionAnalysisData {
 
     #[inline]
     pub fn set_expr_type(&mut self, pos: &Pos, t: TUnion) {
-        self.expr_types
-            .insert((pos.start_offset(), pos.end_offset()), Rc::new(t));
+        self.expr_types.insert(
+            (pos.start_offset() as u32, pos.end_offset() as u32),
+            Rc::new(t),
+        );
     }
 
     #[inline]
     pub fn get_expr_type(&self, pos: &Pos) -> Option<&TUnion> {
-        if let Some(t) = self.expr_types.get(&(pos.start_offset(), pos.end_offset())) {
+        if let Some(t) = self
+            .expr_types
+            .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
+        {
             Some(&**t)
         } else {
             None
@@ -480,19 +507,22 @@ impl FunctionAnalysisData {
     #[inline]
     pub fn set_rc_expr_type(&mut self, pos: &Pos, t: Rc<TUnion>) {
         self.expr_types
-            .insert((pos.start_offset(), pos.end_offset()), t);
+            .insert((pos.start_offset() as u32, pos.end_offset() as u32), t);
     }
 
     #[inline]
     pub fn get_rc_expr_type(&self, pos: &Pos) -> Option<&Rc<TUnion>> {
-        if let Some(t) = self.expr_types.get(&(pos.start_offset(), pos.end_offset())) {
+        if let Some(t) = self
+            .expr_types
+            .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
+        {
             Some(t)
         } else {
             None
         }
     }
 
-    pub(crate) fn get_unused_hakana_fixme_positions(&self) -> Vec<(usize, usize, u64, bool)> {
+    pub(crate) fn get_unused_hakana_fixme_positions(&self) -> Vec<(u32, u32, u64, bool)> {
         let mut unused_fixme_positions = vec![];
 
         for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
@@ -510,15 +540,16 @@ impl FunctionAnalysisData {
     }
 
     pub fn add_replacement(&mut self, offsets: (usize, usize), replacement: Replacement) -> bool {
+        let offsets = (offsets.0 as u32, offsets.1 as u32);
         for ((start, end), _) in &self.replacements {
-            if (offsets.0 >= *start && offsets.0 <= *end)
-                || (offsets.1 >= *start && offsets.1 <= *end)
+            if (offsets.0 as u32 >= *start && offsets.0 as u32 <= *end)
+                || (offsets.1 as u32 >= *start && offsets.1 as u32 <= *end)
             {
                 return false;
             }
 
-            if (*start >= offsets.0 && *start <= offsets.1)
-                || (*end >= offsets.0 && *end <= offsets.1)
+            if (*start >= offsets.0 as u32 && *start <= offsets.1 as u32)
+                || (*end >= offsets.0 as u32 && *end <= offsets.1 as u32)
             {
                 return false;
             }
@@ -532,7 +563,7 @@ impl FunctionAnalysisData {
 fn get_hakana_fixmes_and_ignores(
     comments: &Vec<&(Pos, Comment)>,
     all_custom_issues: &FxHashSet<String>,
-) -> BTreeMap<usize, Vec<(IssueKind, (usize, usize, u64, bool))>> {
+) -> BTreeMap<u32, Vec<(IssueKind, (u32, u32, u64, bool))>> {
     let mut hakana_fixme_or_ignores = BTreeMap::new();
     for (pos, comment) in comments {
         match comment {
@@ -547,13 +578,13 @@ fn get_hakana_fixmes_and_ignores(
                     get_issue_from_comment(trimmed_text, all_custom_issues)
                 {
                     hakana_fixme_or_ignores
-                        .entry(pos.line())
+                        .entry(pos.line() as u32)
                         .or_insert_with(Vec::new)
                         .push((
                             issue_kind,
                             (
-                                pos.start_offset(),
-                                pos.end_offset(),
+                                pos.start_offset() as u32,
+                                pos.end_offset() as u32,
                                 pos.to_raw_span().start.beg_of_line(),
                                 false,
                             ),

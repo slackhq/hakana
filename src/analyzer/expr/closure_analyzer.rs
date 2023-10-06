@@ -130,7 +130,7 @@ pub(crate) fn analyze(
     }
 
     analysis_data.expr_types.insert(
-        (expr.1.start_offset(), expr.1.end_offset()),
+        (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
         Rc::new(closure_type),
     );
 

@@ -28,7 +28,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     let mut has_arrayget_key = false;
 
     analysis_data.expr_effects.insert(
-        (stmt_pos.start_offset(), stmt_pos.end_offset()),
+        (stmt_pos.start_offset() as u32, stmt_pos.end_offset() as u32),
         EFFECT_IMPURE,
     );
 

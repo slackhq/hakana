@@ -66,7 +66,7 @@ pub(crate) fn analyze(
             }
 
             analysis_data.expr_fixme_positions.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                 *current_stmt_offset,
             );
         }
@@ -96,7 +96,7 @@ pub(crate) fn analyze(
         }
         aast::Expr_::Int(value) => {
             analysis_data.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                 Rc::new(
                     if let Ok(value) = if value.starts_with("0x") {
                         i64::from_str_radix(value.trim_start_matches("0x"), 16)
@@ -115,13 +115,13 @@ pub(crate) fn analyze(
         }
         aast::Expr_::String(value) => {
             analysis_data.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                 Rc::new(get_literal_string(value.to_string())),
             );
         }
         aast::Expr_::Float(_) => {
             analysis_data.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                 Rc::new(get_float()),
             );
         }
@@ -282,19 +282,19 @@ pub(crate) fn analyze(
         }
         aast::Expr_::Null => {
             analysis_data.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                 Rc::new(get_null()),
             );
         }
         aast::Expr_::True => {
             analysis_data.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                 Rc::new(get_true()),
             );
         }
         aast::Expr_::False => {
             analysis_data.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                 Rc::new(get_false()),
             );
         }
@@ -343,11 +343,11 @@ pub(crate) fn analyze(
 
             if let Some(stmt_type) = analysis_data
                 .expr_types
-                .get(&(boxed.pos().start_offset(), boxed.pos().end_offset()))
+                .get(&(boxed.pos().start_offset() as u32, boxed.pos().end_offset() as u32))
                 .cloned()
             {
                 analysis_data.expr_types.insert(
-                    (expr.1.start_offset(), expr.1.end_offset()),
+                    (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                     stmt_type.clone(),
                 );
             }
@@ -367,8 +367,8 @@ pub(crate) fn analyze(
                 )?;
 
                 let expr_part_type = analysis_data.expr_types.get(&(
-                    inner_expr.pos().start_offset(),
-                    inner_expr.pos().end_offset(),
+                    inner_expr.pos().start_offset() as u32,
+                    inner_expr.pos().end_offset() as u32,
                 ));
 
                 let new_parent_node = DataFlowNode::get_for_assignment(
@@ -418,7 +418,7 @@ pub(crate) fn analyze(
             string_type.parent_nodes = parent_nodes;
 
             analysis_data.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                 Rc::new(string_type),
             );
         }
@@ -461,7 +461,7 @@ pub(crate) fn analyze(
 
             analysis_data
                 .expr_effects
-                .insert((expr.1.start_offset(), expr.1.end_offset()), EFFECT_IMPURE);
+                .insert((expr.1.start_offset() as u32, expr.1.end_offset() as u32), EFFECT_IMPURE);
 
             let awaited_types = awaited_stmt_type.types.drain(..).collect::<Vec<_>>();
 
@@ -491,7 +491,7 @@ pub(crate) fn analyze(
             awaited_stmt_type.types = new_types;
 
             analysis_data.expr_types.insert(
-                (expr.1.start_offset(), expr.1.end_offset()),
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                 Rc::new(awaited_stmt_type),
             );
         }
@@ -541,7 +541,7 @@ pub(crate) fn analyze(
             };
             if let Some(member_name) = statements_analyzer.get_interner().get(&boxed.1) {
                 analysis_data.expr_types.insert(
-                    (expr.1.start_offset(), expr.1.end_offset()),
+                    (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                     Rc::new(wrap_atomic(TAtomic::TEnumClassLabel {
                         class_name,
                         member_name,
@@ -549,7 +549,7 @@ pub(crate) fn analyze(
                 );
             } else {
                 analysis_data.expr_types.insert(
-                    (expr.1.start_offset(), expr.1.end_offset()),
+                    (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
                     Rc::new(get_mixed_any()),
                 );
             }
@@ -920,7 +920,7 @@ fn analyze_function_pointer(
         &mut analysis_data.data_flow_graph,
     ) {
         analysis_data.expr_types.insert(
-            (expr.1.start_offset(), expr.1.end_offset()),
+            (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
             Rc::new(wrap_atomic(closure)),
         );
     }
@@ -947,7 +947,7 @@ pub(crate) fn add_decision_dataflow(
 
     if let Some(lhs_type) = analysis_data
         .expr_types
-        .get(&(lhs_expr.1.start_offset(), lhs_expr.1.end_offset()))
+        .get(&(lhs_expr.1.start_offset() as u32, lhs_expr.1.end_offset() as u32))
     {
         cond_type.parent_nodes.insert(decision_node.clone());
 
@@ -965,7 +965,7 @@ pub(crate) fn add_decision_dataflow(
     if let Some(rhs_expr) = rhs_expr {
         if let Some(rhs_type) = analysis_data
             .expr_types
-            .get(&(rhs_expr.1.start_offset(), rhs_expr.1.end_offset()))
+            .get(&(rhs_expr.1.start_offset() as u32, rhs_expr.1.end_offset() as u32))
         {
             cond_type.parent_nodes.insert(decision_node.clone());
 
@@ -981,7 +981,7 @@ pub(crate) fn add_decision_dataflow(
         }
     }
     analysis_data.expr_types.insert(
-        (expr_pos.start_offset(), expr_pos.end_offset()),
+        (expr_pos.start_offset() as u32, expr_pos.end_offset() as u32),
         Rc::new(cond_type),
     );
 }

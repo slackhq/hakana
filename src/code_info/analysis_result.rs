@@ -23,7 +23,7 @@ pub enum Replacement {
 pub struct AnalysisResult {
     pub emitted_issues: FxHashMap<FilePath, Vec<Issue>>,
     pub emitted_definition_issues: FxHashMap<FilePath, Vec<Issue>>,
-    pub replacements: FxHashMap<FilePath, BTreeMap<(usize, usize), Replacement>>,
+    pub replacements: FxHashMap<FilePath, BTreeMap<(u32, u32), Replacement>>,
     pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
@@ -122,7 +122,7 @@ pub struct CheckPointEntry {
     pub case: String,
     pub level: String,
     pub filename: String,
-    pub line: usize,
+    pub line: u32,
     pub output: String,
 }
 

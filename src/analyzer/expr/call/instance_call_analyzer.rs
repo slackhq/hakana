@@ -154,7 +154,7 @@ pub(crate) fn analyze(
 
     if analysis_data
         .expr_effects
-        .get(&(pos.start_offset(), pos.end_offset()))
+        .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
         .unwrap_or(&0)
         >= &EFFECT_WRITE_PROPS
     {

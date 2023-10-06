@@ -59,7 +59,7 @@ pub(crate) fn analyze(
     );
 
     analysis_data.expr_types.insert(
-        (boxed.0.start_offset(), boxed.0.end_offset()),
+        (boxed.0.start_offset() as u32, boxed.0.end_offset() as u32),
         Rc::new(stmt_type),
     );
 

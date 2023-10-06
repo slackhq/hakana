@@ -430,8 +430,8 @@ pub(crate) fn check_arguments_match(
                 ) {
                     analysis_data.if_true_assertions.insert(
                         (
-                            function_call_pos.start_offset(),
-                            function_call_pos.end_offset(),
+                            function_call_pos.start_offset() as u32,
+                            function_call_pos.end_offset() as u32,
                         ),
                         FxHashMap::from_iter([(
                             "hakana taints".to_string(),
@@ -918,7 +918,10 @@ pub(crate) fn evaluate_arbitrary_param(
         }
 
         analysis_data.expr_effects.insert(
-            (expr.pos().start_offset(), expr.pos().end_offset()),
+            (
+                expr.pos().start_offset() as u32,
+                expr.pos().end_offset() as u32,
+            ),
             EFFECT_WRITE_LOCAL,
         );
     }

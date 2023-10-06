@@ -21,7 +21,7 @@ impl<'ast> Visitor<'ast> for Scanner {
     ) -> Result<(), ()> {
         analysis_data
             .expr_types
-            .remove(&(expr.1.start_offset(), expr.1.end_offset()));
+            .remove(&(expr.1.start_offset() as u32, expr.1.end_offset() as u32));
 
         expr.recurse(analysis_data, self)
     }

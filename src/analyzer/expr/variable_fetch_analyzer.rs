@@ -62,7 +62,7 @@ pub(crate) fn analyze(
 
         analysis_data
             .expr_effects
-            .insert((pos.start_offset(), pos.end_offset()), EFFECT_READ_GLOBALS);
+            .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_READ_GLOBALS);
     } else if let Some(var_type) = context.vars_in_scope.get(&lid.1 .1) {
         let mut var_type = (**var_type).clone();
 
@@ -79,7 +79,7 @@ pub(crate) fn analyze(
 
         if lid.1 .1 == "$$" {
             analysis_data.expr_effects.insert(
-                (pos.start_offset(), pos.end_offset()),
+                (pos.start_offset() as u32, pos.end_offset() as u32),
                 context.pipe_var_effects,
             );
         }

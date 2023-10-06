@@ -72,12 +72,12 @@ pub fn get_aast_for_path_and_contents(
             message: first_error.message.to_string(),
             pos: HPos {
                 file_path: file_path,
-                start_offset: first_error.start_offset,
-                end_offset: first_error.end_offset,
-                start_line: line_count,
-                end_line: line_count,
-                start_column: column,
-                end_column: column,
+                start_offset: first_error.start_offset as u32,
+                end_offset: first_error.end_offset as u32,
+                start_line: line_count as u32,
+                end_line: line_count as u32,
+                start_column: column as u16,
+                end_column: column as u16,
                 insertion_start: None,
             },
         });

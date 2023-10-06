@@ -154,9 +154,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
         };
 
-        analysis_data
-            .closure_spans
-            .push((stmt.span.start_offset(), stmt.span.end_offset()));
+        analysis_data.closure_spans.push((
+            stmt.span.start_offset() as u32,
+            stmt.span.end_offset() as u32,
+        ));
 
         let mut statements_analyzer = StatementsAnalyzer::new(
             self.file_analyzer,
@@ -594,7 +595,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if config.remove_fixmes && parent_analysis_data.is_none() {
             for unused_fixme_position in analysis_data.get_unused_hakana_fixme_positions() {
                 analysis_data.add_replacement(
-                    (unused_fixme_position.0, unused_fixme_position.1),
+                    (
+                        unused_fixme_position.0 as usize,
+                        unused_fixme_position.1 as usize,
+                    ),
                     if unused_fixme_position.3 {
                         Replacement::TrimTrailingWhitespace(unused_fixme_position.2)
                     } else {
@@ -1211,9 +1215,9 @@ fn report_unused_expressions(
                         analysis_data.expr_fixme_positions.insert(
                             (pos.start_offset, pos.end_offset),
                             StmtStart {
-                                offset: pos.start_offset,
-                                line: pos.start_line,
-                                column: pos.start_column,
+                                offset: pos.start_offset as usize,
+                                line: pos.start_line as usize,
+                                column: pos.start_column as usize,
                                 add_newline: functionlike_storage.has_multi_line_params(),
                             },
                         );
@@ -1236,7 +1240,7 @@ fn report_unused_expressions(
                             && !config.add_fixmes
                         {
                             if !analysis_data.add_replacement(
-                                (pos.start_offset + 1, pos.start_offset + 1),
+                                (pos.start_offset as usize + 1, pos.start_offset as usize + 1),
                                 Replacement::Substitute("_".to_string()),
                             ) {
                                 return;

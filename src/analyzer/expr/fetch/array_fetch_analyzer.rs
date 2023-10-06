@@ -184,7 +184,7 @@ pub(crate) fn add_array_fetch_dataflow(
 
     if let Some(stmt_var_type) = analysis_data
         .expr_types
-        .get(&(array_expr_pos.start_offset(), array_expr_pos.end_offset()))
+        .get(&(array_expr_pos.start_offset() as u32, array_expr_pos.end_offset() as u32))
     {
         if !stmt_var_type.parent_nodes.is_empty() {
             // TODO Add events dispatchers
@@ -981,7 +981,7 @@ pub(crate) fn handle_array_access_on_mixed(
 
     if let Some(stmt_var_type) = analysis_data
         .expr_types
-        .get(&(pos.start_offset(), pos.end_offset()))
+        .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
     {
         if !stmt_var_type.parent_nodes.is_empty() {
             let new_parent_node = DataFlowNode::get_for_assignment(

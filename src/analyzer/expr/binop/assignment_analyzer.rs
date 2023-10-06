@@ -73,7 +73,10 @@ pub(crate) fn analyze(
             }
 
             analysis_data.expr_fixme_positions.insert(
-                (expr.1.pos().start_offset(), expr.1.pos().end_offset()),
+                (
+                    expr.1.pos().start_offset() as u32,
+                    expr.1.pos().end_offset() as u32,
+                ),
                 *current_stmt_offset,
             );
         }
@@ -132,14 +135,17 @@ pub(crate) fn analyze(
 
                 let new_expr_types = analysis_data.expr_types.clone();
                 let expr_type = new_expr_types
-                    .get(&(pos.start_offset(), pos.end_offset()))
+                    .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
                     .cloned();
 
                 analysis_data.expr_types = tast_expr_types;
 
                 if let Some(expr_type) = expr_type {
                     analysis_data.expr_types.insert(
-                        (assign_value.1.start_offset(), assign_value.1.end_offset()),
+                        (
+                            assign_value.1.start_offset() as u32,
+                            assign_value.1.end_offset() as u32,
+                        ),
                         expr_type,
                     );
                 };
@@ -293,9 +299,10 @@ pub(crate) fn analyze(
         // todo increment non-mixed count
     }
 
-    analysis_data
-        .expr_effects
-        .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_LOCAL);
+    analysis_data.expr_effects.insert(
+        (pos.start_offset() as u32, pos.end_offset() as u32),
+        EFFECT_WRITE_LOCAL,
+    );
 
     match &assign_var.2 {
         aast::Expr_::Lvar(_) => analyze_assignment_to_variable(
@@ -716,7 +723,10 @@ pub(crate) fn analyze_inout_param(
     analysis_data.set_expr_type(expr.pos(), arg_type.clone());
 
     analysis_data.expr_effects.insert(
-        (expr.pos().start_offset(), expr.pos().end_offset()),
+        (
+            expr.pos().start_offset() as u32,
+            expr.pos().end_offset() as u32,
+        ),
         EFFECT_WRITE_LOCAL,
     );
 

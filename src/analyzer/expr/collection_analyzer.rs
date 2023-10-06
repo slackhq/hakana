@@ -209,7 +209,7 @@ pub(crate) fn analyze_vals(
     }
 
     analysis_data.expr_effects.insert(
-        (pos.start_offset(), pos.end_offset()),
+        (pos.start_offset() as u32, pos.end_offset() as u32),
         array_creation_info.effects,
     );
 
@@ -302,7 +302,7 @@ pub(crate) fn analyze_keyvals(
     analysis_data.set_expr_type(&pos, new_dict);
 
     analysis_data.expr_effects.insert(
-        (pos.start_offset(), pos.end_offset()),
+        (pos.start_offset() as u32, pos.end_offset() as u32),
         array_creation_info.effects,
     );
 
@@ -332,8 +332,8 @@ fn analyze_vals_item(
     array_creation_info.effects |= analysis_data
         .expr_effects
         .get(&(
-            item_value.pos().start_offset(),
-            item_value.pos().end_offset(),
+            item_value.pos().start_offset() as u32,
+            item_value.pos().end_offset() as u32,
         ))
         .unwrap_or(&0);
 
@@ -390,7 +390,10 @@ fn analyze_keyvals_item(
 
     array_creation_info.effects |= analysis_data
         .expr_effects
-        .get(&(item.0.pos().start_offset(), item.0.pos().end_offset()))
+        .get(&(
+            item.0.pos().start_offset() as u32,
+            item.0.pos().end_offset() as u32,
+        ))
         .unwrap_or(&0);
 
     let key_item_type = analysis_data
@@ -417,7 +420,10 @@ fn analyze_keyvals_item(
 
     array_creation_info.effects |= analysis_data
         .expr_effects
-        .get(&(item.1.pos().start_offset(), item.1.pos().end_offset()))
+        .get(&(
+            item.1.pos().start_offset() as u32,
+            item.1.pos().end_offset() as u32,
+        ))
         .unwrap_or(&0);
 
     let value_item_type = analysis_data

@@ -1249,48 +1249,49 @@ fn update_files(analysis_result: AnalysisResult, root_dir: &String, interner: &I
 
 fn replace_contents(
     mut file_contents: String,
-    replacements: &BTreeMap<(usize, usize), Replacement>,
+    replacements: &BTreeMap<(u32, u32), Replacement>,
 ) -> String {
     for ((mut start, mut end), replacement) in replacements.iter().rev() {
         match replacement {
             Replacement::Remove => {
-                file_contents =
-                    file_contents[..start].to_string() + &*file_contents[end..].to_string();
+                file_contents = file_contents[..start as usize].to_string()
+                    + &*file_contents[end as usize..].to_string();
             }
             Replacement::TrimPrecedingWhitespace(beg_of_line) => {
                 let potential_whitespace =
-                    file_contents[(*beg_of_line as usize)..start].to_string();
+                    file_contents[(*beg_of_line as usize)..start as usize].to_string();
                 if potential_whitespace.trim() == "" {
-                    start = *beg_of_line as usize;
+                    start = *beg_of_line as u32;
 
                     if beg_of_line > &0
-                        && &file_contents[((*beg_of_line as usize) - 1)..start] == "\n"
+                        && &file_contents[((*beg_of_line as usize) - 1)..start as usize] == "\n"
                     {
                         start -= 1;
                     }
                 }
 
-                if &file_contents[end..end + 1] == "," {
+                if &file_contents[end as usize..end as usize + 1] == "," {
                     end += 1;
                 }
 
-                file_contents =
-                    file_contents[..start].to_string() + &*file_contents[end..].to_string();
+                file_contents = file_contents[..start as usize].to_string()
+                    + &*file_contents[end as usize..].to_string();
             }
             Replacement::TrimTrailingWhitespace(end_of_line) => {
-                let potential_whitespace = file_contents[end..(*end_of_line as usize)].to_string();
+                let potential_whitespace =
+                    file_contents[end as usize..(*end_of_line as usize)].to_string();
 
                 if potential_whitespace.trim() == "" {
-                    end = *end_of_line as usize;
+                    end = *end_of_line as u32;
                 }
 
-                file_contents =
-                    file_contents[..start].to_string() + &*file_contents[end..].to_string();
+                file_contents = file_contents[..start as usize].to_string()
+                    + &*file_contents[end as usize..].to_string();
             }
             Replacement::Substitute(string) => {
-                file_contents = file_contents[..start].to_string()
+                file_contents = file_contents[..start as usize].to_string()
                     + string
-                    + &*file_contents[end..].to_string();
+                    + &*file_contents[end as usize..].to_string();
             }
         }
     }

@@ -145,7 +145,7 @@ pub(crate) fn analyze(
     let element_name = statements_analyzer.get_interner().lookup(xhp_class_name);
 
     analysis_data.expr_effects.insert(
-        (pos.start_offset(), pos.end_offset()),
+        (pos.start_offset() as u32, pos.end_offset() as u32),
         if element_name.starts_with("Facebook\\XHP\\HTML\\") {
             EFFECT_PURE
         } else {
@@ -165,8 +165,8 @@ pub(crate) fn analyze(
         analysis_data.combine_effects(inner_expr.pos(), pos, pos);
 
         if let Some(expr_type) = analysis_data.expr_types.get(&(
-            inner_expr.pos().start_offset(),
-            inner_expr.pos().end_offset(),
+            inner_expr.pos().start_offset() as u32,
+            inner_expr.pos().end_offset() as u32,
         )) {
             if match element_name {
                 "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p" => true,
@@ -225,7 +225,7 @@ pub(crate) fn analyze(
     context.inside_general_use = was_inside_general_use;
 
     analysis_data.expr_types.insert(
-        (pos.start_offset(), pos.end_offset()),
+        (pos.start_offset() as u32, pos.end_offset() as u32),
         Rc::new(get_named_object(*xhp_class_name)),
     );
 
@@ -253,7 +253,10 @@ fn handle_attribute_spread(
 
     if let Some(expr_type) = analysis_data
         .expr_types
-        .get(&(xhp_expr.pos().start_offset(), xhp_expr.pos().end_offset()))
+        .get(&(
+            xhp_expr.pos().start_offset() as u32,
+            xhp_expr.pos().end_offset() as u32,
+        ))
         .cloned()
     {
         for expr_type_atomic in &expr_type.types {
@@ -290,7 +293,10 @@ fn handle_attribute_spread(
 
                             if let Some(property_fetch_type) = analysis_data
                                 .expr_types
-                                .get(&(xhp_expr.pos().start_offset(), xhp_expr.pos().end_offset()))
+                                .get(&(
+                                    xhp_expr.pos().start_offset() as u32,
+                                    xhp_expr.pos().end_offset() as u32,
+                                ))
                                 .cloned()
                             {
                                 add_all_dataflow(
@@ -313,7 +319,10 @@ fn handle_attribute_spread(
         }
 
         analysis_data.expr_types.insert(
-            (xhp_expr.pos().start_offset(), xhp_expr.pos().end_offset()),
+            (
+                xhp_expr.pos().start_offset() as u32,
+                xhp_expr.pos().end_offset() as u32,
+            ),
             expr_type,
         );
     }
@@ -343,8 +352,8 @@ fn analyze_xhp_attribute_assignment(
     let attribute_value_type = analysis_data
         .expr_types
         .get(&(
-            attribute_info.expr.pos().start_offset(),
-            attribute_info.expr.pos().end_offset(),
+            attribute_info.expr.pos().start_offset() as u32,
+            attribute_info.expr.pos().end_offset() as u32,
         ))
         .cloned();
 

@@ -358,7 +358,7 @@ pub(crate) fn apply_effects(
     if function_storage.name == STR_ASIO_JOIN {
         analysis_data
             .expr_effects
-            .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
+            .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_IMPURE);
         return;
     }
 
@@ -367,26 +367,26 @@ pub(crate) fn apply_effects(
             if stored_effects > EFFECT_WRITE_PROPS {
                 analysis_data
                     .expr_effects
-                    .insert((pos.start_offset(), pos.end_offset()), stored_effects);
+                    .insert((pos.start_offset() as u32, pos.end_offset() as u32), stored_effects);
             }
         }
         FnEffect::Arg(arg_offset) => {
             if let Some((_, arg_expr)) = expr_args.get(arg_offset as usize) {
                 if let Some(arg_type) = analysis_data
                     .expr_types
-                    .get(&(arg_expr.pos().start_offset(), arg_expr.pos().end_offset()))
+                    .get(&(arg_expr.pos().start_offset() as u32, arg_expr.pos().end_offset() as u32))
                 {
                     for arg_atomic_type in &arg_type.types {
                         if let TAtomic::TClosure { effects, .. } = arg_atomic_type {
                             if let Some(evaluated_effects) = effects {
                                 analysis_data.expr_effects.insert(
-                                    (pos.start_offset(), pos.end_offset()),
+                                    (pos.start_offset() as u32, pos.end_offset() as u32),
                                     *evaluated_effects,
                                 );
                             } else {
                                 analysis_data
                                     .expr_effects
-                                    .insert((pos.start_offset(), pos.end_offset()), EFFECT_IMPURE);
+                                    .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_IMPURE);
                             }
                         }
                     }

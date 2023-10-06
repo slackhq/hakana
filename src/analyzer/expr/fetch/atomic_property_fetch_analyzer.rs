@@ -404,7 +404,7 @@ fn add_property_dataflow(
         if let Some(lhs_var_id) = lhs_var_id {
             let var_type = analysis_data
                 .expr_types
-                .get(&(lhs_pos.start_offset(), lhs_pos.end_offset()));
+                .get(&(lhs_pos.start_offset() as u32, lhs_pos.end_offset() as u32));
 
             let var_node = DataFlowNode::get_for_assignment(
                 lhs_var_id.clone(),

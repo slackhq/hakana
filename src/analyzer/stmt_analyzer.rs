@@ -54,7 +54,7 @@ pub(crate) fn analyze(
 
     if statements_analyzer.get_config().remove_fixmes {
         for (fixme_line, b) in analysis_data.hakana_fixme_or_ignores.iter_mut() {
-            if fixme_line == &stmt.0.line() {
+            if *fixme_line == stmt.0.line() as u32 {
                 for (_, (_, _, end, is_same_line)) in b {
                     *end = stmt.0.start_offset() as u64;
                     *is_same_line = true;
@@ -268,10 +268,10 @@ fn detect_unused_statement_expressions(
         None
     };
 
-    if let Some(effect) = analysis_data
-        .expr_effects
-        .get(&(boxed.pos().start_offset(), boxed.pos().end_offset()))
-    {
+    if let Some(effect) = analysis_data.expr_effects.get(&(
+        boxed.pos().start_offset() as u32,
+        boxed.pos().end_offset() as u32,
+    )) {
         if effect == &EFFECT_PURE {
             let mut is_constructor_call = false;
             let mut fn_can_throw = false;

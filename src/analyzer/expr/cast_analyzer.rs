@@ -54,12 +54,12 @@ pub(crate) fn analyze(
     analysis_data.set_expr_type(&expr_pos, hint_type);
 
     analysis_data.expr_effects.insert(
-        (expr_pos.start_offset(), expr_pos.end_offset()),
+        (expr_pos.start_offset() as u32, expr_pos.end_offset() as u32),
         *analysis_data
             .expr_effects
             .get(&(
-                inner_expr.pos().start_offset(),
-                inner_expr.pos().end_offset(),
+                inner_expr.pos().start_offset() as u32,
+                inner_expr.pos().end_offset() as u32,
             ))
             .unwrap_or(&0),
     );

@@ -337,7 +337,7 @@ pub(crate) fn add_branch_dataflow(
 
     let conditional_type = analysis_data
         .expr_types
-        .get(&(cond.1.start_offset(), cond.1.end_offset()));
+        .get(&(cond.1.start_offset() as u32, cond.1.end_offset() as u32));
 
     if let Some(conditional_type) = conditional_type {
         if !conditional_type.parent_nodes.is_empty() {

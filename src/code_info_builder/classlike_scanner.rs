@@ -86,7 +86,7 @@ pub(crate) fn scan(
         }
 
         for (i, type_param_node) in classlike_node.tparams.iter().enumerate() {
-            signature_end = type_param_node.name.0.end_offset();
+            signature_end = type_param_node.name.0.end_offset() as u32;
 
             if !type_param_node.constraints.is_empty() {
                 signature_end = type_param_node
@@ -95,7 +95,7 @@ pub(crate) fn scan(
                     .unwrap()
                     .1
                      .0
-                    .end_offset();
+                    .end_offset() as u32;
             }
 
             let first_constraint = type_param_node.constraints.first();
@@ -156,12 +156,12 @@ pub(crate) fn scan(
 
             if let Some(parent_class) = classlike_node.extends.first() {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_class.1 {
-                    signature_end = name.0.end_offset();
+                    signature_end = name.0.end_offset() as u32;
 
                     let parent_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
 
                     if !params.is_empty() {
-                        signature_end = params.last().unwrap().0.end_offset();
+                        signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
                     storage.direct_parent_class = Some(parent_name.clone());
@@ -192,13 +192,13 @@ pub(crate) fn scan(
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
-                    signature_end = name.0.end_offset();
+                    signature_end = name.0.end_offset() as u32;
 
                     let interface_name =
                         resolved_names.get(&name.0.start_offset()).unwrap().clone();
 
                     if !params.is_empty() {
-                        signature_end = params.last().unwrap().0.end_offset();
+                        signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
                     storage
@@ -293,12 +293,12 @@ pub(crate) fn scan(
 
             for parent_interface in &classlike_node.extends {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_interface.1 {
-                    signature_end = name.0.end_offset();
+                    signature_end = name.0.end_offset() as u32;
 
                     let parent_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
 
                     if !params.is_empty() {
-                        signature_end = params.last().unwrap().0.end_offset();
+                        signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
                     storage.direct_parent_interfaces.insert(parent_name.clone());
@@ -338,13 +338,13 @@ pub(crate) fn scan(
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
-                    signature_end = name.0.end_offset();
+                    signature_end = name.0.end_offset() as u32;
 
                     let interface_name =
                         resolved_names.get(&name.0.start_offset()).unwrap().clone();
 
                     if !params.is_empty() {
-                        signature_end = params.last().unwrap().0.end_offset();
+                        signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
                     storage
@@ -389,7 +389,7 @@ pub(crate) fn scan(
             })));
 
             if let Some(enum_node) = &classlike_node.enum_ {
-                signature_end = enum_node.base.0.end_offset();
+                signature_end = enum_node.base.0.end_offset() as u32;
 
                 storage.enum_type = Some(
                     get_type_from_hint(
@@ -403,7 +403,7 @@ pub(crate) fn scan(
                 );
 
                 if let Some(constraint) = &enum_node.constraint {
-                    signature_end = constraint.0.end_offset();
+                    signature_end = constraint.0.end_offset() as u32;
 
                     storage.enum_constraint = Some(Box::new(
                         get_type_from_hint(
@@ -431,7 +431,9 @@ pub(crate) fn scan(
     let uses_hash = get_uses_hash(all_uses.symbol_uses.get(&class_name).unwrap_or(&vec![]));
 
     let mut signature_hash = xxhash_rust::xxh3::xxh3_64(
-        file_source.file_contents[storage.def_location.start_offset..signature_end].as_bytes(),
+        file_source.file_contents
+            [storage.def_location.start_offset as usize..signature_end as usize]
+            .as_bytes(),
     )
     .wrapping_add(uses_hash);
 
@@ -704,9 +706,9 @@ fn visit_xhp_attribute(
 
     if let Some(type_hint) = &xhp_attribute.0 .1 {
         let (line, bol, offset) = type_hint.0.to_start_and_end_lnum_bol_offset().0;
-        stmt_pos.start_offset = offset;
-        stmt_pos.start_line = line;
-        stmt_pos.start_column = offset - bol;
+        stmt_pos.start_offset = offset as u32;
+        stmt_pos.start_line = line as u32;
+        stmt_pos.start_column = (offset - bol) as u16;
     }
 
     if let Some(attr_tag) = &xhp_attribute.2 {
@@ -738,7 +740,8 @@ fn visit_xhp_attribute(
         start_line: stmt_pos.start_line,
         end_line: stmt_pos.end_line,
         signature_hash: xxhash_rust::xxh3::xxh3_64(
-            file_source.file_contents[stmt_pos.start_offset..stmt_pos.end_offset].as_bytes(),
+            file_source.file_contents[stmt_pos.start_offset as usize..stmt_pos.end_offset as usize]
+                .as_bytes(),
         )
         .wrapping_add(uses_hash),
         body_hash: None,
@@ -971,7 +974,8 @@ fn visit_property_declaration(
         start_line: def_pos.start_line,
         end_line: def_pos.end_line,
         signature_hash: xxhash_rust::xxh3::xxh3_64(
-            file_source.file_contents[def_pos.start_offset..def_pos.end_offset].as_bytes(),
+            file_source.file_contents[def_pos.start_offset as usize..def_pos.end_offset as usize]
+                .as_bytes(),
         )
         .wrapping_add(uses_hash),
         body_hash: None,

@@ -1,7 +1,7 @@
-use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
+use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
@@ -46,8 +46,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         )?;
 
         let expr_type = analysis_data.expr_types.get(&(
-            concat_node.pos().start_offset(),
-            concat_node.pos().end_offset(),
+            concat_node.pos().start_offset() as u32,
+            concat_node.pos().end_offset() as u32,
         ));
 
         if let Some(expr_type) = expr_type {

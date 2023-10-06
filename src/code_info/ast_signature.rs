@@ -9,10 +9,10 @@ pub struct DefSignatureNode {
     pub is_function: bool,
     pub is_constant: bool,
 
-    pub start_offset: usize,
-    pub end_offset: usize,
-    pub start_line: usize,
-    pub end_line: usize,
+    pub start_offset: u32,
+    pub end_offset: u32,
+    pub start_line: u32,
+    pub end_line: u32,
 
     pub children: Vec<DefSignatureNode>,
 

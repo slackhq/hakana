@@ -264,8 +264,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let mut definition_location = HPos::new(&typedef.span, self.file_source.file_path, None);
 
         if let Some(user_attribute) = typedef.user_attributes.get(0) {
-            definition_location.start_line = user_attribute.name.0.line();
-            definition_location.start_offset = user_attribute.name.0.start_offset();
+            definition_location.start_line = user_attribute.name.0.line() as u32;
+            definition_location.start_offset = user_attribute.name.0.start_offset() as u32;
         }
 
         let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&type_name).unwrap_or(&vec![]));
@@ -805,13 +805,13 @@ fn get_function_hashes(
     }
 
     let signature_hash = xxhash_rust::xxh3::xxh3_64(
-        file_contents[def_location.start_offset..signature_end].as_bytes(),
+        file_contents[def_location.start_offset as usize..signature_end as usize].as_bytes(),
     );
 
     (
         signature_hash,
         xxhash_rust::xxh3::xxh3_64(
-            file_contents[signature_end..def_location.end_offset].as_bytes(),
+            file_contents[signature_end..def_location.end_offset as usize].as_bytes(),
         )
         .wrapping_add(get_uses_hash(uses)),
     )

@@ -251,7 +251,7 @@ pub(crate) fn assign_arithmetic_type(
 
     if let Some(lhs_type) = analysis_data
         .expr_types
-        .get(&(lhs_expr.1.start_offset(), lhs_expr.1.end_offset()))
+        .get(&(lhs_expr.1.start_offset() as u32, lhs_expr.1.end_offset() as u32))
     {
         cond_type.parent_nodes.insert(decision_node.clone());
 
@@ -268,7 +268,7 @@ pub(crate) fn assign_arithmetic_type(
 
     if let Some(rhs_type) = analysis_data
         .expr_types
-        .get(&(rhs_expr.1.start_offset(), rhs_expr.1.end_offset()))
+        .get(&(rhs_expr.1.start_offset() as u32, rhs_expr.1.end_offset() as u32))
     {
         cond_type.parent_nodes.insert(decision_node.clone());
 

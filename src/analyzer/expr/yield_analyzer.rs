@@ -43,8 +43,8 @@ pub(crate) fn analyze(
     )?;
 
     if let Some(inferred_type) = analysis_data.expr_types.get(&(
-        value_expr.pos().start_offset(),
-        value_expr.pos().end_offset(),
+        value_expr.pos().start_offset() as u32,
+        value_expr.pos().end_offset() as u32,
     )) {
         if let GraphKind::FunctionBody = analysis_data.data_flow_graph.kind {
             let return_node = DataFlowNode::get_for_variable_sink(

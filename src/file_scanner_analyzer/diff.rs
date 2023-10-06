@@ -160,12 +160,12 @@ fn update_issues_from_diff(
                 for (from, to, file_offset, line_offset) in &diff_map {
                     if &issue.pos.start_offset >= from && &issue.pos.start_offset <= to {
                         issue.pos.start_offset =
-                            ((issue.pos.start_offset as isize) + file_offset) as usize;
+                            ((issue.pos.start_offset as isize) + file_offset) as u32;
                         issue.pos.end_offset =
-                            ((issue.pos.end_offset as isize) + file_offset) as usize;
+                            ((issue.pos.end_offset as isize) + file_offset) as u32;
                         issue.pos.start_line =
-                            ((issue.pos.start_line as isize) + line_offset) as usize;
-                        issue.pos.end_line = ((issue.pos.end_line as isize) + line_offset) as usize;
+                            ((issue.pos.start_line as isize) + line_offset) as u32;
+                        issue.pos.end_line = ((issue.pos.end_line as isize) + line_offset) as u32;
                         break;
                     }
                 }

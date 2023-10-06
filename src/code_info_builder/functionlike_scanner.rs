@@ -537,11 +537,11 @@ pub(crate) fn adjust_location_from_comments(
         let (start_line, _, start_offset) = start;
         let (end_line, _, _) = end;
 
-        if (end_line + 1) == definition_location.start_line {
+        if (end_line + 1) == definition_location.start_line as usize {
             match comment {
                 Comment::CmtLine(_) => {
-                    definition_location.start_line = start_line;
-                    definition_location.start_offset = start_offset;
+                    definition_location.start_line = start_line as u32;
+                    definition_location.start_offset = start_offset as u32;
                 }
                 Comment::CmtBlock(text) => {
                     let trimmed_text = if text.starts_with("*") {
@@ -559,8 +559,8 @@ pub(crate) fn adjust_location_from_comments(
                         }
                     }
 
-                    definition_location.start_line = start_line;
-                    definition_location.start_offset = start_offset;
+                    definition_location.start_line = start_line as u32;
+                    definition_location.start_offset = start_offset as u32;
                 }
             }
         }
@@ -583,10 +583,11 @@ fn convert_param_nodes(
             let mut location = HPos::new(&param_node.pos, file_source.file_path, None);
 
             if let Some(param_type) = &param_node.type_hint.1 {
-                location.start_offset = param_type.0.start_offset();
-                location.start_line = param_type.0.line();
-                location.start_column =
-                    location.start_offset - param_type.0.to_start_and_end_lnum_bol_offset().0 .1;
+                location.start_offset = param_type.0.start_offset() as u32;
+                location.start_line = param_type.0.line() as u32;
+                location.start_column = (location.start_offset as usize
+                    - param_type.0.to_start_and_end_lnum_bol_offset().0 .1)
+                    as u16;
             }
 
             let mut suppressed_issues = FxHashMap::default();

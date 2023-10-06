@@ -215,7 +215,7 @@ pub(crate) fn analyze_regular_assignment(
 
     analysis_data
         .expr_effects
-        .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_PROPS);
+        .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_WRITE_PROPS);
 
     let lhs_type = analysis_data.get_rc_expr_type(&stmt_var.pos()).cloned();
 

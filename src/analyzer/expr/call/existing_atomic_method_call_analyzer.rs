@@ -166,7 +166,7 @@ pub(crate) fn analyze(
     if classlike_name_str == "NumberFormatter" {
         analysis_data
             .expr_effects
-            .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_PROPS);
+            .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_WRITE_PROPS);
     }
 
     check_method_args(
@@ -183,7 +183,7 @@ pub(crate) fn analyze(
 
     if functionlike_storage.ignore_taints_if_true {
         analysis_data.if_true_assertions.insert(
-            (pos.start_offset(), pos.end_offset()),
+            (pos.start_offset() as u32, pos.end_offset() as u32),
             FxHashMap::from_iter([("hakana taints".to_string(), vec![Assertion::IgnoreTaints])]),
         );
     }
@@ -268,7 +268,7 @@ fn handle_shapes_static_method(
                         if dim_var_id.starts_with("'") {
                             dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
                             analysis_data.if_true_assertions.insert(
-                                (pos.start_offset(), pos.end_offset()),
+                                (pos.start_offset() as u32, pos.end_offset() as u32),
                                 FxHashMap::from_iter([(
                                     expr_var_id,
                                     vec![Assertion::HasArrayKey(DictKey::String(dim_var_id))],
@@ -276,7 +276,7 @@ fn handle_shapes_static_method(
                             );
                         } else {
                             analysis_data.if_true_assertions.insert(
-                                (pos.start_offset(), pos.end_offset()),
+                                (pos.start_offset() as u32, pos.end_offset() as u32),
                                 FxHashMap::from_iter([(
                                     format!("{}[{}]", expr_var_id, dim_var_id),
                                     vec![Assertion::ArrayKeyExists],
@@ -308,7 +308,7 @@ fn handle_shapes_static_method(
 
                 analysis_data
                     .expr_effects
-                    .insert((pos.start_offset(), pos.end_offset()), EFFECT_WRITE_LOCAL);
+                    .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_WRITE_LOCAL);
 
                 if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
                     if let Some(expr_type) = context.vars_in_scope.get(&expr_var_id) {

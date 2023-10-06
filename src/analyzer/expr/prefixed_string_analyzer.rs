@@ -43,7 +43,7 @@ pub(crate) fn analyze(
 
     let inner_type = if let Some(t) = analysis_data
         .expr_types
-        .get(&(boxed.1.pos().start_offset(), boxed.1.pos().end_offset()))
+        .get(&(boxed.1.pos().start_offset() as u32, boxed.1.pos().end_offset() as u32))
     {
         (**t).clone()
     } else {
@@ -51,7 +51,7 @@ pub(crate) fn analyze(
     };
 
     analysis_data.expr_types.insert(
-        (expr.1.start_offset(), expr.1.end_offset()),
+        (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
         Rc::new(if boxed.0 == "re" {
             let mut inner_text = inner_type.get_single_literal_string_value().unwrap();
             let first_char = inner_text[0..1].to_string();
