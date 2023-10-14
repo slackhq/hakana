@@ -124,12 +124,12 @@ pub enum TAtomic {
     TGenericClassname {
         param_name: StrId,
         defining_entity: StrId,
-        as_type: Box<crate::t_atomic::TAtomic>,
+        as_type: Box<TAtomic>,
     },
     TGenericTypename {
         param_name: StrId,
         defining_entity: StrId,
-        as_type: Box<crate::t_atomic::TAtomic>,
+        as_type: Box<TAtomic>,
     },
     TTypeVariable {
         name: String,
@@ -141,7 +141,7 @@ pub enum TAtomic {
         as_type: Option<Box<TUnion>>,
     },
     TTypename {
-        as_type: Box<self::TAtomic>,
+        as_type: Box<TAtomic>,
     },
     TVec {
         known_items: Option<BTreeMap<usize, (bool, TUnion)>>,

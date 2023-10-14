@@ -31,7 +31,16 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
                 root_expr = &boxed.0;
                 root_not_left = true;
                 if let Some(dim) = &boxed.1 {
-                    if let aast::Expr_::ArrayGet(..) = dim.2 {
+                    if let aast::Expr_::ArrayGet(..)
+                    | aast::Expr_::ClassConst(..)
+                    | aast::Expr_::Call(..)
+                    | aast::Expr_::Cast(..)
+                    | aast::Expr_::Eif(..)
+                    | aast::Expr_::Binop(..)
+                    | aast::Expr_::As(..)
+                    | aast::Expr_::Pipe(..)
+                    | aast::Expr_::Await(..) = dim.2
+                    {
                         has_arrayget_key = true;
                     }
                 }

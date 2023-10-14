@@ -154,25 +154,31 @@ impl TUnion {
     }
 
     pub fn is_float(&self) -> bool {
-        self.types.iter().all(|t| matches!(t, TAtomic::TFloat))
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TFloat)
     }
 
     pub fn is_bool(&self) -> bool {
-        self.types.iter().all(|t| matches!(t, TAtomic::TBool))
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TBool)
     }
 
     pub fn is_nothing(&self) -> bool {
-        self.types.iter().all(|t| matches!(t, TAtomic::TNothing))
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TNothing)
     }
 
     pub fn is_placeholder(&self) -> bool {
-        self.types
-            .iter()
-            .all(|t| matches!(t, TAtomic::TPlaceholder))
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TPlaceholder)
     }
 
     pub fn is_true(&self) -> bool {
-        self.types.iter().all(|t| matches!(t, TAtomic::TTrue))
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TTrue)
+    }
+
+    pub fn is_nonnull(&self) -> bool {
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TMixedWithFlags(_, _, _, true))
+    }
+
+    pub fn is_any(&self) -> bool {
+        self.types.len() == 1 && matches!(self.types[0], TAtomic::TMixedWithFlags(true, _, _, _))
     }
 
     pub fn is_mixed(&self) -> bool {
@@ -215,23 +221,17 @@ impl TUnion {
         if self.types.len() != 1 {
             return false;
         }
-        for atomic in &self.types {
-            match atomic {
-                &TAtomic::TMixed
-                | &TAtomic::TMixedFromLoopIsset
-                | &TAtomic::TMixedWithFlags(_, _, true, _) => continue,
-                TAtomic::TMixedWithFlags(is_any, _, is_falsy, _) => {
-                    if *is_any || *is_falsy {
-                        continue;
-                    }
-                }
-                _ => (),
+
+        match &self.types[0] {
+            // eliminate truthy-mixed and nonnull
+            &TAtomic::TMixedWithFlags(_, true, _, _) | &TAtomic::TMixedWithFlags(_, _, _, true) => {
+                false
             }
-
-            return false;
+            &TAtomic::TMixed | &TAtomic::TMixedFromLoopIsset | &TAtomic::TMixedWithFlags(..) => {
+                true
+            }
+            _ => false,
         }
-
-        return true;
     }
 
     pub fn is_falsy_mixed(&self) -> bool {
