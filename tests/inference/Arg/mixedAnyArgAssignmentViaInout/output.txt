@@ -1,0 +1,1 @@
+MixedArgument - input.hack:4:29 - Argument 1 of HH\Lib\C\count expects HH\Container<mixed>, truthy-mixed provided

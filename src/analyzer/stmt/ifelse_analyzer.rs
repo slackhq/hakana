@@ -387,21 +387,24 @@ pub(crate) fn analyze(
         if let EFFECT_PURE | EFFECT_READ_GLOBALS | EFFECT_READ_PROPS = *effects {
             analysis_data.add_replacement(
                 (
-                    stmt_pos.to_raw_span().start.beg_of_line() as usize,
-                    stmt_pos.end_offset() + 1,
+                    stmt_pos.to_raw_span().start.beg_of_line() as u32,
+                    stmt_pos.end_offset() as u32 + 1,
                 ),
                 Replacement::Remove,
             );
         } else {
             if !analysis_data.add_replacement(
-                (stmt_pos.start_offset() as usize, stmt.0 .1.start_offset()),
+                (
+                    stmt_pos.start_offset() as u32,
+                    stmt.0 .1.start_offset() as u32,
+                ),
                 Replacement::Remove,
             ) {
                 return Ok(());
             }
 
             analysis_data.add_replacement(
-                (stmt.0 .1.end_offset() as usize, stmt_pos.end_offset()),
+                (stmt.0 .1.end_offset() as u32, stmt_pos.end_offset() as u32),
                 Replacement::Substitute(";".to_string()),
             );
         }

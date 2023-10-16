@@ -433,7 +433,12 @@ pub(crate) fn analyze(
         } else {
             true
         } {
-            let union_type = add_union_type((*stmt_else_type).clone(), &lhs_type, codebase, false);
+            let union_type = if stmt_else_type.is_nothing() {
+                lhs_type
+            } else {
+                add_union_type((*stmt_else_type).clone(), &lhs_type, codebase, false)
+            };
+
             analysis_data.set_expr_type(&pos, union_type);
         }
     } else {

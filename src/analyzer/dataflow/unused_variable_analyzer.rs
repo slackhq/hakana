@@ -209,7 +209,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
                 if has_matching_node {
                     analysis_data.add_replacement(
-                        (list_expr.1.start_offset(), list_expr.1.end_offset()),
+                        (
+                            list_expr.1.start_offset() as u32,
+                            list_expr.1.end_offset() as u32,
+                        ),
                         Replacement::Substitute("$_".to_string()),
                     );
                 }
@@ -265,7 +268,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             if !self.in_single_block {
                                 let span = stmt.0.to_raw_span();
                                 analysis_data.add_replacement(
-                                    (stmt.0.start_offset(), stmt.0.end_offset()),
+                                    (stmt.0.start_offset() as u32, stmt.0.end_offset() as u32),
                                     Replacement::TrimPrecedingWhitespace(span.start.beg_of_line()),
                                 );
 
@@ -277,7 +280,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             }
                         } else {
                             analysis_data.add_replacement(
-                                (stmt.0.start_offset(), boxed.rhs.1.start_offset()),
+                                (
+                                    stmt.0.start_offset() as u32,
+                                    boxed.rhs.1.start_offset() as u32,
+                                ),
                                 Replacement::Remove,
                             );
 
@@ -297,8 +303,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                     {
                                         analysis_data.add_replacement(
                                             (
-                                                array_offset_expr.pos().start_offset() - 1,
-                                                array_offset_expr.pos().end_offset() + 1,
+                                                array_offset_expr.pos().start_offset() as u32 - 1,
+                                                array_offset_expr.pos().end_offset() as u32 + 1,
                                             ),
                                             Replacement::Remove,
                                         );
@@ -328,7 +334,7 @@ impl<'a> Scanner<'a> {
                     Comment::CmtBlock(block) => {
                         if block.trim() == "HHAST_FIXME[UnusedVariable]" {
                             analysis_data.add_replacement(
-                                (comment_pos.start_offset(), limit),
+                                (comment_pos.start_offset() as u32, limit as u32),
                                 Replacement::TrimPrecedingWhitespace(
                                     comment_pos.to_raw_span().start.beg_of_line(),
                                 ),
@@ -348,8 +354,8 @@ impl<'a> Scanner<'a> {
                             let stmt_start = stmt.0.to_raw_span().start;
                             analysis_data.add_replacement(
                                 (
-                                    comment_pos.start_offset(),
-                                    (stmt_start.beg_of_line() as usize) - 1,
+                                    comment_pos.start_offset() as u32,
+                                    (stmt_start.beg_of_line() as u32) - 1,
                                 ),
                                 Replacement::TrimPrecedingWhitespace(
                                     comment_pos.to_raw_span().start.beg_of_line(),

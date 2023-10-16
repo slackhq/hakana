@@ -1,17 +1,22 @@
 use std::rc::Rc;
 
+use crate::scope_analyzer::ScopeAnalyzer;
+use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use crate::{scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext};
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
-use hakana_reflection_info::t_union::populate_union_type;
+use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_IMPURE;
+use hakana_reflection_info::{data_flow::graph::DataFlowGraph, t_union::populate_union_type};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
-use hakana_type::type_expander::TypeExpansionOptions;
-use hakana_type::{get_mixed_any, type_expander};
+use hakana_type::wrap_atomic;
+use hakana_type::{
+    get_mixed_any,
+    type_expander::{self, TypeExpansionOptions},
+};
 use oxidized::aast;
 
 pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
@@ -37,7 +42,16 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             aast::Expr_::ArrayGet(boxed) => {
                 root_expr = boxed.0;
                 if let Some(dim) = &boxed.1 {
-                    if let aast::Expr_::ArrayGet(..) = dim.2 {
+                    if let aast::Expr_::ArrayGet(..)
+                    | aast::Expr_::ClassConst(..)
+                    | aast::Expr_::Call(..)
+                    | aast::Expr_::Cast(..)
+                    | aast::Expr_::Eif(..)
+                    | aast::Expr_::Binop(..)
+                    | aast::Expr_::As(..)
+                    | aast::Expr_::Pipe(..)
+                    | aast::Expr_::Await(..) = dim.2
+                    {
                         has_arrayget_key = true;
                     }
                 }
@@ -148,28 +162,33 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         )
         .unwrap();
 
-        populate_union_type(
-            &mut hint_type,
-            &codebase.symbols,
-            &context
-                .function_context
-                .get_reference_source(&statements_analyzer.get_file_path().0),
-            &mut analysis_data.symbol_references,
-            false,
-        );
-        type_expander::expand_union(
-            codebase,
-            &Some(statements_analyzer.get_interner()),
-            &mut hint_type,
-            &TypeExpansionOptions {
-                self_class: context.function_context.calling_class.as_ref(),
-                ..Default::default()
-            },
-            &mut DataFlowGraph::new(GraphKind::FunctionBody),
-        );
-        for atomic_type in hint_type.types.iter_mut() {
-            atomic_type.remove_placeholders();
+        if hint_type.is_nonnull() && ternary_type.is_any() {
+            hint_type = wrap_atomic(TAtomic::TMixedWithFlags(true, false, false, true));
+        } else {
+            populate_union_type(
+                &mut hint_type,
+                &codebase.symbols,
+                &context
+                    .function_context
+                    .get_reference_source(&statements_analyzer.get_file_path().0),
+                &mut analysis_data.symbol_references,
+                false,
+            );
+            type_expander::expand_union(
+                codebase,
+                &Some(statements_analyzer.get_interner()),
+                &mut hint_type,
+                &TypeExpansionOptions {
+                    self_class: context.function_context.calling_class.as_ref(),
+                    ..Default::default()
+                },
+                &mut DataFlowGraph::new(GraphKind::FunctionBody),
+            );
+            for atomic_type in hint_type.types.iter_mut() {
+                atomic_type.remove_placeholders();
+            }
         }
+
         hint_type.parent_nodes = ternary_type.parent_nodes;
         ternary_type = hint_type;
     }

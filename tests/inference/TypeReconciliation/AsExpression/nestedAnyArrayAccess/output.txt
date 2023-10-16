@@ -1,0 +1,4 @@
+ERROR: MixedAnyArrayAccess - input.hack:3:10 - Unsafe array access on value with type any
+ERROR: MixedAnyArrayAccess - input.hack:4:10 - Unsafe array access on value with type nonnull-from-any
+ERROR: MixedAnyArgument - input.hack:4:10 - Argument 1 of echo expects arraykey, any provided
+ERROR: MixedAnyReturnStatement - input.hack:5:12 - Could not infer a proper return type — saw nonnull-from-any

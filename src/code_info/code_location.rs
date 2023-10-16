@@ -6,9 +6,9 @@ use crate::{Interner, StrId};
 // offset, start line, start column
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct StmtStart {
-    pub offset: usize,
-    pub line: usize,
-    pub column: usize,
+    pub offset: u32,
+    pub line: u32,
+    pub column: u16,
     pub add_newline: bool,
 }
 

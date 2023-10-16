@@ -68,8 +68,8 @@ pub(crate) fn analyze(
 
     if statements_analyzer.get_config().add_fixmes {
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
-            if current_stmt_offset.line != expr.1.pos().line() {
-                current_stmt_offset.line = expr.1.pos().line();
+            if current_stmt_offset.line != expr.1.pos().line() as u32 {
+                current_stmt_offset.line = expr.1.pos().line() as u32;
             }
 
             analysis_data.expr_fixme_positions.insert(

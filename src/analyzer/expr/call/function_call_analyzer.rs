@@ -82,9 +82,10 @@ pub(crate) fn analyze(
                 if_body_context,
             )?;
             context.inside_unset = false;
-            analysis_data
-                .expr_effects
-                .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_WRITE_LOCAL);
+            analysis_data.expr_effects.insert(
+                (pos.start_offset() as u32, pos.end_offset() as u32),
+                EFFECT_WRITE_LOCAL,
+            );
             analysis_data.combine_effects(first_arg.pos(), pos, pos);
             analysis_data.set_expr_type(&pos, get_void());
 
@@ -459,11 +460,11 @@ pub(crate) fn analyze(
                     // Only replace code that's not already covered by a FIXME
                     if analysis_data.get_matching_hakana_fixme(&issue).is_none() {
                         analysis_data.add_replacement(
-                            (pos.start_offset(), expr.0 .0.end_offset() + 1),
+                            (pos.start_offset() as u32, expr.0 .0.end_offset() as u32 + 1),
                             Replacement::Substitute("await ".to_string()),
                         );
                         analysis_data.add_replacement(
-                            (pos.end_offset() - 1, pos.end_offset()),
+                            (pos.end_offset() as u32 - 1, pos.end_offset() as u32),
                             Replacement::Remove,
                         );
                     }

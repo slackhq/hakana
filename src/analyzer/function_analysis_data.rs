@@ -137,7 +137,7 @@ impl FunctionAnalysisData {
                             " ".to_string() + &issue.description
                         },
                         if insertion_start.add_newline {
-                            "\n".to_string() + &"\t".repeat(insertion_start.column)
+                            "\n".to_string() + &"\t".repeat(insertion_start.column as usize)
                         } else {
                             " ".to_string()
                         }
@@ -539,17 +539,17 @@ impl FunctionAnalysisData {
         unused_fixme_positions
     }
 
-    pub fn add_replacement(&mut self, offsets: (usize, usize), replacement: Replacement) -> bool {
-        let offsets = (offsets.0 as u32, offsets.1 as u32);
+    pub fn add_replacement(&mut self, offsets: (u32, u32), replacement: Replacement) -> bool {
+        let offsets = (offsets.0, offsets.1);
         for ((start, end), _) in &self.replacements {
-            if (offsets.0 as u32 >= *start && offsets.0 as u32 <= *end)
-                || (offsets.1 as u32 >= *start && offsets.1 as u32 <= *end)
+            if (offsets.0 >= *start && offsets.0 <= *end)
+                || (offsets.1 >= *start && offsets.1 <= *end)
             {
                 return false;
             }
 
-            if (*start >= offsets.0 as u32 && *start <= offsets.1 as u32)
-                || (*end >= offsets.0 as u32 && *end <= offsets.1 as u32)
+            if (*start >= offsets.0 && *start <= offsets.1)
+                || (*end >= offsets.0 && *end <= offsets.1)
             {
                 return false;
             }

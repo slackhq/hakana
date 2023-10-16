@@ -164,9 +164,10 @@ pub(crate) fn analyze(
 
     // .hhi for NumberFormatter was incorrect
     if classlike_name_str == "NumberFormatter" {
-        analysis_data
-            .expr_effects
-            .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_WRITE_PROPS);
+        analysis_data.expr_effects.insert(
+            (pos.start_offset() as u32, pos.end_offset() as u32),
+            EFFECT_WRITE_PROPS,
+        );
     }
 
     check_method_args(
@@ -306,9 +307,10 @@ fn handle_shapes_static_method(
                     &FxHashMap::default(),
                 );
 
-                analysis_data
-                    .expr_effects
-                    .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_WRITE_LOCAL);
+                analysis_data.expr_effects.insert(
+                    (pos.start_offset() as u32, pos.end_offset() as u32),
+                    EFFECT_WRITE_LOCAL,
+                );
 
                 if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
                     if let Some(expr_type) = context.vars_in_scope.get(&expr_var_id) {
@@ -513,7 +515,10 @@ fn handle_defined_shape_idx(
         && !statements_analyzer.get_config().add_fixmes
     {
         if !analysis_data.add_replacement(
-            (pos.start_offset(), call_expr.1[0].1.pos().start_offset()),
+            (
+                pos.start_offset() as u32,
+                call_expr.1[0].1.pos().start_offset() as u32,
+            ),
             Replacement::Remove,
         ) {
             return;
@@ -521,8 +526,8 @@ fn handle_defined_shape_idx(
 
         if !analysis_data.add_replacement(
             (
-                call_expr.1[0].1.pos().end_offset(),
-                call_expr.1[1].1.pos().start_offset(),
+                call_expr.1[0].1.pos().end_offset() as u32,
+                call_expr.1[1].1.pos().start_offset() as u32,
             ),
             Replacement::Substitute("[".to_string()),
         ) {
@@ -530,7 +535,10 @@ fn handle_defined_shape_idx(
         }
 
         analysis_data.add_replacement(
-            (call_expr.1[1].1.pos().end_offset(), pos.end_offset()),
+            (
+                call_expr.1[1].1.pos().end_offset() as u32,
+                pos.end_offset() as u32,
+            ),
             Replacement::Substitute("]".to_string()),
         );
 

@@ -52,16 +52,16 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     if statements_analyzer.get_config().add_fixmes {
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
-            if current_stmt_offset.line != expr.1.line() {
+            if current_stmt_offset.line != expr.1.line() as u32 {
                 if !matches!(expr.2, aast::Expr_::Xml(..)) {
                     *current_stmt_offset = StmtStart {
-                        offset: expr.1.start_offset(),
-                        line: expr.1.line(),
-                        column: expr.1.to_raw_span().start.column() as usize,
+                        offset: expr.1.start_offset() as u32,
+                        line: expr.1.line() as u32,
+                        column: expr.1.to_raw_span().start.column() as u16,
                         add_newline: true,
                     };
                 } else {
-                    current_stmt_offset.line = expr.1.line();
+                    current_stmt_offset.line = expr.1.line() as u32;
                 }
             }
 

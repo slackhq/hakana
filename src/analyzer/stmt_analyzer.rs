@@ -35,19 +35,19 @@ pub(crate) fn analyze(
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
     if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
-        if current_stmt_offset.line != stmt.0.line() {
+        if current_stmt_offset.line != stmt.0.line() as u32 {
             analysis_data.current_stmt_offset = Some(StmtStart {
-                offset: stmt.0.start_offset(),
-                line: stmt.0.line(),
-                column: stmt.0.to_raw_span().start.column() as usize,
+                offset: stmt.0.start_offset() as u32,
+                line: stmt.0.line() as u32,
+                column: stmt.0.to_raw_span().start.column() as u16,
                 add_newline: true,
             });
         }
     } else {
         analysis_data.current_stmt_offset = Some(StmtStart {
-            offset: stmt.0.start_offset(),
-            line: stmt.0.line(),
-            column: stmt.0.to_raw_span().start.column() as usize,
+            offset: stmt.0.start_offset() as u32,
+            line: stmt.0.line() as u32,
+            column: stmt.0.to_raw_span().start.column() as u16,
             add_newline: true,
         });
     }
