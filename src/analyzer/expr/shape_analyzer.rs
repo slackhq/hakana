@@ -57,11 +57,18 @@ pub(crate) fn analyze(
             ShapeFieldName::SFlitInt(name) => Some(DictKey::Int(name.1.parse::<u32>().unwrap())),
             ShapeFieldName::SFlitStr(name) => Some(DictKey::String(name.1.to_string())),
             ShapeFieldName::SFclassConst(lhs, name) => {
-                let lhs_name = statements_analyzer
+                let lhs_name = if let Some(name) = statements_analyzer
                     .get_file_analyzer()
                     .resolved_names
                     .get(&lhs.0.start_offset())
-                    .unwrap();
+                {
+                    name
+                } else {
+                    return Err(AnalysisError::InternalError(
+                        format!("unknown classname at pos {}", &lhs.1),
+                        statements_analyzer.get_hpos(&lhs.0),
+                    ));
+                };
 
                 let constant_type = codebase.get_class_constant_type(
                     &lhs_name,
