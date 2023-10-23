@@ -14,8 +14,8 @@ use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use std::io;
 use std::sync::{Arc, Mutex};
+use std::{fs, io};
 
 pub fn analyze_files(
     mut paths: Vec<String>,
@@ -273,7 +273,14 @@ fn analyze_loaded_ast(
         file_path,
         hh_fixmes: &aast.1.fixmes,
         comments: &aast.1.comments,
-        file_contents: "".to_string(),
+        file_contents: if config.migration_symbols.len() > 1 {
+            match fs::read_to_string(str_path) {
+                Ok(str_file) => str_file,
+                Err(_) => panic!("Could not read {}", str_path),
+            }
+        } else {
+            "".to_string()
+        },
     };
     let mut file_analyzer =
         file_analyzer::FileAnalyzer::new(file_source, &resolved_names, codebase, interner, config);

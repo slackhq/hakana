@@ -14,7 +14,7 @@ pub mod json_config;
 
 #[derive(Debug)]
 pub struct Config {
-    pub migration_symbols: FxHashSet<(String, String)>,
+    pub migration_symbols: FxHashMap<String, String>,
     pub find_unused_expressions: bool,
     pub find_unused_definitions: bool,
     pub allowed_issues: Option<FxHashSet<IssueKind>>,
@@ -60,7 +60,7 @@ impl Config {
             find_unused_definitions: false,
             ignore_mixed_issues: false,
             allowed_issues: None,
-            migration_symbols: FxHashSet::default(),
+            migration_symbols: FxHashMap::default(),
             graph_kind: GraphKind::FunctionBody,
             ignore_files: Vec::new(),
             test_files: Vec::new(),

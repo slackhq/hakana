@@ -807,7 +807,11 @@ fn do_migrate(
     if let Ok(contents) = buf {
         config.migration_symbols = contents
             .lines()
-            .map(|v| (migration_name.clone(), v.to_string()))
+            .map(|v| {
+                let mut parts = v.split(",").collect::<Vec<_>>();
+                let first_part = parts.remove(0);
+                return (first_part.to_string(), parts.join(","));
+            })
             .collect();
     } else {
         println!(

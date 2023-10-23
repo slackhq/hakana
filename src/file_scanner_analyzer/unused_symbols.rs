@@ -54,10 +54,10 @@ pub(crate) fn find_unused_definitions(
                     continue;
                 }
 
-                if config.migration_symbols.contains(&(
-                    "unused_symbol".to_string(),
-                    interner.lookup(&functionlike_name.0).to_string(),
-                )) {
+                if config
+                    .migration_symbols
+                    .contains_key(interner.lookup(&functionlike_name.0))
+                {
                     let def_pos = &functionlike_info.def_location;
                     analysis_result
                         .replacements
@@ -129,10 +129,10 @@ pub(crate) fn find_unused_definitions(
                     &Some(FunctionLikeIdentifier::Function(*classlike_name)),
                 );
 
-                if config.migration_symbols.contains(&(
-                    "unused_symbol".to_string(),
-                    interner.lookup(classlike_name).to_string(),
-                )) {
+                if config
+                    .migration_symbols
+                    .contains_key(interner.lookup(classlike_name))
+                {
                     let def_pos = &classlike_info.def_location;
                     analysis_result
                         .replacements
@@ -409,10 +409,10 @@ pub(crate) fn find_unused_definitions(
                     &Some(FunctionLikeIdentifier::Function(*type_name)),
                 );
 
-                if config.migration_symbols.contains(&(
-                    "unused_symbol".to_string(),
-                    interner.lookup(type_name).to_string(),
-                )) {
+                if config
+                    .migration_symbols
+                    .contains_key(interner.lookup(type_name))
+                {
                     analysis_result
                         .replacements
                         .entry(pos.file_path)
