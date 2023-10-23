@@ -24,6 +24,7 @@ pub struct AnalysisResult {
     pub emitted_issues: FxHashMap<FilePath, Vec<Issue>>,
     pub emitted_definition_issues: FxHashMap<FilePath, Vec<Issue>>,
     pub replacements: FxHashMap<FilePath, BTreeMap<(u32, u32), Replacement>>,
+    pub insertions: FxHashMap<FilePath, BTreeMap<u32, Vec<String>>>,
     pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
@@ -40,6 +41,7 @@ impl AnalysisResult {
             emitted_issues: FxHashMap::default(),
             emitted_definition_issues: FxHashMap::default(),
             replacements: FxHashMap::default(),
+            insertions: FxHashMap::default(),
             mixed_source_counts: FxHashMap::default(),
             program_dataflow_graph: DataFlowGraph::new(program_dataflow_graph_kind),
             issue_counts: FxHashMap::default(),
@@ -56,6 +58,7 @@ impl AnalysisResult {
                 .extend(issues);
         }
         self.replacements.extend(other.replacements);
+        self.insertions.extend(other.insertions);
         for (id, c) in other.mixed_source_counts {
             self.mixed_source_counts
                 .entry(id)

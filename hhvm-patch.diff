@@ -177,10 +177,10 @@ index e7f91b56e96..7be4f159ecf 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-index 384622926b5..54fa1671824 100644
+index cfc3b81042c..e3e7a5b8fc0 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-@@ -2237,7 +2237,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
+@@ -2247,7 +2247,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -189,10 +189,10 @@ index 384622926b5..54fa1671824 100644
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-index c6da9b503e4..64a8c2caf9a 100644
+index 2df37947608..1943892a3e3 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-@@ -2237,7 +2237,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
+@@ -2247,7 +2247,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -200,32 +200,6 @@ index c6da9b503e4..64a8c2caf9a 100644
          self.span.accept(c, v)?;
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
-diff --git a/hphp/hack/src/oxidized/lib.rs b/hphp/hack/src/oxidized/lib.rs
-index 6b89bf88bb8..00242f8bd3d 100644
---- a/hphp/hack/src/oxidized/lib.rs
-+++ b/hphp/hack/src/oxidized/lib.rs
-@@ -3,7 +3,7 @@
- // This source code is licensed under the MIT license found in the
- // LICENSE file in the "hack" directory of this source tree.
- #![feature(box_patterns)]
--#![feature(drain_filter)]
-+#![feature(extract_if)]
- 
- #[macro_use]
- extern crate rust_to_ocaml_attr;
-diff --git a/hphp/hack/src/oxidized/manual/custom_error_config_impl.rs b/hphp/hack/src/oxidized/manual/custom_error_config_impl.rs
-index 30d98a66d71..d6914543ba2 100644
---- a/hphp/hack/src/oxidized/manual/custom_error_config_impl.rs
-+++ b/hphp/hack/src/oxidized/manual/custom_error_config_impl.rs
-@@ -39,7 +39,7 @@ use crate::validation_err::ValidationErr;
- impl CustomErrorConfig {
-     pub fn new(mut errors: Vec<CustomError>) -> Self {
-         let invalid = errors
--            .drain_filter(|e| {
-+            .extract_if(|e| {
-                 let mut env = ValidationEnv::default();
-                 !e.validate(&mut env)
-             })
 diff --git a/hphp/hack/src/oxidized_by_ref/Cargo.toml b/hphp/hack/src/oxidized_by_ref/Cargo.toml
 index de0a509ccff..4b7bd0f2947 100644
 --- a/hphp/hack/src/oxidized_by_ref/Cargo.toml
@@ -406,9 +380,18 @@ index 33ba4ae40cf..bebe6e2e909 100644
      }
  }
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index 01b39e624aa..8d04ce3b9ca 100644
+index c0bba7f63f8..93d79e22298 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
+@@ -5,7 +5,7 @@
+ // LICENSE file in the "hack" directory of this source tree.
+ 
+ use std::sync::Arc;
+-use std::time::Instant;
++
+ 
+ use bumpalo::Bump;
+ use hash::HashSet;
 @@ -85,11 +85,11 @@ impl<'src> AastParser {
          indexed_source_text: &'src IndexedSourceText<'src>,
          default_unstable_features: HashSet<rust_parser_errors::UnstableFeatures>,
@@ -443,7 +426,7 @@ index 01b39e624aa..8d04ce3b9ca 100644
          match language {
              Language::Hack => {}
              _ => return Err(Error::NotAHackFile()),
-@@ -166,14 +166,14 @@ impl<'src> AastParser {
+@@ -165,14 +165,14 @@ impl<'src> AastParser {
          );
          stack_limit::reset();
          let ret = lower(&mut lowerer_env, tree.root());
@@ -460,7 +443,7 @@ index 01b39e624aa..8d04ce3b9ca 100644
          stack_limit::reset();
          let syntax_errors = Self::check_syntax_error(
              env,
-@@ -186,7 +186,7 @@ impl<'src> AastParser {
+@@ -185,7 +185,7 @@ impl<'src> AastParser {
          let lowerer_parsing_errors = lowerer_env.parsing_errors().to_vec();
          let errors = lowerer_env.hh_errors().to_vec();
          let lint_errors = lowerer_env.lint_errors().to_vec();
@@ -469,7 +452,7 @@ index 01b39e624aa..8d04ce3b9ca 100644
  
          Ok(ParserResult {
              file_mode: mode,
-@@ -198,9 +198,9 @@ impl<'src> AastParser {
+@@ -197,9 +197,9 @@ impl<'src> AastParser {
              lint_errors,
              profile: ParserProfile {
                  lower_peak,
@@ -482,7 +465,7 @@ index 01b39e624aa..8d04ce3b9ca 100644
                  error_peak,
                  arena_bytes: arena.allocated_bytes() as u64,
                  ..Default::default()
-@@ -334,7 +334,7 @@ impl<'src> AastParser {
+@@ -333,7 +333,7 @@ impl<'src> AastParser {
                      disable_hh_ignore_error: env.parser_options.po_disable_hh_ignore_error,
                      allowed_decl_fixme_codes: &env.parser_options.po_allowed_decl_fixme_codes,
                  };
@@ -505,10 +488,10 @@ index 8db2f3a3271..cadcc02dbbf 100644
                      }
                      _ => {
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index 2635de421ad..cc70f07f0e8 100644
+index 978ee9dd0b7..1bf7e45930d 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3648,12 +3648,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3491,12 +3491,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);

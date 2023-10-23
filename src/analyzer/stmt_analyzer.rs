@@ -207,7 +207,7 @@ pub(crate) fn analyze(
             }
         }
         aast::Stmt_::Block(boxed) => {
-            for boxed_stmt in boxed {
+            for boxed_stmt in &boxed.1 {
                 analyze(
                     statements_analyzer,
                     boxed_stmt,
@@ -232,7 +232,18 @@ pub(crate) fn analyze(
             );
             return Err(AnalysisError::UserError);
         }
-        aast::Stmt_::DeclareLocal(_) => {}
+        aast::Stmt_::DeclareLocal(_) => {},
+        aast::Stmt_::Concurrent(boxed) => {
+            for boxed_stmt in &boxed.0 {
+                analyze(
+                    statements_analyzer,
+                    boxed_stmt,
+                    analysis_data,
+                    context,
+                    loop_scope,
+                )?;
+            }
+        },
     }
 
     context.cond_referenced_var_ids = FxHashSet::default();
@@ -399,7 +410,7 @@ fn detect_unused_statement_expressions(
 
 fn analyze_awaitall(
     boxed: (
-        &Vec<(Option<oxidized::tast::Lid>, aast::Expr<(), ()>)>,
+        &Vec<(oxidized::tast::Lid, aast::Expr<(), ()>)>,
         &Vec<aast::Stmt<(), ()>>,
     ),
     statements_analyzer: &StatementsAnalyzer,
@@ -413,45 +424,43 @@ fn analyze_awaitall(
     for (assignment_id, expr) in boxed.0 {
         expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, &mut None)?;
 
-        if let Some(assignment_id) = assignment_id {
-            let mut assignment_type = None;
+        let mut assignment_type = None;
 
-            if let Some(t) = analysis_data.get_expr_type(expr.pos()) {
-                let parent_nodes = t.parent_nodes.clone();
-                if t.is_single() {
-                    let inner = t.get_single();
-                    if let TAtomic::TNamedObject {
-                        name: STR_AWAITABLE,
-                        type_params: Some(type_params),
-                        ..
-                    } = inner
-                    {
-                        let mut new = type_params.get(0).unwrap().clone();
+        if let Some(t) = analysis_data.get_expr_type(expr.pos()) {
+            let parent_nodes = t.parent_nodes.clone();
+            if t.is_single() {
+                let inner = t.get_single();
+                if let TAtomic::TNamedObject {
+                    name: STR_AWAITABLE,
+                    type_params: Some(type_params),
+                    ..
+                } = inner
+                {
+                    let mut new = type_params.get(0).unwrap().clone();
 
-                        new.parent_nodes = parent_nodes;
-                        assignment_type = Some(new)
-                    }
+                    new.parent_nodes = parent_nodes;
+                    assignment_type = Some(new)
                 }
             }
-
-            assignment_analyzer::analyze(
-                statements_analyzer,
-                (
-                    &ast_defs::Bop::Eq(None),
-                    &aast::Expr(
-                        (),
-                        assignment_id.0.clone(),
-                        aast::Expr_::Lvar(Box::new(assignment_id.clone())),
-                    ),
-                    None,
-                ),
-                &stmt.0,
-                assignment_type.as_ref(),
-                analysis_data,
-                context,
-                false,
-            )?;
         }
+
+        assignment_analyzer::analyze(
+            statements_analyzer,
+            (
+                &ast_defs::Bop::Eq(None),
+                &aast::Expr(
+                    (),
+                    assignment_id.0.clone(),
+                    aast::Expr_::Lvar(Box::new(assignment_id.clone())),
+                ),
+                None,
+            ),
+            &stmt.0,
+            assignment_type.as_ref(),
+            analysis_data,
+            context,
+            false,
+        )?;
     }
 
     for stmt in boxed.1 {

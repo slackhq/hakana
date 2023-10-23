@@ -642,8 +642,12 @@ fn do_fix(
         None,
     );
 
-    if let Ok((analysis_result, successfull_run_data)) = result {
-        update_files(analysis_result, &root_dir, &successfull_run_data.interner);
+    if let Ok((mut analysis_result, successfull_run_data)) = result {
+        update_files(
+            &mut analysis_result,
+            &root_dir,
+            &successfull_run_data.interner,
+        );
     }
 }
 
@@ -690,8 +694,12 @@ fn do_remove_unused_fixmes(
         None,
     );
 
-    if let Ok((analysis_result, successful_run_data)) = result {
-        update_files(analysis_result, root_dir, &successful_run_data.interner);
+    if let Ok((mut analysis_result, successful_run_data)) = result {
+        update_files(
+            &mut analysis_result,
+            root_dir,
+            &successful_run_data.interner,
+        );
     }
 }
 
@@ -757,8 +765,12 @@ fn do_add_fixmes(
         None,
     );
 
-    if let Ok((analysis_result, successful_run_data)) = result {
-        update_files(analysis_result, root_dir, &successful_run_data.interner);
+    if let Ok((mut analysis_result, successful_run_data)) = result {
+        update_files(
+            &mut analysis_result,
+            root_dir,
+            &successful_run_data.interner,
+        );
     }
 }
 
@@ -837,8 +849,12 @@ fn do_migrate(
         None,
     );
 
-    if let Ok((analysis_result, successful_run_data)) = result {
-        update_files(analysis_result, root_dir, &successful_run_data.interner);
+    if let Ok((mut analysis_result, successful_run_data)) = result {
+        update_files(
+            &mut analysis_result,
+            root_dir,
+            &successful_run_data.interner,
+        );
     }
 }
 
@@ -1209,69 +1225,98 @@ fn write_output_files(
     }
 }
 
-fn update_files(analysis_result: AnalysisResult, root_dir: &String, interner: &Interner) {
-    for (relative_path, replacements) in analysis_result
+fn update_files(analysis_result: &mut AnalysisResult, root_dir: &String, interner: &Interner) {
+    let mut replacement_and_insertion_keys = analysis_result
         .replacements
         .iter()
-        .map(|(k, v)| (k.get_relative_path(interner, root_dir), v))
+        .map(|(k, _)| *k)
+        .collect::<FxHashSet<_>>();
+    replacement_and_insertion_keys.extend(analysis_result.insertions.iter().map(|(k, _)| *k));
+
+    for (relative_path, original_path) in replacement_and_insertion_keys
+        .into_iter()
+        .map(|v| (v.get_relative_path(interner, root_dir), v))
         .collect::<BTreeMap<_, _>>()
     {
         println!("updating {}", relative_path);
-
         let file_path = format!("{}/{}", root_dir, relative_path);
-
         let file_contents = fs::read_to_string(&file_path).unwrap();
         let mut file = File::create(&file_path).unwrap();
-        file.write_all(replace_contents(file_contents, replacements).as_bytes())
+        let replacements = analysis_result
+            .replacements
+            .remove(&original_path)
+            .unwrap_or_else(BTreeMap::default);
+
+        let insertions = analysis_result
+            .insertions
+            .remove(&original_path)
+            .unwrap_or_else(BTreeMap::default);
+
+        file.write_all(replace_contents(file_contents, replacements, insertions).as_bytes())
             .unwrap_or_else(|_| panic!("Could not write file {}", &file_path));
     }
 }
 
 fn replace_contents(
     mut file_contents: String,
-    replacements: &BTreeMap<(u32, u32), Replacement>,
+    replacements: BTreeMap<(u32, u32), Replacement>,
+    insertions: BTreeMap<u32, Vec<String>>,
 ) -> String {
-    for ((mut start, mut end), replacement) in replacements.iter().rev() {
-        match replacement {
-            Replacement::Remove => {
-                file_contents = file_contents[..start as usize].to_string()
-                    + &*file_contents[end as usize..].to_string();
-            }
-            Replacement::TrimPrecedingWhitespace(beg_of_line) => {
-                let potential_whitespace =
-                    file_contents[(*beg_of_line as usize)..start as usize].to_string();
-                if potential_whitespace.trim() == "" {
-                    start = *beg_of_line as u32;
+    let mut replacements = replacements
+        .into_iter()
+        .map(|(k, v)| (k, vec![v]))
+        .collect::<BTreeMap<_, _>>();
 
-                    if beg_of_line > &0
-                        && &file_contents[((*beg_of_line as usize) - 1)..start as usize] == "\n"
-                    {
-                        start -= 1;
+    for (offset, insertion) in insertions {
+        replacements
+            .entry((offset, offset))
+            .or_insert_with(Vec::new)
+            .extend(insertion.into_iter().map(|s| Replacement::Substitute(s)));
+    }
+
+    for ((mut start, mut end), replacements) in replacements.iter().rev() {
+        for replacement in replacements {
+            match replacement {
+                Replacement::Remove => {
+                    file_contents = file_contents[..start as usize].to_string()
+                        + &*file_contents[end as usize..].to_string();
+                }
+                Replacement::TrimPrecedingWhitespace(beg_of_line) => {
+                    let potential_whitespace =
+                        file_contents[(*beg_of_line as usize)..start as usize].to_string();
+                    if potential_whitespace.trim() == "" {
+                        start = *beg_of_line as u32;
+
+                        if beg_of_line > &0
+                            && &file_contents[((*beg_of_line as usize) - 1)..start as usize] == "\n"
+                        {
+                            start -= 1;
+                        }
                     }
+
+                    if &file_contents[end as usize..end as usize + 1] == "," {
+                        end += 1;
+                    }
+
+                    file_contents = file_contents[..start as usize].to_string()
+                        + &*file_contents[end as usize..].to_string();
                 }
+                Replacement::TrimTrailingWhitespace(end_of_line) => {
+                    let potential_whitespace =
+                        file_contents[end as usize..(*end_of_line as usize)].to_string();
 
-                if &file_contents[end as usize..end as usize + 1] == "," {
-                    end += 1;
+                    if potential_whitespace.trim() == "" {
+                        end = *end_of_line as u32;
+                    }
+
+                    file_contents = file_contents[..start as usize].to_string()
+                        + &*file_contents[end as usize..].to_string();
                 }
-
-                file_contents = file_contents[..start as usize].to_string()
-                    + &*file_contents[end as usize..].to_string();
-            }
-            Replacement::TrimTrailingWhitespace(end_of_line) => {
-                let potential_whitespace =
-                    file_contents[end as usize..(*end_of_line as usize)].to_string();
-
-                if potential_whitespace.trim() == "" {
-                    end = *end_of_line as u32;
+                Replacement::Substitute(string) => {
+                    file_contents = file_contents[..start as usize].to_string()
+                        + string
+                        + &*file_contents[end as usize..].to_string();
                 }
-
-                file_contents = file_contents[..start as usize].to_string()
-                    + &*file_contents[end as usize..].to_string();
-            }
-            Replacement::Substitute(string) => {
-                file_contents = file_contents[..start as usize].to_string()
-                    + string
-                    + &*file_contents[end as usize..].to_string();
             }
         }
     }

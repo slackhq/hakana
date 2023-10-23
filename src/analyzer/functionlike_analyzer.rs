@@ -745,6 +745,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     .extend(analysis_data.replacements);
             }
 
+            if !analysis_data.insertions.is_empty() {
+                parent_analysis_data
+                    .insertions
+                    .extend(analysis_data.insertions);
+            }
+
             for issue in analysis_data.issues_to_emit {
                 parent_analysis_data.maybe_add_issue(
                     issue,
@@ -1398,6 +1404,14 @@ pub(crate) fn update_analysis_result_with_tast(
             .entry(*file_path)
             .or_insert_with(BTreeMap::new)
             .extend(analysis_data.replacements);
+    }
+
+    if !analysis_data.insertions.is_empty() {
+        analysis_result
+            .insertions
+            .entry(*file_path)
+            .or_insert_with(BTreeMap::new)
+            .extend(analysis_data.insertions);
     }
 
     let mut issues_to_emit = analysis_data.issues_to_emit;

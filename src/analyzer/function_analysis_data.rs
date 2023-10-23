@@ -27,6 +27,7 @@ pub struct FunctionAnalysisData {
     pub closures: FxHashMap<Pos, FunctionLikeInfo>,
     pub closure_spans: Vec<(u32, u32)>,
     pub replacements: BTreeMap<(u32, u32), Replacement>,
+    pub insertions: BTreeMap<u32, Vec<String>>,
     pub current_stmt_offset: Option<StmtStart>,
     pub expr_fixme_positions: FxHashMap<(u32, u32), StmtStart>,
     pub symbol_references: SymbolReferences,
@@ -64,6 +65,7 @@ impl FunctionAnalysisData {
             if_true_assertions: FxHashMap::default(),
             if_false_assertions: FxHashMap::default(),
             replacements: BTreeMap::new(),
+            insertions: BTreeMap::new(),
             current_stmt_offset,
             hh_fixmes: file_source.hh_fixmes.clone(),
             symbol_references: SymbolReferences::new(),
@@ -557,6 +559,13 @@ impl FunctionAnalysisData {
 
         self.replacements.insert(offsets, replacement);
         true
+    }
+
+    pub fn insert_at(&mut self, insertion_point: u32, replacement: String) {
+        self.insertions
+            .entry(insertion_point)
+            .or_insert_with(Vec::new)
+            .push(replacement);
     }
 }
 

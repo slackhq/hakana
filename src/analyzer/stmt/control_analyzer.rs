@@ -415,25 +415,32 @@ pub(crate) fn get_control_actions(
                 control_actions.retain(|action| *action != ControlAction::None);
             }
             aast::Stmt_::Block(block_stmts) => {
-                let mut block_actions = get_control_actions(
+                if handle_block(
                     codebase,
                     interner,
                     resolved_names,
-                    &block_stmts.0,
+                    &block_stmts.1,
                     analysis_data,
-                    break_context.clone(),
+                    &break_context,
                     return_is_exit,
-                );
-
-                if !block_actions.contains(&ControlAction::None) {
-                    control_actions.extend(block_actions);
-                    control_actions.retain(|action| *action != ControlAction::None);
-
+                    &mut control_actions,
+                ) {
                     return control_actions;
                 }
-
-                block_actions.retain(|action| *action != ControlAction::None);
-                control_actions.extend(block_actions);
+            }
+            aast::Stmt_::Concurrent(block_stmts) => {
+                if handle_block(
+                    codebase,
+                    interner,
+                    resolved_names,
+                    &block_stmts,
+                    analysis_data,
+                    &break_context,
+                    return_is_exit,
+                    &mut control_actions,
+                ) {
+                    return control_actions;
+                }
             }
             aast::Stmt_::Awaitall(boxed) => {
                 let mut block_actions = get_control_actions(
@@ -473,6 +480,39 @@ pub(crate) fn get_control_actions(
     }
 
     control_actions
+}
+
+fn handle_block(
+    codebase: &CodebaseInfo,
+    interner: &Interner,
+    resolved_names: &FxHashMap<usize, StrId>,
+    block_stmts: &aast::Block<(), ()>,
+    analysis_data: Option<&FunctionAnalysisData>,
+    break_context: &Vec<BreakContext>,
+    return_is_exit: bool,
+    control_actions: &mut FxHashSet<ControlAction>,
+) -> bool {
+    let mut block_actions = get_control_actions(
+        codebase,
+        interner,
+        resolved_names,
+        &block_stmts.0,
+        analysis_data,
+        break_context.clone(),
+        return_is_exit,
+    );
+
+    if !block_actions.contains(&ControlAction::None) {
+        control_actions.extend(block_actions);
+        control_actions.retain(|action| *action != ControlAction::None);
+
+        return true;
+    }
+
+    block_actions.retain(|action| *action != ControlAction::None);
+    control_actions.extend(block_actions);
+
+    false
 }
 
 fn handle_call(

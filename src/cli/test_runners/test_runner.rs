@@ -12,6 +12,7 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
+use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::io;
@@ -164,13 +165,16 @@ impl TestRunner {
         }
 
         if dir.contains("/migrations/") {
-            let migration_name = dir_parts.get(1).unwrap().to_string();
             let replacements_path = dir.clone() + "/replacements.txt";
             let replacements = fs::read_to_string(replacements_path).unwrap().to_string();
 
             analysis_config.migration_symbols = replacements
                 .lines()
-                .map(|v| (migration_name.clone(), v.to_string()))
+                .map(|v| {
+                    let mut parts = v.split(",").collect::<Vec<_>>();
+                    let first_part = parts.remove(0);
+                    return (first_part.to_string(), parts.join(","));
+                })
                 .collect();
         } else if dir.contains("/fix/") {
             let issue_name = dir_parts.get(1).unwrap().to_string();
@@ -272,18 +276,28 @@ impl TestRunner {
             let input_contents = fs::read_to_string(&input_file).unwrap();
             let expected_output_contents = fs::read_to_string(&output_file).unwrap();
 
-            let result = result.unwrap();
+            let mut result = result.unwrap();
 
             *total_time_in_analysis += result.0.time_in_analysis;
 
             let input_file_path = FilePath(result.1.interner.get(&input_file).unwrap());
 
-            let output_contents =
-                if let Some(file_replacements) = result.0.replacements.get(&input_file_path) {
-                    crate::replace_contents(input_contents, file_replacements)
-                } else {
-                    input_contents
-                };
+            let replacements = result
+                .0
+                .replacements
+                .remove(&input_file_path)
+                .unwrap_or(BTreeMap::default());
+            let insertions = result
+                .0
+                .insertions
+                .remove(&input_file_path)
+                .unwrap_or(BTreeMap::default());
+
+            let output_contents = if !replacements.is_empty() || !insertions.is_empty() {
+                crate::replace_contents(input_contents, replacements, insertions)
+            } else {
+                input_contents
+            };
 
             return if output_contents == expected_output_contents {
                 (".".to_string(), Some(result.1), Some(result.0))
