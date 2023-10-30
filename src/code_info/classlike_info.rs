@@ -3,8 +3,8 @@ use std::sync::Arc;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    code_location::HPos, codebase_info::symbols::SymbolKind, t_atomic::TAtomic, t_union::TUnion,
-    StrId,
+    code_location::HPos, codebase_info::symbols::SymbolKind, functionlike_info::MetaStart,
+    t_atomic::TAtomic, t_union::TUnion, StrId,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -86,6 +86,8 @@ pub struct ClassLikeInfo {
     pub def_location: HPos,
 
     pub name_location: HPos,
+
+    pub meta_start: MetaStart,
 
     pub is_abstract: bool,
 
@@ -212,8 +214,14 @@ pub struct ClassLikeInfo {
 }
 
 impl ClassLikeInfo {
-    pub fn new(name: StrId, def_location: HPos, name_location: HPos) -> ClassLikeInfo {
+    pub fn new(
+        name: StrId,
+        def_location: HPos,
+        meta_start: MetaStart,
+        name_location: HPos,
+    ) -> ClassLikeInfo {
         ClassLikeInfo {
+            meta_start,
             constants: IndexMap::default(),
             is_populated: false,
             is_stubbed: false,

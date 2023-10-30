@@ -343,7 +343,10 @@ pub(crate) fn analyze(
 
             if let Some(stmt_type) = analysis_data
                 .expr_types
-                .get(&(boxed.pos().start_offset() as u32, boxed.pos().end_offset() as u32))
+                .get(&(
+                    boxed.pos().start_offset() as u32,
+                    boxed.pos().end_offset() as u32,
+                ))
                 .cloned()
             {
                 analysis_data.expr_types.insert(
@@ -459,9 +462,10 @@ pub(crate) fn analyze(
                 .cloned()
                 .unwrap_or(get_mixed_any());
 
-            analysis_data
-                .expr_effects
-                .insert((expr.1.start_offset() as u32, expr.1.end_offset() as u32), EFFECT_IMPURE);
+            analysis_data.expr_effects.insert(
+                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
+                EFFECT_IMPURE,
+            );
 
             let awaited_types = awaited_stmt_type.types.drain(..).collect::<Vec<_>>();
 
@@ -613,6 +617,7 @@ pub(crate) fn analyze(
         | aast::Expr_::Pair(_)
         | aast::Expr_::ETSplice(_)
         | aast::Expr_::Hole(_)
+        | aast::Expr_::Nameof(_)
         | aast::Expr_::Invalid(_) => {
             analysis_data.maybe_add_issue(
                 Issue::new(
@@ -847,7 +852,10 @@ fn analyze_function_pointer(
                 false,
             );
 
-            if !codebase.functionlike_infos.contains_key(&(*name, STR_EMPTY)) {
+            if !codebase
+                .functionlike_infos
+                .contains_key(&(*name, STR_EMPTY))
+            {
                 analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentFunction,
@@ -945,10 +953,10 @@ pub(crate) fn add_decision_dataflow(
         statements_analyzer.get_hpos(expr_pos),
     );
 
-    if let Some(lhs_type) = analysis_data
-        .expr_types
-        .get(&(lhs_expr.1.start_offset() as u32, lhs_expr.1.end_offset() as u32))
-    {
+    if let Some(lhs_type) = analysis_data.expr_types.get(&(
+        lhs_expr.1.start_offset() as u32,
+        lhs_expr.1.end_offset() as u32,
+    )) {
         cond_type.parent_nodes.insert(decision_node.clone());
 
         for old_parent_node in &lhs_type.parent_nodes {
@@ -963,10 +971,10 @@ pub(crate) fn add_decision_dataflow(
     }
 
     if let Some(rhs_expr) = rhs_expr {
-        if let Some(rhs_type) = analysis_data
-            .expr_types
-            .get(&(rhs_expr.1.start_offset() as u32, rhs_expr.1.end_offset() as u32))
-        {
+        if let Some(rhs_type) = analysis_data.expr_types.get(&(
+            rhs_expr.1.start_offset() as u32,
+            rhs_expr.1.end_offset() as u32,
+        )) {
             cond_type.parent_nodes.insert(decision_node.clone());
 
             for old_parent_node in &rhs_type.parent_nodes {

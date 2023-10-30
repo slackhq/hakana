@@ -11,6 +11,7 @@ use hakana_reflection_info::{
     classlike_info::{ClassConstantType, ClassLikeInfo, Variance},
     code_location::HPos,
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
+    functionlike_info::MetaStart,
     member_visibility::MemberVisibility,
     property_info::{PropertyInfo, PropertyKind},
     t_atomic::TAtomic,
@@ -43,22 +44,33 @@ pub(crate) fn scan(
     ast_nodes: &mut Vec<DefSignatureNode>,
     all_uses: &Uses,
 ) -> bool {
-    let mut definition_location = HPos::new(&classlike_node.span, file_source.file_path, None);
+    let definition_location = HPos::new(&classlike_node.span, file_source.file_path, None);
     let name_location = HPos::new(classlike_node.name.pos(), file_source.file_path, None);
+
+    let mut meta_start = MetaStart {
+        start_offset: definition_location.start_offset,
+        start_line: definition_location.start_line,
+        start_column: definition_location.start_column,
+    };
 
     adjust_location_from_comments(
         comments,
-        &mut definition_location,
+        &mut meta_start,
         file_source,
         &mut FxHashMap::default(),
         all_custom_issues,
     );
 
-    let mut storage =
-        match get_classlike_storage(codebase, class_name, definition_location, name_location) {
-            Ok(value) => value,
-            Err(value) => return value,
-        };
+    let mut storage = match get_classlike_storage(
+        codebase,
+        class_name,
+        definition_location,
+        meta_start,
+        name_location,
+    ) {
+        Ok(value) => value,
+        Err(value) => return value,
+    };
 
     storage.user_defined = user_defined;
 
@@ -465,9 +477,9 @@ pub(crate) fn scan(
 
     let mut def_signature_node = DefSignatureNode {
         name: *class_name,
-        start_offset: storage.def_location.start_offset,
+        start_offset: storage.meta_start.start_offset,
         end_offset: storage.def_location.end_offset,
-        start_line: storage.def_location.start_line,
+        start_line: storage.meta_start.start_line,
         end_line: storage.def_location.end_line,
         children: Vec::new(),
         signature_hash: signature_hash,
@@ -1038,13 +1050,14 @@ fn get_classlike_storage(
     codebase: &mut CodebaseInfo,
     class_name: &StrId,
     definition_pos: HPos,
+    meta_start: MetaStart,
     name_pos: HPos,
 ) -> Result<ClassLikeInfo, bool> {
     let storage;
     if let Some(_) = codebase.classlike_infos.get(class_name) {
         return Err(false);
     } else {
-        storage = ClassLikeInfo::new(class_name.clone(), definition_pos, name_pos);
+        storage = ClassLikeInfo::new(class_name.clone(), definition_pos, meta_start, name_pos);
     }
     Ok(storage)
 }

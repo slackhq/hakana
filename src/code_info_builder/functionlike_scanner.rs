@@ -12,6 +12,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::FnEffect;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
+use hakana_reflection_info::functionlike_info::MetaStart;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::issue::get_issue_from_comment;
 use hakana_reflection_info::issue::IssueKind;
@@ -159,19 +160,26 @@ pub(crate) fn get_functionlike(
     is_anonymous: bool,
     user_defined: bool,
 ) -> FunctionLikeInfo {
-    let mut definition_location = HPos::new(def_pos, file_source.file_path, None);
+    let definition_location = HPos::new(def_pos, file_source.file_path, None);
 
     let mut suppressed_issues = FxHashMap::default();
 
+    let mut meta_start = MetaStart {
+        start_offset: definition_location.start_offset,
+        start_line: definition_location.start_line,
+        start_column: definition_location.start_column,
+    };
+
     adjust_location_from_comments(
         comments,
-        &mut definition_location,
+        &mut meta_start,
         file_source,
         &mut suppressed_issues,
         all_custom_issues,
     );
 
-    let mut functionlike_info = FunctionLikeInfo::new(name.clone(), definition_location);
+    let mut functionlike_info =
+        FunctionLikeInfo::new(name.clone(), definition_location, meta_start);
 
     let mut template_supers = FxHashMap::default();
 
@@ -296,6 +304,16 @@ pub(crate) fn get_functionlike(
         get_type_from_optional_hint(ret.get_hint(), None, &type_context, resolved_names);
 
     functionlike_info.user_defined = user_defined && !is_anonymous;
+
+    if let Some(name_pos) = name_pos {
+        let name_offset = 9 + if fun_kind.is_async() { 6 } else { 0 };
+
+        let (_, name_line_start_offset, name_start_offset) =
+            name_pos.to_start_and_end_lnum_bol_offset().0;
+        functionlike_info.def_location.start_offset = name_start_offset as u32 - name_offset;
+        functionlike_info.def_location.start_column =
+            (name_start_offset - name_line_start_offset) as u16 - name_offset as u16;
+    }
 
     for user_attribute in user_attributes {
         let name = resolved_names
@@ -527,40 +545,45 @@ fn is_async_call_is_same_as_sync(
 
 pub(crate) fn adjust_location_from_comments(
     comments: &Vec<(Pos, Comment)>,
-    definition_location: &mut HPos,
+    meta_start: &mut MetaStart,
     file_source: &FileSource,
     suppressed_issues: &mut FxHashMap<IssueKind, HPos>,
     all_custom_issues: &FxHashSet<String>,
 ) {
-    for (comment_pos, comment) in comments.iter().rev() {
-        let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
-        let (start_line, _, start_offset) = start;
-        let (end_line, _, _) = end;
+    if !comments.is_empty() {
+        for (comment_pos, comment) in comments.iter().rev() {
+            let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
+            let (start_line, _, start_offset) = start;
+            let (end_line, _, _) = end;
 
-        if (end_line + 1) == definition_location.start_line as usize {
-            match comment {
-                Comment::CmtLine(_) => {
-                    definition_location.start_line = start_line as u32;
-                    definition_location.start_offset = start_offset as u32;
-                }
-                Comment::CmtBlock(text) => {
-                    let trimmed_text = if text.starts_with("*") {
-                        text[1..].trim()
-                    } else {
-                        text.trim()
-                    };
-
-                    if let Some(issue_kind) =
-                        get_issue_from_comment(trimmed_text, all_custom_issues)
-                    {
-                        if let Ok(issue_kind) = issue_kind {
-                            let comment_pos = HPos::new(comment_pos, file_source.file_path, None);
-                            suppressed_issues.insert(issue_kind, comment_pos);
-                        }
+            if meta_start.start_line as usize == (end_line + 1)
+                || meta_start.start_line as usize == (end_line + 2)
+            {
+                match comment {
+                    Comment::CmtLine(_) => {
+                        meta_start.start_line = start_line as u32;
+                        meta_start.start_offset = start_offset as u32;
                     }
+                    Comment::CmtBlock(text) => {
+                        let trimmed_text = if text.starts_with("*") {
+                            text[1..].trim()
+                        } else {
+                            text.trim()
+                        };
 
-                    definition_location.start_line = start_line as u32;
-                    definition_location.start_offset = start_offset as u32;
+                        if let Some(issue_kind) =
+                            get_issue_from_comment(trimmed_text, all_custom_issues)
+                        {
+                            if let Ok(issue_kind) = issue_kind {
+                                let comment_pos =
+                                    HPos::new(comment_pos, file_source.file_path, None);
+                                suppressed_issues.insert(issue_kind, comment_pos);
+                            }
+                        }
+
+                        meta_start.start_line = start_line as u32;
+                        meta_start.start_offset = start_offset as u32;
+                    }
                 }
             }
         }
@@ -592,13 +615,23 @@ fn convert_param_nodes(
 
             let mut suppressed_issues = FxHashMap::default();
 
+            let mut meta_start = MetaStart {
+                start_offset: location.start_offset,
+                start_line: location.start_line,
+                start_column: location.start_column,
+            };
+
             adjust_location_from_comments(
                 &comments.iter().map(|c| (*c).clone()).collect(),
-                &mut location,
+                &mut meta_start,
                 file_source,
                 &mut suppressed_issues,
                 all_custom_issues,
             );
+
+            location.start_offset = meta_start.start_offset;
+            location.start_column = meta_start.start_column;
+            location.start_line = meta_start.start_line;
 
             comments.retain(|c| c.0.start_offset() > param_node.pos.end_offset());
 

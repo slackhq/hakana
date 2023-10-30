@@ -1271,7 +1271,7 @@ fn replace_contents(
         replacements
             .entry((offset, offset))
             .or_insert_with(Vec::new)
-            .extend(insertion.into_iter().map(|s| Replacement::Substitute(s)));
+            .extend(insertion.into_iter().rev().map(|s| Replacement::Substitute(s)));
     }
 
     for ((mut start, mut end), replacements) in replacements.iter().rev() {

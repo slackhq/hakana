@@ -58,15 +58,17 @@ pub(crate) fn find_unused_definitions(
                     .migration_symbols
                     .contains_key(interner.lookup(&functionlike_name.0))
                 {
+                    let meta_start = &functionlike_info.meta_start;
                     let def_pos = &functionlike_info.def_location;
                     analysis_result
                         .replacements
                         .entry(pos.file_path)
                         .or_insert_with(BTreeMap::new)
                         .insert(
-                            (def_pos.start_offset, def_pos.end_offset),
+                            (meta_start.start_offset, def_pos.end_offset),
                             Replacement::TrimPrecedingWhitespace(
-                                (def_pos.start_offset - (def_pos.start_column as u32 - 1)) as u64,
+                                (meta_start.start_offset + 1 - meta_start.start_column as u32)
+                                    as u64,
                             ),
                         );
                 }
@@ -133,15 +135,17 @@ pub(crate) fn find_unused_definitions(
                     .migration_symbols
                     .contains_key(interner.lookup(classlike_name))
                 {
+                    let meta_start = &classlike_info.meta_start;
                     let def_pos = &classlike_info.def_location;
                     analysis_result
                         .replacements
                         .entry(pos.file_path)
                         .or_insert_with(BTreeMap::new)
                         .insert(
-                            (def_pos.start_offset, def_pos.end_offset),
+                            (meta_start.start_offset, def_pos.end_offset),
                             Replacement::TrimPrecedingWhitespace(
-                                (def_pos.start_offset - (def_pos.start_column as u32 - 1)) as u64,
+                                (meta_start.start_offset + 1 - meta_start.start_column as u32)
+                                    as u64,
                             ),
                         );
                 }

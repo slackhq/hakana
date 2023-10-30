@@ -50,8 +50,17 @@ impl FnEffect {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetaStart {
+    pub start_offset: u32,
+    pub start_line: u32,
+    pub start_column: u16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionLikeInfo {
     pub def_location: HPos,
+
+    pub meta_start: MetaStart,
 
     pub name_location: Option<HPos>,
 
@@ -154,9 +163,10 @@ pub struct FunctionLikeInfo {
 }
 
 impl FunctionLikeInfo {
-    pub fn new(name: StrId, def_location: HPos) -> Self {
+    pub fn new(name: StrId, def_location: HPos, meta_start: MetaStart) -> Self {
         Self {
             def_location,
+            meta_start,
             name_location: None,
             params: Vec::new(),
             return_type: None,

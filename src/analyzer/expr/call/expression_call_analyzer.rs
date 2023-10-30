@@ -11,7 +11,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
+use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo, MetaStart};
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_type::get_mixed_any;
@@ -58,8 +58,15 @@ pub(crate) fn analyze(
         {
             let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
 
-            let mut lambda_storage =
-                FunctionLikeInfo::new(*closure_id, statements_analyzer.get_hpos(pos));
+            let mut lambda_storage = FunctionLikeInfo::new(
+                *closure_id,
+                statements_analyzer.get_hpos(pos),
+                MetaStart {
+                    start_offset: 0,
+                    start_column: 0,
+                    start_line: 0,
+                },
+            );
             lambda_storage.params = closure_params
                 .iter()
                 .map(|fn_param| {
