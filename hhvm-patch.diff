@@ -120,7 +120,7 @@ index a7681402058..e294b709695 100644
      fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
          Ok(rusqlite::types::ToSqlOutput::from(*self as i64))
 diff --git a/hphp/hack/src/naming/names_rust/Cargo.toml b/hphp/hack/src/naming/names_rust/Cargo.toml
-index 565554d8203..db38316ce81 100644
+index 04a55a0818b..57fd1676124 100644
 --- a/hphp/hack/src/naming/names_rust/Cargo.toml
 +++ b/hphp/hack/src/naming/names_rust/Cargo.toml
 @@ -16,6 +16,8 @@ oxidized = { version = "0.0.0", path = "../../oxidized" }
@@ -161,7 +161,7 @@ index 91106097aa3..930dfa897c5 100644
      fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
          Ok(rusqlite::types::ToSqlOutput::from(self.0.get() as i64))
 diff --git a/hphp/hack/src/naming/names_rust/naming_sqlite.rs b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
-index e7f91b56e96..7be4f159ecf 100644
+index 16288300007..396d281c283 100644
 --- a/hphp/hack/src/naming/names_rust/naming_sqlite.rs
 +++ b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
 @@ -12,8 +12,11 @@ use hh24_types::ToplevelCanonSymbolHash;
@@ -177,10 +177,10 @@ index e7f91b56e96..7be4f159ecf 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-index cfc3b81042c..e3e7a5b8fc0 100644
+index 7d7a79b7c30..b336df0cb24 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-@@ -2247,7 +2247,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
+@@ -2249,7 +2249,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -189,10 +189,10 @@ index cfc3b81042c..e3e7a5b8fc0 100644
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-index 2df37947608..1943892a3e3 100644
+index d6eece3d383..b7e42eaa7e4 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-@@ -2247,7 +2247,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
+@@ -2249,7 +2249,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -488,10 +488,10 @@ index 8db2f3a3271..cadcc02dbbf 100644
                      }
                      _ => {
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index 978ee9dd0b7..1bf7e45930d 100644
+index c396766a467..c7c22b8bffe 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3491,12 +3491,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3271,12 +3271,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);
@@ -557,7 +557,7 @@ index 88c2e445a47..7aab53c3f1c 100644
                              acc.add_to_misuses(line, code, p);
                          } else if self.disable_hh_ignore_error == 1 && t.kind() == IgnoreError {
 diff --git a/hphp/hack/src/providers/hackrs_provider_backend/Cargo.toml b/hphp/hack/src/providers/hackrs_provider_backend/Cargo.toml
-index 9222ad8eac1..e332c3999be 100644
+index 5a0b574800f..154f2cdb3d5 100644
 --- a/hphp/hack/src/providers/hackrs_provider_backend/Cargo.toml
 +++ b/hphp/hack/src/providers/hackrs_provider_backend/Cargo.toml
 @@ -23,7 +23,6 @@ names = { version = "0.0.0", path = "../../naming/names_rust" }
