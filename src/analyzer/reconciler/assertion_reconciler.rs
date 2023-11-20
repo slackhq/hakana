@@ -468,7 +468,11 @@ pub(crate) fn intersect_atomic_with_atomic(
                     return Some(atomic);
                 }
             }
-            if codebase.interface_exists(type_1_name) || codebase.interface_exists(type_2_name) {
+            if (codebase.interface_exists(type_1_name)
+                && codebase.can_intersect_interface(type_2_name))
+                || (codebase.interface_exists(type_2_name)
+                    && codebase.can_intersect_interface(type_1_name))
+            {
                 let mut type_1_atomic = type_1_atomic.clone();
                 type_1_atomic.add_intersection_type(type_2_atomic.clone());
 

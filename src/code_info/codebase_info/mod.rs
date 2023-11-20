@@ -152,6 +152,19 @@ impl CodebaseInfo {
         false
     }
 
+    pub fn can_intersect_interface(&self, fq_class_name: &StrId) -> bool {
+        match self.symbols.all.get(fq_class_name) {
+            Some(SymbolKind::Class) => {
+                if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
+                    return !classlike_storage.is_final;
+                } else {
+                    false
+                }
+            }
+            _ => true,
+        }
+    }
+
     pub fn class_or_interface_can_use_trait(
         &self,
         child_class: &StrId,

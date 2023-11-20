@@ -830,6 +830,8 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Vec\\filter_async"
             | "HH\\Lib\\Vec\\filter_nulls"
             | "HH\\Lib\\Vec\\filter_with_key"
+            | "HH\\Lib\\Vec\\take"
+            | "HH\\Lib\\Vec\\drop"
             | "HH\\Lib\\Keyset\\filter"
             | "HH\\Lib\\Keyset\\filter_async"
             | "HH\\Lib\\Vec\\slice"

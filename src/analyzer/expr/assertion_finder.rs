@@ -208,13 +208,16 @@ fn get_is_assertions(
 ) -> Vec<FxHashMap<String, Vec<Vec<Assertion>>>> {
     let mut if_types: FxHashMap<String, Vec<Vec<Assertion>>> = FxHashMap::default();
 
-    let mut is_type = get_type_from_hint(
+    let mut is_type = if let Some(t) = get_type_from_hint(
         &hint.1,
         assertion_context.this_class_name,
         &assertion_context.type_resolution_context,
         assertion_context.resolved_names,
-    )
-    .unwrap();
+    ) {
+        t
+    } else {
+        return vec![]
+    };
 
     if let Some((codebase, _)) = assertion_context.codebase {
         populate_union_type(
