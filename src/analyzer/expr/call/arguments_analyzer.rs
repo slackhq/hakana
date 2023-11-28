@@ -133,7 +133,14 @@ pub(crate) fn check_arguments_match(
         method_call_info = Some(MethodCallInfo {
             self_fq_classlike_name,
             declaring_method_id: Some(declaring_method_id),
-            classlike_storage: class_storage.unwrap(),
+            classlike_storage: if let Some(class_storage) = class_storage {
+                class_storage
+            } else {
+                return Err(AnalysisError::InternalError(
+                    "Class storage does not exist".to_string(),
+                    statements_analyzer.get_hpos(function_call_pos),
+                ));
+            },
         });
     }
 

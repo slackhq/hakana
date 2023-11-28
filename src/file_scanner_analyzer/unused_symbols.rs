@@ -414,8 +414,8 @@ pub(crate) fn find_unused_definitions(
                 );
 
                 if config
-                    .migration_symbols
-                    .contains_key(interner.lookup(type_name))
+                    .issues_to_fix
+                    .contains(&IssueKind::UnusedTypeDefinition)
                 {
                     analysis_result
                         .replacements
