@@ -9,7 +9,7 @@ fn main() {
     let header = "\nCommit:    ".to_string()
         + &env!("VERGEN_GIT_SHA")[0..7]
         + "\nTimestamp: "
-        + &build_timestamp;
+        + build_timestamp;
 
     hakana_cli::init(
         vec![],

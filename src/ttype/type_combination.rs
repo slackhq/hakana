@@ -51,8 +51,6 @@ pub(crate) struct TypeCombination {
     pub literal_ints: FxHashMap<i64, TAtomic>,
 
     pub class_string_types: FxHashMap<String, TAtomic>,
-
-    pub extra_types: Option<FxHashMap<String, TAtomic>>,
 }
 
 impl TypeCombination {
@@ -84,7 +82,6 @@ impl TypeCombination {
             literal_strings: FxHashMap::default(),
             literal_ints: FxHashMap::default(),
             class_string_types: FxHashMap::default(),
-            extra_types: None,
             enum_types: FxHashMap::default(),
             enum_value_types: FxHashMap::default(),
         }

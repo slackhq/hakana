@@ -501,13 +501,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     }
                 }
 
-                if let Some(usage) = memory_stats::memory_stats() {
-                    println!(
-                        "Before analysis Memory usage: {}",
-                        bytes_to_megabytes_str(usage.physical_mem as u64)
-                    );
-                }
-
                 //let start_t = std::time::Instant::now();
 
                 match statements_analyzer.analyze(
@@ -524,13 +517,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     }
                     _ => {}
                 };
-
-                if let Some(usage) = memory_stats::memory_stats() {
-                    println!(
-                        "After analysis Memory usage: {}",
-                        bytes_to_megabytes_str(usage.physical_mem as u64)
-                    );
-                }
 
                 // let end_t = start_t.elapsed();
 
@@ -1404,11 +1390,6 @@ fn handle_unused_assignment(
             );
         }
     }
-}
-
-fn bytes_to_megabytes_str(bytes: u64) -> String {
-    let megabytes = (bytes as f64 / 1_048_576.0).round() as u64;
-    format!("{} MB", megabytes)
 }
 
 pub(crate) fn update_analysis_result_with_tast(

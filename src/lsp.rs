@@ -40,10 +40,7 @@ async fn main() {
         Ok(config) => Arc::new(config),
         Err(error) => {
             stderr
-                .write_all_buf(&mut Cursor::new(format!(
-                    "Config error: {}",
-                    error.to_string()
-                )))
+                .write_all_buf(&mut Cursor::new(format!("Config error: {error}")))
                 .await
                 .ok();
             return;
