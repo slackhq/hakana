@@ -21,6 +21,23 @@ mimalloc = { version = "*", default-features = false }
 tokio = "1.26.0"
 tower-lsp = { git = "https://github.com/ebkalderon/tower-lsp", branch = "support-mutable-methods" }
 
+[workspace]
+members = [
+    "src/aast_utils",
+    "src/algebra",
+    "src/analyzer",
+    "src/cli",
+    "src/code_info",
+    "src/code_info_builder",
+    "src/file_scanner_analyzer",
+    "src/js_interop",
+    "src/language_server",
+    "src/logger",
+    "src/ttype",
+]
+exclude = ["third-party"]
+
+
 [profile.release]
 debug = true
 
