@@ -39,7 +39,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let return_expr = stmt.1.as_return().unwrap();
 
-    let interner = &statements_analyzer.get_interner();
+    let interner = statements_analyzer.get_interner();
 
     let mut inferred_return_type = if let Some(return_expr) = return_expr {
         context.inside_return = true;
@@ -510,7 +510,7 @@ pub(crate) fn handle_inout_at_return(
                                 .calling_functionlike_id
                                 .clone()
                                 .unwrap()
-                                .to_string(&statements_analyzer.get_interner()),
+                                .to_string(statements_analyzer.get_interner()),
                             i,
                             Some(param.name_location.clone()),
                             None,
@@ -596,7 +596,7 @@ fn handle_dataflow(
         }
 
         let method_node = DataFlowNode::get_for_method_return(
-            functionlike_id.to_string(&statements_analyzer.get_interner()),
+            functionlike_id.to_string(statements_analyzer.get_interner()),
             functionlike_storage.return_type_location.clone(),
             None,
         );

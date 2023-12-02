@@ -254,7 +254,7 @@ impl TUnion {
             return false;
         }
 
-        if let Some(mixed) = self.types.get(0) {
+        if let Some(mixed) = self.types.first() {
             if matches!(mixed, TAtomic::TMixed) {
                 return true;
             }

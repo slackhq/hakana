@@ -77,7 +77,7 @@ pub fn replace(
     }
 
     if replace {
-        if atomic_types.len() == 0 {
+        if atomic_types.is_empty() {
             return union_type.clone();
         }
 
@@ -1808,7 +1808,7 @@ pub fn get_mapped_generic_type_params(
                     param_name,
                     defining_entity,
                     ..
-                }) = ets.get(0)
+                }) = ets.first()
                 {
                     if let Some(defining_classes) =
                         input_class_storage.template_types.get(param_name)
@@ -1986,7 +1986,7 @@ pub fn get_most_specific_type_from_bounds(
 
 pub fn get_relevant_bounds<'a>(lower_bounds: &'a Vec<TemplateBound>) -> Vec<&'a TemplateBound> {
     if lower_bounds.len() == 1 {
-        return vec![lower_bounds.get(0).unwrap()];
+        return vec![lower_bounds.first().unwrap()];
     }
 
     let mut lower_bounds = lower_bounds.into_iter().collect::<Vec<_>>();

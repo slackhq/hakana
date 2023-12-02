@@ -103,8 +103,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         context_clauses.retain(|c| !left_reconciled_clauses_hashed.contains(c));
 
         if context_clauses.len() == 1 {
-            let first = context_clauses.get(0).unwrap();
-            if first.wedge && first.possibilities.len() == 0 {
+            let first = context_clauses.first().unwrap();
+            if first.wedge && first.possibilities.is_empty() {
                 context_clauses = Vec::new();
             }
         }

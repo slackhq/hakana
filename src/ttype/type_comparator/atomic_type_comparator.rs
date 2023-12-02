@@ -476,7 +476,7 @@ pub fn is_contained_by(
 
                 let mut array_comparison_result = TypeComparisonResult::new();
                 if *container_name == STR_CONTAINER {
-                    if let Some(container_value_param) = container_type_params.get(0) {
+                    if let Some(container_value_param) = container_type_params.first() {
                         if !union_type_comparator::is_contained_by(
                             codebase,
                             &input_type_params.1,
@@ -501,7 +501,7 @@ pub fn is_contained_by(
                         }
                     }
                 } else {
-                    if let Some(container_key_param) = container_type_params.get(0) {
+                    if let Some(container_key_param) = container_type_params.first() {
                         if !union_type_comparator::is_contained_by(
                             codebase,
                             &input_type_params.0,
@@ -579,7 +579,7 @@ pub fn is_contained_by(
                     get_arrayish_params(container_type_part, codebase).unwrap();
 
                 if *input_name == STR_CONTAINER {
-                    if let Some(input_value_param) = input_type_params.get(0) {
+                    if let Some(input_value_param) = input_type_params.first() {
                         union_type_comparator::is_contained_by(
                             codebase,
                             &input_value_param,
@@ -591,7 +591,7 @@ pub fn is_contained_by(
                         );
                     }
                 } else {
-                    if let Some(input_key_param) = input_type_params.get(0) {
+                    if let Some(input_key_param) = input_type_params.first() {
                         union_type_comparator::is_contained_by(
                             codebase,
                             &input_key_param,
@@ -704,7 +704,7 @@ pub fn is_contained_by(
             {
                 if let Some(container_type_params) = container_type_params {
                     if let (Some(container_enum_param), Some(_)) =
-                        (container_type_params.get(0), container_type_params.get(1))
+                        (container_type_params.first(), container_type_params.get(1))
                     {
                         let container_enum_param = container_enum_param.get_single();
 

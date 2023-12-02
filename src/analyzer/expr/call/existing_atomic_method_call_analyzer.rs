@@ -74,7 +74,7 @@ pub(crate) fn analyze(
 
     result
         .existent_method_ids
-        .insert(method_id.to_string(&statements_analyzer.get_interner()));
+        .insert(method_id.to_string(statements_analyzer.get_interner()));
 
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 

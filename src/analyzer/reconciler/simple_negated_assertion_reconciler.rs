@@ -941,7 +941,7 @@ fn subtract_num(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1036,7 +1036,7 @@ fn subtract_arraykey(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1133,7 +1133,7 @@ fn subtract_bool(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1313,7 +1313,7 @@ fn subtract_false(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1394,7 +1394,7 @@ fn subtract_true(
         return existing_var_type.clone();
     }
 
-    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
 
     let mut did_remove_type = false;
 
@@ -1766,7 +1766,7 @@ fn reconcile_not_in_array(
             trigger_issue_for_impossible(
                 analysis_data,
                 statements_analyzer,
-                &existing_var_type.get_id(Some(&statements_analyzer.get_interner())),
+                &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
                 &key,
                 assertion,
                 true,
@@ -1953,7 +1953,7 @@ fn reconcile_no_nonnull_entry_for_key(existing_var_type: &TUnion, key_name: &Dic
                         // todo emit issue
                     }
 
-                    if known_items_inner.len() == 0 {
+                    if known_items_inner.is_empty() {
                         all_known_items_removed = true;
                     }
                 } else {

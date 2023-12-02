@@ -365,11 +365,11 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             ..
         } => match name {
             &STR_KEYED_CONTAINER | &STR_KEYED_TRAVERSABLE | &STR_ANY_ARRAY => Some((
-                type_params.get(0).unwrap().clone(),
+                type_params.first().unwrap().clone(),
                 type_params.get(1).unwrap().clone(),
             )),
             &STR_CONTAINER | &STR_TRAVERSABLE => {
-                Some((get_arraykey(true), type_params.get(0).unwrap().clone()))
+                Some((get_arraykey(true), type_params.first().unwrap().clone()))
             }
             _ => None,
         },
@@ -423,7 +423,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             &STR_KEYED_CONTAINER | &STR_KEYED_TRAVERSABLE | &STR_ANY_ARRAY => {
                 Some(type_params.get(1).unwrap().clone())
             }
-            &STR_CONTAINER | &STR_TRAVERSABLE => Some(type_params.get(0).unwrap().clone()),
+            &STR_CONTAINER | &STR_TRAVERSABLE => Some(type_params.first().unwrap().clone()),
             _ => None,
         },
         _ => None,

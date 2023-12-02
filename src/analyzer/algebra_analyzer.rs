@@ -50,7 +50,7 @@ pub(crate) fn check_for_paradox(
                 })
             })
         {
-            let clause_string = formula_2_clause.to_string(&statements_analyzer.get_interner());
+            let clause_string = formula_2_clause.to_string(statements_analyzer.get_interner());
 
             analysis_data.maybe_add_issue(
                 Issue::new(
@@ -110,34 +110,34 @@ pub(crate) fn check_for_paradox(
 
                 if let Ok(mini_formula_2) = mini_formula_2 {
                     let mut paradox_message = String::new();
-                    if !mini_formula_2.get(0).unwrap().wedge {
+                    if !mini_formula_2.first().unwrap().wedge {
                         paradox_message += "Condition (";
                         if mini_formula_2.len() > 1 {
                             paradox_message += "(";
                             paradox_message += mini_formula_2
                                 .iter()
-                                .map(|c| c.to_string(&statements_analyzer.get_interner()))
+                                .map(|c| c.to_string(statements_analyzer.get_interner()))
                                 .collect::<Vec<String>>()
                                 .join(") && (")
                                 .as_str();
                             paradox_message += ")"
                         } else {
                             paradox_message += mini_formula_2
-                                .get(0)
+                                .first()
                                 .unwrap()
-                                .to_string(&statements_analyzer.get_interner())
+                                .to_string(statements_analyzer.get_interner())
                                 .as_str();
                         }
                     } else {
                         paradox_message += "Condition not (";
                         paradox_message += negated_clause_2
-                            .to_string(&statements_analyzer.get_interner())
+                            .to_string(statements_analyzer.get_interner())
                             .as_str();
                     }
 
                     paradox_message += ") contradicts a previously-established condition (";
                     paradox_message += clause_1
-                        .to_string(&statements_analyzer.get_interner())
+                        .to_string(statements_analyzer.get_interner())
                         .as_str();
                     paradox_message += ")";
 

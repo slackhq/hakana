@@ -263,7 +263,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         let mut definition_location = HPos::new(&typedef.span, self.file_source.file_path, None);
 
-        if let Some(user_attribute) = typedef.user_attributes.get(0) {
+        if let Some(user_attribute) = typedef.user_attributes.first() {
             definition_location.start_line = user_attribute.name.0.line() as u32;
             definition_location.start_offset = user_attribute.name.0.start_offset() as u32;
         }

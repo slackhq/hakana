@@ -93,7 +93,7 @@ pub(crate) fn analyze(
                     } else {
                         println!(
                             "surprising union type {}",
-                            constant_type.get_id(Some(&statements_analyzer.get_interner()))
+                            constant_type.get_id(Some(statements_analyzer.get_interner()))
                         );
                         panic!();
                     }
@@ -101,7 +101,7 @@ pub(crate) fn analyze(
                     return Err(AnalysisError::InternalError(
                         format!(
                             "unknown constant {}::{}",
-                            &statements_analyzer.get_interner().lookup(lhs_name),
+                            statements_analyzer.get_interner().lookup(lhs_name),
                             &name.1
                         ),
                         statements_analyzer.get_hpos(&name.0),

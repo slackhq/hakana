@@ -436,7 +436,7 @@ fn analyze_awaitall(
                     ..
                 } = inner
                 {
-                    let mut new = type_params.get(0).unwrap().clone();
+                    let mut new = type_params.first().unwrap().clone();
 
                     new.parent_nodes = parent_nodes;
                     assignment_type = Some(new)

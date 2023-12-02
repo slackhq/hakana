@@ -164,10 +164,10 @@ pub(crate) fn analyze(
             .retain(|c| !reconciled_expression_clauses.contains(c));
 
         if if_body_context.clauses.len() == 1
-            && if_body_context.clauses.get(0).unwrap().wedge
+            && if_body_context.clauses.first().unwrap().wedge
             && if_body_context
                 .clauses
-                .get(0)
+                .first()
                 .unwrap()
                 .possibilities
                 .is_empty()
@@ -335,7 +335,7 @@ pub(crate) fn analyze(
     let reasonable_clauses_len = reasonable_clauses.len();
 
     if reasonable_clauses_len > 0
-        && (reasonable_clauses_len > 1 || !reasonable_clauses.get(0).unwrap().wedge)
+        && (reasonable_clauses_len > 1 || !reasonable_clauses.first().unwrap().wedge)
     {
         reasonable_clauses.extend(context.clauses.clone());
         context.clauses = hakana_algebra::simplify_cnf(

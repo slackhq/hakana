@@ -54,7 +54,7 @@ pub(crate) fn analyze(
         context,
     )?;
 
-    if assigned_properties.len() == 0 || assign_value_type.is_mixed() {
+    if assigned_properties.is_empty() || assign_value_type.is_mixed() {
         return Ok(());
     }
 
@@ -112,8 +112,8 @@ pub(crate) fn analyze(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
                                 class_property_type
-                                    .get_id(Some(&statements_analyzer.get_interner())),
-                                assignment_type.get_id(Some(&statements_analyzer.get_interner())),
+                                    .get_id(Some(statements_analyzer.get_interner())),
+                                assignment_type.get_id(Some(statements_analyzer.get_interner())),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
                             &context.function_context.calling_functionlike_id,
@@ -129,8 +129,8 @@ pub(crate) fn analyze(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("var".to_string()),
                                 class_property_type
-                                    .get_id(Some(&statements_analyzer.get_interner())),
-                                assignment_type.get_id(Some(&statements_analyzer.get_interner())),
+                                    .get_id(Some(statements_analyzer.get_interner())),
+                                assignment_type.get_id(Some(statements_analyzer.get_interner())),
                             ),
                             statements_analyzer.get_hpos(&stmt_var.1),
                             &context.function_context.calling_functionlike_id,
@@ -155,7 +155,7 @@ pub(crate) fn analyze(
                 // }
                 invalid_assignment_value_types.insert(
                     &assigned_property.1 .1,
-                    class_property_type.get_id(Some(&statements_analyzer.get_interner())),
+                    class_property_type.get_id(Some(statements_analyzer.get_interner())),
                 );
             } else {
                 // has_valid_assignment_value_type = true;
@@ -170,7 +170,7 @@ pub(crate) fn analyze(
                         "Property ${} with declared type {}, cannot be assigned type {}",
                         statements_analyzer.get_interner().lookup(property_id),
                         invalid_class_property_type,
-                        assignment_type.get_id(Some(&statements_analyzer.get_interner())),
+                        assignment_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
                     statements_analyzer.get_hpos(&stmt_var.1),
                     &context.function_context.calling_functionlike_id,
@@ -600,7 +600,7 @@ fn add_instance_property_assignment_dataflow(
     assignment_value_type: &TUnion,
     context: &mut ScopeContext,
 ) {
-    let interner = &statements_analyzer.get_interner();
+    let interner = statements_analyzer.get_interner();
     let var_node = DataFlowNode::get_for_assignment(
         lhs_var_id.to_owned(),
         statements_analyzer.get_hpos(var_pos),

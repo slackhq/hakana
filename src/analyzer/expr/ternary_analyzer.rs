@@ -154,8 +154,8 @@ pub(crate) fn analyze(
         ternary_clauses.retain(|c| !reconciled_expression_clauses.contains(c));
 
         if ternary_clauses.len() == 1
-            && ternary_clauses.get(0).unwrap().wedge
-            && ternary_clauses.get(0).unwrap().possibilities.is_empty()
+            && ternary_clauses.first().unwrap().wedge
+            && ternary_clauses.first().unwrap().possibilities.is_empty()
         {
             ternary_clauses = Vec::new();
             if_context.reconciled_expression_clauses = Vec::new();

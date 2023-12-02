@@ -136,7 +136,7 @@ pub(crate) fn is_contained_by(
 
     if input_name == &awaitable_id && container_name == &awaitable_id {
         if let (Some(input_param), Some(container_param)) =
-            (input_type_params.get(0), container_type_params.get(0))
+            (input_type_params.first(), container_type_params.first())
         {
             // this is a hack to match behaviour in the official typechecker
             if input_param.1.is_null() && container_param.is_void() {

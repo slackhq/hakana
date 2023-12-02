@@ -479,7 +479,7 @@ pub(crate) fn analyze(
                 } = atomic_type
                 {
                     if type_params.len() == 1 {
-                        let inside_type = type_params.get(0).unwrap().clone();
+                        let inside_type = type_params.first().unwrap().clone();
                         awaited_stmt_type
                             .parent_nodes
                             .extend(inside_type.parent_nodes);

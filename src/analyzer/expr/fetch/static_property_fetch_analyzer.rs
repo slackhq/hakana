@@ -175,7 +175,7 @@ pub(crate) fn analyze(
             analysis_data,
             false,
             stmt_type,
-            &statements_analyzer.get_interner(),
+            statements_analyzer.get_interner(),
         );
 
         // we don't need to check anything since this variable is known in this scope
@@ -248,7 +248,7 @@ pub(crate) fn analyze(
             analysis_data,
             false,
             inserted_type,
-            &statements_analyzer.get_interner(),
+            statements_analyzer.get_interner(),
         );
 
         let rc = Rc::new(inserted_type.clone());

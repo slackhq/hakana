@@ -8,7 +8,6 @@ use rand::Rng;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 use std::hash::Hash;
-mod tests;
 
 fn index_keys_match<T: Eq + Ord + Hash, U, V>(
     map1: &IndexMap<T, U>,
@@ -144,7 +143,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
                         removed_clauses.insert(*clause_b);
 
-                        if clause_var_possibilities.len() == 0 {
+                        if clause_var_possibilities.is_empty() {
                             let maybe_updated_clause = clause_b.remove_possibilities(&clause_var);
 
                             if let Some(x) = maybe_updated_clause {
@@ -393,7 +392,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
         }
     }
 
-    if clauses.len() == 0 || seed_clauses.len() == 0 {
+    if clauses.is_empty() || seed_clauses.is_empty() {
         return Ok(seed_clauses);
     }
 
@@ -593,7 +592,7 @@ pub fn combine_ored_clauses(
 pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
     clauses.retain(|clause| clause.reconcilable);
 
-    if clauses.len() == 0 {
+    if clauses.is_empty() {
         let mut rng = rand::thread_rng();
 
         let n2: u32 = rng.gen();
@@ -615,7 +614,7 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
 
     let impossible_clauses = impossible_clauses.unwrap();
 
-    if impossible_clauses.len() == 0 {
+    if impossible_clauses.is_empty() {
         let mut rng = rand::thread_rng();
 
         let n2: u32 = rng.gen();
@@ -631,7 +630,7 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
 
     let negated = simplify_cnf(impossible_clauses.iter().collect());
 
-    if negated.len() == 0 {
+    if negated.is_empty() {
         let mut rng = rand::thread_rng();
 
         let n2: u32 = rng.gen();

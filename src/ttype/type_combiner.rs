@@ -722,7 +722,7 @@ fn scrape_type_properties(
                         .get(&STR_CONTAINER.0.to_string())
                     {
                         combine_union_types(
-                            container_types.get(0).unwrap(),
+                            container_types.first().unwrap(),
                             &dict_types.1,
                             codebase,
                             false,
@@ -746,7 +746,7 @@ fn scrape_type_properties(
                         .get(&STR_CONTAINER.0.to_string())
                     {
                         combine_union_types(
-                            container_types.get(0).unwrap(),
+                            container_types.first().unwrap(),
                             value_param,
                             codebase,
                             false,
@@ -772,7 +772,7 @@ fn scrape_type_properties(
                         .get(&STR_KEYED_CONTAINER.0.to_string())
                     {
                         combine_union_types(
-                            container_types.get(0).unwrap(),
+                            container_types.first().unwrap(),
                             keyed_container_types.get(1).unwrap(),
                             codebase,
                             false,
@@ -1258,7 +1258,7 @@ fn merge_array_subtype(
     if let Some(ref dict_types) = combination.dict_type_params {
         let container_key_type = if let Some((_, keyed_container_types)) = keyed_container_types {
             combine_union_types(
-                keyed_container_types.get(0).unwrap(),
+                keyed_container_types.first().unwrap(),
                 &dict_types.0,
                 codebase,
                 false,
@@ -1292,7 +1292,7 @@ fn merge_array_subtype(
         let keyed_container_types = combination.object_type_params.get(&fq_class_name_key);
         let container_key_type = if let Some((_, keyed_container_types)) = keyed_container_types {
             combine_union_types(
-                keyed_container_types.get(0).unwrap(),
+                keyed_container_types.first().unwrap(),
                 &get_int(),
                 codebase,
                 false,

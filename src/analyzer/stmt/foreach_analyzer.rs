@@ -463,7 +463,7 @@ fn check_iterator_type(
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
-                        Some(type_params.get(0).unwrap()),
+                        Some(type_params.first().unwrap()),
                         codebase,
                     ));
                     value_type = Some(combine_optional_union_types(
@@ -481,7 +481,7 @@ fn check_iterator_type(
                     ));
                     value_type = Some(combine_optional_union_types(
                         value_type.as_ref(),
-                        Some(type_params.get(0).unwrap()),
+                        Some(type_params.first().unwrap()),
                         codebase,
                     ));
                 }
@@ -490,7 +490,7 @@ fn check_iterator_type(
                         has_valid_iterator = true;
                         key_type = Some(combine_optional_union_types(
                             key_type.as_ref(),
-                            Some(type_params.get(0).unwrap()),
+                            Some(type_params.first().unwrap()),
                             codebase,
                         ));
                         value_type = Some(combine_optional_union_types(
@@ -510,7 +510,7 @@ fn check_iterator_type(
                         ));
                         value_type = Some(combine_optional_union_types(
                             value_type.as_ref(),
-                            Some(type_params.get(0).unwrap()),
+                            Some(type_params.first().unwrap()),
                             codebase,
                         ));
                     }

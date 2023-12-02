@@ -162,8 +162,8 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         negated_left_clauses.retain(|c| !left_reconciled_clauses_hashed.contains(c));
 
         if negated_left_clauses.len() == 1 {
-            let first = negated_left_clauses.get(0).unwrap();
-            if first.wedge && first.possibilities.len() == 0 {
+            let first = negated_left_clauses.first().unwrap();
+            if first.wedge && first.possibilities.is_empty() {
                 negated_left_clauses = Vec::new();
             }
         }

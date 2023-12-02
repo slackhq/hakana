@@ -595,7 +595,7 @@ pub(crate) fn analyze<'a>(
                 &FxHashSet::default(),
                 statements_analyzer,
                 analysis_data,
-                pre_conditions.get(0).unwrap().pos(),
+                pre_conditions.first().unwrap().pos(),
                 true,
                 false,
                 &FxHashMap::default(),

@@ -236,8 +236,8 @@ pub(crate) fn analyze(
                                 .get_interner()
                                 .lookup(declaring_property_class),
                             statements_analyzer.get_interner().lookup(&property_id.1),
-                            class_property_type.get_id(Some(&statements_analyzer.get_interner())),
-                            assign_value_type.get_id(Some(&statements_analyzer.get_interner())),
+                            class_property_type.get_id(Some(statements_analyzer.get_interner())),
+                            assign_value_type.get_id(Some(statements_analyzer.get_interner())),
                         ),
                         statements_analyzer.get_hpos(&stmt_class.1),
                         &context.function_context.calling_functionlike_id,
@@ -259,8 +259,8 @@ pub(crate) fn analyze(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("This property".to_string()),
                                 class_property_type
-                                    .get_id(Some(&statements_analyzer.get_interner())),
-                                assign_value_type.get_id(Some(&statements_analyzer.get_interner())),
+                                    .get_id(Some(statements_analyzer.get_interner())),
+                                assign_value_type.get_id(Some(statements_analyzer.get_interner())),
                             ),
                             statements_analyzer.get_hpos(&stmt_class.1),
                             &context.function_context.calling_functionlike_id,
@@ -276,8 +276,8 @@ pub(crate) fn analyze(
                                 "{} expects {}, parent type {} provided",
                                 var_id.clone().unwrap_or("This property".to_string()),
                                 class_property_type
-                                    .get_id(Some(&statements_analyzer.get_interner())),
-                                assign_value_type.get_id(Some(&statements_analyzer.get_interner())),
+                                    .get_id(Some(statements_analyzer.get_interner())),
+                                assign_value_type.get_id(Some(statements_analyzer.get_interner())),
                             ),
                             statements_analyzer.get_hpos(&stmt_class.1),
                             &context.function_context.calling_functionlike_id,

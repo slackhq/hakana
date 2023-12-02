@@ -657,7 +657,7 @@ fn add_dataflow<'a>(
             } else {
                 None
             },
-            &statements_analyzer.get_interner(),
+            statements_analyzer.get_interner(),
         );
 
         data_flow_graph.add_node(new_call_node.clone());
@@ -680,7 +680,7 @@ fn add_dataflow<'a>(
                     } else {
                         None
                     },
-                    &statements_analyzer.get_interner(),
+                    statements_analyzer.get_interner(),
                 );
 
                 data_flow_graph.add_node(new_call_node.clone());

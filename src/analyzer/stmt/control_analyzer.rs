@@ -23,7 +23,7 @@ pub(crate) fn get_control_actions(
 ) -> FxHashSet<ControlAction> {
     let mut control_actions = FxHashSet::default();
 
-    if stmts.len() == 0 {
+    if stmts.is_empty() {
         control_actions.insert(ControlAction::None);
         return control_actions;
     }

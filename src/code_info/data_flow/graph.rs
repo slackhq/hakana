@@ -212,7 +212,7 @@ impl DataFlowGraph {
                     }
                 }
 
-                if new_parent_nodes.len() == 0 {
+                if new_parent_nodes.is_empty() {
                     if !has_visited_a_parent_already {
                         origin_nodes.push(child_node);
                     }
@@ -224,7 +224,7 @@ impl DataFlowGraph {
 
             child_nodes = all_parent_nodes;
 
-            if child_nodes.len() == 0 {
+            if child_nodes.is_empty() {
                 break;
             }
         }

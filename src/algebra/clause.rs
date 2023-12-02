@@ -72,7 +72,7 @@ impl Clause {
 
         possibilities.remove(var_id);
 
-        if possibilities.len() == 0 {
+        if possibilities.is_empty() {
             return None;
         }
 
@@ -166,7 +166,7 @@ impl Clause {
     pub fn to_string(&self, interner: &Interner) -> String {
         let mut clause_strings = vec![];
 
-        if self.possibilities.len() == 0 {
+        if self.possibilities.is_empty() {
             return "<empty>".to_string();
         }
 

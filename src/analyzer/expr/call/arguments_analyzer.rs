@@ -155,7 +155,7 @@ pub(crate) fn check_arguments_match(
                     .or_insert_with(FxHashMap::default)
                     .insert(
                         class.clone(),
-                        Arc::new(lower_bounds.get(0).unwrap().bound_type.clone()),
+                        Arc::new(lower_bounds.first().unwrap().bound_type.clone()),
                     );
             }
         }
@@ -1043,7 +1043,7 @@ fn handle_possibly_matching_inout_param(
 
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let out_node = DataFlowNode::get_for_method_argument_out(
-            functionlike_id.to_string(&statements_analyzer.get_interner()),
+            functionlike_id.to_string(statements_analyzer.get_interner()),
             argument_offset,
             Some(functionlike_param.name_location.clone()),
             Some(statements_analyzer.get_hpos(function_call_pos)),

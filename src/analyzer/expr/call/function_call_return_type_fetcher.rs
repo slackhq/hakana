@@ -177,7 +177,7 @@ fn handle_special_functions(
     match name {
         "HH\\type_structure" => {
             if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
-                (args.get(0), args.get(1))
+                (args.first(), args.get(1))
             {
                 if let (Some(first_expr_type), Some(second_expr_type)) = (
                     analysis_data.get_expr_type(first_arg_expr.pos()),
@@ -197,7 +197,7 @@ fn handle_special_functions(
             }
         }
         "HH\\global_get" => {
-            if let Some((_, arg_expr)) = args.get(0) {
+            if let Some((_, arg_expr)) = args.first() {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if let Some(value) = expr_type.get_single_literal_string_value() {
                         Some(variable_fetch_analyzer::get_type_for_superglobal(
@@ -389,7 +389,7 @@ fn handle_special_functions(
             }
         }
         "microtime" => {
-            if let Some((_, arg_expr)) = args.get(0) {
+            if let Some((_, arg_expr)) = args.first() {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if expr_type.is_always_truthy() {
                         Some(get_float())
@@ -407,7 +407,7 @@ fn handle_special_functions(
         }
         "HH\\Lib\\Str\\join" => {
             if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
-                (args.get(0), args.get(1))
+                (args.first(), args.get(1))
             {
                 if let (Some(first_expr_type), Some(second_expr_type)) = (
                     analysis_data.get_expr_type(first_arg_expr.pos()),
@@ -665,7 +665,7 @@ fn add_dataflow(
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         function_call_node = DataFlowNode::get_for_method_return(
-            functionlike_id.to_string(&statements_analyzer.get_interner()),
+            functionlike_id.to_string(statements_analyzer.get_interner()),
             if let Some(return_pos) = &functionlike_storage.return_type_location {
                 Some(return_pos.clone())
             } else {
@@ -684,7 +684,7 @@ fn add_dataflow(
         }
     } else {
         function_call_node = DataFlowNode::get_for_method_return(
-            functionlike_id.to_string(&statements_analyzer.get_interner()),
+            functionlike_id.to_string(statements_analyzer.get_interner()),
             Some(statements_analyzer.get_hpos(pos)),
             Some(statements_analyzer.get_hpos(pos)),
         );
@@ -693,9 +693,9 @@ fn add_dataflow(
     data_flow_graph.add_node(function_call_node.clone());
 
     let (param_offsets, _variadic_path) =
-        get_special_argument_nodes(functionlike_id, &statements_analyzer.get_interner());
+        get_special_argument_nodes(functionlike_id, statements_analyzer.get_interner());
     let added_removed_taints = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        get_special_added_removed_taints(functionlike_id, &statements_analyzer.get_interner())
+        get_special_added_removed_taints(functionlike_id, statements_analyzer.get_interner())
     } else {
         FxHashMap::default()
     };

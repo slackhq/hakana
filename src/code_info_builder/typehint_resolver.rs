@@ -292,7 +292,7 @@ fn get_function_type_from_hints(
             None => None,
         },
         effects: if let Some(contexts) = &function_info.ctxs {
-            Some(if contexts.1.len() == 0 {
+            Some(if contexts.1.is_empty() {
                 EFFECT_PURE
             } else {
                 EFFECT_IMPURE
@@ -347,7 +347,7 @@ fn get_reference_type(
             name: *resolved_names.get(&applied_type.0.start_offset()).unwrap(),
             type_params: if type_params.len() == 3 {
                 Some(vec![
-                    type_params.get(0).unwrap().clone(),
+                    type_params.first().unwrap().clone(),
                     type_params.get(1).unwrap().clone(),
                     type_params.get(2).unwrap().clone(),
                 ])

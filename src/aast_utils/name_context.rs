@@ -225,7 +225,7 @@ impl NameContext<'_> {
         let existing_context = self.name_resolution_contexts.last().unwrap();
 
         let parts: Vec<&str> = name.split('\\').collect();
-        let first_part = parts.get(0).unwrap();
+        let first_part = parts.first().unwrap();
 
         if parts.len() > 1 {
             let alias = if *first_part == "namespace" {

@@ -217,7 +217,7 @@ pub(crate) fn analyze(
 
     match real_name {
         "HH\\invariant" => {
-            if let Some((_, first_arg)) = &expr.2.get(0) {
+            if let Some((_, first_arg)) = &expr.2.first() {
                 process_invariant(first_arg, context, statements_analyzer, analysis_data);
             }
         }
@@ -589,8 +589,8 @@ fn check_array_key_or_value_type(
                         error_message = Some(format!(
                             "Second arg of {} expects type {}, saw {}",
                             function_name,
-                            param.get_id(Some(&statements_analyzer.get_interner())),
-                            arg_type.get_id(Some(&statements_analyzer.get_interner()))
+                            param.get_id(Some(statements_analyzer.get_interner())),
+                            arg_type.get_id(Some(statements_analyzer.get_interner()))
                         ));
                     }
                 };

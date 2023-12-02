@@ -50,7 +50,7 @@ pub fn reconcile(
         return get_missing_type(assertion, inside_loop);
     };
 
-    let old_var_type_string = existing_var_type.get_id(Some(&statements_analyzer.get_interner()));
+    let old_var_type_string = existing_var_type.get_id(Some(statements_analyzer.get_interner()));
 
     if is_negation {
         return negated_assertion_reconciler::reconcile(

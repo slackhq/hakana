@@ -305,7 +305,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         &MethodIdentifier(classlike_storage.name, method_name.clone()),
                         functionlike_storage.return_type_location.clone(),
                         None,
-                        &statements_analyzer.get_interner(),
+                        statements_analyzer.get_interner(),
                     );
 
                     this_type.parent_nodes = FxHashSet::from_iter([new_call_node]);
@@ -529,7 +529,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 //         if last_line - first_line > 10 && last_line - first_line < 100000 {
                 //             println!(
                 //                 "{}\t{}\t{}",
-                //                 functionlike_id.to_string(&statements_analyzer.get_interner()),
+                //                 functionlike_id.to_string(statements_analyzer.get_interner()),
                 //                 last_line - first_line,
                 //                 end_t.as_micros() as u64 / (last_line - first_line)
                 //             );
@@ -560,7 +560,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             ),
                             functionlike_storage.name_location.clone(),
                             None,
-                            &statements_analyzer.get_interner(),
+                            statements_analyzer.get_interner(),
                         );
 
                         for parent_node in &this_type.parent_nodes {
@@ -839,7 +839,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         context: &mut ScopeContext,
         statements_analyzer: &mut StatementsAnalyzer,
     ) -> Result<(), AnalysisError> {
-        let interner = &statements_analyzer.get_interner();
+        let interner = statements_analyzer.get_interner();
 
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {

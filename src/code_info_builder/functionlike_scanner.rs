@@ -447,7 +447,7 @@ fn get_effect_from_contexts(
     contexts: &tast::Contexts,
     functionlike_info: &FunctionLikeInfo,
 ) -> FnEffect {
-    if contexts.1.len() == 0 {
+    if contexts.1.is_empty() {
         FnEffect::Pure
     } else if contexts.1.len() == 1 {
         let context = &contexts.1[0];

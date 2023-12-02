@@ -459,7 +459,7 @@ fn add_property_dataflow(
             analysis_data,
             in_assignment,
             stmt_type,
-            &statements_analyzer.get_interner(),
+            statements_analyzer.get_interner(),
         );
 
         return stmt_type;

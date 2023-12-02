@@ -79,7 +79,7 @@ pub(crate) fn get_formula(
     for assertions in anded_assertions {
         for (var_id, anded_types) in assertions {
             for orred_types in anded_types {
-                let has_equality = orred_types.get(0).unwrap().has_equality();
+                let has_equality = orred_types.first().unwrap().has_equality();
                 clauses.push(Clause::new(
                     {
                         let mut map = BTreeMap::new();

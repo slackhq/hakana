@@ -281,7 +281,7 @@ pub(crate) fn reconcile_keyed_types(
                         let narrowing_node = DataFlowNode::get_for_assignment(
                             key.clone()
                                 + " narrowed to "
-                                + &statements_analyzer.get_interner().lookup(narrowed_symbol),
+                                + statements_analyzer.get_interner().lookup(narrowed_symbol),
                             statements_analyzer.get_hpos(pos),
                         );
 
@@ -1105,7 +1105,7 @@ pub(crate) fn trigger_issue_for_impossible(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     _suppressed_issues: &FxHashMap<String, usize>,
 ) {
-    let mut assertion_string = assertion.to_string(Some(&statements_analyzer.get_interner()));
+    let mut assertion_string = assertion.to_string(Some(statements_analyzer.get_interner()));
     let mut not_operator = assertion_string.starts_with("!");
 
     if not_operator {
@@ -1221,7 +1221,7 @@ fn get_impossible_issue(
             format!(
                 "Type {}never has key {}",
                 old_var_type_string,
-                key.to_string(Some(&statements_analyzer.get_interner()))
+                key.to_string(Some(statements_analyzer.get_interner()))
             ),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
@@ -1231,7 +1231,7 @@ fn get_impossible_issue(
             format!(
                 "Type {}does not have a nonnull entry for {}",
                 old_var_type_string,
-                dict_key.to_string(Some(&statements_analyzer.get_interner()))
+                dict_key.to_string(Some(statements_analyzer.get_interner()))
             ),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
@@ -1282,7 +1282,7 @@ fn get_redundant_issue(
             format!(
                 "Type {}always has entry {}",
                 old_var_type_string,
-                key.to_string(Some(&statements_analyzer.get_interner()))
+                key.to_string(Some(statements_analyzer.get_interner()))
             ),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
@@ -1292,7 +1292,7 @@ fn get_redundant_issue(
             format!(
                 "Type {}always has entry {}",
                 old_var_type_string,
-                key.to_string(Some(&statements_analyzer.get_interner()))
+                key.to_string(Some(statements_analyzer.get_interner()))
             ),
             statements_analyzer.get_hpos(&pos),
             &calling_functionlike_id,
