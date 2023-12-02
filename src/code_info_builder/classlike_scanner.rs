@@ -93,7 +93,7 @@ pub(crate) fn scan(
                 .unwrap();
             type_context.template_type_map.insert(
                 *param_name,
-                FxHashMap::from_iter([(class_name.clone(), Arc::new(get_mixed_any()))]),
+                FxHashMap::from_iter([(*class_name, Arc::new(get_mixed_any()))]),
             );
         }
 
@@ -115,7 +115,7 @@ pub(crate) fn scan(
             let template_as_type = if let Some((_, constraint_hint)) = first_constraint {
                 get_type_from_hint(
                     &constraint_hint.1,
-                    Some(&class_name),
+                    Some(class_name),
                     &type_context,
                     resolved_names,
                 )
@@ -130,7 +130,7 @@ pub(crate) fn scan(
 
             storage.template_types.insert(*param_name, {
                 let mut h = FxHashMap::default();
-                h.insert(class_name.clone(), Arc::new(template_as_type));
+                h.insert(*class_name, Arc::new(template_as_type));
                 h
             });
 
@@ -164,30 +164,30 @@ pub(crate) fn scan(
 
             codebase
                 .symbols
-                .add_class_name(&class_name, Some(file_source.file_path));
+                .add_class_name(class_name, Some(file_source.file_path));
 
             if let Some(parent_class) = classlike_node.extends.first() {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_class.1 {
                     signature_end = name.0.end_offset() as u32;
 
-                    let parent_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
+                    let parent_name = *resolved_names.get(&name.0.start_offset()).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
-                    storage.direct_parent_class = Some(parent_name.clone());
-                    storage.all_parent_classes.insert(parent_name.clone());
+                    storage.direct_parent_class = Some(parent_name);
+                    storage.all_parent_classes.insert(parent_name);
 
                     storage.template_extended_offsets.insert(
-                        parent_name.clone(),
+                        parent_name,
                         params
                             .iter()
                             .map(|param| {
                                 Arc::new(
                                     get_type_from_hint(
                                         &param.1,
-                                        Some(&class_name),
+                                        Some(class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
                                             template_supers: FxHashMap::default(),
@@ -207,7 +207,7 @@ pub(crate) fn scan(
                     signature_end = name.0.end_offset() as u32;
 
                     let interface_name =
-                        resolved_names.get(&name.0.start_offset()).unwrap().clone();
+                        *resolved_names.get(&name.0.start_offset()).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
@@ -215,8 +215,8 @@ pub(crate) fn scan(
 
                     storage
                         .direct_class_interfaces
-                        .insert(interface_name.clone());
-                    storage.all_class_interfaces.insert(interface_name.clone());
+                        .insert(interface_name);
+                    storage.all_class_interfaces.insert(interface_name);
 
                     if class_name == &STR_SIMPLE_XML_ELEMENT && interface_name == STR_TRAVERSABLE {
                         storage.template_extended_offsets.insert(
@@ -225,14 +225,14 @@ pub(crate) fn scan(
                         );
                     } else {
                         storage.template_extended_offsets.insert(
-                            interface_name.clone(),
+                            interface_name,
                             params
                                 .iter()
                                 .map(|param| {
                                     Arc::new(
                                         get_type_from_hint(
                                             &param.1,
-                                            Some(&class_name),
+                                            Some(class_name),
                                             &TypeResolutionContext {
                                                 template_type_map: storage.template_types.clone(),
                                                 template_supers: FxHashMap::default(),
@@ -256,7 +256,7 @@ pub(crate) fn scan(
 
             codebase
                 .symbols
-                .add_enum_class_name(&class_name, Some(file_source.file_path));
+                .add_enum_class_name(class_name, Some(file_source.file_path));
 
             if let Some(enum_node) = &classlike_node.enum_ {
                 storage.enum_type = Some(
@@ -280,7 +280,7 @@ pub(crate) fn scan(
                 name: STR_MEMBER_OF,
                 type_params: Some(vec![
                     wrap_atomic(TAtomic::TNamedObject {
-                        name: class_name.clone(),
+                        name: *class_name,
                         type_params: None,
                         is_this: false,
                         extra_types: None,
@@ -299,7 +299,7 @@ pub(crate) fn scan(
             storage.kind = SymbolKind::Interface;
             codebase
                 .symbols
-                .add_interface_name(&class_name, Some(file_source.file_path));
+                .add_interface_name(class_name, Some(file_source.file_path));
 
             handle_reqs(classlike_node, resolved_names, &mut storage, class_name);
 
@@ -307,24 +307,24 @@ pub(crate) fn scan(
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
-                    let parent_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
+                    let parent_name = *resolved_names.get(&name.0.start_offset()).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
-                    storage.direct_parent_interfaces.insert(parent_name.clone());
-                    storage.all_parent_interfaces.insert(parent_name.clone());
+                    storage.direct_parent_interfaces.insert(parent_name);
+                    storage.all_parent_interfaces.insert(parent_name);
 
                     storage.template_extended_offsets.insert(
-                        parent_name.clone(),
+                        parent_name,
                         params
                             .iter()
                             .map(|param| {
                                 Arc::new(
                                     get_type_from_hint(
                                         &param.1,
-                                        Some(&class_name),
+                                        Some(class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
                                             template_supers: FxHashMap::default(),
@@ -344,7 +344,7 @@ pub(crate) fn scan(
 
             codebase
                 .symbols
-                .add_trait_name(&class_name, Some(file_source.file_path));
+                .add_trait_name(class_name, Some(file_source.file_path));
 
             handle_reqs(classlike_node, resolved_names, &mut storage, class_name);
 
@@ -353,7 +353,7 @@ pub(crate) fn scan(
                     signature_end = name.0.end_offset() as u32;
 
                     let interface_name =
-                        resolved_names.get(&name.0.start_offset()).unwrap().clone();
+                        *resolved_names.get(&name.0.start_offset()).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
@@ -361,18 +361,18 @@ pub(crate) fn scan(
 
                     storage
                         .direct_class_interfaces
-                        .insert(interface_name.clone());
-                    storage.all_class_interfaces.insert(interface_name.clone());
+                        .insert(interface_name);
+                    storage.all_class_interfaces.insert(interface_name);
 
                     storage.template_extended_offsets.insert(
-                        interface_name.clone(),
+                        interface_name,
                         params
                             .iter()
                             .map(|param| {
                                 Arc::new(
                                     get_type_from_hint(
                                         &param.1,
-                                        Some(&class_name),
+                                        Some(class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
                                             template_supers: FxHashMap::default(),
@@ -396,7 +396,7 @@ pub(crate) fn scan(
             let mut params = Vec::new();
 
             params.push(Arc::new(wrap_atomic(TAtomic::TEnum {
-                name: class_name.clone(),
+                name: *class_name,
                 base_type: None,
             })));
 
@@ -436,11 +436,11 @@ pub(crate) fn scan(
 
             codebase
                 .symbols
-                .add_enum_name(&class_name, Some(file_source.file_path));
+                .add_enum_name(class_name, Some(file_source.file_path));
         }
     }
 
-    let uses_hash = get_uses_hash(all_uses.symbol_uses.get(&class_name).unwrap_or(&vec![]));
+    let uses_hash = get_uses_hash(all_uses.symbol_uses.get(class_name).unwrap_or(&vec![]));
 
     let mut signature_hash = xxhash_rust::xxh3::xxh3_64(
         file_source.file_contents
@@ -482,7 +482,7 @@ pub(crate) fn scan(
         start_line: storage.meta_start.start_line,
         end_line: storage.def_location.end_line,
         children: Vec::new(),
-        signature_hash: signature_hash,
+        signature_hash,
         body_hash: None,
         is_function: false,
         is_constant: false,
@@ -505,7 +505,7 @@ pub(crate) fn scan(
             name, type_params, ..
         } = trait_type
         {
-            storage.used_traits.insert(name.clone());
+            storage.used_traits.insert(name);
 
             let mut hasher = rustc_hash::FxHasher::default();
             name.0.hash(&mut hasher);
@@ -519,7 +519,7 @@ pub(crate) fn scan(
                     name,
                     type_params
                         .into_iter()
-                        .map(|param| Arc::new(param))
+                        .map(Arc::new)
                         .collect(),
                 );
             }
@@ -532,7 +532,7 @@ pub(crate) fn scan(
             resolved_names,
             &mut storage,
             file_source,
-            &codebase,
+            codebase,
             interner,
             &mut def_signature_node.children,
             all_uses,
@@ -559,10 +559,9 @@ pub(crate) fn scan(
     let sealed_id = interner.intern_str("__Sealed");
 
     for user_attribute in &classlike_node.user_attributes {
-        let name = resolved_names
+        let name = *resolved_names
             .get(&user_attribute.name.0.start_offset())
-            .unwrap()
-            .clone();
+            .unwrap();
 
         if name == codegen_id {
             storage.generated = true;
@@ -616,14 +615,14 @@ pub(crate) fn scan(
             xhp_attribute,
             resolved_names,
             &mut storage,
-            &file_source,
+            file_source,
             &mut def_signature_node.children,
             interner,
             all_uses,
         );
     }
 
-    codebase.classlike_infos.insert(class_name.clone(), storage);
+    codebase.classlike_infos.insert(*class_name, storage);
 
     ast_nodes.push(def_signature_node);
 
@@ -638,31 +637,31 @@ fn handle_reqs(
 ) {
     for req in &classlike_node.reqs {
         if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
-            let require_name = resolved_names.get(&name.0.start_offset()).unwrap().clone();
+            let require_name = *resolved_names.get(&name.0.start_offset()).unwrap();
 
             match &req.1 {
                 aast::RequireKind::RequireExtends => {
-                    storage.direct_parent_class = Some(require_name.clone());
-                    storage.all_parent_classes.insert(require_name.clone());
-                    storage.required_classlikes.insert(require_name.clone());
+                    storage.direct_parent_class = Some(require_name);
+                    storage.all_parent_classes.insert(require_name);
+                    storage.required_classlikes.insert(require_name);
                 }
                 aast::RequireKind::RequireImplements => {
-                    storage.direct_class_interfaces.insert(require_name.clone());
-                    storage.all_class_interfaces.insert(require_name.clone());
-                    storage.required_classlikes.insert(require_name.clone());
+                    storage.direct_class_interfaces.insert(require_name);
+                    storage.all_class_interfaces.insert(require_name);
+                    storage.required_classlikes.insert(require_name);
                 }
                 aast::RequireKind::RequireClass => todo!(),
             };
 
             storage.template_extended_offsets.insert(
-                require_name.clone(),
+                require_name,
                 params
                     .iter()
                     .map(|param| {
                         Arc::new(
                             get_type_from_hint(
                                 &param.1,
-                                Some(&class_name),
+                                Some(class_name),
                                 &TypeResolutionContext {
                                     template_type_map: storage.template_types.clone(),
                                     template_supers: FxHashMap::default(),
@@ -781,7 +780,7 @@ fn visit_xhp_attribute(
 
     classlike_storage
         .inheritable_property_ids
-        .insert(attribute_id, classlike_storage.name.clone());
+        .insert(attribute_id, classlike_storage.name);
     classlike_storage
         .properties
         .insert(attribute_id, property_storage);
@@ -803,7 +802,7 @@ fn visit_class_const_declaration(
 
     if let Some(supplied_type_hint) = &const_node.type_ {
         provided_type = get_type_from_hint(
-            &*supplied_type_hint.1,
+            &supplied_type_hint.1,
             Some(&classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
@@ -952,7 +951,7 @@ fn visit_property_declaration(
 
     if let Some(property_type_hint) = &property_node.type_.1 {
         property_type = get_type_from_hint(
-            &*property_type_hint.1,
+            &property_type_hint.1,
             Some(&classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
@@ -1038,7 +1037,7 @@ fn visit_property_declaration(
     if !matches!(property_node.visibility, ast_defs::Visibility::Private) {
         classlike_storage
             .inheritable_property_ids
-            .insert(property_ref_id, classlike_storage.name.clone());
+            .insert(property_ref_id, classlike_storage.name);
     }
 
     classlike_storage
@@ -1054,10 +1053,10 @@ fn get_classlike_storage(
     name_pos: HPos,
 ) -> Result<ClassLikeInfo, bool> {
     let storage;
-    if let Some(_) = codebase.classlike_infos.get(class_name) {
+    if codebase.classlike_infos.get(class_name).is_some() {
         return Err(false);
     } else {
-        storage = ClassLikeInfo::new(class_name.clone(), definition_pos, meta_start, name_pos);
+        storage = ClassLikeInfo::new(*class_name, definition_pos, meta_start, name_pos);
     }
     Ok(storage)
 }

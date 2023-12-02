@@ -19,6 +19,12 @@ pub struct Symbols {
     pub classlike_files: FxHashMap<StrId, FilePath>,
 }
 
+impl Default for Symbols {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Symbols {
     pub fn new() -> Symbols {
         Symbols {
@@ -28,49 +34,49 @@ impl Symbols {
     }
 
     pub fn add_class_name(&mut self, fq_class_name: &StrId, file_path: Option<FilePath>) {
-        self.all.insert(fq_class_name.clone(), SymbolKind::Class);
+        self.all.insert(*fq_class_name, SymbolKind::Class);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path);
+                .insert(*fq_class_name, file_path);
         }
     }
 
     pub fn add_enum_class_name(&mut self, fq_class_name: &StrId, file_path: Option<FilePath>) {
         self.all
-            .insert(fq_class_name.clone(), SymbolKind::EnumClass);
+            .insert(*fq_class_name, SymbolKind::EnumClass);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path);
+                .insert(*fq_class_name, file_path);
         }
     }
 
     pub fn add_interface_name(&mut self, fq_class_name: &StrId, file_path: Option<FilePath>) {
         self.all
-            .insert(fq_class_name.clone(), SymbolKind::Interface);
+            .insert(*fq_class_name, SymbolKind::Interface);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path);
+                .insert(*fq_class_name, file_path);
         }
     }
 
     pub fn add_trait_name(&mut self, fq_class_name: &StrId, file_path: Option<FilePath>) {
-        self.all.insert(fq_class_name.clone(), SymbolKind::Trait);
+        self.all.insert(*fq_class_name, SymbolKind::Trait);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path);
+                .insert(*fq_class_name, file_path);
         }
     }
 
     pub fn add_enum_name(&mut self, fq_class_name: &StrId, file_path: Option<FilePath>) {
-        self.all.insert(fq_class_name.clone(), SymbolKind::Enum);
+        self.all.insert(*fq_class_name, SymbolKind::Enum);
 
         if let Some(file_path) = file_path {
             self.classlike_files
-                .insert(fq_class_name.clone(), file_path);
+                .insert(*fq_class_name, file_path);
         }
     }
 

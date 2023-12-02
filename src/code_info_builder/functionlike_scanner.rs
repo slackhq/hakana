@@ -51,7 +51,7 @@ pub(crate) fn scan_method(
     file_source: &FileSource,
     user_defined: bool,
 ) -> (StrId, FunctionLikeInfo) {
-    let classlike_name = c.classlike_name.clone().unwrap();
+    let classlike_name = c.classlike_name.unwrap();
     let method_name = interner.intern(m.name.1.clone());
 
     let mut type_resolution_context = TypeResolutionContext {
@@ -65,7 +65,7 @@ pub(crate) fn scan_method(
     };
 
     let mut functionlike_info = get_functionlike(
-        &codebase,
+        codebase,
         interner,
         all_custom_issues,
         method_name,
@@ -90,11 +90,11 @@ pub(crate) fn scan_method(
 
     functionlike_info.is_production_code = file_source.is_production_code;
 
-    let mut classlike_storage = codebase.classlike_infos.get_mut(&classlike_name).unwrap();
+    let classlike_storage = codebase.classlike_infos.get_mut(&classlike_name).unwrap();
 
     let mut method_info = MethodInfo::new();
 
-    method_info.defining_fqcln = Some(classlike_name.clone());
+    method_info.defining_fqcln = Some(classlike_name);
     method_info.is_static = m.static_;
     method_info.is_final = m.final_ || classlike_storage.is_final;
     method_info.is_abstract = m.abstract_;
@@ -110,12 +110,12 @@ pub(crate) fn scan_method(
     {
         classlike_storage
             .inheritable_method_ids
-            .insert(method_name.clone(), classlike_name.clone());
+            .insert(method_name, classlike_name);
     }
 
     for param_node in &m.params {
-        if let Some(_) = param_node.visibility {
-            add_promoted_param_property(param_node, &mut classlike_storage, interner);
+        if param_node.visibility.is_some() {
+            add_promoted_param_property(param_node, classlike_storage, interner);
         }
     }
 
@@ -179,7 +179,7 @@ pub(crate) fn get_functionlike(
     );
 
     let mut functionlike_info =
-        FunctionLikeInfo::new(name.clone(), definition_location, meta_start);
+        FunctionLikeInfo::new(name, definition_location, meta_start);
 
     let mut template_supers = FxHashMap::default();
 
@@ -197,7 +197,7 @@ pub(crate) fn get_functionlike(
                 .unwrap();
             type_context.template_type_map.insert(
                 *param_name,
-                FxHashMap::from_iter([(fn_id.clone(), Arc::new(get_mixed_any()))]),
+                FxHashMap::from_iter([(fn_id, Arc::new(get_mixed_any()))]),
             );
         }
 
@@ -238,7 +238,7 @@ pub(crate) fn get_functionlike(
                         } else {
                             get_mixed_any()
                         }),
-                        defining_entity: fn_id.clone(),
+                        defining_entity: fn_id,
                         from_class: false,
                         extra_types: None,
                     });
@@ -249,7 +249,7 @@ pub(crate) fn get_functionlike(
 
             functionlike_info.template_types.insert(*param_name, {
                 FxHashMap::from_iter([(
-                    fn_id.clone(),
+                    fn_id,
                     Arc::new(template_as_type.unwrap_or(get_mixed_any())),
                 )])
             });
@@ -289,7 +289,7 @@ pub(crate) fn get_functionlike(
             interner,
             params,
             resolved_names,
-            &type_context,
+            type_context,
             file_source,
             all_custom_issues,
             comments
@@ -301,7 +301,7 @@ pub(crate) fn get_functionlike(
 
     type_context.template_supers = template_supers;
     functionlike_info.return_type =
-        get_type_from_optional_hint(ret.get_hint(), None, &type_context, resolved_names);
+        get_type_from_optional_hint(ret.get_hint(), None, type_context, resolved_names);
 
     functionlike_info.user_defined = user_defined && !is_anonymous;
 
@@ -316,10 +316,9 @@ pub(crate) fn get_functionlike(
     }
 
     for user_attribute in user_attributes {
-        let name = resolved_names
+        let name = *resolved_names
             .get(&user_attribute.name.0.start_offset())
-            .unwrap()
-            .clone();
+            .unwrap();
 
         functionlike_info.attributes.push(AttributeInfo { name });
 
@@ -412,12 +411,10 @@ pub(crate) fn get_functionlike(
     functionlike_info.is_async = fun_kind.is_async();
     functionlike_info.effects = if let Some(contexts) = contexts {
         get_effect_from_contexts(contexts, &functionlike_info)
+    } else if is_anonymous {
+        FnEffect::Unknown
     } else {
-        if is_anonymous {
-            FnEffect::Unknown
-        } else {
-            FnEffect::Some(EFFECT_IMPURE)
-        }
+        FnEffect::Some(EFFECT_IMPURE)
     };
 
     if matches!(functionlike_info.effects, FnEffect::Pure) || this_name.is_none() {
@@ -519,7 +516,7 @@ fn get_async_version(
         }
     }
 
-    return None;
+    None
 }
 
 fn is_async_call_is_same_as_sync(
@@ -565,7 +562,7 @@ pub(crate) fn adjust_location_from_comments(
                         meta_start.start_offset = start_offset as u32;
                     }
                     Comment::CmtBlock(text) => {
-                        let trimmed_text = if text.starts_with("*") {
+                        let trimmed_text = if text.starts_with('*') {
                             text[1..].trim()
                         } else {
                             text.trim()
@@ -647,16 +644,12 @@ fn convert_param_nodes(
 
             param.is_variadic = param_node.is_variadic;
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
-                get_type_from_hint(&*param_type.1, None, type_context, resolved_names)
+                get_type_from_hint(&param_type.1, None, type_context, resolved_names)
             } else {
                 None
             };
             param.is_inout = matches!(param_node.callconv, ast_defs::ParamKind::Pinout(_));
-            param.signature_type_location = if let Some(param_type) = &param_node.type_hint.1 {
-                Some(HPos::new(&param_type.0, file_source.file_path, None))
-            } else {
-                None
-            };
+            param.signature_type_location = param_node.type_hint.1.as_ref().map(|param_type| HPos::new(&param_type.0, file_source.file_path, None));
             for user_attribute in &param_node.user_attributes {
                 let name = resolved_names
                     .get(&user_attribute.name.0.start_offset())

@@ -59,12 +59,12 @@ impl DataFlowGraph {
                     {
                         self.specializations
                             .entry(unspecialized_id.clone())
-                            .or_insert_with(FxHashSet::default)
+                            .or_default()
                             .insert(specialization_key.clone());
 
                         self.specialized_calls
                             .entry(specialization_key.clone())
-                            .or_insert_with(FxHashSet::default)
+                            .or_default()
                             .insert(unspecialized_id.clone());
                     }
                 }
@@ -108,13 +108,13 @@ impl DataFlowGraph {
         if let GraphKind::FunctionBody = self.kind {
             self.backward_edges
                 .entry(to_id.clone())
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert(from_id.clone());
         }
 
         self.forward_edges
             .entry(from_id.clone())
-            .or_insert_with(FxHashMap::default)
+            .or_default()
             .insert(
                 to_id.clone(),
                 DataFlowPath {
@@ -133,7 +133,7 @@ impl DataFlowGraph {
         for (key, edges) in graph.forward_edges {
             self.forward_edges
                 .entry(key)
-                .or_insert_with(FxHashMap::default)
+                .or_default()
                 .extend(edges);
         }
 
@@ -141,7 +141,7 @@ impl DataFlowGraph {
             for (key, edges) in graph.backward_edges {
                 self.backward_edges
                     .entry(key)
-                    .or_insert_with(FxHashSet::default)
+                    .or_default()
                     .extend(edges);
             }
             for (key, count) in graph.mixed_source_counts {
@@ -155,7 +155,7 @@ impl DataFlowGraph {
             for (key, specializations) in graph.specializations {
                 self.specializations
                     .entry(key)
-                    .or_insert_with(FxHashSet::default)
+                    .or_default()
                     .extend(specializations);
             }
         }

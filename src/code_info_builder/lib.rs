@@ -94,22 +94,21 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_class_(&mut self, c: &mut Context, class: &aast::Class_<(), ()>) -> Result<(), ()> {
-        let class_name = self
+        let class_name = *self
             .resolved_names
             .get(&class.name.0.start_offset())
-            .unwrap()
-            .clone();
+            .unwrap();
 
         classlike_scanner::scan(
             self.codebase,
             self.interner,
-            &self.all_custom_issues,
-            &self.resolved_names,
+            self.all_custom_issues,
+            self.resolved_names,
             &class_name,
             class,
             &self.file_source,
             self.user_defined,
-            &self.file_source.comments,
+            self.file_source.comments,
             c.namespace_position,
             c.uses_position,
             &mut self.ast_nodes,
@@ -118,7 +117,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         class.recurse(
             &mut Context {
-                classlike_name: Some(class_name.clone()),
+                classlike_name: Some(class_name),
                 function_name: None,
                 ..*c
             },
@@ -127,17 +126,16 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_gconst(&mut self, c: &mut Context, gc: &aast::Gconst<(), ()>) -> Result<(), ()> {
-        let name = self
+        let name = *self
             .resolved_names
             .get(&gc.name.0.start_offset())
-            .unwrap()
-            .clone();
+            .unwrap();
 
         self.codebase
             .const_files
             .entry((self.file_source.file_path_actual).clone())
-            .or_insert_with(FxHashSet::default)
-            .insert(name.clone());
+            .or_default()
+            .insert(name);
 
         let definition_location = HPos::new(&gc.name.0, self.file_source.file_path, None);
 
@@ -167,10 +165,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 },
                 provided_type: if let Some(t) = &gc.type_ {
                     get_type_from_hint(
-                        &*t.1,
+                        &t.1,
                         None,
                         &TypeResolutionContext::new(),
-                        &self.resolved_names,
+                        self.resolved_names,
                     )
                 } else {
                     None
@@ -179,7 +177,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     self.codebase,
                     &mut FxHashMap::default(),
                     &gc.value,
-                    &self.resolved_names,
+                    self.resolved_names,
                 ),
                 unresolved_value: None,
                 is_abstract: false,
@@ -202,11 +200,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         c: &mut Context,
         typedef: &aast::Typedef<(), ()>,
     ) -> Result<(), ()> {
-        let type_name = self
+        let type_name = *self
             .resolved_names
             .get(&typedef.name.0.start_offset())
-            .unwrap()
-            .clone();
+            .unwrap();
 
         let mut template_type_map = IndexMap::new();
 
@@ -221,7 +218,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 .unwrap();
             type_context.template_type_map.insert(
                 *param_name,
-                FxHashMap::from_iter([(type_name.clone(), Arc::new(get_mixed_any()))]),
+                FxHashMap::from_iter([(type_name, Arc::new(get_mixed_any()))]),
             );
         }
 
@@ -229,7 +226,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             let constraint = param.constraints.first();
 
             let constraint_type = if let Some(k) = constraint {
-                get_type_from_hint(&k.1 .1, None, &type_context, &self.resolved_names).unwrap()
+                get_type_from_hint(&k.1 .1, None, &type_context, self.resolved_names).unwrap()
             } else {
                 get_mixed_any()
             };
@@ -331,7 +328,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         template_type_map: template_type_map.clone(),
                         template_supers: FxHashMap::default(),
                     },
-                    &self.resolved_names,
+                    self.resolved_names,
                 )
             } else {
                 None
@@ -343,7 +340,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     template_type_map: template_type_map.clone(),
                     template_supers: FxHashMap::default(),
                 },
-                &self.resolved_names,
+                self.resolved_names,
             )
             .unwrap(),
             template_types: template_type_map,
@@ -362,10 +359,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             let attribute_param_expr = &shape_source_attribute.params[0];
 
             let attribute_param_type = simple_type_inferer::infer(
-                &self.codebase,
+                self.codebase,
                 &mut FxHashMap::default(),
                 attribute_param_expr,
-                &self.resolved_names,
+                self.resolved_names,
             );
 
             if let Some(attribute_param_type) = attribute_param_type {
@@ -403,10 +400,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             type_definition.shape_field_taints = Some(shape_sources);
         }
 
-        self.codebase.symbols.add_typedef_name(type_name.clone());
+        self.codebase.symbols.add_typedef_name(type_name);
         self.codebase
             .type_definitions
-            .insert(type_name.clone(), type_definition);
+            .insert(type_name, type_definition);
 
         typedef.recurse(c, self)
     }
@@ -460,10 +457,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             self.codebase,
             self.interner,
             self.all_custom_issues,
-            &self.resolved_names,
+            self.resolved_names,
             m,
             c,
-            &self.file_source.comments,
+            self.file_source.comments,
             &self.file_source,
             self.user_defined,
         );
@@ -478,7 +475,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &m.tparams,
                 &m.params,
                 &m.ret,
-                &self
+                self
                     .uses
                     .symbol_member_uses
                     .get(&(c.classlike_name.unwrap(), c.member_name.unwrap()))
@@ -544,11 +541,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_fun_def(&mut self, c: &mut Context, f: &aast::FunDef<(), ()>) -> Result<(), ()> {
-        let name = self
+        let name = *self
             .resolved_names
             .get(&f.name.0.start_offset())
-            .unwrap()
-            .clone();
+            .unwrap();
 
         let functionlike_storage = self.visit_function(
             false,
@@ -567,7 +563,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             &f.tparams,
             &f.fun.params,
             &f.fun.ret,
-            &self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
+            self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
         );
 
         self.ast_nodes.push(DefSignatureNode {
@@ -687,24 +683,24 @@ impl<'a> Scanner<'a> {
         };
 
         let mut functionlike_storage = functionlike_scanner::get_functionlike(
-            &self.codebase,
+            self.codebase,
             self.interner,
             self.all_custom_issues,
-            name.clone(),
+            name,
             &fun.span,
             name_pos,
-            &tparams,
+            tparams,
             &fun.params,
             &fun.body.fb_ast.0,
             &fun.ret,
             &fun.fun_kind,
             &fun.user_attributes.0,
             &fun.ctxs,
-            &where_constraints,
+            where_constraints,
             &mut type_resolution_context,
             None,
-            &self.resolved_names,
-            &self.file_source.comments,
+            self.resolved_names,
+            self.file_source.comments,
             &self.file_source,
             is_anonymous,
             self.user_defined,
@@ -805,7 +801,7 @@ fn get_function_hashes(
     }
 
     let signature_hash = xxhash_rust::xxh3::xxh3_64(
-        file_contents[def_location.start_offset as usize..signature_end as usize].as_bytes(),
+        file_contents[def_location.start_offset as usize..signature_end].as_bytes(),
     );
 
     (

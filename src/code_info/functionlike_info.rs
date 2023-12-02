@@ -216,6 +216,6 @@ impl FunctionLikeInfo {
             return last_param.location.start_line != first_line;
         }
 
-        return true;
+        true
     }
 }

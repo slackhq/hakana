@@ -34,6 +34,12 @@ pub struct CodebaseInfo {
     pub safe_symbol_members: FxHashSet<(StrId, StrId)>,
 }
 
+impl Default for CodebaseInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CodebaseInfo {
     pub fn new() -> Self {
         Self {
@@ -156,7 +162,7 @@ impl CodebaseInfo {
         match self.symbols.all.get(fq_class_name) {
             Some(SymbolKind::Class) => {
                 if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
-                    return !classlike_storage.is_final;
+                    !classlike_storage.is_final
                 } else {
                     false
                 }
@@ -214,44 +220,36 @@ impl CodebaseInfo {
     ) -> Option<TUnion> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             if matches!(classlike_storage.kind, SymbolKind::Enum) {
-                return Some(TUnion::new(vec![TAtomic::TEnumLiteralCase {
+                Some(TUnion::new(vec![TAtomic::TEnumLiteralCase {
                     enum_name: classlike_storage.name,
                     member_name: *const_name,
                     constraint_type: classlike_storage.enum_constraint.clone(),
-                }]));
-            } else {
-                if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
-                    if matches!(classlike_storage.kind, SymbolKind::EnumClass) {
-                        return if let Some(provided_type) = &constant_storage.provided_type {
+                }]))
+            } else if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
+                if matches!(classlike_storage.kind, SymbolKind::EnumClass) {
+                    return constant_storage.provided_type.as_ref().cloned();
+                } else if let Some(provided_type) = &constant_storage.provided_type {
+                    if provided_type.types.iter().all(|v| v.is_boring_scalar()) && !is_this
+                    {
+                        if let Some(inferred_type) = &constant_storage.inferred_type {
+                            Some(inferred_type.clone())
+                        } else {
                             Some(provided_type.clone())
-                        } else {
-                            None
-                        };
+                        }
                     } else {
-                        return if let Some(provided_type) = &constant_storage.provided_type {
-                            if provided_type.types.iter().all(|v| v.is_boring_scalar()) && !is_this
-                            {
-                                if let Some(inferred_type) = &constant_storage.inferred_type {
-                                    Some(inferred_type.clone())
-                                } else {
-                                    Some(provided_type.clone())
-                                }
-                            } else {
-                                Some(provided_type.clone())
-                            }
-                        } else if let Some(inferred_type) = &constant_storage.inferred_type {
-                            if !is_this {
-                                Some(inferred_type.clone())
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
+                        Some(provided_type.clone())
+                    }
+                } else if let Some(inferred_type) = &constant_storage.inferred_type {
+                    if !is_this {
+                        Some(inferred_type.clone())
+                    } else {
+                        None
                     }
                 } else {
                     None
                 }
+            } else {
+                None
             }
         } else {
             None
@@ -319,7 +317,7 @@ impl CodebaseInfo {
             return classlike_storage.declaring_property_ids.get(property_name);
         }
 
-        return None;
+        None
     }
 
     pub fn get_property_storage(
@@ -346,11 +344,7 @@ impl CodebaseInfo {
             let storage = if let Some(declaring_property_class) = declaring_property_class {
                 let declaring_classlike_storage =
                     self.classlike_infos.get(declaring_property_class).unwrap();
-                if let Some(val) = declaring_classlike_storage.properties.get(property_name) {
-                    Some(val)
-                } else {
-                    None
-                }
+                declaring_classlike_storage.properties.get(property_name)
             } else {
                 None
             };
@@ -380,11 +374,11 @@ impl CodebaseInfo {
                 .declaring_method_ids
                 .get(&method_id.1)
                 .cloned()
-                .unwrap_or(method_id.0.clone());
-            return MethodIdentifier(classlike_name, method_id.1.clone());
+                .unwrap_or(method_id.0);
+            return MethodIdentifier(classlike_name, method_id.1);
         }
 
-        method_id.clone()
+        *method_id
     }
 
     pub fn get_appearing_method_id(&self, method_id: &MethodIdentifier) -> MethodIdentifier {
@@ -393,11 +387,11 @@ impl CodebaseInfo {
                 .appearing_method_ids
                 .get(&method_id.1)
                 .cloned()
-                .unwrap_or(method_id.0.clone());
-            return MethodIdentifier(classlike_name, method_id.1.clone());
+                .unwrap_or(method_id.0);
+            return MethodIdentifier(classlike_name, method_id.1);
         }
 
-        method_id.clone()
+        *method_id
     }
 
     #[inline]

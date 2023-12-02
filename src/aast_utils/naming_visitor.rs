@@ -39,7 +39,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 for (ns_kind, name, alias_name) in uses {
                     nc.add_alias(
                         self.interner,
-                        if name.1.starts_with("\\") {
+                        if name.1.starts_with('\\') {
                             &name.1[1..]
                         } else {
                             &name.1
@@ -71,12 +71,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let p = if let Some(namespace_name) = namespace_name {
             let str = namespace_name.clone() + "\\" + c.name.1.as_str();
             self.interner.intern(str)
+        } else if c.is_xhp {
+            self.interner.intern(c.name.1.replace(':', "\\"))
         } else {
-            if c.is_xhp {
-                self.interner.intern(c.name.1.replace(":", "\\"))
-            } else {
-                self.interner.intern(c.name.1.clone())
-            }
+            self.interner.intern(c.name.1.clone())
         };
 
         self.resolved_names.insert(c.name.0.start_offset(), p);
@@ -235,9 +233,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         if let Some(member_name) = nc.member_name {
                             self.symbol_member_uses
                                 .entry((symbol_name, member_name))
-                                .or_insert_with(Vec::new)
+                                .or_default()
                         } else {
-                            self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
+                            self.symbol_uses.entry(symbol_name).or_default()
                         }
                     } else {
                         &mut self.file_uses
@@ -286,19 +284,19 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         // );
 
         if nc.in_class_id || nc.in_function_id || nc.in_xhp_id || nc.in_constant_id {
-            if !self.resolved_names.contains_key(&id.0.start_offset()) {
+            if let std::collections::hash_map::Entry::Vacant(e) = self.resolved_names.entry(id.0.start_offset()) {
                 let resolved_name = if nc.in_xhp_id {
                     nc.get_resolved_name(
                         self.interner,
-                        &id.1[1..].replace(":", "\\"),
+                        &id.1[1..].replace(':', "\\"),
                         aast::NsKind::NSClassAndNamespace,
                         if let Some(symbol_name) = nc.symbol_name {
                             if let Some(member_name) = nc.member_name {
                                 self.symbol_member_uses
                                     .entry((symbol_name, member_name))
-                                    .or_insert_with(Vec::new)
+                                    .or_default()
                             } else {
-                                self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
+                                self.symbol_uses.entry(symbol_name).or_default()
                             }
                         } else {
                             &mut self.file_uses
@@ -317,9 +315,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             if let Some(member_name) = nc.member_name {
                                 self.symbol_member_uses
                                     .entry((symbol_name, member_name))
-                                    .or_insert_with(Vec::new)
+                                    .or_default()
                             } else {
-                                self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
+                                self.symbol_uses.entry(symbol_name).or_default()
                             }
                         } else {
                             &mut self.file_uses
@@ -327,8 +325,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     )
                 };
 
-                self.resolved_names
-                    .insert(id.0.start_offset(), resolved_name);
+                e.insert(resolved_name);
             }
 
             nc.in_class_id = false;
@@ -464,9 +461,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                             if let Some(member_name) = nc.member_name {
                                 self.symbol_member_uses
                                     .entry((symbol_name, member_name))
-                                    .or_insert_with(Vec::new)
+                                    .or_default()
                             } else {
-                                self.symbol_uses.entry(symbol_name).or_insert_with(Vec::new)
+                                self.symbol_uses.entry(symbol_name).or_default()
                             }
                         } else {
                             &mut self.file_uses

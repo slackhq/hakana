@@ -55,20 +55,20 @@ impl SymbolReferences {
         in_signature: bool,
     ) {
         self.add_symbol_reference_to_symbol(
-            referencing_symbol.clone(),
-            class_member.0.clone(),
+            referencing_symbol,
+            class_member.0,
             in_signature,
         );
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
                 .entry((referencing_symbol, STR_EMPTY))
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert(class_member);
         } else {
             self.symbol_references_to_symbols
                 .entry((referencing_symbol, STR_EMPTY))
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert(class_member);
         }
     }
@@ -82,7 +82,7 @@ impl SymbolReferences {
         if in_signature {
             self.symbol_references_to_symbols_in_signature
                 .entry((referencing_symbol, STR_EMPTY))
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert((symbol, STR_EMPTY));
         } else {
             if let Some(symbol_refs_in_signature) = self
@@ -96,7 +96,7 @@ impl SymbolReferences {
 
             self.symbol_references_to_symbols
                 .entry((referencing_symbol, STR_EMPTY))
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert((symbol, STR_EMPTY));
         }
     }
@@ -108,26 +108,26 @@ impl SymbolReferences {
         in_signature: bool,
     ) {
         self.add_symbol_reference_to_symbol(
-            referencing_class_member.0.clone(),
-            class_member.0.clone(),
+            referencing_class_member.0,
+            class_member.0,
             in_signature,
         );
 
         self.add_class_member_reference_to_symbol(
-            referencing_class_member.clone(),
-            class_member.0.clone(),
+            referencing_class_member,
+            class_member.0,
             in_signature,
         );
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
                 .entry(referencing_class_member)
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert(class_member);
         } else {
             self.symbol_references_to_symbols
                 .entry(referencing_class_member)
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert(class_member);
         }
     }
@@ -139,15 +139,15 @@ impl SymbolReferences {
         in_signature: bool,
     ) {
         self.add_symbol_reference_to_symbol(
-            referencing_class_member.0.clone(),
-            symbol.clone(),
+            referencing_class_member.0,
+            symbol,
             in_signature,
         );
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
                 .entry(referencing_class_member)
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert((symbol, STR_EMPTY));
         } else {
             if let Some(symbol_refs_in_signature) = self
@@ -161,7 +161,7 @@ impl SymbolReferences {
 
             self.symbol_references_to_symbols
                 .entry(referencing_class_member)
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert((symbol, STR_EMPTY));
         }
     }
@@ -176,20 +176,20 @@ impl SymbolReferences {
             match referencing_functionlike {
                 FunctionLikeIdentifier::Function(function_name) => self
                     .add_symbol_reference_to_class_member(
-                        function_name.clone(),
+                        *function_name,
                         class_member,
                         in_signature,
                     ),
                 FunctionLikeIdentifier::Method(class_name, function_name) => self
                     .add_class_member_reference_to_class_member(
-                        (class_name.clone(), function_name.clone()),
+                        (*class_name, *function_name),
                         class_member,
                         in_signature,
                     ),
             }
         } else if let Some(calling_class) = &function_context.calling_class {
             self.add_symbol_reference_to_class_member(
-                calling_class.clone(),
+                *calling_class,
                 class_member,
                 in_signature,
             )
@@ -206,20 +206,20 @@ impl SymbolReferences {
                 FunctionLikeIdentifier::Function(function_name) => {
                     self.symbol_references_to_overridden_members
                         .entry((*function_name, STR_EMPTY))
-                        .or_insert_with(FxHashSet::default)
+                        .or_default()
                         .insert(class_member);
                 }
                 FunctionLikeIdentifier::Method(class_name, function_name) => {
                     self.symbol_references_to_overridden_members
-                        .entry((class_name.clone(), function_name.clone()))
-                        .or_insert_with(FxHashSet::default)
+                        .entry((*class_name, *function_name))
+                        .or_default()
                         .insert(class_member);
                 }
             }
         } else if let Some(calling_class) = &function_context.calling_class {
             self.symbol_references_to_overridden_members
                 .entry((*calling_class, STR_EMPTY))
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert(class_member);
         }
     }
@@ -233,17 +233,17 @@ impl SymbolReferences {
         if let Some(referencing_functionlike) = &function_context.calling_functionlike_id {
             match referencing_functionlike {
                 FunctionLikeIdentifier::Function(function_name) => {
-                    self.add_symbol_reference_to_symbol(function_name.clone(), symbol, in_signature)
+                    self.add_symbol_reference_to_symbol(*function_name, symbol, in_signature)
                 }
                 FunctionLikeIdentifier::Method(class_name, function_name) => self
                     .add_class_member_reference_to_symbol(
-                        (class_name.clone(), function_name.clone()),
+                        (*class_name, *function_name),
                         symbol,
                         in_signature,
                     ),
             }
         } else if let Some(calling_class) = &function_context.calling_class {
-            self.add_symbol_reference_to_symbol(calling_class.clone(), symbol, in_signature)
+            self.add_symbol_reference_to_symbol(*calling_class, symbol, in_signature)
         }
     }
 
@@ -254,7 +254,7 @@ impl SymbolReferences {
     ) {
         self.functionlike_references_to_functionlike_returns
             .entry(referencing_functionlike)
-            .or_insert_with(FxHashSet::default)
+            .or_default()
             .insert(functionlike);
     }
 
@@ -262,21 +262,21 @@ impl SymbolReferences {
         for (k, v) in other.symbol_references_to_symbols {
             self.symbol_references_to_symbols
                 .entry(k)
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .extend(v);
         }
 
         for (k, v) in other.symbol_references_to_symbols_in_signature {
             self.symbol_references_to_symbols_in_signature
                 .entry(k)
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .extend(v);
         }
 
         for (k, v) in other.symbol_references_to_overridden_members {
             self.symbol_references_to_overridden_members
                 .entry(k)
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .extend(v);
         }
     }
@@ -356,8 +356,7 @@ impl SymbolReferences {
 
         let mut new_invalid_symbols = codebase_diff
             .add_or_delete
-            .iter()
-            .map(|v| *v)
+            .iter().copied()
             .collect::<Vec<_>>();
 
         let mut seen_symbols = FxHashSet::default();

@@ -68,7 +68,7 @@ pub trait HasTypeNodes {
 impl TUnion {
     pub fn new(types: Vec<TAtomic>) -> TUnion {
         TUnion {
-            types: types,
+            types,
             parent_nodes: FxHashSet::default(),
             had_template: false,
             reference_free: false,
@@ -96,7 +96,7 @@ impl TUnion {
             }
         }
 
-        return true;
+        true
     }
 
     pub fn has_int(&self) -> bool {
@@ -109,7 +109,7 @@ impl TUnion {
             };
         }
 
-        return false;
+        false
     }
 
     pub fn has_float(&self) -> bool {
@@ -122,7 +122,7 @@ impl TUnion {
             };
         }
 
-        return false;
+        false
     }
 
     pub fn is_arraykey(&self) -> bool {
@@ -135,7 +135,7 @@ impl TUnion {
             }
         }
 
-        return true;
+        true
     }
 
     pub fn has_string(&self) -> bool {
@@ -150,7 +150,7 @@ impl TUnion {
             };
         }
 
-        return false;
+        false
     }
 
     pub fn is_float(&self) -> bool {
@@ -195,7 +195,7 @@ impl TUnion {
             };
         }
 
-        return true;
+        true
     }
 
     pub fn is_mixed_with_any(&self, has_any: &mut bool) -> bool {
@@ -214,7 +214,7 @@ impl TUnion {
             };
         }
 
-        return true;
+        true
     }
 
     pub fn is_nullable_mixed(&self) -> bool {
@@ -246,7 +246,7 @@ impl TUnion {
             return false;
         }
 
-        return true;
+        true
     }
 
     pub fn is_vanilla_mixed(&self) -> bool {
@@ -260,7 +260,7 @@ impl TUnion {
             }
         }
 
-        return false;
+        false
     }
 
     pub fn has_template_or_static(&self) -> bool {
@@ -344,7 +344,7 @@ impl TUnion {
             }
         }
 
-        return false;
+        false
     }
 
     pub fn has_awaitable_types(&self) -> bool {
@@ -390,7 +390,7 @@ impl TUnion {
             return false;
         }
 
-        return true;
+        true
     }
 
     pub fn is_generator(&self, interner: &Interner) -> bool {
@@ -404,7 +404,7 @@ impl TUnion {
             return false;
         }
 
-        return true;
+        true
     }
 
     pub fn is_null(&self) -> bool {
@@ -590,7 +590,7 @@ impl TUnion {
                     enum_name,
                     member_name,
                     ..
-                } => Some(DictKey::Enum(enum_name.clone(), member_name.clone())),
+                } => Some(DictKey::Enum(*enum_name, *member_name)),
                 _ => None,
             }
         } else {
@@ -713,7 +713,7 @@ impl PartialEq for TUnion {
 
 impl HasTypeNodes for TUnion {
     fn get_child_nodes(&self) -> Vec<TypeNode> {
-        self.types.iter().map(|t| TypeNode::Atomic(t)).collect()
+        self.types.iter().map(TypeNode::Atomic).collect()
     }
 }
 
@@ -730,7 +730,7 @@ pub fn populate_union_type(
 
     t_union.populated = true;
 
-    let ref mut types = t_union.types;
+    let types = &mut t_union.types;
 
     for atomic in types.iter_mut() {
         if let TAtomic::TClassname { ref mut as_type }

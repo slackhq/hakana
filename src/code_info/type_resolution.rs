@@ -13,6 +13,12 @@ pub struct TypeResolutionContext {
     pub template_supers: FxHashMap<StrId, TUnion>,
 }
 
+impl Default for TypeResolutionContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeResolutionContext {
     pub fn new() -> Self {
         Self {

@@ -12,6 +12,12 @@ pub struct FunctionContext {
     pub calling_functionlike_id: Option<FunctionLikeIdentifier>,
 }
 
+impl Default for FunctionContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FunctionContext {
     pub fn new() -> Self {
         Self {

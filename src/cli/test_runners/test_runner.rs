@@ -12,7 +12,7 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use std::collections::BTreeMap;
+
 use std::env;
 use std::fs;
 use std::io;
@@ -92,29 +92,17 @@ impl TestRunner {
                     if let Some(last_run_data) = last_scan_data {
                         if reuse_codebase {
                             Some(last_run_data)
-                        } else {
-                            if !needs_fresh_codebase {
-                                starter_data.clone()
-                            } else {
-                                None
-                            }
-                        }
-                    } else {
-                        if !needs_fresh_codebase {
+                        } else if !needs_fresh_codebase {
                             starter_data.clone()
                         } else {
                             None
                         }
-                    },
-                    if let Some(last_analysis_result) = last_analysis_result {
-                        if reuse_codebase {
-                            Some(last_analysis_result)
-                        } else {
-                            None
-                        }
+                    } else if !needs_fresh_codebase {
+                        starter_data.clone()
                     } else {
                         None
                     },
+                    last_analysis_result.filter(|_last_analysis_result| reuse_codebase),
                     &mut time_in_analysis,
                 );
 
@@ -156,7 +144,7 @@ impl TestRunner {
 
         analysis_config.hooks = self.0.get_hooks_for_test(dir);
 
-        let mut dir_parts = dir.split("/").collect::<Vec<_>>();
+        let mut dir_parts = dir.split('/').collect::<Vec<_>>();
 
         while let Some(&"tests" | &"internal" | &"public") = dir_parts.first() {
             dir_parts = dir_parts[1..].to_vec();
@@ -169,9 +157,9 @@ impl TestRunner {
             analysis_config.migration_symbols = replacements
                 .lines()
                 .map(|v| {
-                    let mut parts = v.split(",").collect::<Vec<_>>();
+                    let mut parts = v.split(',').collect::<Vec<_>>();
                     let first_part = parts.remove(0);
-                    return (first_part.to_string(), parts.join(","));
+                    (first_part.to_string(), parts.join(","))
                 })
                 .collect();
         } else if dir.contains("/fix/") {
@@ -270,7 +258,7 @@ impl TestRunner {
             let input_file = format!("{}/input.hack", dir);
             let output_file = format!("{}/output.txt", dir);
             let input_contents = fs::read_to_string(&input_file).unwrap();
-            let expected_output_contents = fs::read_to_string(&output_file).unwrap();
+            let expected_output_contents = fs::read_to_string(output_file).unwrap();
 
             let mut result = result.unwrap();
 
@@ -282,12 +270,12 @@ impl TestRunner {
                 .0
                 .replacements
                 .remove(&input_file_path)
-                .unwrap_or(BTreeMap::default());
+                .unwrap_or_default();
             let insertions = result
                 .0
                 .insertions
                 .remove(&input_file_path)
-                .unwrap_or(BTreeMap::default());
+                .unwrap_or_default();
 
             let output_contents = if !replacements.is_empty() || !insertions.is_empty() {
                 crate::replace_contents(input_contents, replacements, insertions)
@@ -295,7 +283,7 @@ impl TestRunner {
                 input_contents
             };
 
-            return if output_contents == expected_output_contents {
+            if output_contents == expected_output_contents {
                 (".".to_string(), Some(result.1), Some(result.0))
             } else {
                 test_diagnostics.push((
@@ -303,7 +291,7 @@ impl TestRunner {
                     format!("- {}\n+ {}", expected_output_contents, output_contents),
                 ));
                 ("F".to_string(), Some(result.1), Some(result.0))
-            };
+            }
         } else {
             match result {
                 Ok((analysis_result, run_data)) => {
@@ -335,7 +323,7 @@ impl TestRunner {
                         if expected_output == test_output.join("").trim() {
                             true
                         } else {
-                            expected_output != ""
+                            !expected_output.is_empty()
                                 && test_output.len() == 1
                                 && expected_output
                                     .as_bytes()
@@ -348,7 +336,7 @@ impl TestRunner {
                     } else {
                         test_output.is_empty()
                     } {
-                        return (".".to_string(), Some(run_data), Some(analysis_result));
+                        (".".to_string(), Some(run_data), Some(analysis_result))
                     } else {
                         if let Some(expected_output) = &expected_output {
                             test_diagnostics.push((
@@ -359,15 +347,15 @@ impl TestRunner {
                             test_diagnostics
                                 .push((dir, format!("-\n+ {}", test_output.join("+ "))));
                         }
-                        return ("F".to_string(), Some(run_data), Some(analysis_result));
+                        ("F".to_string(), Some(run_data), Some(analysis_result))
                     }
                 }
                 Err(error) => {
                     *had_error = true;
                     test_diagnostics.push((dir, error.to_string()));
-                    return ("F".to_string(), None, None);
+                    ("F".to_string(), None, None)
                 }
-            };
+            }
         }
     }
 
@@ -385,8 +373,8 @@ impl TestRunner {
         logger.log_debug_sync(&format!("running test {}", dir));
 
         if let Some(cache_dir) = cache_dir {
-            fs::remove_dir_all(&cache_dir).unwrap();
-            fs::create_dir(&cache_dir).unwrap();
+            fs::remove_dir_all(cache_dir).unwrap();
+            fs::create_dir(cache_dir).unwrap();
         }
 
         let workdir_base = dir.clone() + "/workdir";
@@ -478,7 +466,7 @@ impl TestRunner {
             if expected_output.trim() == test_output.join("").trim() {
                 true
             } else {
-                expected_output != ""
+                !expected_output.is_empty()
                     && test_output.len() == 1
                     && expected_output
                         .as_bytes()
@@ -491,7 +479,7 @@ impl TestRunner {
         } else {
             test_output.is_empty()
         } {
-            return (".".to_string(), Some(run_data), Some(analysis_result));
+            (".".to_string(), Some(run_data), Some(analysis_result))
         } else {
             if let Some(expected_output) = &expected_output {
                 test_diagnostics.push((
@@ -501,7 +489,7 @@ impl TestRunner {
             } else {
                 test_diagnostics.push((dir, format!("-\n+ {}", test_output.join("+ "))));
             }
-            return ("F".to_string(), Some(run_data), Some(analysis_result));
+            ("F".to_string(), Some(run_data), Some(analysis_result))
         }
     }
 }
@@ -535,7 +523,7 @@ fn get_all_test_folders(test_or_test_dir: String) -> Vec<String> {
         {
             let path = entry.path();
 
-            let metadata = fs::metadata(&path).unwrap();
+            let metadata = fs::metadata(path).unwrap();
 
             if metadata.is_dir() {
                 if let Some(path) = path.to_str() {

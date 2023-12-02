@@ -36,7 +36,7 @@ impl Logger {
         }
     }
 
-    pub async fn log_debug(&self, message: &str) -> () {
+    pub async fn log_debug(&self, message: &str) {
         match self {
             Logger::DevNull => {}
             Logger::CommandLine(verbosity) => {
@@ -55,7 +55,7 @@ impl Logger {
         }
     }
 
-    pub fn log_debug_sync(&self, message: &str) -> () {
+    pub fn log_debug_sync(&self, message: &str) {
         match self {
             Logger::CommandLine(verbosity) => {
                 if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {

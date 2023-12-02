@@ -114,8 +114,8 @@ impl NameContext<'_> {
     ) {
         let current_context = self.name_resolution_contexts.last_mut().unwrap();
 
-        let alias_name = interner.intern_str(&alias_name);
-        let name = interner.intern_str(&name);
+        let alias_name = interner.intern_str(alias_name);
+        let name = interner.intern_str(name);
 
         match alias_kind {
             NsKind::NSClass => {
@@ -159,13 +159,13 @@ impl NameContext<'_> {
         uses: &mut Vec<(StrId, StrId)>,
     ) -> StrId {
         // fully qualified names are already resolved
-        if name.starts_with("\\") {
+        if name.starts_with('\\') {
             return interner.intern_str(&name[1..]);
         }
 
         // XHP names preceded by : are already resolved
-        if name.starts_with(":") {
-            return interner.intern_str(&name[1..].replace(":", "\\"));
+        if name.starts_with(':') {
+            return interner.intern_str(&name[1..].replace(':', "\\"));
         }
 
         match name.as_str() {
@@ -202,7 +202,7 @@ impl NameContext<'_> {
             return interner.intern_str(name);
         }
 
-        let resolved_name = self.resolve_alias(interner, &name, alias_kind, uses);
+        let resolved_name = self.resolve_alias(interner, name, alias_kind, uses);
 
         // Try to resolve aliases
         if let Some(resolved_name) = resolved_name {
@@ -386,7 +386,7 @@ fn get_aliased_classes(interner: &mut ThreadedInterner) -> FxHashMap<StrId, StrI
         .into_iter()
         .map(|k| {
             (
-                interner.intern(k.split("\\").last().unwrap().to_string()),
+                interner.intern(k.split('\\').last().unwrap().to_string()),
                 interner.intern(k.to_string()),
             )
         })
@@ -447,7 +447,7 @@ fn get_aliased_functions(interner: &mut ThreadedInterner) -> FxHashMap<StrId, St
         .into_iter()
         .map(|k| {
             (
-                interner.intern(k.split("\\").last().unwrap().to_string()),
+                interner.intern(k.split('\\').last().unwrap().to_string()),
                 interner.intern(k.to_string()),
             )
         })

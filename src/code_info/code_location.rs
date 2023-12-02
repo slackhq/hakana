@@ -49,9 +49,9 @@ impl HPos {
         let start_column = start_offset - line_start_beginning_offset + 1;
         let end_column = end_offset - line_end_beginning_offset + 1;
 
-        let file_path = file_path.clone();
+        let file_path = file_path;
 
-        return HPos {
+        HPos {
             file_path,
             start_line: start_line as u32,
             end_line: end_line as u32,
@@ -60,6 +60,6 @@ impl HPos {
             start_column: start_column as u16,
             end_column: end_column as u16,
             insertion_start: stmt_start,
-        };
+        }
     }
 }

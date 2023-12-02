@@ -63,7 +63,7 @@ pub fn get_aast_for_path_and_contents(
         let first_error = &parser_result.syntax_errors[0];
 
         let lines = file_contents[0..first_error.start_offset]
-            .split("\n")
+            .split('\n')
             .collect::<Vec<_>>();
         let column = lines.last().unwrap().len();
         let line_count = lines.len();
@@ -71,7 +71,7 @@ pub fn get_aast_for_path_and_contents(
         return Err(ParserError::SyntaxError {
             message: first_error.message.to_string(),
             pos: HPos {
-                file_path: file_path,
+                file_path,
                 start_offset: first_error.start_offset as u32,
                 end_offset: first_error.end_offset as u32,
                 start_line: line_count as u32,

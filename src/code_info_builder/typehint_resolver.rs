@@ -246,15 +246,12 @@ fn get_function_type_from_hints(
                 } else {
                     false
                 },
-                signature_type: match get_type_from_hint(
+                signature_type: get_type_from_hint(
                     &param_type.1,
                     classlike_name,
                     type_context,
                     resolved_names,
-                ) {
-                    Some(t) => Some(Box::new(t)),
-                    None => None,
-                },
+                ).map(Box::new),
                 is_variadic: false,
                 is_optional: false,
             }
@@ -264,15 +261,12 @@ fn get_function_type_from_hints(
     if let Some(variadic_type) = &function_info.variadic_ty {
         let param = FnParameter {
             is_inout: false,
-            signature_type: match get_type_from_hint(
+            signature_type: get_type_from_hint(
                 &variadic_type.1,
                 classlike_name,
                 type_context,
                 resolved_names,
-            ) {
-                Some(t) => Some(Box::new(t)),
-                None => None,
-            },
+            ).map(Box::new),
             is_variadic: true,
             is_optional: false,
         };
@@ -282,15 +276,12 @@ fn get_function_type_from_hints(
 
     TAtomic::TClosure {
         params,
-        return_type: match get_type_from_hint(
+        return_type: get_type_from_hint(
             &function_info.return_ty.1,
             classlike_name,
             type_context,
             resolved_names,
-        ) {
-            Some(t) => Some(Box::new(t)),
-            None => None,
-        },
+        ).map(Box::new),
         effects: if let Some(contexts) = &function_info.ctxs {
             Some(if contexts.1.is_empty() {
                 EFFECT_PURE
@@ -336,7 +327,7 @@ fn get_reference_type(
     }
 
     let type_params: Vec<TUnion> = extra_info
-        .into_iter()
+        .iter()
         .map(|hint| {
             get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names).unwrap()
         })
@@ -380,7 +371,7 @@ fn get_reference_type(
     }
 
     TAtomic::TReference {
-        name: resolved_name.clone(),
+        name: *resolved_name,
         type_params: if type_params.is_empty() {
             None
         } else {
@@ -395,13 +386,13 @@ fn get_template_type(
 ) -> TAtomic {
     let (defining_entity, as_type) = defining_entities.iter().next().unwrap();
 
-    return TAtomic::TGenericParam {
-        param_name: type_name.clone(),
+    TAtomic::TGenericParam {
+        param_name: *type_name,
         as_type: Box::new((**as_type).clone()),
         defining_entity: *defining_entity,
         from_class: false,
         extra_types: None,
-    };
+    }
 }
 
 pub fn get_type_from_hint(

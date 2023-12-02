@@ -27,7 +27,9 @@ impl SourceType {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
+#[derive(Default)]
 pub enum SinkType {
+    #[default]
     HtmlTag,
     Sql,
     Shell,
@@ -44,11 +46,7 @@ pub enum SinkType {
     Custom(String),
 }
 
-impl Default for SinkType {
-    fn default() -> Self {
-        SinkType::HtmlTag
-    }
-}
+
 
 const PAIRS: [(SourceType, SinkType); 31] = [
     // All the places we don't want GET data to go
@@ -160,7 +158,7 @@ pub fn string_to_sink_types(str: String) -> FxHashSet<SinkType> {
             SinkType::Cookie,
         ]),
         str => {
-            if let Ok(sink_type) = SinkType::from_str(&str) {
+            if let Ok(sink_type) = SinkType::from_str(str) {
                 FxHashSet::from_iter([sink_type])
             } else if str.starts_with("Custom:") {
                 FxHashSet::from_iter([SinkType::Custom(str.get(7..).unwrap().to_string())])

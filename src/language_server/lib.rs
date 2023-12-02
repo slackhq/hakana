@@ -168,10 +168,7 @@ impl Backend {
         let analysis_result = Arc::try_unwrap(previous_analysis_result).unwrap();
 
         let file_changes = if let Some(ref mut file_changes) = self.file_changes {
-            let file_changes = file_changes
-                .drain()
-                .into_iter()
-                .collect::<FxHashMap<_, _>>();
+            let file_changes = std::mem::take(file_changes);
             Some(file_changes)
         } else {
             None
@@ -217,11 +214,11 @@ impl Backend {
                         diagnostics.push(Diagnostic::new(
                             Range {
                                 start: Position {
-                                    line: emitted_issue.pos.start_line as u32 - 1,
+                                    line: emitted_issue.pos.start_line - 1,
                                     character: emitted_issue.pos.start_column as u32 - 1,
                                 },
                                 end: Position {
-                                    line: emitted_issue.pos.end_line as u32 - 1,
+                                    line: emitted_issue.pos.end_line - 1,
                                     character: emitted_issue.pos.end_column as u32 - 1,
                                 },
                             },
@@ -263,7 +260,7 @@ impl Backend {
                 self.client
                     .log_message(
                         MessageType::ERROR,
-                        format!("Analysis failed with error {}", error.to_string()),
+                        format!("Analysis failed with error {}", error),
                     )
                     .await;
             }
@@ -334,7 +331,7 @@ pub fn get_config(
     let config_path = Path::new(&config_path_str);
 
     if config_path.exists() {
-        config.update_from_file(&cwd, config_path)?;
+        config.update_from_file(cwd, config_path)?;
     }
 
     Ok(config)

@@ -437,11 +437,7 @@ pub fn init(
         _ => panic!(),
     };
 
-    let config_path = if let Some(config_path) = &config_path {
-        Some(Path::new(config_path))
-    } else {
-        None
-    };
+    let config_path = config_path.as_ref().map(Path::new);
 
     let cache_dir = format!("{}/.hakana_cache", root_dir);
 
@@ -634,7 +630,7 @@ fn do_fix(
         None,
         threads,
         Arc::new(logger),
-        &header,
+        header,
         None,
         None,
         None,
@@ -686,7 +682,7 @@ fn do_remove_unused_fixmes(
         None,
         threads,
         Arc::new(logger),
-        &header,
+        header,
         None,
         None,
         None,
@@ -757,7 +753,7 @@ fn do_add_fixmes(
         None,
         threads,
         Arc::new(logger),
-        &header,
+        header,
         None,
         None,
         None,
@@ -818,9 +814,9 @@ fn do_migrate(
         config.migration_symbols = contents
             .lines()
             .map(|v| {
-                let mut parts = v.split(",").collect::<Vec<_>>();
+                let mut parts = v.split(',').collect::<Vec<_>>();
                 let first_part = parts.remove(0);
-                return (first_part.to_string(), parts.join(","));
+                (first_part.to_string(), parts.join(","))
             })
             .collect();
     } else {
@@ -841,7 +837,7 @@ fn do_migrate(
         None,
         threads,
         Arc::new(logger),
-        &header,
+        header,
         None,
         None,
         None,
@@ -903,7 +899,7 @@ fn do_migration_candidates(
         None,
         threads,
         Arc::new(logger),
-        &header,
+        header,
         None,
         None,
         None,
@@ -962,7 +958,7 @@ fn do_find_paths(
         None,
         threads,
         Arc::new(logger),
-        &header,
+        header,
         None,
         None,
         None,
@@ -1026,7 +1022,7 @@ fn do_security_check(
         None,
         threads,
         Arc::new(logger),
-        &header,
+        header,
         None,
         None,
         None,
@@ -1137,7 +1133,7 @@ fn do_analysis(
         },
         threads,
         Arc::new(logger),
-        &header,
+        header,
         None,
         None,
         None,
@@ -1203,7 +1199,7 @@ fn write_output_files(
     interner: &Interner,
 ) {
     if output_file.ends_with("checkpoint_results.json") {
-        let output_path = if output_file.starts_with("/") {
+        let output_path = if output_file.starts_with('/') {
             output_file
         } else {
             format!("{}/{}", cwd, output_file)
@@ -1211,7 +1207,7 @@ fn write_output_files(
         let mut output_path = fs::File::create(Path::new(&output_path)).unwrap();
         let mut checkpoint_entries = vec![];
 
-        for (file_path, issues) in analysis_result.get_all_issues(&interner, &cwd, true) {
+        for (file_path, issues) in analysis_result.get_all_issues(interner, cwd, true) {
             for issue in issues {
                 checkpoint_entries.push(CheckPointEntry::from_issue(issue, &file_path));
             }
@@ -1225,11 +1221,9 @@ fn write_output_files(
 
 fn update_files(analysis_result: &mut AnalysisResult, root_dir: &String, interner: &Interner) {
     let mut replacement_and_insertion_keys = analysis_result
-        .replacements
-        .iter()
-        .map(|(k, _)| *k)
+        .replacements.keys().copied()
         .collect::<FxHashSet<_>>();
-    replacement_and_insertion_keys.extend(analysis_result.insertions.iter().map(|(k, _)| *k));
+    replacement_and_insertion_keys.extend(analysis_result.insertions.keys().copied());
 
     for (relative_path, original_path) in replacement_and_insertion_keys
         .into_iter()
@@ -1243,12 +1237,12 @@ fn update_files(analysis_result: &mut AnalysisResult, root_dir: &String, interne
         let replacements = analysis_result
             .replacements
             .remove(&original_path)
-            .unwrap_or_else(BTreeMap::default);
+            .unwrap_or_default();
 
         let insertions = analysis_result
             .insertions
             .remove(&original_path)
-            .unwrap_or_else(BTreeMap::default);
+            .unwrap_or_default();
 
         file.write_all(replace_contents(file_contents, replacements, insertions).as_bytes())
             .unwrap_or_else(|_| panic!("Could not write file {}", &file_path));
@@ -1269,7 +1263,7 @@ fn replace_contents(
         replacements
             .entry((offset, offset))
             .or_insert_with(Vec::new)
-            .extend(insertion.into_iter().rev().map(|s| Replacement::Substitute(s)));
+            .extend(insertion.into_iter().rev().map(Replacement::Substitute));
     }
 
     for ((mut start, mut end), replacements) in replacements.iter().rev() {

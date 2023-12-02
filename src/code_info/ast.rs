@@ -18,7 +18,7 @@ pub fn get_id_name(
                 return None;
             };
 
-            self_name.clone()
+            *self_name
         }
         "parent" => {
             let self_name = if let Some(calling_class) = calling_class {
@@ -28,7 +28,7 @@ pub fn get_id_name(
             };
 
             let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-            classlike_storage.direct_parent_class.clone().unwrap()
+            classlike_storage.direct_parent_class.unwrap()
         }
         "static" => {
             if !calling_class_final {
@@ -41,11 +41,11 @@ pub fn get_id_name(
                 return None;
             };
 
-            self_name.clone()
+            *self_name
         }
         _ => {
             if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
-                resolved_name.clone()
+                *resolved_name
             } else {
                 // this is bad
                 return None;
@@ -78,7 +78,7 @@ pub fn get_id_str_name<'a>(
             };
 
             let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
-            interner.lookup(&classlike_storage.direct_parent_class.clone().unwrap())
+            interner.lookup(&classlike_storage.direct_parent_class.unwrap())
         }
         "static" => {
             return None;

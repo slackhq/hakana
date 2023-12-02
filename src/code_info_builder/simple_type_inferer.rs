@@ -32,7 +32,7 @@ pub fn infer(
                                 "self" | "parent" | "static" => None,
                                 _ => {
                                     let name_string =
-                                        resolved_names.get(&id.0.start_offset()).unwrap().clone();
+                                        *resolved_names.get(&id.0.start_offset()).unwrap();
 
                                     Some(wrap_atomic(TAtomic::TLiteralClassname {
                                         name: name_string,
@@ -57,7 +57,7 @@ pub fn infer(
 
             for (shape_field_name, field_expr) in shape_fields {
                 if let ast_defs::ShapeFieldName::SFlitStr((_, str)) = shape_field_name {
-                    let field_type = infer(codebase, expr_types, &field_expr, resolved_names);
+                    let field_type = infer(codebase, expr_types, field_expr, resolved_names);
 
                     if let Some(field_type) = field_type {
                         known_items.insert(
@@ -83,7 +83,7 @@ pub fn infer(
             let mut entries = BTreeMap::new();
 
             for (i, entry_expr) in boxed.2.iter().enumerate() {
-                let entry_type = infer(codebase, expr_types, &entry_expr, resolved_names);
+                let entry_type = infer(codebase, expr_types, entry_expr, resolved_names);
 
                 if let Some(entry_type) = entry_type {
                     entries.insert(i, (false, entry_type));
@@ -160,7 +160,7 @@ pub fn infer(
             let mut entries = BTreeMap::new();
 
             for (i, entry_expr) in values.iter().enumerate() {
-                let entry_type = infer(codebase, expr_types, &entry_expr, resolved_names);
+                let entry_type = infer(codebase, expr_types, entry_expr, resolved_names);
 
                 if let Some(entry_type) = entry_type {
                     entries.insert(i, (false, entry_type));
@@ -215,7 +215,7 @@ pub fn infer(
 
             for (key_expr, value_expr) in &boxed.1 {
                 if let aast::Expr_::String(key_value) = &key_expr.2 {
-                    let value_type = infer(codebase, expr_types, &value_expr, resolved_names);
+                    let value_type = infer(codebase, expr_types, value_expr, resolved_names);
 
                     if let Some(value_type) = value_type {
                         known_items.insert(
@@ -241,7 +241,7 @@ pub fn infer(
             let mut entries = BTreeMap::new();
 
             for (i, entry_expr) in boxed.1.iter().enumerate() {
-                let entry_type = infer(codebase, expr_types, &entry_expr, resolved_names);
+                let entry_type = infer(codebase, expr_types, entry_expr, resolved_names);
 
                 if let Some(entry_type) = entry_type {
                     entries.insert(i, (false, entry_type));

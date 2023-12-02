@@ -54,7 +54,7 @@ impl AnalysisResult {
         for (file_path, issues) in other.emitted_issues {
             self.emitted_issues
                 .entry(file_path)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .extend(issues);
         }
         self.replacements.extend(other.replacements);
@@ -62,7 +62,7 @@ impl AnalysisResult {
         for (id, c) in other.mixed_source_counts {
             self.mixed_source_counts
                 .entry(id)
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .extend(c);
         }
         self.program_dataflow_graph
@@ -86,7 +86,7 @@ impl AnalysisResult {
             .map(|(k, v)| {
                 (
                     if use_relative_path {
-                        k.get_relative_path(&interner, &root_dir)
+                        k.get_relative_path(interner, root_dir)
                     } else {
                         interner.lookup(&k.0).to_string()
                     },
@@ -101,7 +101,7 @@ impl AnalysisResult {
 
         for (file_path, file_definition_issues) in &self.emitted_definition_issues {
             let file_path = if use_relative_path {
-                file_path.get_relative_path(&interner, &root_dir)
+                file_path.get_relative_path(interner, root_dir)
             } else {
                 interner.lookup(&file_path.0).to_string()
             };

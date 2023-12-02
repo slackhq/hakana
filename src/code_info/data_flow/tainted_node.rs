@@ -68,7 +68,7 @@ impl TaintedNode {
             return previous_source.get_taint_sources();
         }
 
-        return &self.taint_sources;
+        &self.taint_sources
     }
 
     pub fn from(node: &DataFlowNode) -> Self {
@@ -82,11 +82,7 @@ impl TaintedNode {
                 id: node.id.clone(),
                 unspecialized_id: unspecialized_id.clone(),
                 label: label.clone(),
-                pos: if let Some(p) = &pos {
-                    Some(Arc::new(p.clone()))
-                } else {
-                    None
-                },
+                pos: pos.as_ref().map(|p| Arc::new(*p)),
                 specialization_key: specialization_key.clone(),
                 taint_sinks: FxHashSet::default(),
                 previous: None,
@@ -105,11 +101,7 @@ impl TaintedNode {
                     id: node.id.clone(),
                     unspecialized_id: None,
                     label: label.clone(),
-                    pos: if let Some(p) = &pos {
-                        Some(Arc::new(p.clone()))
-                    } else {
-                        None
-                    },
+                    pos: pos.as_ref().map(|p| Arc::new(*p)),
                     specialization_key: None,
                     taint_sinks: sinks,
                     previous: None,
@@ -122,11 +114,7 @@ impl TaintedNode {
                 id: node.id.clone(),
                 unspecialized_id: None,
                 label: label.clone(),
-                pos: if let Some(p) = &pos {
-                    Some(Arc::new(p.clone()))
-                } else {
-                    None
-                },
+                pos: pos.as_ref().map(|p| Arc::new(*p)),
                 specialization_key: None,
                 taint_sinks: types.clone(),
                 taint_sources: FxHashSet::default(),
@@ -142,7 +130,7 @@ impl TaintedNode {
                 id: node.id.clone(),
                 unspecialized_id: None,
                 label: label.clone(),
-                pos: Some(Arc::new(pos.clone())),
+                pos: Some(Arc::new(*pos)),
                 specialization_key: None,
                 taint_sinks: FxHashSet::from_iter([SinkType::Custom(target_id.clone())]),
                 previous: None,

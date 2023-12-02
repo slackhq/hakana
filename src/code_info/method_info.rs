@@ -33,6 +33,12 @@ pub struct MethodInfo {
     pub probably_fluent: bool,
 }
 
+impl Default for MethodInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MethodInfo {
     pub fn new() -> Self {
         Self {
