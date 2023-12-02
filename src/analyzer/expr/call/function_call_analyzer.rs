@@ -494,7 +494,10 @@ fn process_invariant(
         context.function_context.calling_functionlike_id.as_ref(),
     );
     // todo support $a = !($b || $c)
-    let var_object_id = (first_arg.pos().start_offset(), first_arg.pos().end_offset());
+    let var_object_id = (
+        first_arg.pos().start_offset() as u32,
+        first_arg.pos().end_offset() as u32,
+    );
     let assert_clauses = formula_generator::get_formula(
         var_object_id,
         var_object_id,

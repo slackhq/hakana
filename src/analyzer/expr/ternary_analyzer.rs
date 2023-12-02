@@ -51,7 +51,10 @@ pub(crate) fn analyze(
     *context = if_conditional_scope.outer_context;
     let mut cond_referenced_var_ids = if_conditional_scope.cond_referenced_var_ids;
 
-    let cond_object_id = (expr.0.pos().start_offset(), expr.0.pos().end_offset());
+    let cond_object_id = (
+        expr.0.pos().start_offset() as u32,
+        expr.0.pos().end_offset() as u32,
+    );
 
     let assertion_context = statements_analyzer.get_assertion_context(
         context.function_context.calling_class.as_ref(),

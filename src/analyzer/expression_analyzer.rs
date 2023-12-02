@@ -679,7 +679,10 @@ pub(crate) fn find_expr_logic_issues(
     let mut if_context = context.clone();
     let mut cond_referenced_var_ids = if_context.cond_referenced_var_ids.clone();
 
-    let cond_object_id = (expr.pos().start_offset(), expr.pos().end_offset());
+    let cond_object_id = (
+        expr.pos().start_offset() as u32,
+        expr.pos().end_offset() as u32,
+    );
 
     let if_clauses = formula_generator::get_formula(
         cond_object_id,

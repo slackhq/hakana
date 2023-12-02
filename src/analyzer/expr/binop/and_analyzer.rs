@@ -1,11 +1,11 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler::reconciler;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
-use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
 use hakana_type::get_bool;
@@ -50,7 +50,10 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         );
     }
 
-    let left_cond_id = (left.pos().start_offset(), left.pos().end_offset());
+    let left_cond_id = (
+        left.pos().start_offset() as u32,
+        left.pos().end_offset() as u32,
+    );
 
     let assertion_context = statements_analyzer.get_assertion_context(
         context.function_context.calling_class.as_ref(),

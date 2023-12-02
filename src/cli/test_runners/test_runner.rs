@@ -241,6 +241,8 @@ impl TestRunner {
 
         let config = Arc::new(analysis_config);
 
+        println!("before");
+
         let result = hakana_workhorse::scan_and_analyze(
             stub_dirs,
             None,

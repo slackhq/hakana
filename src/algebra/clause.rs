@@ -8,10 +8,10 @@ use indexmap::IndexMap;
 
 #[derive(Clone, Debug, Eq)]
 pub struct Clause {
-    pub creating_conditional_id: (usize, usize),
-    pub creating_object_id: (usize, usize),
+    pub creating_conditional_id: (u32, u32),
+    pub creating_object_id: (u32, u32),
 
-    pub hash: u64,
+    pub hash: u32,
 
     // An array of strings of the form
     // [
@@ -45,8 +45,8 @@ impl Hash for Clause {
 impl Clause {
     pub fn new(
         possibilities: BTreeMap<String, IndexMap<u64, Assertion>>,
-        creating_conditional_id: (usize, usize),
-        creating_object_id: (usize, usize),
+        creating_conditional_id: (u32, u32),
+        creating_object_id: (u32, u32),
         wedge: Option<bool>,
         reconcilable: Option<bool>,
         generated: Option<bool>,
@@ -229,10 +229,10 @@ impl Clause {
 #[inline]
 fn get_hash(
     possibilities: &BTreeMap<String, IndexMap<u64, Assertion>>,
-    creating_object_id: (usize, usize),
+    creating_object_id: (u32, u32),
     wedge: bool,
     reconcilable: bool,
-) -> u64 {
+) -> u32 {
     if wedge || !reconcilable {
         (Wrapping(creating_object_id.0)
             + Wrapping(creating_object_id.1)
@@ -253,6 +253,6 @@ fn get_hash(
             }
         }
 
-        hasher.finish()
+        hasher.finish() as u32
     }
 }

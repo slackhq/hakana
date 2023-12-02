@@ -91,7 +91,10 @@ pub(crate) fn analyze(
         }
     }
 
-    let cond_object_id = (stmt.0.pos().start_offset(), stmt.0.pos().end_offset());
+    let cond_object_id = (
+        stmt.0.pos().start_offset() as u32,
+        stmt.0.pos().end_offset() as u32,
+    );
 
     let assertion_context = statements_analyzer.get_assertion_context(
         context.function_context.calling_class.as_ref(),
@@ -416,7 +419,7 @@ pub(crate) fn analyze(
 pub(crate) fn remove_clauses_with_mixed_vars(
     if_clauses: Vec<Clause>,
     mut mixed_var_ids: Vec<&String>,
-    cond_object_id: (usize, usize),
+    cond_object_id: (u32, u32),
 ) -> Vec<Clause> {
     if_clauses
         .into_iter()

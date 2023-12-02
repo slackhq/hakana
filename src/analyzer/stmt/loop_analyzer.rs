@@ -65,8 +65,8 @@ pub(crate) fn analyze<'a>(
 
         for pre_condition in &pre_conditions {
             let pre_condition_id = (
-                pre_condition.pos().start_offset(),
-                pre_condition.pos().end_offset(),
+                pre_condition.pos().start_offset() as u32,
+                pre_condition.pos().end_offset() as u32,
             );
 
             pre_condition_clauses.push(
@@ -739,8 +739,8 @@ fn apply_pre_condition_to_loop_context(
     let (reconcilable_while_types, active_while_types) = hakana_algebra::get_truths_from_formula(
         loop_context.clauses.iter().map(|v| &**v).collect(),
         Some((
-            pre_condition.pos().start_offset(),
-            pre_condition.pos().end_offset(),
+            pre_condition.pos().start_offset() as u32,
+            pre_condition.pos().end_offset() as u32,
         )),
         &mut new_referenced_var_ids,
     );

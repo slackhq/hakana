@@ -289,7 +289,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
 pub fn get_truths_from_formula(
     clauses: Vec<&Clause>,
-    creating_conditional_id: Option<(usize, usize)>,
+    creating_conditional_id: Option<(u32, u32)>,
     cond_referenced_var_ids: &mut FxHashSet<String>,
 ) -> (
     BTreeMap<String, Vec<Vec<Assertion>>>,
@@ -464,7 +464,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
 pub fn combine_ored_clauses(
     left_clauses: Vec<Clause>,
     right_clauses: Vec<Clause>,
-    conditional_object_id: (usize, usize),
+    conditional_object_id: (u32, u32),
 ) -> Result<Vec<Clause>, String> {
     let mut clauses = vec![];
 
@@ -596,7 +596,7 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
     if clauses.len() == 0 {
         let mut rng = rand::thread_rng();
 
-        let n2: usize = rng.gen();
+        let n2: u32 = rng.gen();
         return Ok(vec![Clause::new(
             BTreeMap::new(),
             (n2, n2),
@@ -618,7 +618,7 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
     if impossible_clauses.len() == 0 {
         let mut rng = rand::thread_rng();
 
-        let n2: usize = rng.gen();
+        let n2: u32 = rng.gen();
         return Ok(vec![Clause::new(
             BTreeMap::new(),
             (n2, n2),
@@ -634,7 +634,7 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
     if negated.len() == 0 {
         let mut rng = rand::thread_rng();
 
-        let n2: usize = rng.gen();
+        let n2: u32 = rng.gen();
         return Ok(vec![Clause::new(
             BTreeMap::new(),
             (n2, n2),

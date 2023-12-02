@@ -38,7 +38,10 @@ pub(crate) fn analyze(
         }
     }
 
-    let cond_id = (stmt.1 .1.start_offset(), stmt.1 .1.end_offset());
+    let cond_id = (
+        stmt.1 .1.start_offset() as u32,
+        stmt.1 .1.end_offset() as u32,
+    );
 
     let assertion_context = statements_analyzer.get_assertion_context(
         context.function_context.calling_class.as_ref(),

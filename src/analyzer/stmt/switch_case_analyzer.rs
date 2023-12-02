@@ -289,8 +289,8 @@ pub(crate) fn analyze_case(
 
     let case_clauses = if let Some(case_equality_expr) = &case_equality_expr {
         let id = (
-            case_equality_expr.pos().start_offset(),
-            case_equality_expr.pos().end_offset(),
+            case_equality_expr.pos().start_offset() as u32,
+            case_equality_expr.pos().end_offset() as u32,
         );
 
         formula_generator::get_formula(
@@ -393,8 +393,8 @@ pub(crate) fn analyze_case(
                     negated_case_clauses
                 } else {
                     let case_equality_expr_id = (
-                        case_equality_expr.pos().start_offset(),
-                        case_equality_expr.pos().end_offset(),
+                        case_equality_expr.pos().start_offset() as u32,
+                        case_equality_expr.pos().end_offset() as u32,
                     );
 
                     formula_generator::get_formula(

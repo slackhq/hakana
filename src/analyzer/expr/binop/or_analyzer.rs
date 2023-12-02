@@ -105,7 +105,10 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         left_referenced_var_ids.retain(|id| !left_assigned_var_ids.contains_key(id));
     }
 
-    let left_cond_id = (left.pos().start_offset(), left.pos().end_offset());
+    let left_cond_id = (
+        left.pos().start_offset() as u32,
+        left.pos().end_offset() as u32,
+    );
 
     let assertion_context = statements_analyzer.get_assertion_context(
         context.function_context.calling_class.as_ref(),
@@ -255,7 +258,10 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     let right_assigned_var_ids = right_context.assigned_var_ids.clone();
     right_context.assigned_var_ids.extend(pre_assigned_var_ids);
 
-    let right_cond_id = (right.pos().start_offset(), right.pos().end_offset());
+    let right_cond_id = (
+        right.pos().start_offset() as u32,
+        right.pos().end_offset() as u32,
+    );
 
     let right_clauses = formula_generator::get_formula(
         right_cond_id,

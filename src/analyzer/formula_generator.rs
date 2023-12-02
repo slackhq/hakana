@@ -28,8 +28,8 @@ pub(crate) struct AssertionContext<'a> {
 }
 
 pub(crate) fn get_formula(
-    conditional_object_id: (usize, usize),
-    creating_object_id: (usize, usize),
+    conditional_object_id: (u32, u32),
+    creating_object_id: (u32, u32),
     conditional: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
     analysis_data: &mut FunctionAnalysisData,
@@ -131,7 +131,7 @@ pub(crate) fn get_formula(
 
 #[inline]
 fn handle_binop(
-    conditional_object_id: (usize, usize),
+    conditional_object_id: (u32, u32),
     bop: &Bop,
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
@@ -176,7 +176,7 @@ fn handle_binop(
 
 #[inline]
 fn handle_or(
-    conditional_object_id: (usize, usize),
+    conditional_object_id: (u32, u32),
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
@@ -186,7 +186,10 @@ fn handle_or(
 ) -> Result<Vec<Clause>, String> {
     let left_clauses = get_formula(
         conditional_object_id,
-        (left.pos().start_offset(), left.pos().end_offset()),
+        (
+            left.pos().start_offset() as u32,
+            left.pos().end_offset() as u32,
+        ),
         left,
         assertion_context,
         analysis_data,
@@ -200,7 +203,10 @@ fn handle_or(
 
     let right_clauses = get_formula(
         conditional_object_id,
-        (right.pos().start_offset(), right.pos().end_offset()),
+        (
+            right.pos().start_offset() as u32,
+            right.pos().end_offset() as u32,
+        ),
         right,
         assertion_context,
         analysis_data,
@@ -221,7 +227,7 @@ fn handle_or(
 
 #[inline]
 fn handle_and(
-    conditional_object_id: (usize, usize),
+    conditional_object_id: (u32, u32),
     left: &aast::Expr<(), ()>,
     right: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
@@ -231,7 +237,10 @@ fn handle_and(
 ) -> Result<Vec<Clause>, String> {
     let left_clauses = get_formula(
         conditional_object_id,
-        (left.pos().start_offset(), left.pos().end_offset()),
+        (
+            left.pos().start_offset() as u32,
+            left.pos().end_offset() as u32,
+        ),
         left,
         assertion_context,
         analysis_data,
@@ -245,7 +254,10 @@ fn handle_and(
 
     let right_clauses = get_formula(
         conditional_object_id,
-        (right.pos().start_offset(), right.pos().end_offset()),
+        (
+            right.pos().start_offset() as u32,
+            right.pos().end_offset() as u32,
+        ),
         right,
         assertion_context,
         analysis_data,
@@ -265,7 +277,7 @@ fn handle_and(
 
 #[inline]
 fn handle_uop(
-    conditional_object_id: (usize, usize),
+    conditional_object_id: (u32, u32),
     uop: &oxidized::ast::Uop,
     expr: &aast::Expr<(), ()>,
     assertion_context: &AssertionContext,
@@ -318,7 +330,10 @@ fn handle_uop(
 
         let original_clauses = self::get_formula(
             conditional_object_id,
-            (expr.pos().start_offset(), expr.pos().end_offset()),
+            (
+                expr.pos().start_offset() as u32,
+                expr.pos().end_offset() as u32,
+            ),
             expr,
             assertion_context,
             analysis_data,

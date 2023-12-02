@@ -30,7 +30,10 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
-    let cond_object_id = (stmt.0.pos().start_offset(), stmt.0.pos().end_offset());
+    let cond_object_id = (
+        stmt.0.pos().start_offset() as u32,
+        stmt.0.pos().end_offset() as u32,
+    );
 
     let (reconcilable_if_types, active_if_types) = hakana_algebra::get_truths_from_formula(
         if_context.clauses.iter().map(|v| &**v).collect(),

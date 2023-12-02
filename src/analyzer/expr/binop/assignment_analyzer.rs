@@ -637,10 +637,13 @@ fn analyze_assignment_to_variable(
         if let Some(source_expr) = source_expr {
             if matches!(source_expr.2, aast::Expr_::Binop(..)) {
                 // todo support $a = !($b || $c)
-                let var_object_id = (var_expr.pos().start_offset(), var_expr.pos().end_offset());
+                let var_object_id = (
+                    var_expr.pos().start_offset() as u32,
+                    var_expr.pos().end_offset() as u32,
+                );
                 let cond_object_id = (
-                    source_expr.pos().start_offset(),
-                    source_expr.pos().end_offset(),
+                    source_expr.pos().start_offset() as u32,
+                    source_expr.pos().end_offset() as u32,
                 );
 
                 let assertion_context = statements_analyzer.get_assertion_context(

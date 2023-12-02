@@ -199,6 +199,13 @@ pub fn scan_and_analyze(
 
     logger.log_sync("Scanning files");
 
+    if let Some(usage) = memory_stats::memory_stats() {
+        println!(
+            "Before scan Memory usage: {}",
+            bytes_to_megabytes_str(usage.physical_mem as u64)
+        );
+    }
+
     let ScanFilesResult {
         mut codebase,
         mut interner,
@@ -217,6 +224,13 @@ pub fn scan_and_analyze(
         previous_scan_data,
         language_server_changes,
     )?;
+
+    if let Some(usage) = memory_stats::memory_stats() {
+        println!(
+            "After scan Memory usage: {}",
+            bytes_to_megabytes_str(usage.physical_mem as u64)
+        );
+    }
 
     let file_discovery_and_scanning_elapsed = file_discovery_and_scanning_now.elapsed();
 
@@ -256,6 +270,13 @@ pub fn scan_and_analyze(
 
     logger.log_sync("Calculating symbol inheritance");
 
+    if let Some(usage) = memory_stats::memory_stats() {
+        println!(
+            "Before population Memory usage: {}",
+            bytes_to_megabytes_str(usage.physical_mem as u64)
+        );
+    }
+
     let populating_now = Instant::now();
 
     populate_codebase(
@@ -265,6 +286,13 @@ pub fn scan_and_analyze(
         cached_analysis.safe_symbols,
         cached_analysis.safe_symbol_members,
     );
+
+    if let Some(usage) = memory_stats::memory_stats() {
+        println!(
+            "After population Memory usage: {}",
+            bytes_to_megabytes_str(usage.physical_mem as u64)
+        );
+    }
 
     let populating_elapsed = populating_now.elapsed();
 
@@ -295,6 +323,13 @@ pub fn scan_and_analyze(
 
     logger.log_sync(&format!("Analyzing {} files", files_to_analyze.len()));
 
+    if let Some(usage) = memory_stats::memory_stats() {
+        println!(
+            "Before analysis Memory usage: {}",
+            bytes_to_megabytes_str(usage.physical_mem as u64)
+        );
+    }
+
     analyze_files(
         files_to_analyze,
         arc_scan_data.clone(),
@@ -306,6 +341,13 @@ pub fn scan_and_analyze(
         threads,
         logger.clone(),
     )?;
+
+    if let Some(usage) = memory_stats::memory_stats() {
+        println!(
+            "After analysis Memory usage: {}",
+            bytes_to_megabytes_str(usage.physical_mem as u64)
+        );
+    }
 
     let analyzed_files_elapsed = analyzed_files_now.elapsed();
 
@@ -429,4 +471,9 @@ fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
     if let Some(bar) = bar {
         bar.set_position(percentage);
     }
+}
+
+fn bytes_to_megabytes_str(bytes: u64) -> String {
+    let megabytes = (bytes as f64 / 1_048_576.0).round() as u64;
+    format!("{} MB", megabytes)
 }
