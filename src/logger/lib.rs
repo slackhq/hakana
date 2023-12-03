@@ -56,13 +56,10 @@ impl Logger {
     }
 
     pub fn log_debug_sync(&self, message: &str) {
-        match self {
-            Logger::CommandLine(verbosity) => {
-                if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-                    println!("{}", message);
-                }
+        if let Logger::CommandLine(verbosity) = self {
+            if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
+                println!("{}", message);
             }
-            _ => {}
         }
     }
 
@@ -83,10 +80,7 @@ impl Logger {
     }
 
     pub fn show_progress(&self) -> bool {
-        match self {
-            Logger::CommandLine(Verbosity::Simple) => true,
-            _ => false,
-        }
+        matches!(self, Logger::CommandLine(Verbosity::Simple))
     }
 }
 

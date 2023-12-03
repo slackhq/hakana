@@ -95,27 +95,16 @@ pub(crate) fn analyze(
                     return Ok(());
                 }
             }
-            TAtomic::TLiteralClassname { name } => name.clone(),
+            TAtomic::TLiteralClassname { name } => *name,
             TAtomic::TGenericParam { as_type, .. } => {
-                let mut classlike_name = None;
-                for generic_param_type in &as_type.types {
-                    if let TAtomic::TNamedObject { name, .. } = generic_param_type {
-                        classlike_name = Some(name.clone());
-                        break;
+                let classlike_name =
+                    if let TAtomic::TNamedObject { name, .. } = &as_type.types.first().unwrap() {
+                        name
                     } else {
                         return Ok(());
-                    }
-                }
+                    };
 
-                if let Some(classlike_name) = classlike_name {
-                    classlike_name
-                } else {
-                    // todo emit issue
-                    return Err(AnalysisError::InternalError(
-                        "no classlike name".to_string(),
-                        statements_analyzer.get_hpos(pos),
-                    ));
-                }
+                *classlike_name
             }
             _ => {
                 if lhs_type_part.is_mixed() {
@@ -156,9 +145,10 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
 
-        analysis_data
-            .expr_effects
-            .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_IMPURE);
+        analysis_data.expr_effects.insert(
+            (pos.start_offset() as u32, pos.end_offset() as u32),
+            EFFECT_IMPURE,
+        );
 
         return Ok(());
     }

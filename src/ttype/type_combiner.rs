@@ -98,7 +98,7 @@ pub fn combine(
             },
             non_empty: combination.dict_always_filled,
             shape_name: if let Some(dict_alias_name) = combination.dict_alias_name {
-                dict_alias_name.clone()
+                dict_alias_name
             } else {
                 None
             },

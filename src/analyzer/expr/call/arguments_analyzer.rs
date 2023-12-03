@@ -990,8 +990,6 @@ fn handle_possibly_matching_inout_param(
             context.function_context.calling_class.as_ref(),
             if let Some(m) = &context.function_context.calling_functionlike_id {
                 Some(m)
-            } else if let Some(f) = &context.function_context.calling_functionlike_id {
-                Some(f)
             } else {
                 None
             },

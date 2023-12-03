@@ -54,11 +54,7 @@ impl SymbolReferences {
         class_member: (StrId, StrId),
         in_signature: bool,
     ) {
-        self.add_symbol_reference_to_symbol(
-            referencing_symbol,
-            class_member.0,
-            in_signature,
-        );
+        self.add_symbol_reference_to_symbol(referencing_symbol, class_member.0, in_signature);
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
@@ -138,11 +134,7 @@ impl SymbolReferences {
         symbol: StrId,
         in_signature: bool,
     ) {
-        self.add_symbol_reference_to_symbol(
-            referencing_class_member.0,
-            symbol,
-            in_signature,
-        );
+        self.add_symbol_reference_to_symbol(referencing_class_member.0, symbol, in_signature);
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
@@ -188,11 +180,7 @@ impl SymbolReferences {
                     ),
             }
         } else if let Some(calling_class) = &function_context.calling_class {
-            self.add_symbol_reference_to_class_member(
-                *calling_class,
-                class_member,
-                in_signature,
-            )
+            self.add_symbol_reference_to_class_member(*calling_class, class_member, in_signature)
         }
     }
 
@@ -284,11 +272,12 @@ impl SymbolReferences {
     pub fn get_referenced_symbols_and_members(&self) -> FxHashSet<&(StrId, StrId)> {
         let mut referenced_symbols_and_members = FxHashSet::default();
 
-        for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols {
+        for symbol_references_to_symbols in self.symbol_references_to_symbols.values() {
             referenced_symbols_and_members.extend(symbol_references_to_symbols);
         }
 
-        for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols_in_signature {
+        for symbol_references_to_symbols in self.symbol_references_to_symbols_in_signature.values()
+        {
             referenced_symbols_and_members.extend(symbol_references_to_symbols);
         }
 
@@ -319,14 +308,15 @@ impl SymbolReferences {
     pub fn get_referenced_symbols_and_members_with_counts(&self) -> FxHashMap<(StrId, StrId), u32> {
         let mut referenced_symbols_and_members = FxHashMap::default();
 
-        for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols {
+        for symbol_references_to_symbols in self.symbol_references_to_symbols.values() {
             for r in symbol_references_to_symbols {
                 let v = referenced_symbols_and_members.entry(*r).or_insert(0);
                 *v += 1;
             }
         }
 
-        for (_, symbol_references_to_symbols) in &self.symbol_references_to_symbols_in_signature {
+        for symbol_references_to_symbols in self.symbol_references_to_symbols_in_signature.values()
+        {
             for r in symbol_references_to_symbols {
                 let v = referenced_symbols_and_members.entry(*r).or_insert(0);
                 *v += 1;
@@ -339,7 +329,8 @@ impl SymbolReferences {
     pub fn get_referenced_overridden_class_members(&self) -> FxHashSet<&(StrId, StrId)> {
         let mut referenced_class_members = FxHashSet::default();
 
-        for (_, symbol_references_to_class_members) in &self.symbol_references_to_overridden_members
+        for symbol_references_to_class_members in
+            self.symbol_references_to_overridden_members.values()
         {
             referenced_class_members.extend(symbol_references_to_class_members);
         }
@@ -356,7 +347,8 @@ impl SymbolReferences {
 
         let mut new_invalid_symbols = codebase_diff
             .add_or_delete
-            .iter().copied()
+            .iter()
+            .copied()
             .collect::<Vec<_>>();
 
         let mut seen_symbols = FxHashSet::default();

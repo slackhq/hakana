@@ -162,7 +162,7 @@ pub(crate) fn analyze(
             }
         }
 
-        for (property_id, invalid_class_property_type) in invalid_assignment_value_types {
+        if let Some((property_id, invalid_class_property_type)) = invalid_assignment_value_types.iter().next() {
             analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::InvalidPropertyAssignmentValue,

@@ -60,85 +60,79 @@ impl CodebaseInfo {
 
     #[inline]
     pub fn class_or_interface_exists(&self, fq_class_name: &StrId) -> bool {
-        match self.symbols.all.get(fq_class_name) {
-            Some(SymbolKind::Class | SymbolKind::EnumClass | SymbolKind::Interface) => true,
-            _ => false,
-        }
+        matches!(
+            self.symbols.all.get(fq_class_name),
+            Some(SymbolKind::Class | SymbolKind::EnumClass | SymbolKind::Interface)
+        )
     }
 
     #[inline]
     pub fn class_or_interface_or_enum_exists(&self, fq_class_name: &StrId) -> bool {
-        match self.symbols.all.get(fq_class_name) {
+        matches!(
+            self.symbols.all.get(fq_class_name),
             Some(
                 SymbolKind::Class
-                | SymbolKind::EnumClass
-                | SymbolKind::Interface
-                | SymbolKind::Enum,
-            ) => true,
-            _ => false,
-        }
+                    | SymbolKind::EnumClass
+                    | SymbolKind::Interface
+                    | SymbolKind::Enum,
+            )
+        )
     }
 
     #[inline]
     pub fn class_or_interface_or_enum_or_trait_exists(&self, fq_class_name: &StrId) -> bool {
-        match self.symbols.all.get(fq_class_name) {
+        matches!(
+            self.symbols.all.get(fq_class_name),
             Some(
                 SymbolKind::Class
-                | SymbolKind::EnumClass
-                | SymbolKind::Interface
-                | SymbolKind::Enum
-                | SymbolKind::Trait,
-            ) => true,
-            _ => false,
-        }
+                    | SymbolKind::EnumClass
+                    | SymbolKind::Interface
+                    | SymbolKind::Enum
+                    | SymbolKind::Trait,
+            )
+        )
     }
 
     #[inline]
     pub fn class_exists(&self, fq_class_name: &StrId) -> bool {
-        match self.symbols.all.get(fq_class_name) {
-            Some(SymbolKind::Class | SymbolKind::EnumClass) => true,
-            _ => false,
-        }
+        matches!(
+            self.symbols.all.get(fq_class_name),
+            Some(SymbolKind::Class | SymbolKind::EnumClass)
+        )
     }
 
     #[inline]
     pub fn trait_exists(&self, fq_class_name: &StrId) -> bool {
-        match self.symbols.all.get(fq_class_name) {
-            Some(SymbolKind::Trait) => true,
-            _ => false,
-        }
+        matches!(self.symbols.all.get(fq_class_name), Some(SymbolKind::Trait))
     }
 
     #[inline]
     pub fn class_or_trait_exists(&self, fq_class_name: &StrId) -> bool {
-        match self.symbols.all.get(fq_class_name) {
-            Some(SymbolKind::Class | SymbolKind::EnumClass | SymbolKind::Trait) => true,
-            _ => false,
-        }
+        matches!(
+            self.symbols.all.get(fq_class_name),
+            Some(SymbolKind::Class | SymbolKind::EnumClass | SymbolKind::Trait)
+        )
     }
 
     #[inline]
     pub fn interface_exists(&self, fq_class_name: &StrId) -> bool {
-        match self.symbols.all.get(fq_class_name) {
-            Some(SymbolKind::Interface) => true,
-            _ => false,
-        }
+        matches!(
+            self.symbols.all.get(fq_class_name),
+            Some(SymbolKind::Interface)
+        )
     }
 
     #[inline]
     pub fn enum_exists(&self, fq_class_name: &StrId) -> bool {
-        match self.symbols.all.get(fq_class_name) {
-            Some(SymbolKind::Enum) => true,
-            _ => false,
-        }
+        matches!(self.symbols.all.get(fq_class_name), Some(SymbolKind::Enum))
     }
 
     #[inline]
     pub fn typedef_exists(&self, fq_alias_name: &StrId) -> bool {
-        match self.symbols.all.get(fq_alias_name) {
-            Some(SymbolKind::TypeDefinition) => true,
-            _ => false,
-        }
+        matches!(
+            self.symbols.all.get(fq_alias_name),
+            Some(SymbolKind::TypeDefinition)
+        )
     }
 
     pub fn class_or_trait_extends(&self, child_class: &StrId, parent_class: &StrId) -> bool {
@@ -229,8 +223,7 @@ impl CodebaseInfo {
                 if matches!(classlike_storage.kind, SymbolKind::EnumClass) {
                     return constant_storage.provided_type.as_ref().cloned();
                 } else if let Some(provided_type) = &constant_storage.provided_type {
-                    if provided_type.types.iter().all(|v| v.is_boring_scalar()) && !is_this
-                    {
+                    if provided_type.types.iter().all(|v| v.is_boring_scalar()) && !is_this {
                         if let Some(inferred_type) = &constant_storage.inferred_type {
                             Some(inferred_type.clone())
                         } else {

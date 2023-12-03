@@ -130,11 +130,11 @@ pub struct CheckPointEntry {
 }
 
 impl CheckPointEntry {
-    pub fn from_issue(issue: &Issue, path: &String) -> Self {
+    pub fn from_issue(issue: &Issue, path: &str) -> Self {
         Self {
             output: issue.description.clone(),
             level: "failure".to_string(),
-            filename: path.clone(),
+            filename: path.to_string(),
             line: issue.pos.start_line,
             case: issue.kind.to_string(),
         }

@@ -148,6 +148,7 @@ impl IssueKind {
         }
     }
 
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         match self {
             Self::CustomIssue(str) => str.clone(),
@@ -157,55 +158,55 @@ impl IssueKind {
     }
 
     pub fn is_mixed_issue(&self) -> bool {
-        match &self {
+        matches!(
+            self,
             Self::LessSpecificNestedAnyArgumentType
-            | Self::LessSpecificNestedAnyReturnStatement
-            | Self::MixedAnyArgument
-            | Self::MixedAnyArrayAccess
-            | Self::MixedAnyArrayAssignment
-            | Self::MixedAnyArrayOffset
-            | Self::MixedAnyAssignment
-            | Self::MixedAnyMethodCall
-            | Self::MixedAnyPropertyAssignment
-            | Self::MixedAnyPropertyTypeCoercion
-            | Self::MixedAnyReturnStatement
-            | Self::MixedArgument
-            | Self::MixedArrayAccess
-            | Self::MixedArrayAssignment
-            | Self::MixedArrayOffset
-            | Self::MixedMethodCall
-            | Self::MixedPropertyAssignment
-            | Self::MixedPropertyTypeCoercion
-            | Self::MixedReturnStatement => true,
-            _ => false,
-        }
+                | Self::LessSpecificNestedAnyReturnStatement
+                | Self::MixedAnyArgument
+                | Self::MixedAnyArrayAccess
+                | Self::MixedAnyArrayAssignment
+                | Self::MixedAnyArrayOffset
+                | Self::MixedAnyAssignment
+                | Self::MixedAnyMethodCall
+                | Self::MixedAnyPropertyAssignment
+                | Self::MixedAnyPropertyTypeCoercion
+                | Self::MixedAnyReturnStatement
+                | Self::MixedArgument
+                | Self::MixedArrayAccess
+                | Self::MixedArrayAssignment
+                | Self::MixedArrayOffset
+                | Self::MixedMethodCall
+                | Self::MixedPropertyAssignment
+                | Self::MixedPropertyTypeCoercion
+                | Self::MixedReturnStatement
+        )
     }
 
     pub fn is_unused_definition(&self) -> bool {
-        match &self {
+        matches!(
+            self,
             Self::UnusedClass
-            | Self::UnusedTypeDefinition
-            | Self::UnusedFunction
-            | Self::UnusedInterface
-            | Self::UnusedPrivateProperty
-            | Self::UnusedPublicOrProtectedProperty
-            | Self::UnusedPublicOrProtectedMethod
-            | Self::UnusedXhpAttribute
-            | Self::UnusedTrait => true,
-            _ => false,
-        }
+                | Self::UnusedTypeDefinition
+                | Self::UnusedFunction
+                | Self::UnusedInterface
+                | Self::UnusedPrivateProperty
+                | Self::UnusedPublicOrProtectedProperty
+                | Self::UnusedPublicOrProtectedMethod
+                | Self::UnusedXhpAttribute
+                | Self::UnusedTrait
+        )
     }
 
     pub fn is_unused_expression(&self) -> bool {
-        match &self {
+        matches!(
+            self,
             Self::UnusedAssignment
-            | Self::UnusedAssignmentStatement
-            | Self::UnusedAssignmentInClosure
-            | Self::UnusedParameter
-            | Self::UnusedClosureParameter
-            | Self::UnusedPipeVariable => true,
-            _ => false,
-        }
+                | Self::UnusedAssignmentStatement
+                | Self::UnusedAssignmentInClosure
+                | Self::UnusedParameter
+                | Self::UnusedClosureParameter
+                | Self::UnusedPipeVariable
+        )
     }
 }
 

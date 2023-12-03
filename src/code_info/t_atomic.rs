@@ -353,28 +353,26 @@ impl TAtomic {
                 str
             }
             TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => "mixed".to_string(),
-            TAtomic::TMixedWithFlags(is_any, is_truthy, is_falsy, is_nonnull) => {
-                if *is_any {
-                    if *is_truthy {
-                        "truthy-from-any"
-                    } else if *is_falsy {
-                        "falsy-from-any"
-                    } else if *is_nonnull {
-                        "nonnull-from-any"
-                    } else {
-                        "any"
-                    }
-                } else if *is_truthy {
-                    "truthy-mixed"
+            TAtomic::TMixedWithFlags(is_any, is_truthy, is_falsy, is_nonnull) => if *is_any {
+                if *is_truthy {
+                    "truthy-from-any"
                 } else if *is_falsy {
-                    "falsy-mixed"
+                    "falsy-from-any"
                 } else if *is_nonnull {
-                    "nonnull"
+                    "nonnull-from-any"
                 } else {
-                    "mixed"
+                    "any"
                 }
-                .to_string()
+            } else if *is_truthy {
+                "truthy-mixed"
+            } else if *is_falsy {
+                "falsy-mixed"
+            } else if *is_nonnull {
+                "nonnull"
+            } else {
+                "mixed"
             }
+            .to_string(),
             TAtomic::TNamedObject {
                 name,
                 type_params,
@@ -758,10 +756,10 @@ impl TAtomic {
     }
 
     pub fn is_mixed(&self) -> bool {
-        match self {
-            TAtomic::TMixed | TAtomic::TMixedFromLoopIsset | TAtomic::TMixedWithFlags(..) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            TAtomic::TMixed | TAtomic::TMixedFromLoopIsset | TAtomic::TMixedWithFlags(..)
+        )
     }
 
     pub fn is_mixed_with_any(&self, has_any: &mut bool) -> bool {
@@ -801,10 +799,7 @@ impl TAtomic {
     }
 
     pub fn is_named_object(&self) -> bool {
-        match self {
-            TAtomic::TNamedObject { .. } => true,
-            _ => false,
-        }
+        matches!(self, TAtomic::TNamedObject { .. })
     }
 
     pub fn is_templated_as_object(&self) -> bool {
@@ -819,10 +814,7 @@ impl TAtomic {
     }
 
     pub fn is_vec(&self) -> bool {
-        match self {
-            TAtomic::TVec { .. } => true,
-            _ => false,
-        }
+        matches!(self, TAtomic::TVec { .. })
     }
 
     pub fn get_vec_param(&self) -> Option<&TUnion> {
@@ -840,10 +832,7 @@ impl TAtomic {
     }
 
     pub fn is_dict(&self) -> bool {
-        match self {
-            TAtomic::TDict { .. } => true,
-            _ => false,
-        }
+        matches!(self, TAtomic::TDict { .. })
     }
 
     pub fn is_non_empty_dict(&self) -> bool {
@@ -865,45 +854,43 @@ impl TAtomic {
 
     #[inline]
     pub fn is_some_scalar(&self) -> bool {
-        match self {
+        matches!(
+            self,
             TAtomic::TGenericClassname { .. }
-            | TAtomic::TGenericTypename { .. }
-            | TAtomic::TLiteralClassname { .. }
-            | TAtomic::TLiteralInt { .. }
-            | TAtomic::TLiteralString { .. }
-            | TAtomic::TArraykey { .. }
-            | TAtomic::TBool { .. }
-            | TAtomic::TClassname { .. }
-            | TAtomic::TTypename { .. }
-            | TAtomic::TFalse { .. }
-            | TAtomic::TFloat { .. }
-            | TAtomic::TInt { .. }
-            | TAtomic::TNum { .. }
-            | TAtomic::TString { .. }
-            | TAtomic::TStringWithFlags(..)
-            | TAtomic::TTrue { .. }
-            | TAtomic::TEnum { .. }
-            | TAtomic::TEnumLiteralCase { .. } => true,
-
-            _ => false,
-        }
+                | TAtomic::TGenericTypename { .. }
+                | TAtomic::TLiteralClassname { .. }
+                | TAtomic::TLiteralInt { .. }
+                | TAtomic::TLiteralString { .. }
+                | TAtomic::TArraykey { .. }
+                | TAtomic::TBool { .. }
+                | TAtomic::TClassname { .. }
+                | TAtomic::TTypename { .. }
+                | TAtomic::TFalse { .. }
+                | TAtomic::TFloat { .. }
+                | TAtomic::TInt { .. }
+                | TAtomic::TNum { .. }
+                | TAtomic::TString { .. }
+                | TAtomic::TStringWithFlags(..)
+                | TAtomic::TTrue { .. }
+                | TAtomic::TEnum { .. }
+                | TAtomic::TEnumLiteralCase { .. }
+        )
     }
 
     #[inline]
     pub fn is_boring_scalar(&self) -> bool {
-        match self {
+        matches!(
+            self,
             TAtomic::TArraykey { .. }
-            | TAtomic::TBool { .. }
-            | TAtomic::TClassname { .. }
-            | TAtomic::TTypename { .. }
-            | TAtomic::TFalse { .. }
-            | TAtomic::TFloat { .. }
-            | TAtomic::TInt { .. }
-            | TAtomic::TNum { .. }
-            | TAtomic::TString { .. } => true,
-
-            _ => false,
-        }
+                | TAtomic::TBool { .. }
+                | TAtomic::TClassname { .. }
+                | TAtomic::TTypename { .. }
+                | TAtomic::TFalse { .. }
+                | TAtomic::TFloat { .. }
+                | TAtomic::TInt { .. }
+                | TAtomic::TNum { .. }
+                | TAtomic::TString { .. }
+        )
     }
 
     #[inline]
@@ -923,65 +910,58 @@ impl TAtomic {
 
     #[inline]
     pub fn is_string(&self) -> bool {
-        match self {
+        matches!(
+            self,
             TAtomic::TString { .. }
-            | TAtomic::TLiteralClassname { .. }
-            | TAtomic::TLiteralString { .. }
-            | TAtomic::TClassname { .. }
-            | TAtomic::TTypename { .. }
-            | TAtomic::TGenericClassname { .. }
-            | TAtomic::TGenericTypename { .. }
-            | TAtomic::TStringWithFlags { .. } => true,
-
-            _ => false,
-        }
+                | TAtomic::TLiteralClassname { .. }
+                | TAtomic::TLiteralString { .. }
+                | TAtomic::TClassname { .. }
+                | TAtomic::TTypename { .. }
+                | TAtomic::TGenericClassname { .. }
+                | TAtomic::TGenericTypename { .. }
+                | TAtomic::TStringWithFlags { .. }
+        )
     }
 
     #[inline]
     pub fn is_string_subtype(&self) -> bool {
-        match self {
+        matches!(
+            self,
             TAtomic::TLiteralClassname { .. }
-            | TAtomic::TLiteralString { .. }
-            | TAtomic::TClassname { .. }
-            | TAtomic::TTypename { .. }
-            | TAtomic::TGenericClassname { .. }
-            | TAtomic::TGenericTypename { .. }
-            | TAtomic::TStringWithFlags { .. } => true,
-
-            _ => false,
-        }
+                | TAtomic::TLiteralString { .. }
+                | TAtomic::TClassname { .. }
+                | TAtomic::TTypename { .. }
+                | TAtomic::TGenericClassname { .. }
+                | TAtomic::TGenericTypename { .. }
+                | TAtomic::TStringWithFlags { .. }
+        )
     }
 
     #[inline]
     pub fn is_int(&self) -> bool {
-        match self {
-            TAtomic::TLiteralInt { .. } | TAtomic::TInt { .. } => true,
-
-            _ => false,
-        }
+        matches!(self, TAtomic::TLiteralInt { .. } | TAtomic::TInt { .. })
     }
 
     #[inline]
     pub fn is_bool(&self) -> bool {
-        match self {
-            TAtomic::TFalse { .. } | TAtomic::TTrue { .. } | TAtomic::TBool { .. } => true,
-
-            _ => false,
-        }
+        matches!(
+            self,
+            TAtomic::TFalse { .. } | TAtomic::TTrue { .. } | TAtomic::TBool { .. }
+        )
     }
 
     pub fn is_literal(&self) -> bool {
-        match self {
+        matches!(
+            self,
             TAtomic::TLiteralClassname { .. }
-            | TAtomic::TLiteralInt { .. }
-            | TAtomic::TLiteralString { .. }
-            | TAtomic::TEnumLiteralCase { .. }
-            | TAtomic::TFalse { .. }
-            | TAtomic::TTrue { .. }
-            | TAtomic::TBool { .. }
-            | TAtomic::TNull { .. } => true,
-            _ => false,
-        }
+                | TAtomic::TLiteralInt { .. }
+                | TAtomic::TLiteralString { .. }
+                | TAtomic::TEnumLiteralCase { .. }
+                | TAtomic::TFalse { .. }
+                | TAtomic::TTrue { .. }
+                | TAtomic::TBool { .. }
+                | TAtomic::TNull { .. }
+        )
     }
 
     pub fn replace_template_extends(&self, new_as_type: TUnion) -> TAtomic {
@@ -1046,14 +1026,14 @@ impl TAtomic {
             | &TAtomic::TLiteralClassname { .. }
             | &TAtomic::TClassname { .. }
             | &TAtomic::TTypename { .. } => true,
-            &TAtomic::TNamedObject { name, .. } => match name {
+            &TAtomic::TNamedObject { name, .. } => !matches!(
+                name,
                 &STR_CONTAINER
-                | &STR_KEYED_CONTAINER
-                | &STR_ANY_ARRAY
-                | &STR_TRAVERSABLE
-                | &STR_KEYED_TRAVERSABLE => false,
-                _ => true,
-            },
+                    | &STR_KEYED_CONTAINER
+                    | &STR_ANY_ARRAY
+                    | &STR_TRAVERSABLE
+                    | &STR_KEYED_TRAVERSABLE
+            ),
             &TAtomic::TLiteralInt { value, .. } => {
                 if *value != 0 {
                     return true;
@@ -1076,7 +1056,7 @@ impl TAtomic {
                 }
 
                 if let Some(known_items) = known_items {
-                    for (_, (u, _)) in known_items {
+                    for (u, _) in known_items.values() {
                         if !u {
                             return true;
                         }
@@ -1095,7 +1075,7 @@ impl TAtomic {
                 }
 
                 if let Some(known_items) = known_items {
-                    for (_, (possibly_undefined, _)) in known_items {
+                    for (possibly_undefined, _) in known_items.values() {
                         if !possibly_undefined {
                             return true;
                         }
@@ -1163,10 +1143,9 @@ impl TAtomic {
     pub fn is_array_accessible_with_string_key(&self, interner: &Interner) -> bool {
         match self {
             TAtomic::TDict { .. } | TAtomic::TKeyset { .. } => true,
-            TAtomic::TNamedObject { name, .. } => match interner.lookup(name) {
-                "HH\\KeyedContainer" | "HH\\AnyArray" => true,
-                _ => false,
-            },
+            TAtomic::TNamedObject { name, .. } => {
+                matches!(interner.lookup(name), "HH\\KeyedContainer" | "HH\\AnyArray")
+            }
             _ => false,
         }
     }
@@ -1174,31 +1153,31 @@ impl TAtomic {
     pub fn is_array_accessible_with_int_or_string_key(&self, interner: &Interner) -> bool {
         match self {
             TAtomic::TDict { .. } | TAtomic::TVec { .. } | TAtomic::TKeyset { .. } => true,
-            TAtomic::TNamedObject { name, .. } => match interner.lookup(name) {
-                "HH\\KeyedContainer" | "HH\\Container" | "HH\\AnyArray" => true,
-                _ => false,
-            },
+            TAtomic::TNamedObject { name, .. } => matches!(
+                interner.lookup(name),
+                "HH\\KeyedContainer" | "HH\\Container" | "HH\\AnyArray"
+            ),
             _ => false,
         }
     }
 
     #[inline]
     pub fn needs_population(&self) -> bool {
-        match self {
+        matches!(
+            self,
             TAtomic::TGenericClassname { .. }
-            | TAtomic::TGenericTypename { .. }
-            | TAtomic::TClassname { .. }
-            | TAtomic::TTypename { .. }
-            | TAtomic::TDict { .. }
-            | TAtomic::TClosure { .. }
-            | TAtomic::TKeyset { .. }
-            | TAtomic::TNamedObject { .. }
-            | TAtomic::TVec { .. }
-            | TAtomic::TReference { .. }
-            | TAtomic::TClassTypeConstant { .. }
-            | TAtomic::TGenericParam { .. } => true,
-            _ => false,
-        }
+                | TAtomic::TGenericTypename { .. }
+                | TAtomic::TClassname { .. }
+                | TAtomic::TTypename { .. }
+                | TAtomic::TDict { .. }
+                | TAtomic::TClosure { .. }
+                | TAtomic::TKeyset { .. }
+                | TAtomic::TNamedObject { .. }
+                | TAtomic::TVec { .. }
+                | TAtomic::TReference { .. }
+                | TAtomic::TClassTypeConstant { .. }
+                | TAtomic::TGenericParam { .. }
+        )
     }
 
     pub fn add_intersection_type(&mut self, atomic: TAtomic) {
@@ -1313,42 +1292,38 @@ impl TAtomic {
             }
             TAtomic::TNamedObject {
                 ref mut name,
-                ref mut type_params,
+                type_params: Some(ref mut type_params),
                 ..
             } => {
-                if let Some(type_params) = type_params {
-                    if name == &STR_KEYED_CONTAINER
-                        || name == &STR_ANY_ARRAY
-                        || name == &STR_KEYED_TRAVERSABLE
-                    {
-                        if let Some(key_param) = type_params.get_mut(0) {
-                            if let TAtomic::TPlaceholder = key_param.get_single() {
-                                *key_param =
-                                    TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
-                            }
+                if name == &STR_KEYED_CONTAINER
+                    || name == &STR_ANY_ARRAY
+                    || name == &STR_KEYED_TRAVERSABLE
+                {
+                    if let Some(key_param) = type_params.get_mut(0) {
+                        if let TAtomic::TPlaceholder = key_param.get_single() {
+                            *key_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                         }
+                    }
 
-                        if let Some(value_param) = type_params.get_mut(1) {
-                            if let TAtomic::TPlaceholder = value_param.get_single() {
-                                *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
-                                    true, false, false, false,
-                                )]);
-                            }
+                    if let Some(value_param) = type_params.get_mut(1) {
+                        if let TAtomic::TPlaceholder = value_param.get_single() {
+                            *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
+                                true, false, false, false,
+                            )]);
                         }
-                    } else if name == &STR_CONTAINER || name == &STR_TRAVERSABLE {
-                        if let Some(value_param) = type_params.get_mut(0) {
-                            if let TAtomic::TPlaceholder = value_param.get_single() {
-                                *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
-                                    true, false, false, false,
-                                )]);
-                            }
+                    }
+                } else if name == &STR_CONTAINER || name == &STR_TRAVERSABLE {
+                    if let Some(value_param) = type_params.get_mut(0) {
+                        if let TAtomic::TPlaceholder = value_param.get_single() {
+                            *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
+                                true, false, false, false,
+                            )]);
                         }
-                    } else {
-                        for type_param in type_params {
-                            if let TAtomic::TPlaceholder = type_param.get_single() {
-                                *type_param =
-                                    TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
-                            }
+                    }
+                } else {
+                    for type_param in type_params {
+                        if let TAtomic::TPlaceholder = type_param.get_single() {
+                            *type_param = TUnion::new(vec![TAtomic::TArraykey { from_any: true }]);
                         }
                     }
                 }
@@ -1431,7 +1406,7 @@ impl TAtomic {
                 }
 
                 if let Some(known_items) = known_items {
-                    for (_, (_, item_type)) in known_items {
+                    for (_, item_type) in known_items.values() {
                         if !item_type.is_json_compatible(banned_type_aliases) {
                             return false;
                         }
@@ -1451,7 +1426,7 @@ impl TAtomic {
                 }
 
                 if let Some(known_items) = known_items {
-                    for (_, (_, item_type)) in known_items {
+                    for (_, item_type) in known_items.values() {
                         if !item_type.is_json_compatible(banned_type_aliases) {
                             return false;
                         }
@@ -1487,7 +1462,7 @@ impl HasTypeNodes for TAtomic {
                     vec.push(TypeNode::Union(&params.1));
                 }
                 if let Some(known_items) = known_items {
-                    for (_, (_, prop_type)) in known_items {
+                    for (_, prop_type) in known_items.values() {
                         vec.push(TypeNode::Union(prop_type));
                     }
                 }
@@ -1515,16 +1490,19 @@ impl HasTypeNodes for TAtomic {
             TAtomic::TKeyset { type_param, .. } => {
                 vec![TypeNode::Union(type_param)]
             }
-            TAtomic::TNamedObject { type_params, .. } => match type_params {
-                None => vec![],
-                Some(type_params) => {
-                    let mut vec = vec![];
-                    for type_param in type_params {
-                        vec.push(TypeNode::Union(type_param));
-                    }
-                    vec
+            TAtomic::TNamedObject {
+                type_params: Some(type_params),
+                ..
+            } => {
+                let mut vec = vec![];
+                for type_param in type_params {
+                    vec.push(TypeNode::Union(type_param));
                 }
-            },
+                vec
+            }
+            TAtomic::TNamedObject {
+                type_params: None, ..
+            } => vec![],
             TAtomic::TVec {
                 type_param,
                 known_items,
@@ -1532,23 +1510,28 @@ impl HasTypeNodes for TAtomic {
             } => {
                 let mut vec = vec![TypeNode::Union(type_param)];
                 if let Some(known_items) = known_items {
-                    for (_, (_, prop_type)) in known_items {
+                    for (_, prop_type) in known_items.values() {
                         vec.push(TypeNode::Union(prop_type));
                     }
                 }
 
                 vec
             }
-            TAtomic::TReference { type_params, .. } => match type_params {
-                None => vec![],
-                Some(type_params) => {
-                    let mut vec = vec![];
-                    for type_param in type_params {
-                        vec.push(TypeNode::Union(type_param));
-                    }
-                    vec
+            TAtomic::TReference {
+                type_params: Some(type_params),
+                ..
+            } => {
+                let mut vec = vec![];
+                for type_param in type_params {
+                    vec.push(TypeNode::Union(type_param));
                 }
-            },
+                vec
+            }
+            TAtomic::TReference {
+                type_params: None, ..
+            } => {
+                vec![]
+            }
             TAtomic::TGenericParam { as_type, .. } => {
                 vec![TypeNode::Union(as_type)]
             }
@@ -1666,36 +1649,31 @@ pub fn populate_atomic_type(
             );
         }
         TAtomic::TNamedObject {
-            ref mut type_params,
-            ..
-        } => match type_params {
-            None => {}
-            Some(type_params) => {
-                for type_param in type_params {
-                    populate_union_type(
-                        type_param,
-                        codebase_symbols,
-                        reference_source,
-                        symbol_references,
-                        force,
-                    );
-                }
-            }
-        },
-        TAtomic::TTypeAlias {
-            ref mut type_params,
+            type_params: Some(ref mut type_params),
             ..
         } => {
-            if let Some(type_params) = type_params {
-                for type_param in type_params {
-                    populate_union_type(
-                        type_param,
-                        codebase_symbols,
-                        reference_source,
-                        symbol_references,
-                        force,
-                    );
-                }
+            for type_param in type_params {
+                populate_union_type(
+                    type_param,
+                    codebase_symbols,
+                    reference_source,
+                    symbol_references,
+                    force,
+                );
+            }
+        }
+        TAtomic::TTypeAlias {
+            type_params: Some(ref mut type_params),
+            ..
+        } => {
+            for type_param in type_params {
+                populate_union_type(
+                    type_param,
+                    codebase_symbols,
+                    reference_source,
+                    symbol_references,
+                    force,
+                );
             }
         }
         TAtomic::TVec {
@@ -1712,7 +1690,7 @@ pub fn populate_atomic_type(
             );
 
             if let Some(known_items) = known_items {
-                for (_, (_, tuple_type)) in known_items {
+                for (_, tuple_type) in known_items.values_mut() {
                     populate_union_type(
                         tuple_type,
                         codebase_symbols,

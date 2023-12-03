@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use crate::{codebase_info::CodebaseInfo, Interner, StrId};
 
 pub fn get_id_name(
-    id: &Box<oxidized::ast_defs::Id>,
+    id: &oxidized::ast_defs::Id,
     calling_class: &Option<StrId>,
     calling_class_final: bool,
     codebase: &CodebaseInfo,

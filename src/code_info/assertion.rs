@@ -102,57 +102,53 @@ impl Assertion {
     }
 
     pub fn has_negation(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Assertion::Falsy
-            | Assertion::IsNotType(_)
-            | Assertion::IsNotEqual(_)
-            | Assertion::IsNotIsset
-            | Assertion::NotInArray(..)
-            | Assertion::ArrayKeyDoesNotExist
-            | Assertion::DoesNotHaveArrayKey(_)
-            | Assertion::DoesNotHaveExactCount(_)
-            | Assertion::DoesNotHaveNonnullEntryForKey(_)
-            | Assertion::EmptyCountable => true,
-
-            _ => false,
-        }
+                | Assertion::IsNotType(_)
+                | Assertion::IsNotEqual(_)
+                | Assertion::IsNotIsset
+                | Assertion::NotInArray(..)
+                | Assertion::ArrayKeyDoesNotExist
+                | Assertion::DoesNotHaveArrayKey(_)
+                | Assertion::DoesNotHaveExactCount(_)
+                | Assertion::DoesNotHaveNonnullEntryForKey(_)
+                | Assertion::EmptyCountable
+        )
     }
 
     pub fn has_isset(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Assertion::IsIsset
-            | Assertion::ArrayKeyExists
-            | Assertion::HasStringArrayAccess
-            | Assertion::IsEqualIsset => true,
-
-            _ => false,
-        }
+                | Assertion::ArrayKeyExists
+                | Assertion::HasStringArrayAccess
+                | Assertion::IsEqualIsset
+        )
     }
 
     pub fn has_non_isset_equality(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Assertion::InArray(_)
-            | Assertion::HasIntOrStringArrayAccess
-            | Assertion::HasStringArrayAccess
-            | Assertion::IsEqual(_) => true,
-
-            _ => false,
-        }
+                | Assertion::HasIntOrStringArrayAccess
+                | Assertion::HasStringArrayAccess
+                | Assertion::IsEqual(_)
+        )
     }
 
     pub fn has_equality(&self) -> bool {
-        match self {
+        matches!(
+            self,
             Assertion::InArray(_)
-            | Assertion::HasIntOrStringArrayAccess
-            | Assertion::HasStringArrayAccess
-            | Assertion::IsEqualIsset
-            | Assertion::IsEqual(_)
-            | Assertion::IsNotEqual(_)
-            | Assertion::RemoveTaints(_, _)
-            | Assertion::DontRemoveTaints(_, _) => true,
-
-            _ => false,
-        }
+                | Assertion::HasIntOrStringArrayAccess
+                | Assertion::HasStringArrayAccess
+                | Assertion::IsEqualIsset
+                | Assertion::IsEqual(_)
+                | Assertion::IsNotEqual(_)
+                | Assertion::RemoveTaints(_, _)
+                | Assertion::DontRemoveTaints(_, _)
+        )
     }
 
     pub fn has_literal_string_or_int(&self) -> bool {
@@ -160,12 +156,12 @@ impl Assertion {
             Assertion::IsEqual(atomic)
             | Assertion::IsNotEqual(atomic)
             | Assertion::IsType(atomic)
-            | Assertion::IsNotType(atomic) => match atomic {
+            | Assertion::IsNotType(atomic) => matches!(
+                atomic,
                 TAtomic::TLiteralInt { .. }
-                | TAtomic::TLiteralString { .. }
-                | TAtomic::TEnumLiteralCase { .. } => true,
-                _ => false,
-            },
+                    | TAtomic::TLiteralString { .. }
+                    | TAtomic::TEnumLiteralCase { .. }
+            ),
 
             _ => false,
         }
