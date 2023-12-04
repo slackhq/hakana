@@ -40,6 +40,7 @@ pub(crate) fn check_argument_matches(
     ignore_taints: bool,
     specialize_taint: bool,
     function_call_pos: &Pos,
+    function_name_pos: Option<&Pos>,
 ) {
     let mut arg_value_type = arg_value_type;
 
@@ -67,6 +68,7 @@ pub(crate) fn check_argument_matches(
                 param_type: &param_type,
                 argument_offset,
                 function_call_pos,
+                function_name_pos,
             },
         );
     }
@@ -641,11 +643,7 @@ fn add_dataflow(
     let method_node = DataFlowNode::get_for_method_argument(
         functionlike_id.to_string(&statements_analyzer.get_interner()),
         argument_offset,
-        if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-            Some(function_param.name_location.clone())
-        } else {
-            None
-        },
+        Some(function_param.name_location.clone()),
         if specialize_taint {
             Some(statements_analyzer.get_hpos(function_call_pos))
         } else {

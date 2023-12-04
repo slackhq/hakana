@@ -50,6 +50,7 @@ pub(crate) fn analyze(
     ),
     lhs_type_part: &TAtomic,
     pos: &Pos,
+    method_name_pos: Option<&Pos>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
@@ -180,6 +181,7 @@ pub(crate) fn analyze(
         context,
         if_body_context,
         pos,
+        method_name_pos,
     )?;
 
     if functionlike_storage.ignore_taints_if_true {

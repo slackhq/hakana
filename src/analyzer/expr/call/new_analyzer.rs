@@ -372,6 +372,7 @@ fn analyze_named_constructor(
             context,
             if_body_context,
             pos,
+            None,
         )?;
 
         // todo check method visibility

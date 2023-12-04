@@ -310,6 +310,7 @@ pub(crate) fn analyze(
             assign_var,
             assign_value,
             assign_value_type,
+            existing_var_type,
             var_id.as_ref().unwrap(),
             analysis_data,
             context,
@@ -388,6 +389,7 @@ fn check_variable_or_property_assignment(
     assign_var_pos: &Pos,
     var_id: &String,
     context: &ScopeContext,
+    is_inout: bool,
 ) -> TUnion {
     if var_type.is_void() {
         // todo (maybe) handle void assignment
@@ -407,7 +409,9 @@ fn check_variable_or_property_assignment(
     let ref mut data_flow_graph = analysis_data.data_flow_graph;
 
     if !var_type.parent_nodes.is_empty()
-        && (matches!(&data_flow_graph.kind, GraphKind::FunctionBody) || context.allow_taints)
+        && ((matches!(&data_flow_graph.kind, GraphKind::FunctionBody) && !is_inout)
+            || (matches!(&data_flow_graph.kind, GraphKind::WholeProgram(..))
+                && context.allow_taints))
     {
         let removed_taints = get_removed_taints_in_comments(statements_analyzer, assign_var_pos);
 
@@ -600,14 +604,15 @@ fn analyze_assignment_to_variable(
     statements_analyzer: &StatementsAnalyzer,
     var_expr: &aast::Expr<(), ()>,
     source_expr: Option<&aast::Expr<(), ()>>,
-    assign_value_type: TUnion,
+    mut assign_value_type: TUnion,
+    existing_var_type: Option<Rc<TUnion>>,
     var_id: &String,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     is_inout: bool,
 ) {
-    if !is_inout {
-        if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+        if !is_inout {
             analysis_data
                 .data_flow_graph
                 .add_node(DataFlowNode::get_for_variable_source(
@@ -621,6 +626,10 @@ fn analyze_assignment_to_variable(
                         },
                     assign_value_type.has_awaitable_types(),
                 ));
+        } else if let Some(existing_var_type) = &existing_var_type {
+            if !existing_var_type.parent_nodes.is_empty() {
+                assign_value_type.parent_nodes = existing_var_type.parent_nodes.clone();
+            }
         }
     }
 
@@ -631,6 +640,7 @@ fn analyze_assignment_to_variable(
         var_expr.pos(),
         var_id,
         &context,
+        is_inout,
     );
 
     if assign_value_type.is_bool() {

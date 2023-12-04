@@ -682,56 +682,69 @@ fn add_dataflow(
             // todo dispatch AddRemoveTaintEvent
             // and also handle simple preg_replace calls
         }
+    } else {
+        function_call_node = DataFlowNode::get_for_method_return(
+            functionlike_id.to_string(&statements_analyzer.get_interner()),
+            Some(statements_analyzer.get_hpos(pos)),
+            Some(statements_analyzer.get_hpos(pos)),
+        );
+    }
 
-        let (param_offsets, _variadic_path) =
-            get_special_argument_nodes(functionlike_id, &statements_analyzer.get_interner());
-        let added_removed_taints =
-            get_special_added_removed_taints(functionlike_id, &statements_analyzer.get_interner());
+    data_flow_graph.add_node(function_call_node.clone());
 
-        for (param_offset, path_kind) in param_offsets {
-            let argument_node = DataFlowNode::get_for_method_argument(
-                statements_analyzer
-                    .get_interner()
-                    .lookup(&functionlike_storage.name)
-                    .to_string(),
-                param_offset,
-                if let Some(arg) = expr.2.get(param_offset) {
-                    Some(statements_analyzer.get_hpos(arg.1.pos()))
-                } else {
-                    None
-                },
-                if functionlike_storage.specialize_call {
-                    Some(statements_analyzer.get_hpos(pos))
-                } else {
-                    None
-                },
-            );
+    let (param_offsets, _variadic_path) =
+        get_special_argument_nodes(functionlike_id, &statements_analyzer.get_interner());
+    let added_removed_taints = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
+        get_special_added_removed_taints(functionlike_id, &statements_analyzer.get_interner())
+    } else {
+        FxHashMap::default()
+    };
 
-            let (added_taints, removed_taints) =
-                if let Some(added_removed_taints) = added_removed_taints.get(&param_offset) {
-                    added_removed_taints.clone()
-                } else {
-                    (FxHashSet::default(), FxHashSet::default())
-                };
+    for (param_offset, path_kind) in param_offsets {
+        let argument_node = DataFlowNode::get_for_method_argument(
+            statements_analyzer
+                .get_interner()
+                .lookup(&functionlike_storage.name)
+                .to_string(),
+            param_offset,
+            if let Some(arg) = expr.2.get(param_offset) {
+                Some(statements_analyzer.get_hpos(arg.1.pos()))
+            } else {
+                None
+            },
+            if functionlike_storage.specialize_call {
+                Some(statements_analyzer.get_hpos(pos))
+            } else {
+                None
+            },
+        );
 
-            data_flow_graph.add_path(
-                &argument_node,
-                &function_call_node,
-                path_kind,
-                if added_taints.is_empty() {
-                    None
-                } else {
-                    Some(added_taints)
-                },
-                if removed_taints.is_empty() {
-                    None
-                } else {
-                    Some(removed_taints)
-                },
-            );
-            data_flow_graph.add_node(argument_node);
-        }
+        let (added_taints, removed_taints) =
+            if let Some(added_removed_taints) = added_removed_taints.get(&param_offset) {
+                added_removed_taints.clone()
+            } else {
+                (FxHashSet::default(), FxHashSet::default())
+            };
 
+        data_flow_graph.add_path(
+            &argument_node,
+            &function_call_node,
+            path_kind,
+            if added_taints.is_empty() {
+                None
+            } else {
+                Some(added_taints)
+            },
+            if removed_taints.is_empty() {
+                None
+            } else {
+                Some(removed_taints)
+            },
+        );
+        data_flow_graph.add_node(argument_node);
+    }
+
+    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !functionlike_storage.taint_source_types.is_empty() {
             let function_call_node_source = DataFlowNode {
                 id: function_call_node.get_id().clone(),
@@ -743,16 +756,6 @@ fn add_dataflow(
             };
             data_flow_graph.add_node(function_call_node_source);
         }
-
-        data_flow_graph.add_node(function_call_node.clone());
-    } else {
-        function_call_node = DataFlowNode::get_for_method_return(
-            functionlike_id.to_string(&statements_analyzer.get_interner()),
-            Some(statements_analyzer.get_hpos(pos)),
-            Some(statements_analyzer.get_hpos(pos)),
-        );
-
-        data_flow_graph.add_node(function_call_node.clone());
     }
 
     stmt_type.parent_nodes.insert(function_call_node);

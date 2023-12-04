@@ -168,6 +168,7 @@ pub(crate) fn analyze(
         if_body_context,
         &mut template_result,
         pos,
+        Some(&expr.0 .0),
     )?;
 
     apply_effects(function_storage, analysis_data, pos, &expr.2);

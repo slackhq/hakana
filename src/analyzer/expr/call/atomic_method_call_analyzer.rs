@@ -277,6 +277,7 @@ pub(crate) fn handle_method_call_on_named_object(
             (expr.2, expr.3, expr.4),
             &lhs_type_part,
             pos,
+            Some(expr.1.pos()),
             analysis_data,
             context,
             if_body_context,

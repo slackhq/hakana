@@ -105,6 +105,7 @@ pub(crate) fn analyze(
                 if_body_context,
                 &mut template_result,
                 pos,
+                None,
             )?;
 
             apply_effects(&lambda_storage, analysis_data, pos, &expr.args);

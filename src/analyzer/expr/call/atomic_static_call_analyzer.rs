@@ -169,7 +169,7 @@ pub(crate) fn analyze(
         &method_name.unwrap(),
         (expr.2, expr.3, expr.4),
         lhs_type_part,
-        pos,
+        pos,Some(&expr.1.0),
         analysis_data,
         context,
         if_body_context,

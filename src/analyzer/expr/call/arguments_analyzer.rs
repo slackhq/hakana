@@ -55,6 +55,7 @@ pub(crate) fn check_arguments_match(
     if_body_context: &mut Option<ScopeContext>,
     template_result: &mut TemplateResult,
     function_call_pos: &Pos,
+    function_name_pos: Option<&Pos>,
 ) -> Result<(), AnalysisError> {
     let functionlike_params = &functionlike_info.params;
     // todo handle map and filter
@@ -421,6 +422,7 @@ pub(crate) fn check_arguments_match(
             functionlike_info.ignore_taint_path,
             functionlike_info.specialize_call,
             function_call_pos,
+            function_name_pos,
         );
 
         if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
@@ -486,6 +488,7 @@ pub(crate) fn check_arguments_match(
                     functionlike_info.ignore_taint_path,
                     functionlike_info.specialize_call,
                     function_call_pos,
+                    function_name_pos,
                 );
             }
         }
@@ -757,7 +760,14 @@ fn handle_closure_arg(
             }
         }
 
-        if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
+        if matches!(
+            analysis_data.data_flow_graph.kind,
+            GraphKind::WholeProgram(_)
+        ) || !statements_analyzer
+            .get_config()
+            .migration_symbols
+            .is_empty()
+        {
             if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
                 match statements_analyzer.get_interner().lookup(function_name) {
                     "HH\\Lib\\Vec\\map"
@@ -765,7 +775,12 @@ fn handle_closure_arg(
                     | "HH\\Lib\\Keyset\\map"
                     | "HH\\Lib\\Vec\\filter"
                     | "HH\\Lib\\Dict\\filter"
-                    | "HH\\Lib\\Keyset\\filter" => {
+                    | "HH\\Lib\\Keyset\\filter"
+                    | "HH\\Lib\\Vec\\take"
+                    | "HH\\Lib\\Dict\\take"
+                    | "HH\\Lib\\Keyset\\take"
+                    | "HH\\Lib\\C\\find"
+                    | "HH\\Lib\\C\\findx" => {
                         if param_offset == 0 {
                             if let Some(ref mut signature_type) = param_storage.signature_type {
                                 add_array_fetch_dataflow(

@@ -318,6 +318,7 @@ pub(crate) fn check_method_args(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
     pos: &Pos,
+    method_name_pos: Option<&Pos>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
@@ -338,6 +339,7 @@ pub(crate) fn check_method_args(
         if_body_context,
         template_result,
         pos,
+        method_name_pos
     )?;
 
     apply_effects(functionlike_storage, analysis_data, pos, &call_expr.1);

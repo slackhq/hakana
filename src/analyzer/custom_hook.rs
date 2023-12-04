@@ -46,6 +46,7 @@ pub struct AfterArgAnalysisData<'a> {
     pub arg_value_type: &'a TUnion,
     pub argument_offset: usize,
     pub context: &'a ScopeContext,
+    pub function_name_pos: Option<&'a Pos>,
     pub function_call_pos: &'a Pos,
     pub functionlike_id: &'a FunctionLikeIdentifier,
     pub param_type: &'a TUnion,
