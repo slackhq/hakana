@@ -25,7 +25,7 @@ pub(crate) fn check_for_paradox(
 ) {
     let negated_formula_2 = hakana_algebra::negate_formula(formula_2.clone());
 
-    if let Err(_) = negated_formula_2 {
+    if negated_formula_2.is_err() {
         return;
     }
 
