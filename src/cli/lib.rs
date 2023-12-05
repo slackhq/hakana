@@ -1221,7 +1221,9 @@ fn write_output_files(
 
 fn update_files(analysis_result: &mut AnalysisResult, root_dir: &String, interner: &Interner) {
     let mut replacement_and_insertion_keys = analysis_result
-        .replacements.keys().copied()
+        .replacements
+        .keys()
+        .copied()
         .collect::<FxHashSet<_>>();
     replacement_and_insertion_keys.extend(analysis_result.insertions.keys().copied());
 

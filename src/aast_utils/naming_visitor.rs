@@ -284,7 +284,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         // );
 
         if nc.in_class_id || nc.in_function_id || nc.in_xhp_id || nc.in_constant_id {
-            if let std::collections::hash_map::Entry::Vacant(e) = self.resolved_names.entry(id.0.start_offset()) {
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                self.resolved_names.entry(id.0.start_offset())
+            {
                 let resolved_name = if nc.in_xhp_id {
                     nc.get_resolved_name(
                         self.interner,

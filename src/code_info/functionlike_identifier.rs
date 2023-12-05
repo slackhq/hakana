@@ -11,10 +11,7 @@ pub enum FunctionLikeIdentifier {
 impl FunctionLikeIdentifier {
     pub fn as_method_identifier(&self) -> Option<MethodIdentifier> {
         if let FunctionLikeIdentifier::Method(fq_classlike_name, method_name) = &self {
-            Some(MethodIdentifier(
-                *fq_classlike_name,
-                *method_name,
-            ))
+            Some(MethodIdentifier(*fq_classlike_name, *method_name))
         } else {
             None
         }

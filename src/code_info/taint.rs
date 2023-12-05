@@ -26,8 +26,9 @@ impl SourceType {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
-#[derive(Default)]
+#[derive(
+    Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString, Default,
+)]
 pub enum SinkType {
     #[default]
     HtmlTag,
@@ -45,8 +46,6 @@ pub enum SinkType {
     Output,
     Custom(String),
 }
-
-
 
 const PAIRS: [(SourceType, SinkType); 31] = [
     // All the places we don't want GET data to go

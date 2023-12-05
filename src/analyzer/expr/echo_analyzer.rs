@@ -39,6 +39,8 @@ pub(crate) fn analyze(
 
         let arg_type = analysis_data.get_rc_expr_type(arg_expr.pos()).cloned();
 
+        context.inside_general_use = true;
+
         argument_analyzer::verify_type(
             statements_analyzer,
             &arg_type.unwrap_or(Rc::new(get_mixed_any())),
@@ -54,6 +56,8 @@ pub(crate) fn analyze(
             true,
             call_pos,
         );
+
+        context.inside_general_use = false;
     }
 
     analysis_data.expr_effects.insert(

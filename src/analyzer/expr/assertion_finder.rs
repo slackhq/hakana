@@ -166,13 +166,19 @@ fn process_custom_assertions(
 ) -> FxHashMap<String, Vec<Vec<Assertion>>> {
     let mut if_true_assertions = analysis_data
         .if_true_assertions
-        .get(&(conditional_pos.start_offset() as u32, conditional_pos.end_offset() as u32))
+        .get(&(
+            conditional_pos.start_offset() as u32,
+            conditional_pos.end_offset() as u32,
+        ))
         .cloned()
         .unwrap_or(FxHashMap::default());
 
     let if_false_assertions = analysis_data
         .if_false_assertions
-        .get(&(conditional_pos.start_offset() as u32, conditional_pos.end_offset() as u32))
+        .get(&(
+            conditional_pos.start_offset() as u32,
+            conditional_pos.end_offset() as u32,
+        ))
         .cloned()
         .unwrap_or(FxHashMap::default());
 
@@ -216,7 +222,7 @@ fn get_is_assertions(
     ) {
         t
     } else {
-        return vec![]
+        return vec![];
     };
 
     if let Some((codebase, _)) = assertion_context.codebase {
@@ -271,7 +277,10 @@ fn get_is_assertions(
         if let (Some(lhs_type), Some((codebase, interner))) = (
             analysis_data
                 .expr_types
-                .get(&(var_expr.1.start_offset() as u32, var_expr.1.end_offset() as u32))
+                .get(&(
+                    var_expr.1.start_offset() as u32,
+                    var_expr.1.end_offset() as u32,
+                ))
                 .clone(),
             assertion_context.codebase,
         ) {

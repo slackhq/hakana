@@ -60,10 +60,7 @@ impl AnalysisResult {
         self.replacements.extend(other.replacements);
         self.insertions.extend(other.insertions);
         for (id, c) in other.mixed_source_counts {
-            self.mixed_source_counts
-                .entry(id)
-                .or_default()
-                .extend(c);
+            self.mixed_source_counts.entry(id).or_default().extend(c);
         }
         self.program_dataflow_graph
             .add_graph(other.program_dataflow_graph);

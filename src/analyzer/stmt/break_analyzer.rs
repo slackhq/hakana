@@ -2,10 +2,12 @@ use std::rc::Rc;
 
 use super::control_analyzer::BreakContext;
 use crate::{
+    function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
+};
+use crate::{
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
 };
-use crate::{statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData};
 use hakana_type::{combine_optional_union_types, combine_union_types};
 use rustc_hash::FxHashMap;
 

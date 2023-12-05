@@ -60,9 +60,10 @@ pub(crate) fn analyze(
 
         analysis_data.set_rc_expr_type(&pos, superglobal_type);
 
-        analysis_data
-            .expr_effects
-            .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_READ_GLOBALS);
+        analysis_data.expr_effects.insert(
+            (pos.start_offset() as u32, pos.end_offset() as u32),
+            EFFECT_READ_GLOBALS,
+        );
     } else if let Some(var_type) = context.vars_in_scope.get(&lid.1 .1) {
         let mut var_type = (**var_type).clone();
 

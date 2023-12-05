@@ -126,10 +126,10 @@ impl<'ast> Visitor<'ast> for Scanner {
                     }
                 }
 
-                if let aast::Expr_::Id(_) = &boxed.func .2 {
+                if let aast::Expr_::Id(_) = &boxed.func.2 {
                     // do nothing
                 } else {
-                    match &boxed.func .2 {
+                    match &boxed.func.2 {
                         aast::Expr_::ObjGet(boxed) => {
                             let (lhs_expr, _, _, prop_or_method) =
                                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3);

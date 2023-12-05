@@ -178,8 +178,7 @@ pub(crate) fn get_functionlike(
         all_custom_issues,
     );
 
-    let mut functionlike_info =
-        FunctionLikeInfo::new(name, definition_location, meta_start);
+    let mut functionlike_info = FunctionLikeInfo::new(name, definition_location, meta_start);
 
     let mut template_supers = FxHashMap::default();
 
@@ -649,7 +648,11 @@ fn convert_param_nodes(
                 None
             };
             param.is_inout = matches!(param_node.callconv, ast_defs::ParamKind::Pinout(_));
-            param.signature_type_location = param_node.type_hint.1.as_ref().map(|param_type| HPos::new(&param_type.0, file_source.file_path, None));
+            param.signature_type_location = param_node
+                .type_hint
+                .1
+                .as_ref()
+                .map(|param_type| HPos::new(&param_type.0, file_source.file_path, None));
             for user_attribute in &param_node.user_attributes {
                 let name = resolved_names
                     .get(&user_attribute.name.0.start_offset())

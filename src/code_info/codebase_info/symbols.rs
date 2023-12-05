@@ -37,28 +37,23 @@ impl Symbols {
         self.all.insert(*fq_class_name, SymbolKind::Class);
 
         if let Some(file_path) = file_path {
-            self.classlike_files
-                .insert(*fq_class_name, file_path);
+            self.classlike_files.insert(*fq_class_name, file_path);
         }
     }
 
     pub fn add_enum_class_name(&mut self, fq_class_name: &StrId, file_path: Option<FilePath>) {
-        self.all
-            .insert(*fq_class_name, SymbolKind::EnumClass);
+        self.all.insert(*fq_class_name, SymbolKind::EnumClass);
 
         if let Some(file_path) = file_path {
-            self.classlike_files
-                .insert(*fq_class_name, file_path);
+            self.classlike_files.insert(*fq_class_name, file_path);
         }
     }
 
     pub fn add_interface_name(&mut self, fq_class_name: &StrId, file_path: Option<FilePath>) {
-        self.all
-            .insert(*fq_class_name, SymbolKind::Interface);
+        self.all.insert(*fq_class_name, SymbolKind::Interface);
 
         if let Some(file_path) = file_path {
-            self.classlike_files
-                .insert(*fq_class_name, file_path);
+            self.classlike_files.insert(*fq_class_name, file_path);
         }
     }
 
@@ -66,8 +61,7 @@ impl Symbols {
         self.all.insert(*fq_class_name, SymbolKind::Trait);
 
         if let Some(file_path) = file_path {
-            self.classlike_files
-                .insert(*fq_class_name, file_path);
+            self.classlike_files.insert(*fq_class_name, file_path);
         }
     }
 
@@ -75,8 +69,7 @@ impl Symbols {
         self.all.insert(*fq_class_name, SymbolKind::Enum);
 
         if let Some(file_path) = file_path {
-            self.classlike_files
-                .insert(*fq_class_name, file_path);
+            self.classlike_files.insert(*fq_class_name, file_path);
         }
     }
 

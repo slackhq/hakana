@@ -43,6 +43,8 @@ pub(crate) fn analyze(
 
         // TODO handle exit taint sink
 
+        context.inside_general_use = true;
+
         argument_analyzer::verify_type(
             statements_analyzer,
             &arg_type.unwrap_or(Rc::new(get_mixed_any())),
@@ -60,6 +62,8 @@ pub(crate) fn analyze(
             true,
             call_pos,
         );
+
+        context.inside_general_use = false;
     }
 
     analysis_data.set_expr_type(&call_pos, get_nothing());

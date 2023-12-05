@@ -162,7 +162,9 @@ pub(crate) fn analyze(
             }
         }
 
-        if let Some((property_id, invalid_class_property_type)) = invalid_assignment_value_types.iter().next() {
+        if let Some((property_id, invalid_class_property_type)) =
+            invalid_assignment_value_types.iter().next()
+        {
             analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::InvalidPropertyAssignmentValue,
@@ -213,9 +215,10 @@ pub(crate) fn analyze_regular_assignment(
 
     context.inside_general_use = was_inside_general_use;
 
-    analysis_data
-        .expr_effects
-        .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_WRITE_PROPS);
+    analysis_data.expr_effects.insert(
+        (pos.start_offset() as u32, pos.end_offset() as u32),
+        EFFECT_WRITE_PROPS,
+    );
 
     let lhs_type = analysis_data.get_rc_expr_type(&stmt_var.pos()).cloned();
 

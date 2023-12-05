@@ -22,7 +22,7 @@ use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
+use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
 use hakana_reflection_info::functionlike_parameter::{DefaultType, FunctionLikeParameter};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
@@ -175,7 +175,9 @@ pub(crate) fn check_arguments_match(
     for (_, arg_expr) in args.iter() {
         let was_inside_call = context.inside_general_use;
 
-        context.inside_general_use = true;
+        if matches!(functionlike_info.effects, FnEffect::Some(_)) {
+            context.inside_general_use = true;
+        }
 
         // don't analyse closures here
         if !matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
@@ -407,6 +409,12 @@ pub(crate) fn check_arguments_match(
             continue;
         };
 
+        let was_inside_call = context.inside_general_use;
+
+        if matches!(functionlike_info.effects, FnEffect::Some(_)) {
+            context.inside_general_use = true;
+        }
+
         argument_analyzer::check_argument_matches(
             statements_analyzer,
             functionlike_id,
@@ -424,6 +432,10 @@ pub(crate) fn check_arguments_match(
             function_call_pos,
             function_name_pos,
         );
+
+        if !was_inside_call {
+            context.inside_general_use = false;
+        }
 
         if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
             if let Some(removed_taints) = &function_param.removed_taints_when_returning_true {
@@ -473,6 +485,12 @@ pub(crate) fn check_arguments_match(
                     get_mixed_any()
                 };
 
+                let was_inside_call = context.inside_general_use;
+
+                if matches!(functionlike_info.effects, FnEffect::Some(_)) {
+                    context.inside_general_use = true;
+                }
+
                 argument_analyzer::check_argument_matches(
                     statements_analyzer,
                     functionlike_id,
@@ -490,6 +508,8 @@ pub(crate) fn check_arguments_match(
                     function_call_pos,
                     function_name_pos,
                 );
+
+                context.inside_general_use = was_inside_call;
             }
         }
     }

@@ -65,7 +65,13 @@ pub(crate) fn analyze(
                 ast_defs::PropOrMethod::IsMethod => {
                     return instance_call_analyzer::analyze(
                         statements_analyzer,
-                        (lhs_expr, rhs_expr, &expr.targs, &expr.args, &expr.unpacked_arg),
+                        (
+                            lhs_expr,
+                            rhs_expr,
+                            &expr.targs,
+                            &expr.args,
+                            &expr.unpacked_arg,
+                        ),
                         &pos,
                         analysis_data,
                         context,
@@ -91,7 +97,13 @@ pub(crate) fn analyze(
 
             return static_call_analyzer::analyze(
                 statements_analyzer,
-                (class_id, rhs_expr, &expr.targs, &expr.args, &expr.unpacked_arg),
+                (
+                    class_id,
+                    rhs_expr,
+                    &expr.targs,
+                    &expr.args,
+                    &expr.unpacked_arg,
+                ),
                 &pos,
                 analysis_data,
                 context,
@@ -339,7 +351,7 @@ pub(crate) fn check_method_args(
         if_body_context,
         template_result,
         pos,
-        method_name_pos
+        method_name_pos,
     )?;
 
     apply_effects(functionlike_storage, analysis_data, pos, &call_expr.1);
@@ -358,26 +370,28 @@ pub(crate) fn apply_effects(
     expr_args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
 ) {
     if function_storage.name == STR_ASIO_JOIN {
-        analysis_data
-            .expr_effects
-            .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_IMPURE);
+        analysis_data.expr_effects.insert(
+            (pos.start_offset() as u32, pos.end_offset() as u32),
+            EFFECT_IMPURE,
+        );
         return;
     }
 
     match function_storage.effects {
         FnEffect::Some(stored_effects) => {
             if stored_effects > EFFECT_WRITE_PROPS {
-                analysis_data
-                    .expr_effects
-                    .insert((pos.start_offset() as u32, pos.end_offset() as u32), stored_effects);
+                analysis_data.expr_effects.insert(
+                    (pos.start_offset() as u32, pos.end_offset() as u32),
+                    stored_effects,
+                );
             }
         }
         FnEffect::Arg(arg_offset) => {
             if let Some((_, arg_expr)) = expr_args.get(arg_offset as usize) {
-                if let Some(arg_type) = analysis_data
-                    .expr_types
-                    .get(&(arg_expr.pos().start_offset() as u32, arg_expr.pos().end_offset() as u32))
-                {
+                if let Some(arg_type) = analysis_data.expr_types.get(&(
+                    arg_expr.pos().start_offset() as u32,
+                    arg_expr.pos().end_offset() as u32,
+                )) {
                     for arg_atomic_type in &arg_type.types {
                         if let TAtomic::TClosure { effects, .. } = arg_atomic_type {
                             if let Some(evaluated_effects) = effects {
@@ -386,9 +400,10 @@ pub(crate) fn apply_effects(
                                     *evaluated_effects,
                                 );
                             } else {
-                                analysis_data
-                                    .expr_effects
-                                    .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_IMPURE);
+                                analysis_data.expr_effects.insert(
+                                    (pos.start_offset() as u32, pos.end_offset() as u32),
+                                    EFFECT_IMPURE,
+                                );
                             }
                         }
                     }

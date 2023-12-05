@@ -8,7 +8,9 @@ use crate::{
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
 };
 
-use crate::{statements_analyzer::StatementsAnalyzer, function_analysis_data::FunctionAnalysisData};
+use crate::{
+    function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
+};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,

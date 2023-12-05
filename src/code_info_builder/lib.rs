@@ -126,10 +126,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_gconst(&mut self, c: &mut Context, gc: &aast::Gconst<(), ()>) -> Result<(), ()> {
-        let name = *self
-            .resolved_names
-            .get(&gc.name.0.start_offset())
-            .unwrap();
+        let name = *self.resolved_names.get(&gc.name.0.start_offset()).unwrap();
 
         self.codebase
             .const_files
@@ -475,8 +472,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 &m.tparams,
                 &m.params,
                 &m.ret,
-                self
-                    .uses
+                self.uses
                     .symbol_member_uses
                     .get(&(c.classlike_name.unwrap(), c.member_name.unwrap()))
                     .unwrap_or(&vec![]),
@@ -541,10 +537,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_fun_def(&mut self, c: &mut Context, f: &aast::FunDef<(), ()>) -> Result<(), ()> {
-        let name = *self
-            .resolved_names
-            .get(&f.name.0.start_offset())
-            .unwrap();
+        let name = *self.resolved_names.get(&f.name.0.start_offset()).unwrap();
 
         let functionlike_storage = self.visit_function(
             false,

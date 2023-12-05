@@ -1,7 +1,7 @@
-use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
+use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use hakana_type::get_bool;
 use oxidized::{aast, ast::Pos};
 

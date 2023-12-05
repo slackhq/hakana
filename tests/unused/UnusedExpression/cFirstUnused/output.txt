@@ -1,0 +1,2 @@
+ERROR: UnusedParameter - input.hack:1:13 - Unused param $v
+ERROR: UnusedAssignmentStatement - input.hack:2:5 - Assignment to $c is unused, and this expression has no effect

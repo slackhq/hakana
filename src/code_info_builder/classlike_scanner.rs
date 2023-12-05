@@ -206,16 +206,13 @@ pub(crate) fn scan(
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
-                    let interface_name =
-                        *resolved_names.get(&name.0.start_offset()).unwrap();
+                    let interface_name = *resolved_names.get(&name.0.start_offset()).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
-                    storage
-                        .direct_class_interfaces
-                        .insert(interface_name);
+                    storage.direct_class_interfaces.insert(interface_name);
                     storage.all_class_interfaces.insert(interface_name);
 
                     if class_name == &STR_SIMPLE_XML_ELEMENT && interface_name == STR_TRAVERSABLE {
@@ -352,16 +349,13 @@ pub(crate) fn scan(
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
-                    let interface_name =
-                        *resolved_names.get(&name.0.start_offset()).unwrap();
+                    let interface_name = *resolved_names.get(&name.0.start_offset()).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
-                    storage
-                        .direct_class_interfaces
-                        .insert(interface_name);
+                    storage.direct_class_interfaces.insert(interface_name);
                     storage.all_class_interfaces.insert(interface_name);
 
                     storage.template_extended_offsets.insert(
@@ -515,13 +509,9 @@ pub(crate) fn scan(
                 .wrapping_add(hasher.finish());
 
             if let Some(type_params) = type_params {
-                storage.template_extended_offsets.insert(
-                    name,
-                    type_params
-                        .into_iter()
-                        .map(Arc::new)
-                        .collect(),
-                );
+                storage
+                    .template_extended_offsets
+                    .insert(name, type_params.into_iter().map(Arc::new).collect());
             }
         }
     }

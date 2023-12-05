@@ -737,25 +737,26 @@ fn add_dataflow(
     };
     // TODO add plugin hooks for adding/removing taints
 
-    let argument_value_node = if data_flow_graph.kind == GraphKind::FunctionBody {
-        DataFlowNode {
-            id: "call to ".to_string()
-                + functionlike_id
-                    .to_string(statements_analyzer.get_interner())
-                    .as_str(),
-            kind: DataFlowNodeKind::VariableUseSink {
-                pos: statements_analyzer.get_hpos(input_expr.pos()),
-            },
-        }
-    } else {
-        DataFlowNode::get_for_assignment(
-            "call to ".to_string()
-                + functionlike_id
-                    .to_string(statements_analyzer.get_interner())
-                    .as_str(),
-            statements_analyzer.get_hpos(input_expr.pos()),
-        )
-    };
+    let argument_value_node =
+        if data_flow_graph.kind == GraphKind::FunctionBody && context.inside_general_use {
+            DataFlowNode {
+                id: "call to ".to_string()
+                    + functionlike_id
+                        .to_string(statements_analyzer.get_interner())
+                        .as_str(),
+                kind: DataFlowNodeKind::VariableUseSink {
+                    pos: statements_analyzer.get_hpos(input_expr.pos()),
+                },
+            }
+        } else {
+            DataFlowNode::get_for_assignment(
+                "call to ".to_string()
+                    + functionlike_id
+                        .to_string(statements_analyzer.get_interner())
+                        .as_str(),
+                statements_analyzer.get_hpos(input_expr.pos()),
+            )
+        };
 
     for parent_node in &input_type.parent_nodes {
         data_flow_graph.add_path(
@@ -771,9 +772,15 @@ fn add_dataflow(
         );
     }
 
-    if data_flow_graph.kind == GraphKind::FunctionBody {
-        data_flow_graph.add_node(argument_value_node);
-    } else {
+    data_flow_graph.add_path(
+        &argument_value_node,
+        &method_node,
+        PathKind::Default,
+        None,
+        None,
+    );
+
+    if matches!(data_flow_graph.kind, GraphKind::WholeProgram(_)) {
         let mut taints = get_argument_taints(
             functionlike_id,
             argument_offset,
@@ -783,16 +790,6 @@ fn add_dataflow(
         if let Some(sinks) = &function_param.taint_sinks {
             taints.extend(sinks.clone());
         }
-
-        data_flow_graph.add_node(argument_value_node.clone());
-
-        data_flow_graph.add_path(
-            &argument_value_node,
-            &method_node,
-            PathKind::Default,
-            None,
-            None,
-        );
 
         if !taints.is_empty() {
             let method_node_sink = DataFlowNode {
@@ -809,6 +806,8 @@ fn add_dataflow(
 
         data_flow_graph.add_node(method_node);
     }
+
+    data_flow_graph.add_node(argument_value_node);
 }
 
 pub(crate) fn get_removed_taints_in_comments(

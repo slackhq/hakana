@@ -249,10 +249,10 @@ pub(crate) fn assign_arithmetic_type(
         .data_flow_graph
         .add_node(decision_node.clone());
 
-    if let Some(lhs_type) = analysis_data
-        .expr_types
-        .get(&(lhs_expr.1.start_offset() as u32, lhs_expr.1.end_offset() as u32))
-    {
+    if let Some(lhs_type) = analysis_data.expr_types.get(&(
+        lhs_expr.1.start_offset() as u32,
+        lhs_expr.1.end_offset() as u32,
+    )) {
         cond_type.parent_nodes.insert(decision_node.clone());
 
         for old_parent_node in &lhs_type.parent_nodes {
@@ -266,10 +266,10 @@ pub(crate) fn assign_arithmetic_type(
         }
     }
 
-    if let Some(rhs_type) = analysis_data
-        .expr_types
-        .get(&(rhs_expr.1.start_offset() as u32, rhs_expr.1.end_offset() as u32))
-    {
+    if let Some(rhs_type) = analysis_data.expr_types.get(&(
+        rhs_expr.1.start_offset() as u32,
+        rhs_expr.1.end_offset() as u32,
+    )) {
         cond_type.parent_nodes.insert(decision_node.clone());
 
         for old_parent_node in &rhs_type.parent_nodes {

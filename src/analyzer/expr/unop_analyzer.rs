@@ -35,7 +35,10 @@ pub(crate) fn analyze(
         (pos.start_offset() as u32, pos.end_offset() as u32),
         *analysis_data
             .expr_effects
-            .get(&(expr.1.pos().start_offset() as u32, expr.1.pos().end_offset() as u32))
+            .get(&(
+                expr.1.pos().start_offset() as u32,
+                expr.1.pos().end_offset() as u32,
+            ))
             .unwrap_or(&0),
     );
 

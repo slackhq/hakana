@@ -230,9 +230,10 @@ fn analyze_atomic(
 
     match statements_analyzer.get_interner().lookup(&classlike_name) {
         "ReflectionClass" | "ReflectionTypeAlias" => {
-            analysis_data
-                .expr_effects
-                .insert((pos.start_offset() as u32, pos.end_offset() as u32), EFFECT_WRITE_GLOBALS);
+            analysis_data.expr_effects.insert(
+                (pos.start_offset() as u32, pos.end_offset() as u32),
+                EFFECT_WRITE_GLOBALS,
+            );
         }
         _ => {}
     }

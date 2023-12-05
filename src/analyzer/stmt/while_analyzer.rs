@@ -3,7 +3,8 @@ use crate::{
     function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
-    statements_analyzer::StatementsAnalyzer, stmt_analyzer::AnalysisError,
+    statements_analyzer::StatementsAnalyzer,
+    stmt_analyzer::AnalysisError,
 };
 use oxidized::{aast, ast_defs};
 use std::rc::Rc;

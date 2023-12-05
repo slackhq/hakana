@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
+use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
-use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
@@ -30,6 +30,8 @@ pub(crate) fn analyze(
 
     let arg_type = analysis_data.get_expr_type(expr.pos()).cloned();
 
+    context.inside_general_use = true;
+
     argument_analyzer::verify_type(
         statements_analyzer,
         &arg_type.unwrap_or(get_mixed_any()),
@@ -46,7 +48,9 @@ pub(crate) fn analyze(
         call_pos,
     );
 
+    context.inside_general_use = false;
+
     // TODO handle mutations
 
-   Ok(())
+    Ok(())
 }

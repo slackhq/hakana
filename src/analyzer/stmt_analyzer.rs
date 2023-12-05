@@ -232,7 +232,7 @@ pub(crate) fn analyze(
             );
             return Err(AnalysisError::UserError);
         }
-        aast::Stmt_::DeclareLocal(_) => {},
+        aast::Stmt_::DeclareLocal(_) => {}
         aast::Stmt_::Concurrent(boxed) => {
             for boxed_stmt in &boxed.0 {
                 analyze(
@@ -243,7 +243,7 @@ pub(crate) fn analyze(
                     loop_scope,
                 )?;
             }
-        },
+        }
     }
 
     context.cond_referenced_var_ids = FxHashSet::default();

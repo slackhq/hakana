@@ -11,8 +11,8 @@ use oxidized::ast::Pos;
 use rustc_hash::FxHashSet;
 
 use crate::{
-    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
-    function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
+    statements_analyzer::StatementsAnalyzer,
 };
 
 pub(crate) fn check_for_paradox(

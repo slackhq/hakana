@@ -251,7 +251,8 @@ fn get_function_type_from_hints(
                     classlike_name,
                     type_context,
                     resolved_names,
-                ).map(Box::new),
+                )
+                .map(Box::new),
                 is_variadic: false,
                 is_optional: false,
             }
@@ -266,7 +267,8 @@ fn get_function_type_from_hints(
                 classlike_name,
                 type_context,
                 resolved_names,
-            ).map(Box::new),
+            )
+            .map(Box::new),
             is_variadic: true,
             is_optional: false,
         };
@@ -281,7 +283,8 @@ fn get_function_type_from_hints(
             classlike_name,
             type_context,
             resolved_names,
-        ).map(Box::new),
+        )
+        .map(Box::new),
         effects: if let Some(contexts) = &function_info.ctxs {
             Some(if contexts.1.is_empty() {
                 EFFECT_PURE

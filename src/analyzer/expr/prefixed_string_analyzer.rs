@@ -41,10 +41,10 @@ pub(crate) fn analyze(
         if_body_context,
     )?;
 
-    let inner_type = if let Some(t) = analysis_data
-        .expr_types
-        .get(&(boxed.1.pos().start_offset() as u32, boxed.1.pos().end_offset() as u32))
-    {
+    let inner_type = if let Some(t) = analysis_data.expr_types.get(&(
+        boxed.1.pos().start_offset() as u32,
+        boxed.1.pos().end_offset() as u32,
+    )) {
         (**t).clone()
     } else {
         get_string()

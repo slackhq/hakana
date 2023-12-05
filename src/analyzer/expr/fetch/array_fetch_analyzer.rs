@@ -182,10 +182,10 @@ pub(crate) fn add_array_fetch_dataflow(
         }
     }
 
-    if let Some(stmt_var_type) = analysis_data
-        .expr_types
-        .get(&(array_expr_pos.start_offset() as u32, array_expr_pos.end_offset() as u32))
-    {
+    if let Some(stmt_var_type) = analysis_data.expr_types.get(&(
+        array_expr_pos.start_offset() as u32,
+        array_expr_pos.end_offset() as u32,
+    )) {
         if !stmt_var_type.parent_nodes.is_empty() {
             // TODO Add events dispatchers
 

@@ -9,8 +9,8 @@ use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    reconciler::assertion_reconciler, statements_analyzer::StatementsAnalyzer,
-    stmt::control_analyzer::BreakContext, function_analysis_data::FunctionAnalysisData,
+    function_analysis_data::FunctionAnalysisData, reconciler::assertion_reconciler,
+    statements_analyzer::StatementsAnalyzer, stmt::control_analyzer::BreakContext,
 };
 
 pub mod control_action;

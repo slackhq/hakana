@@ -131,18 +131,12 @@ impl DataFlowGraph {
         }
 
         for (key, edges) in graph.forward_edges {
-            self.forward_edges
-                .entry(key)
-                .or_default()
-                .extend(edges);
+            self.forward_edges.entry(key).or_default().extend(edges);
         }
 
         if self.kind == GraphKind::FunctionBody {
             for (key, edges) in graph.backward_edges {
-                self.backward_edges
-                    .entry(key)
-                    .or_default()
-                    .extend(edges);
+                self.backward_edges.entry(key).or_default().extend(edges);
             }
             for (key, count) in graph.mixed_source_counts {
                 if let Some(existing_count) = self.mixed_source_counts.get_mut(&key) {
