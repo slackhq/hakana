@@ -34,7 +34,7 @@ pub(crate) fn analyze(
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
         let parent_node = DataFlowNode::get_for_variable_source(
             "$$".to_string(),
-            statements_analyzer.get_hpos(&expr.1.pos()),
+            statements_analyzer.get_hpos(expr.1.pos()),
             false,
             false,
         );
@@ -67,7 +67,7 @@ pub(crate) fn analyze(
     context.pipe_var_effects = EFFECT_PURE;
 
     analysis_data.set_rc_expr_type(
-        &pos,
+        pos,
         analysis_data
             .get_rc_expr_type(&expr.2 .1)
             .cloned()

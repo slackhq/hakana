@@ -56,41 +56,37 @@ pub(crate) fn analyze(
 
     // we special-case this because isset is used in
     // null coalesce ternaries where the positions may be fake
-    if name == "isset" {
-        if expr.2.len() > 0 {
-            let first_arg = &expr.2.first().unwrap().1;
-            return isset_analyzer::analyze(
-                statements_analyzer,
-                first_arg,
-                pos,
-                analysis_data,
-                context,
-                if_body_context,
-            );
-        }
+    if name == "isset" && !expr.2.is_empty() {
+        let first_arg = &expr.2.first().unwrap().1;
+        return isset_analyzer::analyze(
+            statements_analyzer,
+            first_arg,
+            pos,
+            analysis_data,
+            context,
+            if_body_context,
+        );
     }
 
-    if name == "unset" || name == "\\unset" {
-        if expr.2.len() > 0 {
-            let first_arg = &expr.2.first().unwrap().1;
-            context.inside_unset = true;
-            expression_analyzer::analyze(
-                statements_analyzer,
-                first_arg,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
-            context.inside_unset = false;
-            analysis_data.expr_effects.insert(
-                (pos.start_offset() as u32, pos.end_offset() as u32),
-                EFFECT_WRITE_LOCAL,
-            );
-            analysis_data.combine_effects(first_arg.pos(), pos, pos);
-            analysis_data.set_expr_type(&pos, get_void());
+    if (name == "unset" || name == "\\unset") && !expr.2.is_empty() {
+        let first_arg = &expr.2.first().unwrap().1;
+        context.inside_unset = true;
+        expression_analyzer::analyze(
+            statements_analyzer,
+            first_arg,
+            analysis_data,
+            context,
+            if_body_context,
+        )?;
+        context.inside_unset = false;
+        analysis_data.expr_effects.insert(
+            (pos.start_offset() as u32, pos.end_offset() as u32),
+            EFFECT_WRITE_LOCAL,
+        );
+        analysis_data.combine_effects(first_arg.pos(), pos, pos);
+        analysis_data.set_expr_type(pos, get_void());
 
-            return Ok(());
-        }
+        return Ok(());
     }
 
     if name == "echo" {
@@ -100,7 +96,7 @@ pub(crate) fn analyze(
     let name = if name == "\\in_array" {
         statements_analyzer.get_interner().get("in_array").unwrap()
     } else if let Some(fq_name) = resolved_names.get(&expr.0 .0.start_offset()) {
-        fq_name.clone()
+        *fq_name
     } else {
         return Err(AnalysisError::InternalError(
             "Cannot resolve function name".to_string(),
@@ -121,7 +117,7 @@ pub(crate) fn analyze(
                         "Function {} is not defined",
                         statements_analyzer.get_interner().lookup(&name)
                     ),
-                    statements_analyzer.get_hpos(&expr.0 .0),
+                    statements_analyzer.get_hpos(expr.0 .0),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -130,7 +126,7 @@ pub(crate) fn analyze(
 
             analysis_data.symbol_references.add_reference_to_symbol(
                 &context.function_context,
-                name.clone(),
+                name,
                 false,
             );
 
@@ -140,7 +136,7 @@ pub(crate) fn analyze(
     if function_storage.user_defined {
         analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
-            name.clone(),
+            name,
             false,
         );
     }
@@ -153,7 +149,7 @@ pub(crate) fn analyze(
             .extend(function_storage.template_types.clone());
     }
 
-    let functionlike_id = FunctionLikeIdentifier::Function(function_storage.name.clone());
+    let functionlike_id = FunctionLikeIdentifier::Function(function_storage.name);
 
     arguments_analyzer::check_arguments_match(
         statements_analyzer,
@@ -161,17 +157,17 @@ pub(crate) fn analyze(
         expr.2,
         expr.3,
         &functionlike_id,
-        &function_storage,
+        function_storage,
         None,
         analysis_data,
         context,
         if_body_context,
         &mut template_result,
         pos,
-        Some(&expr.0 .0),
+        Some(expr.0 .0),
     )?;
 
-    apply_effects(function_storage, analysis_data, pos, &expr.2);
+    apply_effects(function_storage, analysis_data, pos, expr.2);
 
     if let Some(effects) = analysis_data
         .expr_effects
@@ -207,7 +203,7 @@ pub(crate) fn analyze(
         context,
     );
 
-    analysis_data.set_expr_type(&pos, stmt_type.clone());
+    analysis_data.set_expr_type(pos, stmt_type.clone());
 
     if stmt_type.is_nothing() && !context.inside_loop {
         context.has_returned = true;
@@ -245,7 +241,7 @@ pub(crate) fn analyze(
                     analysis_data,
                     container_type,
                     second_arg_type,
-                    &pos,
+                    pos,
                     false,
                     &real_name.to_string(),
                     &context.function_context.calling_functionlike_id,
@@ -301,7 +297,7 @@ pub(crate) fn analyze(
                                 analysis_data,
                                 container_type,
                                 Some(second_arg_type.clone()),
-                                &pos,
+                                pos,
                                 true,
                                 &real_name.to_string(),
                                 &context.function_context.calling_functionlike_id,
@@ -404,28 +400,24 @@ pub(crate) fn analyze(
                         if let Some(str) = second_arg_type.get_single_literal_string_value() {
                             let mut hashes_to_remove = FxHashSet::default();
 
-                            if str.starts_with("^") {
-                                if str != "^http:\\/\\/"
-                                    && str != "^https:\\/\\/"
-                                    && str != "^https?:\\/\\/"
+                            if str.starts_with('^') && str != "^http:\\/\\/"
+                                    && str != "^https:\\/\\/" && str != "^https?:\\/\\/" {
+                                hashes_to_remove.extend([
+                                    SinkType::HtmlAttributeUri,
+                                    SinkType::CurlUri,
+                                    SinkType::RedirectUri,
+                                ]);
+
+                                if str.ends_with('$')
+                                    && !str.contains(".*")
+                                    && !str.contains(".+")
                                 {
                                     hashes_to_remove.extend([
-                                        SinkType::HtmlAttributeUri,
+                                        SinkType::HtmlTag,
+                                        SinkType::CurlHeader,
                                         SinkType::CurlUri,
-                                        SinkType::RedirectUri,
+                                        SinkType::HtmlAttribute,
                                     ]);
-
-                                    if str.ends_with("$")
-                                        && !str.contains(".*")
-                                        && !str.contains(".+")
-                                    {
-                                        hashes_to_remove.extend([
-                                            SinkType::HtmlTag,
-                                            SinkType::CurlHeader,
-                                            SinkType::CurlUri,
-                                            SinkType::HtmlAttribute,
-                                        ]);
-                                    }
                                 }
                             }
 
@@ -451,7 +443,7 @@ pub(crate) fn analyze(
                 let issue = Issue::new(
                     IssueKind::NoJoinInAsyncFunction,
                     "Prefer to use the await keyword instead of blocking by calling HH\\Asio\\join() inside an async function.".to_string(),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 );
 
@@ -530,9 +522,7 @@ fn process_invariant(
                 active_type_assertions,
                 context,
                 &mut changed_var_ids,
-                &assert_type_assertions
-                    .iter()
-                    .map(|(k, _)| k.clone())
+                &assert_type_assertions.keys().cloned()
                     .collect(),
                 statements_analyzer,
                 analysis_data,
@@ -549,7 +539,7 @@ fn process_invariant(
             simplified_clauses
         }
         .into_iter()
-        .map(|v| Rc::new(v))
+        .map(Rc::new)
         .collect();
     }
 }
@@ -570,7 +560,7 @@ fn check_array_key_or_value_type(
 
     if let Some(container_type) = container_type {
         for atomic_type in &container_type.types {
-            let arrayish_params = get_arrayish_params(&atomic_type, codebase);
+            let arrayish_params = get_arrayish_params(atomic_type, codebase);
             if let Some(ref arg_type) = arg_type {
                 if let Some((params_key, param_value)) = arrayish_params {
                     let param = if is_key { params_key } else { param_value };
@@ -578,7 +568,7 @@ fn check_array_key_or_value_type(
                     let offset_type_contained_by_expected =
                         union_type_comparator::can_expression_types_be_identical(
                             codebase,
-                            &arg_type,
+                            arg_type,
                             &param.clone(),
                             true,
                         );
@@ -603,8 +593,8 @@ fn check_array_key_or_value_type(
                     Issue::new(
                         IssueKind::InvalidContainsCheck,
                         error_message,
-                        statements_analyzer.get_hpos(&pos),
-                        &calling_functionlike_id,
+                        statements_analyzer.get_hpos(pos),
+                        calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
                     statements_analyzer.get_file_path_actual(),

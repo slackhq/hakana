@@ -74,9 +74,9 @@ pub(crate) fn fetch(
         for (template_name, _) in &functionlike_storage.template_types {
             template_result
                 .lower_bounds
-                .entry(template_name.clone())
+                .entry(*template_name)
                 .or_insert(FxHashMap::from_iter([(
-                    fn_id.clone(),
+                    fn_id,
                     vec![TemplateBound::new(get_nothing(), 1, None, None)],
                 )]));
         }
@@ -151,7 +151,7 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
             if interner.lookup(&method_id.1) == "createFromFormat" {
                 let mut false_or_datetime = TUnion::new(vec![
                     TAtomic::TNamedObject {
-                        name: method_id.0.clone(),
+                        name: method_id.0,
                         type_params: None,
                         is_this: false,
                         extra_types: None,
@@ -218,7 +218,7 @@ fn add_dataflow(
     let added_taints = None;
     let removed_taints = None;
 
-    let ref mut data_flow_graph = analysis_data.data_flow_graph;
+    let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !context.allow_taints {
@@ -244,7 +244,7 @@ fn add_dataflow(
 
             let declaring_method_call_node = DataFlowNode::get_for_method_return(
                 declaring_method_id.to_string(statements_analyzer.get_interner()),
-                functionlike_storage.return_type_location.clone(),
+                functionlike_storage.return_type_location,
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
                 } else {
@@ -263,7 +263,7 @@ fn add_dataflow(
         } else {
             method_call_node = DataFlowNode::get_for_method_return(
                 method_id.to_string(statements_analyzer.get_interner()),
-                functionlike_storage.return_type_location.clone(),
+                functionlike_storage.return_type_location,
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
                 } else {
@@ -279,7 +279,7 @@ fn add_dataflow(
 
                 let declaring_method_call_node = DataFlowNode::get_for_method_return(
                     descendant_method_id.to_string(statements_analyzer.get_interner()),
-                    functionlike_storage.return_type_location.clone(),
+                    functionlike_storage.return_type_location,
                     if functionlike_storage.specialize_call {
                         Some(statements_analyzer.get_hpos(call_pos))
                     } else {
@@ -302,7 +302,7 @@ fn add_dataflow(
             if let Some(var_type) = context.vars_in_scope.get_mut("$this") {
                 let before_construct_node = DataFlowNode::get_for_this_before_method(
                     method_id,
-                    functionlike_storage.return_type_location.clone(),
+                    functionlike_storage.return_type_location,
                     Some(statements_analyzer.get_hpos(call_pos)),
                     statements_analyzer.get_interner(),
                 );
@@ -321,7 +321,7 @@ fn add_dataflow(
 
                 let after_construct_node = DataFlowNode::get_for_this_after_method(
                     method_id,
-                    functionlike_storage.return_type_location.clone(),
+                    functionlike_storage.return_type_location,
                     Some(statements_analyzer.get_hpos(call_pos)),
                     statements_analyzer.get_interner(),
                 );
@@ -345,15 +345,15 @@ fn add_dataflow(
                     );
 
                     let this_before_method_node = DataFlowNode::get_for_this_before_method(
-                        &declaring_method_id,
-                        functionlike_storage.name_location.clone(),
+                        declaring_method_id,
+                        functionlike_storage.name_location,
                         Some(statements_analyzer.get_hpos(call_pos)),
                         statements_analyzer.get_interner(),
                     );
 
                     for parent_node in &context_type.parent_nodes {
                         data_flow_graph.add_path(
-                            &parent_node,
+                            parent_node,
                             &this_before_method_node,
                             PathKind::Default,
                             None,
@@ -361,7 +361,7 @@ fn add_dataflow(
                         );
 
                         data_flow_graph.add_path(
-                            &parent_node,
+                            parent_node,
                             &var_node,
                             PathKind::Default,
                             None,
@@ -370,8 +370,8 @@ fn add_dataflow(
                     }
 
                     let this_after_method_node = DataFlowNode::get_for_this_after_method(
-                        &declaring_method_id,
-                        functionlike_storage.name_location.clone(),
+                        declaring_method_id,
+                        functionlike_storage.name_location,
                         Some(statements_analyzer.get_hpos(call_pos)),
                         statements_analyzer.get_interner(),
                     );
@@ -401,7 +401,7 @@ fn add_dataflow(
             let method_call_node_source = DataFlowNode {
                 id: method_call_node.get_id().clone(),
                 kind: DataFlowNodeKind::TaintSource {
-                    pos: method_call_node.get_pos().clone(),
+                    pos: *method_call_node.get_pos(),
                     label: method_call_node.get_label().clone(),
                     types: functionlike_storage.taint_source_types.clone(),
                 },
@@ -411,7 +411,7 @@ fn add_dataflow(
     } else {
         method_call_node = DataFlowNode::get_for_method_return(
             method_id.to_string(statements_analyzer.get_interner()),
-            functionlike_storage.return_type_location.clone(),
+            functionlike_storage.return_type_location,
             if functionlike_storage.specialize_call {
                 Some(statements_analyzer.get_hpos(call_pos))
             } else {

@@ -18,11 +18,11 @@ pub fn is_contained_by(
 
     let container_has_template = container_type.has_template_or_static();
 
-    let mut input_atomic_types = input_type.types.iter().map(|v| v).collect::<Vec<_>>();
+    let mut input_atomic_types = input_type.types.iter().collect::<Vec<_>>();
 
     input_atomic_types.reverse();
 
-    let mut container_atomic_types = container_type.types.iter().map(|v| v).collect::<Vec<_>>();
+    let mut container_atomic_types = container_type.types.iter().collect::<Vec<_>>();
 
     container_atomic_types.reverse();
 
@@ -52,7 +52,7 @@ pub fn is_contained_by(
                 ..
             } => {
                 if !container_has_template {
-                    input_atomic_types.extend(as_type.types.iter().map(|a| a).collect::<Vec<_>>());
+                    input_atomic_types.extend(as_type.types.iter().collect::<Vec<_>>());
                     continue;
                 }
             }
@@ -121,8 +121,8 @@ pub fn is_contained_by(
 
             let is_atomic_contained_by = atomic_type_comparator::is_contained_by(
                 codebase,
-                &input_type_part,
-                &container_type_part,
+                input_type_part,
+                container_type_part,
                 inside_assertion,
                 &mut atomic_comparison_result,
             );
@@ -138,7 +138,7 @@ pub fn is_contained_by(
                 atomic_comparison_result.type_coerced_from_as_mixed = Some(true);
             }
 
-            if let Some(_) = atomic_comparison_result.type_coerced_to_literal {
+            if atomic_comparison_result.type_coerced_to_literal.is_some() {
                 union_comparison_result.type_coerced_to_literal =
                     atomic_comparison_result.type_coerced_to_literal;
             }
@@ -150,7 +150,7 @@ pub fn is_contained_by(
                     if let Some(ref mut replacement_union_type) =
                         union_comparison_result.replacement_union_type
                     {
-                        replacement_union_type.remove_type(&input_type_part);
+                        replacement_union_type.remove_type(input_type_part);
                         replacement_union_type.types.push(replacement_atomic_type);
                     } else {
                         union_comparison_result.replacement_union_type =
@@ -186,7 +186,7 @@ pub fn is_contained_by(
             }
 
             if !atomic_comparison_result.type_coerced.unwrap_or(false)
-                || all_type_coerced.unwrap_or(true) == false
+                || !all_type_coerced.unwrap_or(true)
             {
                 all_type_coerced = Some(false);
             } else {
@@ -261,7 +261,7 @@ pub fn is_contained_by(
         }
     }
 
-    return true;
+    true
 }
 
 pub(crate) fn can_be_contained_by(
@@ -294,8 +294,8 @@ pub(crate) fn can_be_contained_by(
 
             let is_atomic_contained_by = atomic_type_comparator::is_contained_by(
                 codebase,
-                &input_type_part,
-                &container_type_part,
+                input_type_part,
+                container_type_part,
                 false,
                 &mut atomic_comparison_result,
             );

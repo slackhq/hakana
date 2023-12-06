@@ -47,18 +47,18 @@ impl<'ast> Visitor<'ast> for Scanner {
                     if let aast::Expr_::List(contents) = &boxed.lhs.2 {
                         for list_expr in contents {
                             let left_var_id = expression_identifier::get_root_var_id(
-                                &list_expr,
+                                list_expr,
                                 c.this_class_name.as_ref(),
                                 None,
                             );
 
                             if let Some(left_var_id) = &left_var_id {
-                                if let None = self.first_var_id {
+                                if self.first_var_id.is_none() {
                                     self.first_var_id = Some(left_var_id.clone());
                                 }
                                 self.assignment_map
                                     .entry(left_var_id.clone())
-                                    .or_insert_with(FxHashSet::default)
+                                    .or_default()
                                     .insert(right_var_id.clone().unwrap_or("isset".to_string()));
                             }
                         }
@@ -70,12 +70,12 @@ impl<'ast> Visitor<'ast> for Scanner {
                         );
 
                         if let Some(left_var_id) = &left_var_id {
-                            if let None = self.first_var_id {
+                            if self.first_var_id.is_none() {
                                 self.first_var_id = Some(left_var_id.clone());
                             }
                             self.assignment_map
                                 .entry(left_var_id.clone())
-                                .or_insert_with(FxHashSet::default)
+                                .or_default()
                                 .insert(right_var_id.clone().unwrap_or("isset".to_string()));
                         }
                     }
@@ -94,12 +94,12 @@ impl<'ast> Visitor<'ast> for Scanner {
                     );
 
                     if let Some(var_id) = &var_id {
-                        if let None = self.first_var_id {
+                        if self.first_var_id.is_none() {
                             self.first_var_id = Some(var_id.clone());
                         }
                         self.assignment_map
                             .entry(var_id.clone())
-                            .or_insert_with(FxHashSet::default)
+                            .or_default()
                             .insert(var_id.clone());
                     }
                 }
@@ -115,12 +115,12 @@ impl<'ast> Visitor<'ast> for Scanner {
                         );
 
                         if let Some(arg_var_id) = &arg_var_id {
-                            if let None = self.first_var_id {
+                            if self.first_var_id.is_none() {
                                 self.first_var_id = Some(arg_var_id.clone());
                             }
                             self.assignment_map
                                 .entry(arg_var_id.clone())
-                                .or_insert_with(FxHashSet::default)
+                                .or_default()
                                 .insert(arg_var_id.clone());
                         }
                     }
@@ -141,12 +141,12 @@ impl<'ast> Visitor<'ast> for Scanner {
                                     );
 
                                     if let Some(lhs_var_id) = lhs_var_id {
-                                        if let None = self.first_var_id {
+                                        if self.first_var_id.is_none() {
                                             self.first_var_id = Some(lhs_var_id.clone());
                                         }
                                         self.assignment_map
                                             .entry(lhs_var_id.clone())
-                                            .or_insert_with(FxHashSet::default)
+                                            .or_default()
                                             .insert(lhs_var_id);
                                     }
                                 }

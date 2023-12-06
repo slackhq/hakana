@@ -19,13 +19,13 @@ use hakana_type::{
 };
 use oxidized::aast;
 
-pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
+pub(crate) fn analyze<'expr, 'map, 'new_expr>(
     statements_analyzer: &StatementsAnalyzer,
     stmt_pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,
     hint: &'expr aast::Hint,
     null_if_false: bool,
-    analysis_data: &'tast mut FunctionAnalysisData,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> Result<(), AnalysisError> {
@@ -148,7 +148,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     )?;
 
     let mut ternary_type = analysis_data
-        .get_expr_type(&stmt_pos)
+        .get_expr_type(stmt_pos)
         .cloned()
         .unwrap_or(get_mixed_any());
 
@@ -157,7 +157,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         let mut hint_type = get_type_from_hint(
             &hint.1,
             context.function_context.calling_class.as_ref(),
-            &statements_analyzer.get_type_resolution_context(),
+            statements_analyzer.get_type_resolution_context(),
             statements_analyzer.get_file_analyzer().resolved_names,
         )
         .unwrap();
@@ -195,7 +195,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     analysis_data.expr_types = old_expr_types;
 
-    analysis_data.set_expr_type(&stmt_pos, ternary_type);
+    analysis_data.set_expr_type(stmt_pos, ternary_type);
 
     Ok(())
 }
@@ -209,7 +209,7 @@ fn get_fake_as_var(
 ) -> Option<aast::Expr<(), ()>> {
     let left_var_id = format!(
         "$<tmp coalesce var>{}",
-        left.pos().start_offset().to_string()
+        left.pos().start_offset()
     );
 
     expression_analyzer::analyze(

@@ -60,17 +60,17 @@ pub(crate) fn analyze(
 ) -> Result<TUnion, AnalysisError> {
     analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
-        classlike_name.clone(),
+        classlike_name,
         false,
     );
 
     let codebase = statements_analyzer.get_codebase();
 
     if classlike_name == STR_STATIC {
-        classlike_name = context.function_context.calling_class.clone().unwrap();
+        classlike_name = context.function_context.calling_class.unwrap();
     }
 
-    let method_id = MethodIdentifier(classlike_name.clone(), method_name.clone());
+    let method_id = MethodIdentifier(classlike_name, *method_name);
 
     result
         .existent_method_ids
@@ -97,7 +97,7 @@ pub(crate) fn analyze(
                 .symbol_references
                 .add_reference_to_overridden_class_member(
                     &context.function_context,
-                    (overridden_classlike.clone(), declaring_method_id.1),
+                    (*overridden_classlike, declaring_method_id.1),
                 );
         }
     }
@@ -146,7 +146,7 @@ pub(crate) fn analyze(
                     .unwrap();
 
                 standin_type_replacer::replace(
-                    &where_type,
+                    where_type,
                     &mut template_result,
                     statements_analyzer.get_codebase(),
                     &Some(statements_analyzer.get_interner()),
@@ -268,7 +268,7 @@ fn handle_shapes_static_method(
 
                 if let Some(expr_var_id) = expr_var_id {
                     if let Some(mut dim_var_id) = dim_var_id {
-                        if dim_var_id.starts_with("'") {
+                        if dim_var_id.starts_with('\'') {
                             dim_var_id = dim_var_id[1..(dim_var_id.len() - 1)].to_string();
                             analysis_data.if_true_assertions.insert(
                                 (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -332,7 +332,7 @@ fn handle_shapes_static_method(
 
                         let assignment_node = DataFlowNode::get_for_assignment(
                             expr_var_id.clone(),
-                            statements_analyzer.get_hpos(&call_expr.1[0].1.pos()),
+                            statements_analyzer.get_hpos(call_expr.1[0].1.pos()),
                         );
 
                         for parent_node in &expr_type.parent_nodes {
@@ -379,7 +379,7 @@ fn handle_shapes_static_method(
                                 analysis_data,
                                 context,
                                 atomic_type,
-                                &*dim_type,
+                                &dim_type,
                                 false,
                                 &mut has_valid_expected_offset,
                                 true,
@@ -429,15 +429,11 @@ fn handle_shapes_static_method(
 
                     if (is_nullable || has_possibly_undefined) && call_expr.1.len() > 2 {
                         let default_type = analysis_data.get_expr_type(call_expr.1[2].1.pos());
-                        expr_type = if let Some(expr_type) = expr_type {
-                            Some(if let Some(default_type) = default_type {
+                        expr_type = expr_type.map(|expr_type| if let Some(default_type) = default_type {
                                 add_union_type(expr_type, default_type, codebase, false)
                             } else {
                                 get_mixed_any()
-                            })
-                        } else {
-                            None
-                        };
+                            });
                     }
                 }
 
@@ -464,7 +460,7 @@ fn handle_shapes_static_method(
                                 analysis_data,
                                 context,
                                 atomic_type,
-                                &*dim_type,
+                                &dim_type,
                                 false,
                                 &mut false,
                                 true,
@@ -569,7 +565,7 @@ fn handle_defined_shape_idx(
                     "The field {} is always present on the shape -- consider using {}[{}] instead",
                     dim_var_id, expr_var_id, dim_var_id
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),

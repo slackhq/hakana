@@ -237,9 +237,7 @@ pub(crate) fn analyze<'a>(
     }
 
     let newish_var_ids = if_conditional_context
-        .vars_in_scope
-        .into_iter()
-        .map(|(k, _)| k)
+        .vars_in_scope.into_keys()
         .filter(|k| {
             !pre_condition_vars_in_scope.contains_key(k)
                 && !cond_referenced_var_ids.contains(k)
@@ -348,7 +346,7 @@ pub(crate) fn add_branch_dataflow(
 
             for parent_node in &conditional_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(
-                    &parent_node,
+                    parent_node,
                     &branch_node,
                     PathKind::Default,
                     None,
@@ -378,7 +376,7 @@ pub(crate) fn handle_paradoxical_condition(
                     "Type {} is never truthy",
                     expr_type.get_id(Some(statements_analyzer.get_interner()))
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -392,7 +390,7 @@ pub(crate) fn handle_paradoxical_condition(
                     "Type {} is always truthy",
                     expr_type.get_id(Some(statements_analyzer.get_interner()))
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 calling_functionlike_id,
             ),
             statements_analyzer.get_config(),

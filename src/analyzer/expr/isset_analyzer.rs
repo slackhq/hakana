@@ -24,6 +24,6 @@ pub(crate) fn analyze(
     context.inside_isset = false;
     analysis_data.copy_effects(expr.pos(), pos);
 
-    analysis_data.set_expr_type(&pos, get_bool());
+    analysis_data.set_expr_type(pos, get_bool());
     Ok(())
 }

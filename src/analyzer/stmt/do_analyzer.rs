@@ -57,7 +57,7 @@ pub(crate) fn analyze(
         true,
         false,
     )
-    .unwrap_or(vec![]);
+    .unwrap_or_default();
 
     while_clauses = remove_clauses_with_mixed_vars(while_clauses, mixed_var_ids, cond_id);
 
@@ -91,7 +91,7 @@ pub(crate) fn analyze(
             .iter()
             .map(|v| (**v).clone())
             .collect::<Vec<_>>();
-        c.extend(hakana_algebra::negate_formula(while_clauses).unwrap_or(vec![]));
+        c.extend(hakana_algebra::negate_formula(while_clauses).unwrap_or_default());
         c
     };
 
@@ -125,5 +125,5 @@ pub(crate) fn analyze(
             .insert(var_id.clone(), var_type.clone());
     }
 
-    return Ok(());
+    Ok(())
 }

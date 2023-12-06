@@ -45,12 +45,10 @@ pub(crate) fn analyze(
 
     let always_enters_loop = if while_true {
         true
+    } else if let Some(stmt_cond_type) = analysis_data.get_expr_type(stmt.0.pos()) {
+        stmt_cond_type.is_always_truthy()
     } else {
-        if let Some(stmt_cond_type) = analysis_data.get_expr_type(stmt.0.pos()) {
-            stmt_cond_type.is_always_truthy()
-        } else {
-            false
-        }
+        false
     };
 
     let can_leave_loop = !while_true || loop_scope.final_actions.contains(&ControlAction::Break);
@@ -73,7 +71,7 @@ pub(crate) fn analyze(
                         var_id,
                         Rc::new(hakana_type::combine_union_types(
                             &var_type,
-                            &possibly_defined_type,
+                            possibly_defined_type,
                             codebase,
                             false,
                         )),
@@ -89,7 +87,7 @@ pub(crate) fn analyze(
 
     // todo do we need to remove the loop scope from analysis_data here? unsure
 
-    return Ok(());
+    Ok(())
 }
 
 pub(crate) fn get_and_expressions(cond: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {
@@ -101,5 +99,5 @@ pub(crate) fn get_and_expressions(cond: &aast::Expr<(), ()>) -> Vec<&aast::Expr<
         }
     }
 
-    return vec![cond];
+    vec![cond]
 }

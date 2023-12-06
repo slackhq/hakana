@@ -44,7 +44,7 @@ pub(crate) fn analyze(
         root_array_expr = (&boxed.0, boxed.1.as_ref(), &root_array_expr.0 .1);
     }
 
-    array_exprs.push(root_array_expr.clone());
+    array_exprs.push(root_array_expr);
     let root_array_expr = root_array_expr.0;
 
     expression_analyzer::analyze(
@@ -83,7 +83,7 @@ pub(crate) fn analyze(
     let mut current_type = root_type.clone();
 
     let root_var_id = expression_identifier::get_var_id(
-        &root_array_expr,
+        root_array_expr,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
@@ -123,16 +123,10 @@ pub(crate) fn analyze(
 
     let mut key_values = Vec::new();
 
-    let dim_type = if let Some(current_dim) = current_dim {
-        Some(
-            analysis_data
+    let dim_type = current_dim.map(|current_dim| analysis_data
                 .get_rc_expr_type(current_dim.pos())
                 .cloned()
-                .unwrap_or(Rc::new(get_arraykey(true))),
-        )
-    } else {
-        None
-    };
+                .unwrap_or(Rc::new(get_arraykey(true))));
 
     if let Some(dim_type) = &dim_type {
         for key_atomic_type in &dim_type.types {
@@ -208,7 +202,7 @@ pub(crate) fn update_type_with_key_values(
         })
         .collect();
 
-    return new_type;
+    new_type
 }
 
 fn update_atomic_given_key(
@@ -222,7 +216,7 @@ fn update_atomic_given_key(
     if let TAtomic::TGenericParam { .. } = atomic_type {
         // TODO
     }
-    if key_values.len() > 0 {
+    if !key_values.is_empty() {
         for key_value in key_values {
             // TODO also strings
             match atomic_type {
@@ -280,7 +274,7 @@ fn update_atomic_given_key(
                             enum_name,
                             member_name,
                             ..
-                        } => Some(DictKey::Enum(enum_name.clone(), member_name.clone())),
+                        } => Some(DictKey::Enum(*enum_name, *member_name)),
                         _ => None,
                     };
                     if let Some(key) = key {
@@ -319,7 +313,7 @@ fn update_atomic_given_key(
             } => {
                 *type_param = Box::new(hakana_type::add_union_type(
                     arrayish_params.unwrap().1,
-                    &current_type,
+                    current_type,
                     codebase,
                     false,
                 ));
@@ -332,7 +326,7 @@ fn update_atomic_given_key(
             } => {
                 *type_param = Box::new(hakana_type::add_union_type(
                     arrayish_params.unwrap().1,
-                    &current_type,
+                    current_type,
                     codebase,
                     false,
                 ));
@@ -353,7 +347,7 @@ fn update_atomic_given_key(
                     )),
                     Box::new(hakana_type::add_union_type(
                         params.1,
-                        &current_type,
+                        current_type,
                         codebase,
                         false,
                     )),
@@ -436,7 +430,7 @@ fn add_array_assignment_dataflow(
                 };
 
                 analysis_data.data_flow_graph.add_path(
-                    &child_parent_node,
+                    child_parent_node,
                     &parent_node,
                     PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value),
                     None,
@@ -445,7 +439,7 @@ fn add_array_assignment_dataflow(
             }
         } else {
             analysis_data.data_flow_graph.add_path(
-                &child_parent_node,
+                child_parent_node,
                 &parent_node,
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 None,
@@ -480,16 +474,10 @@ fn update_array_assignment_child_type(
             match original_type {
                 TAtomic::TVec { known_items, .. } => collection_types.push(TAtomic::TVec {
                     type_param: Box::new(value_type.clone()),
-                    known_items: if let Some(known_items) = known_items {
-                        Some(
-                            known_items
+                    known_items: known_items.as_ref().map(|known_items| known_items
                                 .iter()
-                                .map(|(k, v)| (k.clone(), (v.0, v.1.clone())))
-                                .collect::<BTreeMap<_, _>>(),
-                        )
-                    } else {
-                        None
-                    },
+                                .map(|(k, v)| (*k, (v.0, v.1.clone())))
+                                .collect::<BTreeMap<_, _>>()),
                     known_count: None,
                     non_empty: true,
                 }),
@@ -574,13 +562,13 @@ fn update_array_assignment_child_type(
     let array_assignment_type =
         TUnion::new(type_combiner::combine(collection_types, codebase, false));
 
-    let new_child_type = if let Some(new_child_type) = new_child_type {
+    
+
+    if let Some(new_child_type) = new_child_type {
         new_child_type
     } else {
         hakana_type::add_union_type(root_type, &array_assignment_type, codebase, true)
-    };
-
-    new_child_type
+    }
 }
 
 pub(crate) fn analyze_nested_array_assignment<'a>(
@@ -635,25 +623,23 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                         statements_analyzer.get_codebase(),
                         statements_analyzer.get_interner(),
                     )),
-                    &statements_analyzer.get_file_analyzer().resolved_names,
+                    statements_analyzer.get_file_analyzer().resolved_names,
+                ) {
+                    format!("[{}]", dim_id)
+                } else if let Some(dim_id) = expression_identifier::get_var_id(
+                    dim,
+                    context.function_context.calling_class.as_ref(),
+                    statements_analyzer.get_file_analyzer().get_file_source(),
+                    statements_analyzer.get_file_analyzer().resolved_names,
+                    Some((
+                        statements_analyzer.get_codebase(),
+                        statements_analyzer.get_interner(),
+                    )),
                 ) {
                     format!("[{}]", dim_id)
                 } else {
-                    if let Some(dim_id) = expression_identifier::get_var_id(
-                        dim,
-                        context.function_context.calling_class.as_ref(),
-                        statements_analyzer.get_file_analyzer().get_file_source(),
-                        statements_analyzer.get_file_analyzer().resolved_names,
-                        Some((
-                            statements_analyzer.get_codebase(),
-                            statements_analyzer.get_interner(),
-                        )),
-                    ) {
-                        format!("[{}]", dim_id)
-                    } else {
-                        full_var_id = false;
-                        "[-unknown-]".to_string()
-                    }
+                    full_var_id = false;
+                    "[-unknown-]".to_string()
                 },
             );
         } else {
@@ -681,11 +667,11 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             });
             array_expr_var_type = Rc::new(atomic);
 
-            analysis_data.set_rc_expr_type(&array_expr.0.pos(), array_expr_var_type.clone());
+            analysis_data.set_rc_expr_type(array_expr.0.pos(), array_expr_var_type.clone());
         } else if let Some(parent_var_id) = parent_var_id.to_owned() {
             if context.vars_in_scope.contains_key(&parent_var_id) {
                 let scoped_type = context.vars_in_scope.get(&parent_var_id).unwrap();
-                analysis_data.set_rc_expr_type(&array_expr.0.pos(), scoped_type.clone());
+                analysis_data.set_rc_expr_type(array_expr.0.pos(), scoped_type.clone());
 
                 array_expr_var_type = scoped_type.clone();
             }
@@ -714,7 +700,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
         if is_last {
             array_expr_type = assign_value_type.clone();
-            analysis_data.set_expr_type(&array_expr.2, assign_value_type.clone());
+            analysis_data.set_expr_type(array_expr.2, assign_value_type.clone());
 
             array_expr_var_type_inner = add_array_assignment_dataflow(
                 statements_analyzer,
@@ -735,7 +721,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                 &array_expr_offset_atomic_types,
             );
         } else {
-            analysis_data.set_expr_type(&array_expr.2, array_expr_type.clone());
+            analysis_data.set_expr_type(array_expr.2, array_expr_type.clone());
         }
 
         analysis_data.set_expr_type(array_expr.0.pos(), array_expr_var_type_inner.clone());
@@ -777,7 +763,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
     let first_stmt = &array_exprs.remove(0);
 
     if let Some(root_var_id) = &root_var_id {
-        if let Some(_) = analysis_data.get_expr_type(first_stmt.0.pos()) {
+        if analysis_data.get_expr_type(first_stmt.0.pos()).is_some() {
             let extended_var_id = root_var_id.clone() + var_id_additions.join("").as_str();
 
             if full_var_id && extended_var_id.contains("[$") {
@@ -857,7 +843,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
         // recalculate dim_type
         let dim_type = if let Some(current_dim) = array_expr.1 {
-            analysis_data.get_rc_expr_type(current_dim.pos()).clone()
+            analysis_data.get_rc_expr_type(current_dim.pos())
         } else {
             None
         };
@@ -883,7 +869,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         if is_first {
             *root_type = array_type;
         } else {
-            analysis_data.set_expr_type(&array_expr.0.pos(), array_type);
+            analysis_data.set_expr_type(array_expr.0.pos(), array_type);
         }
 
         var_id_additions.pop();

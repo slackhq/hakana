@@ -66,23 +66,11 @@ pub fn scan_files(
 
     let mut files_to_analyze = vec![];
 
-    let codebase_path = if let Some(cache_dir) = cache_dir {
-        Some(format!("{}/codebase", cache_dir))
-    } else {
-        None
-    };
+    let codebase_path = cache_dir.map(|cache_dir| format!("{}/codebase", cache_dir));
 
-    let symbols_path = if let Some(cache_dir) = cache_dir {
-        Some(format!("{}/symbols", cache_dir))
-    } else {
-        None
-    };
+    let symbols_path = cache_dir.map(|cache_dir| format!("{}/symbols", cache_dir));
 
-    let aast_names_path = if let Some(cache_dir) = cache_dir {
-        Some(format!("{}/aast_names", cache_dir))
-    } else {
-        None
-    };
+    let aast_names_path = cache_dir.map(|cache_dir| format!("{}/aast_names", cache_dir));
 
     let mut use_codebase_cache = true;
 
@@ -102,10 +90,8 @@ pub fn scan_files(
             use_codebase_cache = false;
         }
 
-        if !use_codebase_cache {
-            if Path::new(&codebase_path_unwrapped).exists() {
-                fs::remove_file(&codebase_path_unwrapped).unwrap();
-            }
+        if !use_codebase_cache && Path::new(&codebase_path_unwrapped).exists() {
+            fs::remove_file(&codebase_path_unwrapped).unwrap();
         }
     }
 
@@ -152,7 +138,7 @@ pub fn scan_files(
             language_server_changes,
             &mut files_to_scan,
             &mut interner,
-            &config,
+            config,
             &mut files_to_analyze,
         );
 
@@ -265,9 +251,9 @@ pub fn scan_files(
     let resolved_names = Arc::new(Mutex::new(resolved_names));
     let asts = Arc::new(Mutex::new(FxHashMap::default()));
 
-    let has_new_files = files_to_scan.len() > 0 || changed_files.len() > 0;
+    let has_new_files = !files_to_scan.is_empty() || !changed_files.is_empty();
 
-    if files_to_scan.len() > 0 {
+    if !files_to_scan.is_empty() {
         let file_scanning_now = Instant::now();
 
         let bar = if logger.show_progress() {
@@ -358,7 +344,7 @@ pub fn scan_files(
             let thread_codebases = Arc::new(Mutex::new(vec![]));
 
             for (_, path_group) in path_groups {
-                let pgc = path_group.iter().map(|c| (*c).clone()).collect::<Vec<_>>();
+                let pgc = path_group.iter().map(|c| *(*c)).collect::<Vec<_>>();
 
                 let codebases = thread_codebases.clone();
 
@@ -472,19 +458,19 @@ pub fn scan_files(
 
     if has_new_files {
         if let Some(codebase_path) = codebase_path {
-            let mut codebase_file = fs::File::create(&codebase_path).unwrap();
+            let mut codebase_file = fs::File::create(codebase_path).unwrap();
             let serialized_codebase = bincode::serialize(&codebase).unwrap();
             codebase_file.write_all(&serialized_codebase)?;
         }
 
         if let Some(symbols_path) = symbols_path {
-            let mut symbols_file = fs::File::create(&symbols_path).unwrap();
+            let mut symbols_file = fs::File::create(symbols_path).unwrap();
             let serialized_symbols = bincode::serialize(&interner).unwrap();
             symbols_file.write_all(&serialized_symbols)?;
         }
 
         if let Some(aast_names_path) = aast_names_path {
-            let mut aast_names_file = fs::File::create(&aast_names_path).unwrap();
+            let mut aast_names_file = fs::File::create(aast_names_path).unwrap();
             let serialized_aast_names = bincode::serialize(&resolved_names).unwrap();
             aast_names_file.write_all(&serialized_aast_names)?;
         }
@@ -515,7 +501,7 @@ fn get_filesystem(
 
     add_builtins_to_scan(files_to_scan, interner, &mut file_system);
 
-    logger.log_sync(&format!("Looking for Hack files"));
+    logger.log_sync("Looking for Hack files");
 
     for scan_dir in scan_dirs {
         logger.log_debug_sync(&format!(" - in {}", scan_dir));
@@ -616,7 +602,7 @@ fn invalidate_changed_codebase_elements(
     for (_, file_storage) in codebase
         .files
         .iter()
-        .filter(|f| changed_files.contains(&f.0))
+        .filter(|f| changed_files.contains(f.0))
     {
         for ast_node in &file_storage.ast_nodes {
             match codebase.symbols.all.remove(&ast_node.name) {
@@ -646,8 +632,7 @@ fn invalidate_changed_codebase_elements(
         .closures_in_files
         .iter()
         .filter(|(k, _)| changed_files.contains(*k))
-        .map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
-        .flatten()
+        .flat_map(|(_, v)| v.clone().into_iter().collect::<Vec<_>>())
         .collect::<FxHashSet<_>>();
 
     codebase

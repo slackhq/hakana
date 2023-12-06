@@ -211,7 +211,7 @@ pub fn is_contained_by(
         return atomic_type_comparator::is_contained_by(
             codebase,
             if let Some(enum_type) = &constraint_type {
-                &enum_type
+                enum_type
             } else {
                 &TAtomic::TArraykey { from_any: false }
             },
@@ -340,7 +340,7 @@ pub fn is_contained_by(
                 return false;
             }
             TAtomic::TLiteralString { value } => {
-                if value == "" {
+                if value.is_empty() {
                     return !container_is_truthy && !container_is_nonempty;
                 }
 
@@ -398,7 +398,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
-                &input_as_type,
+                input_as_type,
                 container_name,
                 inside_assertion,
                 atomic_comparison_result,
@@ -436,7 +436,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
-                &input_as_type,
+                input_as_type,
                 container_name,
                 inside_assertion,
                 atomic_comparison_result,
@@ -466,14 +466,14 @@ pub fn is_contained_by(
         {
             let input_type = if codebase.enum_exists(input_name) {
                 TAtomic::TEnum {
-                    name: input_name.clone(),
+                    name: *input_name,
                     base_type: None,
                 }
             } else if let Some(typedef_info) = codebase.type_definitions.get(input_name) {
                 typedef_info.actual_type.clone().get_single_owned()
             } else {
                 TAtomic::TNamedObject {
-                    name: input_name.clone(),
+                    name: *input_name,
                     type_params: None,
                     is_this: false,
                     extra_types: None,
@@ -497,7 +497,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
-                &input_as_type,
+                input_as_type,
                 container_name,
                 inside_assertion,
                 atomic_comparison_result,
@@ -529,7 +529,7 @@ pub fn is_contained_by(
         {
             return atomic_type_comparator::is_contained_by(
                 codebase,
-                &input_as_type,
+                input_as_type,
                 container_name,
                 inside_assertion,
                 atomic_comparison_result,
@@ -561,7 +561,7 @@ pub fn is_contained_by(
             if atomic_type_comparator::is_contained_by(
                 codebase,
                 &TAtomic::TNamedObject {
-                    name: container_name.clone(),
+                    name: *container_name,
                     type_params: None,
                     is_this: false,
                     extra_types: None,

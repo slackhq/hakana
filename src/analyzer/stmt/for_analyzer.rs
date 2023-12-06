@@ -44,7 +44,7 @@ pub(crate) fn analyze(
 
     context.assigned_var_ids.extend(pre_assigned_var_ids);
 
-    let while_true = stmt.0.is_empty() && matches!(stmt.1, None) && stmt.2.is_empty();
+    let while_true = stmt.0.is_empty() && stmt.1.is_none() && stmt.2.is_empty();
 
     let mut for_context = context.clone();
     for_context.inside_loop = true;

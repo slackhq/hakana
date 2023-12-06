@@ -160,28 +160,26 @@ fn handle_atomic_standin(
         ..
     } = atomic_type
     {
-        if let Some(_) = template_types_contains(
+        if template_types_contains(
             &template_result.template_types.clone(),
             param_name,
             defining_entity,
-        ) {
-            if replace {
-                return handle_template_param_class_standin(
-                    atomic_type,
-                    template_result,
-                    codebase,
-                    interner,
-                    input_type,
-                    input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    true,
-                    add_lower_bound,
-                    bound_equality_classlike,
-                    depth,
-                    was_single,
-                );
-            }
+        ).is_some() && replace {
+            return handle_template_param_class_standin(
+                atomic_type,
+                template_result,
+                codebase,
+                interner,
+                input_type,
+                input_arg_offset,
+                calling_class,
+                calling_function,
+                true,
+                add_lower_bound,
+                bound_equality_classlike,
+                depth,
+                was_single,
+            );
         }
     }
 
@@ -191,28 +189,26 @@ fn handle_atomic_standin(
         ..
     } = atomic_type
     {
-        if let Some(_) = template_types_contains(
+        if template_types_contains(
             &template_result.template_types.clone(),
             param_name,
             defining_entity,
-        ) {
-            if replace {
-                return handle_template_param_type_standin(
-                    atomic_type,
-                    template_result,
-                    codebase,
-                    interner,
-                    input_type,
-                    input_arg_offset,
-                    calling_class,
-                    calling_function,
-                    true,
-                    add_lower_bound,
-                    bound_equality_classlike,
-                    depth,
-                    was_single,
-                );
-            }
+        ).is_some() && replace {
+            return handle_template_param_type_standin(
+                atomic_type,
+                template_result,
+                codebase,
+                interner,
+                input_type,
+                input_arg_offset,
+                calling_class,
+                calling_function,
+                true,
+                add_lower_bound,
+                bound_equality_classlike,
+                depth,
+                was_single,
+            );
         }
     }
 
@@ -322,56 +318,54 @@ fn replace_atomic(
                         depth,
                     ));
                 }
-            } else {
-                if let Some(params) = params {
-                    let input_params = if let Some(TAtomic::TDict { .. }) = &input_type {
-                        if !params.0.is_arraykey() || !params.1.is_mixed() {
-                            get_arrayish_params(&input_type.unwrap(), codebase)
-                        } else {
-                            Some((get_arraykey(false), get_mixed()))
-                        }
+            } else if let Some(params) = params {
+                let input_params = if let Some(TAtomic::TDict { .. }) = &input_type {
+                    if !params.0.is_arraykey() || !params.1.is_mixed() {
+                        get_arrayish_params(&input_type.unwrap(), codebase)
+                    } else {
+                        Some((get_arraykey(false), get_mixed()))
+                    }
+                } else {
+                    None
+                };
+
+                params.0 = Box::new(self::replace(
+                    &params.0,
+                    template_result,
+                    codebase,
+                    interner,
+                    &if let Some(input_params) = &input_params {
+                        Some(&input_params.0)
                     } else {
                         None
-                    };
+                    },
+                    input_arg_offset,
+                    calling_class,
+                    calling_function,
+                    replace,
+                    add_lower_bound,
+                    None,
+                    depth,
+                ));
 
-                    params.0 = Box::new(self::replace(
-                        &params.0,
-                        template_result,
-                        codebase,
-                        interner,
-                        &if let Some(input_params) = &input_params {
-                            Some(&input_params.0)
-                        } else {
-                            None
-                        },
-                        input_arg_offset,
-                        calling_class,
-                        calling_function,
-                        replace,
-                        add_lower_bound,
-                        None,
-                        depth,
-                    ));
-
-                    params.1 = Box::new(self::replace(
-                        &params.1,
-                        template_result,
-                        codebase,
-                        interner,
-                        &if let Some(input_params) = &input_params {
-                            Some(&input_params.1)
-                        } else {
-                            None
-                        },
-                        input_arg_offset,
-                        calling_class,
-                        calling_function,
-                        replace,
-                        add_lower_bound,
-                        None,
-                        depth,
-                    ));
-                }
+                params.1 = Box::new(self::replace(
+                    &params.1,
+                    template_result,
+                    codebase,
+                    interner,
+                    &if let Some(input_params) = &input_params {
+                        Some(&input_params.1)
+                    } else {
+                        None
+                    },
+                    input_arg_offset,
+                    calling_class,
+                    calling_function,
+                    replace,
+                    add_lower_bound,
+                    None,
+                    depth,
+                ));
             }
 
             return atomic_type;
@@ -420,7 +414,7 @@ fn replace_atomic(
                 };
 
                 *type_param = Box::new(self::replace(
-                    &type_param,
+                    type_param,
                     template_result,
                     codebase,
                     interner,
@@ -445,7 +439,7 @@ fn replace_atomic(
             ref mut type_param, ..
         } => {
             *type_param = Box::new(self::replace(
-                &type_param,
+                type_param,
                 template_result,
                 codebase,
                 interner,
@@ -491,8 +485,7 @@ fn replace_atomic(
                     None
                 };
 
-                let mut offset = 0;
-                for type_param in type_params {
+                for (offset, type_param) in type_params.iter_mut().enumerate() {
                     let input_type_param = match &input_type {
                         Some(input_inner) => match input_inner {
                             TAtomic::TNamedObject {
@@ -503,7 +496,7 @@ fn replace_atomic(
                             | TAtomic::TVec { .. }
                             | TAtomic::TKeyset { .. } => {
                                 let (key_param, value_param) =
-                                    get_arrayish_params(&input_inner, codebase).unwrap();
+                                    get_arrayish_params(input_inner, codebase).unwrap();
 
                                 match name {
                                     &STR_KEYED_CONTAINER | &STR_KEYED_TRAVERSABLE => {
@@ -546,8 +539,6 @@ fn replace_atomic(
                         None,
                         depth,
                     );
-
-                    offset += 1;
                 }
             }
 
@@ -574,8 +565,7 @@ fn replace_atomic(
                     None
                 };
 
-                let mut offset = 0;
-                for type_param in type_params {
+                for (offset, type_param) in type_params.iter_mut().enumerate() {
                     *type_param = self::replace(
                         type_param,
                         template_result,
@@ -594,8 +584,6 @@ fn replace_atomic(
                         None,
                         depth,
                     );
-
-                    offset += 1;
                 }
             }
 
@@ -606,8 +594,7 @@ fn replace_atomic(
             ref mut return_type,
             ..
         } => {
-            let mut offset = 0;
-            for param in params {
+            for (offset, param) in params.iter_mut().enumerate() {
                 let input_type_param = if let Some(TAtomic::TClosure {
                     params: input_params,
                     ..
@@ -624,7 +611,7 @@ fn replace_atomic(
 
                 if let Some(ref mut param_type) = param.signature_type {
                     *param_type = Box::new(self::replace(
-                        &param_type,
+                        param_type,
                         template_result,
                         codebase,
                         interner,
@@ -642,13 +629,11 @@ fn replace_atomic(
                         depth,
                     ));
                 }
-
-                offset += 1;
             }
 
             if let Some(ref mut return_type) = return_type {
                 *return_type = Box::new(self::replace(
-                    &return_type,
+                    return_type,
                     template_result,
                     codebase,
                     interner,
@@ -679,7 +664,7 @@ fn replace_atomic(
         }
         TAtomic::TClassname { ref mut as_type } => {
             *as_type = Box::new(replace_atomic(
-                &as_type,
+                as_type,
                 template_result,
                 codebase,
                 interner,
@@ -703,7 +688,7 @@ fn replace_atomic(
         }
         TAtomic::TTypename { ref mut as_type } => {
             *as_type = Box::new(replace_atomic(
-                &as_type,
+                as_type,
                 template_result,
                 codebase,
                 interner,
@@ -773,7 +758,7 @@ fn handle_template_param_standin(
 
     let mut replacement_type = template_type.clone();
 
-    let param_name_key = param_name.clone();
+    let param_name_key = *param_name;
 
     let mut new_extra_types = vec![];
 
@@ -929,7 +914,7 @@ fn handle_template_param_standin(
                 && (as_type.is_mixed()
                     || union_type_comparator::can_be_contained_by(
                         codebase,
-                        &input_type,
+                        input_type,
                         &as_type,
                         false,
                         false,
@@ -961,7 +946,7 @@ fn handle_template_param_standin(
 
                     for existing_lower_bound in existing_lower_bounds {
                         let existing_depth = &existing_lower_bound.appearance_depth;
-                        let existing_arg_offset = if let None = &existing_lower_bound.arg_offset {
+                        let existing_arg_offset = if existing_lower_bound.arg_offset.is_none() {
                             &input_arg_offset
                         } else {
                             &existing_lower_bound.arg_offset
@@ -983,7 +968,7 @@ fn handle_template_param_standin(
                             .lower_bounds
                             .entry(param_name_key)
                             .or_insert_with(FxHashMap::default)
-                            .entry(defining_entity.clone())
+                            .entry(*defining_entity)
                             .or_insert_with(Vec::new)
                             .push(TemplateBound {
                                 bound_type: generic_param.clone(),
@@ -998,7 +983,7 @@ fn handle_template_param_standin(
                         .lower_bounds
                         .entry(param_name_key)
                         .or_insert_with(FxHashMap::default)
-                        .entry(defining_entity.clone())
+                        .entry(*defining_entity)
                         .or_insert(vec![TemplateBound {
                             bound_type: generic_param.clone(),
                             appearance_depth: depth,
@@ -1041,7 +1026,7 @@ fn handle_template_param_standin(
 
             if union_type_comparator::can_be_contained_by(
                 codebase,
-                &input_type,
+                input_type,
                 &replacement_type,
                 false,
                 false,
@@ -1115,7 +1100,7 @@ fn handle_template_param_standin(
                     .upper_bounds
                     .entry(param_name_key)
                     .or_insert_with(FxHashMap::default)
-                    .insert(defining_entity.clone(), new_upper_bound);
+                    .insert(*defining_entity, new_upper_bound);
             }
         }
     }
@@ -1168,7 +1153,7 @@ fn handle_template_param_class_standin(
             for input_atomic_type in &input_type.types {
                 if let TAtomic::TLiteralClassname { name } = input_atomic_type {
                     valid_input_atomic_types.push(TAtomic::TNamedObject {
-                        name: name.clone(),
+                        name: *name,
                         type_params: None,
                         is_this: false,
                         extra_types: None,
@@ -1182,9 +1167,9 @@ fn handle_template_param_class_standin(
                 } = input_atomic_type
                 {
                     valid_input_atomic_types.push(TAtomic::TGenericParam {
-                        param_name: param_name.clone(),
+                        param_name: *param_name,
                         as_type: Box::new(wrap_atomic(*as_type.clone())),
-                        defining_entity: defining_entity.clone(),
+                        defining_entity: *defining_entity,
                         from_class: false,
                         extra_types: None,
                     });
@@ -1238,7 +1223,7 @@ fn handle_template_param_class_standin(
                     *template_bounds = vec![TemplateBound::new(
                         add_union_type(
                             generic_param,
-                            &get_most_specific_type_from_bounds(&template_bounds, codebase),
+                            &get_most_specific_type_from_bounds(template_bounds, codebase),
                             codebase,
                             false,
                         ),
@@ -1249,10 +1234,10 @@ fn handle_template_param_class_standin(
                 } else {
                     template_result
                         .lower_bounds
-                        .entry(param_name.clone())
+                        .entry(*param_name)
                         .or_insert_with(FxHashMap::default)
                         .insert(
-                            defining_entity.clone(),
+                            *defining_entity,
                             vec![TemplateBound::new(
                                 generic_param,
                                 depth,
@@ -1287,9 +1272,9 @@ fn handle_template_param_class_standin(
             } = &atomic_type_as
             {
                 atomic_types.push(TAtomic::TGenericClassname {
-                    param_name: param_name.clone(),
+                    param_name: *param_name,
                     as_type: Box::new(atomic_type_as.clone()),
-                    defining_entity: defining_entity.clone(),
+                    defining_entity: *defining_entity,
                 });
             } else {
                 atomic_types.push(TAtomic::TClassname {
@@ -1353,16 +1338,13 @@ fn handle_template_param_type_standin(
                             valid_input_atomic_types.push(TAtomic::TTypeAlias {
                                 name: *name,
                                 type_params: None,
-                                as_type: match &typedefinition_info.as_type {
-                                    Some(t) => Some(Box::new(t.clone())),
-                                    None => None,
-                                },
+                                as_type: typedefinition_info.as_type.as_ref().map(|t| Box::new(t.clone())),
                             });
                         } else {
                             valid_input_atomic_types
                                 .extend(typedefinition_info.actual_type.clone().types);
                         }
-                    } else if let Some(_) = codebase.classlike_infos.get(name) {
+                    } else if codebase.classlike_infos.get(name).is_some() {
                         valid_input_atomic_types.push(TAtomic::TNamedObject {
                             name: *name,
                             type_params: None,
@@ -1379,9 +1361,9 @@ fn handle_template_param_type_standin(
                 } = input_atomic_type
                 {
                     valid_input_atomic_types.push(TAtomic::TGenericParam {
-                        param_name: param_name.clone(),
+                        param_name: *param_name,
                         as_type: Box::new(wrap_atomic(*as_type.clone())),
-                        defining_entity: defining_entity.clone(),
+                        defining_entity: *defining_entity,
                         from_class: false,
                         extra_types: None,
                     });
@@ -1432,7 +1414,7 @@ fn handle_template_param_type_standin(
                     *template_bounds = vec![TemplateBound::new(
                         add_union_type(
                             generic_param,
-                            &get_most_specific_type_from_bounds(&template_bounds, codebase),
+                            &get_most_specific_type_from_bounds(template_bounds, codebase),
                             codebase,
                             false,
                         ),
@@ -1443,10 +1425,10 @@ fn handle_template_param_type_standin(
                 } else {
                     template_result
                         .lower_bounds
-                        .entry(param_name.clone())
+                        .entry(*param_name)
                         .or_insert_with(FxHashMap::default)
                         .insert(
-                            defining_entity.clone(),
+                            *defining_entity,
                             vec![TemplateBound::new(
                                 generic_param,
                                 depth,
@@ -1479,9 +1461,9 @@ fn handle_template_param_type_standin(
             } = &atomic_type_as
             {
                 atomic_types.push(TAtomic::TGenericTypename {
-                    param_name: param_name.clone(),
+                    param_name: *param_name,
                     as_type: Box::new(atomic_type_as.clone()),
-                    defining_entity: defining_entity.clone(),
+                    defining_entity: *defining_entity,
                 });
             } else {
                 atomic_types.push(TAtomic::TTypename {
@@ -1574,7 +1556,7 @@ fn find_matching_atomic_types_for_template(
                             {
                                 matching_atomic_types.push(TAtomic::TClassname {
                                     as_type: Box::new(TAtomic::TNamedObject {
-                                        name: base_as_value.clone(),
+                                        name: *base_as_value,
                                         type_params: Some(
                                             extended_params
                                                 .clone()
@@ -1609,18 +1591,16 @@ fn find_matching_atomic_types_for_template(
                         continue;
                     };
 
-                    if let Some(_) = input_type_params {
-                        if let Some(_) = classlike_info.template_extended_params.get(base_name) {
-                            matching_atomic_types.push(atomic_input_type.clone());
-                            continue;
-                        }
+                    if input_type_params.is_some() && classlike_info.template_extended_params.get(base_name).is_some() {
+                        matching_atomic_types.push(atomic_input_type.clone());
+                        continue;
                     }
 
                     if let Some(extended_params) =
                         classlike_info.template_extended_params.get(base_name)
                     {
                         matching_atomic_types.push(TAtomic::TNamedObject {
-                            name: input_name.clone(),
+                            name: *input_name,
                             type_params: Some(
                                 extended_params
                                     .clone()
@@ -1668,7 +1648,7 @@ fn find_matching_atomic_types_for_template(
                     if *base_name == STR_ENUM_CLASS_LABEL {
                         let enum_type = if let Some(class_name) = class_name {
                             TAtomic::TNamedObject {
-                                name: class_name.clone(),
+                                name: *class_name,
                                 type_params: None,
                                 is_this: false,
                                 extra_types: None,
@@ -1695,7 +1675,7 @@ fn find_matching_atomic_types_for_template(
                                     } = provided_type
                                     {
                                         matching_atomic_types.push(TAtomic::TTypeAlias {
-                                            name: base_name.clone(),
+                                            name: *base_name,
                                             type_params: Some(vec![
                                                 wrap_atomic(enum_type),
                                                 type_params[1].clone(),
@@ -1778,9 +1758,9 @@ pub fn get_mapped_generic_type_params(
         for (template_name, _) in input_template_types {
             if let Some(input_type) = input_type_params.get(i) {
                 replacement_templates
-                    .entry(template_name.clone())
+                    .entry(*template_name)
                     .or_insert_with(FxHashMap::default)
-                    .insert(input_name.clone(), input_type.clone().1);
+                    .insert(*input_name, input_type.clone().1);
 
                 i += 1;
             } else {
@@ -1800,7 +1780,7 @@ pub fn get_mapped_generic_type_params(
             let mut new_input_param = None;
 
             for et in &extended_input_param.types {
-                let ets = get_extended_templated_types(&et, template_extends);
+                let ets = get_extended_templated_types(et, template_extends);
 
                 let mut candidate_param_type: Option<_> = None;
 
@@ -1898,9 +1878,9 @@ pub fn get_extended_templated_types<'a>(
                 for extended_atomic_type in &extended_param.types {
                     if let TAtomic::TGenericParam { .. } = extended_atomic_type {
                         extra_added_types
-                            .extend(get_extended_templated_types(&extended_atomic_type, extends));
+                            .extend(get_extended_templated_types(extended_atomic_type, extends));
                     } else {
-                        extra_added_types.push(&extended_atomic_type);
+                        extra_added_types.push(extended_atomic_type);
                     }
                 }
             } else {
@@ -1941,7 +1921,7 @@ pub(crate) fn get_root_template_type(
                 ..
             } = first_template
             {
-                visited_entities.insert(defining_entity.clone());
+                visited_entities.insert(*defining_entity);
                 return Some(
                     get_root_template_type(
                         lower_bounds,
@@ -1984,12 +1964,12 @@ pub fn get_most_specific_type_from_bounds(
     specific_type
 }
 
-pub fn get_relevant_bounds<'a>(lower_bounds: &'a Vec<TemplateBound>) -> Vec<&'a TemplateBound> {
+pub fn get_relevant_bounds(lower_bounds: &Vec<TemplateBound>) -> Vec<&TemplateBound> {
     if lower_bounds.len() == 1 {
         return vec![lower_bounds.first().unwrap()];
     }
 
-    let mut lower_bounds = lower_bounds.into_iter().collect::<Vec<_>>();
+    let mut lower_bounds = lower_bounds.iter().collect::<Vec<_>>();
     lower_bounds.sort_by(|a, b| a.appearance_depth.partial_cmp(&b.appearance_depth).unwrap());
 
     let mut current_depth = None;
@@ -2000,16 +1980,14 @@ pub fn get_relevant_bounds<'a>(lower_bounds: &'a Vec<TemplateBound>) -> Vec<&'a 
 
     for template_bound in lower_bounds {
         if let Some(inner) = current_depth {
-            if inner != template_bound.appearance_depth {
-                if !applicable_bounds.is_empty() {
-                    if !had_invariant || last_arg_offset == template_bound.arg_offset {
-                        // escape switches when matching on invariant generic params
-                        // and when matching
-                        break;
-                    }
-
-                    current_depth = Some(template_bound.appearance_depth);
+            if inner != template_bound.appearance_depth && !applicable_bounds.is_empty() {
+                if !had_invariant || last_arg_offset == template_bound.arg_offset {
+                    // escape switches when matching on invariant generic params
+                    // and when matching
+                    break;
                 }
+
+                current_depth = Some(template_bound.appearance_depth);
             }
         } else {
             current_depth = Some(template_bound.appearance_depth);
@@ -2023,7 +2001,7 @@ pub fn get_relevant_bounds<'a>(lower_bounds: &'a Vec<TemplateBound>) -> Vec<&'a 
 
         applicable_bounds.push(template_bound);
 
-        last_arg_offset = template_bound.arg_offset.clone();
+        last_arg_offset = template_bound.arg_offset;
     }
 
     applicable_bounds

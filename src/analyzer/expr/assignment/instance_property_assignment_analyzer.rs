@@ -220,14 +220,14 @@ pub(crate) fn analyze_regular_assignment(
         EFFECT_WRITE_PROPS,
     );
 
-    let lhs_type = analysis_data.get_rc_expr_type(&stmt_var.pos()).cloned();
+    let lhs_type = analysis_data.get_rc_expr_type(stmt_var.pos()).cloned();
 
-    if let None = lhs_type {
+    if lhs_type.is_none() {
         return Ok(assigned_properties);
     }
 
     let lhs_var_id = expression_identifier::get_var_id(
-        &stmt_var,
+        stmt_var,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
@@ -255,7 +255,7 @@ pub(crate) fn analyze_regular_assignment(
                     Issue::new(
                         IssueKind::MixedAnyPropertyAssignment,
                         lhs_var_id.unwrap_or("data".to_string())
-                            + &" of type mixed cannot be assigned.".to_string(),
+                            + " of type mixed cannot be assigned.",
                         statements_analyzer.get_hpos(&expr.1 .1),
                         &context.function_context.calling_functionlike_id,
                     ),
@@ -267,7 +267,7 @@ pub(crate) fn analyze_regular_assignment(
                     Issue::new(
                         IssueKind::MixedPropertyAssignment,
                         lhs_var_id.unwrap_or("data".to_string())
-                            + &" of type mixed cannot be assigned.".to_string(),
+                            + " of type mixed cannot be assigned.",
                         statements_analyzer.get_hpos(&expr.1 .1),
                         &context.function_context.calling_functionlike_id,
                     ),
@@ -284,7 +284,7 @@ pub(crate) fn analyze_regular_assignment(
                 Issue::new(
                     IssueKind::NullablePropertyAssignment,
                     lhs_var_id.unwrap_or("data".to_string())
-                        + &" of type null cannot be assigned.".to_string(),
+                        + " of type null cannot be assigned.",
                     statements_analyzer.get_hpos(&expr.1 .1),
                     &context.function_context.calling_functionlike_id,
                 ),
@@ -299,7 +299,7 @@ pub(crate) fn analyze_regular_assignment(
                 Issue::new(
                     IssueKind::NullablePropertyAssignment,
                     lhs_var_id.clone().unwrap_or("data".to_string())
-                        + &" with possibly null type cannot be assigned.".to_string(),
+                        + " with possibly null type cannot be assigned.",
                     statements_analyzer.get_hpos(&expr.1 .1),
                     &context.function_context.calling_functionlike_id,
                 ),
@@ -357,7 +357,7 @@ pub(crate) fn analyze_atomic_assignment(
 ) -> Option<(TUnion, (StrId, StrId), TUnion)> {
     let codebase = statements_analyzer.get_codebase();
     let fq_class_name = match lhs_type_part {
-        TAtomic::TNamedObject { name, .. } => name.clone(),
+        TAtomic::TNamedObject { name, .. } => *name,
         TAtomic::TReference { name, .. } => {
             analysis_data.maybe_add_issue(
                 Issue::new(
@@ -366,7 +366,7 @@ pub(crate) fn analyze_atomic_assignment(
                         "Undefined class {}",
                         statements_analyzer.get_interner().lookup(name)
                     ),
-                    statements_analyzer.get_hpos(&expr.1.pos()),
+                    statements_analyzer.get_hpos(expr.1.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -396,7 +396,7 @@ pub(crate) fn analyze_atomic_assignment(
                         statements_analyzer.get_interner().lookup(&fq_class_name),
                         &id.1
                     ),
-                    statements_analyzer.get_hpos(&expr.1.pos()),
+                    statements_analyzer.get_hpos(expr.1.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -415,13 +415,13 @@ pub(crate) fn analyze_atomic_assignment(
         return None;
     };
 
-    let property_id = (fq_class_name.clone(), prop_name.clone());
+    let property_id = (fq_class_name, prop_name);
 
     // TODO self assignments
 
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let var_id = expression_identifier::get_var_id(
-            &expr.0,
+            expr.0,
             None,
             statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
@@ -525,7 +525,7 @@ pub(crate) fn analyze_atomic_assignment(
 
             return Some((
                 class_property_type.clone(),
-                property_id.clone(),
+                property_id,
                 assign_value_type.clone(),
             ));
         }
@@ -538,7 +538,7 @@ pub(crate) fn analyze_atomic_assignment(
                     statements_analyzer.get_interner().lookup(&property_id.0),
                     statements_analyzer.get_interner().lookup(&property_id.1),
                 ),
-                statements_analyzer.get_hpos(&expr.1.pos()),
+                statements_analyzer.get_hpos(expr.1.pos()),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -546,7 +546,7 @@ pub(crate) fn analyze_atomic_assignment(
         );
     }
 
-    return None;
+    None
 }
 
 fn add_instance_property_dataflow(
@@ -560,7 +560,7 @@ fn add_instance_property_dataflow(
     prop_name: &StrId,
     fq_class_name: &StrId,
     property_id: &(StrId, StrId),
-) -> () {
+) {
     let codebase = statements_analyzer.get_codebase();
 
     if let Some(classlike_storage) = codebase.classlike_infos.get(fq_class_name) {

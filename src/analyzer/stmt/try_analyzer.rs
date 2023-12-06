@@ -87,7 +87,7 @@ pub(crate) fn analyze(
                 var_id.clone(),
                 Rc::new(combine_union_types(
                     &try_type,
-                    &context_type,
+                    context_type,
                     codebase,
                     false,
                 )),
@@ -138,7 +138,7 @@ pub(crate) fn analyze(
                     var_id.clone(),
                     Rc::new(combine_union_types(
                         &after_try_type,
-                        &before_try_type,
+                        before_try_type,
                         codebase,
                         false,
                     )),
@@ -167,7 +167,7 @@ pub(crate) fn analyze(
 
         let catch_var_id = &catch.1 .1 .1;
 
-        let mut catch_type = get_named_object(catch_classlike_name.clone());
+        let mut catch_type = get_named_object(*catch_classlike_name);
 
         catch_context.remove_descendants(
             catch_var_id,
@@ -247,7 +247,7 @@ pub(crate) fn analyze(
                 for (var_id, var_type) in &catch_context.vars_in_scope {
                     if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
                         *finally_type = Rc::new(combine_union_types(
-                            &finally_type,
+                            finally_type,
                             var_type,
                             codebase,
                             false,
@@ -281,12 +281,12 @@ pub(crate) fn analyze(
             finally_context.assigned_var_ids = FxHashMap::default();
             finally_context.possibly_assigned_var_ids = FxHashSet::default();
 
-            finally_context.vars_in_scope = (&finally_scope.vars_in_scope).clone();
+            finally_context.vars_in_scope = finally_scope.vars_in_scope.clone();
 
             for (var_id, var_type) in &try_context.vars_in_scope {
                 if let Some(finally_type) = finally_context.vars_in_scope.get_mut(var_id) {
                     *finally_type = Rc::new(combine_union_types(
-                        &finally_type,
+                        finally_type,
                         var_type,
                         codebase,
                         false,
@@ -332,8 +332,8 @@ pub(crate) fn analyze(
                         }
 
                         *context_type = Rc::new(combine_union_types(
-                            &context_type,
-                            &finally_type,
+                            context_type,
+                            finally_type,
                             codebase,
                             false,
                         ));

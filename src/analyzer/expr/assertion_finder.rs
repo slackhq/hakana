@@ -85,7 +85,7 @@ pub(crate) fn scrape_assertions(
     }
 
     let var_name = get_var_id(
-        &conditional,
+        conditional,
         assertion_context.this_class_name,
         assertion_context.file_source,
         assertion_context.resolved_names,
@@ -122,7 +122,7 @@ pub(crate) fn scrape_assertions(
                     &binop.bop,
                     &binop.lhs,
                     &binop.rhs,
-                    &analysis_data,
+                    analysis_data,
                     assertion_context,
                     cache,
                     inside_conditional,
@@ -217,7 +217,7 @@ fn get_is_assertions(
     let mut is_type = if let Some(t) = get_type_from_hint(
         &hint.1,
         assertion_context.this_class_name,
-        &assertion_context.type_resolution_context,
+        assertion_context.type_resolution_context,
         assertion_context.resolved_names,
     ) {
         t
@@ -260,7 +260,7 @@ fn get_is_assertions(
             vec![is_type
                 .types
                 .into_iter()
-                .map(|t| Assertion::IsType(t))
+                .map(Assertion::IsType)
                 .collect::<Vec<Assertion>>()],
         );
     } else {
@@ -280,8 +280,7 @@ fn get_is_assertions(
                 .get(&(
                     var_expr.1.start_offset() as u32,
                     var_expr.1.end_offset() as u32,
-                ))
-                .clone(),
+                )),
             assertion_context.codebase,
         ) {
             if !union_type_comparator::can_expression_types_be_identical(
@@ -314,7 +313,7 @@ fn get_is_assertions(
                 );
             } else if union_type_comparator::is_contained_by(
                 codebase,
-                &lhs_type,
+                lhs_type,
                 &is_type,
                 false,
                 false,
@@ -389,14 +388,12 @@ fn scrape_shapes_isset(
                         );
 
                         if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
-                            let dict_key = if dim_id.starts_with("'") {
+                            let dict_key = if dim_id.starts_with('\'') {
                                 DictKey::String(dim_id[1..(dim_id.len() - 1)].to_string())
+                            } else if let Ok(arraykey_value) = dim_id.parse::<u32>() {
+                                DictKey::Int(arraykey_value)
                             } else {
-                                if let Ok(arraykey_value) = dim_id.parse::<u32>() {
-                                    DictKey::Int(arraykey_value)
-                                } else {
-                                    panic!("bad int key {}", dim_id);
-                                }
+                                panic!("bad int key {}", dim_id);
                             };
                             if_types.insert(
                                 shape_name,

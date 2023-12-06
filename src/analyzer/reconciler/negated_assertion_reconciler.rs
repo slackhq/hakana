@@ -105,28 +105,26 @@ pub(crate) fn reconcile(
                     }
                 }
             }
-        } else {
-            if let Some(key) = &key {
-                if let Some(pos) = pos {
-                    if !union_type_comparator::can_expression_types_be_identical(
-                        codebase,
-                        &existing_var_type,
-                        &wrap_atomic(assertion_type.clone()),
+        } else if let Some(key) = &key {
+            if let Some(pos) = pos {
+                if !union_type_comparator::can_expression_types_be_identical(
+                    codebase,
+                    &existing_var_type,
+                    &wrap_atomic(assertion_type.clone()),
+                    true,
+                ) {
+                    trigger_issue_for_impossible(
+                        analysis_data,
+                        statements_analyzer,
+                        &old_var_type_string,
+                        key,
+                        assertion,
                         true,
-                    ) {
-                        trigger_issue_for_impossible(
-                            analysis_data,
-                            statements_analyzer,
-                            &old_var_type_string,
-                            key,
-                            assertion,
-                            true,
-                            negated,
-                            pos,
-                            calling_functionlike_id,
-                            suppressed_issues,
-                        );
-                    }
+                        negated,
+                        pos,
+                        calling_functionlike_id,
+                        suppressed_issues,
+                    );
                 }
             }
         }
@@ -295,7 +293,7 @@ fn handle_negated_class(
     for child_classlike in child_classlikes {
         if child_classlike != assertion_classlike_name {
             let alternate_class = TAtomic::TNamedObject {
-                name: child_classlike.clone(),
+                name: *child_classlike,
                 type_params: if let Some(child_classlike_info) =
                     codebase.classlike_infos.get(child_classlike)
                 {
@@ -388,7 +386,7 @@ fn handle_literal_negated_equality(
                 TAtomic::TLiteralString { value, .. } => {
                     did_remove_type = true;
 
-                    if value == "" {
+                    if value.is_empty() {
                         acceptable_types.push(TAtomic::TStringWithFlags(false, true, false));
                     } else {
                         acceptable_types.push(existing_atomic_type);
@@ -407,7 +405,7 @@ fn handle_literal_negated_equality(
                 TAtomic::TLiteralString { value, .. } => {
                     did_remove_type = true;
 
-                    if value == "" {
+                    if value.is_empty() {
                         acceptable_types.push(TAtomic::TStringWithFlags(
                             false,
                             true,
@@ -461,8 +459,8 @@ fn handle_literal_negated_equality(
                         for (cname, _) in &enum_storage.constants {
                             if cname != member_name {
                                 acceptable_types.push(TAtomic::TEnumLiteralCase {
-                                    enum_name: enum_name.clone(),
-                                    member_name: cname.clone(),
+                                    enum_name: *enum_name,
+                                    member_name: *cname,
                                     constraint_type: constraint_type.clone(),
                                 });
                             }

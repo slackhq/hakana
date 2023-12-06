@@ -84,7 +84,7 @@ impl<'a> StatementsAnalyzer<'a> {
 
     #[inline]
     pub fn get_type_resolution_context(&self) -> &TypeResolutionContext {
-        &self.type_resolution_context
+        self.type_resolution_context
     }
 
     #[inline]
@@ -103,7 +103,7 @@ impl<'a> StatementsAnalyzer<'a> {
             resolved_names: self.get_file_analyzer().resolved_names,
             codebase: Some((self.get_codebase(), self.get_interner())),
             this_class_name,
-            type_resolution_context: &self.type_resolution_context,
+            type_resolution_context: self.type_resolution_context,
             reference_source: match calling_functionlike_id {
                 Some(functionlike_id) => match functionlike_id {
                     FunctionLikeIdentifier::Function(name) => ReferenceSource::Symbol(false, *name),
@@ -113,7 +113,7 @@ impl<'a> StatementsAnalyzer<'a> {
                 },
                 None => ReferenceSource::Symbol(false, self.get_file_path().0),
             },
-            config: &self.file_analyzer.analysis_config,
+            config: self.file_analyzer.analysis_config,
         }
     }
 
@@ -140,7 +140,7 @@ impl ScopeAnalyzer for StatementsAnalyzer<'_> {
     }
 
     fn get_interner(&self) -> &Interner {
-        &self.file_analyzer.interner
+        self.file_analyzer.interner
     }
 
     fn get_config(&self) -> &Config {

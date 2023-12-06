@@ -89,8 +89,8 @@ pub(crate) fn is_contained_by(
                     if !container_return_type.is_void()
                         && !union_type_comparator::is_contained_by(
                             codebase,
-                            &input_return_type,
-                            &container_return_type,
+                            input_return_type,
+                            container_return_type,
                             false,
                             input_return_type.ignore_falsable_issues,
                             false,

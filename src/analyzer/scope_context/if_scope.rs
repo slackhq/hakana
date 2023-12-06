@@ -42,6 +42,12 @@ pub struct IfScope {
     pub if_actions: FxHashSet<ControlAction>,
 }
 
+impl<'a> Default for IfScope {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> IfScope {
     pub fn new() -> Self {
         Self {

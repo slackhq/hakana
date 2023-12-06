@@ -92,7 +92,7 @@ pub(crate) fn analyze(
                         "Unknown classlike {}",
                         statements_analyzer.get_interner().lookup(classlike_name)
                     ),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -216,7 +216,7 @@ pub(crate) fn handle_method_call_on_named_object(
             // check whether class exists using long method which emits an issue
             // but for now we use the quick one
 
-            codebase.class_or_interface_or_enum_exists(&classlike_name)
+            codebase.class_or_interface_or_enum_exists(classlike_name)
         };
 
         if !does_class_exist {
@@ -227,7 +227,7 @@ pub(crate) fn handle_method_call_on_named_object(
                         "Class or interface {} does not exist",
                         statements_analyzer.get_interner().lookup(classlike_name)
                     ),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -246,11 +246,11 @@ pub(crate) fn handle_method_call_on_named_object(
                 return handle_nonexistent_method(
                     analysis_data,
                     statements_analyzer,
-                    &boxed,
+                    boxed,
                     classlike_name,
                     pos,
                     context,
-                    &expr.3,
+                    expr.3,
                     if_body_context,
                 );
             };
@@ -261,11 +261,11 @@ pub(crate) fn handle_method_call_on_named_object(
             return handle_nonexistent_method(
                 analysis_data,
                 statements_analyzer,
-                &boxed,
+                boxed,
                 classlike_name,
                 pos,
                 context,
-                &expr.3,
+                expr.3,
                 if_body_context,
             );
         }
@@ -275,7 +275,7 @@ pub(crate) fn handle_method_call_on_named_object(
             classlike_names[0], // todo intersect multiple return values
             &method_name,
             (expr.2, expr.3, expr.4),
-            &lhs_type_part,
+            lhs_type_part,
             pos,
             Some(expr.1.pos()),
             analysis_data,
@@ -327,7 +327,7 @@ fn handle_nonexistent_method(
                 statements_analyzer.get_interner().lookup(classlike_name),
                 &id.1
             ),
-            statements_analyzer.get_hpos(&pos),
+            statements_analyzer.get_hpos(pos),
             &context.function_context.calling_functionlike_id,
         ),
         statements_analyzer.get_config(),

@@ -43,7 +43,7 @@ pub(crate) fn analyze(
 
     match &function_name_expr.2 {
         aast::Expr_::Id(boxed_id) => {
-            return function_call_analyzer::analyze(
+            function_call_analyzer::analyze(
                 statements_analyzer,
                 (
                     (&boxed_id.0, &boxed_id.1),
@@ -55,7 +55,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )
         }
         aast::Expr_::ObjGet(boxed) => {
             let (lhs_expr, rhs_expr, nullfetch, prop_or_method) =
@@ -63,7 +63,7 @@ pub(crate) fn analyze(
 
             match prop_or_method {
                 ast_defs::PropOrMethod::IsMethod => {
-                    return instance_call_analyzer::analyze(
+                    instance_call_analyzer::analyze(
                         statements_analyzer,
                         (
                             lhs_expr,
@@ -72,7 +72,7 @@ pub(crate) fn analyze(
                             &expr.args,
                             &expr.unpacked_arg,
                         ),
-                        &pos,
+                        pos,
                         analysis_data,
                         context,
                         if_body_context,
@@ -88,14 +88,14 @@ pub(crate) fn analyze(
                         context,
                         if_body_context,
                     )?;
-                    return Ok(());
+                    Ok(())
                 }
             }
         }
         aast::Expr_::ClassConst(boxed) => {
             let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
 
-            return static_call_analyzer::analyze(
+            static_call_analyzer::analyze(
                 statements_analyzer,
                 (
                     class_id,
@@ -104,23 +104,23 @@ pub(crate) fn analyze(
                     &expr.args,
                     &expr.unpacked_arg,
                 ),
-                &pos,
+                pos,
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )
         }
         _ => {
-            return expression_call_analyzer::analyze(
+            expression_call_analyzer::analyze(
                 statements_analyzer,
                 expr,
                 pos,
                 analysis_data,
                 context,
                 if_body_context,
-            );
+            )
         }
-    };
+    }
 }
 
 /**
@@ -336,7 +336,7 @@ pub(crate) fn check_method_args(
 
     let calling_class_storage = codebase.classlike_infos.get(&method_id.0).unwrap();
 
-    let functionlike_id = FunctionLikeIdentifier::Method(method_id.0.clone(), method_id.1.clone());
+    let functionlike_id = FunctionLikeIdentifier::Method(method_id.0, method_id.1);
 
     arguments_analyzer::check_arguments_match(
         statements_analyzer,
@@ -354,13 +354,13 @@ pub(crate) fn check_method_args(
         method_name_pos,
     )?;
 
-    apply_effects(functionlike_storage, analysis_data, pos, &call_expr.1);
+    apply_effects(functionlike_storage, analysis_data, pos, call_expr.1);
 
     if !template_result.template_types.is_empty() {
         check_template_result(statements_analyzer, template_result, pos, &functionlike_id);
     }
 
-    return Ok(());
+    Ok(())
 }
 
 pub(crate) fn apply_effects(

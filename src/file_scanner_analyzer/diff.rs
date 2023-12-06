@@ -73,14 +73,12 @@ pub(crate) fn mark_safe_symbols_from_diff(
     cached_analysis.symbol_references = existing_references;
 
     for keep_symbol in &codebase_diff.keep {
-        if keep_symbol.1.is_empty() {
-            if !invalid_symbols_and_members.contains(&keep_symbol)
-                && !partially_invalid_symbols.contains(&keep_symbol.0)
-            {
-                cached_analysis.safe_symbols.insert(keep_symbol.0);
-            }
-        } else {
-            if !invalid_symbols_and_members.contains(&keep_symbol) {
+        if !invalid_symbols_and_members.contains(keep_symbol) {
+            if keep_symbol.1.is_empty() {
+                if !partially_invalid_symbols.contains(&keep_symbol.0) {
+                    cached_analysis.safe_symbols.insert(keep_symbol.0);
+                }
+            } else {
                 cached_analysis
                     .safe_symbol_members
                     .insert((keep_symbol.0, keep_symbol.1));
@@ -151,7 +149,7 @@ fn update_issues_from_diff(
                     }
                 }
 
-                return true;
+                true
             });
         }
 

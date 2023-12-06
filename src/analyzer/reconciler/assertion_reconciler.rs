@@ -70,9 +70,9 @@ pub fn reconcile(
 
     let simple_asserted_type = simple_assertion_reconciler::reconcile(
         assertion,
-        &existing_var_type,
+        existing_var_type,
         possibly_undefined,
-        key.clone(),
+        key,
         codebase,
         analysis_data,
         statements_analyzer,
@@ -151,7 +151,7 @@ pub(crate) fn refine_atomic_with_union(
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
 
-    let intersection_type = intersect_union_with_atomic(codebase, existing_var_type, &new_type);
+    let intersection_type = intersect_union_with_atomic(codebase, existing_var_type, new_type);
 
     if let Some(mut intersection_type) = intersection_type {
         for intersection_atomic_type in intersection_type.types.iter_mut() {
@@ -161,7 +161,7 @@ pub(crate) fn refine_atomic_with_union(
         return intersection_type;
     }
 
-    return get_nothing();
+    get_nothing()
 }
 
 fn intersect_union_with_atomic(
@@ -397,17 +397,11 @@ pub(crate) fn intersect_atomic_with_atomic(
             },
             _,
         ) => {
-            return if let Some(intersected) =
-                intersect_union_with_atomic(codebase, type_1_as, type_2_atomic)
-            {
-                Some(TAtomic::TTypeAlias {
+            return intersect_union_with_atomic(codebase, type_1_as, type_2_atomic).map(|intersected| TAtomic::TTypeAlias {
                     name: *name,
                     type_params: type_params.clone(),
                     as_type: Some(Box::new(intersected)),
                 })
-            } else {
-                None
-            }
         }
         (
             _,
@@ -417,17 +411,11 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_params,
             },
         ) => {
-            return if let Some(intersected) =
-                intersect_union_with_atomic(codebase, type_2_as, type_1_atomic)
-            {
-                Some(TAtomic::TTypeAlias {
+            return intersect_union_with_atomic(codebase, type_2_as, type_1_atomic).map(|intersected| TAtomic::TTypeAlias {
                     name: *name,
                     type_params: type_params.clone(),
                     as_type: Some(Box::new(intersected)),
                 })
-            } else {
-                None
-            }
         }
         (
             TAtomic::TNamedObject {
@@ -451,11 +439,7 @@ pub(crate) fn intersect_atomic_with_atomic(
                     atomic.remove_placeholders();
                     return Some(atomic);
                 } else if type_2_name == &STR_CONTAINER || type_2_name == &STR_TRAVERSABLE {
-                    let type_2_params = if let Some(type_2_params) = type_2_params {
-                        Some(vec![get_arraykey(true), type_2_params[0].clone()])
-                    } else {
-                        None
-                    };
+                    let type_2_params = type_2_params.as_ref().map(|type_2_params| vec![get_arraykey(true), type_2_params[0].clone()]);
 
                     let mut atomic = TAtomic::TNamedObject {
                         name: STR_ANY_ARRAY,
@@ -623,22 +607,10 @@ fn intersect_vecs(
             for (type_2_key, type_2_value) in type_2_known_items.iter_mut() {
                 if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
                     type_2_value.0 = type_2_value.0 && type_1_value.0;
-                    type_2_value.1 = if let Some(t) =
-                        intersect_union_with_union(&type_1_value.1, &type_2_value.1, codebase)
-                    {
-                        t
-                    } else {
-                        return None;
-                    }
+                    type_2_value.1 = intersect_union_with_union(&type_1_value.1, &type_2_value.1, codebase)?
                 } else if !type_1_param.is_nothing() {
                     type_2_value.0 = type_2_value.0;
-                    type_2_value.1 = if let Some(t) =
-                        intersect_union_with_union(&type_1_param, &type_2_value.1, codebase)
-                    {
-                        t
-                    } else {
-                        return None;
-                    }
+                    type_2_value.1 = intersect_union_with_union(type_1_param, &type_2_value.1, codebase)?
                 } else {
                     // if the type_2 key is always defined, the intersection is impossible
                     if !type_2_value.0 {
@@ -656,19 +628,13 @@ fn intersect_vecs(
                 });
             }
 
-            return None;
+            None
         }
         (None, Some(type_2_known_items)) => {
             let mut type_2_known_items = type_2_known_items.clone();
 
             for (_, type_2_value) in type_2_known_items.iter_mut() {
-                type_2_value.1 = if let Some(t) =
-                    intersect_union_with_union(&type_2_value.1, &type_1_param, codebase)
-                {
-                    t
-                } else {
-                    return None;
-                }
+                type_2_value.1 = intersect_union_with_union(&type_2_value.1, type_1_param, codebase)?
             }
 
             if let Some(type_param) = type_param {
@@ -680,19 +646,13 @@ fn intersect_vecs(
                 });
             }
 
-            return None;
+            None
         }
         (Some(type_1_known_items), None) => {
             let mut type_1_known_items = type_1_known_items.clone();
 
             for (_, type_1_value) in type_1_known_items.iter_mut() {
-                type_1_value.1 = if let Some(t) =
-                    intersect_union_with_union(&type_1_value.1, &type_2_param, codebase)
-                {
-                    t
-                } else {
-                    return None;
-                }
+                type_1_value.1 = intersect_union_with_union(&type_1_value.1, type_2_param, codebase)?
             }
 
             if let Some(type_param) = type_param {
@@ -704,7 +664,7 @@ fn intersect_vecs(
                 });
             }
 
-            return None;
+            None
         }
         _ => {
             if let Some(type_param) = type_param {
@@ -716,7 +676,7 @@ fn intersect_vecs(
                 });
             }
 
-            return None;
+            None
         }
     }
 }
@@ -779,10 +739,8 @@ fn intersect_dicts(
                             },
                         ),
                     );
-                } else {
-                    if !type_2_value.0 {
-                        return None;
-                    }
+                } else if !type_2_value.0 {
+                    return None;
                 }
             }
 
@@ -805,10 +763,8 @@ fn intersect_dicts(
                     } else {
                         return None;
                     }
-                } else if let None = type_2_params {
-                    if !type_2_value.0 {
-                        return None;
-                    }
+                } else if type_2_params.is_none() && !type_2_value.0 {
+                    return None;
                 }
             }
 
@@ -831,10 +787,8 @@ fn intersect_dicts(
                     } else {
                         return None;
                     }
-                } else if let None = type_1_params {
-                    if !type_1_value.0 {
-                        return None;
-                    }
+                } else if type_1_params.is_none() && !type_1_value.0 {
+                    return None;
                 }
             }
 
@@ -861,15 +815,11 @@ pub(crate) fn intersect_union_with_union(
 ) -> Option<TUnion> {
     let type_param = match (type_1_param.is_single(), type_2_param.is_single()) {
         (true, true) => {
-            if let Some(t) = intersect_atomic_with_atomic(
+            intersect_atomic_with_atomic(
                 type_1_param.get_single(),
                 type_2_param.get_single(),
                 codebase,
-            ) {
-                Some(wrap_atomic(t))
-            } else {
-                None
-            }
+            ).map(wrap_atomic)
         }
         (false, true) => {
             intersect_union_with_atomic(codebase, type_1_param, type_2_param.get_single())
@@ -884,12 +834,11 @@ pub(crate) fn intersect_union_with_union(
                 let new_types = type_2_param
                     .types
                     .iter()
-                    .map(|t| {
+                    .flat_map(|t| {
                         intersect_union_with_atomic(codebase, type_1_param, t)
                             .unwrap_or(get_nothing())
                             .types
                     })
-                    .flatten()
                     .collect::<Vec<_>>();
 
                 let combined_union =
@@ -922,7 +871,7 @@ fn intersect_enumcase_with_string(
             }
         }
     }
-    return Some(type_2_atomic.clone());
+    Some(type_2_atomic.clone())
 }
 
 fn intersect_enum_case_with_int(
@@ -995,7 +944,7 @@ fn intersect_contained_atomic_with_another(
             {
                 if super_atomic_name == sub_atomic_name {
                     return Some(TAtomic::TNamedObject {
-                        name: sub_atomic_name.clone(),
+                        name: *sub_atomic_name,
                         type_params: Some(super_params.clone()),
                         is_this: false,
                         extra_types: None,
@@ -1014,7 +963,7 @@ fn intersect_contained_atomic_with_another(
         } = type_1_atomic
         {
             if type_1_as_type.has_object_type() {
-                let type_1_as = intersect_union_with_atomic(codebase, &type_1_as_type, sub_atomic);
+                let type_1_as = intersect_union_with_atomic(codebase, type_1_as_type, sub_atomic);
 
                 if let Some(type_1_as) = type_1_as {
                     *type_1_as_type = Box::new(type_1_as);

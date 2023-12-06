@@ -82,7 +82,7 @@ pub(crate) fn analyze(
                     "Cannot access property on undefined class {}",
                     statements_analyzer.get_interner().lookup(&classlike_name)
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -97,22 +97,20 @@ pub(crate) fn analyze(
         EFFECT_READ_PROPS,
     );
 
-    analysis_data.set_expr_type(&stmt_class.1, get_named_object(classlike_name.clone()));
+    analysis_data.set_expr_type(&stmt_class.1, get_named_object(classlike_name));
 
     let prop_name = match &stmt_name {
         aast::ClassGetExpr::CGexpr(stmt_name_expr) => {
             if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
                 id.1.clone()
-            } else {
-                if let Some(stmt_name_type) = analysis_data.get_rc_expr_type(stmt_name_expr.pos()) {
-                    if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
-                        value.clone()
-                    } else {
-                        return Err(AnalysisError::UserError);
-                    }
+            } else if let Some(stmt_name_type) = analysis_data.get_rc_expr_type(stmt_name_expr.pos()) {
+                if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
+                    value.clone()
                 } else {
                     return Err(AnalysisError::UserError);
                 }
+            } else {
+                return Err(AnalysisError::UserError);
             }
         }
         aast::ClassGetExpr::CGstring(str) => {
@@ -131,7 +129,7 @@ pub(crate) fn analyze(
     let prop_name_id = statements_analyzer.get_interner().get(&prop_name);
 
     let property_id = if let Some(prop_name_id) = prop_name_id {
-        (classlike_name.clone(), prop_name_id)
+        (classlike_name, prop_name_id)
     } else {
         analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
@@ -147,7 +145,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_interner().lookup(&classlike_name),
                     prop_name,
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -180,7 +178,7 @@ pub(crate) fn analyze(
         );
 
         // we don't need to check anything since this variable is known in this scope
-        analysis_data.set_expr_type(&pos, stmt_type);
+        analysis_data.set_expr_type(pos, stmt_type);
 
         return Ok(());
     }
@@ -198,7 +196,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_interner().lookup(&classlike_name),
                     statements_analyzer.get_interner().lookup(&property_id.1)
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -220,7 +218,7 @@ pub(crate) fn analyze(
             .classlike_infos
             .get(declaring_property_class)
             .unwrap();
-        let parent_class = declaring_class_storage.direct_parent_class.clone();
+        let parent_class = declaring_class_storage.direct_parent_class;
 
         let mut inserted_type = property_type.clone();
         type_expander::expand_union(
@@ -256,7 +254,7 @@ pub(crate) fn analyze(
 
         context.vars_in_scope.insert(var_id.to_owned(), rc.clone());
 
-        analysis_data.set_rc_expr_type(&pos, rc)
+        analysis_data.set_rc_expr_type(pos, rc)
     }
 
     Ok(())
@@ -321,15 +319,15 @@ fn analyze_variable_static_property_fetch(
         instance_property_fetch_analyzer::analyze(
             statements_analyzer,
             (&lhs, &rhs),
-            &pos,
+            pos,
             analysis_data,
             context,
             context.inside_assignment,
             false,
         )?;
 
-        let stmt_type = analysis_data.get_expr_type(&pos).unwrap();
-        analysis_data.set_expr_type(&pos, stmt_type.clone());
+        let stmt_type = analysis_data.get_expr_type(pos).unwrap();
+        analysis_data.set_expr_type(pos, stmt_type.clone());
     }
 
     Ok(())

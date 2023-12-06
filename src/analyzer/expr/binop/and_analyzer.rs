@@ -11,12 +11,12 @@ use crate::{expression_analyzer, formula_generator};
 use hakana_type::get_bool;
 use oxidized::aast;
 
-pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
+pub(crate) fn analyze<'expr, 'map, 'new_expr>(
     statements_analyzer: &StatementsAnalyzer,
     stmt_pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
-    analysis_data: &'tast mut FunctionAnalysisData,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> Result<(), AnalysisError> {
@@ -30,7 +30,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
 
     left_context.reconciled_expression_clauses = Vec::new();
 
-    analysis_data.set_expr_type(&stmt_pos, get_bool());
+    analysis_data.set_expr_type(stmt_pos, get_bool());
 
     expression_analyzer::analyze(
         statements_analyzer,
@@ -148,7 +148,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     let partitioned_clauses = ScopeContext::remove_reconciled_clause_refs(
         &{
             let mut c = left_context.clauses.clone();
-            c.extend(left_clauses.into_iter().map(|v| Rc::new(v)));
+            c.extend(left_clauses.into_iter().map(Rc::new));
             c
         },
         &changed_var_ids,

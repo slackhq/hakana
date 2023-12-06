@@ -46,7 +46,7 @@ pub(crate) fn analyze(
 
                         classlike_name = Some(*self_name);
 
-                        get_named_object(self_name.clone())
+                        get_named_object(*self_name)
                     }
                     "parent" => {
                         let self_name =
@@ -59,7 +59,7 @@ pub(crate) fn analyze(
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
 
                         let parent_name = if let Some(parent_class) =
-                            classlike_storage.direct_parent_class.clone()
+                            classlike_storage.direct_parent_class
                         {
                             parent_class
                         } else {
@@ -70,7 +70,7 @@ pub(crate) fn analyze(
                         classlike_name = Some(parent_name);
 
                         wrap_atomic(TAtomic::TNamedObject {
-                            name: self_name.clone(),
+                            name: *self_name,
                             type_params: None,
                             is_this: !classlike_storage.is_final,
                             extra_types: None,
@@ -90,7 +90,7 @@ pub(crate) fn analyze(
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
 
                         wrap_atomic(TAtomic::TNamedObject {
-                            name: self_name.clone(),
+                            name: *self_name,
                             type_params: None,
                             is_this: !classlike_storage.is_final,
                             extra_types: None,
@@ -161,7 +161,7 @@ pub(crate) fn analyze(
         context.remove_mutable_object_vars();
     }
 
-    analysis_data.set_expr_type(&pos, result.return_type.clone().unwrap_or(get_mixed_any()));
+    analysis_data.set_expr_type(pos, result.return_type.clone().unwrap_or(get_mixed_any()));
 
     Ok(())
 }

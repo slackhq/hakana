@@ -136,7 +136,7 @@ fn get_variable_child_nodes(
 
     if let Some(forward_edges) = graph.forward_edges.get(generated_source_id) {
         for (to_id, path) in forward_edges {
-            if let Some(_) = graph.sinks.get(to_id) {
+            if graph.sinks.get(to_id).is_some() {
                 return None;
             }
 
@@ -231,7 +231,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 boxed.1 .0.len() == 1 && matches!(boxed.1 .0[0].1, aast::Stmt_::Expr(_));
 
             let result = boxed.1.recurse(analysis_data, self);
-            if let Err(_) = result {
+            if result.is_err() {
                 self.in_single_block = false;
                 return result;
             }
@@ -379,7 +379,7 @@ pub(crate) fn add_unused_expression_replacements(
 ) {
     let mut scanner = Scanner {
         unused_variable_nodes: unused_source_nodes,
-        comments: &statements_analyzer
+        comments: statements_analyzer
             .get_file_analyzer()
             .get_file_source()
             .comments,
@@ -405,7 +405,7 @@ impl VariableUseNode {
             node.id.clone(),
             match &node.kind {
                 DataFlowNodeKind::Vertex { pos, .. } => Self {
-                    pos: Rc::new(pos.clone().unwrap()),
+                    pos: Rc::new((*pos).unwrap()),
                     path_types: Vec::new(),
                     kind: VariableSourceKind::Default,
                     name: "".to_string(),
@@ -413,13 +413,13 @@ impl VariableUseNode {
                 DataFlowNodeKind::VariableUseSource {
                     kind, label, pos, ..
                 } => Self {
-                    pos: Rc::new(pos.clone()),
+                    pos: Rc::new(*pos),
                     path_types: Vec::new(),
                     kind: kind.clone(),
                     name: label.clone(),
                 },
                 DataFlowNodeKind::VariableUseSink { pos } => Self {
-                    pos: Rc::new(pos.clone()),
+                    pos: Rc::new(*pos),
                     path_types: Vec::new(),
                     kind: VariableSourceKind::Default,
                     name: "".to_string(),

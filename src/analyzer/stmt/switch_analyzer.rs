@@ -3,7 +3,7 @@ use hakana_type::{combine_union_types, get_mixed_any};
 use indexmap::IndexMap;
 use oxidized::{aast, aast::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::{collections::BTreeMap, rc::Rc};
+use std::{rc::Rc};
 
 use crate::{
     expr::expression_identifier,
@@ -50,7 +50,7 @@ pub(crate) fn analyze(
 
     context.inside_conditional = false;
 
-    add_branch_dataflow(statements_analyzer, &stmt.0, analysis_data);
+    add_branch_dataflow(statements_analyzer, stmt.0, analysis_data);
 
     let switch_var_id = if let Some(switch_var_id) = expression_identifier::get_var_id(
         stmt.0,
@@ -90,7 +90,6 @@ pub(crate) fn analyze(
         .1
         .iter()
         .enumerate()
-        .map(|(k, c)| (k, c))
         .collect::<IndexMap<_, _>>();
     cases.reverse();
 
@@ -148,13 +147,13 @@ pub(crate) fn analyze(
     let mut previous_empty_cases = vec![];
 
     for (i, case) in &cases {
-        let case_exit_type = case_exit_types.get(&i).unwrap();
+        let case_exit_type = case_exit_types.get(i).unwrap();
 
         if case_exit_type != &ControlAction::Return {
             all_options_returned = false;
         }
 
-        let case_actions = case_action_map.get(&i).unwrap();
+        let case_actions = case_action_map.get(i).unwrap();
 
         if case.1.is_empty() {
             previous_empty_cases.push(*case);
@@ -168,7 +167,7 @@ pub(crate) fn analyze(
             condition_is_fake,
             &switch_var_id,
             Some(&case.0),
-            &case.0.pos(),
+            case.0.pos(),
             &case.1 .0,
             &previous_empty_cases,
             analysis_data,
@@ -218,7 +217,7 @@ pub(crate) fn analyze(
 
     let mut possibly_redefined_vars = switch_scope
         .possibly_redefined_vars
-        .unwrap_or(BTreeMap::new());
+        .unwrap_or_default();
     if let Some(new_vars_in_scope) = switch_scope.new_vars_in_scope {
         possibly_redefined_vars.retain(|k, _| !new_vars_in_scope.contains_key(k));
         context.vars_in_scope.extend(new_vars_in_scope);
@@ -270,7 +269,7 @@ fn update_case_exit_map(
         codebase,
         interner,
         resolved_names,
-        &case_stmts,
+        case_stmts,
         Some(analysis_data),
         vec![BreakContext::Switch],
         true,
@@ -294,5 +293,5 @@ fn get_last_action(case_actions: FxHashSet<ControlAction>) -> Option<ControlActi
         return Some(ControlAction::Break);
     }
 
-    return None;
+    None
 }

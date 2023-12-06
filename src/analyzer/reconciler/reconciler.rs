@@ -57,7 +57,7 @@ pub(crate) fn reconcile_keyed_types(
     let mut added_var_ids = FxHashSet::default();
 
     for (key, new_type_parts) in &new_types {
-        if key.contains("::") && !key.contains("$") && !key.contains("[") {
+        if key.contains("::") && !key.contains('$') && !key.contains('[') {
             continue;
         }
 
@@ -164,9 +164,7 @@ pub(crate) fn reconcile_keyed_types(
 
         let before_adjustment = result_type.clone();
 
-        let mut i = 0;
-
-        for new_type_part_parts in new_type_parts {
+        for (i, new_type_part_parts) in new_type_parts.iter().enumerate() {
             let mut orred_type: Option<TUnion> = None;
 
             for assertion in new_type_part_parts {
@@ -186,7 +184,7 @@ pub(crate) fn reconcile_keyed_types(
                             active_new_types
                                 .get(key)
                                 .unwrap()
-                                .get(&(i as usize))
+                                .get(&{ i })
                                 .is_some()
                         } else {
                             false
@@ -210,8 +208,6 @@ pub(crate) fn reconcile_keyed_types(
                     Some(result_type_candidate.clone())
                 };
             }
-
-            i += 1;
 
             result_type = orred_type;
         }
@@ -307,36 +303,30 @@ pub(crate) fn reconcile_keyed_types(
             }
         }
 
-        if key.ends_with("]") {
-            if type_changed || !did_type_exist {
-                if !has_inverted_isset && !is_equality {
-                    let key_parts = break_up_path_into_parts(key);
+        if key.ends_with(']') && (type_changed || !did_type_exist) && !has_inverted_isset && !is_equality {
+            let key_parts = break_up_path_into_parts(key);
 
-                    adjust_array_type(
-                        key_parts,
-                        context,
-                        &mut added_var_ids,
-                        changed_var_ids,
-                        &result_type,
-                    );
-                }
-            }
+            adjust_array_type(
+                key_parts,
+                context,
+                &mut added_var_ids,
+                changed_var_ids,
+                &result_type,
+            );
         }
 
         if type_changed {
             changed_var_ids.insert(key.clone());
 
-            if key != "$this" && !key.ends_with("]") {
+            if key != "$this" && !key.ends_with(']') {
                 let mut removable_keys = Vec::new();
                 for (new_key, _) in context.vars_in_scope.iter() {
                     if new_key.eq(key) {
                         continue;
                     }
 
-                    if is_real && !new_types.contains_key(new_key) {
-                        if var_has_root(&new_key, key) {
-                            removable_keys.push(new_key.clone());
-                        }
+                    if is_real && !new_types.contains_key(new_key) && var_has_root(new_key, key) {
+                        removable_keys.push(new_key.clone());
                     }
                 }
 
@@ -369,13 +359,13 @@ fn adjust_array_type(
     let array_key = key_parts.pop().unwrap();
     key_parts.pop();
 
-    if array_key.starts_with("$") {
+    if array_key.starts_with('$') {
         return;
     }
 
     let mut has_string_offset = false;
 
-    let arraykey_offset = if array_key.starts_with("'") || array_key.starts_with("\"") {
+    let arraykey_offset = if array_key.starts_with('\'') || array_key.starts_with('\"') {
         has_string_offset = true;
         array_key[1..(array_key.len() - 1)].to_string()
     } else {
@@ -406,13 +396,11 @@ fn adjust_array_type(
             } => {
                 let dictkey = if has_string_offset {
                     DictKey::String(arraykey_offset.clone())
+                } else if let Ok(arraykey_value) = arraykey_offset.parse::<u32>() {
+                    DictKey::Int(arraykey_value)
                 } else {
-                    if let Ok(arraykey_value) = arraykey_offset.parse::<u32>() {
-                        DictKey::Int(arraykey_value)
-                    } else {
-                        println!("bad int key {}", arraykey_offset);
-                        continue;
-                    }
+                    println!("bad int key {}", arraykey_offset);
+                    continue;
                 };
 
                 if let Some(known_items) = known_items {
@@ -430,10 +418,10 @@ fn adjust_array_type(
             } => {
                 if let Ok(arraykey_offset) = arraykey_offset.parse::<usize>() {
                     if let Some(known_items) = known_items {
-                        known_items.insert(arraykey_offset.clone(), (false, result_type.clone()));
+                        known_items.insert(arraykey_offset, (false, result_type.clone()));
                     } else {
                         *known_items = Some(BTreeMap::from([(
-                            arraykey_offset.clone(),
+                            arraykey_offset,
                             (false, result_type.clone()),
                         )]));
                     }
@@ -476,111 +464,106 @@ fn add_nested_assertions(
     let mut keys_to_remove = vec![];
 
     'outer: for (nk, new_type) in new_types.clone() {
-        if nk.contains("[") || nk.contains("->") {
-            if new_type[0][0] == Assertion::IsEqualIsset || new_type[0][0] == Assertion::IsIsset {
-                let mut key_parts = break_up_path_into_parts(&nk);
-                key_parts.reverse();
+        if (nk.contains('[') || nk.contains("->"))
+            && (new_type[0][0] == Assertion::IsEqualIsset || new_type[0][0] == Assertion::IsIsset)
+        {
+            let mut key_parts = break_up_path_into_parts(&nk);
+            key_parts.reverse();
 
-                let mut nesting = 0;
+            let mut nesting = 0;
 
-                let mut base_key = key_parts.pop().unwrap();
+            let mut base_key = key_parts.pop().unwrap();
 
-                if !&base_key.starts_with("$")
-                    && key_parts.len() > 2
-                    && key_parts.last().unwrap() == "::$"
-                {
-                    base_key += key_parts.pop().unwrap().as_str();
-                    base_key += key_parts.pop().unwrap().as_str();
-                }
+            if !&base_key.starts_with('$')
+                && key_parts.len() > 2
+                && key_parts.last().unwrap() == "::$"
+            {
+                base_key += key_parts.pop().unwrap().as_str();
+                base_key += key_parts.pop().unwrap().as_str();
+            }
 
-                let base_key_set = if let Some(base_key_type) = context.vars_in_scope.get(&base_key)
-                {
-                    !base_key_type.is_nullable()
+            let base_key_set = if let Some(base_key_type) = context.vars_in_scope.get(&base_key) {
+                !base_key_type.is_nullable()
+            } else {
+                false
+            };
+
+            if !base_key_set {
+                if !new_types.contains_key(&base_key) {
+                    new_types.insert(base_key.clone(), vec![vec![Assertion::IsEqualIsset]]);
                 } else {
-                    false
-                };
+                    let mut existing_entry = new_types.get(&base_key).unwrap().clone();
+                    existing_entry.push(vec![Assertion::IsEqualIsset]);
+                    new_types.insert(base_key.clone(), existing_entry);
+                }
+            }
 
-                if !base_key_set {
-                    if !new_types.contains_key(&base_key) {
-                        new_types.insert(base_key.clone(), vec![vec![Assertion::IsEqualIsset]]);
+            while let Some(divider) = key_parts.pop() {
+                if divider == "[" {
+                    let array_key = key_parts.pop().unwrap();
+                    key_parts.pop();
+
+                    let new_base_key = base_key.clone() + "[" + array_key.as_str() + "]";
+
+                    let entry = new_types.entry(base_key.clone()).or_default();
+
+                    let new_key = if array_key.starts_with('\'') {
+                        Some(DictKey::String(
+                            array_key[1..(array_key.len() - 1)].to_string(),
+                        ))
+                    } else if array_key.starts_with('$') {
+                        None
+                    } else if let Ok(arraykey_value) = array_key.parse::<u32>() {
+                        Some(DictKey::Int(arraykey_value))
                     } else {
-                        let mut existing_entry = new_types.get(&base_key).unwrap().clone();
-                        existing_entry.push(vec![Assertion::IsEqualIsset]);
-                        new_types.insert(base_key.clone(), existing_entry);
+                        println!("bad int key {}", array_key);
+                        panic!()
+                    };
+
+                    if let Some(new_key) = new_key {
+                        entry.push(vec![Assertion::HasNonnullEntryForKey(new_key)]);
+
+                        if key_parts.is_empty() {
+                            keys_to_remove.push(nk.clone());
+
+                            if nesting == 0 && base_key_set && active_new_types.remove(&nk).is_some() {
+                                active_new_types
+                                    .entry(base_key.clone())
+                                    .or_default()
+                                    .insert(entry.len() - 1);
+                            }
+
+                            break 'outer;
+                        }
+                    } else {
+                        entry.push(vec![if array_key.contains('\'') {
+                            Assertion::HasStringArrayAccess
+                        } else {
+                            Assertion::HasIntOrStringArrayAccess
+                        }]);
                     }
+
+                    base_key = new_base_key;
+                    nesting += 1;
+                    continue;
                 }
 
-                while let Some(divider) = key_parts.pop() {
-                    if divider == "[" {
-                        let array_key = key_parts.pop().unwrap();
-                        key_parts.pop();
+                if divider == "->" {
+                    let property_name = key_parts.pop().unwrap();
 
-                        let new_base_key = (&base_key).clone() + "[" + array_key.as_str() + "]";
+                    let new_base_key = base_key.clone() + "->" + property_name.as_str();
 
-                        let entry = new_types.entry(base_key.clone()).or_insert_with(Vec::new);
-
-                        let new_key = if array_key.starts_with("'") {
-                            Some(DictKey::String(
-                                array_key[1..(array_key.len() - 1)].to_string(),
-                            ))
-                        } else if array_key.starts_with("$") {
-                            None
-                        } else {
-                            if let Ok(arraykey_value) = array_key.parse::<u32>() {
-                                Some(DictKey::Int(arraykey_value))
-                            } else {
-                                println!("bad int key {}", array_key);
-                                panic!()
-                            }
-                        };
-
-                        if let Some(new_key) = new_key {
-                            entry.push(vec![Assertion::HasNonnullEntryForKey(new_key)]);
-
-                            if key_parts.is_empty() {
-                                keys_to_remove.push(nk.clone());
-
-                                if nesting == 0 && base_key_set {
-                                    if let Some(_) = active_new_types.remove(&nk) {
-                                        active_new_types
-                                            .entry(base_key.clone())
-                                            .or_insert_with(FxHashSet::default)
-                                            .insert(entry.len() - 1);
-                                    }
-                                }
-
-                                break 'outer;
-                            }
-                        } else {
-                            entry.push(vec![if array_key.contains("'") {
-                                Assertion::HasStringArrayAccess
-                            } else {
-                                Assertion::HasIntOrStringArrayAccess
-                            }]);
-                        }
-
-                        base_key = new_base_key;
-                        nesting += 1;
-                        continue;
+                    if !new_types.contains_key(&base_key) {
+                        new_types.insert(base_key.clone(), vec![vec![Assertion::IsIsset]]);
                     }
 
-                    if divider == "->" {
-                        let property_name = key_parts.pop().unwrap();
+                    base_key = new_base_key;
+                } else {
+                    break;
+                }
 
-                        let new_base_key = (&base_key).clone() + "->" + property_name.as_str();
-
-                        if !new_types.contains_key(&base_key) {
-                            new_types.insert(base_key.clone(), vec![vec![Assertion::IsIsset]]);
-                        }
-
-                        base_key = new_base_key;
-                    } else {
-                        break;
-                    }
-
-                    if key_parts.is_empty() {
-                        break;
-                    }
+                if key_parts.is_empty() {
+                    break;
                 }
             }
         }
@@ -638,9 +621,7 @@ fn break_up_path_into_parts(path: &String) -> Vec<String> {
             }
 
             '\'' | '"' => {
-                if !parts.contains_key(&parts_offset) {
-                    parts.insert(parts_offset, "".to_string());
-                }
+                parts.entry(parts_offset).or_insert_with(|| "".to_string());
                 parts.insert(
                     parts_offset,
                     parts.get(&parts_offset).unwrap().clone() + ichar.to_string().as_str(),
@@ -680,9 +661,7 @@ fn break_up_path_into_parts(path: &String) -> Vec<String> {
             _ => {}
         }
 
-        if !parts.contains_key(&parts_offset) {
-            parts.insert(parts_offset, "".to_string());
-        }
+        parts.entry(parts_offset).or_insert_with(|| "".to_string());
 
         parts.insert(
             parts_offset,
@@ -726,7 +705,7 @@ fn get_value_for_key(
 
     let mut base_key = key_parts.pop().unwrap();
 
-    if !base_key.starts_with("$")
+    if !base_key.starts_with('$')
         && key_parts.len() > 2
         && key_parts.last().unwrap().starts_with("::$")
     {
@@ -774,14 +753,12 @@ fn get_value_for_key(
             let array_key = key_parts.pop().unwrap();
             key_parts.pop();
 
-            let new_base_key = (&base_key).clone() + "[" + array_key.as_str() + "]";
+            let new_base_key = base_key.clone() + "[" + array_key.as_str() + "]";
 
             if !context.vars_in_scope.contains_key(&new_base_key) {
                 let mut new_base_type: Option<TUnion> = None;
 
-                let mut atomic_types = (*context.vars_in_scope.get(&base_key).unwrap())
-                    .types
-                    .clone();
+                let mut atomic_types = context.vars_in_scope.get(&base_key).unwrap().types.clone();
 
                 atomic_types.reverse();
 
@@ -802,9 +779,9 @@ fn get_value_for_key(
                     let mut new_base_type_candidate;
 
                     if let TAtomic::TDict { known_items, .. } = &existing_key_type_part {
-                        let known_item = if !array_key.starts_with("$") {
+                        let known_item = if !array_key.starts_with('$') {
                             if let Some(known_items) = known_items {
-                                let key_parts_key = array_key.replace("'", "");
+                                let key_parts_key = array_key.replace('\'', "");
                                 known_items.get(&DictKey::String(key_parts_key))
                             } else {
                                 None
@@ -937,14 +914,14 @@ fn get_value_for_key(
                         Some(hakana_type::add_union_type(
                             new_base_type,
                             &new_base_type_candidate,
-                            &codebase,
+                            codebase,
                             false,
                         ))
                     } else {
                         Some(new_base_type_candidate.clone())
                     };
 
-                    if !array_key.starts_with("$") {
+                    if !array_key.starts_with('$') {
                         added_var_ids.insert(new_base_key.clone());
                     }
 
@@ -959,7 +936,7 @@ fn get_value_for_key(
         } else if divider == "->" || divider == "::$" {
             let property_name = key_parts.pop().unwrap();
 
-            let new_base_key = (&base_key).clone() + "->" + property_name.as_str();
+            let new_base_key = base_key.clone() + "->" + property_name.as_str();
 
             if !context.vars_in_scope.contains_key(&new_base_key) {
                 let mut new_base_type: Option<TUnion> = None;
@@ -989,32 +966,26 @@ fn get_value_for_key(
                         ..
                     } = existing_key_type_part
                     {
-                        if fq_class_name == STR_STDCLASS {
+                        if fq_class_name == STR_STDCLASS
+                            || !codebase.class_or_interface_exists(&fq_class_name)
+                        {
                             class_property_type = get_mixed_any();
-                        } else if !codebase.class_or_interface_exists(&fq_class_name) {
-                            class_property_type = get_mixed_any();
+                        } else if property_name.ends_with("()") {
+                            // MAYBE TODO deal with memoisable method call memoisation
+                            panic!();
                         } else {
-                            if property_name.ends_with("()") {
-                                // MAYBE TODO deal with memoisable method call memoisation
-                                panic!();
-                            } else {
-                                let maybe_class_property_type = get_property_type(
-                                    &codebase,
-                                    interner,
-                                    &fq_class_name,
-                                    &if let Some(property_name) = interner.get(&property_name) {
-                                        property_name
-                                    } else {
-                                        return None;
-                                    },
-                                    analysis_data,
-                                );
+                            let maybe_class_property_type = get_property_type(
+                                codebase,
+                                interner,
+                                &fq_class_name,
+                                &interner.get(&property_name)?,
+                                analysis_data,
+                            );
 
-                                if let Some(maybe_class_property_type) = maybe_class_property_type {
-                                    class_property_type = maybe_class_property_type;
-                                } else {
-                                    return None;
-                                }
+                            if let Some(maybe_class_property_type) = maybe_class_property_type {
+                                class_property_type = maybe_class_property_type;
+                            } else {
+                                return None;
                             }
                         }
                     } else {
@@ -1025,7 +996,7 @@ fn get_value_for_key(
                         Some(hakana_type::add_union_type(
                             new_base_type,
                             &class_property_type,
-                            &codebase,
+                            codebase,
                             false,
                         ))
                     } else {
@@ -1045,11 +1016,7 @@ fn get_value_for_key(
         }
     }
 
-    if let Some(t) = context.vars_in_scope.get(&base_key) {
-        return Some((**t).clone());
-    } else {
-        return None;
-    }
+    context.vars_in_scope.get(&base_key).map(|t| (**t).clone())
 }
 
 fn get_property_type(
@@ -1066,12 +1033,7 @@ fn get_property_type(
     let declaring_property_class =
         codebase.get_declaring_class_for_property(classlike_name, property_name);
 
-    let declaring_property_class = if let Some(declaring_property_class) = declaring_property_class
-    {
-        declaring_property_class
-    } else {
-        return None;
-    };
+    let declaring_property_class = declaring_property_class?;
 
     let class_property_type = codebase.get_property_type(classlike_name, property_name);
 
@@ -1106,7 +1068,7 @@ pub(crate) fn trigger_issue_for_impossible(
     _suppressed_issues: &FxHashMap<String, usize>,
 ) {
     let mut assertion_string = assertion.to_string(Some(statements_analyzer.get_interner()));
-    let mut not_operator = assertion_string.starts_with("!");
+    let mut not_operator = assertion_string.starts_with('!');
 
     if not_operator {
         assertion_string = assertion_string[1..].to_string();
@@ -1143,7 +1105,7 @@ pub(crate) fn trigger_issue_for_impossible(
                 )
             } else {
                 get_redundant_issue(
-                    &assertion,
+                    assertion,
                     &assertion_string,
                     key,
                     statements_analyzer,
@@ -1159,7 +1121,7 @@ pub(crate) fn trigger_issue_for_impossible(
         analysis_data.maybe_add_issue(
             if not_operator {
                 get_redundant_issue(
-                    &assertion,
+                    assertion,
                     &assertion_string,
                     key,
                     statements_analyzer,
@@ -1207,14 +1169,14 @@ fn get_impossible_issue(
         Assertion::Truthy | Assertion::Falsy => Issue::new(
             IssueKind::ImpossibleTruthinessCheck,
             format!("Type {}is never {}", old_var_type_string, assertion_string),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
         Assertion::IsType(TAtomic::TNull) | Assertion::IsNotType(TAtomic::TNull) => Issue::new(
             IssueKind::ImpossibleNullTypeComparison,
             format!("{} is never null", key),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
         Assertion::HasArrayKey(key) | Assertion::DoesNotHaveArrayKey(key) => Issue::new(
             IssueKind::ImpossibleKeyCheck,
@@ -1223,8 +1185,8 @@ fn get_impossible_issue(
                 old_var_type_string,
                 key.to_string(Some(statements_analyzer.get_interner()))
             ),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
         Assertion::HasNonnullEntryForKey(dict_key) => Issue::new(
             IssueKind::ImpossibleNonnullEntryCheck,
@@ -1233,14 +1195,14 @@ fn get_impossible_issue(
                 old_var_type_string,
                 dict_key.to_string(Some(statements_analyzer.get_interner()))
             ),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
         _ => Issue::new(
             IssueKind::ImpossibleTypeComparison,
             format!("Type {}is never {}", old_var_type_string, &assertion_string),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
     }
 }
@@ -1268,14 +1230,14 @@ fn get_redundant_issue(
         Assertion::IsIsset | Assertion::IsEqualIsset => Issue::new(
             IssueKind::RedundantIssetCheck,
             "Unnecessary isset check".to_string(),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
         Assertion::Truthy | Assertion::Falsy => Issue::new(
             IssueKind::RedundantTruthinessCheck,
             format!("Type {}is always {}", old_var_type_string, assertion_string),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
         Assertion::HasArrayKey(key) | Assertion::DoesNotHaveArrayKey(key) => Issue::new(
             IssueKind::RedundantKeyCheck,
@@ -1284,8 +1246,8 @@ fn get_redundant_issue(
                 old_var_type_string,
                 key.to_string(Some(statements_analyzer.get_interner()))
             ),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
         Assertion::HasNonnullEntryForKey(key) => Issue::new(
             IssueKind::RedundantNonnullEntryCheck,
@@ -1294,21 +1256,21 @@ fn get_redundant_issue(
                 old_var_type_string,
                 key.to_string(Some(statements_analyzer.get_interner()))
             ),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
         Assertion::IsType(TAtomic::TMixedWithFlags(_, _, _, true))
         | Assertion::IsNotType(TAtomic::TMixedWithFlags(_, _, _, true)) => Issue::new(
             IssueKind::RedundantNonnullTypeComparison,
             format!("{} is always nonnull", key),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
         _ => Issue::new(
             IssueKind::RedundantTypeComparison,
             format!("Type {}is always {}", old_var_type_string, assertion_string),
-            statements_analyzer.get_hpos(&pos),
-            &calling_functionlike_id,
+            statements_analyzer.get_hpos(pos),
+            calling_functionlike_id,
         ),
     }
 }

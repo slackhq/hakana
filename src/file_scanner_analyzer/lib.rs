@@ -229,7 +229,7 @@ pub fn scan_and_analyze(
 
     if let Some(cache_dir) = cache_dir {
         let timestamp_path = format!("{}/buildinfo", cache_dir);
-        let mut timestamp_file = fs::File::create(&timestamp_path).unwrap();
+        let mut timestamp_file = fs::File::create(timestamp_path).unwrap();
         write!(timestamp_file, "{}", header).unwrap();
 
         let aast_manifest_path = format!("{}/manifest", cache_dir);
@@ -354,7 +354,7 @@ pub fn scan_and_analyze(
             analysis_result
                 .emitted_issues
                 .entry(issue.pos.file_path)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(issue);
         }
     }
@@ -367,32 +367,25 @@ fn cache_analysis_data(
     analysis_result: &AnalysisResult,
 ) -> Result<(), io::Error> {
     if let Some(references_path) = get_references_path(cache_dir) {
-        let mut symbols_file = fs::File::create(&references_path).unwrap();
+        let mut symbols_file = fs::File::create(references_path).unwrap();
         let serialized_symbol_references =
             bincode::serialize(&analysis_result.symbol_references).unwrap();
         symbols_file.write_all(&serialized_symbol_references)?;
     }
-    Ok(if let Some(issues_path) = get_issues_path(cache_dir) {
-        let mut issues_file = fs::File::create(&issues_path).unwrap();
+    if let Some(issues_path) = get_issues_path(cache_dir) {
+        let mut issues_file = fs::File::create(issues_path).unwrap();
         let serialized_issues = bincode::serialize(&analysis_result.emitted_issues).unwrap();
         issues_file.write_all(&serialized_issues)?;
-    })
+    };
+    Ok(())
 }
 
 fn get_issues_path(cache_dir: Option<&String>) -> Option<String> {
-    if let Some(cache_dir) = cache_dir {
-        Some(format!("{}/issues", cache_dir))
-    } else {
-        None
-    }
+    cache_dir.map(|cache_dir| format!("{}/issues", cache_dir))
 }
 
 fn get_references_path(cache_dir: Option<&String>) -> Option<String> {
-    if let Some(cache_dir) = cache_dir {
-        Some(format!("{}/references", cache_dir))
-    } else {
-        None
-    }
+    cache_dir.map(|cache_dir| format!("{}/references", cache_dir))
 }
 
 pub fn get_aast_for_path(

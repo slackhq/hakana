@@ -85,7 +85,7 @@ pub fn get_var_id(
                     } else if let Some(dim_id) =
                         get_var_id(dim, this_class_name, source, resolved_names, codebase)
                     {
-                        if dim_id.contains("'") {
+                        if dim_id.contains('\'') {
                             return None;
                         }
                         return Some(format!("{}[{}]", base_id, dim_id));
@@ -122,8 +122,8 @@ pub(crate) fn get_dim_id(
 ) -> Option<String> {
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => Some(var_expr.1 .1.clone()),
-        aast::Expr_::String(value) => Some(format!("'{}'", value.to_string())),
-        aast::Expr_::Int(value) => Some(format!("{}", value.clone())),
+        aast::Expr_::String(value) => Some(format!("'{}'", value)),
+        aast::Expr_::Int(value) => Some(value.clone().to_string()),
         aast::Expr_::ClassConst(boxed) => {
             if let Some((codebase, interner)) = codebase {
                 match &boxed.0 .2 {
@@ -145,11 +145,7 @@ pub(crate) fn get_dim_id(
                             let constant_type = codebase.get_class_constant_type(
                                 &classlike_name,
                                 is_static,
-                                &if let Some(name) = interner.get(&boxed.1 .1) {
-                                    name
-                                } else {
-                                    return None;
-                                },
+                                &interner.get(&boxed.1 .1)?,
                                 FxHashSet::default(),
                             );
 
@@ -183,12 +179,10 @@ pub fn get_functionlike_id_from_call(
                     STR_ISSET
                 } else if boxed_id.1 == "\\in_array" {
                     interner.get("in_array").unwrap()
+                } else if let Some(resolved_name) = resolved_names.get(&boxed_id.0.start_offset()) {
+                    *resolved_name
                 } else {
-                    if let Some(resolved_name) = resolved_names.get(&boxed_id.0.start_offset()) {
-                        *resolved_name
-                    } else {
-                        return None;
-                    }
+                    return None;
                 };
 
                 Some(FunctionLikeIdentifier::Function(name))

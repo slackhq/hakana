@@ -71,7 +71,7 @@ pub(crate) fn analyze(
                 };
 
                 let constant_type = codebase.get_class_constant_type(
-                    &lhs_name,
+                    lhs_name,
                     false,
                     &statements_analyzer.get_interner().get(&name.1).unwrap(),
                     FxHashSet::default(),
@@ -129,7 +129,7 @@ pub(crate) fn analyze(
 
         if let Some(name) = name {
             let value_item_type = analysis_data
-                .get_expr_type(&value_expr.pos())
+                .get_expr_type(value_expr.pos())
                 .cloned()
                 .unwrap_or(get_mixed_any());
 
@@ -164,7 +164,7 @@ pub(crate) fn analyze(
     );
 
     let mut new_dict = wrap_atomic(TAtomic::TDict {
-        known_items: if known_items.len() > 0 {
+        known_items: if !known_items.is_empty() {
             Some(known_items)
         } else {
             None
@@ -176,7 +176,7 @@ pub(crate) fn analyze(
 
     new_dict.parent_nodes = parent_nodes;
 
-    analysis_data.set_expr_type(&pos, new_dict);
+    analysis_data.set_expr_type(pos, new_dict);
 
     Ok(())
 }
@@ -217,5 +217,5 @@ fn add_shape_value_dataflow(
         );
     }
 
-    return Some(new_parent_node);
+    Some(new_parent_node)
 }

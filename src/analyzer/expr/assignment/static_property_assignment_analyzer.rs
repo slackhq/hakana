@@ -56,19 +56,17 @@ pub(crate) fn analyze(
     } else if let Some(stmt_name_expr) = stmt_name_expr {
         if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
             Some(id.1.clone())
-        } else {
-            if let Some(stmt_name_type) = analysis_data
-                .get_rc_expr_type(stmt_name_expr.pos())
-                .cloned()
-            {
-                if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
-                    Some(value.clone())
-                } else {
-                    None
-                }
+        } else if let Some(stmt_name_type) = analysis_data
+            .get_rc_expr_type(stmt_name_expr.pos())
+            .cloned()
+        {
+            if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
+                Some(value.clone())
             } else {
                 None
             }
+        } else {
+            None
         }
     } else {
         None
@@ -151,7 +149,7 @@ pub(crate) fn analyze(
     for fq_class_name in fq_class_names {
         // TODO if (!$prop_name instanceof PhpParser\Node\Identifier) {
 
-        let property_id = (fq_class_name.clone(), prop_name.to_owned());
+        let property_id = (fq_class_name, prop_name.to_owned());
 
         analysis_data
             .symbol_references

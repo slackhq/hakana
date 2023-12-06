@@ -340,7 +340,7 @@ pub fn get_arrayish_params(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<
             if let Some(known_items) = known_items {
                 for (key, (_, property_type)) in known_items {
                     key_types.push(TAtomic::TLiteralInt {
-                        value: key.clone() as i64,
+                        value: *key as i64,
                     });
                     type_param = combine_union_types(property_type, &type_param, codebase, false);
                 }
@@ -457,7 +457,7 @@ pub fn get_union_syntax_type(
             {
                 if let Some(storage) = codebase.classlike_infos.get(name) {
                     if let Some(parent_class) = &storage.direct_parent_class {
-                        t_object_parents.insert(name.clone(), parent_class.clone());
+                        t_object_parents.insert(*name, *parent_class);
                     }
                 }
             }
@@ -474,9 +474,7 @@ pub fn get_union_syntax_type(
     }
 
     if t_atomic_strings.len() != 1 && t_atomic_strings.len() == t_object_parents.len() {
-        let flattened_parents = t_object_parents
-            .into_iter()
-            .map(|(_, v)| interner.lookup(&v).to_string())
+        let flattened_parents = t_object_parents.into_values().map(|v| interner.lookup(&v).to_string())
             .collect::<FxHashSet<_>>();
 
         if flattened_parents.len() == 1 {
@@ -577,13 +575,13 @@ pub fn get_atomic_syntax_type(
                 }
             }
 
-            return if let Some(params) = params {
+            if let Some(params) = params {
                 let key_param = get_union_syntax_type(&params.0, codebase, interner, is_valid);
                 let value_param = get_union_syntax_type(&params.1, codebase, interner, is_valid);
                 format!("dict<{}, {}>", key_param, value_param)
             } else {
                 "dict<nothing, nothing>".to_string()
-            };
+            }
         }
         TAtomic::TEnum { name, .. } => interner.lookup(name).to_string(),
         TAtomic::TFalse { .. } => "bool".to_string(),
@@ -631,7 +629,7 @@ pub fn get_atomic_syntax_type(
         TAtomic::TTypeAlias {
             name, type_params, ..
         } => {
-            if let None = type_params {
+            if type_params.is_none() {
                 interner.lookup(name).to_string()
             } else {
                 *is_valid = false;

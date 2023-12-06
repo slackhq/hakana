@@ -30,7 +30,7 @@ pub(crate) fn analyze(
     } else {
         expression_analyzer::analyze(
             statements_analyzer,
-            &expr.1,
+            expr.1,
             analysis_data,
             context,
             &mut None,
@@ -49,7 +49,7 @@ pub(crate) fn analyze(
 
     expression_analyzer::analyze(
         statements_analyzer,
-        &expr.0,
+        expr.0,
         analysis_data,
         context,
         &mut None,
@@ -60,7 +60,7 @@ pub(crate) fn analyze(
     context.inside_general_use = was_inside_general_use;
 
     let stmt_var_id = expression_identifier::get_var_id(
-        &expr.0,
+        expr.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
@@ -71,17 +71,13 @@ pub(crate) fn analyze(
     );
 
     let var_id = if let Some(stmt_var_id) = stmt_var_id.clone() {
-        if let Some(prop_name) = &prop_name {
-            Some(stmt_var_id + "->" + prop_name.as_str())
-        } else {
-            None
-        }
+        prop_name.as_ref().map(|prop_name| stmt_var_id + "->" + prop_name.as_str())
     } else {
         None
     };
 
     if let Some(var_id) = &var_id {
-        if context.has_variable(&var_id) {
+        if context.has_variable(var_id) {
             // short circuit if the type is known in scope
             handle_scoped_property(context, analysis_data, pos, var_id);
 
@@ -90,7 +86,7 @@ pub(crate) fn analyze(
     }
 
     let stmt_var_type = if let Some(stmt_var_id) = &stmt_var_id {
-        if context.has_variable(&stmt_var_id) {
+        if context.has_variable(stmt_var_id) {
             Some(context.vars_in_scope.get(stmt_var_id).unwrap().clone())
         } else {
             analysis_data.get_rc_expr_type(expr.0.pos()).cloned()
@@ -122,7 +118,7 @@ pub(crate) fn analyze(
                         Issue::new(
                             IssueKind::PossiblyNullPropertyFetch,
                             "Unsafe property access on null".to_string(),
-                            statements_analyzer.get_hpos(&expr.0.pos()),
+                            statements_analyzer.get_hpos(expr.0.pos()),
                             &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
@@ -147,7 +143,7 @@ pub(crate) fn analyze(
         }
     }
 
-    let mut stmt_type = analysis_data.get_rc_expr_type(&pos).cloned();
+    let mut stmt_type = analysis_data.get_rc_expr_type(pos).cloned();
 
     if has_nullsafe_null {
         if let Some(ref mut stmt_type) = stmt_type {
@@ -192,12 +188,12 @@ pub(crate) fn handle_scoped_property(
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     var_id: &String,
-) -> () {
+) {
     let stmt_type = context.vars_in_scope.get(var_id);
 
     // we don't need to check anything since this variable is known in this scope
     analysis_data.set_rc_expr_type(
-        &pos,
+        pos,
         if let Some(stmt_type) = stmt_type {
             stmt_type.clone()
         } else {

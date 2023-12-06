@@ -14,11 +14,11 @@ use hakana_type::combine_union_types;
 use oxidized::ast::{Binop, Uop};
 use oxidized::{aast, ast};
 
-pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
+pub(crate) fn analyze<'expr, 'map, 'new_expr>(
     statements_analyzer: &StatementsAnalyzer,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
-    analysis_data: &'tast mut FunctionAnalysisData,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> Result<(), AnalysisError> {
@@ -132,24 +132,22 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     let mut negated_left_clauses =
         if let Ok(good_clauses) = hakana_algebra::negate_formula(left_clauses) {
             good_clauses
+        } else if let Ok(good_clauses) = formula_generator::get_formula(
+            left_cond_id,
+            left_cond_id,
+            &aast::Expr(
+                (),
+                left.pos().clone(),
+                aast::Expr_::Unop(Box::new((Uop::Unot, left.clone()))),
+            ),
+            &assertion_context,
+            analysis_data,
+            false,
+            false,
+        ) {
+            good_clauses
         } else {
-            if let Ok(good_clauses) = formula_generator::get_formula(
-                left_cond_id,
-                left_cond_id,
-                &aast::Expr(
-                    (),
-                    left.pos().clone(),
-                    aast::Expr_::Unop(Box::new((Uop::Unot, left.clone()))),
-                ),
-                &assertion_context,
-                analysis_data,
-                false,
-                false,
-            ) {
-                good_clauses
-            } else {
-                return Err(AnalysisError::UserError);
-            }
+            return Err(AnalysisError::UserError);
         };
 
     if !left_context.reconciled_expression_clauses.is_empty() {
@@ -273,15 +271,13 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         false,
     );
 
-    if let Err(_) = right_clauses {
+    if right_clauses.is_err() {
         return Err(AnalysisError::UserError);
     }
 
     let mut clauses_for_right_analysis = ScopeContext::remove_reconciled_clauses(
         &clauses_for_right_analysis,
-        &right_assigned_var_ids
-            .into_iter()
-            .map(|(k, _)| k)
+        &right_assigned_var_ids.into_keys()
             .collect::<FxHashSet<_>>(),
     )
     .0;
@@ -334,14 +330,14 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             if let Some(if_type) = if_vars.get(&var_id) {
                 if_body_context.vars_in_scope.insert(
                     var_id,
-                    Rc::new(combine_union_types(&right_type, &if_type, codebase, false)),
+                    Rc::new(combine_union_types(&right_type, if_type, codebase, false)),
                 );
             } else if let Some(left_type) = left_vars.get(&var_id) {
                 if_body_context.vars_in_scope.insert(
                     var_id,
                     Rc::new(combine_union_types(
                         &right_type,
-                        &left_type,
+                        left_type,
                         codebase,
                         false,
                     )),

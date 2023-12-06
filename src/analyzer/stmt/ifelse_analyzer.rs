@@ -70,13 +70,13 @@ pub(crate) fn analyze(
 
     let if_conditional_scope = if_conditional_analyzer::analyze(
         statements_analyzer,
-        &stmt.0,
+        stmt.0,
         analysis_data,
         context,
         &mut if_scope,
     )?;
 
-    add_branch_dataflow(statements_analyzer, &stmt.0, analysis_data);
+    add_branch_dataflow(statements_analyzer, stmt.0, analysis_data);
 
     let mut if_body_context = if_conditional_scope.if_body_context;
     let post_if_context = if_conditional_scope.post_if_context;
@@ -305,7 +305,7 @@ pub(crate) fn analyze(
     // vars can only be defined/redefined if there was an else (defined in every block)
     context
         .assigned_var_ids
-        .extend(if_scope.assigned_var_ids.unwrap_or(FxHashMap::default()));
+        .extend(if_scope.assigned_var_ids.unwrap_or_default());
 
     if let Some(new_vars) = if_scope.new_vars {
         for (var_id, var_type) in new_vars {
@@ -424,11 +424,11 @@ pub(crate) fn remove_clauses_with_mixed_vars(
     if_clauses
         .into_iter()
         .map(|c| {
-            let keys = c.possibilities.iter().map(|(k, _)| k).collect::<Vec<_>>();
+            let keys = c.possibilities.keys().collect::<Vec<_>>();
 
             let mut new_mixed_var_ids = vec![];
             for i in &mixed_var_ids {
-                if !keys.contains(&i) {
+                if !keys.contains(i) {
                     new_mixed_var_ids.push(*i);
                 }
             }
@@ -449,7 +449,7 @@ pub(crate) fn remove_clauses_with_mixed_vars(
                 }
             }
 
-            return c;
+            c
         })
         .collect::<Vec<Clause>>()
 }

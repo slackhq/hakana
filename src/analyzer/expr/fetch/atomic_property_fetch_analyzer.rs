@@ -38,13 +38,13 @@ pub(crate) fn analyze(
     lhs_var_id: &Option<String>,
 ) -> Result<(), AnalysisError> {
     if lhs_type_part.is_mixed() {
-        analysis_data.set_expr_type(&expr.0.pos(), get_mixed_any());
+        analysis_data.set_expr_type(expr.0.pos(), get_mixed_any());
     }
 
     let codebase = statements_analyzer.get_codebase();
 
     let classlike_name = match &lhs_type_part {
-        TAtomic::TNamedObject { name, .. } => name.clone(),
+        TAtomic::TNamedObject { name, .. } => *name,
         TAtomic::TReference {
             name: classlike_name,
             ..
@@ -62,7 +62,7 @@ pub(crate) fn analyze(
                         "Cannot access property on undefined class {}",
                         statements_analyzer.get_interner().lookup(classlike_name)
                     ),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -86,7 +86,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_interner().lookup(&classlike_name),
                     prop_name,
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -105,7 +105,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_interner().lookup(&classlike_name),
                     statements_analyzer.get_interner().lookup(&prop_name)
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -124,7 +124,7 @@ pub(crate) fn analyze(
             .symbol_references
             .add_reference_to_class_member(
                 &context.function_context,
-                (classlike_name.clone(), prop_name),
+                (classlike_name, prop_name),
                 false,
             );
 
@@ -174,7 +174,7 @@ pub(crate) fn analyze(
     //     }
     // }
 
-    let property_id = (classlike_name, prop_name.clone());
+    let property_id = (classlike_name, prop_name);
 
     if let Some(classlike_storage) = codebase.classlike_infos.get(&property_id.0) {
         class_property_type = add_property_dataflow(
@@ -196,7 +196,7 @@ pub(crate) fn analyze(
     // }
 
     analysis_data.set_expr_type(
-        &pos,
+        pos,
         add_optional_union_type(
             class_property_type,
             analysis_data.get_expr_type(pos),
@@ -216,7 +216,7 @@ fn get_class_property_type(
     analysis_data: &mut FunctionAnalysisData,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
-    let class_property_type = codebase.get_property_type(&classlike_name, &property_name);
+    let class_property_type = codebase.get_property_type(classlike_name, property_name);
 
     let class_storage = codebase.classlike_infos.get(classlike_name).unwrap();
     let declaring_class_storage = codebase
@@ -224,7 +224,7 @@ fn get_class_property_type(
         .get(declaring_property_class)
         .unwrap();
     if let Some(mut class_property_type) = class_property_type {
-        let parent_class = declaring_class_storage.direct_parent_class.clone();
+        let parent_class = declaring_class_storage.direct_parent_class;
         type_expander::expand_union(
             codebase,
             &Some(statements_analyzer.get_interner()),
@@ -258,7 +258,7 @@ fn get_class_property_type(
                 }
 
                 lhs_type_part = TAtomic::TNamedObject {
-                    name: name.clone(),
+                    name: *name,
                     type_params: Some(type_params),
                     is_this: false,
                     extra_types: None,
@@ -294,7 +294,7 @@ fn get_class_property_type(
         // send out a MissingPropertyType issue buffer error
     }
 
-    return get_mixed_any();
+    get_mixed_any()
 }
 
 pub(crate) fn localize_property_type(
@@ -322,24 +322,22 @@ pub(crate) fn localize_property_type(
 
         let extended_types = &property_class_storage.template_extended_params;
 
-        if !template_types.is_empty() {
-            if !property_class_storage.template_types.is_empty() {
-                for (param_offset, lhs_param_type) in lhs_type_params.iter().enumerate() {
-                    let mut i = -1;
+        if !template_types.is_empty() && !property_class_storage.template_types.is_empty() {
+            for (param_offset, lhs_param_type) in lhs_type_params.iter().enumerate() {
+                let mut i = -1;
 
-                    for (calling_param_name, _) in &property_class_storage.template_types {
-                        i += 1;
+                for (calling_param_name, _) in &property_class_storage.template_types {
+                    i += 1;
 
-                        if i == (param_offset as i32) {
-                            template_types
-                                .entry(calling_param_name.clone())
-                                .or_insert_with(FxHashMap::default)
-                                .insert(
-                                    property_class_storage.name.clone(),
-                                    lhs_param_type.clone(),
-                                );
-                            break;
-                        }
+                    if i == (param_offset as i32) {
+                        template_types
+                            .entry(*calling_param_name)
+                            .or_insert_with(FxHashMap::default)
+                            .insert(
+                                property_class_storage.name,
+                                lhs_param_type.clone(),
+                            );
+                        break;
                     }
                 }
             }
@@ -347,7 +345,7 @@ pub(crate) fn localize_property_type(
 
         let template_type_keys = template_types
             .iter()
-            .map(|(k, _)| k.clone())
+            .map(|(k, _)| *k)
             .collect::<Vec<_>>();
 
         for type_name in template_type_keys {
@@ -365,10 +363,10 @@ pub(crate) fn localize_property_type(
                         if let Some(position) = position {
                             if let Some(mapped_param) = lhs_type_params.get(position) {
                                 template_types
-                                    .entry(type_name.clone())
+                                    .entry(type_name)
                                     .or_insert_with(FxHashMap::default)
                                     .insert(
-                                        property_declaring_class_storage.name.clone(),
+                                        property_declaring_class_storage.name,
                                         mapped_param.clone(),
                                     );
                             }
@@ -450,7 +448,7 @@ fn add_property_dataflow(
             }
         }
 
-        return stmt_type;
+        stmt_type
     } else {
         let stmt_type = add_unspecialized_property_fetch_dataflow(
             expr_id,
@@ -462,7 +460,7 @@ fn add_property_dataflow(
             statements_analyzer.get_interner(),
         );
 
-        return stmt_type;
+        stmt_type
     }
 }
 

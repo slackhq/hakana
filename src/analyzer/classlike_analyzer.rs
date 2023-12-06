@@ -39,10 +39,8 @@ impl<'a> ClassLikeAnalyzer<'a> {
 
         let codebase = self.file_analyzer.get_codebase();
 
-        if self.file_analyzer.analysis_config.ast_diff {
-            if self.file_analyzer.codebase.safe_symbols.contains(&name) {
-                return Ok(());
-            }
+        if self.file_analyzer.analysis_config.ast_diff && self.file_analyzer.codebase.safe_symbols.contains(&name) {
+            return Ok(());
         }
 
         let classlike_storage = if let Some(storage) = codebase.classlike_infos.get(&name) {
@@ -57,23 +55,23 @@ impl<'a> ClassLikeAnalyzer<'a> {
         for parent_class in &classlike_storage.all_parent_classes {
             analysis_result
                 .symbol_references
-                .add_symbol_reference_to_symbol(name.clone(), parent_class.clone(), true);
+                .add_symbol_reference_to_symbol(name, *parent_class, true);
         }
 
         for parent_interface in &classlike_storage.all_parent_interfaces {
             analysis_result
                 .symbol_references
-                .add_symbol_reference_to_symbol(name.clone(), parent_interface.clone(), true);
+                .add_symbol_reference_to_symbol(name, *parent_interface, true);
         }
 
         for trait_name in &classlike_storage.used_traits {
             analysis_result
                 .symbol_references
-                .add_symbol_reference_to_symbol(name.clone(), trait_name.clone(), true);
+                .add_symbol_reference_to_symbol(name, *trait_name, true);
         }
 
         let mut function_context = FunctionContext::new();
-        function_context.calling_class = Some(name.clone());
+        function_context.calling_class = Some(name);
         function_context.calling_class_final = stmt.final_;
 
         let mut class_context = ScopeContext::new(function_context);

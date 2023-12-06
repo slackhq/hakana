@@ -70,7 +70,7 @@ pub(crate) fn analyze(
                                         codebase,
                                         analysis_data,
                                         context,
-                                        &name,
+                                        name,
                                         const_name,
                                         *is_this,
                                         statements_analyzer,
@@ -100,7 +100,7 @@ pub(crate) fn analyze(
                                                 .get_interner()
                                                 .lookup(classlike_name)
                                         ),
-                                        statements_analyzer.get_hpos(&pos),
+                                        statements_analyzer.get_hpos(pos),
                                         &context.function_context.calling_functionlike_id,
                                     ),
                                     statements_analyzer.get_config(),
@@ -112,7 +112,7 @@ pub(crate) fn analyze(
                     }
                 }
 
-                analysis_data.set_expr_type(&pos, stmt_type.unwrap_or(get_mixed_any()));
+                analysis_data.set_expr_type(pos, stmt_type.unwrap_or(get_mixed_any()));
 
                 return Ok(());
             }
@@ -133,9 +133,9 @@ pub(crate) fn analyze(
         pos,
     )
     .unwrap_or(get_mixed_any());
-    analysis_data.set_expr_type(&pos, stmt_type);
+    analysis_data.set_expr_type(pos, stmt_type);
 
-    return Ok(());
+    Ok(())
 }
 
 fn analyse_known_class_constant(
@@ -148,7 +148,7 @@ fn analyse_known_class_constant(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
 ) -> Option<TUnion> {
-    if !codebase.class_or_interface_or_enum_or_trait_exists(&classlike_name) {
+    if !codebase.class_or_interface_or_enum_or_trait_exists(classlike_name) {
         analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
             *classlike_name,
@@ -157,7 +157,7 @@ fn analyse_known_class_constant(
 
         if const_name == "class" && codebase.type_definitions.contains_key(classlike_name) {
             return Some(wrap_atomic(TAtomic::TLiteralClassname {
-                name: classlike_name.clone(),
+                name: *classlike_name,
             }));
         }
 
@@ -169,7 +169,7 @@ fn analyse_known_class_constant(
                         "Unknown class {}",
                         statements_analyzer.get_interner().lookup(classlike_name)
                     ),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 )
             } else {
@@ -179,7 +179,7 @@ fn analyse_known_class_constant(
                         "Unknown classlike {}",
                         statements_analyzer.get_interner().lookup(classlike_name)
                     ),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 )
             },
@@ -193,7 +193,7 @@ fn analyse_known_class_constant(
     if const_name == "class" {
         let inner_object = if is_this {
             let named_object = TAtomic::TNamedObject {
-                name: classlike_name.clone(),
+                name: *classlike_name,
                 type_params: None,
                 is_this,
                 extra_types: None,
@@ -204,20 +204,20 @@ fn analyse_known_class_constant(
             }
         } else {
             TAtomic::TLiteralClassname {
-                name: classlike_name.clone(),
+                name: *classlike_name,
             }
         };
 
         analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
-            classlike_name.clone(),
+            *classlike_name,
             false,
         );
 
         return Some(wrap_atomic(inner_object));
     }
 
-    let const_name = if let Some(const_name) = statements_analyzer.get_interner().get(&const_name) {
+    let const_name = if let Some(const_name) = statements_analyzer.get_interner().get(const_name) {
         const_name
     } else {
         analysis_data.maybe_add_issue(
@@ -228,7 +228,7 @@ fn analyse_known_class_constant(
                     statements_analyzer.get_interner().lookup(classlike_name),
                     const_name
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -242,7 +242,7 @@ fn analyse_known_class_constant(
         .symbol_references
         .add_reference_to_class_member(
             &context.function_context,
-            (classlike_name.clone(), const_name),
+            (*classlike_name, const_name),
             false,
         );
 
@@ -257,7 +257,7 @@ fn analyse_known_class_constant(
                     statements_analyzer.get_interner().lookup(classlike_name),
                     statements_analyzer.get_interner().lookup(&const_name),
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -266,7 +266,7 @@ fn analyse_known_class_constant(
     }
 
     let mut class_constant_type = codebase.get_class_constant_type(
-        &classlike_name,
+        classlike_name,
         is_this,
         &const_name,
         FxHashSet::default(),

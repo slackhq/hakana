@@ -34,7 +34,7 @@ pub(crate) fn analyze(
     keyed_array_var_id: Option<String>,
 ) -> Result<(), AnalysisError> {
     let extended_var_id = expression_identifier::get_var_id(
-        &expr.0,
+        expr.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
@@ -132,7 +132,7 @@ pub(crate) fn analyze(
                 &mut used_key_type,
             );
 
-            analysis_data.set_expr_type(&pos, stmt_type.clone());
+            analysis_data.set_expr_type(pos, stmt_type.clone());
         }
     }
 
@@ -222,18 +222,16 @@ pub(crate) fn add_array_fetch_dataflow(
 
             let mut array_key_node = None;
 
-            if let None = keyed_array_var_id {
-                if let None = dim_value {
-                    let fetch_node = DataFlowNode::get_for_assignment(
-                        "arraykey-fetch".to_string(),
-                        statements_analyzer.get_hpos(array_expr_pos),
-                    );
-                    analysis_data.data_flow_graph.add_node(fetch_node.clone());
-                    array_key_node = Some(fetch_node);
-                    analysis_data
-                        .data_flow_graph
-                        .add_node(new_parent_node.clone());
-                }
+            if keyed_array_var_id.is_none() && dim_value.is_none() {
+                let fetch_node = DataFlowNode::get_for_assignment(
+                    "arraykey-fetch".to_string(),
+                    statements_analyzer.get_hpos(array_expr_pos),
+                );
+                analysis_data.data_flow_graph.add_node(fetch_node.clone());
+                array_key_node = Some(fetch_node);
+                analysis_data
+                    .data_flow_graph
+                    .add_node(new_parent_node.clone());
             }
 
             for parent_node in stmt_var_type.parent_nodes.iter() {
@@ -296,7 +294,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     "Cannot access value on variable {} using null offset",
                     extended_var_id.clone().unwrap_or("".to_string())
                 ),
-                statements_analyzer.get_hpos(&stmt.2),
+                statements_analyzer.get_hpos(stmt.2),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -312,7 +310,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     "Cannot access value on variable {} using nullable offset",
                     extended_var_id.clone().unwrap_or("".to_string())
                 ),
-                statements_analyzer.get_hpos(&stmt.2),
+                statements_analyzer.get_hpos(stmt.2),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -402,7 +400,7 @@ pub(crate) fn get_array_access_type_given_offset(
                     analysis_data,
                     context,
                     atomic_var_type,
-                    &array_type,
+                    array_type,
                     stmt_type.clone(),
                 );
 
@@ -422,7 +420,7 @@ pub(crate) fn get_array_access_type_given_offset(
                             Issue::new(
                                 IssueKind::PossiblyNullArrayAccess,
                                 "Unsafe array access on null".to_string(),
-                                statements_analyzer.get_hpos(&stmt.0.pos()),
+                                statements_analyzer.get_hpos(stmt.0.pos()),
                                 &context.function_context.calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
@@ -447,7 +445,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         if let Some(existing_type) = stmt_type {
                             stmt_type = Some(add_union_type(
                                 existing_type,
-                                &type_params.get(1).unwrap(),
+                                type_params.get(1).unwrap(),
                                 codebase,
                                 false,
                             ));
@@ -463,7 +461,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         if let Some(existing_type) = stmt_type {
                             stmt_type = Some(add_union_type(
                                 existing_type,
-                                &type_params.first().unwrap(),
+                                type_params.first().unwrap(),
                                 codebase,
                                 false,
                             ));
@@ -481,7 +479,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         analysis_data,
                         context,
                         atomic_var_type,
-                        &array_type,
+                        array_type,
                         stmt_type.clone(),
                     );
 
@@ -520,7 +518,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         array_type.get_id(Some(statements_analyzer.get_interner())),
                         offset_type.get_id(Some(statements_analyzer.get_interner()))
                     ),
-                    statements_analyzer.get_hpos(&stmt.2),
+                    statements_analyzer.get_hpos(stmt.2),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -535,7 +533,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         array_type.get_id(Some(statements_analyzer.get_interner())),
                         offset_type.get_id(Some(statements_analyzer.get_interner()))
                     ),
-                    statements_analyzer.get_hpos(&stmt.2),
+                    statements_analyzer.get_hpos(stmt.2),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -549,10 +547,10 @@ pub(crate) fn get_array_access_type_given_offset(
 
     let array_access_type = stmt_type;
     if let Some(array_access_type) = array_access_type {
-        return array_access_type;
+        array_access_type
     } else {
         // shouldn’t happen, but don’t crash
-        return get_mixed_any();
+        get_mixed_any()
     }
 }
 
@@ -612,7 +610,7 @@ pub(crate) fn handle_array_access_on_vec(
                                 vec.get_id(Some(statements_analyzer.get_interner())),
                                 val
                             ),
-                            statements_analyzer.get_hpos(&pos),
+                            statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
@@ -631,9 +629,9 @@ pub(crate) fn handle_array_access_on_vec(
                             format!(
                                 "Invalid vec fetch on {} using offset {}",
                                 vec.get_id(Some(statements_analyzer.get_interner())),
-                                index.to_string()
+                                index
                             ),
-                            statements_analyzer.get_hpos(&pos),
+                            statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
@@ -658,7 +656,7 @@ pub(crate) fn handle_array_access_on_vec(
         return *type_param;
     }
 
-    return get_nothing();
+    get_nothing()
 }
 
 // Handle array access on dict-like collections
@@ -679,22 +677,20 @@ pub(crate) fn handle_array_access_on_dict(
 
     let key_param = if in_assignment || context.inside_isset {
         get_arraykey(false)
-    } else {
-        if let TAtomic::TDict { params, .. } = &dict {
-            if let Some(params) = params {
-                (*params.0).clone()
-            } else {
-                get_nothing()
-            }
+    } else if let TAtomic::TDict { params, .. } = &dict {
+        if let Some(params) = params {
+            (*params.0).clone()
         } else {
-            panic!()
+            get_nothing()
         }
+    } else {
+        panic!()
     };
 
     let mut union_comparison_result = TypeComparisonResult::new();
     let offset_type_contained_by_expected = union_type_comparator::is_contained_by(
         codebase,
-        &dim_type,
+        dim_type,
         &key_param,
         false,
         false,
@@ -735,7 +731,7 @@ pub(crate) fn handle_array_access_on_dict(
                                     dict.get_id(Some(statements_analyzer.get_interner())),
                                     dict_key.to_string(Some(statements_analyzer.get_interner()))
                                 ),
-                                statements_analyzer.get_hpos(&pos),
+                                statements_analyzer.get_hpos(pos),
                                 &context.function_context.calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
@@ -764,7 +760,7 @@ pub(crate) fn handle_array_access_on_dict(
                                 dict.get_id(Some(statements_analyzer.get_interner())),
                                 dict_key.to_string(Some(statements_analyzer.get_interner()))
                             ),
-                            statements_analyzer.get_hpos(&pos),
+                            statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
@@ -779,7 +775,7 @@ pub(crate) fn handle_array_access_on_dict(
                                 dict.get_id(Some(statements_analyzer.get_interner())),
                                 dict_key.to_string(Some(statements_analyzer.get_interner()))
                             ),
-                            statements_analyzer.get_hpos(&pos),
+                            statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
@@ -802,7 +798,7 @@ pub(crate) fn handle_array_access_on_dict(
         };
 
         for (_, (_, known_item)) in known_items {
-            value_param = add_union_type(value_param, &known_item, codebase, false);
+            value_param = add_union_type(value_param, known_item, codebase, false);
         }
 
         let mut union_comparison_result = TypeComparisonResult::new();
@@ -849,7 +845,7 @@ pub(crate) fn handle_array_access_on_dict(
                                     dict.get_id(Some(statements_analyzer.get_interner())),
                                     dict_key.to_string(Some(statements_analyzer.get_interner()))
                                 ),
-                                statements_analyzer.get_hpos(&pos),
+                                statements_analyzer.get_hpos(pos),
                                 &context.function_context.calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
@@ -867,7 +863,7 @@ pub(crate) fn handle_array_access_on_dict(
         };
     }
 
-    return get_nothing();
+    get_nothing()
 }
 
 // Handle array access on strings
@@ -913,11 +909,11 @@ pub(crate) fn handle_array_access_on_string(
     ) {
         expected_offset_types
             .push(valid_offset_type.get_id(Some(statements_analyzer.get_interner())));
-        let result = TUnion::new(vec![TAtomic::TString, TAtomic::TNull]);
-        return result;
+        
+        TUnion::new(vec![TAtomic::TString, TAtomic::TNull])
     } else {
         *has_valid_expected_offset = true;
-        return get_string();
+        get_string()
     }
 }
 
@@ -951,7 +947,7 @@ pub(crate) fn handle_array_access_on_mixed(
                         "Unsafe array assignment on value with type {}",
                         mixed.get_id(Some(statements_analyzer.get_interner()))
                     ),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -970,7 +966,7 @@ pub(crate) fn handle_array_access_on_mixed(
                         "Unsafe array access on value with type {}",
                         mixed.get_id(None)
                     ),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -1012,5 +1008,5 @@ pub(crate) fn handle_array_access_on_mixed(
         return get_mixed_maybe_from_loop(true);
     }
 
-    return get_mixed_any();
+    get_mixed_any()
 }

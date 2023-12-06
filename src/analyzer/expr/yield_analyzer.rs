@@ -54,7 +54,7 @@ pub(crate) fn analyze(
 
             for parent_node in &inferred_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(
-                    &parent_node,
+                    parent_node,
                     &return_node,
                     PathKind::Default,
                     None,

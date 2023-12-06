@@ -40,7 +40,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
             )?;
-            return Ok(());
+            Ok(())
         }
 
         oxidized::ast_defs::Bop::Ampamp => {
@@ -63,7 +63,7 @@ pub(crate) fn analyze(
                 get_bool(),
             );
 
-            return Ok(());
+            Ok(())
         }
 
         oxidized::ast_defs::Bop::Barbar => {
@@ -85,7 +85,7 @@ pub(crate) fn analyze(
                 get_bool(),
             );
 
-            return Ok(());
+            Ok(())
         }
 
         oxidized::ast_defs::Bop::Eqeq
@@ -119,30 +119,26 @@ pub(crate) fn analyze(
 
             if let (Some(lhs_type), Some(rhs_type)) = (lhs_type, rhs_type) {
                 if is_resolvable(expr.1)
-                    && is_resolvable(expr.2)
-                    && (!lhs_type.is_single() || !rhs_type.is_single())
-                {
-                    if !union_type_comparator::can_expression_types_be_identical(
-                        &statements_analyzer.get_codebase(),
+                    && is_resolvable(expr.2) && (!lhs_type.is_single() || !rhs_type.is_single()) && !union_type_comparator::can_expression_types_be_identical(
+                        statements_analyzer.get_codebase(),
                         lhs_type,
                         rhs_type,
                         true,
                     ) {
-                        analysis_data.maybe_add_issue(
-                            Issue::new(
-                                IssueKind::ImpossibleTypeComparison,
-                                format!(
-                                    "Type {} cannot be compared to {}",
-                                    lhs_type.get_id(Some(interner)),
-                                    rhs_type.get_id(Some(interner)),
-                                ),
-                                statements_analyzer.get_hpos(pos),
-                                &context.function_context.calling_functionlike_id,
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::ImpossibleTypeComparison,
+                            format!(
+                                "Type {} cannot be compared to {}",
+                                lhs_type.get_id(Some(interner)),
+                                rhs_type.get_id(Some(interner)),
                             ),
-                            statements_analyzer.get_config(),
-                            statements_analyzer.get_file_path_actual(),
-                        );
-                    }
+                            statements_analyzer.get_hpos(pos),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
                 }
             }
 
@@ -157,7 +153,7 @@ pub(crate) fn analyze(
 
             analysis_data.combine_effects(expr.1.pos(), expr.2.pos(), pos);
 
-            return Ok(());
+            Ok(())
         }
 
         oxidized::ast_defs::Bop::Dot => {
@@ -170,7 +166,7 @@ pub(crate) fn analyze(
                 context,
             )?;
 
-            return Ok(());
+            Ok(())
         }
 
         oxidized::ast_defs::Bop::Cmp => {
@@ -201,7 +197,7 @@ pub(crate) fn analyze(
 
             analysis_data.combine_effects(expr.1.pos(), expr.2.pos(), pos);
 
-            return Ok(());
+            Ok(())
         }
 
         oxidized::ast_defs::Bop::QuestionQuestion => {
@@ -215,7 +211,7 @@ pub(crate) fn analyze(
                 if_body_context,
             )?;
 
-            return Ok(());
+            Ok(())
         }
 
         oxidized::ast_defs::Bop::Eq(_) => {
@@ -229,7 +225,7 @@ pub(crate) fn analyze(
                 false,
             )?;
 
-            return Ok(());
+            Ok(())
         }
     }
 }

@@ -68,7 +68,7 @@ pub(crate) fn get_formula(
     let anded_assertions = assertion_finder::scrape_assertions(
         conditional,
         analysis_data,
-        &assertion_context,
+        assertion_context,
         inside_negation,
         cache,
         true,
@@ -197,9 +197,7 @@ fn handle_or(
         inside_negation,
     );
 
-    if let Err(_) = left_clauses {
-        return left_clauses;
-    }
+    left_clauses.as_ref()?;
 
     let right_clauses = get_formula(
         conditional_object_id,
@@ -214,9 +212,7 @@ fn handle_or(
         inside_negation,
     );
 
-    if let Err(_) = right_clauses {
-        return right_clauses;
-    }
+    right_clauses.as_ref()?;
 
     hakana_algebra::combine_ored_clauses(
         left_clauses.unwrap(),
@@ -248,9 +244,7 @@ fn handle_and(
         inside_negation,
     );
 
-    if let Err(_) = left_clauses {
-        return left_clauses;
-    }
+    left_clauses.as_ref()?;
 
     let right_clauses = get_formula(
         conditional_object_id,
@@ -265,14 +259,12 @@ fn handle_and(
         inside_negation,
     );
 
-    if let Err(_) = right_clauses {
-        return right_clauses;
-    }
+    right_clauses.as_ref()?;
 
     let mut left_clauses = left_clauses.unwrap();
     left_clauses.extend(right_clauses.unwrap());
 
-    return Ok(left_clauses);
+    Ok(left_clauses)
 }
 
 #[inline]
@@ -341,7 +333,7 @@ fn handle_uop(
             inside_negation,
         );
 
-        if let Err(_) = original_clauses {
+        if original_clauses.is_err() {
             return Some(original_clauses);
         }
 

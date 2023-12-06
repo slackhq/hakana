@@ -28,7 +28,7 @@ pub fn populate_codebase(
         .filter(|(name, storage)| {
             !storage.is_populated || (storage.user_defined && !safe_symbols.contains(name))
         })
-        .map(|(k, _)| k.clone())
+        .map(|(k, _)| *k)
         .collect::<Vec<_>>();
 
     for k in &new_classlike_names {
@@ -205,23 +205,23 @@ pub fn populate_codebase(
     for (classlike_name, classlike_storage) in &codebase.classlike_infos {
         for parent_interface in &classlike_storage.all_parent_interfaces {
             all_classlike_descendants
-                .entry(parent_interface.clone())
+                .entry(*parent_interface)
                 .or_insert_with(FxHashSet::default)
-                .insert(classlike_name.clone());
+                .insert(*classlike_name);
         }
 
         for class_interface in &classlike_storage.all_class_interfaces {
             all_classlike_descendants
-                .entry(class_interface.clone())
+                .entry(*class_interface)
                 .or_insert_with(FxHashSet::default)
-                .insert(classlike_name.clone());
+                .insert(*classlike_name);
         }
 
         for parent_class in &classlike_storage.all_parent_classes {
             all_classlike_descendants
-                .entry(parent_class.clone())
+                .entry(*parent_class)
                 .or_insert_with(FxHashSet::default)
-                .insert(classlike_name.clone());
+                .insert(*classlike_name);
         }
     }
 
@@ -258,7 +258,7 @@ fn populate_functionlike_storage(
     if let Some(ref mut return_type) = storage.return_type {
         populate_union_type(
             return_type,
-            &codebase_symbols,
+            codebase_symbols,
             reference_source,
             symbol_references,
             force_type_population,
@@ -269,7 +269,7 @@ fn populate_functionlike_storage(
         if let Some(ref mut param_type) = param.signature_type {
             populate_union_type(
                 param_type,
-                &codebase_symbols,
+                codebase_symbols,
                 reference_source,
                 symbol_references,
                 force_type_population,
@@ -295,7 +295,7 @@ fn populate_functionlike_storage(
             if force_type_population || v.needs_population() {
                 populate_union_type(
                     Arc::make_mut(v),
-                    &codebase_symbols,
+                    codebase_symbols,
                     reference_source,
                     symbol_references,
                     force_type_population,
@@ -307,7 +307,7 @@ fn populate_functionlike_storage(
     for (_, where_type) in storage.where_constraints.iter_mut() {
         populate_union_type(
             where_type,
-            &codebase_symbols,
+            codebase_symbols,
             reference_source,
             symbol_references,
             force_type_population,
@@ -331,7 +331,7 @@ fn populate_classlike_storage(
     if storage.is_populated {
         codebase
             .classlike_infos
-            .insert(classlike_name.clone(), storage);
+            .insert(*classlike_name, storage);
         return;
     }
 
@@ -339,7 +339,7 @@ fn populate_classlike_storage(
         if classlike_descendants.contains(classlike_name) {
             codebase
                 .classlike_infos
-                .insert(classlike_name.clone(), storage);
+                .insert(*classlike_name, storage);
             // todo complain about circular reference
             return;
         }
@@ -464,7 +464,7 @@ fn populate_classlike_storage(
 
     codebase
         .classlike_infos
-        .insert(classlike_name.clone(), storage);
+        .insert(*classlike_name, storage);
 }
 
 fn populate_interface_data_from_parent_or_implemented_interface(
@@ -476,7 +476,7 @@ fn populate_interface_data_from_parent_or_implemented_interface(
             .constants
             .iter()
             .filter(|(k, _)| !storage.constants.contains_key(*k))
-            .map(|v| (v.0.clone(), v.1.clone()))
+            .map(|v| (*v.0, v.1.clone()))
             .collect::<FxHashMap<_, _>>(),
     );
 
@@ -514,7 +514,7 @@ fn populate_interface_data_from_parent_interface(
     } else {
         storage
             .invalid_dependencies
-            .push(parent_storage_interface.clone());
+            .push(*parent_storage_interface);
         return;
     };
 
@@ -552,7 +552,7 @@ fn populate_data_from_implemented_interface(
     } else {
         storage
             .invalid_dependencies
-            .push(parent_storage_interface.clone());
+            .push(*parent_storage_interface);
         return;
     };
 
@@ -593,7 +593,7 @@ fn populate_data_from_parent_classlike(
     } else {
         storage
             .invalid_dependencies
-            .push(parent_storage_class.clone());
+            .push(*parent_storage_class);
         return;
     };
 
@@ -626,7 +626,7 @@ fn populate_data_from_parent_classlike(
             .constants
             .iter()
             .filter(|(k, _)| !storage.constants.contains_key(*k))
-            .map(|v| (v.0.clone(), v.1.clone()))
+            .map(|v| (*v.0, v.1.clone()))
             .collect::<FxHashMap<_, _>>(),
     );
 
@@ -666,14 +666,14 @@ fn populate_data_from_trait(
     let trait_storage = if let Some(trait_storage) = trait_storage {
         trait_storage
     } else {
-        storage.invalid_dependencies.push(trait_name.clone());
+        storage.invalid_dependencies.push(*trait_name);
         return;
     };
 
     all_classlike_descendants
-        .entry(trait_name.clone())
-        .or_insert_with(FxHashSet::default)
-        .insert(storage.name.clone());
+        .entry(*trait_name)
+        .or_default()
+        .insert(storage.name);
 
     storage
         .all_class_interfaces
@@ -693,6 +693,7 @@ fn populate_data_from_trait(
     inherit_properties_from_parent(storage, trait_storage);
 }
 
+#[allow(clippy::needless_borrow)]
 fn inherit_methods_from_parent(
     storage: &mut ClassLikeInfo,
     parent_storage: &ClassLikeInfo,
@@ -708,11 +709,11 @@ fn inherit_methods_from_parent(
         let is_trait = matches!(storage.kind, SymbolKind::Trait);
 
         storage.appearing_method_ids.insert(
-            method_name.clone(),
+            *method_name,
             if is_trait {
-                classlike_name.clone()
+                *classlike_name
             } else {
-                appearing_classlike.clone()
+                *appearing_classlike
             },
         );
 
@@ -722,9 +723,9 @@ fn inherit_methods_from_parent(
         {
             storage
                 .potential_declaring_method_ids
-                .insert(method_name.clone(), {
+                .insert(*method_name, {
                     let mut h = FxHashSet::default();
-                    h.insert(classlike_name.clone());
+                    h.insert(*classlike_name);
                     h
                 });
         } else {
@@ -734,16 +735,16 @@ fn inherit_methods_from_parent(
             {
                 storage
                     .potential_declaring_method_ids
-                    .insert(method_name.clone(), parent_potential_method_ids.clone());
+                    .insert(*method_name, parent_potential_method_ids.clone());
             }
 
             let entry = storage
                 .potential_declaring_method_ids
-                .entry(method_name.clone())
-                .or_insert_with(FxHashSet::default);
+                .entry(*method_name)
+                .or_default();
 
-            entry.insert(classlike_name.clone());
-            entry.insert(parent_storage.name.clone());
+            entry.insert(*classlike_name);
+            entry.insert(parent_storage.name);
         }
     }
 
@@ -751,9 +752,9 @@ fn inherit_methods_from_parent(
         if *method_name != STR_EMPTY || parent_storage.preserve_constructor_signature {
             storage
                 .overridden_method_ids
-                .entry(method_name.clone())
-                .or_insert_with(FxHashSet::default)
-                .insert(declaring_class.clone());
+                .entry(*method_name)
+                .or_default()
+                .insert(*declaring_class);
 
             if let Some(map) = storage.overridden_method_ids.get_mut(method_name) {
                 map.extend(
@@ -771,12 +772,11 @@ fn inherit_methods_from_parent(
                 let existing_declaring_class_storage = if existing_declaring_class == &storage.name
                 {
                     &storage
+                } else if let Some(storage) = codebase.classlike_infos.get(existing_declaring_class)
+                {
+                    storage
                 } else {
-                    if let Some(storage) = codebase.classlike_infos.get(existing_declaring_class) {
-                        storage
-                    } else {
-                        continue;
-                    }
+                    continue;
                 };
 
                 if !matches!(existing_declaring_class_storage.kind, SymbolKind::Interface) {
@@ -807,7 +807,7 @@ fn inherit_methods_from_parent(
 
         storage
             .declaring_method_ids
-            .insert(method_name.clone(), declaring_class.clone());
+            .insert(*method_name, *declaring_class);
 
         // traits can pass down methods from other traits,
         // but not from their require extends/implements parents
@@ -816,7 +816,7 @@ fn inherit_methods_from_parent(
         {
             storage
                 .inheritable_method_ids
-                .insert(method_name.clone(), declaring_class.clone());
+                .insert(*method_name, *declaring_class);
         }
     }
 }
@@ -844,11 +844,11 @@ fn inherit_properties_from_parent(storage: &mut ClassLikeInfo, parent_storage: &
         let is_trait = matches!(storage.kind, SymbolKind::Trait);
 
         storage.appearing_property_ids.insert(
-            property_name.clone(),
+            *property_name,
             if is_trait {
-                classlike_name.clone()
+                *classlike_name
             } else {
-                appearing_classlike.clone()
+                *appearing_classlike
             },
         );
     }
@@ -872,7 +872,7 @@ fn inherit_properties_from_parent(storage: &mut ClassLikeInfo, parent_storage: &
 
         storage
             .declaring_property_ids
-            .insert(property_name.clone(), declaring_classlike.clone());
+            .insert(*property_name, *declaring_classlike);
     }
 
     // register inheritance
@@ -889,14 +889,14 @@ fn inherit_properties_from_parent(storage: &mut ClassLikeInfo, parent_storage: &
 
             storage
                 .overridden_property_ids
-                .entry(property_name.clone())
-                .or_insert_with(Vec::new)
-                .push(inheritable_classlike.clone());
+                .entry(*property_name)
+                .or_default()
+                .push(*inheritable_classlike);
         }
 
         storage
             .inheritable_property_ids
-            .insert(property_name.clone(), inheritable_classlike.clone());
+            .insert(*property_name, *inheritable_classlike);
     }
 }
 
@@ -904,7 +904,7 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
     if !parent_storage.template_types.is_empty() {
         storage
             .template_extended_params
-            .insert(parent_storage.name.clone(), IndexMap::new());
+            .insert(parent_storage.name, IndexMap::new());
 
         if let Some(parent_offsets) = storage.template_extended_offsets.get(&parent_storage.name) {
             for (i, extended_type) in parent_offsets.iter().enumerate() {
@@ -918,7 +918,7 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
                         .template_extended_params
                         .get_mut(&parent_storage.name)
                         .unwrap();
-                    param_map.insert(mapped_name.clone(), extended_type.clone());
+                    param_map.insert(*mapped_name, extended_type.clone());
                 }
             }
 
@@ -927,9 +927,9 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
                 for (i, type_) in type_map {
                     storage
                         .template_extended_params
-                        .entry(t_storage_class.clone())
-                        .or_insert_with(IndexMap::new)
-                        .insert(i.clone(), extend_type(type_, &existing));
+                        .entry(*t_storage_class)
+                        .or_default()
+                        .insert(*i, extend_type(type_, &existing));
                 }
             }
         } else {
@@ -937,9 +937,9 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
                 for (_, template_type) in template_type_map {
                     storage
                         .template_extended_params
-                        .entry(parent_storage.name.clone())
-                        .or_insert_with(IndexMap::new)
-                        .insert(template_name.clone(), template_type.clone());
+                        .entry(parent_storage.name)
+                        .or_default()
+                        .insert(*template_name, template_type.clone());
                 }
 
                 storage

@@ -380,7 +380,7 @@ fn subtract_object(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -454,7 +454,7 @@ fn subtract_vec(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -527,7 +527,7 @@ fn subtract_keyset(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -600,7 +600,7 @@ fn subtract_dict(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -915,7 +915,7 @@ fn subtract_float(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -971,7 +971,7 @@ fn subtract_num(
             did_remove_type = true;
         } else if let TAtomic::TScalar = atomic {
             if !is_equality {
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TString);
                 existing_var_type.types.push(TAtomic::TBool);
             }
@@ -979,7 +979,7 @@ fn subtract_num(
             did_remove_type = true;
         } else if let TAtomic::TArraykey { .. } = atomic {
             if !is_equality {
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TString);
             }
 
@@ -989,19 +989,19 @@ fn subtract_num(
             did_remove_type = true;
 
             if !is_equality {
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
             }
         }
     }
 
     if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(ref key) = key {
+        if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1066,7 +1066,7 @@ fn subtract_arraykey(
             }
         } else if let TAtomic::TScalar = atomic {
             if !is_equality {
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TFloat);
                 existing_var_type.types.push(TAtomic::TBool);
             }
@@ -1074,7 +1074,7 @@ fn subtract_arraykey(
             did_remove_type = true;
         } else if let TAtomic::TNum = atomic {
             if !is_equality {
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TFloat);
             }
 
@@ -1086,19 +1086,19 @@ fn subtract_arraykey(
             did_remove_type = true;
 
             if !is_equality {
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
             }
         }
     }
 
     if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(ref key) = key {
+        if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1163,7 +1163,7 @@ fn subtract_bool(
             }
         } else if let TAtomic::TScalar = atomic {
             if !is_equality {
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TString);
                 existing_var_type.types.push(TAtomic::TInt);
                 existing_var_type.types.push(TAtomic::TFloat);
@@ -1174,19 +1174,19 @@ fn subtract_bool(
             did_remove_type = true;
 
             if !is_equality {
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
             }
         }
     }
 
     if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(ref key) = key {
+        if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1229,7 +1229,7 @@ pub(crate) fn subtract_null(
             TAtomic::TGenericParam { ref as_type, .. } => {
                 let new_atomic = atomic.replace_template_extends(subtract_null(
                     assertion,
-                    &as_type,
+                    as_type,
                     None,
                     false,
                     analysis_data,
@@ -1287,7 +1287,7 @@ pub(crate) fn subtract_null(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -1342,24 +1342,24 @@ fn subtract_false(
                 did_remove_type = true;
             }
         } else if let TAtomic::TBool = atomic {
-            existing_var_type.remove_type(&atomic);
+            existing_var_type.remove_type(atomic);
             existing_var_type.types.push(TAtomic::TTrue);
             did_remove_type = true;
         } else if let TAtomic::TFalse { .. } = atomic {
             did_remove_type = true;
 
-            existing_var_type.remove_type(&atomic);
+            existing_var_type.remove_type(atomic);
         }
     }
 
     if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(ref key) = key {
+        if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1428,27 +1428,27 @@ fn subtract_true(
                 did_remove_type = true;
             }
             TAtomic::TBool => {
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
                 existing_var_type.types.push(TAtomic::TFalse);
                 did_remove_type = true;
             }
             TAtomic::TTrue { .. } => {
                 did_remove_type = true;
 
-                existing_var_type.remove_type(&atomic);
+                existing_var_type.remove_type(atomic);
             }
             _ => (),
         }
     }
 
     if existing_var_type.types.is_empty() || !did_remove_type {
-        if let Some(ref key) = key {
+        if let Some(key) = key {
             if let Some(pos) = pos {
                 trigger_issue_for_impossible(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1576,7 +1576,7 @@ fn reconcile_falsy(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -1599,7 +1599,7 @@ fn reconcile_not_isset(
 
     if !existing_var_type.is_nullable() {
         if let Some(key) = key {
-            if !key.contains("[")
+            if !key.contains('[')
                 && (!existing_var_type.is_mixed() || existing_var_type.is_always_truthy())
             {
                 if let Some(_pos) = pos {
@@ -1675,7 +1675,7 @@ fn reconcile_empty_countable(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -1732,7 +1732,7 @@ fn reconcile_not_exactly_countable(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -1767,7 +1767,7 @@ fn reconcile_not_in_array(
                 analysis_data,
                 statements_analyzer,
                 &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
-                &key,
+                key,
                 assertion,
                 true,
                 negated,
@@ -1833,24 +1833,22 @@ fn reconcile_no_array_key(
                             did_remove_type = true;
                         }
                     }
-                } else {
-                    if let Some((key_param, _)) = params {
-                        if union_type_comparator::can_expression_types_be_identical(
-                            statements_analyzer.get_codebase(),
-                            &wrap_atomic(match key_name {
-                                DictKey::Int(_) => TAtomic::TInt,
-                                DictKey::String(_) => TAtomic::TString,
-                                DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
-                                    enum_name: *a,
-                                    member_name: *b,
-                                    constraint_type: None,
-                                },
-                            }),
-                            key_param,
-                            false,
-                        ) {
-                            did_remove_type = true;
-                        }
+                } else if let Some((key_param, _)) = params {
+                    if union_type_comparator::can_expression_types_be_identical(
+                        statements_analyzer.get_codebase(),
+                        &wrap_atomic(match key_name {
+                            DictKey::Int(_) => TAtomic::TInt,
+                            DictKey::String(_) => TAtomic::TString,
+                            DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
+                                enum_name: *a,
+                                member_name: *b,
+                                constraint_type: None,
+                            },
+                        }),
+                        key_param,
+                        false,
+                    ) {
+                        did_remove_type = true;
                     }
                 }
 
@@ -1871,10 +1869,8 @@ fn reconcile_no_array_key(
                         } else if !type_param.is_nothing() {
                             did_remove_type = true;
                         }
-                    } else {
-                        if !type_param.is_nothing() {
-                            did_remove_type = true;
-                        }
+                    } else if !type_param.is_nothing() {
+                        did_remove_type = true;
                     }
                 }
 
@@ -1887,7 +1883,7 @@ fn reconcile_no_array_key(
                     let atomic = atomic.replace_template_extends(reconcile_no_array_key(
                         codebase,
                         assertion,
-                        &as_type,
+                        as_type,
                         None,
                         None,
                         calling_functionlike_id,
@@ -1930,7 +1926,7 @@ fn reconcile_no_array_key(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,

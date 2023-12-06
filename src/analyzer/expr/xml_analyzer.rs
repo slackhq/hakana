@@ -56,7 +56,7 @@ pub(crate) fn analyze(
 
     analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
-        xhp_class_name.clone(),
+        *xhp_class_name,
         false,
     );
 
@@ -76,7 +76,7 @@ pub(crate) fn analyze(
                     resolved_names,
                     analysis_data,
                     context,
-                    &xhp_class_name,
+                    xhp_class_name,
                 )?;
 
                 used_attributes.insert(attribute_name);
@@ -84,7 +84,7 @@ pub(crate) fn analyze(
                 analyze_xhp_attribute_assignment(
                     statements_analyzer,
                     attribute_name,
-                    &xhp_class_name,
+                    xhp_class_name,
                     xhp_simple,
                     analysis_data,
                     context,
@@ -95,7 +95,7 @@ pub(crate) fn analyze(
                 used_attributes.extend(handle_attribute_spread(
                     statements_analyzer,
                     xhp_expr,
-                    &xhp_class_name,
+                    xhp_class_name,
                     analysis_data,
                     context,
                     if_body_context,
@@ -105,7 +105,7 @@ pub(crate) fn analyze(
         }
     }
 
-    if let Some(classlike_info) = codebase.classlike_infos.get(&xhp_class_name) {
+    if let Some(classlike_info) = codebase.classlike_infos.get(xhp_class_name) {
         let mut required_attributes = classlike_info
             .properties
             .iter()
@@ -129,11 +129,11 @@ pub(crate) fn analyze(
                         },
                         required_attributes
                             .iter()
-                            .map(|attr| statements_analyzer.get_interner().lookup(*attr)[1..]
+                            .map(|attr| statements_analyzer.get_interner().lookup(attr)[1..]
                                 .to_string())
                             .join(", ")
                     ),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -375,7 +375,7 @@ fn analyze_xhp_attribute_assignment(
                         statements_analyzer.get_interner().lookup(&attribute_name),
                         statements_analyzer.get_interner().lookup(element_name)
                     ),
-                    statements_analyzer.get_hpos(&attribute_name_pos),
+                    statements_analyzer.get_hpos(attribute_name_pos),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),

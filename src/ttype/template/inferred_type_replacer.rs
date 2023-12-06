@@ -43,11 +43,11 @@ pub fn replace(
                     codebase,
                     as_type,
                     extra_types,
-                    &key,
+                    key,
                 );
 
                 if let Some(template_type) = template_type {
-                    keys_to_unset.insert(key.clone());
+                    keys_to_unset.insert(*key);
 
                     for template_type_part in template_type.types {
                         new_types.push(template_type_part);
@@ -92,15 +92,15 @@ pub fn replace(
                             let first_atomic_type = as_type.get_single();
 
                             class_template_type = Some(TAtomic::TGenericClassname {
-                                param_name: param_name.clone(),
+                                param_name: *param_name,
                                 as_type: Box::new(first_atomic_type.clone()),
-                                defining_entity: defining_entity.clone(),
+                                defining_entity: *defining_entity,
                             })
                         }
                     }
 
                     if let Some(class_template_type) = class_template_type {
-                        keys_to_unset.insert(param_name.clone());
+                        keys_to_unset.insert(*param_name);
                         new_types.push(class_template_type);
                     }
                 }
@@ -146,15 +146,15 @@ pub fn replace(
                             let first_atomic_type = as_type.get_single();
 
                             class_template_type = Some(TAtomic::TGenericTypename {
-                                param_name: param_name.clone(),
+                                param_name: *param_name,
                                 as_type: Box::new(first_atomic_type.clone()),
-                                defining_entity: defining_entity.clone(),
+                                defining_entity: *defining_entity,
                             })
                         }
                     }
 
                     if let Some(class_template_type) = class_template_type {
-                        keys_to_unset.insert(param_name.clone());
+                        keys_to_unset.insert(*param_name);
                         new_types.push(class_template_type);
                     }
                 }
@@ -187,9 +187,9 @@ fn replace_template_param(
 ) -> Option<TUnion> {
     let mut template_type = None;
     let traversed_type = standin_type_replacer::get_root_template_type(
-        &inferred_lower_bounds,
-        &param_name,
-        &defining_entity,
+        inferred_lower_bounds,
+        param_name,
+        defining_entity,
         FxHashSet::default(),
         codebase,
     );
@@ -261,11 +261,11 @@ fn replace_atomic(
             ref mut known_items,
             ..
         } => {
-            *type_param = Box::new(replace(&type_param, template_result, codebase));
+            *type_param = Box::new(replace(type_param, template_result, codebase));
 
             if let Some(known_items) = known_items {
                 for (_, (_, t)) in known_items {
-                    *t = replace(&t, template_result, codebase);
+                    *t = replace(t, template_result, codebase);
                 }
             }
         }
@@ -281,21 +281,21 @@ fn replace_atomic(
 
             if let Some(known_items) = known_items {
                 for (_, (_, t)) in known_items {
-                    *t = Arc::new(replace(&t, template_result, codebase));
+                    *t = Arc::new(replace(t, template_result, codebase));
                 }
             }
         }
         TAtomic::TKeyset {
             ref mut type_param, ..
         } => {
-            *type_param = Box::new(replace(&type_param, template_result, codebase));
+            *type_param = Box::new(replace(type_param, template_result, codebase));
         }
         TAtomic::TNamedObject {
             type_params: Some(ref mut type_params),
             ..
         } => {
             for type_param in type_params {
-                *type_param = replace(&type_param, template_result, codebase);
+                *type_param = replace(type_param, template_result, codebase);
             }
         }
         TAtomic::TClosure {
@@ -305,12 +305,12 @@ fn replace_atomic(
         } => {
             for param in params {
                 if let Some(ref mut t) = param.signature_type {
-                    *t = Box::new(replace(&t, template_result, codebase));
+                    *t = Box::new(replace(t, template_result, codebase));
                 }
             }
 
             if let Some(ref mut return_type) = return_type {
-                *return_type = Box::new(replace(&return_type, template_result, codebase));
+                *return_type = Box::new(replace(return_type, template_result, codebase));
             }
         }
         TAtomic::TTypeAlias {
@@ -319,7 +319,7 @@ fn replace_atomic(
         } => {
             if let Some(type_params) = type_params {
                 for type_param in type_params {
-                    *type_param = replace(&type_param, template_result, codebase);
+                    *type_param = replace(type_param, template_result, codebase);
                 }
             }
         }

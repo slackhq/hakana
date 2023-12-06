@@ -79,12 +79,8 @@ pub(crate) fn analyze(
     let iterator_type = if let Some(stmt_expr_type) = analysis_data.get_expr_type(stmt.0.pos()) {
         Some(stmt_expr_type.clone())
     } else if let Some(var_id) = &var_id {
-        if context.has_variable(&var_id) {
-            if let Some(t) = context.vars_in_scope.get(var_id) {
-                Some((**t).clone())
-            } else {
-                None
-            }
+        if context.has_variable(var_id) {
+            context.vars_in_scope.get(var_id).map(|t| (**t).clone())
         } else {
             None
         }
@@ -162,7 +158,7 @@ pub(crate) fn analyze(
 
     // todo do we need to remove the loop scope from analysis_data here? unsure
 
-    return Ok(());
+    Ok(())
 }
 
 fn check_iterator_type(
@@ -181,7 +177,7 @@ fn check_iterator_type(
             Issue::new(
                 IssueKind::NullIterator,
                 "Cannot iterate over null".to_string(),
-                statements_analyzer.get_hpos(&expr.pos()),
+                statements_analyzer.get_hpos(expr.pos()),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -196,7 +192,7 @@ fn check_iterator_type(
             Issue::new(
                 IssueKind::NullIterator,
                 "Cannot iterate over null".to_string(),
-                statements_analyzer.get_hpos(&expr.pos()),
+                statements_analyzer.get_hpos(expr.pos()),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -543,7 +539,7 @@ fn check_iterator_type(
 
         for parent_node in &iterator_type.parent_nodes {
             analysis_data.data_flow_graph.add_path(
-                &parent_node,
+                parent_node,
                 &foreach_node,
                 PathKind::Default,
                 None,

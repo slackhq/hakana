@@ -36,7 +36,7 @@ pub fn analyze_files(
         paths.retain(|str_path| str_path.matches(filter.as_str()).count() > 0);
     }
 
-    paths.retain(|str_path| config.allow_issues_in_file(&str_path));
+    paths.retain(|str_path| config.allow_issues_in_file(str_path));
 
     if let Some(ignored_paths) = &ignored_paths {
         for ignored_path in ignored_paths {
@@ -83,8 +83,8 @@ pub fn analyze_files(
                 analyze_file(
                     file_path,
                     str_path,
-                    &codebase,
-                    &interner,
+                    codebase,
+                    interner,
                     &config,
                     &mut new_analysis_result,
                     resolved_names,
@@ -148,14 +148,14 @@ pub fn analyze_files(
                     AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
                 for str_path in &pgc {
-                    let file_path = FilePath(interner.get(&str_path).unwrap());
+                    let file_path = FilePath(interner.get(str_path).unwrap());
 
                     if let Some(resolved_names) = resolved_names.get(&file_path) {
                         analyze_file(
                             file_path,
                             str_path,
-                            &codebase,
-                            &interner,
+                            codebase,
+                            interner,
                             &analysis_config,
                             &mut new_analysis_result,
                             resolved_names,
@@ -283,7 +283,7 @@ fn analyze_loaded_ast(
         },
     };
     let mut file_analyzer =
-        file_analyzer::FileAnalyzer::new(file_source, &resolved_names, codebase, interner, config);
+        file_analyzer::FileAnalyzer::new(file_source, resolved_names, codebase, interner, config);
 
     match file_analyzer.analyze(&aast.0, analysis_result) {
         Ok(()) => {}

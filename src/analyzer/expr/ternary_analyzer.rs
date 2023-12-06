@@ -36,7 +36,7 @@ pub(crate) fn analyze(
 
     let if_conditional_scope = if_conditional_analyzer::analyze(
         statements_analyzer,
-        &expr.0,
+        expr.0,
         analysis_data,
         context,
         &mut if_scope,
@@ -44,7 +44,7 @@ pub(crate) fn analyze(
 
     analysis_data.copy_effects(expr.0.pos(), pos);
 
-    add_branch_dataflow(statements_analyzer, &expr.0, analysis_data);
+    add_branch_dataflow(statements_analyzer, expr.0, analysis_data);
 
     let mut if_context = if_conditional_scope.if_body_context;
     let post_if_context = if_conditional_scope.post_if_context;
@@ -93,9 +93,7 @@ pub(crate) fn analyze(
         .into_iter()
         .map(|c| {
             let keys = &c
-                .possibilities
-                .iter()
-                .map(|(k, _)| k)
+                .possibilities.keys()
                 .collect::<Vec<&String>>();
 
             let mut new_mixed_var_ids = vec![];
@@ -121,7 +119,7 @@ pub(crate) fn analyze(
                 }
             }
 
-            return c;
+            c
         })
         .collect::<Vec<Clause>>();
 
@@ -168,7 +166,7 @@ pub(crate) fn analyze(
         &mut cond_referenced_var_ids,
     );
 
-    if_scope.reasonable_clauses = ternary_clauses.into_iter().map(|v| Rc::new(v)).collect();
+    if_scope.reasonable_clauses = ternary_clauses.into_iter().map(Rc::new).collect();
 
     if let Ok(negated_if_clauses) = hakana_algebra::negate_formula(if_clauses) {
         if_scope.negated_clauses = negated_if_clauses;
@@ -302,7 +300,7 @@ pub(crate) fn analyze(
 
     expression_analyzer::analyze(
         statements_analyzer,
-        &expr.2,
+        expr.2,
         analysis_data,
         &mut temp_else_context,
         if_body_context,
@@ -342,14 +340,10 @@ pub(crate) fn analyze(
     let mut removed_vars = FxHashSet::default();
 
     let redef_var_ifs = if_context
-        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars)
-        .into_iter()
-        .map(|(k, _)| k)
+        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars).into_keys()
         .collect::<FxHashSet<_>>();
     let redef_var_else = temp_else_context
-        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars)
-        .into_iter()
-        .map(|(k, _)| k)
+        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars).into_keys()
         .collect::<FxHashSet<_>>();
 
     let redef_all = redef_var_ifs
@@ -425,10 +419,10 @@ pub(crate) fn analyze(
     } {
         if if let Some(stmt_cond_type) = stmt_cond_type {
             if stmt_cond_type.is_always_falsy() {
-                analysis_data.set_rc_expr_type(&pos, stmt_else_type.clone());
+                analysis_data.set_rc_expr_type(pos, stmt_else_type.clone());
                 false
             } else if stmt_cond_type.is_always_truthy() {
-                analysis_data.set_expr_type(&pos, lhs_type.clone());
+                analysis_data.set_expr_type(pos, lhs_type.clone());
                 false
             } else {
                 true
@@ -442,10 +436,10 @@ pub(crate) fn analyze(
                 add_union_type((*stmt_else_type).clone(), &lhs_type, codebase, false)
             };
 
-            analysis_data.set_expr_type(&pos, union_type);
+            analysis_data.set_expr_type(pos, union_type);
         }
     } else {
-        analysis_data.set_expr_type(&pos, get_mixed_any());
+        analysis_data.set_expr_type(pos, get_mixed_any());
     }
 
     Ok(())

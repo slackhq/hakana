@@ -100,11 +100,7 @@ impl FunctionAnalysisData {
             .get(&(issue.pos.start_offset, issue.pos.end_offset))
         {
             Some(*expr_fixme_position)
-        } else if let Some(current_stmt_offset) = self.current_stmt_offset {
-            Some(current_stmt_offset)
-        } else {
-            None
-        };
+        } else { self.current_stmt_offset };
 
         issue.can_fix = config.add_fixmes && config.issues_to_fix.contains(&issue.kind);
 
@@ -191,7 +187,7 @@ impl FunctionAnalysisData {
             }
         }
 
-        return true;
+        true
     }
 
     pub(crate) fn get_matching_hakana_fixme(&self, issue: &Issue) -> Option<(u32, u32)> {
@@ -564,7 +560,7 @@ impl FunctionAnalysisData {
     pub fn insert_at(&mut self, insertion_point: u32, replacement: String) {
         self.insertions
             .entry(insertion_point)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(replacement);
     }
 }
@@ -577,7 +573,7 @@ fn get_hakana_fixmes_and_ignores(
     for (pos, comment) in comments {
         match comment {
             Comment::CmtBlock(text) => {
-                let trimmed_text = if text.starts_with("*") {
+                let trimmed_text = if text.starts_with('*') {
                     text[1..].trim()
                 } else {
                     text.trim()

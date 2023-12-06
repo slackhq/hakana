@@ -67,7 +67,7 @@ pub fn scan_and_analyze_single_file(
     let mut analysis_result = analyze_single_file(
         file_name.clone(),
         file_contents.clone(),
-        &codebase,
+        codebase,
         &interner,
         &resolved_names,
         &analysis_config,
@@ -114,7 +114,7 @@ pub fn get_single_file_codebase(
             .insert(interned_file_path, (0, 0));
 
         scan_file(
-            &file.to_string(),
+            file.as_ref(),
             interned_file_path,
             &FxHashSet::default(),
             &mut codebase,
@@ -135,7 +135,7 @@ pub fn get_single_file_codebase(
             .insert(interned_file_path, (0, 0));
 
         scan_file(
-            &file.to_string(),
+            file.as_ref(),
             interned_file_path,
             &FxHashSet::default(),
             &mut codebase,
@@ -264,7 +264,7 @@ pub fn analyze_single_file(
 
     let mut file_analyzer = file_analyzer::FileAnalyzer::new(
         file_source,
-        &resolved_names,
+        resolved_names,
         codebase,
         interner,
         analysis_config,

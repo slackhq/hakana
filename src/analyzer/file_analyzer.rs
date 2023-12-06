@@ -86,7 +86,7 @@ impl<'a> FileAnalyzer<'a> {
                     )?;
                 }
 
-                if namespace_declaration.1.len() > 0 {
+                if !namespace_declaration.1.is_empty() {
                     self.namespace_name = None;
                 }
             } else {
@@ -122,7 +122,7 @@ impl<'a> FileAnalyzer<'a> {
 
 impl ScopeAnalyzer for FileAnalyzer<'_> {
     fn get_namespace(&self) -> &Option<String> {
-        return &self.namespace_name;
+        &self.namespace_name
     }
 
     fn get_file_analyzer(&self) -> &Self {
@@ -134,7 +134,7 @@ impl ScopeAnalyzer for FileAnalyzer<'_> {
     }
 
     fn get_interner(&self) -> &Interner {
-        &self.interner
+        self.interner
     }
 
     fn get_config(&self) -> &Config {

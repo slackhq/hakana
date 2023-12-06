@@ -9,7 +9,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::property_info::PropertyKind;
 use hakana_reflection_info::{Interner, StrId, STR_CONSTRUCT, STR_EMPTY};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::collections::BTreeMap;
+
 use std::sync::Arc;
 
 pub(crate) fn find_unused_definitions(
@@ -50,7 +50,7 @@ pub(crate) fn find_unused_definitions(
                     }
                 }
 
-                if !config.allow_issue_kind_in_file(&IssueKind::UnusedFunction, &file_path) {
+                if !config.allow_issue_kind_in_file(&IssueKind::UnusedFunction, file_path) {
                     continue;
                 }
 
@@ -63,7 +63,7 @@ pub(crate) fn find_unused_definitions(
                     analysis_result
                         .replacements
                         .entry(pos.file_path)
-                        .or_insert_with(BTreeMap::new)
+                        .or_default()
                         .insert(
                             (meta_start.start_offset, def_pos.end_offset),
                             Replacement::TrimPrecedingWhitespace(
@@ -76,7 +76,7 @@ pub(crate) fn find_unused_definitions(
                 let issue = Issue::new(
                     IssueKind::UnusedFunction,
                     format!("Unused function {}", interner.lookup(&functionlike_name.0)),
-                    pos.clone(),
+                    *pos,
                     &Some(FunctionLikeIdentifier::Function(functionlike_name.0)),
                 );
 
@@ -88,7 +88,7 @@ pub(crate) fn find_unused_definitions(
                     analysis_result
                         .emitted_definition_issues
                         .entry(pos.file_path)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(issue);
                 }
             }
@@ -117,7 +117,7 @@ pub(crate) fn find_unused_definitions(
             }
 
             if !referenced_symbols_and_members.contains(&(*classlike_name, STR_EMPTY)) {
-                if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, &file_path) {
+                if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, file_path) {
                     continue;
                 }
 
@@ -127,7 +127,7 @@ pub(crate) fn find_unused_definitions(
                         "Unused class, interface or enum {}",
                         interner.lookup(classlike_name),
                     ),
-                    pos.clone(),
+                    *pos,
                     &Some(FunctionLikeIdentifier::Function(*classlike_name)),
                 );
 
@@ -140,7 +140,7 @@ pub(crate) fn find_unused_definitions(
                     analysis_result
                         .replacements
                         .entry(pos.file_path)
-                        .or_insert_with(BTreeMap::new)
+                        .or_default()
                         .insert(
                             (meta_start.start_offset, def_pos.end_offset),
                             Replacement::TrimPrecedingWhitespace(
@@ -158,7 +158,7 @@ pub(crate) fn find_unused_definitions(
                     analysis_result
                         .emitted_definition_issues
                         .entry(pos.file_path)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(issue);
                 }
             } else {
@@ -171,7 +171,7 @@ pub(crate) fn find_unused_definitions(
                         }
                     }
 
-                    let pair = (classlike_name.clone(), *method_name_ptr);
+                    let pair = (*classlike_name, *method_name_ptr);
 
                     if !referenced_symbols_and_members.contains(&pair)
                         && !referenced_overridden_class_members.contains(&pair)
@@ -251,7 +251,7 @@ pub(crate) fn find_unused_definitions(
                                         interner.lookup(classlike_name),
                                         interner.lookup(method_name_ptr)
                                     ),
-                                    functionlike_storage.name_location.clone().unwrap(),
+                                    functionlike_storage.name_location.unwrap(),
                                     &Some(FunctionLikeIdentifier::Method(
                                         *classlike_name,
                                         *method_name_ptr,
@@ -265,7 +265,7 @@ pub(crate) fn find_unused_definitions(
                                         interner.lookup(classlike_name),
                                         interner.lookup(method_name_ptr)
                                     ),
-                                    functionlike_storage.name_location.clone().unwrap(),
+                                    functionlike_storage.name_location.unwrap(),
                                     &Some(FunctionLikeIdentifier::Method(
                                         *classlike_name,
                                         *method_name_ptr,
@@ -275,7 +275,7 @@ pub(crate) fn find_unused_definitions(
 
                         let file_path = interner.lookup(&pos.file_path.0);
 
-                        if !config.allow_issue_kind_in_file(&issue.kind, &file_path) {
+                        if !config.allow_issue_kind_in_file(&issue.kind, file_path) {
                             continue;
                         }
 
@@ -287,14 +287,14 @@ pub(crate) fn find_unused_definitions(
                             analysis_result
                                 .emitted_definition_issues
                                 .entry(pos.file_path)
-                                .or_insert_with(Vec::new)
+                                .or_default()
                                 .push(issue);
                         }
                     }
                 }
 
                 for (property_name_ptr, property_storage) in &classlike_info.properties {
-                    let pair = (classlike_name.clone(), *property_name_ptr);
+                    let pair = (*classlike_name, *property_name_ptr);
 
                     if !referenced_symbols_and_members.contains(&pair)
                         && !referenced_overridden_class_members.contains(&pair)
@@ -314,7 +314,7 @@ pub(crate) fn find_unused_definitions(
                                         interner.lookup(classlike_name),
                                         interner.lookup(property_name_ptr)
                                     ),
-                                    property_storage.pos.clone().unwrap(),
+                                    property_storage.pos.unwrap(),
                                     &Some(FunctionLikeIdentifier::Method(
                                         *classlike_name,
                                         *property_name_ptr,
@@ -329,7 +329,7 @@ pub(crate) fn find_unused_definitions(
                                         interner.lookup(property_name_ptr),
                                         interner.lookup(classlike_name),
                                     ),
-                                    property_storage.pos.clone().unwrap(),
+                                    property_storage.pos.unwrap(),
                                     &Some(FunctionLikeIdentifier::Method(
                                         *classlike_name,
                                         *property_name_ptr,
@@ -343,7 +343,7 @@ pub(crate) fn find_unused_definitions(
                                         interner.lookup(classlike_name),
                                         interner.lookup(property_name_ptr)
                                     ),
-                                    property_storage.pos.clone().unwrap(),
+                                    property_storage.pos.unwrap(),
                                     &Some(FunctionLikeIdentifier::Method(
                                         *classlike_name,
                                         *property_name_ptr,
@@ -353,7 +353,7 @@ pub(crate) fn find_unused_definitions(
 
                         let file_path = interner.lookup(&pos.file_path.0);
 
-                        if !config.allow_issue_kind_in_file(&issue.kind, &file_path) {
+                        if !config.allow_issue_kind_in_file(&issue.kind, file_path) {
                             continue;
                         }
 
@@ -362,7 +362,7 @@ pub(crate) fn find_unused_definitions(
                                 analysis_result
                                     .replacements
                                     .entry(pos.file_path)
-                                    .or_insert_with(BTreeMap::new)
+                                    .or_default()
                                     .insert(
                                         (stmt_pos.start_offset, stmt_pos.end_offset),
                                         Replacement::TrimPrecedingWhitespace(
@@ -379,7 +379,7 @@ pub(crate) fn find_unused_definitions(
                             analysis_result
                                 .emitted_definition_issues
                                 .entry(pos.file_path)
-                                .or_insert_with(Vec::new)
+                                .or_default()
                                 .push(issue);
                         }
                     }
@@ -401,7 +401,7 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            if !config.allow_issue_kind_in_file(&IssueKind::UnusedTypeDefinition, &file_path) {
+            if !config.allow_issue_kind_in_file(&IssueKind::UnusedTypeDefinition, file_path) {
                 continue;
             }
 
@@ -409,7 +409,7 @@ pub(crate) fn find_unused_definitions(
                 let issue = Issue::new(
                     IssueKind::UnusedTypeDefinition,
                     format!("Unused type definition {}", interner.lookup(type_name)),
-                    pos.clone(),
+                    *pos,
                     &Some(FunctionLikeIdentifier::Function(*type_name)),
                 );
 
@@ -420,7 +420,7 @@ pub(crate) fn find_unused_definitions(
                     analysis_result
                         .replacements
                         .entry(pos.file_path)
-                        .or_insert_with(BTreeMap::new)
+                        .or_default()
                         .insert(
                             (pos.start_offset, pos.end_offset),
                             Replacement::TrimPrecedingWhitespace(
@@ -437,7 +437,7 @@ pub(crate) fn find_unused_definitions(
                     analysis_result
                         .emitted_definition_issues
                         .entry(pos.file_path)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(issue);
                 }
             }
@@ -458,7 +458,7 @@ fn has_upstream_method_call(
         }
     }
 
-    return false;
+    false
 }
 
 fn get_trait_users(

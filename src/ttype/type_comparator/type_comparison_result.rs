@@ -35,6 +35,12 @@ pub struct TypeComparisonResult {
     pub type_variable_upper_bounds: Vec<(String, TemplateBound)>,
 }
 
+impl Default for TypeComparisonResult {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeComparisonResult {
     pub fn new() -> Self {
         Self {

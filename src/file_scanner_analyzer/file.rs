@@ -21,7 +21,7 @@ pub struct VirtualFileSystem {
 
 impl VirtualFileSystem {
     pub fn get_contents_hash(&self, file_path: &String) -> Result<u64, std::io::Error> {
-        match fs::read_to_string(&file_path) {
+        match fs::read_to_string(file_path) {
             Ok(file_contents) => Ok(xxhash_rust::xxh3::xxh3_64(file_contents.as_bytes())),
             Err(error) => Err(error),
         }
@@ -98,7 +98,7 @@ impl VirtualFileSystem {
         if let Some(existing_file_system) = existing_file_system {
             for (file_path, _) in &existing_file_system.file_hashes_and_times {
                 if !file_statuses.contains_key(file_path) {
-                    file_statuses.insert(file_path.clone(), FileStatus::Deleted);
+                    file_statuses.insert(*file_path, FileStatus::Deleted);
                 }
             }
         }
@@ -170,7 +170,7 @@ impl VirtualFileSystem {
             !ignore_dirs.contains(p) && !p.contains("/.")
         });
 
-        let walker = walker_builder.build().into_iter().filter_map(|e| e.ok());
+        let walker = walker_builder.build().filter_map(|e| e.ok());
 
         let ignore_patterns = config
             .ignore_files
@@ -208,7 +208,7 @@ impl VirtualFileSystem {
         config: &Config,
         files_to_analyze: &mut Vec<String>,
     ) {
-        let metadata = if let Ok(metadata) = fs::metadata(&path) {
+        let metadata = if let Ok(metadata) = fs::metadata(path) {
             metadata
         } else {
             return;
@@ -249,12 +249,10 @@ impl VirtualFileSystem {
                         } else {
                             0
                         }
+                    } else if calculate_file_hashes {
+                        self.get_contents_hash(&str_path).unwrap_or(0)
                     } else {
-                        if calculate_file_hashes {
-                            self.get_contents_hash(&str_path).unwrap_or(0)
-                        } else {
-                            0
-                        }
+                        0
                     };
 
                     self.file_hashes_and_times

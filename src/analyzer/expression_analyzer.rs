@@ -169,7 +169,7 @@ pub(crate) fn analyze(
         }
         aast::Expr_::ArrayGet(boxed) => {
             let keyed_array_var_id = expression_identifier::get_var_id(
-                &expr,
+                expr,
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_file_analyzer().get_file_source(),
                 statements_analyzer.get_file_analyzer().resolved_names,
@@ -249,8 +249,7 @@ pub(crate) fn analyze(
 
             if let ast_defs::OgNullFlavor::OGNullsafe = nullfetch {
                 // handle nullsafe calls
-            } else {
-            }
+            } 
         }
         aast::Expr_::New(boxed) => {
             new_analyzer::analyze(
@@ -335,7 +334,7 @@ pub(crate) fn analyze(
         aast::Expr_::Clone(boxed) => {
             expression_analyzer::analyze(
                 statements_analyzer,
-                &boxed,
+                boxed,
                 analysis_data,
                 context,
                 if_body_context,
@@ -451,7 +450,7 @@ pub(crate) fn analyze(
         aast::Expr_::Await(boxed) => {
             expression_analyzer::analyze(
                 statements_analyzer,
-                &boxed,
+                boxed,
                 analysis_data,
                 context,
                 if_body_context,
@@ -716,9 +715,7 @@ pub(crate) fn find_expr_logic_issues(
         .into_iter()
         .map(|c| {
             let keys = &c
-                .possibilities
-                .iter()
-                .map(|(k, _)| k)
+                .possibilities.keys()
                 .collect::<Vec<&String>>();
 
             let mut new_mixed_var_ids = vec![];
@@ -744,7 +741,7 @@ pub(crate) fn find_expr_logic_issues(
                 }
             }
 
-            return c;
+            c
         })
         .collect::<Vec<Clause>>();
 
@@ -817,7 +814,7 @@ fn analyze_function_pointer(
                     if let aast::Expr_::Id(id) = &inner_expr.2 {
                         if let Some(name) = get_id_name(
                             id,
-                            &calling_class,
+                            calling_class,
                             context.function_context.calling_class_final,
                             codebase,
                             &mut false,
@@ -851,7 +848,7 @@ fn analyze_function_pointer(
         FunctionLikeIdentifier::Function(name) => {
             analysis_data.symbol_references.add_reference_to_symbol(
                 &context.function_context,
-                name.clone(),
+                *name,
                 false,
             );
 
@@ -866,7 +863,7 @@ fn analyze_function_pointer(
                             "Unknown function {}",
                             statements_analyzer.get_interner().lookup(name)
                         ),
-                        statements_analyzer.get_hpos(&expr.pos()),
+                        statements_analyzer.get_hpos(expr.pos()),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -881,14 +878,14 @@ fn analyze_function_pointer(
                 .symbol_references
                 .add_reference_to_class_member(
                     &context.function_context,
-                    (class_name.clone(), *method_name),
+                    (*class_name, *method_name),
                     false,
                 );
 
             if let Some(classlike_storage) = codebase.classlike_infos.get(class_name) {
                 let declaring_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
-                    class_name.clone(),
-                    method_name.clone(),
+                    *class_name,
+                    *method_name,
                 ));
 
                 if let Some(overridden_classlikes) = classlike_storage
@@ -900,7 +897,7 @@ fn analyze_function_pointer(
                             .symbol_references
                             .add_reference_to_overridden_class_member(
                                 &context.function_context,
-                                (overridden_classlike.clone(), declaring_method_id.1),
+                                (*overridden_classlike, declaring_method_id.1),
                             );
                     }
                 }
@@ -912,7 +909,7 @@ fn analyze_function_pointer(
                             "Unknown classlike {}",
                             statements_analyzer.get_interner().lookup(class_name)
                         ),
-                        statements_analyzer.get_hpos(&expr.pos()),
+                        statements_analyzer.get_hpos(expr.pos()),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),

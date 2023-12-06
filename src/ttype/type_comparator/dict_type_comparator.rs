@@ -46,10 +46,8 @@ pub(crate) fn is_contained_by(
                             ) {
                                 all_types_contain = false;
                             }
-                        } else {
-                            if !c_u {
-                                all_types_contain = false;
-                            }
+                        } else if !c_u {
+                            all_types_contain = false;
                         }
                     }
 

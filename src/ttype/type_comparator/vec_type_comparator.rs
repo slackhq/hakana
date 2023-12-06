@@ -42,11 +42,9 @@ pub(crate) fn is_contained_by(
                         all_types_contain = false;
                         obviously_bad = true;
                     }
-                } else {
-                    if !c_u {
-                        all_types_contain = false;
-                        obviously_bad = true;
-                    }
+                } else if !c_u {
+                    all_types_contain = false;
+                    obviously_bad = true;
                 }
             }
         } else {

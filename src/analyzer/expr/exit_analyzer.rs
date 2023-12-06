@@ -66,7 +66,7 @@ pub(crate) fn analyze(
         context.inside_general_use = false;
     }
 
-    analysis_data.set_expr_type(&call_pos, get_nothing());
+    analysis_data.set_expr_type(call_pos, get_nothing());
 
     Ok(())
 }

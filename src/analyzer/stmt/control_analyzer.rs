@@ -44,7 +44,7 @@ pub(crate) fn get_control_actions(
                 }
 
                 if let Some(analysis_data) = analysis_data {
-                    if let Some(t) = analysis_data.get_expr_type(&boxed.pos()) {
+                    if let Some(t) = analysis_data.get_expr_type(boxed.pos()) {
                         if t.is_nothing() {
                             control_actions.insert(ControlAction::End);
                             return control_actions;
@@ -53,7 +53,7 @@ pub(crate) fn get_control_actions(
                 }
             }
             aast::Stmt_::Break => {
-                if break_context.len() > 0 {
+                if !break_context.is_empty() {
                     if let &BreakContext::Switch = break_context.last().unwrap() {
                         if !control_actions.contains(&ControlAction::LeaveSwitch) {
                             control_actions.insert(ControlAction::LeaveSwitch);
@@ -157,10 +157,7 @@ pub(crate) fn get_control_actions(
 
                 control_actions.extend(loop_actions);
 
-                control_actions = control_actions
-                    .into_iter()
-                    .filter(|action| action != &ControlAction::None)
-                    .collect();
+                control_actions.retain(|action| action != &ControlAction::None);
 
                 // check for infinite loop behaviour
                 if let Some(types) = analysis_data {
@@ -347,7 +344,7 @@ pub(crate) fn get_control_actions(
 
                 let mut all_catch_actions = Vec::new();
 
-                if stmt.1.len() > 0 {
+                if !stmt.1.is_empty() {
                     let mut all_catches_leave = try_leaves;
 
                     for catch in stmt.1 {
@@ -391,7 +388,7 @@ pub(crate) fn get_control_actions(
                     return control_actions;
                 }
 
-                if stmt.2.len() > 0 {
+                if !stmt.2.is_empty() {
                     let finally_actions = get_control_actions(
                         codebase,
                         interner,
@@ -433,7 +430,7 @@ pub(crate) fn get_control_actions(
                     codebase,
                     interner,
                     resolved_names,
-                    &block_stmts,
+                    block_stmts,
                     analysis_data,
                     &break_context,
                     return_is_exit,
@@ -529,11 +526,7 @@ fn handle_call(
             }
 
             let resolved_name =
-                if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
-                    resolved_name
-                } else {
-                    return None;
-                };
+                resolved_names.get(&id.0.start_offset())?;
             if let Some(functionlike_storage) = codebase
                 .functionlike_infos
                 .get(&(*resolved_name, STR_EMPTY))
@@ -556,20 +549,10 @@ fn handle_call(
                                 // do nothing
                             }
                             _ => {
-                                let name_string = if let Some(resolved_name) =
-                                    resolved_names.get(&id.0.start_offset())
-                                {
-                                    resolved_name
-                                } else {
-                                    return None;
-                                };
+                                let name_string = resolved_names.get(&id.0.start_offset())?;
 
                                 let method_name =
-                                    if let Some(resolved_name) = interner.get(&boxed.1 .1) {
-                                        resolved_name
-                                    } else {
-                                        return None;
-                                    };
+                                    interner.get(&boxed.1 .1)?;
 
                                 if let Some(functionlike_storage) = codebase
                                     .functionlike_infos

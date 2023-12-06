@@ -27,9 +27,7 @@ pub fn find_tainted_data(
     let mut new_issues = vec![];
 
     let sources = graph
-        .sources
-        .iter()
-        .map(|(_, v)| Arc::new(TaintedNode::from(v)))
+        .sources.values().map(|v| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
     logger.log_sync("Security analysis: detecting paths");
@@ -176,7 +174,7 @@ fn find_paths_to_sinks(
                     }
                 ));
 
-                let top_file = file_nodes.iter().max_by(|a, b| a.1.cmp(&b.1));
+                let top_file = file_nodes.iter().max_by(|a, b| a.1.cmp(b.1));
 
                 if let Some(top_file) = top_file {
                     if *top_file.1 > 10000 {
@@ -217,7 +215,7 @@ fn get_specialized_sources(
             new_source
                 .specialized_calls
                 .entry(specialization_key.clone())
-                .or_insert_with(FxHashSet::default)
+                .or_default()
                 .insert(new_source.id.clone());
 
             generated_sources.push(Arc::new(new_source));
@@ -255,7 +253,7 @@ fn get_specialized_sources(
         }
     }
 
-    return generated_sources;
+    generated_sources
 }
 
 fn get_child_nodes(
@@ -285,7 +283,7 @@ fn get_child_nodes(
                         new_issues.push(Issue::new(
                             IssueKind::TaintedData(t.clone()),
                             message,
-                            (**generated_source.pos.as_ref().unwrap()).clone(),
+                            **generated_source.pos.as_ref().unwrap(),
                             &None,
                         ));
                     }
@@ -354,7 +352,7 @@ fn get_child_nodes(
                             new_issues.push(Issue::new(
                                 IssueKind::TaintedData(t.clone()),
                                 message,
-                                (**generated_source.pos.as_ref().unwrap()).clone(),
+                                **generated_source.pos.as_ref().unwrap(),
                                 &None,
                             ));
                         }
@@ -399,7 +397,7 @@ fn get_child_nodes(
                                     for taint_source in taint_sources {
                                         for matching_sink in &matching_sinks {
                                             if !config.allow_data_from_source_in_file(
-                                                &taint_source,
+                                                taint_source,
                                                 matching_sink,
                                                 &new_destination,
                                                 interner,
@@ -407,7 +405,7 @@ fn get_child_nodes(
                                                 continue;
                                             }
 
-                                            new_destination.taint_sinks.remove(&matching_sink);
+                                            new_destination.taint_sinks.remove(matching_sink);
 
                                             let message = format!(
                                                 "Data from {} found its way to {} using path {}",
@@ -419,7 +417,7 @@ fn get_child_nodes(
                                             new_issues.push(Issue::new(
                                                 IssueKind::TaintedData(matching_sink.clone()),
                                                 message,
-                                                (**issue_pos).clone(),
+                                                **issue_pos,
                                                 &None,
                                             ));
                                         }

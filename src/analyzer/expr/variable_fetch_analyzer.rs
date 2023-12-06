@@ -47,7 +47,7 @@ pub(crate) fn analyze(
                     Issue::new(
                         IssueKind::UndefinedVariable,
                         format!("Cannot find referenced variable {}", &lid.1 .1),
-                        statements_analyzer.get_hpos(&pos),
+                        statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -58,7 +58,7 @@ pub(crate) fn analyze(
             }
         };
 
-        analysis_data.set_rc_expr_type(&pos, superglobal_type);
+        analysis_data.set_rc_expr_type(pos, superglobal_type);
 
         analysis_data.expr_effects.insert(
             (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -76,7 +76,7 @@ pub(crate) fn analyze(
             context,
         );
 
-        analysis_data.set_expr_type(&pos, var_type);
+        analysis_data.set_expr_type(pos, var_type);
 
         if lid.1 .1 == "$$" {
             analysis_data.expr_effects.insert(
@@ -139,43 +139,41 @@ fn add_dataflow_to_variable(
 ) -> TUnion {
     let mut stmt_type = stmt_type;
 
-    let ref mut data_flow_graph = analysis_data.data_flow_graph;
+    let data_flow_graph = &mut analysis_data.data_flow_graph;
 
-    if data_flow_graph.kind == GraphKind::FunctionBody {
-        if context.inside_general_use || context.inside_throw || context.inside_isset {
-            let pos = statements_analyzer.get_hpos(pos);
+    if data_flow_graph.kind == GraphKind::FunctionBody && (context.inside_general_use || context.inside_throw || context.inside_isset) {
+        let pos = statements_analyzer.get_hpos(pos);
 
-            let assignment_node = DataFlowNode {
-                id: lid.1 .1.to_string()
-                    + "-"
-                    + &pos.file_path.0 .0.to_string()
-                    + ":"
-                    + &pos.start_offset.to_string()
-                    + "-"
-                    + &pos.end_offset.to_string(),
-                kind: DataFlowNodeKind::VariableUseSink { pos },
-            };
+        let assignment_node = DataFlowNode {
+            id: lid.1 .1.to_string()
+                + "-"
+                + &pos.file_path.0 .0.to_string()
+                + ":"
+                + &pos.start_offset.to_string()
+                + "-"
+                + &pos.end_offset.to_string(),
+            kind: DataFlowNodeKind::VariableUseSink { pos },
+        };
 
-            data_flow_graph.add_node(assignment_node.clone());
+        data_flow_graph.add_node(assignment_node.clone());
 
-            let mut parent_nodes = stmt_type.parent_nodes.clone();
+        let mut parent_nodes = stmt_type.parent_nodes.clone();
 
-            if parent_nodes.is_empty() {
-                parent_nodes.insert(assignment_node);
-            } else {
-                for parent_node in &parent_nodes {
-                    data_flow_graph.add_path(
-                        &parent_node,
-                        &assignment_node,
-                        PathKind::Default,
-                        None,
-                        None,
-                    );
-                }
+        if parent_nodes.is_empty() {
+            parent_nodes.insert(assignment_node);
+        } else {
+            for parent_node in &parent_nodes {
+                data_flow_graph.add_path(
+                    parent_node,
+                    &assignment_node,
+                    PathKind::Default,
+                    None,
+                    None,
+                );
             }
-
-            stmt_type.parent_nodes = parent_nodes;
         }
+
+        stmt_type.parent_nodes = parent_nodes;
     }
 
     stmt_type

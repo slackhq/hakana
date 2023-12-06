@@ -85,7 +85,7 @@ pub(crate) fn analyze(
         classlike_name
     } else {
         match &lhs_type_part {
-            TAtomic::TNamedObject { name, .. } => name.clone(),
+            TAtomic::TNamedObject { name, .. } => *name,
             TAtomic::TClassname { as_type, .. } | TAtomic::TGenericClassname { as_type, .. } => {
                 let as_type = *as_type.clone();
                 if let TAtomic::TNamedObject { name, .. } = as_type {
@@ -112,7 +112,7 @@ pub(crate) fn analyze(
                         Issue::new(
                             IssueKind::MixedMethodCall,
                             "Method called on unknown object".to_string(),
-                            statements_analyzer.get_hpos(&pos),
+                            statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),
@@ -138,7 +138,7 @@ pub(crate) fn analyze(
                     statements_analyzer.get_interner().lookup(&classlike_name),
                     &expr.1 .1
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),

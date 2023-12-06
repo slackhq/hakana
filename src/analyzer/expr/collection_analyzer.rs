@@ -80,7 +80,7 @@ pub(crate) fn analyze_vals(
         match vc_kind {
             VcKind::Vec => {
                 analysis_data.set_expr_type(
-                    &pos,
+                    pos,
                     wrap_atomic(TAtomic::TVec {
                         known_items: None,
                         type_param: Box::new(get_nothing()),
@@ -90,11 +90,11 @@ pub(crate) fn analyze_vals(
                 );
             }
             VcKind::Keyset => {
-                analysis_data.set_expr_type(&pos, get_keyset(get_nothing()));
+                analysis_data.set_expr_type(pos, get_keyset(get_nothing()));
             }
             VcKind::Vector => {
                 analysis_data.set_expr_type(
-                    &pos,
+                    pos,
                     wrap_atomic(TAtomic::TNamedObject {
                         name: statements_analyzer
                             .get_interner()
@@ -120,7 +120,7 @@ pub(crate) fn analyze_vals(
     for (offset, item) in items.iter().enumerate() {
         // println!("item! {:?} ", item);
         analyze_vals_item(
-            &statements_analyzer,
+            statements_analyzer,
             context,
             &mut array_creation_info,
             item,
@@ -152,7 +152,7 @@ pub(crate) fn analyze_vals(
                 }
             }
 
-            let mut new_vec = wrap_atomic(if known_items.len() > 0 {
+            let mut new_vec = wrap_atomic(if !known_items.is_empty() {
                 TAtomic::TVec {
                     known_items: Some(known_items),
                     type_param: Box::new(get_nothing()),
@@ -174,7 +174,7 @@ pub(crate) fn analyze_vals(
 
             new_vec.parent_nodes = array_creation_info.parent_nodes;
 
-            analysis_data.set_expr_type(&pos, new_vec);
+            analysis_data.set_expr_type(pos, new_vec);
         }
         VcKind::Keyset => {
             let item_value_type = TUnion::new(type_combiner::combine(
@@ -187,7 +187,7 @@ pub(crate) fn analyze_vals(
 
             keyset.parent_nodes = array_creation_info.parent_nodes;
 
-            analysis_data.set_expr_type(&pos, keyset);
+            analysis_data.set_expr_type(pos, keyset);
         }
         VcKind::Vector => {
             let mut new_vec = wrap_atomic(TAtomic::TNamedObject {
@@ -203,7 +203,7 @@ pub(crate) fn analyze_vals(
 
             new_vec.parent_nodes = array_creation_info.parent_nodes;
 
-            analysis_data.set_expr_type(&pos, new_vec);
+            analysis_data.set_expr_type(pos, new_vec);
         }
         _ => {}
     }
@@ -227,7 +227,7 @@ pub(crate) fn analyze_keyvals(
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
         analysis_data.set_expr_type(
-            &pos,
+            pos,
             wrap_atomic(TAtomic::TDict {
                 known_items: None,
                 params: None,
@@ -245,7 +245,7 @@ pub(crate) fn analyze_keyvals(
     for item in items {
         // println!("item! {:?} ", item);
         analyze_keyvals_item(
-            &statements_analyzer,
+            statements_analyzer,
             context,
             &mut array_creation_info,
             item,
@@ -272,7 +272,7 @@ pub(crate) fn analyze_keyvals(
     }
 
     let mut new_dict = wrap_atomic(TAtomic::TDict {
-        known_items: if known_items.len() > 0 {
+        known_items: if !known_items.is_empty() {
             Some(known_items)
         } else {
             None
@@ -299,7 +299,7 @@ pub(crate) fn analyze_keyvals(
 
     new_dict.parent_nodes = array_creation_info.parent_nodes;
 
-    analysis_data.set_expr_type(&pos, new_dict);
+    analysis_data.set_expr_type(pos, new_dict);
 
     analysis_data.expr_effects.insert(
         (pos.start_offset() as u32, pos.end_offset() as u32),
@@ -338,7 +338,7 @@ fn analyze_vals_item(
         .unwrap_or(&0);
 
     let value_item_type = analysis_data
-        .get_expr_type(&item_value.pos())
+        .get_expr_type(item_value.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
 
@@ -397,7 +397,7 @@ fn analyze_keyvals_item(
         .unwrap_or(&0);
 
     let key_item_type = analysis_data
-        .get_expr_type(&item.0.pos())
+        .get_expr_type(item.0.pos())
         .cloned()
         .unwrap_or(get_arraykey(true));
 
@@ -427,7 +427,7 @@ fn analyze_keyvals_item(
         .unwrap_or(&0);
 
     let value_item_type = analysis_data
-        .get_expr_type(&item.1.pos())
+        .get_expr_type(item.1.pos())
         .cloned()
         .unwrap_or(get_mixed_any());
 

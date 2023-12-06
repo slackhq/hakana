@@ -48,7 +48,7 @@ pub(crate) fn analyze(
     )
     .0;
 
-    else_context.clauses = else_clauses.into_iter().map(|v| Rc::new(v)).collect();
+    else_context.clauses = else_clauses.into_iter().map(Rc::new).collect();
 
     let original_context = else_context.clone();
 
@@ -115,7 +115,7 @@ pub(crate) fn analyze(
         final_actions.len() == 1 && final_actions.contains(&ControlAction::End);
 
     let has_leaving_statements = has_ending_statements
-        || final_actions.len() > 0 && !final_actions.contains(&ControlAction::None);
+        || !final_actions.is_empty() && !final_actions.contains(&ControlAction::None);
 
     if_scope.final_actions.extend(final_actions);
 

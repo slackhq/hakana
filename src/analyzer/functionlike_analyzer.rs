@@ -36,7 +36,7 @@ use oxidized::aast;
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashSet;
 
-use std::collections::BTreeMap;
+
 use std::rc::Rc;
 
 pub(crate) struct FunctionLikeAnalyzer<'a> {
@@ -68,10 +68,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             ));
         };
 
-        if self.file_analyzer.analysis_config.ast_diff {
-            if self.file_analyzer.codebase.safe_symbols.contains(&name) {
-                return Ok(());
-            }
+        if self.file_analyzer.analysis_config.ast_diff && self.file_analyzer.codebase.safe_symbols.contains(&name) {
+            return Ok(());
         }
 
         let function_storage = if let Some(f) = self
@@ -106,17 +104,17 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .collect(),
         );
 
-        statements_analyzer.set_function_info(&function_storage);
+        statements_analyzer.set_function_info(function_storage);
 
         let mut function_context = FunctionContext::new();
 
         function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Function(
-            function_storage.name.clone(),
+            function_storage.name,
         ));
 
         self.analyze_functionlike(
             &mut statements_analyzer,
-            &function_storage,
+            function_storage,
             ScopeContext::new(function_context),
             &stmt.fun.params,
             &stmt.fun.body.fb_ast.0,
@@ -139,7 +137,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut lambda_storage = if let Some(lambda_storage) = lambda_storage {
             lambda_storage
         } else {
-            match get_closure_storage(&self.file_analyzer, stmt.span.start_offset()) {
+            match get_closure_storage(self.file_analyzer, stmt.span.start_offset()) {
                 None => {
                     return Err(AnalysisError::InternalError(
                         "Cannot get closure storage".to_string(),
@@ -218,13 +216,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let codebase = self.file_analyzer.codebase;
 
-        if self.file_analyzer.analysis_config.ast_diff {
-            if codebase
+        if self.file_analyzer.analysis_config.ast_diff && codebase
                 .safe_symbol_members
-                .contains(&(classlike_storage.name, method_name))
-            {
-                return Ok(());
-            }
+                .contains(&(classlike_storage.name, method_name)) {
+            return Ok(());
         }
 
         let functionlike_storage = if let Some(functionlike_storage) = codebase
@@ -263,7 +258,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut function_context = FunctionContext::new();
         function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Method(
             classlike_storage.name,
-            method_name.clone(),
+            method_name,
         ));
         function_context.calling_class = Some(classlike_storage.name);
         function_context.calling_class_final = classlike_storage.is_final;
@@ -272,7 +267,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         if !stmt.static_ {
             let mut this_type = wrap_atomic(TAtomic::TNamedObject {
-                name: classlike_storage.name.clone(),
+                name: classlike_storage.name,
                 type_params: if !classlike_storage.template_types.is_empty() {
                     Some(
                         classlike_storage
@@ -282,9 +277,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                 let first_map_entry = template_map.iter().next().unwrap();
 
                                 wrap_atomic(TAtomic::TGenericParam {
-                                    param_name: param_name.clone(),
+                                    param_name: *param_name,
                                     as_type: Box::new((**first_map_entry.1).clone()),
-                                    defining_entity: first_map_entry.0.clone(),
+                                    defining_entity: *first_map_entry.0,
                                     from_class: false,
                                     extra_types: None,
                                 })
@@ -302,8 +297,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             if let GraphKind::WholeProgram(_) = &analysis_result.program_dataflow_graph.kind {
                 if classlike_storage.specialize_instance {
                     let new_call_node = DataFlowNode::get_for_this_before_method(
-                        &MethodIdentifier(classlike_storage.name, method_name.clone()),
-                        functionlike_storage.return_type_location.clone(),
+                        &MethodIdentifier(classlike_storage.name, method_name),
+                        functionlike_storage.return_type_location,
                         None,
                         statements_analyzer.get_interner(),
                     );
@@ -317,7 +312,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .insert("$this".to_string(), Rc::new(this_type));
         }
 
-        statements_analyzer.set_function_info(&functionlike_storage);
+        statements_analyzer.set_function_info(functionlike_storage);
 
         self.analyze_functionlike(
             &mut statements_analyzer,
@@ -384,8 +379,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     property_type =
                         atomic_property_fetch_analyzer::add_unspecialized_property_fetch_dataflow(
                             &Some(expr_id.clone()),
-                            &(classlike_storage.name.clone(), property_name.clone()),
-                            property_pos.clone(),
+                            &(classlike_storage.name, *property_name),
+                            *property_pos,
                             analysis_data,
                             false,
                             property_type,
@@ -443,15 +438,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &statements_analyzer.comments,
             &self.get_config().all_custom_issues,
             if let Some(parent_analysis_data) = &parent_analysis_data {
-                parent_analysis_data.current_stmt_offset.clone()
+                parent_analysis_data.current_stmt_offset
             } else {
                 None
             },
-            if let Some(parent_analysis_data) = &parent_analysis_data {
-                Some(parent_analysis_data.hakana_fixme_or_ignores.clone())
-            } else {
-                None
-            },
+            parent_analysis_data.as_ref().map(|parent_analysis_data| parent_analysis_data.hakana_fixme_or_ignores.clone()),
         );
 
         if let Some(parent_analysis_data) = &parent_analysis_data {
@@ -504,7 +495,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 //let start_t = std::time::Instant::now();
 
                 match statements_analyzer.analyze(
-                    &fb_ast,
+                    fb_ast,
                     &mut analysis_data,
                     &mut context,
                     &mut None,
@@ -555,10 +546,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     if let Some(this_type) = context.vars_in_scope.get("$this") {
                         let new_call_node = DataFlowNode::get_for_this_after_method(
                             &MethodIdentifier(
-                                context.function_context.calling_class.unwrap().clone(),
+                                context.function_context.calling_class.unwrap(),
                                 functionlike_storage.name,
                             ),
-                            functionlike_storage.name_location.clone(),
+                            functionlike_storage.name_location,
                             None,
                             statements_analyzer.get_interner(),
                         );
@@ -657,7 +648,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     for callsite_return_type in &analysis_data.inferred_return_types {
                         if type_comparator::union_type_comparator::is_contained_by(
                             codebase,
-                            &callsite_return_type,
+                            callsite_return_type,
                             &expected_return_type,
                             false,
                             callsite_return_type.ignore_falsable_issues,
@@ -787,11 +778,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     let filtered_lower_bounds = bounds
                         .0
                         .into_iter()
-                        .filter(|bound| !(&existing_bounds_copy.0).contains(bound));
+                        .filter(|bound| !existing_bounds_copy.0.contains(bound));
                     let filtered_upper_bounds = bounds
                         .1
                         .into_iter()
-                        .filter(|bound| !(&existing_bounds_copy.1).contains(bound));
+                        .filter(|bound| !existing_bounds_copy.1.contains(bound));
 
                     existing_bounds.0.extend(filtered_lower_bounds);
                     existing_bounds.1.extend(filtered_upper_bounds);
@@ -957,7 +948,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         &Some(statements_analyzer.get_interner()),
                         &mut param_type,
                         &TypeExpansionOptions {
-                            self_class: calling_class.clone(),
+                            self_class: calling_class,
                             static_class_type: if let Some(calling_class) = calling_class {
                                 StaticClassType::Name(calling_class)
                             } else {
@@ -993,9 +984,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                         statements_analyzer.get_interner().lookup(name)
                                     ),
                                     if let Some(type_location) = &param.signature_type_location {
-                                        type_location.clone()
+                                        *type_location
                                     } else {
-                                        param.name_location.clone()
+                                        param.name_location
                                     },
                                     &context.function_context.calling_functionlike_id,
                                 ));
@@ -1043,7 +1034,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             let new_parent_node = if let GraphKind::WholeProgram(_) =
                 &analysis_data.data_flow_graph.kind
             {
-                DataFlowNode::get_for_assignment(param.name.clone(), param.name_location.clone())
+                DataFlowNode::get_for_assignment(param.name.clone(), param.name_location)
             } else {
                 let id = format!(
                     "{}-{}:{}-{}",
@@ -1056,22 +1047,20 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 DataFlowNode {
                     id,
                     kind: DataFlowNodeKind::VariableUseSource {
-                        pos: param.name_location.clone(),
+                        pos: param.name_location,
                         kind: if param.is_inout {
                             VariableSourceKind::InoutParam
                         } else if context.calling_closure_id.is_some() {
                             VariableSourceKind::ClosureParam
-                        } else {
-                            if let Some(method_storage) = &functionlike_storage.method_info {
-                                match &method_storage.visibility {
-                                    MemberVisibility::Public | MemberVisibility::Protected => {
-                                        VariableSourceKind::NonPrivateParam
-                                    }
-                                    MemberVisibility::Private => VariableSourceKind::PrivateParam,
+                        } else if let Some(method_storage) = &functionlike_storage.method_info {
+                            match &method_storage.visibility {
+                                MemberVisibility::Public | MemberVisibility::Protected => {
+                                    VariableSourceKind::NonPrivateParam
                                 }
-                            } else {
-                                VariableSourceKind::PrivateParam
+                                MemberVisibility::Private => VariableSourceKind::PrivateParam,
                             }
+                        } else {
+                            VariableSourceKind::PrivateParam
                         },
                         label: param.name.clone(),
                         pure: false,
@@ -1080,12 +1069,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 }
             };
 
-            if !param.promoted_property {
-                if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
-                    analysis_data
-                        .data_flow_graph
-                        .add_node(new_parent_node.clone());
-                }
+            if !param.promoted_property && analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+                analysis_data
+                    .data_flow_graph
+                    .add_node(new_parent_node.clone());
             }
 
             analysis_data
@@ -1099,14 +1086,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     context
                         .function_context
                         .calling_functionlike_id
-                        .clone()
                         .unwrap()
                 };
 
                 let argument_node = DataFlowNode::get_for_method_argument(
-                    calling_id.to_string(&self.get_interner()),
+                    calling_id.to_string(self.get_interner()),
                     i,
-                    Some(param.name_location.clone()),
+                    Some(param.name_location),
                     None,
                 );
 
@@ -1229,7 +1215,7 @@ fn report_unused_expressions(
                             Issue::new(
                                 IssueKind::UnusedParameter,
                                 "Unused param ".to_string() + label,
-                                pos.clone(),
+                                pos,
                                 calling_functionlike_id,
                             ),
                             statements_analyzer.get_config(),
@@ -1243,7 +1229,7 @@ fn report_unused_expressions(
                             && !config.add_fixmes
                         {
                             if !analysis_data.add_replacement(
-                                (pos.start_offset as u32 + 1, pos.start_offset as u32 + 1),
+                                (pos.start_offset + 1, pos.start_offset + 1),
                                 Replacement::Substitute("_".to_string()),
                             ) {
                                 return;
@@ -1253,7 +1239,7 @@ fn report_unused_expressions(
                                 Issue::new(
                                     IssueKind::UnusedClosureParameter,
                                     "Unused closure param ".to_string() + label,
-                                    pos.clone(),
+                                    *pos,
                                     calling_functionlike_id,
                                 ),
                                 statements_analyzer.get_config(),
@@ -1275,7 +1261,7 @@ fn report_unused_expressions(
                             label,
                             calling_functionlike_id,
                             &false,
-                            &has_awaitable,
+                            has_awaitable,
                         );
                     }
                     VariableSourceKind::InoutParam => {
@@ -1302,9 +1288,7 @@ fn report_unused_expressions(
 fn get_param_pos(functionlike_storage: &FunctionLikeInfo, label: &String) -> HPos {
     functionlike_storage
         .params
-        .iter()
-        .filter(|p| &p.name == label)
-        .next()
+        .iter().find(|p| &p.name == label)
         .unwrap()
         .location
 }
@@ -1348,42 +1332,40 @@ fn handle_unused_assignment(
                     Issue::new(
                         IssueKind::UnusedPipeVariable,
                         "The pipe data in this expression is not used anywhere".to_string(),
-                        pos.clone(),
+                        *pos,
                         calling_functionlike_id,
                     )
                 } else if unused_closure_variable {
                     Issue::new(
                         IssueKind::UnusedAssignmentInClosure,
                         format!("Assignment to {} is unused in this closure ", label),
-                        pos.clone(),
+                        *pos,
+                        calling_functionlike_id,
+                    )
+                } else if *pure {
+                    Issue::new(
+                        IssueKind::UnusedAssignmentStatement,
+                        format!(
+                            "Assignment to {} is unused, and this expression has no effect",
+                            label
+                        ),
+                        *pos,
+                        calling_functionlike_id,
+                    )
+                } else if *has_awaitable {
+                    Issue::new(
+                        IssueKind::UnusedAwaitable,
+                        format!("Assignment to awaitable {} is unused", label),
+                        *pos,
                         calling_functionlike_id,
                     )
                 } else {
-                    if *pure {
-                        Issue::new(
-                            IssueKind::UnusedAssignmentStatement,
-                            format!(
-                                "Assignment to {} is unused, and this expression has no effect",
-                                label
-                            ),
-                            pos.clone(),
-                            calling_functionlike_id,
-                        )
-                    } else if *has_awaitable {
-                        Issue::new(
-                            IssueKind::UnusedAwaitable,
-                            format!("Assignment to awaitable {} is unused", label),
-                            pos.clone(),
-                            calling_functionlike_id,
-                        )
-                    } else {
-                        Issue::new(
-                            IssueKind::UnusedAssignment,
-                            format!("Assignment to {} is unused", label),
-                            pos.clone(),
-                            calling_functionlike_id,
-                        )
-                    }
+                    Issue::new(
+                        IssueKind::UnusedAssignment,
+                        format!("Assignment to {} is unused", label),
+                        *pos,
+                        calling_functionlike_id,
+                    )
                 },
                 statements_analyzer.get_config(),
                 statements_analyzer.get_file_path_actual(),
@@ -1402,7 +1384,7 @@ pub(crate) fn update_analysis_result_with_tast(
         analysis_result
             .replacements
             .entry(*file_path)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .extend(analysis_data.replacements);
     }
 
@@ -1410,12 +1392,12 @@ pub(crate) fn update_analysis_result_with_tast(
         let file_insertions = analysis_result
             .insertions
             .entry(*file_path)
-            .or_insert_with(BTreeMap::new);
+            .or_default();
 
         for (offset, insertions) in analysis_data.insertions {
             file_insertions
                 .entry(offset)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .extend(insertions);
         }
     }
@@ -1427,7 +1409,7 @@ pub(crate) fn update_analysis_result_with_tast(
     analysis_result
         .emitted_issues
         .entry(*file_path)
-        .or_insert_with(Vec::new)
+        .or_default()
         .extend(issues_to_emit.into_iter().unique().collect::<Vec<_>>());
 
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
@@ -1469,7 +1451,7 @@ impl ScopeAnalyzer for FunctionLikeAnalyzer<'_> {
     }
 
     fn get_interner(&self) -> &Interner {
-        &self.file_analyzer.get_interner()
+        self.file_analyzer.get_interner()
     }
 
     fn get_config(&self) -> &Config {
@@ -1489,6 +1471,6 @@ pub(crate) fn get_closure_storage(
     if let Some(file_storage) = file_storage {
         file_storage.closure_infos.get(&offset).cloned()
     } else {
-        return None;
+        None
     }
 }

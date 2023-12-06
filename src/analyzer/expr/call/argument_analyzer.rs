@@ -142,7 +142,7 @@ fn get_unpacked_type(
                             "Unpacking requires a collection type, {} provided",
                             atomic_type.get_id(Some(statements_analyzer.get_interner()))
                         ),
-                        statements_analyzer.get_hpos(&pos),
+                        statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -165,7 +165,7 @@ fn get_unpacked_type(
                             "Unpacking requires a collection type, {} provided",
                             atomic_type.get_id(Some(statements_analyzer.get_interner()))
                         ),
-                        statements_analyzer.get_hpos(&pos),
+                        statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -183,7 +183,7 @@ fn get_unpacked_type(
                             "Unpacking requires a collection type, {} provided",
                             arg_value_type.get_id(Some(statements_analyzer.get_interner()))
                         ),
-                        statements_analyzer.get_hpos(&pos),
+                        statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -278,12 +278,12 @@ pub(crate) fn verify_type(
                 },
                 format!(
                     "Argument {} of {} expects {}, {} provided",
-                    (argument_offset + 1).to_string(),
+                    (argument_offset + 1),
                     functionlike_id.to_string(statements_analyzer.get_interner()),
                     param_type.get_id(Some(statements_analyzer.get_interner())),
                     input_type.get_id(Some(statements_analyzer.get_interner())),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
+                statements_analyzer.get_hpos(input_expr.pos()),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -318,11 +318,11 @@ pub(crate) fn verify_type(
                 IssueKind::NoValue,
                 format!(
                     "Argument {} of {} expects {}, nothing type provided",
-                    (argument_offset + 1).to_string(),
+                    (argument_offset + 1),
                     functionlike_id.to_string(statements_analyzer.get_interner()),
                     param_type.get_id(Some(statements_analyzer.get_interner())),
                 ),
-                statements_analyzer.get_hpos(&input_expr.pos()),
+                statements_analyzer.get_hpos(input_expr.pos()),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -357,8 +357,8 @@ pub(crate) fn verify_type(
         functionlike_id,
         argument_offset,
         input_expr,
-        &input_type,
-        &param_type,
+        input_type,
+        param_type,
         context,
         analysis_data,
         function_param,
@@ -383,12 +383,12 @@ pub(crate) fn verify_type(
                     IssueKind::LessSpecificNestedAnyArgumentType,
                     format!(
                         "Argument {} of {} expects {}, parent type {} provided",
-                        (argument_offset + 1).to_string(),
+                        (argument_offset + 1),
                         functionlike_id.to_string(statements_analyzer.get_interner()),
                         param_type.get_id(Some(statements_analyzer.get_interner())),
                         input_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
-                    statements_analyzer.get_hpos(&input_expr.pos()),
+                    statements_analyzer.get_hpos(input_expr.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -403,12 +403,12 @@ pub(crate) fn verify_type(
                     IssueKind::LessSpecificNestedArgumentType,
                     format!(
                         "Argument {} of {} expects {}, parent type {} provided",
-                        (argument_offset + 1).to_string(),
+                        (argument_offset + 1),
                         functionlike_id.to_string(statements_analyzer.get_interner()),
                         param_type.get_id(Some(statements_analyzer.get_interner())),
                         input_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
-                    statements_analyzer.get_hpos(&input_expr.pos()),
+                    statements_analyzer.get_hpos(input_expr.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -420,12 +420,12 @@ pub(crate) fn verify_type(
                     IssueKind::LessSpecificArgument,
                     format!(
                         "Argument {} of {} expects {}, parent type {} provided",
-                        (argument_offset + 1).to_string(),
+                        (argument_offset + 1),
                         functionlike_id.to_string(statements_analyzer.get_interner()),
                         param_type.get_id(Some(statements_analyzer.get_interner())),
                         input_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
-                    statements_analyzer.get_hpos(&input_expr.pos()),
+                    statements_analyzer.get_hpos(input_expr.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -437,8 +437,8 @@ pub(crate) fn verify_type(
     if !type_match_found && !union_comparison_result.type_coerced.unwrap_or(false) {
         let types_can_be_identical = union_type_comparator::can_expression_types_be_identical(
             codebase,
-            &input_type,
-            &param_type,
+            input_type,
+            param_type,
             false,
         );
 
@@ -448,12 +448,12 @@ pub(crate) fn verify_type(
                     IssueKind::PossiblyInvalidArgument,
                     format!(
                         "Argument {} of {} expects {}, possibly different type {} provided",
-                        (argument_offset + 1).to_string(),
+                        (argument_offset + 1),
                         functionlike_id.to_string(statements_analyzer.get_interner()),
                         param_type.get_id(Some(statements_analyzer.get_interner())),
                         input_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
-                    statements_analyzer.get_hpos(&input_expr.pos()),
+                    statements_analyzer.get_hpos(input_expr.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -465,12 +465,12 @@ pub(crate) fn verify_type(
                     IssueKind::InvalidArgument,
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1).to_string(),
+                        (argument_offset + 1),
                         functionlike_id.to_string(statements_analyzer.get_interner()),
                         param_type.get_id(Some(statements_analyzer.get_interner())),
                         input_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
-                    statements_analyzer.get_hpos(&input_expr.pos()),
+                    statements_analyzer.get_hpos(input_expr.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -512,12 +512,12 @@ pub(crate) fn verify_type(
                     IssueKind::NullArgument,
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1).to_string(),
+                        (argument_offset + 1),
                         functionlike_id.to_string(statements_analyzer.get_interner()),
                         param_type.get_id(Some(statements_analyzer.get_interner())),
                         input_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
-                    statements_analyzer.get_hpos(&input_expr.pos()),
+                    statements_analyzer.get_hpos(input_expr.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -533,12 +533,12 @@ pub(crate) fn verify_type(
                     IssueKind::PossiblyNullArgument,
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1).to_string(),
+                        (argument_offset + 1),
                         functionlike_id.to_string(statements_analyzer.get_interner()),
                         param_type.get_id(Some(statements_analyzer.get_interner())),
                         input_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
-                    statements_analyzer.get_hpos(&input_expr.pos()),
+                    statements_analyzer.get_hpos(input_expr.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -566,12 +566,12 @@ pub(crate) fn verify_type(
                     IssueKind::PossiblyFalseArgument,
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1).to_string(),
+                        (argument_offset + 1),
                         functionlike_id.to_string(statements_analyzer.get_interner()),
                         param_type.get_id(Some(statements_analyzer.get_interner())),
                         input_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
-                    statements_analyzer.get_hpos(&input_expr.pos()),
+                    statements_analyzer.get_hpos(input_expr.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -586,12 +586,12 @@ pub(crate) fn verify_type(
                     IssueKind::FalseArgument,
                     format!(
                         "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1).to_string(),
+                        (argument_offset + 1),
                         functionlike_id.to_string(statements_analyzer.get_interner()),
                         param_type.get_id(Some(statements_analyzer.get_interner())),
                         input_type.get_id(Some(statements_analyzer.get_interner())),
                     ),
-                    statements_analyzer.get_hpos(&input_expr.pos()),
+                    statements_analyzer.get_hpos(input_expr.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -618,7 +618,7 @@ fn add_dataflow(
 ) {
     let codebase = statements_analyzer.get_codebase();
 
-    let ref mut data_flow_graph = analysis_data.data_flow_graph;
+    let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
         if !input_type.has_taintable_value() || !param_type.has_taintable_value() {
@@ -643,7 +643,7 @@ fn add_dataflow(
     let method_node = DataFlowNode::get_for_method_argument(
         functionlike_id.to_string(statements_analyzer.get_interner()),
         argument_offset,
-        Some(function_param.name_location.clone()),
+        Some(function_param.name_location),
         if specialize_taint {
             Some(statements_analyzer.get_hpos(function_call_pos))
         } else {
@@ -665,7 +665,7 @@ fn add_dataflow(
                             .unwrap()
                     {
                         for dependent_classlike in dependent_classlikes {
-                            if codebase.declaring_method_exists(&dependent_classlike, &method_name)
+                            if codebase.declaring_method_exists(dependent_classlike, method_name)
                             {
                                 let new_sink = DataFlowNode::get_for_method_argument(
                                     statements_analyzer
@@ -796,7 +796,7 @@ fn add_dataflow(
                 id: method_node.get_id().clone(),
                 kind: DataFlowNodeKind::TaintSink {
                     label: method_node.get_label().clone(),
-                    pos: method_node.get_pos().clone(),
+                    pos: *method_node.get_pos(),
                     types: taints.into_iter().collect(),
                 },
             };
@@ -834,8 +834,8 @@ pub(crate) fn get_removed_taints_in_comments(
                 if trimmed_text.starts_with("HAKANA_SECURITY_IGNORE[") {
                     let trimmed_text = trimmed_text[23..].to_string();
 
-                    if let Some(bracket_pos) = trimmed_text.find("]") {
-                        let string_types = trimmed_text[..bracket_pos].split(",");
+                    if let Some(bracket_pos) = trimmed_text.find(']') {
+                        let string_types = trimmed_text[..bracket_pos].split(',');
 
                         for string_type in string_types {
                             removed_taints
@@ -926,5 +926,5 @@ fn get_argument_taints(
         }
     }
 
-    return vec![];
+    vec![]
 }

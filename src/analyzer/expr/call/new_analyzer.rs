@@ -57,19 +57,19 @@ pub(crate) fn analyze(
                 let name_string = id.1.clone();
                 match name_string.as_str() {
                     "self" => {
-                        let self_name = &context.function_context.calling_class.clone().unwrap();
+                        let self_name = &context.function_context.calling_class.unwrap();
 
-                        get_named_object(self_name.clone())
+                        get_named_object(*self_name)
                     }
                     "parent" => {
-                        let self_name = &context.function_context.calling_class.clone().unwrap();
+                        let self_name = &context.function_context.calling_class.unwrap();
 
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
 
-                        get_named_object(classlike_storage.direct_parent_class.clone().unwrap())
+                        get_named_object(classlike_storage.direct_parent_class.unwrap())
                     }
                     "static" => {
-                        let self_name = &context.function_context.calling_class.clone().unwrap();
+                        let self_name = &context.function_context.calling_class.unwrap();
 
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
 
@@ -78,7 +78,7 @@ pub(crate) fn analyze(
                         }
 
                         wrap_atomic(TAtomic::TNamedObject {
-                            name: self_name.clone(),
+                            name: *self_name,
                             type_params: None,
                             is_this: !classlike_storage.is_final,
                             extra_types: None,
@@ -139,7 +139,7 @@ pub(crate) fn analyze(
         )?;
     }
 
-    analysis_data.set_expr_type(&pos, result.return_type.clone().unwrap_or(get_mixed_any()));
+    analysis_data.set_expr_type(pos, result.return_type.clone().unwrap_or(get_mixed_any()));
 
     Ok(())
 }
@@ -167,7 +167,7 @@ fn analyze_atomic(
         TAtomic::TNamedObject { name, is_this, .. } => {
             from_static = *is_this;
             // todo check class name and register usage
-            name.clone()
+            *name
         }
         TAtomic::TClassname { as_type, .. } | TAtomic::TGenericClassname { as_type, .. } => {
             let as_type = *as_type.clone();
@@ -180,7 +180,7 @@ fn analyze_atomic(
                     Issue::new(
                         IssueKind::MixedMethodCall,
                         "Method called on unknown object".to_string(),
-                        statements_analyzer.get_hpos(&pos),
+                        statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -190,12 +190,12 @@ fn analyze_atomic(
                 return Ok(());
             }
         }
-        TAtomic::TLiteralClassname { name } => name.clone(),
+        TAtomic::TLiteralClassname { name } => *name,
         TAtomic::TGenericParam { as_type, .. } => {
             let mut classlike_name = None;
             for generic_param_type in &as_type.types {
                 if let TAtomic::TNamedObject { name, .. } = generic_param_type {
-                    classlike_name = Some(name.clone());
+                    classlike_name = Some(*name);
                     break;
                 } else {
                     return Ok(());
@@ -215,7 +215,7 @@ fn analyze_atomic(
                     Issue::new(
                         IssueKind::MixedMethodCall,
                         "Method called on unknown object".to_string(),
-                        statements_analyzer.get_hpos(&pos),
+                        statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -277,7 +277,7 @@ fn analyze_named_constructor(
     } else {
         analysis_data.symbol_references.add_reference_to_symbol(
             &context.function_context,
-            classlike_name.clone(),
+            classlike_name,
             false,
         );
 
@@ -288,7 +288,7 @@ fn analyze_named_constructor(
                     "Cannot call new on undefined class {}",
                     statements_analyzer.get_interner().lookup(&classlike_name)
                 ),
-                statements_analyzer.get_hpos(&pos),
+                statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -322,14 +322,14 @@ fn analyze_named_constructor(
         .get_interner()
         .get("__construct")
         .unwrap();
-    let method_id = MethodIdentifier(classlike_name.clone(), method_name);
+    let method_id = MethodIdentifier(classlike_name, method_name);
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
     analysis_data
         .symbol_references
         .add_reference_to_class_member(
             &context.function_context,
-            (classlike_name.clone(), method_id.1),
+            (classlike_name, method_id.1),
             false,
         );
 
@@ -388,7 +388,7 @@ fn analyze_named_constructor(
                     get_type_from_hint(
                         &type_arg.1 .1,
                         context.function_context.calling_class.as_ref(),
-                        &statements_analyzer.get_type_resolution_context(),
+                        statements_analyzer.get_type_resolution_context(),
                         statements_analyzer.get_file_analyzer().resolved_names,
                     )
                     .unwrap()
@@ -431,11 +431,11 @@ fn analyze_named_constructor(
                             );
 
                             template_result.lower_bounds.insert(
-                                template_name.clone(),
+                                *template_name,
                                 map.iter()
                                     .map(|(entity, _)| {
                                         (
-                                            entity.clone(),
+                                            *entity,
                                             vec![TemplateBound::new(
                                                 wrap_atomic(TAtomic::TTypeVariable {
                                                     name: placeholder_name.clone(),
@@ -464,11 +464,11 @@ fn analyze_named_constructor(
                     if let Some((template_name, map)) = template_result.template_types.get_index(i)
                     {
                         template_result.lower_bounds.insert(
-                            template_name.clone(),
+                            *template_name,
                             map.iter()
                                 .map(|(entity, _)| {
                                     (
-                                        entity.clone(),
+                                        *entity,
                                         vec![TemplateBound::new(param_type.clone(), 0, None, None)],
                                     )
                                 })
@@ -495,12 +495,12 @@ fn analyze_named_constructor(
                         .iter()
                         .map(|(key, type_map)| {
                             (
-                                key.clone(),
+                                *key,
                                 type_map
                                     .iter()
                                     .map(|(map_key, bounds)| {
                                         (
-                                            map_key.clone(),
+                                            *map_key,
                                             Arc::new(get_most_specific_type_from_bounds(
                                                 bounds, codebase,
                                             )),
@@ -518,12 +518,10 @@ fn analyze_named_constructor(
                         &found_generic_params,
                     ))
                     .clone()
+                } else if let Some(Variance::Contravariant) = storage.generic_variance.get(&i) {
+                    get_nothing()
                 } else {
-                    if let Some(Variance::Contravariant) = storage.generic_variance.get(&i) {
-                        get_nothing()
-                    } else {
-                        (**base_type_map.iter().next().unwrap().1).clone()
-                    }
+                    (**base_type_map.iter().next().unwrap().1).clone()
                 };
 
                 generic_param_type.had_template = true;
@@ -547,7 +545,7 @@ fn analyze_named_constructor(
                         let mut param_type = get_type_from_hint(
                             &type_arg.1 .1,
                             context.function_context.calling_class.as_ref(),
-                            &statements_analyzer.get_type_resolution_context(),
+                            statements_analyzer.get_type_resolution_context(),
                             statements_analyzer.get_file_analyzer().resolved_names,
                         )
                         .unwrap();
@@ -598,7 +596,7 @@ fn analyze_named_constructor(
                 .symbol_references
                 .add_reference_to_overridden_class_member(
                     &context.function_context,
-                    (descendant_class.clone(), STR_CONSTRUCT),
+                    (descendant_class, STR_CONSTRUCT),
                 );
         }
     }
@@ -637,7 +635,7 @@ fn add_dataflow<'a>(
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
 
-    let ref mut data_flow_graph = analysis_data.data_flow_graph;
+    let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !context.allow_taints {
@@ -649,7 +647,7 @@ fn add_dataflow<'a>(
         let new_call_node = DataFlowNode::get_for_this_after_method(
             method_id,
             if let Some(functionlike_storage) = functionlike_storage {
-                functionlike_storage.return_type_location.clone()
+                functionlike_storage.return_type_location
             } else {
                 None
             },
@@ -672,7 +670,7 @@ fn add_dataflow<'a>(
                 let new_call_node = DataFlowNode::get_for_this_after_method(
                     &MethodIdentifier(descendant_class, method_id.1),
                     if let Some(functionlike_storage) = functionlike_storage {
-                        functionlike_storage.return_type_location.clone()
+                        functionlike_storage.return_type_location
                     } else {
                         None
                     },

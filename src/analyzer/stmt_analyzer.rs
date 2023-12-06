@@ -67,7 +67,7 @@ pub(crate) fn analyze(
         aast::Stmt_::Expr(boxed) => {
             expression_analyzer::analyze(
                 statements_analyzer,
-                &boxed,
+                boxed,
                 analysis_data,
                 context,
                 &mut None,
@@ -154,7 +154,7 @@ pub(crate) fn analyze(
 
             expression_analyzer::analyze(
                 statements_analyzer,
-                &boxed,
+                boxed,
                 analysis_data,
                 context,
                 &mut None,
@@ -189,7 +189,7 @@ pub(crate) fn analyze(
             for boxed_expr in &boxed.exprs.1 {
                 expression_analyzer::analyze(
                     statements_analyzer,
-                    &boxed_expr,
+                    boxed_expr,
                     analysis_data,
                     context,
                     &mut None,
@@ -253,7 +253,7 @@ pub(crate) fn analyze(
             analysis_data,
             AfterStmtAnalysisData {
                 statements_analyzer,
-                stmt: &stmt,
+                stmt,
                 context,
             },
         );
@@ -358,32 +358,28 @@ fn detect_unused_statement_expressions(
                 {
                     let function_name = statements_analyzer.get_interner().lookup(&function_id);
 
-                    if function_name.starts_with("HH\\Lib\\Keyset\\")
-                        || function_name.starts_with("HH\\Lib\\Vec\\")
-                        || function_name.starts_with("HH\\Lib\\Dict\\")
-                    {
-                        if expr_type.is_single() {
-                            let array_types = get_arrayish_params(expr_type.get_single(), codebase);
+                    if (function_name.starts_with("HH\\Lib\\Keyset\\")
+                        || function_name.starts_with("HH\\Lib\\Vec\\") || function_name.starts_with("HH\\Lib\\Dict\\")) && expr_type.is_single() {
+                        let array_types = get_arrayish_params(expr_type.get_single(), codebase);
 
-                            if let Some((_, value_type)) = array_types {
-                                if !value_type.is_null() && !value_type.is_void() {
-                                    analysis_data.maybe_add_issue(
-                                        Issue::new(
-                                            IssueKind::UnusedBuiltinReturnValue,
-                                            format!(
-                                                "The value {} returned from {} should be consumed",
-                                                expr_type.get_id(Some(
-                                                    statements_analyzer.get_interner()
-                                                )),
-                                                function_name
-                                            ),
-                                            statements_analyzer.get_hpos(&stmt.0),
-                                            &context.function_context.calling_functionlike_id,
+                        if let Some((_, value_type)) = array_types {
+                            if !value_type.is_null() && !value_type.is_void() {
+                                analysis_data.maybe_add_issue(
+                                    Issue::new(
+                                        IssueKind::UnusedBuiltinReturnValue,
+                                        format!(
+                                            "The value {} returned from {} should be consumed",
+                                            expr_type.get_id(Some(
+                                                statements_analyzer.get_interner()
+                                            )),
+                                            function_name
                                         ),
-                                        statements_analyzer.get_config(),
-                                        statements_analyzer.get_file_path_actual(),
-                                    );
-                                }
+                                        statements_analyzer.get_hpos(&stmt.0),
+                                        &context.function_context.calling_functionlike_id,
+                                    ),
+                                    statements_analyzer.get_config(),
+                                    statements_analyzer.get_file_path_actual(),
+                                );
                             }
                         }
                     }
@@ -466,7 +462,7 @@ fn analyze_awaitall(
     for stmt in boxed.1 {
         analyze(
             statements_analyzer,
-            &stmt,
+            stmt,
             analysis_data,
             context,
             loop_scope,

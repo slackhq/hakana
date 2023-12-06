@@ -170,20 +170,18 @@ pub(crate) fn analyze(
 
     let mut assign_value_type = if let Some(assign_value_type) = assign_value_type {
         assign_value_type.clone()
-    } else {
-        if let Some(assign_value) = assign_value {
-            if let Some(var_type) = analysis_data.get_expr_type(&assign_value.1) {
-                let assign_value_type = var_type.clone();
+    } else if let Some(assign_value) = assign_value {
+        if let Some(var_type) = analysis_data.get_expr_type(&assign_value.1) {
+            
 
-                // todo set from_property flags on union
+            // todo set from_property flags on union
 
-                assign_value_type
-            } else {
-                get_mixed_any()
-            }
+            var_type.clone()
         } else {
             get_mixed_any()
         }
+    } else {
+        get_mixed_any()
     };
 
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
@@ -256,7 +254,7 @@ pub(crate) fn analyze(
                     Issue::new(
                         IssueKind::ForLoopInvalidation,
                         format!("{} was previously assigned in a for loop", var_id),
-                        statements_analyzer.get_hpos(&pos),
+                        statements_analyzer.get_hpos(pos),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -370,7 +368,7 @@ pub(crate) fn analyze(
                 Issue::new(
                     IssueKind::UnrecognizedExpression,
                     "Unrecognized expression in assignment".to_string(),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -399,14 +397,14 @@ fn check_variable_or_property_assignment(
             Issue::new(
                 IssueKind::ImpossibleAssignment,
                 "This assignment is impossible".to_string(),
-                statements_analyzer.get_hpos(&assign_var_pos),
+                statements_analyzer.get_hpos(assign_var_pos),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
         );
     }
-    let ref mut data_flow_graph = analysis_data.data_flow_graph;
+    let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if !var_type.parent_nodes.is_empty()
         && ((matches!(&data_flow_graph.kind, GraphKind::FunctionBody) && !is_inout)
@@ -427,7 +425,7 @@ fn check_variable_or_property_assignment(
         );
     }
 
-    return var_type;
+    var_type
 }
 
 fn analyze_list_assignment(
@@ -521,11 +519,7 @@ fn analyze_list_assignment(
                 )),
             );
 
-            let keyed_array_var_id = if let Some(source_expr_id) = source_expr_id {
-                Some(source_expr_id + "['" + offset.to_string().as_str() + "']")
-            } else {
-                None
-            };
+            let keyed_array_var_id = source_expr_id.map(|source_expr_id| source_expr_id + "['" + offset.to_string().as_str() + "']");
 
             let mut value_type_rc = Rc::new(value_type);
 
@@ -639,7 +633,7 @@ fn analyze_assignment_to_variable(
         analysis_data,
         var_expr.pos(),
         var_id,
-        &context,
+        context,
         is_inout,
     );
 
@@ -673,8 +667,8 @@ fn analyze_assignment_to_variable(
 
                 if let Ok(right_clauses) = right_clauses {
                     let right_clauses = ScopeContext::filter_clauses(
-                        &var_id,
-                        right_clauses.into_iter().map(|v| Rc::new(v)).collect(),
+                        var_id,
+                        right_clauses.into_iter().map(Rc::new).collect(),
                         None,
                         None,
                         analysis_data,
@@ -699,7 +693,7 @@ fn analyze_assignment_to_variable(
                             right_clauses.into_iter().map(|v| (*v).clone()).collect(),
                             cond_object_id,
                         ) {
-                        assignment_clauses.into_iter().map(|v| Rc::new(v)).collect()
+                        assignment_clauses.into_iter().map(Rc::new).collect()
                     } else {
                         vec![]
                     };

@@ -71,7 +71,7 @@ pub(crate) fn analyze(
             for (var_id, var_type) in &context.vars_in_scope {
                 if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
                     *finally_type = Rc::new(combine_union_types(
-                        &finally_type,
+                        finally_type,
                         var_type,
                         codebase,
                         false,

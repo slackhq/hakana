@@ -35,7 +35,7 @@ use super::if_conditional_analyzer::add_branch_dataflow;
 
 use oxidized::ast_defs;
 
-use oxidized;
+
 
 use hakana_type::get_mixed_any;
 
@@ -83,7 +83,7 @@ pub(crate) fn analyze_case(
     let has_ending_statements =
         case_actions.len() == 1 && case_actions.contains(&ControlAction::End);
     let has_leaving_statements = has_ending_statements
-        || (case_actions.len() > 0 && !case_actions.contains(&ControlAction::None));
+        || (!case_actions.is_empty() && !case_actions.contains(&ControlAction::None));
 
     let mut case_context = original_context.clone();
 
@@ -106,7 +106,7 @@ pub(crate) fn analyze_case(
 
         if condition_is_fake {
             analysis_data.set_expr_type(
-                &switch_condition.pos(),
+                switch_condition.pos(),
                 if let Some(t) = context.vars_in_scope.get(switch_var_id) {
                     (**t).clone()
                 } else {
@@ -167,35 +167,33 @@ pub(crate) fn analyze_case(
                     unpacked_arg: None,
                 })),
             )
+        } else if switch_cond_type.is_true() {
+            case_cond.clone()
         } else {
-            if switch_cond_type.is_true() {
-                case_cond.clone()
-            } else {
-                let adjusted_pos = case_cond.pos().to_raw_span();
-                let adjusted_pos = Pos::from_lnum_bol_offset(
-                    Arc::new(RelativePath::EMPTY),
-                    (
-                        adjusted_pos.start.line() as usize,
-                        adjusted_pos.start.beg_of_line() as usize,
-                        adjusted_pos.start.offset() as usize - 1,
-                    ),
-                    (
-                        adjusted_pos.end.line() as usize,
-                        adjusted_pos.end.beg_of_line() as usize,
-                        adjusted_pos.end.offset() as usize,
-                    ),
-                );
+            let adjusted_pos = case_cond.pos().to_raw_span();
+            let adjusted_pos = Pos::from_lnum_bol_offset(
+                Arc::new(RelativePath::EMPTY),
+                (
+                    adjusted_pos.start.line() as usize,
+                    adjusted_pos.start.beg_of_line() as usize,
+                    adjusted_pos.start.offset() as usize - 1,
+                ),
+                (
+                    adjusted_pos.end.line() as usize,
+                    adjusted_pos.end.beg_of_line() as usize,
+                    adjusted_pos.end.offset() as usize,
+                ),
+            );
 
-                aast::Expr(
-                    (),
-                    adjusted_pos,
-                    aast::Expr_::Binop(Box::new(Binop {
-                        bop: ast_defs::Bop::Eqeqeq,
-                        lhs: switch_condition.clone(),
-                        rhs: case_cond.clone(),
-                    })),
-                )
-            }
+            aast::Expr(
+                (),
+                adjusted_pos,
+                aast::Expr_::Binop(Box::new(Binop {
+                    bop: ast_defs::Bop::Eqeqeq,
+                    lhs: switch_condition.clone(),
+                    rhs: case_cond.clone(),
+                })),
+            )
         });
     }
 
@@ -308,7 +306,7 @@ pub(crate) fn analyze_case(
     };
 
     let mut entry_clauses =
-        if switch_scope.negated_clauses.len() > 0 && switch_scope.negated_clauses.len() < 50 {
+        if !switch_scope.negated_clauses.is_empty() && switch_scope.negated_clauses.len() < 50 {
             hakana_algebra::simplify_cnf({
                 let mut c = original_context
                     .clauses
@@ -413,7 +411,7 @@ pub(crate) fn analyze_case(
                         false,
                         false,
                     )
-                    .unwrap_or(vec![])
+                    .unwrap_or_default()
                 };
 
             switch_scope.negated_clauses.extend(negated_case_clauses);
@@ -444,7 +442,7 @@ pub(crate) fn analyze_case(
             context,
             &case_context,
             original_context,
-            &case_exit_type,
+            case_exit_type,
             switch_scope,
         )?;
     }
@@ -466,7 +464,7 @@ pub(crate) fn analyze_case(
         } else {
             switch_scope.possibly_redefined_vars = Some(
                 break_vars
-                    .into_iter()
+                    .iter()
                     .filter(|(var_id, _)| context.vars_in_scope.contains_key(*var_id))
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect(),
@@ -480,7 +478,7 @@ pub(crate) fn analyze_case(
                         new_vars_in_scope.insert(
                             var_id.clone(),
                             Rc::new(combine_union_types(
-                                &break_var_type,
+                                break_var_type,
                                 &var_type,
                                 codebase,
                                 false,
@@ -501,7 +499,7 @@ pub(crate) fn analyze_case(
                     redefined_vars.insert(
                         var_id.clone(),
                         Rc::new(combine_union_types(
-                            &break_var_type,
+                            break_var_type,
                             &var_type,
                             codebase,
                             false,
@@ -537,7 +535,7 @@ pub(crate) fn handle_non_returning_case(
                         IssueKind::ParadoxicalCondition,
                         "All possible case statements have been met, default is impossible here"
                             .to_string(),
-                        statements_analyzer.get_hpos(&case_pos),
+                        statements_analyzer.get_hpos(case_pos),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),
@@ -575,7 +573,7 @@ pub(crate) fn handle_non_returning_case(
                 case_redefined_vars
                     .clone()
                     .into_iter()
-                    .filter(|(var_id, _)| context.vars_in_scope.contains_key(&*var_id))
+                    .filter(|(var_id, _)| context.vars_in_scope.contains_key(var_id))
                     .collect(),
             );
         }
@@ -586,7 +584,7 @@ pub(crate) fn handle_non_returning_case(
                     redefined_vars.insert(
                         var_id.clone(),
                         Rc::new(combine_union_types(
-                            &break_var_type,
+                            break_var_type,
                             &var_type,
                             codebase,
                             false,
@@ -611,7 +609,7 @@ pub(crate) fn handle_non_returning_case(
                     new_vars_in_scope.insert(
                         var_id.clone(),
                         Rc::new(combine_union_types(
-                            &case_context.vars_in_scope.get(&var_id).unwrap(),
+                            case_context.vars_in_scope.get(&var_id).unwrap(),
                             &var_type,
                             codebase,
                             false,

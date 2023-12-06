@@ -42,6 +42,12 @@ pub struct SecurityConfig {
     pub max_depth: u8,
 }
 
+impl Default for SecurityConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SecurityConfig {
     pub fn new() -> Self {
         Self {
@@ -103,14 +109,14 @@ impl Config {
             .map(|(k, v)| {
                 (
                     IssueKind::from_str_custom(k.as_str(), &self.all_custom_issues).unwrap(),
-                    v.into_iter().map(|v| format!("{}/{}", cwd, v)).collect(),
+                    v.iter().map(|v| format!("{}/{}", cwd, v)).collect(),
                 )
             })
             .collect();
 
         if let Some(v) = json_config.ignore_issue_files.get("*") {
             self.ignore_all_issues_in_files =
-                v.into_iter().map(|v| format!("{}/{}", cwd, v)).collect();
+                v.iter().map(|v| format!("{}/{}", cwd, v)).collect();
         }
 
         self.allowed_issues = if json_config.allowed_issues.is_empty() {
@@ -155,7 +161,7 @@ impl Config {
 
     pub fn allow_issues_in_file(&self, file: &str) -> bool {
         for ignore_file_path in &self.ignore_all_issues_in_files {
-            if glob::Pattern::new(ignore_file_path).unwrap().matches(&file) {
+            if glob::Pattern::new(ignore_file_path).unwrap().matches(file) {
                 return false;
             }
         }
@@ -164,9 +170,9 @@ impl Config {
     }
 
     pub fn allow_issue_kind_in_file(&self, issue_kind: &IssueKind, file: &str) -> bool {
-        if let Some(issue_entries) = self.ignore_issue_files.get(&issue_kind) {
+        if let Some(issue_entries) = self.ignore_issue_files.get(issue_kind) {
             for ignore_file_path in issue_entries {
-                if glob::Pattern::new(ignore_file_path).unwrap().matches(&file) {
+                if glob::Pattern::new(ignore_file_path).unwrap().matches(file) {
                     return false;
                 }
             }
@@ -205,7 +211,7 @@ impl Config {
             loop {
                 if let Some(pos) = &previous.pos {
                     for ignore_pattern in &ignore_patterns {
-                        if ignore_pattern.matches(&interner.lookup(&pos.file_path.0)) {
+                        if ignore_pattern.matches(interner.lookup(&pos.file_path.0)) {
                             return false;
                         }
                     }

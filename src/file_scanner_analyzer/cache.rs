@@ -18,7 +18,7 @@ pub(crate) fn load_cached_codebase(
 ) -> Option<CodebaseInfo> {
     if Path::new(codebase_path).exists() && use_codebase_cache {
         logger.log_sync("Deserializing stored codebase cache");
-        let serialized = fs::read(&codebase_path)
+        let serialized = fs::read(codebase_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &codebase_path));
         if let Ok(d) = bincode::deserialize::<CodebaseInfo>(&serialized) {
             return Some(d);
@@ -35,7 +35,7 @@ pub(crate) fn load_cached_interner(
 ) -> Option<Interner> {
     if Path::new(symbols_path).exists() && use_codebase_cache {
         logger.log_sync("Deserializing stored symbol cache");
-        let serialized = fs::read(&symbols_path)
+        let serialized = fs::read(symbols_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &symbols_path));
         if let Ok(d) = bincode::deserialize::<Interner>(&serialized) {
             return Some(d);
@@ -52,7 +52,7 @@ pub(crate) fn load_cached_aast_names(
 ) -> Option<FxHashMap<FilePath, FxHashMap<usize, StrId>>> {
     if Path::new(aast_names_path).exists() && use_codebase_cache {
         logger.log_sync("Deserializing aast names cache");
-        let serialized = fs::read(&aast_names_path)
+        let serialized = fs::read(aast_names_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &aast_names_path));
         if let Ok(d) =
             bincode::deserialize::<FxHashMap<FilePath, FxHashMap<usize, StrId>>>(&serialized)
@@ -61,7 +61,7 @@ pub(crate) fn load_cached_aast_names(
         }
     }
 
-    return None;
+    None
 }
 
 pub(crate) fn load_cached_existing_references(
@@ -71,14 +71,14 @@ pub(crate) fn load_cached_existing_references(
 ) -> Option<SymbolReferences> {
     if Path::new(existing_references_path).exists() && use_codebase_cache {
         logger.log_sync("Deserializing existing references cache");
-        let serialized = fs::read(&existing_references_path)
+        let serialized = fs::read(existing_references_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &existing_references_path));
         if let Ok(d) = bincode::deserialize::<SymbolReferences>(&serialized) {
             return Some(d);
         }
     }
 
-    return None;
+    None
 }
 
 pub(crate) fn load_cached_existing_issues(
@@ -88,7 +88,7 @@ pub(crate) fn load_cached_existing_issues(
 ) -> Option<FxHashMap<FilePath, Vec<Issue>>> {
     if Path::new(existing_issues_path).exists() && use_codebase_cache {
         logger.log_sync("Deserializing existing issues cache");
-        let serialized = fs::read(&existing_issues_path)
+        let serialized = fs::read(existing_issues_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &existing_issues_path));
         if let Ok(d) = bincode::deserialize::<FxHashMap<FilePath, Vec<Issue>>>(&serialized) {
             return Some(d);

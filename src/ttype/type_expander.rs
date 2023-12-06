@@ -82,7 +82,7 @@ pub fn expand_union(
             return_type_part,
             codebase,
             interner,
-            &options,
+            options,
             data_flow_graph,
             &mut skip_key,
             &mut new_return_type_parts,
@@ -146,8 +146,6 @@ fn expand_atomic(
                 );
             }
         }
-
-        return;
     } else if let TAtomic::TVec {
         ref mut known_items,
         ref mut type_param,
@@ -180,7 +178,7 @@ fn expand_atomic(
         if *name == STR_THIS {
             *name = match options.static_class_type {
                 StaticClassType::None => STR_THIS,
-                StaticClassType::Name(this_name) => this_name.clone().clone(),
+                StaticClassType::Name(this_name) => *this_name,
                 StaticClassType::Object(obj) => {
                     *skip_key = true;
                     new_return_type_parts.push(obj.clone().clone());
@@ -331,10 +329,10 @@ fn expand_atomic(
                 for (k, v) in &type_definition.template_types {
                     let mut h = FxHashMap::default();
                     for (kk, _) in v {
-                        h.insert(kk.clone(), type_params.get(i).unwrap().clone());
+                        h.insert(*kk, type_params.get(i).unwrap().clone());
                     }
 
-                    new_template_types.insert(k.clone(), h);
+                    new_template_types.insert(*k, h);
 
                     i += 1;
                 }
@@ -360,7 +358,7 @@ fn expand_atomic(
                 .types
                 .into_iter()
                 .map(|mut v| {
-                    if let None = type_params {
+                    if type_params.is_none() {
                         if let TAtomic::TDict {
                             known_items: Some(_),
                             ref mut shape_name,
@@ -373,7 +371,7 @@ fn expand_atomic(
                                 let shape_node = DataFlowNode::new(
                                     interner.lookup(type_name).to_string(),
                                     interner.lookup(type_name).to_string(),
-                                    Some(type_definition.location.clone()),
+                                    Some(type_definition.location),
                                     None,
                                 );
 
@@ -381,12 +379,12 @@ fn expand_atomic(
                                     let label = format!(
                                         "{}[{}]",
                                         interner.lookup(type_name),
-                                        field_name.to_string(Some(&interner))
+                                        field_name.to_string(Some(interner))
                                     );
                                     let field_node = DataFlowNode {
                                         id: label.clone(),
                                         kind: DataFlowNodeKind::TaintSource {
-                                            pos: Some(taints.0.clone()),
+                                            pos: Some(taints.0),
                                             label,
                                             types: taints.1.clone(),
                                         },
@@ -422,49 +420,47 @@ fn expand_atomic(
                 .collect::<Vec<_>>();
 
             new_return_type_parts.extend(expanded_types);
-        } else {
-            if let Some(definition_as_type) = &type_definition.as_type {
-                let mut definition_as_type = if let Some(type_params) = type_params {
-                    let mut new_template_types = IndexMap::new();
+        } else if let Some(definition_as_type) = &type_definition.as_type {
+            let mut definition_as_type = if let Some(type_params) = type_params {
+                let mut new_template_types = IndexMap::new();
 
-                    let mut i: usize = 0;
-                    for (k, v) in &type_definition.template_types {
-                        let mut h = FxHashMap::default();
-                        for (kk, _) in v {
-                            h.insert(
-                                kk.clone(),
-                                if let Some(t) = type_params.get(i) {
-                                    t.clone()
-                                } else {
-                                    get_nothing()
-                                },
-                            );
-                        }
-
-                        new_template_types.insert(k.clone(), h);
-
-                        i += 1;
+                let mut i: usize = 0;
+                for (k, v) in &type_definition.template_types {
+                    let mut h = FxHashMap::default();
+                    for (kk, _) in v {
+                        h.insert(
+                            *kk,
+                            if let Some(t) = type_params.get(i) {
+                                t.clone()
+                            } else {
+                                get_nothing()
+                            },
+                        );
                     }
 
-                    template::inferred_type_replacer::replace(
-                        &definition_as_type,
-                        &template::TemplateResult::new(IndexMap::new(), new_template_types),
-                        codebase,
-                    )
-                } else {
-                    definition_as_type.clone()
-                };
+                    new_template_types.insert(*k, h);
 
-                expand_union(
+                    i += 1;
+                }
+
+                template::inferred_type_replacer::replace(
+                    definition_as_type,
+                    &template::TemplateResult::new(IndexMap::new(), new_template_types),
                     codebase,
-                    interner,
-                    &mut definition_as_type,
-                    options,
-                    data_flow_graph,
-                );
+                )
+            } else {
+                definition_as_type.clone()
+            };
 
-                *as_type = Some(Box::new(definition_as_type));
-            }
+            expand_union(
+                codebase,
+                interner,
+                &mut definition_as_type,
+                options,
+                data_flow_graph,
+            );
+
+            *as_type = Some(Box::new(definition_as_type));
         }
 
         if let Some(type_params) = type_params {
@@ -508,7 +504,7 @@ fn expand_atomic(
                 };
 
                 let type_constant = if let Some(t) =
-                    classlike_storage.type_constants.get(&member_name)
+                    classlike_storage.type_constants.get(member_name)
                 {
                     t.clone()
                 } else {
@@ -572,8 +568,8 @@ pub fn get_closure_from_id(
         }
         FunctionLikeIdentifier::Method(classlike_name, method_name) => {
             let declaring_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
-                classlike_name.clone(),
-                method_name.clone(),
+                *classlike_name,
+                *method_name,
             ));
 
             if let Some(functionlike_info) = codebase.get_method(&declaring_method_id) {

@@ -60,7 +60,7 @@ pub(crate) fn check_for_paradox(
                         IssueKind::RedundantTypeComparison
                     },
                     format!("{} {}", clause_string, "has already been asserted"),
-                    statements_analyzer.get_hpos(&pos),
+                    statements_analyzer.get_hpos(pos),
                     calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -145,7 +145,7 @@ pub(crate) fn check_for_paradox(
                         Issue::new(
                             IssueKind::ParadoxicalCondition,
                             paradox_message,
-                            statements_analyzer.get_hpos(&pos),
+                            statements_analyzer.get_hpos(pos),
                             calling_functionlike_id,
                         ),
                         statements_analyzer.get_config(),

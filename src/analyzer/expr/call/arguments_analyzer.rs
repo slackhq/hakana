@@ -65,7 +65,7 @@ pub(crate) fn check_arguments_match(
             let mut param_type = get_type_from_hint(
                 &type_arg.1 .1,
                 context.function_context.calling_class.as_ref(),
-                &statements_analyzer.get_type_resolution_context(),
+                statements_analyzer.get_type_resolution_context(),
                 statements_analyzer.get_file_analyzer().resolved_names,
             )
             .unwrap();
@@ -86,11 +86,11 @@ pub(crate) fn check_arguments_match(
 
             if let Some((template_name, map)) = template_result.template_types.get_index(i) {
                 template_result.lower_bounds.insert(
-                    template_name.clone(),
+                    *template_name,
                     map.iter()
                         .map(|(entity, _)| {
                             (
-                                entity.clone(),
+                                *entity,
                                 vec![TemplateBound::new(param_type.clone(), 0, None, None)],
                             )
                         })
@@ -116,19 +116,19 @@ pub(crate) fn check_arguments_match(
 
     if let Some(method_id) = functionlike_id.as_method_identifier() {
         let static_fq_class_name = fq_classlike_name.unwrap();
-        let mut self_fq_classlike_name = static_fq_class_name.clone();
+        let mut self_fq_classlike_name = *static_fq_class_name;
 
         let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 
         if declaring_method_id != method_id {
-            self_fq_classlike_name = declaring_method_id.0.clone();
+            self_fq_classlike_name = declaring_method_id.0;
             class_storage = codebase.classlike_infos.get(&declaring_method_id.0);
         }
 
         let appearing_method_id = codebase.get_declaring_method_id(&method_id);
 
         if appearing_method_id != method_id {
-            self_fq_classlike_name = appearing_method_id.0.clone();
+            self_fq_classlike_name = appearing_method_id.0;
         }
 
         method_call_info = Some(MethodCallInfo {
@@ -151,10 +151,10 @@ pub(crate) fn check_arguments_match(
         for (class, lower_bounds) in type_map {
             if lower_bounds.len() == 1 {
                 class_generic_params
-                    .entry(template_name.clone())
+                    .entry(*template_name)
                     .or_insert_with(FxHashMap::default)
                     .insert(
-                        class.clone(),
+                        *class,
                         Arc::new(lower_bounds.first().unwrap().bound_type.clone()),
                     );
             }
@@ -198,7 +198,6 @@ pub(crate) fn check_arguments_match(
     let mut reordered_args = args
         .iter()
         .enumerate()
-        .map(|(i, p)| (i, p))
         .collect::<Vec<_>>();
 
     reordered_args.sort_by(|a, b| {
@@ -208,7 +207,7 @@ pub(crate) fn check_arguments_match(
     for (argument_offset, (_, arg_expr)) in reordered_args.clone() {
         let mut param = functionlike_params.get(argument_offset);
 
-        if let None = param {
+        if param.is_none() {
             if let Some(last_param) = last_param {
                 if last_param.is_variadic {
                     param = Some(last_param);
@@ -530,8 +529,7 @@ fn adjust_param_type(
 ) {
     let bindable_template_params = param_type
         .get_template_types()
-        .into_iter()
-        .map(|t| t.clone())
+        .into_iter().cloned()
         .collect::<Vec<_>>();
 
     if !class_generic_params.is_empty() {
@@ -565,10 +563,10 @@ fn adjust_param_type(
                             {
                                 None
                             } else {
-                                Some(&calling_class)
+                                Some(calling_class)
                             }
                         } else {
-                            Some(&calling_class)
+                            Some(calling_class)
                         }
                     } else {
                         None
@@ -592,12 +590,11 @@ fn adjust_param_type(
                 ..
             } = template_type
             {
-                if let None =
-                    if let Some(bounds_by_param) = template_result.lower_bounds.get(&param_name) {
+                if (if let Some(bounds_by_param) = template_result.lower_bounds.get(&param_name) {
                         bounds_by_param.get(&defining_entity)
                     } else {
                         None
-                    }
+                    }).is_none()
                 {
                     let bound_type = if let Some(bounds_by_param) =
                         template_result.upper_bounds.get(&param_name)
@@ -613,10 +610,10 @@ fn adjust_param_type(
 
                     template_result
                         .upper_bounds
-                        .entry(param_name.clone())
+                        .entry(param_name)
                         .or_insert_with(FxHashMap::default)
                         .insert(
-                            defining_entity.clone(),
+                            defining_entity,
                             TemplateBound::new(bound_type, 0, None, None),
                         );
                 }
@@ -700,12 +697,12 @@ fn handle_closure_arg(
             .iter()
             .map(|(key, template_map)| {
                 (
-                    key.clone(),
+                    *key,
                     template_map
                         .iter()
                         .map(|(map_key, lower_bounds)| {
                             (
-                                map_key.clone(),
+                                *map_key,
                                 Arc::new(template::standin_type_replacer::get_most_specific_type_from_bounds(
                                     lower_bounds,
                                     codebase,
@@ -720,7 +717,7 @@ fn handle_closure_arg(
     );
 
     let mut replaced_type = standin_type_replacer::replace(
-        &param_type,
+        param_type,
         &mut replace_template_result,
         codebase,
         &Some(statements_analyzer.get_interner()),
@@ -750,7 +747,7 @@ fn handle_closure_arg(
     };
 
     for (param_offset, param_storage) in closure_storage.params.iter_mut().enumerate() {
-        if let None = param_storage.signature_type {
+        if param_storage.signature_type.is_none() {
             let mut newly_inferred_type = None;
             for replaced_type_part in &replaced_type.types {
                 if let TAtomic::TClosure {
@@ -805,7 +802,7 @@ fn handle_closure_arg(
                             if let Some(ref mut signature_type) = param_storage.signature_type {
                                 add_array_fetch_dataflow(
                                     statements_analyzer,
-                                    &args[0].1.pos(),
+                                    args[0].1.pos(),
                                     analysis_data,
                                     None,
                                     signature_type,
@@ -822,7 +819,7 @@ fn handle_closure_arg(
                             if let Some(ref mut signature_type) = param_storage.signature_type {
                                 add_array_fetch_dataflow(
                                     statements_analyzer,
-                                    &args[0].1.pos(),
+                                    args[0].1.pos(),
                                     analysis_data,
                                     None,
                                     signature_type,
@@ -1063,7 +1060,7 @@ fn handle_possibly_matching_inout_param(
         let out_node = DataFlowNode::get_for_method_argument_out(
             functionlike_id.to_string(statements_analyzer.get_interner()),
             argument_offset,
-            Some(functionlike_param.name_location.clone()),
+            Some(functionlike_param.name_location),
             Some(statements_analyzer.get_hpos(function_call_pos)),
         );
 
@@ -1189,9 +1186,9 @@ pub(crate) fn get_template_types_for_call(
                         };
 
                         template_types
-                            .entry(template_name.clone())
+                            .entry(*template_name)
                             .or_insert_with(FxHashMap::default)
-                            .insert(declaring_classlike_storage.name.clone(), output_type);
+                            .insert(declaring_classlike_storage.name, output_type);
                     }
                 }
             }
@@ -1199,10 +1196,10 @@ pub(crate) fn get_template_types_for_call(
             for (template_name, type_map) in &declaring_classlike_storage.template_types {
                 for (key, type_) in type_map {
                     template_types
-                        .entry(template_name.clone())
+                        .entry(*template_name)
                         .or_insert_with(FxHashMap::default)
                         .insert(
-                            key.clone(),
+                            *key,
                             class_template_params
                                 .get(template_name)
                                 .unwrap_or(&FxHashMap::default())

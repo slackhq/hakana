@@ -36,9 +36,9 @@ pub(crate) fn collect(
             for (i, type_name) in class_storage.template_types.keys().enumerate() {
                 if let Some(type_param) = lhs_type_params.get(i) {
                     class_template_params
-                        .entry(type_name.clone())
+                        .entry(*type_name)
                         .or_insert_with(FxHashMap::default)
-                        .insert(class_storage.name.clone(), type_param.clone());
+                        .insert(class_storage.name, type_param.clone());
                 }
             }
         }
@@ -62,19 +62,19 @@ pub(crate) fn collect(
                     );
 
                     class_template_params
-                        .entry(template_name.clone())
+                        .entry(*template_name)
                         .or_insert_with(FxHashMap::default)
                         .insert(
-                            class_storage.name.clone(),
+                            class_storage.name,
                             output_type_extends.unwrap_or(get_mixed_any()),
                         );
                 }
             }
 
             class_template_params
-                .entry(template_name.clone())
+                .entry(*template_name)
                 .or_insert_with(FxHashMap::default)
-                .entry(class_storage.name.clone())
+                .entry(class_storage.name)
                 .or_insert(get_mixed_any());
         }
     }
@@ -88,9 +88,9 @@ pub(crate) fn collect(
                     .get(template_name)
                 {
                     class_template_params
-                        .entry(template_name.clone())
+                        .entry(*template_name)
                         .or_insert_with(FxHashMap::default)
-                        .entry(class_storage.name.clone())
+                        .entry(class_storage.name)
                         .or_insert(TUnion::new(expand_type(
                             codebase,
                             extended_type,
@@ -114,9 +114,9 @@ pub(crate) fn collect(
 
             if !self_call {
                 class_template_params
-                    .entry(template_name.clone())
+                    .entry(*template_name)
                     .or_insert_with(FxHashMap::default)
-                    .entry(class_storage.name.clone())
+                    .entry(class_storage.name)
                     .or_insert((**type_).clone());
             }
         }

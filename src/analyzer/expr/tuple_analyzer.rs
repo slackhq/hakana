@@ -39,7 +39,7 @@ pub(crate) fn analyze(
         )?;
 
         let value_item_type = analysis_data
-            .get_expr_type(&value_expr.pos())
+            .get_expr_type(value_expr.pos())
             .cloned()
             .unwrap_or(get_mixed_any());
 
@@ -58,7 +58,7 @@ pub(crate) fn analyze(
 
     let mut new_dict = wrap_atomic(TAtomic::TVec {
         known_count: Some(known_items.len()),
-        known_items: if known_items.len() > 0 {
+        known_items: if !known_items.is_empty() {
             Some(known_items)
         } else {
             None
@@ -69,7 +69,7 @@ pub(crate) fn analyze(
 
     new_dict.parent_nodes = parent_nodes;
 
-    analysis_data.set_expr_type(&pos, new_dict);
+    analysis_data.set_expr_type(pos, new_dict);
 
     Ok(())
 }
@@ -110,5 +110,5 @@ fn add_tuple_value_dataflow(
         );
     }
 
-    return Some(new_parent_node);
+    Some(new_parent_node)
 }

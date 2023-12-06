@@ -322,7 +322,7 @@ pub(crate) fn reconcile(
         }
     }
 
-    return match assertion {
+    match assertion {
         Assertion::Truthy => Some(reconcile_truthy(
             assertion,
             existing_var_type,
@@ -376,7 +376,7 @@ pub(crate) fn reconcile(
             if existing_var_type.is_nothing() {
                 existing_var_type = get_mixed_maybe_from_loop(inside_loop);
             }
-            return Some(existing_var_type);
+            Some(existing_var_type)
         }
         Assertion::InArray(typed_value) => Some(reconcile_in_array(
             codebase,
@@ -443,7 +443,7 @@ pub(crate) fn reconcile(
             count,
         )),
         _ => None,
-    };
+    }
 }
 
 pub(crate) fn intersect_null(
@@ -540,7 +540,7 @@ pub(crate) fn intersect_null(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -619,7 +619,7 @@ fn intersect_object(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -755,7 +755,7 @@ fn intersect_vec(
                     analysis_data,
                     statements_analyzer,
                     &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -841,7 +841,7 @@ fn intersect_keyset(
                     analysis_data,
                     statements_analyzer,
                     &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -990,7 +990,7 @@ fn intersect_dict(
                     analysis_data,
                     statements_analyzer,
                     &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1048,7 +1048,7 @@ fn intersect_arraykey(
                     analysis_data,
                     statements_analyzer,
                     &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1106,7 +1106,7 @@ fn intersect_num(
                     analysis_data,
                     statements_analyzer,
                     &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1260,7 +1260,7 @@ fn intersect_string(
                     analysis_data,
                     statements_analyzer,
                     &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1396,7 +1396,7 @@ fn intersect_int(
                     analysis_data,
                     statements_analyzer,
                     &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1447,7 +1447,7 @@ fn reconcile_truthy(
                     if !as_type.is_mixed() {
                         let atomic = atomic.replace_template_extends(reconcile_truthy(
                             assertion,
-                            &as_type,
+                            as_type,
                             None,
                             false,
                             analysis_data,
@@ -1511,7 +1511,7 @@ fn reconcile_truthy(
         key,
         pos,
         calling_functionlike_id,
-        &existing_var_type,
+        existing_var_type,
         statements_analyzer,
         analysis_data,
         assertion,
@@ -1571,7 +1571,7 @@ fn reconcile_isset(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -1686,7 +1686,7 @@ fn reconcile_non_empty_countable(
                         analysis_data,
                         statements_analyzer,
                         &old_var_type_string,
-                        &key,
+                        key,
                         assertion,
                         !did_remove_type,
                         negated,
@@ -1788,7 +1788,7 @@ fn reconcile_exactly_countable(
                         analysis_data,
                         statements_analyzer,
                         &old_var_type_string,
-                        &key,
+                        key,
                         assertion,
                         !did_remove_type,
                         negated,
@@ -1847,7 +1847,7 @@ fn reconcile_array_access(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     false,
                     negated,
@@ -1891,7 +1891,7 @@ fn reconcile_in_array(
                 analysis_data,
                 statements_analyzer,
                 &existing_var_type.get_id(Some(statements_analyzer.get_interner())),
-                &key,
+                key,
                 assertion,
                 true,
                 negated,
@@ -1947,35 +1947,33 @@ fn reconcile_has_array_key(
                         did_remove_type = true;
                         continue;
                     }
-                } else {
-                    if let Some((key_param, value_param)) = params {
-                        did_remove_type = true;
+                } else if let Some((key_param, value_param)) = params {
+                    did_remove_type = true;
 
-                        if union_type_comparator::can_expression_types_be_identical(
-                            statements_analyzer.get_codebase(),
-                            &wrap_atomic(match key_name {
-                                DictKey::Int(_) => TAtomic::TInt,
-                                DictKey::String(_) => TAtomic::TString,
-                                DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
-                                    enum_name: *a,
-                                    member_name: *b,
-                                    constraint_type: None,
-                                },
-                            }),
-                            key_param,
-                            false,
-                        ) {
-                            *known_items = Some(BTreeMap::from([(
-                                key_name.clone(),
-                                (false, Arc::new((**value_param).clone())),
-                            )]));
-                        } else {
-                            continue;
-                        }
+                    if union_type_comparator::can_expression_types_be_identical(
+                        statements_analyzer.get_codebase(),
+                        &wrap_atomic(match key_name {
+                            DictKey::Int(_) => TAtomic::TInt,
+                            DictKey::String(_) => TAtomic::TString,
+                            DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
+                                enum_name: *a,
+                                member_name: *b,
+                                constraint_type: None,
+                            },
+                        }),
+                        key_param,
+                        false,
+                    ) {
+                        *known_items = Some(BTreeMap::from([(
+                            key_name.clone(),
+                            (false, Arc::new((**value_param).clone())),
+                        )]));
                     } else {
-                        did_remove_type = true;
                         continue;
                     }
+                } else {
+                    did_remove_type = true;
+                    continue;
                 }
 
                 acceptable_types.push(atomic);
@@ -1999,14 +1997,12 @@ fn reconcile_has_array_key(
                             did_remove_type = true;
                             continue;
                         }
-                    } else {
-                        if !type_param.is_nothing() {
-                            *known_items = Some(BTreeMap::from([(
-                                *i as usize,
-                                (false, (**type_param).clone()),
-                            )]));
-                            did_remove_type = true;
-                        }
+                    } else if !type_param.is_nothing() {
+                        *known_items = Some(BTreeMap::from([(
+                            *i as usize,
+                            (false, (**type_param).clone()),
+                        )]));
+                        did_remove_type = true;
                     }
 
                     acceptable_types.push(atomic);
@@ -2020,7 +2016,7 @@ fn reconcile_has_array_key(
                 } else {
                     let atomic = atomic.replace_template_extends(reconcile_has_array_key(
                         assertion,
-                        &as_type,
+                        as_type,
                         None,
                         key_name,
                         negated,
@@ -2073,7 +2069,7 @@ fn reconcile_has_array_key(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -2146,7 +2142,7 @@ fn reconcile_has_nonnull_entry_for_key(
                     } else if let Some((_, value_param)) = params {
                         let nonnull = subtract_null(
                             assertion,
-                            &value_param,
+                            value_param,
                             None,
                             negated,
                             analysis_data,
@@ -2161,46 +2157,44 @@ fn reconcile_has_nonnull_entry_for_key(
                         did_remove_type = true;
                         continue;
                     }
-                } else {
-                    if let Some((key_param, value_param)) = params {
-                        did_remove_type = true;
+                } else if let Some((key_param, value_param)) = params {
+                    did_remove_type = true;
 
-                        if union_type_comparator::can_expression_types_be_identical(
-                            statements_analyzer.get_codebase(),
-                            &wrap_atomic(match key_name {
-                                DictKey::Int(_) => TAtomic::TInt,
-                                DictKey::String(_) => TAtomic::TString,
-                                DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
-                                    enum_name: *a,
-                                    member_name: *b,
-                                    constraint_type: None,
-                                },
-                            }),
-                            key_param,
-                            false,
-                        ) {
-                            let nonnull = subtract_null(
-                                assertion,
-                                &value_param,
-                                None,
-                                negated,
-                                analysis_data,
-                                statements_analyzer,
-                                None,
-                                calling_functionlike_id,
-                                suppressed_issues,
-                            );
-                            *known_items = Some(BTreeMap::from([(
-                                key_name.clone(),
-                                (false, Arc::new(nonnull)),
-                            )]));
-                        } else {
-                            continue;
-                        }
+                    if union_type_comparator::can_expression_types_be_identical(
+                        statements_analyzer.get_codebase(),
+                        &wrap_atomic(match key_name {
+                            DictKey::Int(_) => TAtomic::TInt,
+                            DictKey::String(_) => TAtomic::TString,
+                            DictKey::Enum(a, b) => TAtomic::TEnumLiteralCase {
+                                enum_name: *a,
+                                member_name: *b,
+                                constraint_type: None,
+                            },
+                        }),
+                        key_param,
+                        false,
+                    ) {
+                        let nonnull = subtract_null(
+                            assertion,
+                            value_param,
+                            None,
+                            negated,
+                            analysis_data,
+                            statements_analyzer,
+                            None,
+                            calling_functionlike_id,
+                            suppressed_issues,
+                        );
+                        *known_items = Some(BTreeMap::from([(
+                            key_name.clone(),
+                            (false, Arc::new(nonnull)),
+                        )]));
                     } else {
-                        did_remove_type = true;
                         continue;
                     }
+                } else {
+                    did_remove_type = true;
+                    continue;
                 }
 
                 acceptable_types.push(atomic);
@@ -2235,7 +2229,7 @@ fn reconcile_has_nonnull_entry_for_key(
                         } else if !type_param.is_nothing() {
                             let nonnull = subtract_null(
                                 assertion,
-                                &type_param,
+                                type_param,
                                 None,
                                 negated,
                                 analysis_data,
@@ -2250,22 +2244,20 @@ fn reconcile_has_nonnull_entry_for_key(
                             did_remove_type = true;
                             continue;
                         }
-                    } else {
-                        if !type_param.is_nothing() {
-                            let nonnull = subtract_null(
-                                assertion,
-                                &type_param,
-                                None,
-                                negated,
-                                analysis_data,
-                                statements_analyzer,
-                                None,
-                                calling_functionlike_id,
-                                suppressed_issues,
-                            );
-                            *known_items = Some(BTreeMap::from([(*i as usize, (false, nonnull))]));
-                            did_remove_type = true;
-                        }
+                    } else if !type_param.is_nothing() {
+                        let nonnull = subtract_null(
+                            assertion,
+                            type_param,
+                            None,
+                            negated,
+                            analysis_data,
+                            statements_analyzer,
+                            None,
+                            calling_functionlike_id,
+                            suppressed_issues,
+                        );
+                        *known_items = Some(BTreeMap::from([(*i as usize, (false, nonnull))]));
+                        did_remove_type = true;
                     }
 
                     acceptable_types.push(atomic);
@@ -2280,7 +2272,7 @@ fn reconcile_has_nonnull_entry_for_key(
                     let atomic =
                         atomic.replace_template_extends(reconcile_has_nonnull_entry_for_key(
                             assertion,
-                            &as_type,
+                            as_type,
                             None,
                             key_name,
                             negated,
@@ -2339,7 +2331,7 @@ fn reconcile_has_nonnull_entry_for_key(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,
@@ -2375,7 +2367,7 @@ pub(crate) fn get_acceptable_type(
     mut new_var_type: TUnion,
 ) -> TUnion {
     if acceptable_types.is_empty() || !did_remove_type {
-        if let Some(ref key) = key {
+        if let Some(key) = key {
             if let Some(pos) = pos {
                 let old_var_type_string =
                     existing_var_type.get_id(Some(statements_analyzer.get_interner()));
@@ -2384,7 +2376,7 @@ pub(crate) fn get_acceptable_type(
                     analysis_data,
                     statements_analyzer,
                     &old_var_type_string,
-                    &key,
+                    key,
                     assertion,
                     !did_remove_type,
                     negated,

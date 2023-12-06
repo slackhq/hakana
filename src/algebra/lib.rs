@@ -49,7 +49,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
         }
 
         if all_has_unknown {
-            return clauses.into_iter().map(|v| v.clone()).collect();
+            return clauses.into_iter().cloned().collect();
         }
     }
 
@@ -69,7 +69,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
         if clause_a.possibilities.len() != 1 {
             is_clause_a_simple = false;
         } else {
-            for (_, var_possibilities) in &clause_a.possibilities {
+            for var_possibilities in clause_a.possibilities.values() {
                 if var_possibilities.len() != 1 {
                     is_clause_a_simple = false;
                 }
@@ -87,7 +87,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
                     for (key, a_possibilities) in clause_a.possibilities.iter() {
                         let b_possibilities = &clause_b.possibilities[key];
-                        if index_keys_match(&a_possibilities, &b_possibilities) {
+                        if index_keys_match(a_possibilities, b_possibilities) {
                             continue;
                         }
 
@@ -97,7 +97,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
                                 .values()
                                 .next()
                                 .unwrap()
-                                .is_negation_of(&b_possibilities.values().next().unwrap())
+                                .is_negation_of(b_possibilities.values().next().unwrap())
                         {
                             opposing_keys.push(key.clone());
                             continue;
@@ -111,7 +111,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
                         let maybe_new_clause = clause_a.remove_possibilities(&opposing_keys[0]);
 
-                        if maybe_new_clause == None {
+                        if maybe_new_clause.is_none() {
                             continue 'outer;
                         }
 
@@ -144,7 +144,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
                         removed_clauses.insert(*clause_b);
 
                         if clause_var_possibilities.is_empty() {
-                            let maybe_updated_clause = clause_b.remove_possibilities(&clause_var);
+                            let maybe_updated_clause = clause_b.remove_possibilities(clause_var);
 
                             if let Some(x) = maybe_updated_clause {
                                 added_clauses.push(x);
@@ -163,10 +163,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
 
     unique_clauses.retain(|f| !removed_clauses.contains(f));
 
-    let mut unique_clauses = unique_clauses
-        .into_iter()
-        .map(|c| c.clone())
-        .collect::<Vec<_>>();
+    let mut unique_clauses = unique_clauses.into_iter().cloned().collect::<Vec<_>>();
 
     if !added_clauses.is_empty() {
         unique_clauses.extend(added_clauses);
@@ -283,7 +280,7 @@ pub fn simplify_cnf(clauses: Vec<&Clause>) -> Vec<Clause> {
         simplified_clauses.retain(|f| !removed_clauses.contains(f));
     }
 
-    return simplified_clauses.into_iter().collect::<Vec<_>>();
+    simplified_clauses.into_iter().collect::<Vec<_>>()
 }
 
 pub fn get_truths_from_formula(
@@ -304,7 +301,7 @@ pub fn get_truths_from_formula(
         }
 
         for (var_id, possible_types) in &clause.possibilities {
-            if var_id.starts_with("*") {
+            if var_id.starts_with('*') {
                 continue;
             }
 
@@ -359,7 +356,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
 
     let clause = clauses.pop();
 
-    if clause == None {
+    if clause.is_none() {
         panic!("there should be clauses")
     }
 
@@ -400,7 +397,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
 
     for c in &clauses {
         let mut i = 0;
-        for (_, p) in &c.possibilities {
+        for p in c.possibilities.values() {
             i += p.len();
         }
         upper_bound *= i;
@@ -409,9 +406,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
         }
     }
 
-    while clauses.len() > 0 {
-        let clause = clauses.pop().unwrap();
-
+    while let Some(clause) = clauses.pop() {
         let mut new_clauses = vec![];
 
         for grouped_clause in &seed_clauses {
@@ -457,7 +452,7 @@ fn group_impossibilities(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String
 
     seed_clauses.reverse();
 
-    return Ok(seed_clauses);
+    Ok(seed_clauses)
 }
 
 pub fn combine_ored_clauses(
@@ -529,22 +524,21 @@ pub fn combine_ored_clauses(
                     .extend(possible_types.clone());
             }
 
-            for (_, var_possibilities) in &possibilities {
+            for var_possibilities in possibilities.values() {
                 if var_possibilities.len() == 2 {
                     let vals = var_possibilities.values().collect::<Vec<_>>();
-                    if vals[0].is_negation_of(&vals[1]) {
+                    if vals[0].is_negation_of(vals[1]) {
                         continue 'right;
                     }
                 }
             }
 
-            let creating_conditional_id;
-
-            if right_clause.creating_conditional_id == left_clause.creating_conditional_id {
-                creating_conditional_id = right_clause.creating_conditional_id;
-            } else {
-                creating_conditional_id = conditional_object_id;
-            }
+            let creating_conditional_id =
+                if right_clause.creating_conditional_id == left_clause.creating_conditional_id {
+                    right_clause.creating_conditional_id
+                } else {
+                    conditional_object_id
+                };
 
             let is_generated = right_clause.generated
                 || left_clause.generated
@@ -573,7 +567,7 @@ pub fn combine_ored_clauses(
         ));
     }
 
-    return Ok(clauses);
+    Ok(clauses)
 }
 
 // Negates a set of clauses
@@ -606,13 +600,7 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
         )]);
     }
 
-    let impossible_clauses = group_impossibilities(clauses);
-
-    if let Err(x) = impossible_clauses {
-        return Err(x);
-    }
-
-    let impossible_clauses = impossible_clauses.unwrap();
+    let impossible_clauses = group_impossibilities(clauses)?;
 
     if impossible_clauses.is_empty() {
         let mut rng = rand::thread_rng();
@@ -644,5 +632,5 @@ pub fn negate_formula(mut clauses: Vec<Clause>) -> Result<Vec<Clause>, String> {
         )]);
     }
 
-    return Ok(negated);
+    Ok(negated)
 }

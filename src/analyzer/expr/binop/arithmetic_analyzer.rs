@@ -291,5 +291,5 @@ pub(crate) fn assign_arithmetic_type(
         }
     }
 
-    analysis_data.set_expr_type(&expr_pos, cond_type);
+    analysis_data.set_expr_type(expr_pos, cond_type);
 }

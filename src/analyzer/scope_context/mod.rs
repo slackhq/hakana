@@ -28,6 +28,12 @@ pub struct CaseScope {
     pub break_vars: Option<FxHashMap<String, TUnion>>,
 }
 
+impl Default for CaseScope {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CaseScope {
     pub fn new() -> Self {
         Self { break_vars: None }
@@ -224,10 +230,8 @@ impl ScopeContext {
                     if new_type != this_type {
                         redefined_vars.insert(var_id.clone(), (**this_type).clone());
                     }
-                } else {
-                    if include_new_vars {
-                        redefined_vars.insert(var_id.clone(), (**this_type).clone());
-                    }
+                } else if include_new_vars {
+                    redefined_vars.insert(var_id.clone(), (**this_type).clone());
                 }
             } else {
                 removed_vars.insert(var_id.clone());
@@ -326,7 +330,7 @@ impl ScopeContext {
 
         'outer: for clause in clauses {
             for (var_id, _) in &clause.possibilities {
-                if var_has_root(&var_id, remove_var_id) {
+                if var_has_root(var_id, remove_var_id) {
                     break 'outer;
                 }
             }
@@ -384,7 +388,7 @@ impl ScopeContext {
             }
         }
 
-        return clauses_to_keep;
+        clauses_to_keep
     }
 
     pub(crate) fn remove_var_from_conflicting_clauses(
@@ -427,9 +431,7 @@ impl ScopeContext {
         );
 
         let keys = self
-            .vars_in_scope
-            .iter()
-            .map(|(k, _)| k.clone())
+            .vars_in_scope.keys().cloned()
             .collect::<Vec<_>>();
 
         for var_id in keys {

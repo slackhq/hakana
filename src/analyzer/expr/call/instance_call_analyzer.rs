@@ -54,7 +54,7 @@ pub(crate) fn analyze(
     }
 
     let lhs_var_id = expression_identifier::get_var_id(
-        &expr.0,
+        expr.0,
         context.function_context.calling_class.as_ref(),
         statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
@@ -76,7 +76,7 @@ pub(crate) fn analyze(
             Issue::new(
                 IssueKind::MethodCallOnNull,
                 "Cannot call method on null value".to_string(),
-                statements_analyzer.get_hpos(&expr.1.pos()),
+                statements_analyzer.get_hpos(expr.1.pos()),
                 &context.function_context.calling_functionlike_id,
             ),
             statements_analyzer.get_config(),
@@ -88,7 +88,7 @@ pub(crate) fn analyze(
                 Issue::new(
                     IssueKind::PossibleMethodCallOnNull,
                     "Cannot call method on null value".to_string(),
-                    statements_analyzer.get_hpos(&expr.1.pos()),
+                    statements_analyzer.get_hpos(expr.1.pos()),
                     &context.function_context.calling_functionlike_id,
                 ),
                 statements_analyzer.get_config(),
@@ -173,7 +173,7 @@ pub(crate) fn analyze(
         if stmt_type.is_nothing() && !context.inside_loop {
             context.has_returned = true;
         }
-        analysis_data.set_expr_type(&pos, stmt_type);
+        analysis_data.set_expr_type(pos, stmt_type);
     }
 
     Ok(())

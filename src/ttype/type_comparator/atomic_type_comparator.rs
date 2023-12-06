@@ -180,7 +180,7 @@ pub fn is_contained_by(
         return is_contained_by(
             codebase,
             if let Some(enum_type) = &constraint_type {
-                &enum_type
+                enum_type
             } else {
                 &TAtomic::TArraykey { from_any: false }
             },
@@ -582,7 +582,7 @@ pub fn is_contained_by(
                     if let Some(input_value_param) = input_type_params.first() {
                         union_type_comparator::is_contained_by(
                             codebase,
-                            &input_value_param,
+                            input_value_param,
                             &container_arrayish_params.1,
                             false,
                             input_value_param.ignore_falsable_issues,
@@ -594,7 +594,7 @@ pub fn is_contained_by(
                     if let Some(input_key_param) = input_type_params.first() {
                         union_type_comparator::is_contained_by(
                             codebase,
-                            &input_key_param,
+                            input_key_param,
                             &container_arrayish_params.0,
                             false,
                             input_key_param.ignore_falsable_issues,
@@ -608,7 +608,7 @@ pub fn is_contained_by(
                     if let Some(input_value_param) = input_type_params.get(1) {
                         union_type_comparator::is_contained_by(
                             codebase,
-                            &input_value_param,
+                            input_value_param,
                             &container_arrayish_params.1,
                             false,
                             input_value_param.ignore_falsable_issues,
@@ -756,7 +756,7 @@ pub fn is_contained_by(
         }
     }
 
-    return false;
+    false
 }
 
 pub(crate) fn can_be_identical<'a>(
@@ -924,7 +924,7 @@ pub(crate) fn can_be_identical<'a>(
     let mut first_comparison_result = TypeComparisonResult::new();
     let mut second_comparison_result = TypeComparisonResult::new();
 
-    return is_contained_by(
+    is_contained_by(
         codebase,
         type1_part,
         type2_part,
@@ -937,5 +937,5 @@ pub(crate) fn can_be_identical<'a>(
         inside_assertion,
         &mut second_comparison_result,
     ) || (first_comparison_result.type_coerced.unwrap_or(false)
-        && second_comparison_result.type_coerced.unwrap_or(false));
+        && second_comparison_result.type_coerced.unwrap_or(false))
 }

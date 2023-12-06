@@ -56,11 +56,7 @@ pub fn combine(
             return vec![TAtomic::TTrue];
         }
 
-        return combination
-            .value_types
-            .into_iter()
-            .map(|(_, a)| a)
-            .collect();
+        return combination.value_types.into_values().collect();
     }
 
     if combination.value_types.contains_key("void") {
@@ -97,11 +93,7 @@ pub fn combine(
                 None
             },
             non_empty: combination.dict_always_filled,
-            shape_name: if let Some(dict_alias_name) = combination.dict_alias_name {
-                dict_alias_name
-            } else {
-                None
-            },
+            shape_name: combination.dict_alias_name.unwrap_or(None),
         });
     }
 
@@ -142,15 +134,13 @@ pub fn combine(
     new_types.extend(
         combination
             .literal_strings
-            .into_iter()
-            .map(|(_, a)| a)
+            .into_values()
             .collect::<Vec<TAtomic>>(),
     );
     new_types.extend(
         combination
             .literal_ints
-            .into_iter()
-            .map(|(_, a)| a)
+            .into_values()
             .collect::<Vec<TAtomic>>(),
     );
 
@@ -181,7 +171,7 @@ pub fn combine(
             combination.value_types.insert(
                 format!("{}::{}", enum_name.0, value.0 .0),
                 TAtomic::TEnumLiteralCase {
-                    enum_name: enum_name.clone(),
+                    enum_name,
                     member_name: value.0,
                     constraint_type: value.1,
                 },
@@ -195,12 +185,11 @@ pub fn combine(
 
     for (_, atomic) in combination.value_types {
         let tc = if has_nothing { 1 } else { 0 };
-        if atomic.is_mixed() {
-            if combination.mixed_from_loop_isset.unwrap_or(false)
-                && (combination_value_type_count > (tc + 1) || new_types.len() > tc)
-            {
-                continue;
-            }
+        if atomic.is_mixed()
+            && combination.mixed_from_loop_isset.unwrap_or(false)
+            && (combination_value_type_count > (tc + 1) || new_types.len() > tc)
+        {
+            continue;
         }
 
         if let TAtomic::TNothing = atomic {
@@ -221,7 +210,7 @@ pub fn combine(
         return vec![TAtomic::TNothing];
     }
 
-    return new_types;
+    new_types
 }
 
 fn scrape_type_properties(
@@ -245,7 +234,7 @@ fn scrape_type_properties(
                 return;
             }
 
-            if let None = combination.mixed_from_loop_isset {
+            if combination.mixed_from_loop_isset.is_none() {
                 combination.mixed_from_loop_isset = Some(true);
             }
 
@@ -423,13 +412,13 @@ fn scrape_type_properties(
                 combination.vec_entries.insert(
                     *candidate_item_offset,
                     if let Some((eu, existing_type)) =
-                        combination.vec_entries.get(&candidate_item_offset)
+                        combination.vec_entries.get(candidate_item_offset)
                     {
                         (
                             *eu || *cu,
                             combine_union_types(
                                 existing_type,
-                                &candidate_item_type,
+                                candidate_item_type,
                                 codebase,
                                 overwrite_empty_array,
                             ),
@@ -448,19 +437,15 @@ fn scrape_type_properties(
                                     continue;
                                 }
 
-                                let new_type = candidate_item_type.clone();
-
-                                new_type
+                                candidate_item_type.clone()
                             } else {
-                                let new_type = candidate_item_type.clone();
-
-                                new_type
+                                candidate_item_type.clone()
                             },
                         )
                     },
                 );
 
-                possibly_undefined_entries.remove(&candidate_item_offset);
+                possibly_undefined_entries.remove(candidate_item_offset);
 
                 if !cu {
                     has_defined_keys = true;
@@ -502,8 +487,8 @@ fn scrape_type_properties(
 
         combination.vec_type_param = if let Some(ref existing_type) = combination.vec_type_param {
             Some(combine_union_types(
-                &existing_type,
-                &type_param,
+                existing_type,
+                type_param,
                 codebase,
                 overwrite_empty_array,
             ))
@@ -518,8 +503,8 @@ fn scrape_type_properties(
         combination.keyset_type_param =
             if let Some(ref existing_type) = combination.keyset_type_param {
                 Some(combine_union_types(
-                    &existing_type,
-                    &type_param,
+                    existing_type,
+                    type_param,
                     codebase,
                     overwrite_empty_array,
                 ))
@@ -555,7 +540,7 @@ fn scrape_type_properties(
                     }
                 }
             } else {
-                combination.dict_alias_name = Some(Some(shape_name.clone()));
+                combination.dict_alias_name = Some(Some(*shape_name));
             }
         } else {
             combination.dict_alias_name = Some(None);
@@ -565,8 +550,8 @@ fn scrape_type_properties(
             let has_existing_entries = !combination.dict_entries.is_empty() || had_previous_dict;
             let mut possibly_undefined_entries = combination
                 .dict_entries
-                .iter()
-                .map(|(k, _)| k.clone())
+                .keys()
+                .cloned()
                 .collect::<FxHashSet<_>>();
 
             let mut has_defined_keys = false;
@@ -700,10 +685,10 @@ fn scrape_type_properties(
     {
         if let Some(object_static) = combination.object_static.get(name) {
             if *object_static && !is_this {
-                combination.object_static.insert(name.clone(), false);
+                combination.object_static.insert(*name, false);
             }
         } else {
-            combination.object_static.insert(name.clone(), is_this);
+            combination.object_static.insert(*name, is_this);
         }
     }
 
@@ -732,7 +717,7 @@ fn scrape_type_properties(
                     };
                     combination.object_type_params.insert(
                         STR_CONTAINER.0.to_string(),
-                        (fq_class_name.clone(), vec![container_value_type]),
+                        (*fq_class_name, vec![container_value_type]),
                     );
 
                     combination.dict_type_params = None;
@@ -756,7 +741,7 @@ fn scrape_type_properties(
                     };
                     combination.object_type_params.insert(
                         STR_CONTAINER.0.to_string(),
-                        (fq_class_name.clone(), vec![container_value_type]),
+                        (*fq_class_name, vec![container_value_type]),
                     );
 
                     combination.vec_type_param = None;
@@ -782,7 +767,7 @@ fn scrape_type_properties(
                     };
                     combination.object_type_params.insert(
                         STR_CONTAINER.0.to_string(),
-                        (fq_class_name.clone(), vec![container_value_type]),
+                        (*fq_class_name, vec![container_value_type]),
                     );
 
                     combination
@@ -802,8 +787,7 @@ fn scrape_type_properties(
             combination.object_type_params.get(&object_type_key)
         {
             let mut new_type_params = Vec::new();
-            let mut i = 0;
-            for type_param in type_params {
+            for (i, type_param) in type_params.into_iter().enumerate() {
                 if let Some(existing_type_param) = existing_type_params.get(i) {
                     new_type_params.insert(
                         i,
@@ -815,17 +799,15 @@ fn scrape_type_properties(
                         ),
                     );
                 }
-
-                i += 1;
             }
 
             combination
                 .object_type_params
-                .insert(object_type_key, (fq_class_name.clone(), new_type_params));
+                .insert(object_type_key, (*fq_class_name, new_type_params));
         } else {
             combination
                 .object_type_params
-                .insert(object_type_key, (fq_class_name.clone(), type_params));
+                .insert(object_type_key, (*fq_class_name, type_params));
         }
 
         return;
@@ -844,7 +826,7 @@ fn scrape_type_properties(
         combination
             .enum_value_types
             .entry(enum_name)
-            .or_insert_with(FxHashMap::default)
+            .or_default()
             .insert(member_name, constraint_type);
 
         return;
@@ -875,7 +857,7 @@ fn scrape_type_properties(
             return;
         }
 
-        let symbol_type = if let Some(symbol_type) = codebase.symbols.all.get(&fq_class_name) {
+        let symbol_type = if let Some(symbol_type) = codebase.symbols.all.get(fq_class_name) {
             symbol_type
         } else {
             combination.value_types.insert(atomic.get_key(), atomic);
@@ -905,7 +887,7 @@ fn scrape_type_properties(
                 if extra_types.is_some() || existing_extra_types.is_some() {
                     if object_type_comparator::is_shallowly_contained_by(
                         codebase,
-                        &existing_type,
+                        existing_type,
                         &atomic,
                         false,
                         &mut TypeComparisonResult::new(),
@@ -917,7 +899,7 @@ fn scrape_type_properties(
                     if object_type_comparator::is_shallowly_contained_by(
                         codebase,
                         &atomic,
-                        &existing_type,
+                        existing_type,
                         false,
                         &mut TypeComparisonResult::new(),
                     ) {
@@ -928,7 +910,7 @@ fn scrape_type_properties(
                 }
 
                 let existing_symbol_type =
-                    if let Some(symbol_type) = codebase.symbols.all.get(&existing_name) {
+                    if let Some(symbol_type) = codebase.symbols.all.get(existing_name) {
                         symbol_type
                     } else {
                         continue;
@@ -966,10 +948,10 @@ fn scrape_type_properties(
                         if codebase.class_or_trait_implements(fq_class_name, existing_name) {
                             return;
                         }
-                    } else if is_interface {
-                        if codebase.interface_extends(fq_class_name, existing_name) {
-                            return;
-                        }
+                    } else if is_interface
+                        && codebase.interface_extends(fq_class_name, existing_name)
+                    {
+                        return;
                     }
                 }
             }
@@ -1091,7 +1073,7 @@ fn scrape_type_properties(
         if is_truthy || is_nonempty {
             for (_, literal_string_type) in &combination.literal_strings {
                 if let TAtomic::TLiteralString { value, .. } = literal_string_type {
-                    if value == "" {
+                    if value.is_empty() {
                         is_nonempty = false;
                         is_truthy = false;
                         break;
@@ -1121,7 +1103,7 @@ fn scrape_type_properties(
             match existing_string_type {
                 TAtomic::TString => return,
                 TAtomic::TStringWithFlags(is_truthy, is_nonempty, is_nonspecific_literal) => {
-                    if value == "" {
+                    if value.is_empty() {
                         *is_truthy = false;
                         *is_nonempty = false;
                     } else if value == "0" {
@@ -1202,11 +1184,7 @@ fn adjust_key_value_dict_params(
             enum_name: *a,
             member_name: *b,
             constraint_type: if let Some(classlike_info) = codebase.classlike_infos.get(a) {
-                if let Some(enum_constraint) = &classlike_info.enum_constraint {
-                    Some(enum_constraint.clone())
-                } else {
-                    None
-                }
+                classlike_info.enum_constraint.as_ref().cloned()
             } else {
                 None
             },
@@ -1232,7 +1210,7 @@ fn get_combiner_key(name: &StrId, type_params: &Vec<TUnion>, codebase: &Codebase
     str += &name.0.to_string();
     str += "<";
     str += type_params
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(i, tunion)| {
             if let Some(Variance::Covariant) = covariants.get(&i) {
@@ -1244,7 +1222,7 @@ fn get_combiner_key(name: &StrId, type_params: &Vec<TUnion>, codebase: &Codebase
         .join(", ")
         .as_str();
     str += ">";
-    return str;
+    str
 }
 
 fn merge_array_subtype(
@@ -1279,7 +1257,7 @@ fn merge_array_subtype(
         combination.object_type_params.insert(
             fq_class_name_key.clone(),
             (
-                fq_class_name.clone(),
+                *fq_class_name,
                 vec![container_key_type, container_value_type],
             ),
         );
@@ -1314,7 +1292,7 @@ fn merge_array_subtype(
         combination.object_type_params.insert(
             fq_class_name_key.clone(),
             (
-                fq_class_name.clone(),
+                *fq_class_name,
                 vec![container_key_type, container_value_type],
             ),
         );

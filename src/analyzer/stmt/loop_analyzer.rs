@@ -39,7 +39,7 @@ pub(crate) fn analyze<'a>(
         &pre_conditions,
         &post_expressions,
         stmts,
-        loop_context.function_context.calling_class.clone(),
+        loop_context.function_context.calling_class,
     );
 
     let assignment_depth = if let Some(first_var_id) = first_var_id {
@@ -262,7 +262,7 @@ pub(crate) fn analyze<'a>(
                             Rc::new(combine_union_types(
                                 &continue_context_type,
                                 parent_context_type,
-                                &statements_analyzer.get_codebase(),
+                                statements_analyzer.get_codebase(),
                                 false,
                             )),
                         );
@@ -352,12 +352,8 @@ pub(crate) fn analyze<'a>(
 
                 if if different_from_pre_loop_types.contains(var_id) {
                     true
-                } else if let Some(_) = continue_context.vars_in_scope.get(var_id) {
-                    if let Some(_) = pre_loop_context_type {
-                        false
-                    } else {
-                        true
-                    }
+                } else if continue_context.vars_in_scope.get(var_id).is_some() {
+                    pre_loop_context_type.is_none()
                 } else {
                     true
                 } {
@@ -503,16 +499,14 @@ pub(crate) fn analyze<'a>(
                     None,
                     analysis_data,
                 );
-            } else {
-                if let Some(loop_parent_context_type) =
-                    loop_parent_context.vars_in_scope.get_mut(var_id)
-                {
-                    if loop_parent_context_type != loop_context_type {
-                        *loop_parent_context_type = Rc::new(combine_parent_nodes(
-                            loop_context_type,
-                            loop_parent_context_type,
-                        ));
-                    }
+            } else if let Some(loop_parent_context_type) =
+                loop_parent_context.vars_in_scope.get_mut(var_id)
+            {
+                if loop_parent_context_type != loop_context_type {
+                    *loop_parent_context_type = Rc::new(combine_parent_nodes(
+                        loop_context_type,
+                        loop_parent_context_type,
+                    ));
                 }
             }
         }
@@ -550,15 +544,13 @@ pub(crate) fn analyze<'a>(
                         None,
                         analysis_data,
                     );
-                } else {
-                    if let Some(loop_parent_context_type) =
-                        loop_parent_context.vars_in_scope.get_mut(&var_id)
-                    {
-                        *loop_parent_context_type = Rc::new(combine_parent_nodes(
-                            continue_context_type,
-                            loop_parent_context_type,
-                        ));
-                    }
+                } else if let Some(loop_parent_context_type) =
+                    loop_parent_context.vars_in_scope.get_mut(&var_id)
+                {
+                    *loop_parent_context_type = Rc::new(combine_parent_nodes(
+                        continue_context_type,
+                        loop_parent_context_type,
+                    ));
                 }
             } else {
                 loop_parent_context.vars_in_scope.remove(&var_id);
@@ -711,7 +703,7 @@ fn apply_pre_condition_to_loop_context(
         &mut None,
     )?;
 
-    add_branch_dataflow(statements_analyzer, &pre_condition, analysis_data);
+    add_branch_dataflow(statements_analyzer, pre_condition, analysis_data);
 
     loop_context.inside_conditional = false;
 
@@ -806,7 +798,7 @@ fn update_loop_scope_contexts(
                 continue_context.vars_in_scope.insert(
                     var_id.clone(),
                     Rc::new(combine_union_types(
-                        &continue_context.vars_in_scope.get(var_id).unwrap(),
+                        continue_context.vars_in_scope.get(var_id).unwrap(),
                         var_type,
                         statements_analyzer.get_codebase(),
                         false,

@@ -215,7 +215,7 @@ fn is_equal(a_node: &DefSignatureNode, b_node: &DefSignatureNode, body_change: &
         *body_change = true;
     }
 
-    return true;
+    true
 }
 
 pub(crate) fn extract_diff<'a>(

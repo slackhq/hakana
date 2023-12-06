@@ -99,7 +99,7 @@ fn is_intersection_shallowly_contained_by(
                         .template_extended_params
                         .get(container_defining_entity)
                     {
-                        if let Some(_) = defining_entity_params.get(container_param_name) {
+                        if defining_entity_params.get(container_param_name).is_some() {
                             return true;
                         }
                     }

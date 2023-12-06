@@ -38,7 +38,7 @@ pub(crate) fn analyze(
     let mut hint_type = get_type_from_hint(
         &hint.1,
         None,
-        &statements_analyzer.get_type_resolution_context(),
+        statements_analyzer.get_type_resolution_context(),
         &FxHashMap::default(),
     )
     .unwrap();
@@ -51,7 +51,7 @@ pub(crate) fn analyze(
         hint_type.parent_nodes = expr_type.parent_nodes.clone();
     }
 
-    analysis_data.set_expr_type(&expr_pos, hint_type);
+    analysis_data.set_expr_type(expr_pos, hint_type);
 
     analysis_data.expr_effects.insert(
         (expr_pos.start_offset() as u32, expr_pos.end_offset() as u32),

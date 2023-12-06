@@ -71,88 +71,84 @@ pub(crate) fn fetch(
 
     let stmt_type = if let Some(stmt_type) = stmt_type {
         stmt_type
-    } else {
-        if let Some(function_return_type) = &function_storage.return_type {
-            if !function_storage.template_types.is_empty() {
-                if !function_storage.template_types.is_empty() {
-                    let fn_id = statements_analyzer
-                        .get_interner()
-                        .get(
-                            format!(
-                                "fn-{}",
-                                match functionlike_id {
-                                    FunctionLikeIdentifier::Function(function_id) =>
-                                        function_id.0.to_string(),
-                                    FunctionLikeIdentifier::Method(_, _) => panic!(),
-                                }
-                            )
-                            .as_str(),
-                        )
-                        .unwrap();
-                    for (template_name, _) in &function_storage.template_types {
-                        if let None = template_result.lower_bounds.get(template_name) {
-                            template_result.lower_bounds.insert(
-                                template_name.clone(),
-                                FxHashMap::from_iter([(
-                                    fn_id.clone(),
-                                    vec![TemplateBound::new(get_nothing(), 1, None, None)],
-                                )]),
-                            );
+    } else if let Some(function_return_type) = &function_storage.return_type {
+        if !function_storage.template_types.is_empty()
+            && !function_storage.template_types.is_empty()
+        {
+            let fn_id = statements_analyzer
+                .get_interner()
+                .get(
+                    format!(
+                        "fn-{}",
+                        match functionlike_id {
+                            FunctionLikeIdentifier::Function(function_id) =>
+                                function_id.0.to_string(),
+                            FunctionLikeIdentifier::Method(_, _) => panic!(),
                         }
-                    }
+                    )
+                    .as_str(),
+                )
+                .unwrap();
+            for (template_name, _) in &function_storage.template_types {
+                if template_result.lower_bounds.get(template_name).is_none() {
+                    template_result.lower_bounds.insert(
+                        *template_name,
+                        FxHashMap::from_iter([(
+                            fn_id,
+                            vec![TemplateBound::new(get_nothing(), 1, None, None)],
+                        )]),
+                    );
                 }
             }
+        }
 
-            let mut function_return_type = function_return_type.clone();
+        let mut function_return_type = function_return_type.clone();
 
-            if !template_result.lower_bounds.is_empty()
-                && !function_storage.template_types.is_empty()
-            {
-                type_expander::expand_union(
-                    codebase,
-                    &Some(statements_analyzer.get_interner()),
-                    &mut function_return_type,
-                    &TypeExpansionOptions {
-                        expand_templates: false,
-                        ..Default::default()
-                    },
-                    &mut analysis_data.data_flow_graph,
-                );
-
-                function_return_type = template::inferred_type_replacer::replace(
-                    &function_return_type,
-                    &template_result,
-                    codebase,
-                );
-            }
-
+        if !template_result.lower_bounds.is_empty() && !function_storage.template_types.is_empty() {
             type_expander::expand_union(
                 codebase,
                 &Some(statements_analyzer.get_interner()),
                 &mut function_return_type,
                 &TypeExpansionOptions {
                     expand_templates: false,
-                    expand_generic: true,
-                    file_path: Some(
-                        &statements_analyzer
-                            .get_file_analyzer()
-                            .get_file_source()
-                            .file_path,
-                    ),
                     ..Default::default()
                 },
                 &mut analysis_data.data_flow_graph,
             );
 
-            // todo dispatch AfterFunctionCallAnalysisEvent
-
-            function_return_type
-        } else {
-            get_mixed_any()
+            function_return_type = template::inferred_type_replacer::replace(
+                &function_return_type,
+                &template_result,
+                codebase,
+            );
         }
+
+        type_expander::expand_union(
+            codebase,
+            &Some(statements_analyzer.get_interner()),
+            &mut function_return_type,
+            &TypeExpansionOptions {
+                expand_templates: false,
+                expand_generic: true,
+                file_path: Some(
+                    &statements_analyzer
+                        .get_file_analyzer()
+                        .get_file_source()
+                        .file_path,
+                ),
+                ..Default::default()
+            },
+            &mut analysis_data.data_flow_graph,
+        );
+
+        // todo dispatch AfterFunctionCallAnalysisEvent
+
+        function_return_type
+    } else {
+        get_mixed_any()
     };
 
-    return add_dataflow(
+    add_dataflow(
         statements_analyzer,
         expr,
         pos,
@@ -162,7 +158,7 @@ pub(crate) fn fetch(
         &template_result,
         analysis_data,
         context,
-    );
+    )
 }
 
 fn handle_special_functions(
@@ -199,16 +195,14 @@ fn handle_special_functions(
         "HH\\global_get" => {
             if let Some((_, arg_expr)) = args.first() {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
-                    if let Some(value) = expr_type.get_single_literal_string_value() {
-                        Some(variable_fetch_analyzer::get_type_for_superglobal(
+                    expr_type.get_single_literal_string_value().map(|value| {
+                        variable_fetch_analyzer::get_type_for_superglobal(
                             statements_analyzer,
                             value,
                             pos,
                             analysis_data,
-                        ))
-                    } else {
-                        None
-                    }
+                        )
+                    })
                 } else {
                     None
                 }
@@ -516,7 +510,7 @@ fn handle_special_functions(
                                 analysis_data,
                                 context,
                                 atomic_type,
-                                &*dim_type,
+                                &dim_type,
                                 false,
                                 &mut false,
                                 true,
@@ -535,15 +529,13 @@ fn handle_special_functions(
 
                     if args.len() > 2 {
                         let default_type = analysis_data.get_expr_type(args[2].1.pos());
-                        expr_type = if let Some(expr_type) = expr_type {
-                            Some(if let Some(default_type) = default_type {
+                        expr_type = expr_type.map(|expr_type| {
+                            if let Some(default_type) = default_type {
                                 add_union_type(expr_type, default_type, codebase, false)
                             } else {
                                 add_union_type(expr_type, &get_mixed_any(), codebase, false)
-                            })
-                        } else {
-                            None
-                        };
+                            }
+                        });
                     }
                 }
 
@@ -563,12 +555,7 @@ fn get_type_structure_type(
     this_class: Option<StrId>,
 ) -> Option<TUnion> {
     if let Some(second_arg_string) = second_expr_type.get_single_literal_string_value() {
-        let const_name =
-            if let Some(const_name) = statements_analyzer.get_interner().get(&second_arg_string) {
-                const_name
-            } else {
-                return None;
-            };
+        let const_name = statements_analyzer.get_interner().get(&second_arg_string)?;
 
         if first_expr_type.is_single() {
             let classname = match first_expr_type.get_single() {
@@ -649,7 +636,7 @@ fn add_dataflow(
     //let added_taints = Vec::new();
     //let removed_taints = Vec::new();
 
-    let ref mut data_flow_graph = analysis_data.data_flow_graph;
+    let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !context.allow_taints {
@@ -667,9 +654,9 @@ fn add_dataflow(
         function_call_node = DataFlowNode::get_for_method_return(
             functionlike_id.to_string(statements_analyzer.get_interner()),
             if let Some(return_pos) = &functionlike_storage.return_type_location {
-                Some(return_pos.clone())
+                Some(*return_pos)
             } else {
-                functionlike_storage.name_location.clone()
+                functionlike_storage.name_location
             },
             if functionlike_storage.specialize_call {
                 Some(statements_analyzer.get_hpos(pos))
@@ -707,11 +694,9 @@ fn add_dataflow(
                 .lookup(&functionlike_storage.name)
                 .to_string(),
             param_offset,
-            if let Some(arg) = expr.2.get(param_offset) {
-                Some(statements_analyzer.get_hpos(arg.1.pos()))
-            } else {
-                None
-            },
+            expr.2
+                .get(param_offset)
+                .map(|arg| statements_analyzer.get_hpos(arg.1.pos())),
             if functionlike_storage.specialize_call {
                 Some(statements_analyzer.get_hpos(pos))
             } else {
@@ -749,7 +734,7 @@ fn add_dataflow(
             let function_call_node_source = DataFlowNode {
                 id: function_call_node.get_id().clone(),
                 kind: DataFlowNodeKind::TaintSource {
-                    pos: function_call_node.get_pos().clone(),
+                    pos: *function_call_node.get_pos(),
                     label: function_call_node.get_label().clone(),
                     types: functionlike_storage.taint_source_types.clone(),
                 },

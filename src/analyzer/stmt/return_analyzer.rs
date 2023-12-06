@@ -86,7 +86,7 @@ pub(crate) fn analyze(
         for (var_id, var_type) in &context.vars_in_scope {
             if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
                 *finally_type = Rc::new(combine_union_types(
-                    &finally_type,
+                    finally_type,
                     var_type,
                     codebase,
                     false,
@@ -153,7 +153,7 @@ pub(crate) fn analyze(
         inferred_return_type.parent_nodes.extend(parent_nodes);
     }
 
-    if let Some(_) = return_expr {
+    if return_expr.is_some() {
         analysis_data
             .inferred_return_types
             .push(inferred_return_type.clone());
@@ -357,26 +357,24 @@ pub(crate) fn analyze(
                                 statements_analyzer.get_file_path_actual()
                             );
                         }
-                    } else {
-                        if !union_comparison_result
-                            .type_coerced_from_as_mixed
-                            .unwrap_or(false)
-                        {
-                            analysis_data.maybe_add_issue(Issue::new(
-                                IssueKind::LessSpecificReturnStatement,
-                                format!(
-                                    "The type {} is more general than the declared return type {} for {}",
-                                    inferred_return_type.get_id(Some(interner)),
-                                    expected_return_type.get_id(Some(interner)),
-                                    context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
-                                ),
-                                statements_analyzer.get_hpos(&return_expr.1),
-                                &context.function_context.calling_functionlike_id,
+                    } else if !union_comparison_result
+                        .type_coerced_from_as_mixed
+                        .unwrap_or(false)
+                    {
+                        analysis_data.maybe_add_issue(Issue::new(
+                            IssueKind::LessSpecificReturnStatement,
+                            format!(
+                                "The type {} is more general than the declared return type {} for {}",
+                                inferred_return_type.get_id(Some(interner)),
+                                expected_return_type.get_id(Some(interner)),
+                                context.function_context.calling_functionlike_id.as_ref().unwrap().to_string(interner)
                             ),
-                            statements_analyzer.get_config(),
-                            statements_analyzer.get_file_path_actual()
-                        );
-                        }
+                            statements_analyzer.get_hpos(&return_expr.1),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual()
+                    );
                     }
                 } else {
                     analysis_data.maybe_add_issue(
@@ -508,17 +506,16 @@ pub(crate) fn handle_inout_at_return(
                             context
                                 .function_context
                                 .calling_functionlike_id
-                                .clone()
                                 .unwrap()
                                 .to_string(statements_analyzer.get_interner()),
                             i,
-                            Some(param.name_location.clone()),
+                            Some(param.name_location),
                             None,
                         )
                     } else {
                         DataFlowNode::get_for_variable_sink(
                             "out ".to_string() + param.name.as_str(),
-                            param.name_location.clone(),
+                            param.name_location,
                         )
                     };
 
@@ -556,7 +553,7 @@ fn handle_dataflow(
         );
 
         for parent_node in &inferred_type.parent_nodes {
-            data_flow_graph.add_path(&parent_node, &return_node, PathKind::Default, None, None);
+            data_flow_graph.add_path(parent_node, &return_node, PathKind::Default, None, None);
         }
         data_flow_graph.add_node(return_node);
     } else {
@@ -572,7 +569,7 @@ fn handle_dataflow(
 
         for at in &inferred_type.types {
             if let Some(shape_name) = at.get_shape_name() {
-                if let Some(t) = codebase.type_definitions.get(&shape_name) {
+                if let Some(t) = codebase.type_definitions.get(shape_name) {
                     if t.shape_field_taints.is_some() {
                         return;
                     }
@@ -582,12 +579,12 @@ fn handle_dataflow(
 
         let return_expr_node = DataFlowNode::get_for_assignment(
             "return".to_string(),
-            statements_analyzer.get_hpos(&return_expr.pos()),
+            statements_analyzer.get_hpos(return_expr.pos()),
         );
 
         for parent_node in &inferred_type.parent_nodes {
             data_flow_graph.add_path(
-                &parent_node,
+                parent_node,
                 &return_expr_node,
                 PathKind::Default,
                 functionlike_storage.added_taints.clone(),
@@ -597,7 +594,7 @@ fn handle_dataflow(
 
         let method_node = DataFlowNode::get_for_method_return(
             functionlike_id.to_string(statements_analyzer.get_interner()),
-            functionlike_storage.return_type_location.clone(),
+            functionlike_storage.return_type_location,
             None,
         );
 
@@ -610,7 +607,7 @@ fn handle_dataflow(
         );
 
         if let FunctionLikeIdentifier::Method(classlike_name, method_name) = functionlike_id {
-            if let Some(classlike_info) = codebase.classlike_infos.get(&classlike_name) {
+            if let Some(classlike_info) = codebase.classlike_infos.get(classlike_name) {
                 if *method_name != STR_CONSTRUCT {
                     let mut all_parents = classlike_info
                         .all_parent_classes
@@ -619,7 +616,7 @@ fn handle_dataflow(
                     all_parents.extend(classlike_info.all_parent_interfaces.iter());
 
                     for parent_classlike in all_parents {
-                        if codebase.declaring_method_exists(&parent_classlike, &method_name) {
+                        if codebase.declaring_method_exists(parent_classlike, method_name) {
                             let new_sink = DataFlowNode::get_for_method_return(
                                 statements_analyzer
                                     .get_interner()

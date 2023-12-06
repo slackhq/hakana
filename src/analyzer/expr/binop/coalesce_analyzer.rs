@@ -12,12 +12,12 @@ use oxidized::aast::{self, CallExpr};
 use oxidized::ast_defs::ParamKind;
 use rustc_hash::FxHashSet;
 
-pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
+pub(crate) fn analyze<'expr, 'map, 'new_expr>(
     statements_analyzer: &StatementsAnalyzer,
     pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
-    analysis_data: &'tast mut FunctionAnalysisData,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> Result<(), AnalysisError> {
@@ -150,12 +150,12 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
     .ok();
 
     let ternary_type = analysis_data
-        .get_rc_expr_type(&pos)
+        .get_rc_expr_type(pos)
         .cloned()
         .unwrap_or(Rc::new(get_mixed_any()));
     analysis_data.expr_types = old_expr_types;
 
-    analysis_data.set_rc_expr_type(&pos, ternary_type);
+    analysis_data.set_rc_expr_type(pos, ternary_type);
 
     analysis_data.combine_effects(left.pos(), right.pos(), pos);
 
@@ -187,7 +187,7 @@ fn get_left_expr(
         .unwrap_or(Rc::new(get_mixed_any()));
     let root_expr_var_id = format!(
         "$tmp_coalesce_var {}",
-        left.pos().start_offset().to_string()
+        left.pos().start_offset()
     );
 
     if make_nullable && !condition_type.is_nullable_mixed() {
@@ -200,9 +200,7 @@ fn get_left_expr(
     }
 
     let redefined_vars = isset_context
-        .get_redefined_vars(&context.vars_in_scope, false, &mut FxHashSet::default())
-        .into_iter()
-        .map(|(k, _)| k)
+        .get_redefined_vars(&context.vars_in_scope, false, &mut FxHashSet::default()).into_keys()
         .collect::<FxHashSet<_>>();
 
     //these vars were changed in both branches

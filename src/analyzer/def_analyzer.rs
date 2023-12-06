@@ -37,7 +37,7 @@ pub(crate) fn analyze(
         aast::Def::Class(boxed) => {
             let file_analyzer = scope_analyzer.get_file_analyzer();
             let mut class_analyzer = ClassLikeAnalyzer::new(file_analyzer);
-            match class_analyzer.analyze(&boxed, statements_analyzer, analysis_result) {
+            match class_analyzer.analyze(boxed, statements_analyzer, analysis_result) {
                 Err(AnalysisError::InternalError(error, pos)) => {
                     return Err(InternalError(error, pos));
                 }
@@ -133,7 +133,7 @@ pub(crate) fn analyze(
             analysis_data,
             AfterDefAnalysisData {
                 statements_analyzer,
-                def: &def,
+                def,
                 context,
             },
         );

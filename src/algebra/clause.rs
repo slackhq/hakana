@@ -32,7 +32,7 @@ pub struct Clause {
 
 impl PartialEq for Clause {
     fn eq(&self, other: &Self) -> bool {
-        return self.hash == other.hash;
+        self.hash == other.hash
     }
 }
 
@@ -76,7 +76,7 @@ impl Clause {
             return None;
         }
 
-        return Some(Clause {
+        Some(Clause {
             hash: get_hash(
                 &possibilities,
                 self.creating_object_id,
@@ -89,7 +89,7 @@ impl Clause {
             wedge: self.wedge,
             reconcilable: self.reconcilable,
             generated: self.generated,
-        });
+        })
     }
 
     pub fn add_possibility(
@@ -101,7 +101,7 @@ impl Clause {
 
         possibilities.insert(var_id, new_possibility);
 
-        return Clause {
+        Clause {
             hash: get_hash(
                 &possibilities,
                 self.creating_object_id,
@@ -114,7 +114,7 @@ impl Clause {
             wedge: self.wedge,
             reconcilable: self.reconcilable,
             generated: self.generated,
-        };
+        }
     }
 
     pub fn contains(&self, other_clause: &Self) -> bool {
@@ -156,7 +156,7 @@ impl Clause {
                 }
             }
 
-            if impossibility.len() > 0 {
+            if !impossibility.is_empty() {
                 impossibilities.insert(var_id.clone(), impossibility);
             }
         }
@@ -173,7 +173,7 @@ impl Clause {
         for (var_id, values) in self.possibilities.iter() {
             let mut var_id = var_id.clone();
 
-            if var_id[0..1] == "*".to_string() {
+            if var_id[0..1] == *"*" {
                 var_id = "<expr>".to_string()
             }
 

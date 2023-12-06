@@ -44,9 +44,7 @@ pub(crate) fn analyze(
     if !outer_context
         .clauses
         .iter()
-        .filter(|clause| !clause.possibilities.is_empty())
-        .next()
-        .is_some()
+        .any(|clause| !clause.possibilities.is_empty())
     {
         let mut omit_keys =
             outer_context
@@ -95,12 +93,11 @@ pub(crate) fn analyze(
 
             for changed_var_id in &changed_var_ids {
                 for (var_id, _) in if_context.vars_in_scope.clone() {
-                    if var_has_root(&var_id, changed_var_id) {
-                        if !changed_var_ids.contains(&var_id)
-                            && !cond_referenced_var_ids.contains(&var_id)
-                        {
-                            if_context.vars_in_scope.remove(&var_id);
-                        }
+                    if var_has_root(&var_id, changed_var_id)
+                        && !changed_var_ids.contains(&var_id)
+                        && !cond_referenced_var_ids.contains(&var_id)
+                    {
+                        if_context.vars_in_scope.remove(&var_id);
                     }
                 }
             }
@@ -131,7 +128,7 @@ pub(crate) fn analyze(
         final_actions.len() == 1 && final_actions.contains(&ControlAction::End);
 
     let has_leaving_statements = has_ending_statements
-        || final_actions.len() > 0 && !final_actions.contains(&ControlAction::None);
+        || !final_actions.is_empty() && !final_actions.contains(&ControlAction::None);
 
     let has_break_statement =
         final_actions.len() == 1 && final_actions.contains(&ControlAction::Break);
@@ -212,17 +209,15 @@ pub(crate) fn update_if_scope(
                 new_vars.remove(&new_var_id);
             }
         }
-    } else {
-        if update_new_vars {
-            if_scope.new_vars = Some(
-                if_context
-                    .vars_in_scope
-                    .iter()
-                    .filter(|(k, _)| !outer_context.vars_in_scope.contains_key(*k))
-                    .map(|(k, v)| (k.clone(), (**v).clone()))
-                    .collect(),
-            );
-        }
+    } else if update_new_vars {
+        if_scope.new_vars = Some(
+            if_context
+                .vars_in_scope
+                .iter()
+                .filter(|(k, _)| !outer_context.vars_in_scope.contains_key(*k))
+                .map(|(k, v)| (k.clone(), (**v).clone()))
+                .collect(),
+        );
     }
 
     let mut possibly_redefined_vars = redefined_vars.clone();
@@ -279,7 +274,7 @@ pub(crate) fn update_if_scope(
             if let Some(existing_type) = if_scope.possibly_redefined_vars.get(&var_id) {
                 new_scoped_possibly_redefined_vars.insert(
                     var_id.clone(),
-                    add_union_type(possibly_redefined_type, &existing_type, codebase, false),
+                    add_union_type(possibly_redefined_type, existing_type, codebase, false),
                 );
             } else {
                 new_scoped_possibly_redefined_vars.insert(var_id, possibly_redefined_type);

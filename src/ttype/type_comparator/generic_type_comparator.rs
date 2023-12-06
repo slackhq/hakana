@@ -77,7 +77,6 @@ pub(crate) fn is_contained_by(
                         extended_params
                             .values()
                             .cloned()
-                            .into_iter()
                             .map(|v| {
                                 let mut v = (*v).clone();
                                 type_expander::expand_union(
@@ -94,14 +93,12 @@ pub(crate) fn is_contained_by(
                             .collect(),
                     );
                 }
-            } else {
-                if let TAtomic::TNamedObject {
-                    ref mut type_params,
-                    ..
-                } = input_type_part
-                {
-                    *type_params = Some(vec![get_mixed_any(); container_type_params.len()]);
-                }
+            } else if let TAtomic::TNamedObject {
+                ref mut type_params,
+                ..
+            } = input_type_part
+            {
+                *type_params = Some(vec![get_mixed_any(); container_type_params.len()]);
             }
 
             return self::is_contained_by(
@@ -186,7 +183,7 @@ pub(crate) fn compare_generic_params(
     atomic_comparison_result: &mut TypeComparisonResult,
 ) {
     if input_param.is_nothing() || input_param.is_placeholder() {
-        if let None = atomic_comparison_result.replacement_atomic_type {
+        if atomic_comparison_result.replacement_atomic_type.is_none() {
             atomic_comparison_result.replacement_atomic_type = Some(input_type_part.clone());
         }
 
@@ -254,7 +251,7 @@ pub(crate) fn compare_generic_params(
         *all_types_contain = false;
     } else if !container_param.has_template() && !input_param.has_template() {
         if input_param.is_literal_of(container_param) {
-            if let None = atomic_comparison_result.replacement_atomic_type {
+            if atomic_comparison_result.replacement_atomic_type.is_none() {
                 atomic_comparison_result.replacement_atomic_type = Some(input_type_part.clone());
             }
 
@@ -265,47 +262,42 @@ pub(crate) fn compare_generic_params(
             {
                 type_params.insert(container_param_offset, container_param.clone());
             }
-        } else {
-            if !matches!(container_type_param_variance, Some(Variance::Covariant))
-                && !container_param.had_template
-            {
-                atomic_comparison_result
-                    .type_variable_lower_bounds
-                    .extend(param_comparison_result.type_variable_lower_bounds);
+        } else if !matches!(container_type_param_variance, Some(Variance::Covariant))
+            && !container_param.had_template
+        {
+            atomic_comparison_result
+                .type_variable_lower_bounds
+                .extend(param_comparison_result.type_variable_lower_bounds);
 
-                atomic_comparison_result.type_variable_lower_bounds.extend(
-                    param_comparison_result
-                        .type_variable_upper_bounds
-                        .clone()
-                        .into_iter()
-                        .map(|(name, mut b)| {
-                            b.equality_bound_classlike = Some(*container_name);
-                            (name, b)
-                        }),
-                );
-
-                atomic_comparison_result
+            atomic_comparison_result.type_variable_lower_bounds.extend(
+                param_comparison_result
                     .type_variable_upper_bounds
-                    .extend(param_comparison_result.type_variable_upper_bounds);
+                    .clone()
+                    .into_iter()
+                    .map(|(name, mut b)| {
+                        b.equality_bound_classlike = Some(*container_name);
+                        (name, b)
+                    }),
+            );
 
-                let mut param_comparison_result = TypeComparisonResult::new();
+            atomic_comparison_result
+                .type_variable_upper_bounds
+                .extend(param_comparison_result.type_variable_upper_bounds);
 
-                if !union_type_comparator::is_contained_by(
-                    codebase,
-                    container_param,
-                    input_param,
-                    false,
-                    input_param.ignore_falsable_issues,
-                    inside_assertion,
-                    &mut param_comparison_result,
-                ) || param_comparison_result.type_coerced.unwrap_or(false)
-                {
-                    if !container_param.has_static_object() || !input_param.is_static_object() {
-                        *all_types_contain = false;
+            let mut param_comparison_result = TypeComparisonResult::new();
 
-                        atomic_comparison_result.type_coerced = Some(false);
-                    }
-                }
+            if (!union_type_comparator::is_contained_by(
+                codebase,
+                container_param,
+                input_param,
+                false,
+                input_param.ignore_falsable_issues,
+                inside_assertion,
+                &mut param_comparison_result,
+            ) || param_comparison_result.type_coerced.unwrap_or(false)) && (!container_param.has_static_object() || !input_param.is_static_object()) {
+                *all_types_contain = false;
+
+                atomic_comparison_result.type_coerced = Some(false);
             }
         }
     }
@@ -319,7 +311,7 @@ pub(crate) fn update_failed_result_from_nested(
         Some(if let Some(val) = atomic_comparison_result.type_coerced {
             val
         } else {
-            param_comparison_result.type_coerced.unwrap_or(false) == true
+            param_comparison_result.type_coerced.unwrap_or(false)
         });
     atomic_comparison_result.type_coerced_from_nested_mixed = Some(
         if let Some(val) = atomic_comparison_result.type_coerced_from_nested_mixed {
@@ -328,7 +320,6 @@ pub(crate) fn update_failed_result_from_nested(
             param_comparison_result
                 .type_coerced_from_nested_mixed
                 .unwrap_or(false)
-                == true
         },
     );
     atomic_comparison_result.type_coerced_from_nested_any = Some(
@@ -338,7 +329,6 @@ pub(crate) fn update_failed_result_from_nested(
             param_comparison_result
                 .type_coerced_from_nested_any
                 .unwrap_or(false)
-                == true
         },
     );
     atomic_comparison_result.type_coerced_from_as_mixed = Some(
@@ -348,7 +338,6 @@ pub(crate) fn update_failed_result_from_nested(
             param_comparison_result
                 .type_coerced_from_as_mixed
                 .unwrap_or(false)
-                == true
         },
     );
     atomic_comparison_result.type_coerced_to_literal = Some(
@@ -358,7 +347,6 @@ pub(crate) fn update_failed_result_from_nested(
             param_comparison_result
                 .type_coerced_to_literal
                 .unwrap_or(false)
-                == true
         },
     );
 }

@@ -11,12 +11,12 @@ use hakana_type::{get_string, wrap_atomic};
 use oxidized::aast;
 use rustc_hash::FxHashSet;
 
-pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
+pub(crate) fn analyze<'expr, 'map, 'new_expr>(
     statements_analyzer: &StatementsAnalyzer,
     stmt_pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
-    analysis_data: &'tast mut FunctionAnalysisData,
+    analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> Result<(), AnalysisError> {
     let mut concat_nodes = get_concat_nodes(left);
@@ -54,10 +54,10 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
             all_literals = all_literals && expr_type.all_literals();
 
             if let Some(str) = expr_type.get_single_literal_string_value() {
-                if str.contains("/") {
+                if str.contains('/') {
                     has_slash = true;
                 }
-                if str.contains("?") {
+                if str.contains('?') {
                     has_query = true;
                 }
             }
@@ -98,7 +98,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr, 'tast>(
         .data_flow_graph
         .add_node(decision_node.clone());
 
-    analysis_data.set_expr_type(&stmt_pos, result_type);
+    analysis_data.set_expr_type(stmt_pos, result_type);
 
     Ok(())
 }
