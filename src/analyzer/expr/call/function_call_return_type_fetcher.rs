@@ -680,7 +680,8 @@ fn add_dataflow(
     data_flow_graph.add_node(function_call_node.clone());
 
     let (param_offsets, _variadic_path) =
-        get_special_argument_nodes(functionlike_id, statements_analyzer.get_interner());
+        get_special_argument_nodes(functionlike_id, expr, statements_analyzer.get_interner());
+
     let added_removed_taints = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         get_special_added_removed_taints(functionlike_id, statements_analyzer.get_interner())
     } else {
@@ -754,6 +755,12 @@ The optional path is for functions with ... params.
 */
 fn get_special_argument_nodes(
     functionlike_id: &FunctionLikeIdentifier,
+    expr: (
+        (&Pos, &ast_defs::Id_),
+        &Vec<aast::Targ<()>>,
+        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Option<aast::Expr<(), ()>>,
+    ),
     interner: &Interner,
 ) -> (Vec<(usize, PathKind)>, Option<PathKind>) {
     match functionlike_id {
@@ -823,7 +830,10 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Keyset\\filter"
             | "HH\\Lib\\Keyset\\filter_async"
             | "HH\\Lib\\Vec\\slice"
-            | "HH\\Lib\\Str\\slice" => (vec![(0, PathKind::Default)], None),
+            | "HH\\Lib\\Str\\slice"
+            | "HH\\keyset"
+            | "HH\\vec"
+            | "HH\\dict" => (vec![(0, PathKind::Default)], None),
             "json_encode" | "serialize" => (vec![(0, PathKind::Serialize)], None),
             "var_dump" | "printf" => (vec![(0, PathKind::Serialize)], Some(PathKind::Serialize)),
             "sscanf" | "substr_replace" => {
@@ -916,12 +926,37 @@ fn get_special_argument_nodes(
                 )],
                 None,
             ),
+
+            "HH\\Lib\\Dict\\from_keys" | "HH\\Lib\\Dict\\from_keys_async" => (
+                vec![(
+                    1,
+                    PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
+                )],
+                None,
+            ),
             "HH\\Lib\\C\\first" | "HH\\Lib\\C\\firstx" | "HH\\Lib\\C\\last"
             | "HH\\Lib\\C\\lastx" | "HH\\Lib\\C\\onlyx" | "HH\\Lib\\C\\find"
             | "HH\\Lib\\C\\findx" => (
                 vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
                 None,
             ),
+            "HH\\idx" => {
+                if let Some(second_arg) = expr.2.get(1) {
+                    if let aast::Expr_::String(str) = &second_arg.1 .2 {
+                        return (
+                            vec![(
+                                0,
+                                PathKind::ArrayFetch(ArrayDataKind::ArrayValue, str.to_string()),
+                            )],
+                            None,
+                        );
+                    }
+                }
+                (
+                    vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
+                    None,
+                )
+            }
             "HH\\Lib\\C\\first_key"
             | "HH\\Lib\\C\\first_keyx"
             | "HH\\Lib\\C\\last_key"

@@ -1042,7 +1042,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     let id = format!(
                         "{}-{}:{}-{}",
                         param.name,
-                        interner.lookup(&param.name_location.file_path.0),
+                        &param.name_location.file_path.0 .0,
                         param.name_location.start_offset,
                         param.name_location.end_offset
                     );
