@@ -8,7 +8,7 @@ use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
-use hakana_reflection_info::{EFFECT_IMPURE, STR_ECHO};
+use hakana_reflection_info::{StrId, EFFECT_IMPURE};
 use hakana_type::{get_arraykey, get_mixed_any};
 use oxidized::ast_defs::Pos;
 use oxidized::{aast, ast_defs};
@@ -45,7 +45,7 @@ pub(crate) fn analyze(
             statements_analyzer,
             &arg_type.unwrap_or(Rc::new(get_mixed_any())),
             &get_arraykey(false),
-            &FunctionLikeIdentifier::Function(STR_ECHO),
+            &FunctionLikeIdentifier::Function(StrId::ECHO),
             i,
             arg_expr,
             context,

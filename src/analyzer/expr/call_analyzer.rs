@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::{StrId, EFFECT_IMPURE, EFFECT_WRITE_PROPS, STR_ASIO_JOIN};
+use hakana_reflection_info::{StrId, EFFECT_IMPURE, EFFECT_WRITE_PROPS};
 use hakana_type::template::standin_type_replacer::get_relevant_bounds;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
@@ -42,43 +42,39 @@ pub(crate) fn analyze(
     let function_name_expr = &expr.func;
 
     match &function_name_expr.2 {
-        aast::Expr_::Id(boxed_id) => {
-            function_call_analyzer::analyze(
-                statements_analyzer,
-                (
-                    (&boxed_id.0, &boxed_id.1),
-                    &expr.targs,
-                    &expr.args,
-                    &expr.unpacked_arg,
-                ),
-                pos,
-                analysis_data,
-                context,
-                if_body_context,
-            )
-        }
+        aast::Expr_::Id(boxed_id) => function_call_analyzer::analyze(
+            statements_analyzer,
+            (
+                (&boxed_id.0, &boxed_id.1),
+                &expr.targs,
+                &expr.args,
+                &expr.unpacked_arg,
+            ),
+            pos,
+            analysis_data,
+            context,
+            if_body_context,
+        ),
         aast::Expr_::ObjGet(boxed) => {
             let (lhs_expr, rhs_expr, nullfetch, prop_or_method) =
                 (&boxed.0, &boxed.1, &boxed.2, &boxed.3);
 
             match prop_or_method {
-                ast_defs::PropOrMethod::IsMethod => {
-                    instance_call_analyzer::analyze(
-                        statements_analyzer,
-                        (
-                            lhs_expr,
-                            rhs_expr,
-                            &expr.targs,
-                            &expr.args,
-                            &expr.unpacked_arg,
-                        ),
-                        pos,
-                        analysis_data,
-                        context,
-                        if_body_context,
-                        matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
-                    )
-                }
+                ast_defs::PropOrMethod::IsMethod => instance_call_analyzer::analyze(
+                    statements_analyzer,
+                    (
+                        lhs_expr,
+                        rhs_expr,
+                        &expr.targs,
+                        &expr.args,
+                        &expr.unpacked_arg,
+                    ),
+                    pos,
+                    analysis_data,
+                    context,
+                    if_body_context,
+                    matches!(nullfetch, ast_defs::OgNullFlavor::OGNullsafe),
+                ),
                 _ => {
                     expression_call_analyzer::analyze(
                         statements_analyzer,
@@ -110,16 +106,14 @@ pub(crate) fn analyze(
                 if_body_context,
             )
         }
-        _ => {
-            expression_call_analyzer::analyze(
-                statements_analyzer,
-                expr,
-                pos,
-                analysis_data,
-                context,
-                if_body_context,
-            )
-        }
+        _ => expression_call_analyzer::analyze(
+            statements_analyzer,
+            expr,
+            pos,
+            analysis_data,
+            context,
+            if_body_context,
+        ),
     }
 }
 
@@ -369,7 +363,7 @@ pub(crate) fn apply_effects(
     pos: &Pos,
     expr_args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
 ) {
-    if function_storage.name == STR_ASIO_JOIN {
+    if function_storage.name == StrId::ASIO_JOIN {
         analysis_data.expr_effects.insert(
             (pos.start_offset() as u32, pos.end_offset() as u32),
             EFFECT_IMPURE,

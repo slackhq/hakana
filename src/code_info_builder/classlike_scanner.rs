@@ -16,8 +16,7 @@ use hakana_reflection_info::{
     property_info::{PropertyInfo, PropertyKind},
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
-    FileSource, StrId, ThreadedInterner, STR_BUILTIN_ENUM, STR_BUILTIN_ENUM_CLASS, STR_MEMBER_OF,
-    STR_SIMPLE_XML_ELEMENT, STR_TRAVERSABLE,
+    FileSource, StrId, ThreadedInterner,
 };
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use indexmap::IndexMap;
@@ -215,7 +214,9 @@ pub(crate) fn scan(
                     storage.direct_class_interfaces.insert(interface_name);
                     storage.all_class_interfaces.insert(interface_name);
 
-                    if class_name == &STR_SIMPLE_XML_ELEMENT && interface_name == STR_TRAVERSABLE {
+                    if class_name == &StrId::SIMPLE_XML_ELEMENT
+                        && interface_name == StrId::TRAVERSABLE
+                    {
                         storage.template_extended_offsets.insert(
                             interface_name,
                             vec![Arc::new(get_named_object(*class_name))],
@@ -268,13 +269,13 @@ pub(crate) fn scan(
                 );
             }
 
-            storage.direct_parent_class = Some(STR_BUILTIN_ENUM_CLASS);
-            storage.all_parent_classes.insert(STR_BUILTIN_ENUM_CLASS);
+            storage.direct_parent_class = Some(StrId::BUILTIN_ENUM_CLASS);
+            storage.all_parent_classes.insert(StrId::BUILTIN_ENUM_CLASS);
 
             let mut params = Vec::new();
 
             params.push(Arc::new(wrap_atomic(TAtomic::TTypeAlias {
-                name: STR_MEMBER_OF,
+                name: StrId::MEMBER_OF,
                 type_params: Some(vec![
                     wrap_atomic(TAtomic::TNamedObject {
                         name: *class_name,
@@ -290,7 +291,7 @@ pub(crate) fn scan(
 
             storage
                 .template_extended_offsets
-                .insert(STR_BUILTIN_ENUM_CLASS, params);
+                .insert(StrId::BUILTIN_ENUM_CLASS, params);
         }
         ClassishKind::Cinterface => {
             storage.kind = SymbolKind::Interface;
@@ -384,8 +385,8 @@ pub(crate) fn scan(
         ClassishKind::Cenum => {
             storage.kind = SymbolKind::Enum;
 
-            storage.direct_parent_class = Some(STR_BUILTIN_ENUM);
-            storage.all_parent_classes.insert(STR_BUILTIN_ENUM);
+            storage.direct_parent_class = Some(StrId::BUILTIN_ENUM);
+            storage.all_parent_classes.insert(StrId::BUILTIN_ENUM);
 
             let mut params = Vec::new();
 
@@ -426,7 +427,7 @@ pub(crate) fn scan(
 
             storage
                 .template_extended_offsets
-                .insert(STR_BUILTIN_ENUM, params);
+                .insert(StrId::BUILTIN_ENUM, params);
 
             codebase
                 .symbols

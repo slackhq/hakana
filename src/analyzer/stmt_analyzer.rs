@@ -1,6 +1,6 @@
 use hakana_reflection_info::code_location::{HPos, StmtStart};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::{EFFECT_PURE, STR_AWAITABLE, STR_CONSTRUCT, STR_EMPTY};
+use hakana_reflection_info::{StrId, EFFECT_PURE};
 use hakana_type::get_arrayish_params;
 use rustc_hash::FxHashSet;
 
@@ -307,7 +307,7 @@ fn detect_unused_statement_expressions(
                         }
                     }
                     FunctionLikeIdentifier::Method(_, method_name_id) => {
-                        if method_name_id == STR_CONSTRUCT {
+                        if method_name_id == StrId::CONSTRUCT {
                             is_constructor_call = true;
                         }
 
@@ -340,8 +340,9 @@ fn detect_unused_statement_expressions(
     if let Some(functionlike_id) = functionlike_id {
         if let FunctionLikeIdentifier::Function(function_id) = functionlike_id {
             let codebase = statements_analyzer.get_codebase();
-            if let Some(functionlike_info) =
-                codebase.functionlike_infos.get(&(function_id, STR_EMPTY))
+            if let Some(functionlike_info) = codebase
+                .functionlike_infos
+                .get(&(function_id, StrId::EMPTY))
             {
                 if functionlike_info.must_use {
                     analysis_data.maybe_add_issue(
@@ -359,7 +360,10 @@ fn detect_unused_statement_expressions(
                     let function_name = statements_analyzer.get_interner().lookup(&function_id);
 
                     if (function_name.starts_with("HH\\Lib\\Keyset\\")
-                        || function_name.starts_with("HH\\Lib\\Vec\\") || function_name.starts_with("HH\\Lib\\Dict\\")) && expr_type.is_single() {
+                        || function_name.starts_with("HH\\Lib\\Vec\\")
+                        || function_name.starts_with("HH\\Lib\\Dict\\"))
+                        && expr_type.is_single()
+                    {
                         let array_types = get_arrayish_params(expr_type.get_single(), codebase);
 
                         if let Some((_, value_type)) = array_types {
@@ -369,9 +373,8 @@ fn detect_unused_statement_expressions(
                                         IssueKind::UnusedBuiltinReturnValue,
                                         format!(
                                             "The value {} returned from {} should be consumed",
-                                            expr_type.get_id(Some(
-                                                statements_analyzer.get_interner()
-                                            )),
+                                            expr_type
+                                                .get_id(Some(statements_analyzer.get_interner())),
                                             function_name
                                         ),
                                         statements_analyzer.get_hpos(&stmt.0),
@@ -427,7 +430,7 @@ fn analyze_awaitall(
             if t.is_single() {
                 let inner = t.get_single();
                 if let TAtomic::TNamedObject {
-                    name: STR_AWAITABLE,
+                    name: StrId::AWAITABLE,
                     type_params: Some(type_params),
                     ..
                 } = inner

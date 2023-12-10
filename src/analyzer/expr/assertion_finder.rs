@@ -6,13 +6,13 @@ use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::ReferenceSource;
 use hakana_reflection_info::t_atomic::DictKey;
+use hakana_reflection_info::StrId;
 use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::populate_union_type,
 };
-use hakana_reflection_info::{StrId, STR_ISSET, STR_SHAPES};
 use hakana_reflector::typehint_resolver::get_type_from_hint;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
@@ -275,12 +275,10 @@ fn get_is_assertions(
         }
 
         if let (Some(lhs_type), Some((codebase, interner))) = (
-            analysis_data
-                .expr_types
-                .get(&(
-                    var_expr.1.start_offset() as u32,
-                    var_expr.1.end_offset() as u32,
-                )),
+            analysis_data.expr_types.get(&(
+                var_expr.1.start_offset() as u32,
+                var_expr.1.end_offset() as u32,
+            )),
             assertion_context.codebase,
         ) {
             if !union_type_comparator::can_expression_types_be_identical(
@@ -372,7 +370,7 @@ fn scrape_shapes_isset(
 
             if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
                 if let Some((codebase, interner)) = assertion_context.codebase {
-                    if class_name == STR_SHAPES && interner.lookup(&member_name) == "idx" {
+                    if class_name == StrId::SHAPES && interner.lookup(&member_name) == "idx" {
                         let shape_name = get_var_id(
                             &call.args[0].1,
                             assertion_context.this_class_name,
@@ -536,7 +534,7 @@ fn scrape_function_assertions(
 
     let mut if_types = FxHashMap::default();
 
-    if function_name == &STR_ISSET {
+    if function_name == &StrId::ISSET {
         let (first_arg, first_var_name, first_var_type) = firsts.unwrap();
         if let Some(first_var_name) = first_var_name {
             if let Some(first_var_type) = first_var_type {

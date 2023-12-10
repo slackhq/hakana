@@ -27,7 +27,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{Interner, STR_AWAITABLE, STR_EMPTY};
+use hakana_reflection_info::{Interner, StrId};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
@@ -35,7 +35,6 @@ use itertools::Itertools;
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
 use rustc_hash::FxHashSet;
-
 
 use std::rc::Rc;
 
@@ -68,7 +67,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             ));
         };
 
-        if self.file_analyzer.analysis_config.ast_diff && self.file_analyzer.codebase.safe_symbols.contains(&name) {
+        if self.file_analyzer.analysis_config.ast_diff
+            && self.file_analyzer.codebase.safe_symbols.contains(&name)
+        {
             return Ok(());
         }
 
@@ -76,7 +77,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             .file_analyzer
             .codebase
             .functionlike_infos
-            .get(&(name, STR_EMPTY))
+            .get(&(name, StrId::EMPTY))
         {
             f
         } else {
@@ -108,9 +109,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let mut function_context = FunctionContext::new();
 
-        function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Function(
-            function_storage.name,
-        ));
+        function_context.calling_functionlike_id =
+            Some(FunctionLikeIdentifier::Function(function_storage.name));
 
         self.analyze_functionlike(
             &mut statements_analyzer,
@@ -216,9 +216,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let codebase = self.file_analyzer.codebase;
 
-        if self.file_analyzer.analysis_config.ast_diff && codebase
+        if self.file_analyzer.analysis_config.ast_diff
+            && codebase
                 .safe_symbol_members
-                .contains(&(classlike_storage.name, method_name)) {
+                .contains(&(classlike_storage.name, method_name))
+        {
             return Ok(());
         }
 
@@ -442,7 +444,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 None
             },
-            parent_analysis_data.as_ref().map(|parent_analysis_data| parent_analysis_data.hakana_fixme_or_ignores.clone()),
+            parent_analysis_data
+                .as_ref()
+                .map(|parent_analysis_data| parent_analysis_data.hakana_fixme_or_ignores.clone()),
         );
 
         if let Some(parent_analysis_data) = &parent_analysis_data {
@@ -671,7 +675,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     inferred_return_type = Some(if functionlike_storage.is_async {
                         wrap_atomic(TAtomic::TNamedObject {
-                            name: STR_AWAITABLE,
+                            name: StrId::AWAITABLE,
                             type_params: Some(vec![get_void()]),
                             is_this: false,
                             extra_types: None,
@@ -708,7 +712,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 } else {
                     inferred_return_type = Some(if functionlike_storage.is_async {
                         wrap_atomic(TAtomic::TNamedObject {
-                            name: STR_AWAITABLE,
+                            name: StrId::AWAITABLE,
                             type_params: Some(vec![get_void()]),
                             is_this: false,
                             extra_types: None,
@@ -1031,45 +1035,46 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 });
             }
 
-            let new_parent_node = if let GraphKind::WholeProgram(_) =
-                &analysis_data.data_flow_graph.kind
-            {
-                DataFlowNode::get_for_assignment(param.name.clone(), param.name_location)
-            } else {
-                let id = format!(
-                    "{}-{}:{}-{}",
-                    param.name,
-                    interner.lookup(&param.name_location.file_path.0),
-                    param.name_location.start_offset,
-                    param.name_location.end_offset
-                );
+            let new_parent_node =
+                if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
+                    DataFlowNode::get_for_assignment(param.name.clone(), param.name_location)
+                } else {
+                    let id = format!(
+                        "{}-{}:{}-{}",
+                        param.name,
+                        interner.lookup(&param.name_location.file_path.0),
+                        param.name_location.start_offset,
+                        param.name_location.end_offset
+                    );
 
-                DataFlowNode {
-                    id,
-                    kind: DataFlowNodeKind::VariableUseSource {
-                        pos: param.name_location,
-                        kind: if param.is_inout {
-                            VariableSourceKind::InoutParam
-                        } else if context.calling_closure_id.is_some() {
-                            VariableSourceKind::ClosureParam
-                        } else if let Some(method_storage) = &functionlike_storage.method_info {
-                            match &method_storage.visibility {
-                                MemberVisibility::Public | MemberVisibility::Protected => {
-                                    VariableSourceKind::NonPrivateParam
+                    DataFlowNode {
+                        id,
+                        kind: DataFlowNodeKind::VariableUseSource {
+                            pos: param.name_location,
+                            kind: if param.is_inout {
+                                VariableSourceKind::InoutParam
+                            } else if context.calling_closure_id.is_some() {
+                                VariableSourceKind::ClosureParam
+                            } else if let Some(method_storage) = &functionlike_storage.method_info {
+                                match &method_storage.visibility {
+                                    MemberVisibility::Public | MemberVisibility::Protected => {
+                                        VariableSourceKind::NonPrivateParam
+                                    }
+                                    MemberVisibility::Private => VariableSourceKind::PrivateParam,
                                 }
-                                MemberVisibility::Private => VariableSourceKind::PrivateParam,
-                            }
-                        } else {
-                            VariableSourceKind::PrivateParam
+                            } else {
+                                VariableSourceKind::PrivateParam
+                            },
+                            label: param.name.clone(),
+                            pure: false,
+                            has_awaitable: param_type.has_awaitable_types(),
                         },
-                        label: param.name.clone(),
-                        pure: false,
-                        has_awaitable: param_type.has_awaitable_types(),
-                    },
-                }
-            };
+                    }
+                };
 
-            if !param.promoted_property && analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+            if !param.promoted_property
+                && analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
+            {
                 analysis_data
                     .data_flow_graph
                     .add_node(new_parent_node.clone());
@@ -1083,10 +1088,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 let calling_id = if let Some(calling_closure_id) = context.calling_closure_id {
                     FunctionLikeIdentifier::Function(calling_closure_id)
                 } else {
-                    context
-                        .function_context
-                        .calling_functionlike_id
-                        .unwrap()
+                    context.function_context.calling_functionlike_id.unwrap()
                 };
 
                 let argument_node = DataFlowNode::get_for_method_argument(
@@ -1288,7 +1290,8 @@ fn report_unused_expressions(
 fn get_param_pos(functionlike_storage: &FunctionLikeInfo, label: &String) -> HPos {
     functionlike_storage
         .params
-        .iter().find(|p| &p.name == label)
+        .iter()
+        .find(|p| &p.name == label)
         .unwrap()
         .location
 }
@@ -1389,10 +1392,7 @@ pub(crate) fn update_analysis_result_with_tast(
     }
 
     if !analysis_data.insertions.is_empty() {
-        let file_insertions = analysis_result
-            .insertions
-            .entry(*file_path)
-            .or_default();
+        let file_insertions = analysis_result.insertions.entry(*file_path).or_default();
 
         for (offset, insertions) in analysis_data.insertions {
             file_insertions

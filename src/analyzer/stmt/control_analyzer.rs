@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::scope_context::control_action::ControlAction;
-use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId, STR_EMPTY};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId};
 use oxidized::{aast, ast::CallExpr};
 
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -525,11 +525,10 @@ fn handle_call(
                 return Some(control_end(control_actions.clone()));
             }
 
-            let resolved_name =
-                resolved_names.get(&id.0.start_offset())?;
+            let resolved_name = resolved_names.get(&id.0.start_offset())?;
             if let Some(functionlike_storage) = codebase
                 .functionlike_infos
-                .get(&(*resolved_name, STR_EMPTY))
+                .get(&(*resolved_name, StrId::EMPTY))
             {
                 if let Some(return_type) = &functionlike_storage.return_type {
                     if return_type.is_nothing() {
@@ -551,8 +550,7 @@ fn handle_call(
                             _ => {
                                 let name_string = resolved_names.get(&id.0.start_offset())?;
 
-                                let method_name =
-                                    interner.get(&boxed.1 .1)?;
+                                let method_name = interner.get(&boxed.1 .1)?;
 
                                 if let Some(functionlike_storage) = codebase
                                     .functionlike_infos

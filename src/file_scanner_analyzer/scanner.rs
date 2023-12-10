@@ -31,7 +31,6 @@ use hakana_reflection_info::FileSource;
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::ThreadedInterner;
-use hakana_reflection_info::STR_EMPTY;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use oxidized::aast;
@@ -236,7 +235,9 @@ pub fn scan_files(
             if let FileStatus::Deleted = status {
                 if let Some(deleted_file_info) = updated_files.get(target_file) {
                     for node in &deleted_file_info.ast_nodes {
-                        codebase_diff.add_or_delete.insert((node.name, STR_EMPTY));
+                        codebase_diff
+                            .add_or_delete
+                            .insert((node.name, StrId::EMPTY));
                     }
                 }
             }
@@ -618,7 +619,7 @@ fn invalidate_changed_codebase_elements(
                     if ast_node.is_function {
                         codebase
                             .functionlike_infos
-                            .remove(&(ast_node.name, STR_EMPTY));
+                            .remove(&(ast_node.name, StrId::EMPTY));
                     } else if ast_node.is_constant {
                         codebase.constant_infos.remove(&ast_node.name);
                     }

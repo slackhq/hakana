@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    StrId, STR_AWAITABLE, STR_KEYED_CONTAINER,
+    StrId,
 };
 
 pub(crate) fn is_contained_by(
@@ -129,7 +129,7 @@ pub(crate) fn is_contained_by(
         _ => panic!(),
     };
 
-    let awaitable_id = STR_AWAITABLE;
+    let awaitable_id = StrId::AWAITABLE;
 
     if input_name == &awaitable_id && container_name == &awaitable_id {
         if let (Some(input_param), Some(container_param)) =
@@ -242,7 +242,7 @@ pub(crate) fn compare_generic_params(
             }
         }
 
-        if input_name == &STR_KEYED_CONTAINER && container_param_offset == 0 {
+        if input_name == &StrId::KEYED_CONTAINER && container_param_offset == 0 {
             param_comparison_result.type_coerced_from_nested_mixed = Some(true);
         }
 
@@ -294,7 +294,9 @@ pub(crate) fn compare_generic_params(
                 input_param.ignore_falsable_issues,
                 inside_assertion,
                 &mut param_comparison_result,
-            ) || param_comparison_result.type_coerced.unwrap_or(false)) && (!container_param.has_static_object() || !input_param.is_static_object()) {
+            ) || param_comparison_result.type_coerced.unwrap_or(false))
+                && (!container_param.has_static_object() || !input_param.is_static_object())
+            {
                 *all_types_contain = false;
 
                 atomic_comparison_result.type_coerced = Some(false);

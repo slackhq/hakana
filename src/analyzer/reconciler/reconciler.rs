@@ -12,7 +12,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    Interner, StrId, STR_CONTAINER, STR_KEYED_CONTAINER, STR_STDCLASS,
+    Interner, StrId,
 };
 use hakana_type::{
     add_union_type, get_mixed_any, get_null, get_value_param,
@@ -880,8 +880,8 @@ fn get_value_for_key(
                     } = &existing_key_type_part
                     {
                         match name {
-                            &STR_KEYED_CONTAINER | &STR_CONTAINER => {
-                                new_base_type_candidate = if name == &STR_KEYED_CONTAINER {
+                            &StrId::KEYED_CONTAINER | &StrId::CONTAINER => {
+                                new_base_type_candidate = if name == &StrId::KEYED_CONTAINER {
                                     type_params[1].clone()
                                 } else {
                                     type_params[0].clone()
@@ -966,7 +966,7 @@ fn get_value_for_key(
                         ..
                     } = existing_key_type_part
                     {
-                        if fq_class_name == STR_STDCLASS
+                        if fq_class_name == StrId::STDCLASS
                             || !codebase.class_or_interface_exists(&fq_class_name)
                         {
                             class_property_type = get_mixed_any();

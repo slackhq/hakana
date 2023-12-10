@@ -2,7 +2,7 @@ use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, STR_EMPTY};
+use hakana_reflection_info::{EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, StrId};
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{get_arrayish_params, get_void};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -107,7 +107,7 @@ pub(crate) fn analyze(
     let codebase = statements_analyzer.get_codebase();
 
     let function_storage =
-        if let Some(function_storage) = codebase.functionlike_infos.get(&(name, STR_EMPTY)) {
+        if let Some(function_storage) = codebase.functionlike_infos.get(&(name, StrId::EMPTY)) {
             function_storage
         } else {
             analysis_data.maybe_add_issue(

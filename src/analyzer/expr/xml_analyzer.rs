@@ -18,7 +18,6 @@ use hakana_reflection_info::taint::SinkType;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_reflection_info::EFFECT_PURE;
-use hakana_reflection_info::STR_DATA_ATTRIBUTE;
 use hakana_type::get_named_object;
 use itertools::Itertools;
 use oxidized::aast;
@@ -361,8 +360,8 @@ fn analyze_xhp_attribute_assignment(
     let codebase = statements_analyzer.get_codebase();
 
     if let Some(classlike_info) = codebase.classlike_infos.get(element_name) {
-        if attribute_name != STR_DATA_ATTRIBUTE
-            && attribute_name != STR_DATA_ATTRIBUTE
+        if attribute_name != StrId::DATA_ATTRIBUTE
+            && attribute_name != StrId::DATA_ATTRIBUTE
             && !classlike_info
                 .appearing_property_ids
                 .contains_key(&attribute_name)
@@ -445,9 +444,9 @@ fn get_attribute_name(
     element_name: &StrId,
 ) -> Result<StrId, AnalysisError> {
     if attribute_info.name.1.starts_with("data-") {
-        Ok(STR_DATA_ATTRIBUTE)
+        Ok(StrId::DATA_ATTRIBUTE)
     } else if attribute_info.name.1.starts_with("aria-") {
-        Ok(STR_DATA_ATTRIBUTE)
+        Ok(StrId::DATA_ATTRIBUTE)
     } else {
         let attribute_name = if let Some(resolved_name) =
             resolved_names.get(&attribute_info.name.0.start_offset())
@@ -483,8 +482,8 @@ fn add_xml_attribute_dataflow(
     if let Some(classlike_storage) = codebase.classlike_infos.get(element_name) {
         let element_name = statements_analyzer.get_interner().lookup(element_name);
         if element_name.starts_with("Facebook\\XHP\\HTML\\")
-            || property_id.1 == STR_DATA_ATTRIBUTE
-            || property_id.1 == STR_DATA_ATTRIBUTE
+            || property_id.1 == StrId::DATA_ATTRIBUTE
+            || property_id.1 == StrId::DATA_ATTRIBUTE
         {
             let label = format!(
                 "{}::${}",

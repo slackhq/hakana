@@ -4,7 +4,6 @@ use super::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
-use hakana_reflection_info::STR_XHP_CHILD;
 use hakana_reflection_info::{
     assertion::Assertion, codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion, StrId,
@@ -601,7 +600,7 @@ fn handle_literal_negated_equality(
                 acceptable_types.push(existing_atomic_type);
             }
             TAtomic::TNamedObject { name, .. } => {
-                if name == STR_XHP_CHILD {
+                if name == StrId::XHP_CHILD {
                     did_remove_type = true;
                 }
 

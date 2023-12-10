@@ -32,7 +32,7 @@ use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::{EFFECT_IMPURE, STR_AWAITABLE, STR_EMPTY};
+use hakana_reflection_info::{StrId, EFFECT_IMPURE};
 use hakana_type::type_expander::get_closure_from_id;
 use hakana_type::{
     get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
@@ -249,7 +249,7 @@ pub(crate) fn analyze(
 
             if let ast_defs::OgNullFlavor::OGNullsafe = nullfetch {
                 // handle nullsafe calls
-            } 
+            }
         }
         aast::Expr_::New(boxed) => {
             new_analyzer::analyze(
@@ -472,7 +472,7 @@ pub(crate) fn analyze(
 
             for atomic_type in awaited_types {
                 if let TAtomic::TNamedObject {
-                    name: STR_AWAITABLE,
+                    name: StrId::AWAITABLE,
                     type_params: Some(ref type_params),
                     ..
                 } = atomic_type
@@ -714,9 +714,7 @@ pub(crate) fn find_expr_logic_issues(
     expr_clauses = expr_clauses
         .into_iter()
         .map(|c| {
-            let keys = &c
-                .possibilities.keys()
-                .collect::<Vec<&String>>();
+            let keys = &c.possibilities.keys().collect::<Vec<&String>>();
 
             let mut new_mixed_var_ids = vec![];
             for i in mixed_var_ids.clone() {
@@ -854,7 +852,7 @@ fn analyze_function_pointer(
 
             if !codebase
                 .functionlike_infos
-                .contains_key(&(*name, STR_EMPTY))
+                .contains_key(&(*name, StrId::EMPTY))
             {
                 analysis_data.maybe_add_issue(
                     Issue::new(
@@ -883,10 +881,8 @@ fn analyze_function_pointer(
                 );
 
             if let Some(classlike_storage) = codebase.classlike_infos.get(class_name) {
-                let declaring_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
-                    *class_name,
-                    *method_name,
-                ));
+                let declaring_method_id =
+                    codebase.get_declaring_method_id(&MethodIdentifier(*class_name, *method_name));
 
                 if let Some(overridden_classlikes) = classlike_storage
                     .overridden_method_ids

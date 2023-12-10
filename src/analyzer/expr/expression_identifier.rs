@@ -1,6 +1,6 @@
 use hakana_reflection_info::{
     ast::get_id_name, codebase_info::CodebaseInfo, functionlike_identifier::FunctionLikeIdentifier,
-    Interner, StrId, STR_ISSET,
+    Interner, StrId,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -176,7 +176,7 @@ pub fn get_functionlike_id_from_call(
         aast::Expr_::Id(boxed_id) => {
             if let Some(interner) = interner {
                 let name = if boxed_id.1 == "isset" {
-                    STR_ISSET
+                    StrId::ISSET
                 } else if boxed_id.1 == "\\in_array" {
                     interner.get("in_array").unwrap()
                 } else if let Some(resolved_name) = resolved_names.get(&boxed_id.0.start_offset()) {

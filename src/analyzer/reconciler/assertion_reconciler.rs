@@ -14,8 +14,7 @@ use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_KEYED_TRAVERSABLE,
-    STR_TRAVERSABLE, STR_XHP_CHILD,
+    StrId,
 };
 use hakana_type::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
@@ -427,10 +426,10 @@ pub(crate) fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            if type_1_name == &STR_XHP_CHILD {
-                if type_2_name == &STR_KEYED_CONTAINER || type_2_name == &STR_KEYED_TRAVERSABLE {
+            if type_1_name == &StrId::XHP_CHILD {
+                if type_2_name == &StrId::KEYED_CONTAINER || type_2_name == &StrId::KEYED_TRAVERSABLE {
                     let mut atomic = TAtomic::TNamedObject {
-                        name: STR_ANY_ARRAY,
+                        name: StrId::ANY_ARRAY,
                         type_params: type_2_params.clone(),
                         is_this: false,
                         extra_types: None,
@@ -438,11 +437,11 @@ pub(crate) fn intersect_atomic_with_atomic(
                     };
                     atomic.remove_placeholders();
                     return Some(atomic);
-                } else if type_2_name == &STR_CONTAINER || type_2_name == &STR_TRAVERSABLE {
+                } else if type_2_name == &StrId::CONTAINER || type_2_name == &StrId::TRAVERSABLE {
                     let type_2_params = type_2_params.as_ref().map(|type_2_params| vec![get_arraykey(true), type_2_params[0].clone()]);
 
                     let mut atomic = TAtomic::TNamedObject {
-                        name: STR_ANY_ARRAY,
+                        name: StrId::ANY_ARRAY,
                         type_params: type_2_params,
                         is_this: false,
                         extra_types: None,
@@ -515,9 +514,9 @@ pub(crate) fn intersect_atomic_with_atomic(
                 ..
             },
         ) => {
-            let (type_1_key_param, type_1_value_param) = if type_1_name == &STR_CONTAINER {
+            let (type_1_key_param, type_1_value_param) = if type_1_name == &StrId::CONTAINER {
                 (get_arraykey(true), &type_1_params[0])
-            } else if type_1_name == &STR_KEYED_CONTAINER {
+            } else if type_1_name == &StrId::KEYED_CONTAINER {
                 (type_1_params[0].clone(), &type_1_params[1])
             } else {
                 return None;

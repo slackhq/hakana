@@ -3,7 +3,7 @@ use crate::{
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
     t_atomic::{populate_atomic_type, DictKey, TAtomic},
-    Interner, StrId, STR_AWAITABLE, STR_LIB_REGEX_PATTERN,
+    Interner, StrId,
 };
 use derivative::Derivative;
 use itertools::Itertools;
@@ -321,7 +321,7 @@ impl TUnion {
             matches!(
                 a,
                 TypeNode::Atomic(TAtomic::TNamedObject {
-                    name: STR_AWAITABLE,
+                    name: StrId::AWAITABLE,
                     ..
                 })
             )
@@ -585,7 +585,7 @@ impl TUnion {
                     as_type: Some(as_type),
                     type_params: Some(_),
                 } => {
-                    if name == &STR_LIB_REGEX_PATTERN {
+                    if name == &StrId::LIB_REGEX_PATTERN {
                         if let TAtomic::TLiteralString { value, .. } = as_type.get_single() {
                             Some(value.clone())
                         } else {

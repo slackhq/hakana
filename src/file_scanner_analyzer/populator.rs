@@ -8,7 +8,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::symbol_references::{ReferenceSource, SymbolReferences};
 use hakana_reflection_info::t_atomic::{populate_atomic_type, TAtomic};
 use hakana_reflection_info::t_union::{populate_union_type, TUnion};
-use hakana_reflection_info::{Interner, StrId, STR_EMPTY};
+use hakana_reflection_info::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -55,7 +55,7 @@ pub fn populate_codebase(
         populate_functionlike_storage(
             v,
             &codebase.symbols,
-            &if name.1 == STR_EMPTY {
+            &if name.1 == StrId::EMPTY {
                 ReferenceSource::Symbol(true, name.0)
             } else {
                 ReferenceSource::ClasslikeMember(true, name.0, name.1)
@@ -329,17 +329,13 @@ fn populate_classlike_storage(
     };
 
     if storage.is_populated {
-        codebase
-            .classlike_infos
-            .insert(*classlike_name, storage);
+        codebase.classlike_infos.insert(*classlike_name, storage);
         return;
     }
 
     if let Some(classlike_descendants) = all_classlike_descendants.get(classlike_name) {
         if classlike_descendants.contains(classlike_name) {
-            codebase
-                .classlike_infos
-                .insert(*classlike_name, storage);
+            codebase.classlike_infos.insert(*classlike_name, storage);
             // todo complain about circular reference
             return;
         }
@@ -462,9 +458,7 @@ fn populate_classlike_storage(
 
     storage.is_populated = true;
 
-    codebase
-        .classlike_infos
-        .insert(*classlike_name, storage);
+    codebase.classlike_infos.insert(*classlike_name, storage);
 }
 
 fn populate_interface_data_from_parent_or_implemented_interface(
@@ -512,9 +506,7 @@ fn populate_interface_data_from_parent_interface(
     {
         parent_interface_storage
     } else {
-        storage
-            .invalid_dependencies
-            .push(*parent_storage_interface);
+        storage.invalid_dependencies.push(*parent_storage_interface);
         return;
     };
 
@@ -550,9 +542,7 @@ fn populate_data_from_implemented_interface(
     {
         implemented_interface_storage
     } else {
-        storage
-            .invalid_dependencies
-            .push(*parent_storage_interface);
+        storage.invalid_dependencies.push(*parent_storage_interface);
         return;
     };
 
@@ -591,9 +581,7 @@ fn populate_data_from_parent_classlike(
     let parent_storage = if let Some(parent_storage) = parent_storage {
         parent_storage
     } else {
-        storage
-            .invalid_dependencies
-            .push(*parent_storage_class);
+        storage.invalid_dependencies.push(*parent_storage_class);
         return;
     };
 
@@ -749,7 +737,7 @@ fn inherit_methods_from_parent(
     }
 
     for (method_name, declaring_class) in &parent_storage.inheritable_method_ids {
-        if *method_name != STR_EMPTY || parent_storage.preserve_constructor_signature {
+        if *method_name != StrId::EMPTY || parent_storage.preserve_constructor_signature {
             storage
                 .overridden_method_ids
                 .entry(*method_name)

@@ -109,6 +109,8 @@ pub struct FunctionLikeInfo {
 
     pub effects: FnEffect,
 
+    pub pure_can_throw: bool,
+
     /**
      * Whether or not the function output is dependent solely on input - a function can be
      * impure but still have this property (e.g. var_export). Useful for taint analysis.
@@ -202,6 +204,7 @@ impl FunctionLikeInfo {
             where_constraints: vec![],
             async_version: None,
             is_production_code: true,
+            pure_can_throw: false,
         }
     }
 

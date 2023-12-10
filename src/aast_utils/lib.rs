@@ -1,7 +1,7 @@
 use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
 
 use hakana_reflection_info::code_location::{FilePath, HPos};
-use hakana_reflection_info::{StrId, ThreadedInterner, STR_EMPTY};
+use hakana_reflection_info::{StrId, ThreadedInterner};
 use name_context::NameContext;
 use naming_visitor::Scanner;
 use oxidized::ast_defs::Pos;
@@ -52,7 +52,7 @@ pub fn get_aast_for_path_and_contents(
             return Err(match err {
                 aast_parser::Error::ParserFatal(err, pos) => ParserError::SyntaxError {
                     message: err.message.to_string(),
-                    pos: HPos::new(&pos, FilePath(STR_EMPTY), None),
+                    pos: HPos::new(&pos, FilePath(StrId::EMPTY), None),
                 },
                 _ => ParserError::NotAHackFile,
             })

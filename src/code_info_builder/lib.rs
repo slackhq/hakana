@@ -13,7 +13,7 @@ use hakana_reflection_info::{
     taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
     type_resolution::TypeResolutionContext, StrId,
 };
-use hakana_reflection_info::{FileSource, ThreadedInterner, STR_CONSTRUCT, STR_EMPTY};
+use hakana_reflection_info::{FileSource, ThreadedInterner};
 use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
 use indexmap::IndexMap;
 use no_pos_hash::{position_insensitive_hash, Hasher};
@@ -498,7 +498,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         {
             if !classlike_storage.template_readonly.is_empty()
                 && matches!(m.visibility, ast_defs::Visibility::Public)
-                && method_name != STR_CONSTRUCT
+                && method_name != StrId::CONSTRUCT
             {
                 for param in &functionlike_storage.params {
                     if let Some(param_type) = &param.signature_type {
@@ -574,7 +574,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         self.codebase
             .functionlike_infos
-            .insert((name, STR_EMPTY), functionlike_storage);
+            .insert((name, StrId::EMPTY), functionlike_storage);
 
         c.function_name = Some(name);
 
@@ -639,7 +639,7 @@ impl<'a> Scanner<'a> {
             if let Some(parent_function_id) = &c.function_name {
                 self.codebase
                     .functionlike_infos
-                    .get(&(*parent_function_id, STR_EMPTY))
+                    .get(&(*parent_function_id, StrId::EMPTY))
             } else if let (Some(parent_class_id), Some(parent_method_id)) =
                 (&c.classlike_name, &c.member_name)
             {

@@ -12,8 +12,7 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic},
-    t_union::TUnion,
-    STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_XHP_CHILD,
+    t_union::TUnion, StrId,
 };
 use hakana_type::{
     get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
@@ -516,7 +515,7 @@ pub(crate) fn intersect_null(
                 type_params: None,
                 ..
             } => match *name {
-                STR_XHP_CHILD => {
+                StrId::XHP_CHILD => {
                     acceptable_types.push(TAtomic::TNull);
                     did_remove_type = true;
                 }
@@ -714,7 +713,7 @@ fn intersect_vec(
                 ..
             } => {
                 match *name {
-                    STR_CONTAINER => {
+                    StrId::CONTAINER => {
                         acceptable_types.push(TAtomic::TVec {
                             type_param: Box::new(typed_params.first().unwrap().clone()),
                             known_items: None,
@@ -722,7 +721,7 @@ fn intersect_vec(
                             known_count: None,
                         });
                     }
-                    STR_KEYED_CONTAINER | STR_ANY_ARRAY => {
+                    StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => {
                         acceptable_types.push(TAtomic::TVec {
                             type_param: Box::new(typed_params.get(1).unwrap().clone()),
                             known_items: None,
@@ -730,7 +729,7 @@ fn intersect_vec(
                             known_count: None,
                         });
                     }
-                    STR_XHP_CHILD => {
+                    StrId::XHP_CHILD => {
                         acceptable_types.push(TAtomic::TVec {
                             type_param: Box::new(wrap_atomic(atomic.clone())),
                             known_items: None,
@@ -808,17 +807,17 @@ fn intersect_keyset(
                 ..
             } => {
                 match *name {
-                    STR_CONTAINER => {
+                    StrId::CONTAINER => {
                         acceptable_types.push(TAtomic::TKeyset {
                             type_param: Box::new(get_arraykey(true)),
                         });
                     }
-                    STR_KEYED_CONTAINER | STR_ANY_ARRAY => {
+                    StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => {
                         acceptable_types.push(TAtomic::TKeyset {
                             type_param: Box::new(typed_params.first().unwrap().clone()),
                         });
                     }
-                    STR_XHP_CHILD => {
+                    StrId::XHP_CHILD => {
                         acceptable_types.push(TAtomic::TKeyset {
                             type_param: Box::new(wrap_atomic(atomic.clone())),
                         });
@@ -936,7 +935,7 @@ fn intersect_dict(
                 name, type_params, ..
             } => {
                 match *name {
-                    STR_CONTAINER => {
+                    StrId::CONTAINER => {
                         if let Some(typed_params) = type_params {
                             acceptable_types.push(TAtomic::TDict {
                                 params: Some((
@@ -949,7 +948,7 @@ fn intersect_dict(
                             });
                         }
                     }
-                    STR_KEYED_CONTAINER | STR_ANY_ARRAY => {
+                    StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => {
                         if let Some(typed_params) = type_params {
                             acceptable_types.push(TAtomic::TDict {
                                 params: Some((
@@ -962,7 +961,7 @@ fn intersect_dict(
                             });
                         }
                     }
-                    STR_XHP_CHILD => {
+                    StrId::XHP_CHILD => {
                         acceptable_types.push(TAtomic::TDict {
                             params: Some((
                                 Box::new(get_arraykey(true)),

@@ -5,10 +5,7 @@ use crate::{
     codebase_info::{symbols::SymbolKind, Symbols},
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };
-use crate::{
-    Interner, StrId, STR_ANY_ARRAY, STR_CONTAINER, STR_KEYED_CONTAINER, STR_KEYED_TRAVERSABLE,
-    STR_LIB_REGEX_PATTERN, STR_PHP_INCOMPLETE_CLASS, STR_TRAVERSABLE,
-};
+use crate::{Interner, StrId};
 use derivative::Derivative;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -1028,11 +1025,11 @@ impl TAtomic {
             | &TAtomic::TTypename { .. } => true,
             &TAtomic::TNamedObject { name, .. } => !matches!(
                 name,
-                &STR_CONTAINER
-                    | &STR_KEYED_CONTAINER
-                    | &STR_ANY_ARRAY
-                    | &STR_TRAVERSABLE
-                    | &STR_KEYED_TRAVERSABLE
+                &StrId::CONTAINER
+                    | &StrId::KEYED_CONTAINER
+                    | &StrId::ANY_ARRAY
+                    | &StrId::TRAVERSABLE
+                    | &StrId::KEYED_TRAVERSABLE
             ),
             &TAtomic::TLiteralInt { value, .. } => {
                 if *value != 0 {
@@ -1295,9 +1292,9 @@ impl TAtomic {
                 type_params: Some(ref mut type_params),
                 ..
             } => {
-                if name == &STR_KEYED_CONTAINER
-                    || name == &STR_ANY_ARRAY
-                    || name == &STR_KEYED_TRAVERSABLE
+                if name == &StrId::KEYED_CONTAINER
+                    || name == &StrId::ANY_ARRAY
+                    || name == &StrId::KEYED_TRAVERSABLE
                 {
                     if let Some(key_param) = type_params.get_mut(0) {
                         if let TAtomic::TPlaceholder = key_param.get_single() {
@@ -1312,7 +1309,7 @@ impl TAtomic {
                             )]);
                         }
                     }
-                } else if name == &STR_CONTAINER || name == &STR_TRAVERSABLE {
+                } else if name == &StrId::CONTAINER || name == &StrId::TRAVERSABLE {
                     if let Some(value_param) = type_params.get_mut(0) {
                         if let TAtomic::TPlaceholder = value_param.get_single() {
                             *value_param = TUnion::new(vec![TAtomic::TMixedWithFlags(
@@ -1340,7 +1337,7 @@ impl TAtomic {
                 as_type: Some(as_type),
                 type_params: Some(_),
             } => {
-                if name == &STR_LIB_REGEX_PATTERN {
+                if name == &StrId::LIB_REGEX_PATTERN {
                     if let TAtomic::TLiteralString { value, .. } = as_type.get_single() {
                         Some(value.clone())
                     } else {
@@ -1376,9 +1373,9 @@ impl TAtomic {
                 name, type_params, ..
             } => {
                 if let Some(type_params) = type_params {
-                    if name == &STR_ANY_ARRAY || name == &STR_KEYED_CONTAINER {
+                    if name == &StrId::ANY_ARRAY || name == &StrId::KEYED_CONTAINER {
                         return type_params[1].is_json_compatible(banned_type_aliases);
-                    } else if name == &STR_CONTAINER {
+                    } else if name == &StrId::CONTAINER {
                         return type_params[0].is_json_compatible(banned_type_aliases);
                     }
                 }
@@ -1750,7 +1747,7 @@ pub fn populate_atomic_type(
                         };
                     }
                 }
-            } else if *name == STR_PHP_INCOMPLETE_CLASS {
+            } else if *name == StrId::PHP_INCOMPLETE_CLASS {
                 *t_atomic = TAtomic::TNamedObject {
                     name: *name,
                     type_params: None,

@@ -10,7 +10,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
-use hakana_reflection_info::{FileSource, Interner, StrId, ThreadedInterner, STR_EMPTY};
+use hakana_reflection_info::{FileSource, Interner, StrId, ThreadedInterner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Mutex};
 
@@ -191,7 +191,7 @@ pub fn scan_single_file(
     path: String,
     file_contents: String,
 ) -> std::result::Result<FxHashMap<usize, StrId>, ParserError> {
-    let aast = match get_aast_for_path_and_contents(FilePath(STR_EMPTY), &path, file_contents) {
+    let aast = match get_aast_for_path_and_contents(FilePath(StrId::EMPTY), &path, file_contents) {
         Ok(aast) => aast,
         Err(err) => return Err(err),
     };

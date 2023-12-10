@@ -10,8 +10,7 @@ use hakana_reflection_info::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    Interner, STR_ANY_ARRAY, STR_CONTAINER, STR_ENUM_CLASS_LABEL, STR_KEYED_CONTAINER,
-    STR_KEYED_TRAVERSABLE, STR_TRAVERSABLE,
+    Interner,
 };
 use hakana_reflection_info::{function_context::FunctionLikeIdentifier, StrId};
 use indexmap::IndexMap;
@@ -164,7 +163,10 @@ fn handle_atomic_standin(
             &template_result.template_types.clone(),
             param_name,
             defining_entity,
-        ).is_some() && replace {
+        )
+        .is_some()
+            && replace
+        {
             return handle_template_param_class_standin(
                 atomic_type,
                 template_result,
@@ -193,7 +195,10 @@ fn handle_atomic_standin(
             &template_result.template_types.clone(),
             param_name,
             defining_entity,
-        ).is_some() && replace {
+        )
+        .is_some()
+            && replace
+        {
             return handle_template_param_type_standin(
                 atomic_type,
                 template_result,
@@ -499,14 +504,16 @@ fn replace_atomic(
                                     get_arrayish_params(input_inner, codebase).unwrap();
 
                                 match name {
-                                    &STR_KEYED_CONTAINER | &STR_KEYED_TRAVERSABLE => {
+                                    &StrId::KEYED_CONTAINER | &StrId::KEYED_TRAVERSABLE => {
                                         if offset == 0 {
                                             Some(key_param)
                                         } else {
                                             Some(value_param)
                                         }
                                     }
-                                    &crate::STR_CONTAINER | &STR_TRAVERSABLE => Some(value_param),
+                                    &crate::StrId::CONTAINER | &StrId::TRAVERSABLE => {
+                                        Some(value_param)
+                                    }
                                     _ => None,
                                 }
                             }
@@ -1338,7 +1345,10 @@ fn handle_template_param_type_standin(
                             valid_input_atomic_types.push(TAtomic::TTypeAlias {
                                 name: *name,
                                 type_params: None,
-                                as_type: typedefinition_info.as_type.as_ref().map(|t| Box::new(t.clone())),
+                                as_type: typedefinition_info
+                                    .as_type
+                                    .as_ref()
+                                    .map(|t| Box::new(t.clone())),
                             });
                         } else {
                             valid_input_atomic_types
@@ -1591,7 +1601,12 @@ fn find_matching_atomic_types_for_template(
                         continue;
                     };
 
-                    if input_type_params.is_some() && classlike_info.template_extended_params.get(base_name).is_some() {
+                    if input_type_params.is_some()
+                        && classlike_info
+                            .template_extended_params
+                            .get(base_name)
+                            .is_some()
+                    {
                         matching_atomic_types.push(atomic_input_type.clone());
                         continue;
                     }
@@ -1645,7 +1660,7 @@ fn find_matching_atomic_types_for_template(
                     ..
                 } = base_type
                 {
-                    if *base_name == STR_ENUM_CLASS_LABEL {
+                    if *base_name == StrId::ENUM_CLASS_LABEL {
                         let enum_type = if let Some(class_name) = class_name {
                             TAtomic::TNamedObject {
                                 name: *class_name,
@@ -1700,11 +1715,11 @@ fn find_matching_atomic_types_for_template(
 }
 
 fn is_array_container(name: &StrId) -> bool {
-    name == &STR_TRAVERSABLE
-        || name == &STR_KEYED_TRAVERSABLE
-        || name == &STR_CONTAINER
-        || name == &STR_KEYED_CONTAINER
-        || name == &STR_ANY_ARRAY
+    name == &StrId::TRAVERSABLE
+        || name == &StrId::KEYED_TRAVERSABLE
+        || name == &StrId::CONTAINER
+        || name == &StrId::KEYED_CONTAINER
+        || name == &StrId::ANY_ARRAY
 }
 
 pub fn get_mapped_generic_type_params(

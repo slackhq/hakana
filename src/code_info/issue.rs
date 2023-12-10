@@ -6,7 +6,6 @@ use strum_macros::{Display, EnumString};
 
 use crate::{
     code_location::HPos, function_context::FunctionLikeIdentifier, taint::SinkType, StrId,
-    STR_EMPTY,
 };
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
@@ -231,9 +230,9 @@ impl Issue {
             kind,
             description,
             symbol: match calling_functionlike_id {
-                Some(FunctionLikeIdentifier::Function(id)) => (*id, STR_EMPTY),
+                Some(FunctionLikeIdentifier::Function(id)) => (*id, StrId::EMPTY),
                 Some(FunctionLikeIdentifier::Method(a, b)) => (*a, *b),
-                None => (pos.file_path.0, STR_EMPTY),
+                None => (pos.file_path.0, StrId::EMPTY),
             },
             pos,
             can_fix: false,

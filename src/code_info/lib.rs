@@ -54,41 +54,49 @@ pub struct FileSource<'a> {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct StrId(pub u32);
 
-pub const STR_EMPTY: StrId = StrId(0);
-pub const STR_THIS: StrId = StrId(1);
-pub const STR_ANONYMOUS_FN: StrId = StrId(2);
-pub const STR_ISSET: StrId = StrId(3);
-pub const STR_UNSET: StrId = StrId(4);
-pub const STR_MEMBER_OF: StrId = StrId(5);
-pub const STR_ECHO: StrId = StrId(6);
-pub const STR_CONSTRUCT: StrId = StrId(7);
-pub const STR_DATA_ATTRIBUTE: StrId = StrId(8);
-pub const STR_ARIA_ATTRIBUTE: StrId = StrId(9);
-pub const STR_ANY_ARRAY: StrId = StrId(10);
-pub const STR_KEYED_CONTAINER: StrId = StrId(11);
-pub const STR_CONTAINER: StrId = StrId(12);
-pub const STR_PHP_INCOMPLETE_CLASS: StrId = StrId(13);
-pub const STR_XHP_CHILD: StrId = StrId(14);
-pub const STR_AWAITABLE: StrId = StrId(15);
-pub const STR_BUILTIN_ENUM: StrId = StrId(16);
-pub const STR_BUILTIN_ENUM_CLASS: StrId = StrId(17);
-pub const STR_STATIC: StrId = StrId(18);
-pub const STR_SELF: StrId = StrId(19);
-pub const STR_FORMAT_STRING: StrId = StrId(20);
-pub const STR_ENUM_CLASS_LABEL: StrId = StrId(21);
-pub const STR_TRAVERSABLE: StrId = StrId(22);
-pub const STR_KEYED_TRAVERSABLE: StrId = StrId(23);
-pub const STR_LIB_REGEX_PATTERN: StrId = StrId(24);
-pub const STR_ITERATOR: StrId = StrId(25);
-pub const STR_KEYED_ITERATOR: StrId = StrId(26);
-pub const STR_ASYNC_ITERATOR: StrId = StrId(27);
-pub const STR_ASYNC_KEYED_ITERATOR: StrId = StrId(28);
-pub const STR_SHAPES: StrId = StrId(29);
-pub const STR_STDCLASS: StrId = StrId(30);
-pub const STR_SIMPLE_XML_ELEMENT: StrId = StrId(31);
-pub const STR_ASIO_JOIN: StrId = StrId(32);
-pub const STR_INCLUDE: StrId = StrId(33);
-pub const STR_TYPE_STRUCTURE: StrId = StrId(34);
+impl StrId {
+    pub const EMPTY: StrId = StrId(0);
+    pub const THIS: StrId = StrId(1);
+    pub const ANONYMOUS_FN: StrId = StrId(2);
+    pub const ISSET: StrId = StrId(3);
+    pub const UNSET: StrId = StrId(4);
+    pub const MEMBER_OF: StrId = StrId(5);
+    pub const ECHO: StrId = StrId(6);
+    pub const CONSTRUCT: StrId = StrId(7);
+    pub const DATA_ATTRIBUTE: StrId = StrId(8);
+    pub const ARIA_ATTRIBUTE: StrId = StrId(9);
+    pub const ANY_ARRAY: StrId = StrId(10);
+    pub const KEYED_CONTAINER: StrId = StrId(11);
+    pub const CONTAINER: StrId = StrId(12);
+    pub const PHP_INCOMPLETE_CLASS: StrId = StrId(13);
+    pub const XHP_CHILD: StrId = StrId(14);
+    pub const AWAITABLE: StrId = StrId(15);
+    pub const BUILTIN_ENUM: StrId = StrId(16);
+    pub const BUILTIN_ENUM_CLASS: StrId = StrId(17);
+    pub const STATIC: StrId = StrId(18);
+    pub const SELF: StrId = StrId(19);
+    pub const FORMAT_STRING: StrId = StrId(20);
+    pub const ENUM_CLASS_LABEL: StrId = StrId(21);
+    pub const TRAVERSABLE: StrId = StrId(22);
+    pub const KEYED_TRAVERSABLE: StrId = StrId(23);
+    pub const LIB_REGEX_PATTERN: StrId = StrId(24);
+    pub const ITERATOR: StrId = StrId(25);
+    pub const KEYED_ITERATOR: StrId = StrId(26);
+    pub const ASYNC_ITERATOR: StrId = StrId(27);
+    pub const ASYNC_KEYED_ITERATOR: StrId = StrId(28);
+    pub const SHAPES: StrId = StrId(29);
+    pub const STDCLASS: StrId = StrId(30);
+    pub const SIMPLE_XML_ELEMENT: StrId = StrId(31);
+    pub const ASIO_JOIN: StrId = StrId(32);
+    pub const INCLUDE: StrId = StrId(33);
+    pub const TYPE_STRUCTURE: StrId = StrId(34);
+    pub const INVARIANT: StrId = StrId(35);
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+}
 
 pub const EFFECT_PURE: u8 = 0b00000000;
 pub const EFFECT_WRITE_LOCAL: u8 = 0b00000001;
@@ -98,13 +106,6 @@ pub const EFFECT_WRITE_PROPS: u8 = 0b00001000;
 pub const EFFECT_WRITE_GLOBALS: u8 = 0b0010000;
 pub const EFFECT_IMPURE: u8 =
     EFFECT_READ_PROPS | EFFECT_READ_GLOBALS | EFFECT_WRITE_PROPS | EFFECT_WRITE_GLOBALS;
-
-impl StrId {
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.0 == 0
-    }
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Interner {
@@ -151,6 +152,7 @@ impl Default for Interner {
         interner.intern("HH\\Asio\\join".to_string());
         interner.intern("include".to_string());
         interner.intern("HH\\TypeStructure".to_string());
+        interner.intern("HH\\invariant".to_string());
         interner
     }
 }

@@ -1,5 +1,5 @@
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::STR_LIB_REGEX_PATTERN;
+use hakana_reflection_info::StrId;
 
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::wrap_atomic;
@@ -67,7 +67,7 @@ pub(crate) fn analyze(
             }
 
             wrap_atomic(TAtomic::TTypeAlias {
-                name: STR_LIB_REGEX_PATTERN,
+                name: StrId::LIB_REGEX_PATTERN,
                 type_params: Some(vec![wrap_atomic(TAtomic::TDict {
                     known_items: if !shape_fields.is_empty() {
                         Some(shape_fields)

@@ -8,7 +8,7 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::{Interner, StrId, STR_TYPE_STRUCTURE};
+use hakana_reflection_info::{Interner, StrId};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
@@ -599,7 +599,7 @@ fn get_type_structure_type(
             {
                 if let Some(type_constant_info) = classlike_info.type_constants.get(&const_name) {
                     return Some(wrap_atomic(TAtomic::TTypeAlias {
-                        name: STR_TYPE_STRUCTURE,
+                        name: StrId::TYPE_STRUCTURE,
                         type_params: Some(vec![match type_constant_info {
                             ClassConstantType::Concrete(actual_type) => actual_type.clone(),
                             ClassConstantType::Abstract(Some(as_type)) => as_type.clone(),

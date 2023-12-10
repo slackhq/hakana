@@ -13,7 +13,7 @@ use hakana_reflection_info::{
     functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    Interner, StrId, STR_EMPTY, STR_THIS,
+    Interner, StrId,
 };
 use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
@@ -175,9 +175,9 @@ fn expand_atomic(
         ..
     } = return_type_part
     {
-        if *name == STR_THIS {
+        if *name == StrId::THIS {
             *name = match options.static_class_type {
-                StaticClassType::None => STR_THIS,
+                StaticClassType::None => StrId::THIS,
                 StaticClassType::Name(this_name) => *this_name,
                 StaticClassType::Object(obj) => {
                     *skip_key = true;
@@ -557,7 +557,8 @@ pub fn get_closure_from_id(
 ) -> Option<TAtomic> {
     match id {
         FunctionLikeIdentifier::Function(name) => {
-            if let Some(functionlike_info) = codebase.functionlike_infos.get(&(*name, STR_EMPTY)) {
+            if let Some(functionlike_info) = codebase.functionlike_infos.get(&(*name, StrId::EMPTY))
+            {
                 return Some(get_expanded_closure(
                     functionlike_info,
                     codebase,
@@ -567,10 +568,8 @@ pub fn get_closure_from_id(
             }
         }
         FunctionLikeIdentifier::Method(classlike_name, method_name) => {
-            let declaring_method_id = codebase.get_declaring_method_id(&MethodIdentifier(
-                *classlike_name,
-                *method_name,
-            ));
+            let declaring_method_id =
+                codebase.get_declaring_method_id(&MethodIdentifier(*classlike_name, *method_name));
 
             if let Some(functionlike_info) = codebase.get_method(&declaring_method_id) {
                 return Some(get_expanded_closure(

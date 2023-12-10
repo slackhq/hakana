@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     diff::CodebaseDiff,
     function_context::{FunctionContext, FunctionLikeIdentifier},
-    StrId, STR_EMPTY,
+    StrId,
 };
 
 pub enum ReferenceSource {
@@ -58,12 +58,12 @@ impl SymbolReferences {
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
-                .entry((referencing_symbol, STR_EMPTY))
+                .entry((referencing_symbol, StrId::EMPTY))
                 .or_default()
                 .insert(class_member);
         } else {
             self.symbol_references_to_symbols
-                .entry((referencing_symbol, STR_EMPTY))
+                .entry((referencing_symbol, StrId::EMPTY))
                 .or_default()
                 .insert(class_member);
         }
@@ -77,23 +77,23 @@ impl SymbolReferences {
     ) {
         if in_signature {
             self.symbol_references_to_symbols_in_signature
-                .entry((referencing_symbol, STR_EMPTY))
+                .entry((referencing_symbol, StrId::EMPTY))
                 .or_default()
-                .insert((symbol, STR_EMPTY));
+                .insert((symbol, StrId::EMPTY));
         } else {
             if let Some(symbol_refs_in_signature) = self
                 .symbol_references_to_symbols_in_signature
-                .get(&(referencing_symbol, STR_EMPTY))
+                .get(&(referencing_symbol, StrId::EMPTY))
             {
-                if symbol_refs_in_signature.contains(&(symbol, STR_EMPTY)) {
+                if symbol_refs_in_signature.contains(&(symbol, StrId::EMPTY)) {
                     return;
                 }
             }
 
             self.symbol_references_to_symbols
-                .entry((referencing_symbol, STR_EMPTY))
+                .entry((referencing_symbol, StrId::EMPTY))
                 .or_default()
-                .insert((symbol, STR_EMPTY));
+                .insert((symbol, StrId::EMPTY));
         }
     }
 
@@ -140,13 +140,13 @@ impl SymbolReferences {
             self.symbol_references_to_symbols_in_signature
                 .entry(referencing_class_member)
                 .or_default()
-                .insert((symbol, STR_EMPTY));
+                .insert((symbol, StrId::EMPTY));
         } else {
             if let Some(symbol_refs_in_signature) = self
                 .symbol_references_to_symbols_in_signature
                 .get(&referencing_class_member)
             {
-                if symbol_refs_in_signature.contains(&(symbol, STR_EMPTY)) {
+                if symbol_refs_in_signature.contains(&(symbol, StrId::EMPTY)) {
                     return;
                 }
             }
@@ -154,7 +154,7 @@ impl SymbolReferences {
             self.symbol_references_to_symbols
                 .entry(referencing_class_member)
                 .or_default()
-                .insert((symbol, STR_EMPTY));
+                .insert((symbol, StrId::EMPTY));
         }
     }
 
@@ -193,7 +193,7 @@ impl SymbolReferences {
             match referencing_functionlike {
                 FunctionLikeIdentifier::Function(function_name) => {
                     self.symbol_references_to_overridden_members
-                        .entry((*function_name, STR_EMPTY))
+                        .entry((*function_name, StrId::EMPTY))
                         .or_default()
                         .insert(class_member);
                 }
@@ -206,7 +206,7 @@ impl SymbolReferences {
             }
         } else if let Some(calling_class) = &function_context.calling_class {
             self.symbol_references_to_overridden_members
-                .entry((*calling_class, STR_EMPTY))
+                .entry((*calling_class, StrId::EMPTY))
                 .or_default()
                 .insert(class_member);
         }
@@ -279,6 +279,32 @@ impl SymbolReferences {
         for symbol_references_to_symbols in self.symbol_references_to_symbols_in_signature.values()
         {
             referenced_symbols_and_members.extend(symbol_references_to_symbols);
+        }
+
+        referenced_symbols_and_members
+    }
+
+    pub fn back_references(&self) -> FxHashMap<(StrId, StrId), FxHashSet<&(StrId, StrId)>> {
+        let mut referenced_symbols_and_members = FxHashMap::default();
+
+        for (reference, symbol_references_to_symbols) in &self.symbol_references_to_symbols {
+            for r in symbol_references_to_symbols {
+                let v = referenced_symbols_and_members
+                    .entry(*r)
+                    .or_insert_with(FxHashSet::default);
+                v.insert(reference);
+            }
+        }
+
+        for (reference, symbol_references_to_symbols) in
+            &self.symbol_references_to_symbols_in_signature
+        {
+            for r in symbol_references_to_symbols {
+                let v = referenced_symbols_and_members
+                    .entry(*r)
+                    .or_insert_with(FxHashSet::default);
+                v.insert(reference);
+            }
         }
 
         referenced_symbols_and_members
@@ -389,7 +415,7 @@ impl SymbolReferences {
             if !new_invalid_symbol.1.is_empty() {
                 invalid_symbol_members.insert(new_invalid_symbol);
             } else {
-                invalid_symbols.insert((new_invalid_symbol.0, STR_EMPTY));
+                invalid_symbols.insert((new_invalid_symbol.0, StrId::EMPTY));
             }
         }
 

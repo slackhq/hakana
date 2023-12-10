@@ -15,9 +15,7 @@ use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
-    t_union::TUnion,
-    STR_ASYNC_ITERATOR, STR_ASYNC_KEYED_ITERATOR, STR_CONTAINER, STR_ITERATOR, STR_KEYED_CONTAINER,
-    STR_KEYED_ITERATOR, STR_TRAVERSABLE,
+    t_union::TUnion, StrId,
 };
 use hakana_type::{
     add_optional_union_type, add_union_type, combine_optional_union_types, get_arraykey, get_int,
@@ -455,7 +453,7 @@ fn check_iterator_type(
         } = iterator_atomic_type
         {
             match name {
-                STR_KEYED_CONTAINER | STR_KEYED_ITERATOR => {
+                StrId::KEYED_CONTAINER | StrId::KEYED_ITERATOR => {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
@@ -468,7 +466,7 @@ fn check_iterator_type(
                         codebase,
                     ));
                 }
-                STR_CONTAINER | STR_ITERATOR | STR_TRAVERSABLE => {
+                StrId::CONTAINER | StrId::ITERATOR | StrId::TRAVERSABLE => {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
@@ -481,7 +479,7 @@ fn check_iterator_type(
                         codebase,
                     ));
                 }
-                STR_ASYNC_KEYED_ITERATOR => {
+                StrId::ASYNC_KEYED_ITERATOR => {
                     if is_async {
                         has_valid_iterator = true;
                         key_type = Some(combine_optional_union_types(
@@ -496,7 +494,7 @@ fn check_iterator_type(
                         ));
                     }
                 }
-                STR_ASYNC_ITERATOR => {
+                StrId::ASYNC_ITERATOR => {
                     if is_async {
                         has_valid_iterator = true;
                         key_type = Some(combine_optional_union_types(

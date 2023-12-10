@@ -1,9 +1,5 @@
 use crate::{get_arrayish_params, get_value_param, wrap_atomic};
-use hakana_reflection_info::{
-    codebase_info::CodebaseInfo, t_atomic::TAtomic, STR_ANY_ARRAY, STR_BUILTIN_ENUM, STR_CONTAINER,
-    STR_ENUM_CLASS_LABEL, STR_FORMAT_STRING, STR_KEYED_CONTAINER, STR_SELF, STR_STATIC,
-    STR_XHP_CHILD,
-};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, StrId};
 
 use super::{
     closure_type_comparator, dict_type_comparator,
@@ -106,7 +102,7 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TNamedObject {
-        name: STR_XHP_CHILD,
+        name: StrId::XHP_CHILD,
         ..
     } = container_type_part
     {
@@ -140,7 +136,7 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TNamedObject {
-        name: STR_ANY_ARRAY,
+        name: StrId::ANY_ARRAY,
         type_params: Some(type_params),
         ..
     } = container_type_part
@@ -258,7 +254,7 @@ pub fn is_contained_by(
                 }
             }
             TAtomic::TEnum { .. } => {
-                return container_name == &STR_BUILTIN_ENUM;
+                return container_name == &StrId::BUILTIN_ENUM;
             }
             _ => (),
         }
@@ -447,7 +443,8 @@ pub fn is_contained_by(
     // TODO: handle $input_type_part instanceof TConditional
 
     if let TAtomic::TNamedObject {
-        name: STR_STATIC, ..
+        name: StrId::STATIC,
+        ..
     } = input_type_part
     {
         if let TAtomic::TNamedObject {
@@ -455,7 +452,7 @@ pub fn is_contained_by(
             ..
         } = container_type_part
         {
-            if container_name == &STR_SELF {
+            if container_name == &StrId::SELF {
                 return true;
             }
         }
@@ -468,14 +465,14 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if let STR_CONTAINER | STR_KEYED_CONTAINER | STR_ANY_ARRAY = *container_name {
+        if let StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY = *container_name {
             let type_params = get_arrayish_params(input_type_part, codebase);
 
             if let Some(input_type_params) = type_params {
                 let mut all_types_contain = true;
 
                 let mut array_comparison_result = TypeComparisonResult::new();
-                if *container_name == STR_CONTAINER {
+                if *container_name == StrId::CONTAINER {
                     if let Some(container_value_param) = container_type_params.first() {
                         if !union_type_comparator::is_contained_by(
                             codebase,
@@ -567,7 +564,7 @@ pub fn is_contained_by(
     } = input_type_part
     {
         if match *input_name {
-            STR_CONTAINER | STR_KEYED_CONTAINER | STR_ANY_ARRAY => true,
+            StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => true,
             _ => false,
         } {
             if let TAtomic::TKeyset { .. } | TAtomic::TVec { .. } | TAtomic::TDict { .. } =
@@ -578,7 +575,7 @@ pub fn is_contained_by(
                 let container_arrayish_params =
                     get_arrayish_params(container_type_part, codebase).unwrap();
 
-                if *input_name == STR_CONTAINER {
+                if *input_name == StrId::CONTAINER {
                     if let Some(input_value_param) = input_type_params.first() {
                         union_type_comparator::is_contained_by(
                             codebase,
@@ -628,7 +625,7 @@ pub fn is_contained_by(
         ..
     } = container_type_part
     {
-        if container_name == &STR_XHP_CHILD {
+        if container_name == &StrId::XHP_CHILD {
             if let TAtomic::TString
             | TAtomic::TLiteralString { .. }
             | TAtomic::TInt
@@ -686,7 +683,7 @@ pub fn is_contained_by(
             }
         }
 
-        if *container_name == STR_FORMAT_STRING {
+        if *container_name == StrId::FORMAT_STRING {
             if let TAtomic::TString { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TStringWithFlags { .. } = input_type_part
@@ -696,7 +693,7 @@ pub fn is_contained_by(
             }
         }
 
-        if *container_name == STR_ENUM_CLASS_LABEL {
+        if *container_name == StrId::ENUM_CLASS_LABEL {
             if let TAtomic::TEnumClassLabel {
                 class_name: input_class_name,
                 member_name: input_member_name,
@@ -739,7 +736,7 @@ pub fn is_contained_by(
         ..
     } = input_type_part
     {
-        if *input_name == STR_FORMAT_STRING {
+        if *input_name == StrId::FORMAT_STRING {
             if let TAtomic::TString { .. } = container_type_part {
                 return true;
             }

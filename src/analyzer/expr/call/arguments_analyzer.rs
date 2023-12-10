@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
-use hakana_reflection_info::{Interner, StrId, EFFECT_WRITE_LOCAL, STR_SHAPES};
+use hakana_reflection_info::{Interner, StrId, EFFECT_WRITE_LOCAL};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
@@ -377,7 +377,7 @@ pub(crate) fn check_arguments_match(
         if function_param.is_inout {
             // First inout param for HH\Shapes::removeKey is already handled
             if if let FunctionLikeIdentifier::Method(classname, method_name) = functionlike_id {
-                classname != &STR_SHAPES
+                classname != &StrId::SHAPES
                     || statements_analyzer.get_interner().lookup(method_name) != "removeKey"
             } else {
                 true

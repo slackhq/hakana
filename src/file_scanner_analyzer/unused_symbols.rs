@@ -7,7 +7,7 @@ use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::property_info::PropertyKind;
-use hakana_reflection_info::{Interner, StrId, STR_CONSTRUCT, STR_EMPTY};
+use hakana_reflection_info::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use std::sync::Arc;
@@ -27,7 +27,7 @@ pub(crate) fn find_unused_definitions(
         .get_referenced_overridden_class_members();
 
     'outer1: for (functionlike_name, functionlike_info) in &codebase.functionlike_infos {
-        if functionlike_name.1 == STR_EMPTY
+        if functionlike_name.1 == StrId::EMPTY
             && functionlike_info.user_defined
             && !functionlike_info.dynamically_callable
             && !functionlike_info.generated
@@ -116,7 +116,7 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            if !referenced_symbols_and_members.contains(&(*classlike_name, STR_EMPTY)) {
+            if !referenced_symbols_and_members.contains(&(*classlike_name, StrId::EMPTY)) {
                 if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, file_path) {
                     continue;
                 }
@@ -163,7 +163,7 @@ pub(crate) fn find_unused_definitions(
                 }
             } else {
                 'inner: for method_name_ptr in &classlike_info.methods {
-                    if *method_name_ptr != STR_EMPTY {
+                    if *method_name_ptr != StrId::EMPTY {
                         let method_name = interner.lookup(method_name_ptr);
 
                         if method_name.starts_with("__") {
@@ -231,7 +231,7 @@ pub(crate) fn find_unused_definitions(
                         }
 
                         // allow one-liner private construct statements that prevent instantiation
-                        if *method_name_ptr == STR_CONSTRUCT
+                        if *method_name_ptr == StrId::CONSTRUCT
                             && matches!(method_storage.visibility, MemberVisibility::Private)
                         {
                             let stmt_pos = &functionlike_storage.def_location;
@@ -405,7 +405,7 @@ pub(crate) fn find_unused_definitions(
                 continue;
             }
 
-            if !referenced_symbols_and_members.contains(&(*type_name, STR_EMPTY)) {
+            if !referenced_symbols_and_members.contains(&(*type_name, StrId::EMPTY)) {
                 let issue = Issue::new(
                     IssueKind::UnusedTypeDefinition,
                     format!("Unused type definition {}", interner.lookup(type_name)),

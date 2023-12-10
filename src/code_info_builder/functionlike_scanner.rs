@@ -26,8 +26,6 @@ use hakana_reflection_info::FileSource;
 use hakana_reflection_info::StrId;
 use hakana_reflection_info::ThreadedInterner;
 use hakana_reflection_info::EFFECT_IMPURE;
-use hakana_reflection_info::STR_ASIO_JOIN;
-use hakana_reflection_info::STR_CONSTRUCT;
 use hakana_type::get_mixed_any;
 use oxidized::aast;
 use oxidized::aast::Stmt;
@@ -105,7 +103,7 @@ pub(crate) fn scan_method(
     };
 
     if !matches!(m.visibility, ast_defs::Visibility::Private)
-        || method_name != STR_CONSTRUCT
+        || method_name != StrId::CONSTRUCT
         || matches!(classlike_storage.kind, SymbolKind::Trait)
     {
         classlike_storage
@@ -476,7 +474,7 @@ fn get_async_version(
     if let aast::Expr_::Call(call) = &expr.2 {
         if let aast::Expr_::Id(boxed_id) = &call.func.2 {
             if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset()) {
-                if fn_id == &STR_ASIO_JOIN && call.args.len() == 1 {
+                if fn_id == &StrId::ASIO_JOIN && call.args.len() == 1 {
                     let first_join_expr = &call.args[0].1;
 
                     if let aast::Expr_::Call(call) = &first_join_expr.2 {

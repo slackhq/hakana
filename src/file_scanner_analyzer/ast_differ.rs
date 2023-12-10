@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use hakana_reflection_info::{
     ast_signature::DefSignatureNode, code_location::FilePath, diff::CodebaseDiff,
-    file_info::FileInfo, STR_EMPTY,
+    file_info::FileInfo, StrId,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -88,9 +88,9 @@ pub(crate) fn get_diff(
                         }
 
                         if has_change {
-                            keep_signature.insert((a.name, STR_EMPTY));
+                            keep_signature.insert((a.name, StrId::EMPTY));
                         } else {
-                            keep.insert((a.name, STR_EMPTY));
+                            keep.insert((a.name, StrId::EMPTY));
 
                             if b.start_offset != a.start_offset || b.start_line != a.start_line {
                                 file_diffs.push((
@@ -103,15 +103,15 @@ pub(crate) fn get_diff(
                         }
                     }
                     AstDiffElem::KeepSignature(a, _) => {
-                        keep_signature.insert((a.name, STR_EMPTY));
+                        keep_signature.insert((a.name, StrId::EMPTY));
                         deletion_ranges.push((a.start_offset, a.end_offset));
                     }
                     AstDiffElem::Remove(node) => {
-                        add_or_delete.insert((node.name, STR_EMPTY));
+                        add_or_delete.insert((node.name, StrId::EMPTY));
                         deletion_ranges.push((node.start_offset, node.end_offset));
                     }
                     AstDiffElem::Add(node) => {
-                        add_or_delete.insert((node.name, STR_EMPTY));
+                        add_or_delete.insert((node.name, StrId::EMPTY));
                     }
                 }
             }
@@ -125,7 +125,7 @@ pub(crate) fn get_diff(
             }
         } else {
             for node in &new_file_info.ast_nodes {
-                add_or_delete.insert((node.name, STR_EMPTY));
+                add_or_delete.insert((node.name, StrId::EMPTY));
             }
         }
     }
