@@ -210,6 +210,7 @@ pub(crate) fn analyze(
         statements_analyzer,
         analysis_data,
         context,
+        call_expr,
         &method_id,
         &declaring_method_id,
         lhs_type_part,

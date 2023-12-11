@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
+use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::StrId;
+use oxidized::{aast, ast_defs};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -23,10 +25,17 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_type::template::{TemplateBound, TemplateResult};
 
+use super::function_call_return_type_fetcher::add_special_param_dataflow;
+
 pub(crate) fn fetch(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
+    call_expr: (
+        &Vec<aast::Targ<()>>,
+        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Option<aast::Expr<(), ()>>,
+    ),
     method_id: &MethodIdentifier,
     declaring_method_id: &MethodIdentifier,
     lhs_type_part: &TAtomic,
@@ -135,6 +144,7 @@ pub(crate) fn fetch(
         statements_analyzer,
         return_type_candidate,
         context,
+        call_expr,
         method_id,
         declaring_method_id,
         lhs_var_id,
@@ -205,6 +215,11 @@ fn add_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     mut return_type_candidate: TUnion,
     context: &mut ScopeContext,
+    call_expr: (
+        &Vec<aast::Targ<()>>,
+        &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+        &Option<aast::Expr<(), ()>>,
+    ),
     method_id: &MethodIdentifier,
     declaring_method_id: &MethodIdentifier,
     lhs_var_id: Option<&String>,
@@ -417,6 +432,21 @@ fn add_dataflow(
             } else {
                 None
             },
+        );
+    }
+
+    if method_id.0 == StrId::SHAPES && method_id.1 == StrId::KEY_EXISTS {
+        add_special_param_dataflow(
+            statements_analyzer,
+            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+            true,
+            0,
+            statements_analyzer.get_hpos(call_expr.1[0].1.pos()),
+            call_pos,
+            &FxHashMap::default(),
+            data_flow_graph,
+            &method_call_node,
+            PathKind::Aggregate,
         );
     }
 

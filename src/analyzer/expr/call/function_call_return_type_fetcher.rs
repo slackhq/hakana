@@ -689,37 +689,38 @@ fn add_dataflow(
         FxHashMap::default()
     };
 
-    let mut last_arg = 0;
+    let mut last_arg = usize::MAX;
 
     for (param_offset, path_kind) in param_offsets {
-        let arg_pos = expr
-            .2
-            .get(param_offset)
-            .map(|arg| statements_analyzer.get_hpos(arg.1.pos()));
+        if let Some(arg) = expr.2.get(param_offset) {
+            let arg_pos = statements_analyzer.get_hpos(arg.1.pos());
 
-        add_special_param_dataflow(
-            statements_analyzer,
-            functionlike_storage,
-            param_offset,
-            arg_pos,
-            pos,
-            &added_removed_taints,
-            data_flow_graph,
-            &function_call_node,
-            path_kind,
-        );
+            add_special_param_dataflow(
+                statements_analyzer,
+                functionlike_id,
+                true,
+                param_offset,
+                arg_pos,
+                pos,
+                &added_removed_taints,
+                data_flow_graph,
+                &function_call_node,
+                path_kind,
+            );
+        }
 
         last_arg = param_offset;
     }
 
     if let Some(path_kind) = &variadic_path {
         for (param_offset, (_, arg)) in expr.2.iter().enumerate() {
-            if param_offset > last_arg {
-                let arg_pos = Some(statements_analyzer.get_hpos(arg.pos()));
+            if last_arg == usize::MAX || param_offset > last_arg {
+                let arg_pos = statements_analyzer.get_hpos(arg.pos());
 
                 add_special_param_dataflow(
                     statements_analyzer,
-                    functionlike_storage,
+                    functionlike_id,
+                    true,
                     param_offset,
                     arg_pos,
                     pos,
@@ -753,9 +754,10 @@ fn add_dataflow(
 
 pub(crate) fn add_special_param_dataflow(
     statements_analyzer: &StatementsAnalyzer,
-    functionlike_storage: &FunctionLikeInfo,
+    functionlike_id: &FunctionLikeIdentifier,
+    specialize_call: bool,
     param_offset: usize,
-    arg_pos: Option<HPos>,
+    arg_pos: HPos,
     pos: &Pos,
     added_removed_taints: &FxHashMap<usize, (FxHashSet<SinkType>, FxHashSet<SinkType>)>,
     data_flow_graph: &mut DataFlowGraph,
@@ -763,13 +765,10 @@ pub(crate) fn add_special_param_dataflow(
     path_kind: PathKind,
 ) {
     let argument_node = DataFlowNode::get_for_method_argument(
-        statements_analyzer
-            .get_interner()
-            .lookup(&functionlike_storage.name)
-            .to_string(),
+        functionlike_id.to_string(statements_analyzer.get_interner()),
         param_offset,
-        arg_pos,
-        if functionlike_storage.specialize_call {
+        Some(arg_pos),
+        if specialize_call {
             Some(statements_analyzer.get_hpos(pos))
         } else {
             None
@@ -875,6 +874,7 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Dict\\filter_keys"
             | "HH\\Lib\\Dict\\filter_nulls"
             | "HH\\Lib\\Dict\\filter_with_key"
+            | "HH\\Lib\\Dict\\flatten"
             | "HH\\Lib\\Vec\\filter"
             | "HH\\Lib\\Vec\\filter_async"
             | "HH\\Lib\\Vec\\filter_nulls"
@@ -882,37 +882,39 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Vec\\take"
             | "HH\\Lib\\Vec\\drop"
             | "HH\\Lib\\Vec\\reverse"
-            | "HH\\Lib\\Vec\\chunk"
+            | "HH\\Lib\\Vec\\unique"
             | "HH\\Lib\\Keyset\\filter"
             | "HH\\Lib\\Keyset\\filter_nulls"
             | "HH\\Lib\\Keyset\\filter_async"
-            | "HH\\Lib\\Vec\\slice"
+            | "HH\\Lib\\Keyset\\flatten"
+            | "HH\\Lib\\Keyset\\keys"
             | "HH\\Lib\\Str\\slice"
             | "HH\\Lib\\Regex\\first_match"
             | "HH\\keyset"
             | "HH\\vec"
-            | "HH\\dict" => (vec![(0, PathKind::Default)], None),
+            | "HH\\dict"
+            | "HH\\strval"
+            | "get_object_vars" => (vec![(0, PathKind::Default)], None),
             "HH\\Lib\\Vec\\diff"
             | "HH\\Lib\\Keyset\\diff"
             | "HH\\Lib\\Keyset\\intersect"
-            | "HH\\Lib\\Vec\\intersect" => {
+            | "HH\\Lib\\Vec\\intersect"
+            | "HH\\Lib\\Vec\\slice"
+            | "HH\\Lib\\Vec\\range"
+            | "HH\\Lib\\Vec\\chunk"
+            | "HH\\Lib\\String\\strip_prefix" => {
                 (vec![(0, PathKind::Default)], Some(PathKind::Aggregate))
             }
             "HH\\Lib\\Dict\\associate" => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
             "HH\\Lib\\C\\is_empty"
             | "HH\\Lib\\C\\count"
+            | "count"
             | "HH\\Lib\\C\\any"
             | "HH\\Lib\\C\\every"
             | "HH\\Lib\\C\\search"
             | "HH\\Lib\\Str\\is_empty"
-            | "HH\\Lib\\Str\\contains"
-            | "HH\\Lib\\Str\\contains_ci"
             | "HH\\Lib\\Str\\compare"
             | "HH\\Lib\\Str\\compare_ci"
-            | "HH\\Lib\\Str\\starts_with"
-            | "HH\\Lib\\Str\\starts_with_ci"
-            | "HH\\Lib\\Str\\ends_with"
-            | "HH\\Lib\\Str\\ends_with_ci"
             | "HH\\Lib\\Str\\length"
             | "HH\\Lib\\Vec\\keys"
             | "HH\\Lib\\Str\\to_int"
@@ -923,8 +925,6 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Math\\min_by"
             | "HH\\Lib\\Math\\minva"
             | "HH\\Lib\\Math\\max"
-            | "HH\\Lib\\Math\\max_by"
-            | "HH\\Lib\\Math\\maxva"
             | "HH\\Lib\\Math\\mean"
             | "HH\\Lib\\Math\\median"
             | "HH\\Lib\\Math\\ceil"
@@ -935,18 +935,29 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Math\\sin"
             | "HH\\Lib\\Math\\sqrt"
             | "HH\\Lib\\Math\\tan"
-            | "HH\\Lib\\Math\\abs" => (vec![(0, PathKind::Aggregate)], None),
+            | "HH\\Lib\\Math\\abs"
+            | "intval" => (vec![(0, PathKind::Aggregate)], None),
             "HH\\Lib\\Math\\almost_equals"
             | "HH\\Lib\\Math\\base_convert"
             | "HH\\Lib\\Math\\exp"
             | "HH\\Lib\\Math\\from_base"
             | "HH\\Lib\\Math\\int_div"
-            | "HH\\Lib\\Math\\to_base" => (vec![], Some(PathKind::Aggregate)),
+            | "HH\\Lib\\Math\\to_base"
+            | "HH\\Lib\\Math\\max_by"
+            | "HH\\Lib\\Math\\maxva"
+            | "HH\\Lib\\Str\\starts_with"
+            | "HH\\Lib\\Str\\starts_with_ci"
+            | "HH\\Lib\\Str\\ends_with"
+            | "HH\\Lib\\Str\\ends_with_ci"
+            | "HH\\Lib\\Str\\search"
+            | "HH\\Lib\\Str\\contains"
+            | "HH\\Lib\\Str\\contains_ci" => (vec![], Some(PathKind::Aggregate)),
             "HH\\Lib\\C\\contains"
             | "HH\\Lib\\C\\contains_key"
             | "in_array"
             | "preg_match"
-            | "HH\\Lib\\Regex\\matches" => (
+            | "HH\\Lib\\Regex\\matches"
+            | "preg_match_with_matches" => (
                 vec![(0, PathKind::Aggregate), (1, PathKind::Aggregate)],
                 None,
             ),
@@ -961,6 +972,14 @@ fn get_special_argument_nodes(
             "HH\\Lib\\Str\\replace" | "HH\\Lib\\Str\\replace_ci" => {
                 (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
             }
+            "HH\\Lib\\Regex\\replace" => (
+                vec![
+                    (0, PathKind::Default),
+                    (1, PathKind::Aggregate),
+                    (2, PathKind::Default),
+                ],
+                None,
+            ),
             "HH\\Lib\\Str\\format" => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
             "str_pad" | "chunk_split" => {
                 (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
@@ -969,6 +988,16 @@ fn get_special_argument_nodes(
                 vec![
                     (0, PathKind::Default),
                     (1, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
+                ],
+                None,
+            ),
+            "HH\\Lib\\Dict\\fill_keys" => (
+                vec![
+                    (0, PathKind::Default),
+                    (
+                        1,
+                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
+                    ),
                 ],
                 None,
             ),
@@ -1078,10 +1107,16 @@ fn get_special_argument_nodes(
                 if let Some(second_arg) = expr.2.get(1) {
                     if let aast::Expr_::String(str) = &second_arg.1 .2 {
                         return (
-                            vec![(
-                                0,
-                                PathKind::ArrayFetch(ArrayDataKind::ArrayValue, str.to_string()),
-                            )],
+                            vec![
+                                (
+                                    0,
+                                    PathKind::ArrayFetch(
+                                        ArrayDataKind::ArrayValue,
+                                        str.to_string(),
+                                    ),
+                                ),
+                                (1, PathKind::Aggregate),
+                            ],
                             None,
                         );
                     }

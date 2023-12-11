@@ -88,7 +88,11 @@ pub(crate) fn scan_method(
 
     functionlike_info.is_production_code = file_source.is_production_code;
 
-    if classlike_name == StrId::BUILTIN_ENUM && method_name == StrId::COERCE {
+    if classlike_name == StrId::BUILTIN_ENUM
+        && (method_name == StrId::COERCE
+            || method_name == StrId::ASSERT
+            || method_name == StrId::ASSERT_ALL)
+    {
         functionlike_info.pure_can_throw = true;
     }
 

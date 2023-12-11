@@ -92,6 +92,9 @@ impl StrId {
     pub const TYPE_STRUCTURE: StrId = StrId(34);
     pub const INVARIANT: StrId = StrId(35);
     pub const COERCE: StrId = StrId(36);
+    pub const ASSERT: StrId = StrId(37);
+    pub const ASSERT_ALL: StrId = StrId(38);
+    pub const KEY_EXISTS: StrId = StrId(39);
 
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -155,6 +158,9 @@ impl Default for Interner {
         interner.intern("HH\\TypeStructure".to_string());
         interner.intern("HH\\invariant".to_string());
         interner.intern("coerce".to_string());
+        interner.intern("assert".to_string());
+        interner.intern("assertAll".to_string());
+        interner.intern("keyExists".to_string());
         interner
     }
 }
