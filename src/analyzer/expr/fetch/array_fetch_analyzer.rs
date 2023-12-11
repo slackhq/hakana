@@ -909,7 +909,7 @@ pub(crate) fn handle_array_access_on_string(
     ) {
         expected_offset_types
             .push(valid_offset_type.get_id(Some(statements_analyzer.get_interner())));
-        
+
         TUnion::new(vec![TAtomic::TString, TAtomic::TNull])
     } else {
         *has_valid_expected_offset = true;

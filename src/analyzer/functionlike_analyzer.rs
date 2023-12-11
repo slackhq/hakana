@@ -834,8 +834,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         context: &mut ScopeContext,
         statements_analyzer: &mut StatementsAnalyzer,
     ) -> Result<(), AnalysisError> {
-        let interner = statements_analyzer.get_interner();
-
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {
                 for type_node in param_type.get_all_child_nodes() {

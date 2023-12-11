@@ -701,6 +701,10 @@ impl<'a> Scanner<'a> {
 
         functionlike_storage.is_production_code = self.file_source.is_production_code;
 
+        if name == StrId::INVARIANT {
+            functionlike_storage.pure_can_throw = true;
+        }
+
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
 
         if !self.user_defined {

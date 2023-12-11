@@ -25,6 +25,7 @@ pub enum PathKind {
     RemoveDictKey(String),
     RefineSymbol(StrId),
     ScalarTypeGuard,
+    Aggregate,
 }
 
 impl PathKind {
@@ -81,6 +82,7 @@ impl PathKind {
             PathKind::RefineSymbol(_) => "refine-symbol".to_string(),
             PathKind::ScalarTypeGuard => "scalar-type-guard".to_string(),
             PathKind::Serialize => "serialize".to_string(),
+            PathKind::Aggregate => "aggregate".to_string(),
         }
     }
 }
@@ -105,6 +107,7 @@ impl std::fmt::Display for PathKind {
             PathKind::RefineSymbol(_) => write!(f, "refine-symbol"),
             PathKind::ScalarTypeGuard => write!(f, "scalar-type-guard"),
             PathKind::Serialize => write!(f, "serialize"),
+            PathKind::Aggregate => write!(f, "aggregate"),
         }
     }
 }

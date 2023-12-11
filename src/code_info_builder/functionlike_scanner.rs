@@ -88,6 +88,10 @@ pub(crate) fn scan_method(
 
     functionlike_info.is_production_code = file_source.is_production_code;
 
+    if classlike_name == StrId::BUILTIN_ENUM && method_name == StrId::COERCE {
+        functionlike_info.pure_can_throw = true;
+    }
+
     let classlike_storage = codebase.classlike_infos.get_mut(&classlike_name).unwrap();
 
     let mut method_info = MethodInfo::new();

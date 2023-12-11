@@ -91,6 +91,7 @@ impl StrId {
     pub const INCLUDE: StrId = StrId(33);
     pub const TYPE_STRUCTURE: StrId = StrId(34);
     pub const INVARIANT: StrId = StrId(35);
+    pub const COERCE: StrId = StrId(36);
 
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -153,6 +154,7 @@ impl Default for Interner {
         interner.intern("include".to_string());
         interner.intern("HH\\TypeStructure".to_string());
         interner.intern("HH\\invariant".to_string());
+        interner.intern("coerce".to_string());
         interner
     }
 }

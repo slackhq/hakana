@@ -1,6 +1,7 @@
 use hakana_reflection_info::classlike_info::ClassConstantType;
+use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_reflection_info::data_flow::path::{ArrayDataKind, PathKind};
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
@@ -679,7 +680,7 @@ fn add_dataflow(
 
     data_flow_graph.add_node(function_call_node.clone());
 
-    let (param_offsets, _variadic_path) =
+    let (param_offsets, variadic_path) =
         get_special_argument_nodes(functionlike_id, expr, statements_analyzer.get_interner());
 
     let added_removed_taints = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
@@ -688,46 +689,47 @@ fn add_dataflow(
         FxHashMap::default()
     };
 
+    let mut last_arg = 0;
+
     for (param_offset, path_kind) in param_offsets {
-        let argument_node = DataFlowNode::get_for_method_argument(
-            statements_analyzer
-                .get_interner()
-                .lookup(&functionlike_storage.name)
-                .to_string(),
+        let arg_pos = expr
+            .2
+            .get(param_offset)
+            .map(|arg| statements_analyzer.get_hpos(arg.1.pos()));
+
+        add_special_param_dataflow(
+            statements_analyzer,
+            functionlike_storage,
             param_offset,
-            expr.2
-                .get(param_offset)
-                .map(|arg| statements_analyzer.get_hpos(arg.1.pos())),
-            if functionlike_storage.specialize_call {
-                Some(statements_analyzer.get_hpos(pos))
-            } else {
-                None
-            },
-        );
-
-        let (added_taints, removed_taints) =
-            if let Some(added_removed_taints) = added_removed_taints.get(&param_offset) {
-                added_removed_taints.clone()
-            } else {
-                (FxHashSet::default(), FxHashSet::default())
-            };
-
-        data_flow_graph.add_path(
-            &argument_node,
+            arg_pos,
+            pos,
+            &added_removed_taints,
+            data_flow_graph,
             &function_call_node,
             path_kind,
-            if added_taints.is_empty() {
-                None
-            } else {
-                Some(added_taints)
-            },
-            if removed_taints.is_empty() {
-                None
-            } else {
-                Some(removed_taints)
-            },
         );
-        data_flow_graph.add_node(argument_node);
+
+        last_arg = param_offset;
+    }
+
+    if let Some(path_kind) = &variadic_path {
+        for (param_offset, (_, arg)) in expr.2.iter().enumerate() {
+            if param_offset > last_arg {
+                let arg_pos = Some(statements_analyzer.get_hpos(arg.pos()));
+
+                add_special_param_dataflow(
+                    statements_analyzer,
+                    functionlike_storage,
+                    param_offset,
+                    arg_pos,
+                    pos,
+                    &added_removed_taints,
+                    data_flow_graph,
+                    &function_call_node,
+                    path_kind.clone(),
+                );
+            }
+        }
     }
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
@@ -747,6 +749,56 @@ fn add_dataflow(
     stmt_type.parent_nodes.insert(function_call_node);
 
     stmt_type
+}
+
+pub(crate) fn add_special_param_dataflow(
+    statements_analyzer: &StatementsAnalyzer,
+    functionlike_storage: &FunctionLikeInfo,
+    param_offset: usize,
+    arg_pos: Option<HPos>,
+    pos: &Pos,
+    added_removed_taints: &FxHashMap<usize, (FxHashSet<SinkType>, FxHashSet<SinkType>)>,
+    data_flow_graph: &mut DataFlowGraph,
+    function_call_node: &DataFlowNode,
+    path_kind: PathKind,
+) {
+    let argument_node = DataFlowNode::get_for_method_argument(
+        statements_analyzer
+            .get_interner()
+            .lookup(&functionlike_storage.name)
+            .to_string(),
+        param_offset,
+        arg_pos,
+        if functionlike_storage.specialize_call {
+            Some(statements_analyzer.get_hpos(pos))
+        } else {
+            None
+        },
+    );
+
+    let (added_taints, removed_taints) =
+        if let Some(added_removed_taints) = added_removed_taints.get(&param_offset) {
+            added_removed_taints.clone()
+        } else {
+            (FxHashSet::default(), FxHashSet::default())
+        };
+
+    data_flow_graph.add_path(
+        &argument_node,
+        function_call_node,
+        path_kind,
+        if added_taints.is_empty() {
+            None
+        } else {
+            Some(added_taints)
+        },
+        if removed_taints.is_empty() {
+            None
+        } else {
+            Some(removed_taints)
+        },
+    );
+    data_flow_graph.add_node(argument_node);
 }
 
 /*
@@ -769,15 +821,16 @@ fn get_special_argument_nodes(
             | "print_r"
             | "highlight_string"
             | "strtolower"
-            | "HH\\Lib\\Str\\lowercase"
             | "strtoupper"
-            | "HH\\Lib\\Str\\uppercase"
             | "trim"
             | "ltrim"
             | "rtrim"
             | "HH\\Lib\\Str\\trim"
             | "HH\\Lib\\Str\\trim_left"
             | "HH\\Lib\\Str\\trim_right"
+            | "HH\\Lib\\Str\\lowercase"
+            | "HH\\Lib\\Str\\uppercase"
+            | "HH\\Lib\\Str\\capitalize"
             | "HH\\Asio\\join"
             | "strip_tags"
             | "stripslashes"
@@ -816,6 +869,7 @@ fn get_special_argument_nodes(
             | "json_decode"
             | "base64_encode"
             | "base64_decode"
+            | "urlencode"
             | "HH\\Lib\\Dict\\filter"
             | "HH\\Lib\\Dict\\filter_async"
             | "HH\\Lib\\Dict\\filter_keys"
@@ -827,13 +881,75 @@ fn get_special_argument_nodes(
             | "HH\\Lib\\Vec\\filter_with_key"
             | "HH\\Lib\\Vec\\take"
             | "HH\\Lib\\Vec\\drop"
+            | "HH\\Lib\\Vec\\reverse"
+            | "HH\\Lib\\Vec\\chunk"
             | "HH\\Lib\\Keyset\\filter"
+            | "HH\\Lib\\Keyset\\filter_nulls"
             | "HH\\Lib\\Keyset\\filter_async"
             | "HH\\Lib\\Vec\\slice"
             | "HH\\Lib\\Str\\slice"
+            | "HH\\Lib\\Regex\\first_match"
             | "HH\\keyset"
             | "HH\\vec"
             | "HH\\dict" => (vec![(0, PathKind::Default)], None),
+            "HH\\Lib\\Vec\\diff"
+            | "HH\\Lib\\Keyset\\diff"
+            | "HH\\Lib\\Keyset\\intersect"
+            | "HH\\Lib\\Vec\\intersect" => {
+                (vec![(0, PathKind::Default)], Some(PathKind::Aggregate))
+            }
+            "HH\\Lib\\Dict\\associate" => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
+            "HH\\Lib\\C\\is_empty"
+            | "HH\\Lib\\C\\count"
+            | "HH\\Lib\\C\\any"
+            | "HH\\Lib\\C\\every"
+            | "HH\\Lib\\C\\search"
+            | "HH\\Lib\\Str\\is_empty"
+            | "HH\\Lib\\Str\\contains"
+            | "HH\\Lib\\Str\\contains_ci"
+            | "HH\\Lib\\Str\\compare"
+            | "HH\\Lib\\Str\\compare_ci"
+            | "HH\\Lib\\Str\\starts_with"
+            | "HH\\Lib\\Str\\starts_with_ci"
+            | "HH\\Lib\\Str\\ends_with"
+            | "HH\\Lib\\Str\\ends_with_ci"
+            | "HH\\Lib\\Str\\length"
+            | "HH\\Lib\\Vec\\keys"
+            | "HH\\Lib\\Str\\to_int"
+            | "HH\\Lib\\Math\\round"
+            | "HH\\Lib\\Math\\sum"
+            | "HH\\Lib\\Math\\sum_float"
+            | "HH\\Lib\\Math\\min"
+            | "HH\\Lib\\Math\\min_by"
+            | "HH\\Lib\\Math\\minva"
+            | "HH\\Lib\\Math\\max"
+            | "HH\\Lib\\Math\\max_by"
+            | "HH\\Lib\\Math\\maxva"
+            | "HH\\Lib\\Math\\mean"
+            | "HH\\Lib\\Math\\median"
+            | "HH\\Lib\\Math\\ceil"
+            | "HH\\Lib\\Math\\cos"
+            | "HH\\Lib\\Math\\floor"
+            | "HH\\Lib\\Math\\is_nan"
+            | "HH\\Lib\\Math\\log"
+            | "HH\\Lib\\Math\\sin"
+            | "HH\\Lib\\Math\\sqrt"
+            | "HH\\Lib\\Math\\tan"
+            | "HH\\Lib\\Math\\abs" => (vec![(0, PathKind::Aggregate)], None),
+            "HH\\Lib\\Math\\almost_equals"
+            | "HH\\Lib\\Math\\base_convert"
+            | "HH\\Lib\\Math\\exp"
+            | "HH\\Lib\\Math\\from_base"
+            | "HH\\Lib\\Math\\int_div"
+            | "HH\\Lib\\Math\\to_base" => (vec![], Some(PathKind::Aggregate)),
+            "HH\\Lib\\C\\contains"
+            | "HH\\Lib\\C\\contains_key"
+            | "in_array"
+            | "preg_match"
+            | "HH\\Lib\\Regex\\matches" => (
+                vec![(0, PathKind::Aggregate), (1, PathKind::Aggregate)],
+                None,
+            ),
             "json_encode" | "serialize" => (vec![(0, PathKind::Serialize)], None),
             "var_dump" | "printf" => (vec![(0, PathKind::Serialize)], Some(PathKind::Serialize)),
             "sscanf" | "substr_replace" => {
@@ -845,6 +961,7 @@ fn get_special_argument_nodes(
             "HH\\Lib\\Str\\replace" | "HH\\Lib\\Str\\replace_ci" => {
                 (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
             }
+            "HH\\Lib\\Str\\format" => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
             "str_pad" | "chunk_split" => {
                 (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
             }
@@ -853,6 +970,10 @@ fn get_special_argument_nodes(
                     (0, PathKind::Default),
                     (1, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
                 ],
+                None,
+            ),
+            "http_build_query" => (
+                vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
                 None,
             ),
             "explode" | "preg_split" => (
@@ -926,7 +1047,16 @@ fn get_special_argument_nodes(
                 )],
                 None,
             ),
-
+            "HH\\Lib\\Dict\\from_entries" => (
+                // todo improve this
+                vec![(0, PathKind::Default)],
+                None,
+            ),
+            "HH\\Lib\\Dict\\flip" => (
+                // todo improve this
+                vec![(0, PathKind::Default)],
+                None,
+            ),
             "HH\\Lib\\Dict\\from_keys" | "HH\\Lib\\Dict\\from_keys_async" => (
                 vec![(
                     1,
@@ -937,6 +1067,10 @@ fn get_special_argument_nodes(
             "HH\\Lib\\C\\first" | "HH\\Lib\\C\\firstx" | "HH\\Lib\\C\\last"
             | "HH\\Lib\\C\\lastx" | "HH\\Lib\\C\\onlyx" | "HH\\Lib\\C\\find"
             | "HH\\Lib\\C\\findx" => (
+                vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
+                None,
+            ),
+            "HH\\Lib\\Vec\\flatten" => (
                 vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
                 None,
             ),
@@ -968,23 +1102,6 @@ fn get_special_argument_nodes(
             "HH\\Lib\\Dict\\merge" | "HH\\Lib\\Vec\\concat" | "HH\\Lib\\Keyset\\union" => {
                 (vec![(0, PathKind::Default)], Some(PathKind::Default))
             }
-            "HH\\Lib\\C\\contains"
-            | "HH\\Lib\\C\\contains_key"
-            | "HH\\Lib\\Str\\is_empty"
-            | "HH\\Lib\\Str\\contains"
-            | "HH\\Lib\\Str\\contains_ci"
-            | "HH\\Lib\\Str\\compare"
-            | "HH\\Lib\\Str\\compare_ci"
-            | "HH\\Lib\\Str\\starts_with"
-            | "HH\\Lib\\Str\\starts_with_ci"
-            | "HH\\Lib\\Str\\ends_with"
-            | "HH\\Lib\\Str\\ends_with_ci"
-            | "HH\\Lib\\C\\is_empty"
-            | "HH\\Lib\\Str\\length"
-            | "HH\\Lib\\C\\count"
-            | "HH\\Lib\\C\\any"
-            | "HH\\Lib\\C\\every"
-            | "HH\\Lib\\C\\search" => (vec![], None),
             _ => {
                 // if function_name.starts_with("HH\\Lib\\")
                 //     && !function_name.starts_with("HH\\Lib\\Math\\")

@@ -22,6 +22,7 @@ use oxidized::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
     expr::{
@@ -429,11 +430,25 @@ fn handle_shapes_static_method(
 
                     if (is_nullable || has_possibly_undefined) && call_expr.1.len() > 2 {
                         let default_type = analysis_data.get_expr_type(call_expr.1[2].1.pos());
-                        expr_type = expr_type.map(|expr_type| if let Some(default_type) = default_type {
+                        expr_type = expr_type.map(|expr_type| {
+                            if let Some(default_type) = default_type {
                                 add_union_type(expr_type, default_type, codebase, false)
                             } else {
                                 get_mixed_any()
-                            });
+                            }
+                        });
+                    }
+
+                    if let Some(mut expr_type) = expr_type {
+                        add_array_fetch_dataflow(
+                            statements_analyzer,
+                            call_expr.1[0].1.pos(),
+                            analysis_data,
+                            None,
+                            &mut expr_type,
+                            &mut (*dim_type).clone(),
+                        );
+                        return Some(expr_type);
                     }
                 }
 

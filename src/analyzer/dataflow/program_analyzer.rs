@@ -306,6 +306,10 @@ fn get_child_nodes(
                 continue;
             }
 
+            if let PathKind::Aggregate = &path.kind {
+                continue;
+            }
+
             // if we're going through a scalar type guard and the last non-default path was
             // an array or property assignment, skip
             if let PathKind::ScalarTypeGuard = &path.kind {

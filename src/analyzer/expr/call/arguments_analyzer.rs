@@ -175,7 +175,11 @@ pub(crate) fn check_arguments_match(
     for (_, arg_expr) in args.iter() {
         let was_inside_call = context.inside_general_use;
 
-        if matches!(functionlike_info.effects, FnEffect::Some(_)) {
+        if matches!(functionlike_info.effects, FnEffect::Some(_))
+            || matches!(functionlike_info.effects, FnEffect::Arg(_))
+            || functionlike_info.pure_can_throw
+            || functionlike_info.user_defined
+        {
             context.inside_general_use = true;
         }
 
@@ -195,10 +199,7 @@ pub(crate) fn check_arguments_match(
         }
     }
 
-    let mut reordered_args = args
-        .iter()
-        .enumerate()
-        .collect::<Vec<_>>();
+    let mut reordered_args = args.iter().enumerate().collect::<Vec<_>>();
 
     reordered_args.sort_by(|a, b| {
         matches!(a.1 .1 .2, aast::Expr_::Lfun(..)).cmp(&matches!(b.1 .1 .2, aast::Expr_::Lfun(..)))
@@ -529,7 +530,8 @@ fn adjust_param_type(
 ) {
     let bindable_template_params = param_type
         .get_template_types()
-        .into_iter().cloned()
+        .into_iter()
+        .cloned()
         .collect::<Vec<_>>();
 
     if !class_generic_params.is_empty() {
@@ -591,10 +593,11 @@ fn adjust_param_type(
             } = template_type
             {
                 if (if let Some(bounds_by_param) = template_result.lower_bounds.get(&param_name) {
-                        bounds_by_param.get(&defining_entity)
-                    } else {
-                        None
-                    }).is_none()
+                    bounds_by_param.get(&defining_entity)
+                } else {
+                    None
+                })
+                .is_none()
                 {
                     let bound_type = if let Some(bounds_by_param) =
                         template_result.upper_bounds.get(&param_name)
@@ -790,6 +793,9 @@ fn handle_closure_arg(
                     "HH\\Lib\\Vec\\map"
                     | "HH\\Lib\\Dict\\map"
                     | "HH\\Lib\\Keyset\\map"
+                    | "HH\\Lib\\Vec\\map_async"
+                    | "HH\\Lib\\Dict\\map_async"
+                    | "HH\\Lib\\Keyset\\map_async"
                     | "HH\\Lib\\Vec\\filter"
                     | "HH\\Lib\\Dict\\filter"
                     | "HH\\Lib\\Keyset\\filter"
@@ -797,7 +803,13 @@ fn handle_closure_arg(
                     | "HH\\Lib\\Dict\\take"
                     | "HH\\Lib\\Keyset\\take"
                     | "HH\\Lib\\C\\find"
-                    | "HH\\Lib\\C\\findx" => {
+                    | "HH\\Lib\\C\\findx"
+                    | "HH\\Lib\\Vec\\map_with_key"
+                    | "HH\\Lib\\Dict\\map_with_key"
+                    | "HH\\Lib\\Keyset\\map_with_key"
+                    | "HH\\Lib\\Dict\\map_with_key_async"
+                    | "HH\\Lib\\Dict\\from_keys"
+                    | "HH\\Lib\\Dict\\from_keys_async" => {
                         if param_offset == 0 {
                             if let Some(ref mut signature_type) = param_storage.signature_type {
                                 add_array_fetch_dataflow(
@@ -811,23 +823,7 @@ fn handle_closure_arg(
                             }
                         }
                     }
-                    "HH\\Lib\\Vec\\map_with_key"
-                    | "HH\\Lib\\Dict\\map_with_key"
-                    | "HH\\Lib\\Keyset\\map_with_key"
-                    | "HH\\Lib\\Dict\\map_with_key_async" => {
-                        if param_offset == 1 {
-                            if let Some(ref mut signature_type) = param_storage.signature_type {
-                                add_array_fetch_dataflow(
-                                    statements_analyzer,
-                                    args[0].1.pos(),
-                                    analysis_data,
-                                    None,
-                                    signature_type,
-                                    &mut get_arraykey(false),
-                                );
-                            }
-                        }
-                    }
+
                     _ => {}
                 }
             }
