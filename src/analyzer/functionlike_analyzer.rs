@@ -1038,7 +1038,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     DataFlowNode::get_for_assignment(param.name.clone(), param.name_location)
                 } else {
                     let id = format!(
-                        "{}-{}:{}-{}",
+                        "param-{}-{}:{}-{}",
                         param.name,
                         &param.name_location.file_path.0 .0,
                         param.name_location.start_offset,
@@ -1069,14 +1069,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         },
                     }
                 };
-
-            if !param.promoted_property
-                && analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
-            {
-                analysis_data
-                    .data_flow_graph
-                    .add_node(new_parent_node.clone());
-            }
 
             analysis_data
                 .data_flow_graph
