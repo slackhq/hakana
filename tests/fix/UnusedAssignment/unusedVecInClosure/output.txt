@@ -1,0 +1,6 @@
+function foo(): void {
+    $fn = () ==> {
+        rand(0, 1);
+    };
+    $fn();
+}

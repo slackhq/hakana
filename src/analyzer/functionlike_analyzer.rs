@@ -770,6 +770,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .matched_ignore_positions
                 .extend(analysis_data.matched_ignore_positions);
 
+            parent_analysis_data
+                .expr_effects
+                .extend(analysis_data.expr_effects);
+
             for (kind, count) in analysis_data.issue_counts {
                 *parent_analysis_data.issue_counts.entry(kind).or_insert(0) += count;
             }
@@ -1316,7 +1320,6 @@ fn handle_unused_assignment(
                     .issues_to_fix
                     .contains(&IssueKind::UnusedAssignmentStatement)))
             && !config.add_fixmes
-            && !unused_closure_variable
         {
             unused_variable_nodes.push(node.clone());
         } else {
