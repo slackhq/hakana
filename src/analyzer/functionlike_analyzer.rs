@@ -591,8 +591,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             for unused_fixme_position in analysis_data.get_unused_hakana_fixme_positions() {
                 analysis_data.add_replacement(
                     (unused_fixme_position.0, unused_fixme_position.1),
-                    if unused_fixme_position.3 {
-                        Replacement::TrimTrailingWhitespace(unused_fixme_position.2)
+                    if unused_fixme_position.4 {
+                        Replacement::TrimTrailingWhitespace(unused_fixme_position.3)
                     } else {
                         Replacement::TrimPrecedingWhitespace(unused_fixme_position.2)
                     },
@@ -776,6 +776,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             for (kind, count) in analysis_data.issue_counts {
                 *parent_analysis_data.issue_counts.entry(kind).or_insert(0) += count;
+            }
+
+            if statements_analyzer.get_config().add_fixmes {
+                parent_analysis_data
+                    .expr_fixme_positions
+                    .extend(analysis_data.expr_fixme_positions);
             }
 
             for (name, bounds) in analysis_data.type_variable_bounds {

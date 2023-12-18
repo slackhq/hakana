@@ -251,6 +251,11 @@ pub fn init(
                         .help("How many threads to use"),
                 )
                 .arg(
+                    arg!(--"filter" <PATH>)
+                        .required(false)
+                        .help("Filter the files that have added fixmes"),
+                )
+                .arg(
                     arg!(--"debug")
                         .required(false)
                         .help("Add output for debugging"),
@@ -1299,12 +1304,11 @@ fn replace_contents(
                     let potential_whitespace =
                         file_contents[end as usize..(*end_of_line as usize)].to_string();
 
-                    if potential_whitespace.trim() == "" {
-                        end = *end_of_line as u32;
-                    }
+                    let trimmed = potential_whitespace.trim();
 
                     file_contents = file_contents[..start as usize].to_string()
-                        + &*file_contents[end as usize..].to_string();
+                        + trimmed
+                        + &*file_contents[*end_of_line as usize..].to_string();
                 }
                 Replacement::Substitute(string) => {
                     file_contents = file_contents[..start as usize].to_string()

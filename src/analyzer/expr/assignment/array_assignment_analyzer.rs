@@ -4,7 +4,7 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::{
         graph::{GraphKind, WholeProgramKind},
-        node::DataFlowNode,
+        node::{DataFlowNode, DataFlowNodeKind},
         path::{ArrayDataKind, PathKind},
     },
     t_atomic::{DictKey, TAtomic},
@@ -123,10 +123,12 @@ pub(crate) fn analyze(
 
     let mut key_values = Vec::new();
 
-    let dim_type = current_dim.map(|current_dim| analysis_data
-                .get_rc_expr_type(current_dim.pos())
-                .cloned()
-                .unwrap_or(Rc::new(get_arraykey(true))));
+    let dim_type = current_dim.map(|current_dim| {
+        analysis_data
+            .get_rc_expr_type(current_dim.pos())
+            .cloned()
+            .unwrap_or(Rc::new(get_arraykey(true)))
+    });
 
     if let Some(dim_type) = &dim_type {
         for key_atomic_type in &dim_type.types {
@@ -370,6 +372,7 @@ fn add_array_assignment_dataflow(
     child_expr_type: &TUnion,
     var_var_id: Option<String>,
     key_values: &Vec<TAtomic>,
+    inside_general_use: bool,
 ) -> TUnion {
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = analysis_data.data_flow_graph.kind {
         if !child_expr_type.has_taintable_value() {
@@ -381,6 +384,25 @@ fn add_array_assignment_dataflow(
         var_var_id.unwrap_or("array-assignment".to_string()),
         statements_analyzer.get_hpos(expr_var_pos),
     );
+
+    if inside_general_use && analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+        let pos = statements_analyzer.get_hpos(expr_var_pos);
+
+        let assignment_node = DataFlowNode {
+            id: parent_node.id.clone() + "_sink",
+            kind: DataFlowNodeKind::VariableUseSink { pos },
+        };
+
+        analysis_data.data_flow_graph.add_path(
+            &parent_node,
+            &assignment_node,
+            PathKind::Default,
+            None,
+            None,
+        );
+
+        analysis_data.data_flow_graph.add_node(assignment_node);
+    }
 
     analysis_data.data_flow_graph.add_node(parent_node.clone());
 
@@ -474,10 +496,12 @@ fn update_array_assignment_child_type(
             match original_type {
                 TAtomic::TVec { known_items, .. } => collection_types.push(TAtomic::TVec {
                     type_param: Box::new(value_type.clone()),
-                    known_items: known_items.as_ref().map(|known_items| known_items
-                                .iter()
-                                .map(|(k, v)| (*k, (v.0, v.1.clone())))
-                                .collect::<BTreeMap<_, _>>()),
+                    known_items: known_items.as_ref().map(|known_items| {
+                        known_items
+                            .iter()
+                            .map(|(k, v)| (*k, (v.0, v.1.clone())))
+                            .collect::<BTreeMap<_, _>>()
+                    }),
                     known_count: None,
                     non_empty: true,
                 }),
@@ -561,8 +585,6 @@ fn update_array_assignment_child_type(
 
     let array_assignment_type =
         TUnion::new(type_combiner::combine(collection_types, codebase, false));
-
-    
 
     if let Some(new_child_type) = new_child_type {
         new_child_type
@@ -719,6 +741,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                     )),
                 ),
                 &array_expr_offset_atomic_types,
+                context.inside_general_use,
             );
         } else {
             analysis_data.set_expr_type(array_expr.2, array_expr_type.clone());
@@ -862,6 +885,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             &array_expr_type,
             parent_array_var_id,
             &key_values,
+            context.inside_general_use,
         );
 
         let is_first = i == array_exprs.len() - 1;

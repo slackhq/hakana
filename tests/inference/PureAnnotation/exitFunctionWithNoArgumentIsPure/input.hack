@@ -1,4 +1,4 @@
 function foo()[]: void {
-    exit;
+    exit();
 }
                 

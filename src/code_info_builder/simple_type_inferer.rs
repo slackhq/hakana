@@ -208,7 +208,17 @@ pub fn infer(
                 panic!()
             }
         }
-        aast::Expr_::Id(_) => None,
+        aast::Expr_::Id(name) => {
+            if let Some(name_string) = resolved_names.get(&name.0.start_offset()) {
+                if *name_string == StrId::MATH_INT32_MAX {
+                    return Some(wrap_atomic(TAtomic::TLiteralInt {
+                        value: i32::MAX as i64,
+                    }));
+                }
+            }
+
+            None
+        }
         aast::Expr_::Eif(_) => None,
         aast::Expr_::Darray(boxed) => {
             let mut known_items = BTreeMap::new();

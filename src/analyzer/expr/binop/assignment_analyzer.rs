@@ -172,8 +172,6 @@ pub(crate) fn analyze(
         assign_value_type.clone()
     } else if let Some(assign_value) = assign_value {
         if let Some(var_type) = analysis_data.get_expr_type(&assign_value.1) {
-            
-
             // todo set from_property flags on union
 
             var_type.clone()
@@ -519,7 +517,8 @@ fn analyze_list_assignment(
                 )),
             );
 
-            let keyed_array_var_id = source_expr_id.map(|source_expr_id| source_expr_id + "['" + offset.to_string().as_str() + "']");
+            let keyed_array_var_id = source_expr_id
+                .map(|source_expr_id| source_expr_id + "['" + offset.to_string().as_str() + "']");
 
             let mut value_type_rc = Rc::new(value_type);
 

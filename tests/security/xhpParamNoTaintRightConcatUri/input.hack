@@ -11,3 +11,9 @@ function bar(string $url) {
 }
 
 bar($_GET['url']);
+
+function baz(string $url) {
+    return <a href={\HH\Lib\Str\format('https://slack.com/foo/%s', $url)}>I'm a normal link</a>;
+}
+
+baz($_GET['url']);

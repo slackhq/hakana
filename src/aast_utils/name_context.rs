@@ -192,7 +192,11 @@ impl NameContext<'_> {
             | "__PHPStdLib"
             | "__ReturnDisposable"
             | "__Sealed"
-            | "__Soft" => {
+            | "__Soft"
+            | "__FUNCTION__"
+            | "__FILE__"
+            | "__DIR__"
+            | "__CLASS__" => {
                 return interner.intern_str(name);
             }
             _ => {}

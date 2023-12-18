@@ -308,7 +308,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     nc.get_resolved_name(
                         self.interner,
                         &id.1,
-                        if nc.in_class_id || nc.in_constant_id {
+                        if nc.in_constant_id && !nc.in_class_id {
+                            aast::NsKind::NSConst
+                        } else if nc.in_class_id {
                             aast::NsKind::NSClassAndNamespace
                         } else {
                             aast::NsKind::NSFun

@@ -67,8 +67,7 @@ pub(crate) fn find_unused_definitions(
                         .insert(
                             (meta_start.start_offset, def_pos.end_offset),
                             Replacement::TrimPrecedingWhitespace(
-                                (meta_start.start_offset + 1 - meta_start.start_column as u32)
-                                    as u64,
+                                meta_start.start_offset + 1 - meta_start.start_column as u32,
                             ),
                         );
                 }
@@ -144,8 +143,7 @@ pub(crate) fn find_unused_definitions(
                         .insert(
                             (meta_start.start_offset, def_pos.end_offset),
                             Replacement::TrimPrecedingWhitespace(
-                                (meta_start.start_offset + 1 - meta_start.start_column as u32)
-                                    as u64,
+                                meta_start.start_offset + 1 - meta_start.start_column as u32,
                             ),
                         );
                 }
@@ -366,8 +364,7 @@ pub(crate) fn find_unused_definitions(
                                     .insert(
                                         (stmt_pos.start_offset, stmt_pos.end_offset),
                                         Replacement::TrimPrecedingWhitespace(
-                                            (stmt_pos.start_offset - stmt_pos.start_column as u32)
-                                                as u64,
+                                            stmt_pos.start_offset - stmt_pos.start_column as u32,
                                         ),
                                     );
                             }
@@ -424,7 +421,7 @@ pub(crate) fn find_unused_definitions(
                         .insert(
                             (pos.start_offset, pos.end_offset),
                             Replacement::TrimPrecedingWhitespace(
-                                (pos.start_offset - (pos.start_column as u32 - 1)) as u64,
+                                pos.start_offset - (pos.start_column as u32 - 1),
                             ),
                         );
                 }

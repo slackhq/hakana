@@ -378,8 +378,7 @@ pub(crate) fn check_arguments_match(
         if function_param.is_inout {
             // First inout param for HH\Shapes::removeKey is already handled
             if if let FunctionLikeIdentifier::Method(classname, method_name) = functionlike_id {
-                classname != &StrId::SHAPES
-                    || statements_analyzer.get_interner().lookup(method_name) != "removeKey"
+                *classname != StrId::SHAPES || *method_name != StrId::REMOVE_KEY
             } else {
                 true
             } {

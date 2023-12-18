@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::custom_hook::AfterExprAnalysisData;
+use crate::expr::binop::concat_analyzer::analyze_concat_nodes;
 use crate::expr::call::new_analyzer;
 use crate::expr::fetch::{
     array_fetch_analyzer, class_constant_fetch_analyzer, instance_property_fetch_analyzer,
@@ -31,12 +32,11 @@ use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::taint::SinkType;
 use hakana_reflection_info::{StrId, EFFECT_IMPURE};
 use hakana_type::type_expander::get_closure_from_id;
 use hakana_type::{
     get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
-    get_null, get_string, get_true, wrap_atomic,
+    get_null, get_true, wrap_atomic,
 };
 use oxidized::ast::Field;
 use oxidized::pos::Pos;
@@ -355,73 +355,26 @@ pub(crate) fn analyze(
             }
         }
         aast::Expr_::String2(exprs) => {
-            let mut all_literals = true;
-
-            let mut parent_nodes = FxHashSet::default();
-
-            for (offset, inner_expr) in exprs.iter().enumerate() {
+            for concat_node in exprs {
                 expression_analyzer::analyze(
                     statements_analyzer,
-                    inner_expr,
+                    concat_node,
                     analysis_data,
                     context,
-                    if_body_context,
+                    &mut None,
                 )?;
-
-                let expr_part_type = analysis_data.expr_types.get(&(
-                    inner_expr.pos().start_offset() as u32,
-                    inner_expr.pos().end_offset() as u32,
-                ));
-
-                let new_parent_node = DataFlowNode::get_for_assignment(
-                    "concat".to_string(),
-                    statements_analyzer.get_hpos(inner_expr.pos()),
-                );
-
-                analysis_data
-                    .data_flow_graph
-                    .add_node(new_parent_node.clone());
-
-                if let Some(expr_part_type) = expr_part_type {
-                    if !expr_part_type.all_literals() {
-                        all_literals = false;
-                    }
-
-                    for parent_node in &expr_part_type.parent_nodes {
-                        analysis_data.data_flow_graph.add_path(
-                            parent_node,
-                            &new_parent_node,
-                            PathKind::Default,
-                            None,
-                            if offset > 0 {
-                                Some(FxHashSet::from_iter([
-                                    SinkType::HtmlAttributeUri,
-                                    SinkType::CurlUri,
-                                    SinkType::RedirectUri,
-                                ]))
-                            } else {
-                                None
-                            },
-                        );
-                    }
-                } else {
-                    all_literals = false;
-                }
-
-                parent_nodes.insert(new_parent_node);
             }
 
-            let mut string_type = if all_literals {
-                wrap_atomic(TAtomic::TStringWithFlags(true, false, true))
-            } else {
-                get_string()
-            };
-
-            string_type.parent_nodes = parent_nodes;
+            let result_type = analyze_concat_nodes(
+                exprs.iter().collect(),
+                statements_analyzer,
+                analysis_data,
+                expr.pos(),
+            );
 
             analysis_data.expr_types.insert(
                 (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
-                Rc::new(string_type),
+                Rc::new(result_type),
             );
         }
         aast::Expr_::PrefixedString(boxed) => {
@@ -435,7 +388,7 @@ pub(crate) fn analyze(
             )?;
         }
         aast::Expr_::Id(boxed) => {
-            const_fetch_analyzer::analyze(statements_analyzer, boxed, analysis_data)?;
+            const_fetch_analyzer::analyze(statements_analyzer, boxed, analysis_data, context)?;
         }
         aast::Expr_::Xml(boxed) => {
             xml_analyzer::analyze(

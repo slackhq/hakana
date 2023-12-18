@@ -1,3 +1,4 @@
+use bstr::BString;
 use hakana_reflection_info::classlike_info::ClassConstantType;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -22,6 +23,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::expr::binop::concat_analyzer::analyze_concat_nodes;
 use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;
 use crate::expr::variable_fetch_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -431,8 +433,79 @@ fn handle_special_functions(
                 None
             }
         }
-        "HH\\Lib\\Str\\format"
-        | "HH\\Lib\\Str\\trim"
+        "HH\\Lib\\Str\\format" => {
+            if let Some(first_arg) = args.get(0) {
+                if let aast::Expr_::String(simple_string) = &first_arg.1 .2 {
+                    let mut escaped = false;
+                    let mut in_format_string = false;
+
+                    let mut literals = vec![];
+
+                    let mut cur_literal = "".to_string();
+
+                    for c in simple_string.to_vec() {
+                        if in_format_string {
+                            in_format_string = false;
+                            continue;
+                        }
+
+                        if !escaped {
+                            if c as char == '%' {
+                                in_format_string = true;
+                                literals.push(aast::Expr(
+                                    (),
+                                    first_arg.1.pos().clone(),
+                                    aast::Expr_::String(BString::from(cur_literal)),
+                                ));
+                                cur_literal = "".to_string();
+                                continue;
+                            }
+
+                            if c as char == '\\' {
+                                escaped = true;
+                            }
+
+                            in_format_string = false;
+                        } else {
+                            if c as char == '\\' {
+                                cur_literal += "\\";
+                                escaped = false;
+                                continue;
+                            }
+
+                            escaped = false;
+                        }
+
+                        cur_literal += (c as char).to_string().as_str();
+                    }
+
+                    literals.push(aast::Expr(
+                        (),
+                        first_arg.1.pos().clone(),
+                        aast::Expr_::String(BString::from(cur_literal)),
+                    ));
+
+                    let mut concat_args = vec![];
+
+                    for (i, literal) in literals.iter().enumerate() {
+                        concat_args.push(literal);
+                        if let Some(arg) = args.get(i + 1) {
+                            concat_args.push(&arg.1);
+                        } else {
+                            break;
+                        }
+                    }
+
+                    let result_type =
+                        analyze_concat_nodes(concat_args, statements_analyzer, analysis_data, pos);
+
+                    return Some(result_type);
+                }
+            }
+
+            None
+        }
+        "HH\\Lib\\Str\\trim"
         | "HH\\Lib\\Str\\strip_suffix"
         | "HH\\Lib\\Str\\slice"
         | "HH\\Lib\\Str\\replace" => {
@@ -731,6 +804,21 @@ fn add_dataflow(
                 );
             }
         }
+
+        if let Some(expanded_arg) = expr.3 {
+            add_special_param_dataflow(
+                statements_analyzer,
+                functionlike_id,
+                true,
+                expr.2.len(),
+                statements_analyzer.get_hpos(expanded_arg.pos()),
+                pos,
+                &added_removed_taints,
+                data_flow_graph,
+                &function_call_node,
+                path_kind.clone(),
+            );
+        }
     }
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
@@ -980,7 +1068,6 @@ fn get_special_argument_nodes(
                 ],
                 None,
             ),
-            "HH\\Lib\\Str\\format" => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
             "str_pad" | "chunk_split" => {
                 (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
             }
@@ -1163,13 +1250,15 @@ fn get_special_added_removed_taints(
                     FxHashSet::default(),
                 ),
             )]),
-            "htmlentities" | "htmlspecialchars" | "strip_tags" => FxHashMap::from_iter([(
-                0,
-                (
-                    FxHashSet::default(),
-                    FxHashSet::from_iter([SinkType::HtmlTag]),
-                ),
-            )]),
+            "htmlentities" | "htmlspecialchars" | "strip_tags" | "urlencode" => {
+                FxHashMap::from_iter([(
+                    0,
+                    (
+                        FxHashSet::default(),
+                        FxHashSet::from_iter([SinkType::HtmlTag, SinkType::HtmlAttributeUri]),
+                    ),
+                )])
+            }
             _ => FxHashMap::default(),
         },
         FunctionLikeIdentifier::Method(_, _) => panic!(),

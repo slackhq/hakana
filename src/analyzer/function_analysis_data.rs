@@ -37,7 +37,7 @@ pub struct FunctionAnalysisData {
     recording_level: usize,
     recorded_issues: Vec<Vec<Issue>>,
     hh_fixmes: BTreeMap<isize, BTreeMap<isize, Pos>>,
-    pub hakana_fixme_or_ignores: BTreeMap<u32, Vec<(IssueKind, (u32, u32, u64, bool))>>,
+    pub hakana_fixme_or_ignores: BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>>,
     pub matched_ignore_positions: FxHashSet<(u32, u32)>,
     pub type_variable_bounds: FxHashMap<String, (Vec<TemplateBound>, Vec<TemplateBound>)>,
 }
@@ -49,7 +49,9 @@ impl FunctionAnalysisData {
         comments: &Vec<&(Pos, Comment)>,
         all_custom_issues: &FxHashSet<String>,
         current_stmt_offset: Option<StmtStart>,
-        hakana_fixme_or_ignores: Option<BTreeMap<u32, Vec<(IssueKind, (u32, u32, u64, bool))>>>,
+        hakana_fixme_or_ignores: Option<
+            BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>>,
+        >,
     ) -> Self {
         Self {
             expr_types: FxHashMap::default(),
@@ -100,7 +102,9 @@ impl FunctionAnalysisData {
             .get(&(issue.pos.start_offset, issue.pos.end_offset))
         {
             Some(*expr_fixme_position)
-        } else { self.current_stmt_offset };
+        } else {
+            self.current_stmt_offset
+        };
 
         issue.can_fix = config.add_fixmes && config.issues_to_fix.contains(&issue.kind);
 
@@ -125,6 +129,7 @@ impl FunctionAnalysisData {
                         issue.kind.to_string(),
                         if let IssueKind::UnusedParameter
                         | IssueKind::UnusedAssignment
+                        | IssueKind::UnusedAssignmentInClosure
                         | IssueKind::UnusedAssignmentStatement
                         | IssueKind::UnusedStatement
                         | IssueKind::UnusedFunction
@@ -520,11 +525,14 @@ impl FunctionAnalysisData {
         }
     }
 
-    pub(crate) fn get_unused_hakana_fixme_positions(&self) -> Vec<(u32, u32, u64, bool)> {
+    pub(crate) fn get_unused_hakana_fixme_positions(&self) -> Vec<(u32, u32, u32, u32, bool)> {
         let mut unused_fixme_positions = vec![];
 
         for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
             for line_issue in hakana_fixme_or_ignores.1 {
+                if line_issue.0 == IssueKind::NoJoinInAsyncFunction {
+                    continue;
+                }
                 if !self
                     .matched_ignore_positions
                     .contains(&(line_issue.1 .0, line_issue.1 .1))
@@ -568,7 +576,7 @@ impl FunctionAnalysisData {
 fn get_hakana_fixmes_and_ignores(
     comments: &Vec<&(Pos, Comment)>,
     all_custom_issues: &FxHashSet<String>,
-) -> BTreeMap<u32, Vec<(IssueKind, (u32, u32, u64, bool))>> {
+) -> BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>> {
     let mut hakana_fixme_or_ignores = BTreeMap::new();
     for (pos, comment) in comments {
         match comment {
@@ -590,7 +598,8 @@ fn get_hakana_fixmes_and_ignores(
                             (
                                 pos.start_offset() as u32,
                                 pos.end_offset() as u32,
-                                pos.to_raw_span().start.beg_of_line(),
+                                pos.to_raw_span().start.beg_of_line() as u32,
+                                pos.end_offset() as u32,
                                 false,
                             ),
                         ));

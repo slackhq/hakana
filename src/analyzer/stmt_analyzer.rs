@@ -55,8 +55,9 @@ pub(crate) fn analyze(
     if statements_analyzer.get_config().remove_fixmes {
         for (fixme_line, b) in analysis_data.hakana_fixme_or_ignores.iter_mut() {
             if *fixme_line == stmt.0.line() as u32 {
-                for (_, (_, _, end, is_same_line)) in b {
-                    *end = stmt.0.start_offset() as u64;
+                for (_, (_, _, line_start, line_end, is_same_line)) in b {
+                    *line_start = stmt.0.start_offset() as u32;
+                    *line_end = stmt.0.end_offset() as u32;
                     *is_same_line = true;
                 }
             }

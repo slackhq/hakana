@@ -2,6 +2,7 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
+use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::{
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
@@ -22,6 +23,32 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr>(
     let mut concat_nodes = get_concat_nodes(left);
     concat_nodes.push(right);
 
+    for concat_node in &concat_nodes {
+        expression_analyzer::analyze(
+            statements_analyzer,
+            concat_node,
+            analysis_data,
+            context,
+            &mut None,
+        )?;
+    }
+
+    let result_type =
+        analyze_concat_nodes(concat_nodes, statements_analyzer, analysis_data, stmt_pos);
+
+    // todo handle more string type combinations
+
+    analysis_data.set_expr_type(stmt_pos, result_type);
+
+    Ok(())
+}
+
+pub(crate) fn analyze_concat_nodes(
+    concat_nodes: Vec<&aast::Expr<(), ()>>,
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    analysis_data: &mut FunctionAnalysisData,
+    stmt_pos: &aast::Pos,
+) -> TUnion {
     let mut all_literals = true;
 
     let decision_node = if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
@@ -37,50 +64,55 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr>(
     let mut has_query = false;
 
     for (i, concat_node) in concat_nodes.iter().enumerate() {
-        expression_analyzer::analyze(
-            statements_analyzer,
-            concat_node,
-            analysis_data,
-            context,
-            &mut None,
-        )?;
-
-        let expr_type = analysis_data.expr_types.get(&(
-            concat_node.pos().start_offset() as u32,
-            concat_node.pos().end_offset() as u32,
-        ));
-
-        if let Some(expr_type) = expr_type {
-            all_literals = all_literals && expr_type.all_literals();
-
-            if let Some(str) = expr_type.get_single_literal_string_value() {
-                if str.contains('/') {
-                    has_slash = true;
-                }
-                if str.contains('?') {
-                    has_query = true;
-                }
+        if let aast::Expr_::String(simple_string) = &concat_node.2 {
+            if simple_string == "" {
+                continue;
             }
 
-            for old_parent_node in &expr_type.parent_nodes {
-                analysis_data.data_flow_graph.add_path(
-                    old_parent_node,
-                    &decision_node,
-                    PathKind::Default,
-                    None,
-                    if i > 0 && (has_slash || has_query) {
-                        Some(FxHashSet::from_iter([
-                            SinkType::HtmlAttributeUri,
-                            SinkType::CurlUri,
-                            SinkType::RedirectUri,
-                        ]))
-                    } else {
-                        None
-                    },
-                );
+            if simple_string.contains(&('/' as u8)) {
+                has_slash = true;
+            }
+            if simple_string.contains(&('?' as u8)) {
+                has_query = true;
             }
         } else {
-            all_literals = false;
+            let expr_type = analysis_data.expr_types.get(&(
+                concat_node.pos().start_offset() as u32,
+                concat_node.pos().end_offset() as u32,
+            ));
+
+            if let Some(expr_type) = expr_type {
+                all_literals = all_literals && expr_type.all_literals();
+
+                if let Some(str) = expr_type.get_single_literal_string_value() {
+                    if str.contains('/') {
+                        has_slash = true;
+                    }
+                    if str.contains('?') {
+                        has_query = true;
+                    }
+                }
+
+                for old_parent_node in &expr_type.parent_nodes {
+                    analysis_data.data_flow_graph.add_path(
+                        old_parent_node,
+                        &decision_node,
+                        PathKind::Default,
+                        None,
+                        if i > 0 && (has_slash || has_query) {
+                            Some(FxHashSet::from_iter([
+                                SinkType::HtmlAttributeUri,
+                                SinkType::CurlUri,
+                                SinkType::RedirectUri,
+                            ]))
+                        } else {
+                            None
+                        },
+                    );
+                }
+            } else {
+                all_literals = false;
+            }
         }
     }
 
@@ -92,15 +124,9 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr>(
 
     result_type.parent_nodes.insert(decision_node.clone());
 
-    // todo handle more string type combinations
+    analysis_data.data_flow_graph.add_node(decision_node);
 
-    analysis_data
-        .data_flow_graph
-        .add_node(decision_node.clone());
-
-    analysis_data.set_expr_type(stmt_pos, result_type);
-
-    Ok(())
+    result_type
 }
 
 fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {

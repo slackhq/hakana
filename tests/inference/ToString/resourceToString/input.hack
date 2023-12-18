@@ -1,3 +1,3 @@
 $a = fopen("php://memory", "r");
-if ($a === false) exit;
+if ($a === false) exit();
 $b = (string) $a;

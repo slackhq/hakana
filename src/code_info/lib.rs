@@ -95,6 +95,8 @@ impl StrId {
     pub const ASSERT: StrId = StrId(37);
     pub const ASSERT_ALL: StrId = StrId(38);
     pub const KEY_EXISTS: StrId = StrId(39);
+    pub const REMOVE_KEY: StrId = StrId(40);
+    pub const MATH_INT32_MAX: StrId = StrId(41);
 
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -161,6 +163,8 @@ impl Default for Interner {
         interner.intern("assert".to_string());
         interner.intern("assertAll".to_string());
         interner.intern("keyExists".to_string());
+        interner.intern("removeKey".to_string());
+        interner.intern("HH\\Lib\\Math\\INT32_MAX".to_string());
         interner
     }
 }

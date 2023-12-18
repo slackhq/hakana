@@ -14,8 +14,8 @@ use crate::{
 #[derive(Clone, Debug)]
 pub enum Replacement {
     Remove,
-    TrimPrecedingWhitespace(u64),
-    TrimTrailingWhitespace(u64),
+    TrimPrecedingWhitespace(u32),
+    TrimTrailingWhitespace(u32),
     Substitute(String),
 }
 

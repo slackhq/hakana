@@ -271,7 +271,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                 let span = stmt.0.to_raw_span();
                                 analysis_data.add_replacement(
                                     (stmt.0.start_offset() as u32, stmt.0.end_offset() as u32),
-                                    Replacement::TrimPrecedingWhitespace(span.start.beg_of_line()),
+                                    Replacement::TrimPrecedingWhitespace(
+                                        span.start.beg_of_line() as u32
+                                    ),
                                 );
 
                                 self.remove_fixme_comments(
@@ -338,7 +340,7 @@ impl<'a> Scanner<'a> {
                             analysis_data.add_replacement(
                                 (comment_pos.start_offset() as u32, limit as u32),
                                 Replacement::TrimPrecedingWhitespace(
-                                    comment_pos.to_raw_span().start.beg_of_line(),
+                                    comment_pos.to_raw_span().start.beg_of_line() as u32,
                                 ),
                             );
 
@@ -360,7 +362,7 @@ impl<'a> Scanner<'a> {
                                     (stmt_start.beg_of_line() as u32) - 1,
                                 ),
                                 Replacement::TrimPrecedingWhitespace(
-                                    comment_pos.to_raw_span().start.beg_of_line(),
+                                    comment_pos.to_raw_span().start.beg_of_line() as u32,
                                 ),
                             );
                             return;
