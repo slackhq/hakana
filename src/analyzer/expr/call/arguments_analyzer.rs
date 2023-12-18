@@ -175,13 +175,13 @@ pub(crate) fn check_arguments_match(
     for (_, arg_expr) in args.iter() {
         let was_inside_call = context.inside_general_use;
 
-        if matches!(functionlike_info.effects, FnEffect::Some(_))
-            || matches!(functionlike_info.effects, FnEffect::Arg(_))
-            || functionlike_info.pure_can_throw
-            || functionlike_info.user_defined
-        {
-            context.inside_general_use = true;
-        }
+        // if matches!(functionlike_info.effects, FnEffect::Some(_))
+        //     || matches!(functionlike_info.effects, FnEffect::Arg(_))
+        //     || functionlike_info.pure_can_throw
+        //     || functionlike_info.user_defined
+        // {
+        context.inside_general_use = true;
+        // }
 
         // don't analyse closures here
         if !matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
