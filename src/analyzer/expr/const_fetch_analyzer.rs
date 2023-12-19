@@ -54,7 +54,7 @@ pub(crate) fn analyze(
                     Issue::new(
                         IssueKind::NonExistentConstant,
                         format!("Constant {} not recognized", constant_name),
-                        statements_analyzer.get_hpos(&boxed.pos()),
+                        statements_analyzer.get_hpos(boxed.pos()),
                         &context.function_context.calling_functionlike_id,
                     ),
                     statements_analyzer.get_config(),

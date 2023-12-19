@@ -69,10 +69,10 @@ pub(crate) fn analyze_concat_nodes(
                 continue;
             }
 
-            if simple_string.contains(&('/' as u8)) {
+            if simple_string.contains(&b'/') {
                 has_slash = true;
             }
-            if simple_string.contains(&('?' as u8)) {
+            if simple_string.contains(&b'?') {
                 has_query = true;
             }
         } else {

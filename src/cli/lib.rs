@@ -1284,7 +1284,7 @@ fn replace_contents(
                     let potential_whitespace =
                         file_contents[(*beg_of_line as usize)..start as usize].to_string();
                     if potential_whitespace.trim() == "" {
-                        start = *beg_of_line as u32;
+                        start = *beg_of_line;
 
                         if beg_of_line > &0
                             && &file_contents[((*beg_of_line as usize) - 1)..start as usize] == "\n"

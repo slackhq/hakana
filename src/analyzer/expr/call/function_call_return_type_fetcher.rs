@@ -434,7 +434,7 @@ fn handle_special_functions(
             }
         }
         "HH\\Lib\\Str\\format" => {
-            if let Some(first_arg) = args.get(0) {
+            if let Some(first_arg) = args.first() {
                 if let aast::Expr_::String(simple_string) = &first_arg.1 .2 {
                     let mut escaped = false;
                     let mut in_format_string = false;
