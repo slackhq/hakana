@@ -27,7 +27,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    boxed: &Box<(String, aast::Expr<(), ()>)>,
+    boxed: &(String, aast::Expr<(), ()>),
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
@@ -91,7 +91,7 @@ pub(crate) fn analyze(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn get_shape_fields_from_regex(inner_text: &String) -> BTreeMap<DictKey, (bool, Arc<TUnion>)> {
+fn get_shape_fields_from_regex(inner_text: &str) -> BTreeMap<DictKey, (bool, Arc<TUnion>)> {
     let regex = pcre2::bytes::RegexBuilder::new()
         .utf(true)
         .build(inner_text);

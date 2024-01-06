@@ -110,7 +110,7 @@ pub(crate) fn analyze(
         false
     };
 
-    for (assigned_var_id, _) in &newly_assigned_var_ids {
+    for assigned_var_id in newly_assigned_var_ids.keys() {
         if all_catches_leave {
             &mut try_context
         } else {
@@ -246,12 +246,8 @@ pub(crate) fn analyze(
                 let mut finally_scope = (*finally_scope).borrow_mut();
                 for (var_id, var_type) in &catch_context.vars_in_scope {
                     if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
-                        *finally_type = Rc::new(combine_union_types(
-                            finally_type,
-                            var_type,
-                            codebase,
-                            false,
-                        ));
+                        *finally_type =
+                            Rc::new(combine_union_types(finally_type, var_type, codebase, false));
                     } else {
                         finally_scope
                             .vars_in_scope
@@ -285,12 +281,8 @@ pub(crate) fn analyze(
 
             for (var_id, var_type) in &try_context.vars_in_scope {
                 if let Some(finally_type) = finally_context.vars_in_scope.get_mut(var_id) {
-                    *finally_type = Rc::new(combine_union_types(
-                        finally_type,
-                        var_type,
-                        codebase,
-                        false,
-                    ));
+                    *finally_type =
+                        Rc::new(combine_union_types(finally_type, var_type, codebase, false));
                 } else {
                     finally_context
                         .vars_in_scope
@@ -347,7 +339,7 @@ pub(crate) fn analyze(
         }
     }
 
-    for (var_id, _) in &definitely_newly_assigned_var_ids {
+    for var_id in definitely_newly_assigned_var_ids.keys() {
         if let Some(context_type) = context.vars_in_scope.get_mut(var_id) {
             if context_type.possibly_undefined_from_try {
                 let mut context_type_inner = (**context_type).clone();

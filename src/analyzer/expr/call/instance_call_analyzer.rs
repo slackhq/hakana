@@ -56,7 +56,6 @@ pub(crate) fn analyze(
     let lhs_var_id = expression_identifier::get_var_id(
         expr.0,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
             statements_analyzer.get_codebase(),

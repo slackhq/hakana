@@ -563,10 +563,10 @@ pub fn is_contained_by(
         ..
     } = input_type_part
     {
-        if match *input_name {
-            StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => true,
-            _ => false,
-        } {
+        if matches!(
+            *input_name,
+            StrId::CONTAINER | StrId::KEYED_CONTAINER | StrId::ANY_ARRAY
+        ) {
             if let TAtomic::TKeyset { .. } | TAtomic::TVec { .. } | TAtomic::TDict { .. } =
                 container_type_part
             {

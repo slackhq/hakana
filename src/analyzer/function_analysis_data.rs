@@ -217,7 +217,7 @@ impl FunctionAnalysisData {
 
     fn covered_by_hh_fixme(&mut self, issue_kind: &IssueKind, start_line: u32) -> bool {
         if let Some(fixmes) = self.hh_fixmes.get(&(start_line as isize)) {
-            for (hack_error, _) in fixmes {
+            for hack_error in fixmes.keys() {
                 match *hack_error {
                     // Unify error
                     4110 => match &issue_kind {
@@ -294,12 +294,11 @@ impl FunctionAnalysisData {
                         }
                         _ => {}
                     },
-                    4323 => match &issue_kind {
-                        IssueKind::PossiblyNullArgument => {
+                    4323 => {
+                        if let IssueKind::PossiblyNullArgument = &issue_kind {
                             return true;
                         }
-                        _ => {}
-                    },
+                    }
                     4063 => match &issue_kind {
                         IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess => {
                             return true;
@@ -312,12 +311,11 @@ impl FunctionAnalysisData {
                         }
                         _ => {}
                     },
-                    4005 => match &issue_kind {
-                        IssueKind::MixedArrayAccess => {
+                    4005 => {
+                        if let IssueKind::MixedArrayAccess = &issue_kind {
                             return true;
                         }
-                        _ => {}
-                    },
+                    }
                     2049 => match &issue_kind {
                         IssueKind::NonExistentMethod => return true,
                         IssueKind::NonExistentClass => return true,
@@ -337,10 +335,11 @@ impl FunctionAnalysisData {
                         | IssueKind::InvalidReturnStatement => return true,
                         _ => {}
                     },
-                    4062 => match &issue_kind {
-                        IssueKind::MixedMethodCall => return true,
-                        _ => {}
-                    },
+                    4062 => {
+                        if let IssueKind::MixedMethodCall = &issue_kind {
+                            return true;
+                        }
+                    }
                     4321 | 4108 => match &issue_kind {
                         IssueKind::UndefinedStringArrayOffset
                         | IssueKind::UndefinedIntArrayOffset
@@ -547,7 +546,7 @@ impl FunctionAnalysisData {
 
     pub fn add_replacement(&mut self, offsets: (u32, u32), replacement: Replacement) -> bool {
         let offsets = (offsets.0, offsets.1);
-        for ((start, end), _) in &self.replacements {
+        for (start, end) in self.replacements.keys() {
             if (offsets.0 >= *start && offsets.0 <= *end)
                 || (offsets.1 >= *start && offsets.1 <= *end)
             {
@@ -579,33 +578,28 @@ fn get_hakana_fixmes_and_ignores(
 ) -> BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>> {
     let mut hakana_fixme_or_ignores = BTreeMap::new();
     for (pos, comment) in comments {
-        match comment {
-            Comment::CmtBlock(text) => {
-                let trimmed_text = if text.starts_with('*') {
-                    text[1..].trim()
-                } else {
-                    text.trim()
-                };
+        if let Comment::CmtBlock(text) = comment {
+            let trimmed_text = if let Some(trimmed_text) = text.strip_prefix('*') {
+                trimmed_text.trim()
+            } else {
+                text.trim()
+            };
 
-                if let Some(Ok(issue_kind)) =
-                    get_issue_from_comment(trimmed_text, all_custom_issues)
-                {
-                    hakana_fixme_or_ignores
-                        .entry(pos.line() as u32)
-                        .or_insert_with(Vec::new)
-                        .push((
-                            issue_kind,
-                            (
-                                pos.start_offset() as u32,
-                                pos.end_offset() as u32,
-                                pos.to_raw_span().start.beg_of_line() as u32,
-                                pos.end_offset() as u32,
-                                false,
-                            ),
-                        ));
-                }
+            if let Some(Ok(issue_kind)) = get_issue_from_comment(trimmed_text, all_custom_issues) {
+                hakana_fixme_or_ignores
+                    .entry(pos.line() as u32)
+                    .or_insert_with(Vec::new)
+                    .push((
+                        issue_kind,
+                        (
+                            pos.start_offset() as u32,
+                            pos.end_offset() as u32,
+                            pos.to_raw_span().start.beg_of_line() as u32,
+                            pos.end_offset() as u32,
+                            false,
+                        ),
+                    ));
             }
-            _ => {}
         }
     }
     hakana_fixme_or_ignores

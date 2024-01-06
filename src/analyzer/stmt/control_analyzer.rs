@@ -418,7 +418,7 @@ pub(crate) fn get_control_actions(
                     resolved_names,
                     &block_stmts.1,
                     analysis_data,
-                    &break_context,
+                    break_context.clone(),
                     return_is_exit,
                     &mut control_actions,
                 ) {
@@ -432,7 +432,7 @@ pub(crate) fn get_control_actions(
                     resolved_names,
                     block_stmts,
                     analysis_data,
-                    &break_context,
+                    break_context.clone(),
                     return_is_exit,
                     &mut control_actions,
                 ) {
@@ -485,7 +485,7 @@ fn handle_block(
     resolved_names: &FxHashMap<usize, StrId>,
     block_stmts: &aast::Block<(), ()>,
     analysis_data: Option<&FunctionAnalysisData>,
-    break_context: &Vec<BreakContext>,
+    break_context: Vec<BreakContext>,
     return_is_exit: bool,
     control_actions: &mut FxHashSet<ControlAction>,
 ) -> bool {
@@ -495,7 +495,7 @@ fn handle_block(
         resolved_names,
         &block_stmts.0,
         analysis_data,
-        break_context.clone(),
+        break_context,
         return_is_exit,
     );
 
@@ -538,35 +538,32 @@ fn handle_call(
             }
         }
         aast::Expr_::ClassConst(boxed) => {
-            match &boxed.0 .2 {
-                aast::ClassId_::CIexpr(lhs_expr) => {
-                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                        let name_string = &id.1;
+            if let aast::ClassId_::CIexpr(lhs_expr) = &boxed.0 .2 {
+                if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                    let name_string = &id.1;
 
-                        match name_string.as_str() {
-                            "self" | "parent" | "static" => {
-                                // do nothing
-                            }
-                            _ => {
-                                let name_string = resolved_names.get(&id.0.start_offset())?;
+                    match name_string.as_str() {
+                        "self" | "parent" | "static" => {
+                            // do nothing
+                        }
+                        _ => {
+                            let name_string = resolved_names.get(&id.0.start_offset())?;
 
-                                let method_name = interner.get(&boxed.1 .1)?;
+                            let method_name = interner.get(&boxed.1 .1)?;
 
-                                if let Some(functionlike_storage) = codebase
-                                    .functionlike_infos
-                                    .get(&(*name_string, method_name))
-                                {
-                                    if let Some(return_type) = &functionlike_storage.return_type {
-                                        if return_type.is_nothing() {
-                                            return Some(control_end(control_actions.clone()));
-                                        }
+                            if let Some(functionlike_storage) = codebase
+                                .functionlike_infos
+                                .get(&(*name_string, method_name))
+                            {
+                                if let Some(return_type) = &functionlike_storage.return_type {
+                                    if return_type.is_nothing() {
+                                        return Some(control_end(control_actions.clone()));
                                     }
                                 }
                             }
-                        };
-                    }
+                        }
+                    };
                 }
-                _ => {}
             }
         }
         _ => (),

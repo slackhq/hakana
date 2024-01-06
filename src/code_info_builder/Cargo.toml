@@ -17,3 +17,6 @@ xxhash-rust = { version = "0.8.3", features = ["xxh3", "xxh32"] }
 
 [lib]
 path = "lib.rs"
+
+[lints.clippy]
+too_many_arguments = "allow"

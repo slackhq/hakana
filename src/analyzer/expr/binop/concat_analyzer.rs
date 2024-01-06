@@ -12,7 +12,7 @@ use hakana_type::{get_string, wrap_atomic};
 use oxidized::aast;
 use rustc_hash::FxHashSet;
 
-pub(crate) fn analyze<'expr, 'map, 'new_expr>(
+pub(crate) fn analyze<'expr>(
     statements_analyzer: &StatementsAnalyzer,
     stmt_pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,

@@ -67,9 +67,10 @@ pub(crate) fn mark_safe_symbols_from_diff(
             return CachedAnalysis::default();
         };
 
-    let mut cached_analysis = CachedAnalysis::default();
-
-    cached_analysis.symbol_references = existing_references;
+    let mut cached_analysis = CachedAnalysis {
+        symbol_references: existing_references,
+        ..CachedAnalysis::default()
+    };
 
     for keep_symbol in &codebase_diff.keep {
         if !invalid_symbols_and_members.contains(keep_symbol) {

@@ -192,20 +192,10 @@ fn analyze_atomic(
         }
         TAtomic::TLiteralClassname { name } => *name,
         TAtomic::TGenericParam { as_type, .. } => {
-            let mut classlike_name = None;
-            for generic_param_type in &as_type.types {
-                if let TAtomic::TNamedObject { name, .. } = generic_param_type {
-                    classlike_name = Some(*name);
-                    break;
-                } else {
-                    return Ok(());
-                }
-            }
-
-            if let Some(classlike_name) = classlike_name {
-                classlike_name
+            let generic_param_type = &as_type.types[0];
+            if let TAtomic::TNamedObject { name, .. } = generic_param_type {
+                *name
             } else {
-                // todo emit issue
                 return Ok(());
             }
         }

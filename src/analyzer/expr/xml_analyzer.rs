@@ -167,10 +167,10 @@ pub(crate) fn analyze(
             inner_expr.pos().start_offset() as u32,
             inner_expr.pos().end_offset() as u32,
         )) {
-            if match element_name {
-                "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p" => true,
-                _ => false,
-            } {
+            if matches!(
+                element_name,
+                "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p"
+            ) {
                 let xml_body_taint = DataFlowNode {
                     id: element_name.to_string(),
                     kind: DataFlowNodeKind::TaintSink {
@@ -194,10 +194,10 @@ pub(crate) fn analyze(
             }
 
             // find data leaking to style and script tags
-            if match element_name {
-                "Facebook\\XHP\\HTML\\style" | "Facebook\\XHP\\HTML\\script" => true,
-                _ => false,
-            } {
+            if matches!(
+                element_name,
+                "Facebook\\XHP\\HTML\\style" | "Facebook\\XHP\\HTML\\script"
+            ) {
                 let xml_body_taint = DataFlowNode {
                     id: element_name.to_string(),
                     kind: DataFlowNodeKind::TaintSink {
@@ -259,61 +259,58 @@ fn handle_attribute_spread(
         .cloned()
     {
         for expr_type_atomic in &expr_type.types {
-            match expr_type_atomic {
-                TAtomic::TNamedObject {
-                    name: spread_xhp_class,
-                    is_this: true,
-                    ..
-                } => {
-                    if let Some(spread_class_info) = codebase.classlike_infos.get(spread_xhp_class)
-                    {
-                        let all_attributes = spread_class_info
-                            .properties
-                            .iter()
-                            .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { .. }));
+            if let TAtomic::TNamedObject {
+                name: spread_xhp_class,
+                is_this: true,
+                ..
+            } = expr_type_atomic
+            {
+                if let Some(spread_class_info) = codebase.classlike_infos.get(spread_xhp_class) {
+                    let all_attributes = spread_class_info
+                        .properties
+                        .iter()
+                        .filter(|p| matches!(p.1.kind, PropertyKind::XhpAttribute { .. }));
 
-                        for spread_attribute in all_attributes {
-                            atomic_property_fetch_analyzer::analyze(
-                                statements_analyzer,
-                                (xhp_expr, xhp_expr),
-                                xhp_expr.pos(),
+                    for spread_attribute in all_attributes {
+                        atomic_property_fetch_analyzer::analyze(
+                            statements_analyzer,
+                            (xhp_expr, xhp_expr),
+                            xhp_expr.pos(),
+                            analysis_data,
+                            context,
+                            false,
+                            expr_type_atomic.clone(),
+                            statements_analyzer
+                                .get_interner()
+                                .lookup(spread_attribute.0),
+                            &None,
+                            &None,
+                        )?;
+
+                        used_attributes.insert(*spread_attribute.0);
+
+                        if let Some(property_fetch_type) = analysis_data
+                            .expr_types
+                            .get(&(
+                                xhp_expr.pos().start_offset() as u32,
+                                xhp_expr.pos().end_offset() as u32,
+                            ))
+                            .cloned()
+                        {
+                            add_all_dataflow(
                                 analysis_data,
-                                context,
-                                false,
-                                expr_type_atomic.clone(),
+                                statements_analyzer,
+                                (*element_name, *spread_attribute.0),
+                                xhp_expr.pos(),
+                                xhp_expr.pos(),
+                                property_fetch_type,
                                 statements_analyzer
                                     .get_interner()
                                     .lookup(spread_attribute.0),
-                                &None,
-                                &None,
-                            )?;
-
-                            used_attributes.insert(*spread_attribute.0);
-
-                            if let Some(property_fetch_type) = analysis_data
-                                .expr_types
-                                .get(&(
-                                    xhp_expr.pos().start_offset() as u32,
-                                    xhp_expr.pos().end_offset() as u32,
-                                ))
-                                .cloned()
-                            {
-                                add_all_dataflow(
-                                    analysis_data,
-                                    statements_analyzer,
-                                    (*element_name, *spread_attribute.0),
-                                    xhp_expr.pos(),
-                                    xhp_expr.pos(),
-                                    property_fetch_type,
-                                    statements_analyzer
-                                        .get_interner()
-                                        .lookup(spread_attribute.0),
-                                );
-                            }
+                            );
                         }
                     }
                 }
-                _ => {}
             }
         }
 
@@ -361,7 +358,7 @@ fn analyze_xhp_attribute_assignment(
 
     if let Some(classlike_info) = codebase.classlike_infos.get(element_name) {
         if attribute_name != StrId::DATA_ATTRIBUTE
-            && attribute_name != StrId::DATA_ATTRIBUTE
+            && attribute_name != StrId::ARIA_ATTRIBUTE
             && !classlike_info
                 .appearing_property_ids
                 .contains_key(&attribute_name)
@@ -446,7 +443,7 @@ fn get_attribute_name(
     if attribute_info.name.1.starts_with("data-") {
         Ok(StrId::DATA_ATTRIBUTE)
     } else if attribute_info.name.1.starts_with("aria-") {
-        Ok(StrId::DATA_ATTRIBUTE)
+        Ok(StrId::ARIA_ATTRIBUTE)
     } else {
         let attribute_name = if let Some(resolved_name) =
             resolved_names.get(&attribute_info.name.0.start_offset())
@@ -483,7 +480,7 @@ fn add_xml_attribute_dataflow(
         let element_name = statements_analyzer.get_interner().lookup(element_name);
         if element_name.starts_with("Facebook\\XHP\\HTML\\")
             || property_id.1 == StrId::DATA_ATTRIBUTE
-            || property_id.1 == StrId::DATA_ATTRIBUTE
+            || property_id.1 == StrId::ARIA_ATTRIBUTE
         {
             let label = format!(
                 "{}::${}",
@@ -497,54 +494,48 @@ fn add_xml_attribute_dataflow(
                 .appearing_property_ids
                 .contains_key(&property_id.1)
             {
-                // We allow input value attributes to have user-submitted values
-                // because that's to be expected
-                if element_name == "Facebook\\XHP\\HTML\\label" && name == "for" {
-                    // do nothing
-                } else if element_name == "Facebook\\XHP\\HTML\\meta" && name == "content" {
-                    // do nothing
-                } else if name == "id"
-                    || name == "class"
-                    || name == "lang"
-                    || name == "title"
-                    || name == "alt"
-                    || name == "label"
-                {
-                    // do nothing
-                } else if (element_name == "Facebook\\XHP\\HTML\\input"
-                    || element_name == "Facebook\\XHP\\HTML\\option")
-                    && (name == "value" || name == "checked")
-                {
-                    // do nothing
-                } else if (element_name == "Facebook\\XHP\\HTML\\a"
-                    || element_name == "Facebook\\XHP\\HTML\\area"
-                    || element_name == "Facebook\\XHP\\HTML\\base"
-                    || element_name == "Facebook\\XHP\\HTML\\link")
-                    && name == "href"
-                {
-                    taints.insert(SinkType::HtmlAttributeUri);
-                } else if element_name == "Facebook\\XHP\\HTML\\body" && name == "background" {
-                    taints.insert(SinkType::HtmlAttributeUri);
-                } else if element_name == "Facebook\\XHP\\HTML\\form" && name == "action" {
-                    taints.insert(SinkType::HtmlAttributeUri);
-                } else if (element_name == "Facebook\\XHP\\HTML\\button"
-                    || element_name == "Facebook\\XHP\\HTML\\input")
-                    && name == "formaction"
-                {
-                    taints.insert(SinkType::HtmlAttributeUri);
-                } else if (element_name == "Facebook\\XHP\\HTML\\iframe"
-                    || element_name == "Facebook\\XHP\\HTML\\img"
-                    || element_name == "Facebook\\XHP\\HTML\\script"
-                    || element_name == "Facebook\\XHP\\HTML\\audio"
-                    || element_name == "Facebook\\XHP\\HTML\\video"
-                    || element_name == "Facebook\\XHP\\HTML\\source")
-                    && name == "src"
-                {
-                    taints.insert(SinkType::HtmlAttributeUri);
-                } else if element_name == "Facebook\\XHP\\HTML\\video" && name == "poster" {
-                    taints.insert(SinkType::HtmlAttributeUri);
-                } else {
-                    taints.insert(SinkType::HtmlAttribute);
+                match (element_name, name) {
+                    // We allow input value attributes to have user-submitted values
+                    // because that's to be expected
+                    ("Facebook\\XHP\\HTML\\label", "for")
+                    | ("Facebook\\XHP\\HTML\\meta", "content")
+                    | (_, "id" | "class" | "lang" | "title" | "alt")
+                    | (
+                        "Facebook\\XHP\\HTML\\input" | "Facebook\\XHP\\HTML\\option",
+                        "value" | "checked",
+                    ) => {
+                        // do nothing
+                    }
+                    (
+                        "Facebook\\XHP\\HTML\\a"
+                        | "Facebook\\XHP\\HTML\\area"
+                        | "Facebook\\XHP\\HTML\\base"
+                        | "Facebook\\XHP\\HTML\\link",
+                        "href",
+                    ) => {
+                        taints.insert(SinkType::HtmlAttributeUri);
+                    }
+                    ("Facebook\\XHP\\HTML\\body", "background")
+                    | ("Facebook\\XHP\\HTML\\form", "action")
+                    | (
+                        "Facebook\\XHP\\HTML\\button" | "Facebook\\XHP\\HTML\\input",
+                        "formaction",
+                    )
+                    | (
+                        "Facebook\\XHP\\HTML\\iframe"
+                        | "Facebook\\XHP\\HTML\\img"
+                        | "Facebook\\XHP\\HTML\\script"
+                        | "Facebook\\XHP\\HTML\\audio"
+                        | "Facebook\\XHP\\HTML\\video"
+                        | "Facebook\\XHP\\HTML\\source",
+                        "src",
+                    )
+                    | ("Facebook\\XHP\\HTML\\video", "poster") => {
+                        taints.insert(SinkType::HtmlAttributeUri);
+                    }
+                    _ => {
+                        taints.insert(SinkType::HtmlAttribute);
+                    }
                 }
             }
 

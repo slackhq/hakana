@@ -427,7 +427,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         statements_analyzer: &mut StatementsAnalyzer,
         functionlike_storage: &FunctionLikeInfo,
         mut context: ScopeContext,
-        params: &Vec<aast::FunParam<(), ()>>,
+        params: &[aast::FunParam<(), ()>],
         fb_ast: &Vec<aast::Stmt<(), ()>>,
         analysis_result: &mut AnalysisResult,
         parent_analysis_data: Option<&mut FunctionAnalysisData>,
@@ -728,7 +728,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         let mut effects = 0;
 
         if let FnEffect::Unknown = functionlike_storage.effects {
-            for (_, effect) in &analysis_data.expr_effects {
+            for effect in analysis_data.expr_effects.values() {
                 effects |= effect;
             }
         }
@@ -838,7 +838,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
     fn add_param_types_to_context(
         &mut self,
-        params: &Vec<aast::FunParam<(), ()>>,
+        params: &[aast::FunParam<(), ()>],
         functionlike_storage: &FunctionLikeInfo,
         analysis_data: &mut FunctionAnalysisData,
         context: &mut ScopeContext,
@@ -847,8 +847,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         for (i, param) in functionlike_storage.params.iter().enumerate() {
             let mut param_type = if let Some(param_type) = &param.signature_type {
                 for type_node in param_type.get_all_child_nodes() {
-                    match type_node {
-                        hakana_reflection_info::t_union::TypeNode::Atomic(atomic) => match atomic {
+                    if let hakana_reflection_info::t_union::TypeNode::Atomic(atomic) = type_node {
+                        match atomic {
                             TAtomic::TReference { name, .. }
                             | TAtomic::TClosureAlias {
                                 id: FunctionLikeIdentifier::Function(name),
@@ -944,8 +944,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                 _ => {}
                             },
                             _ => {}
-                        },
-                        _ => {}
+                        }
                     }
                 }
 
@@ -985,27 +984,25 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     );
 
                     for type_node in param_type.get_all_child_nodes() {
-                        match type_node {
-                            hakana_reflection_info::t_union::TypeNode::Atomic(
-                                TAtomic::TReference { name, .. },
-                            ) => {
-                                analysis_data.add_issue(Issue::new(
-                                    IssueKind::NonExistentClasslike,
-                                    format!(
-                                        "Class, enum or interface {} cannot be found",
-                                        statements_analyzer.get_interner().lookup(name)
-                                    ),
-                                    if let Some(type_location) = &param.signature_type_location {
-                                        *type_location
-                                    } else {
-                                        param.name_location
-                                    },
-                                    &context.function_context.calling_functionlike_id,
-                                ));
+                        if let hakana_reflection_info::t_union::TypeNode::Atomic(
+                            TAtomic::TReference { name, .. },
+                        ) = type_node
+                        {
+                            analysis_data.add_issue(Issue::new(
+                                IssueKind::NonExistentClasslike,
+                                format!(
+                                    "Class, enum or interface {} cannot be found",
+                                    statements_analyzer.get_interner().lookup(name)
+                                ),
+                                if let Some(type_location) = &param.signature_type_location {
+                                    *type_location
+                                } else {
+                                    param.name_location
+                                },
+                                &context.function_context.calling_functionlike_id,
+                            ));
 
-                                return Err(AnalysisError::UserError);
-                            }
-                            _ => {}
+                            return Err(AnalysisError::UserError);
                         }
                     }
 
@@ -1162,22 +1159,19 @@ fn report_unused_expressions(
                     continue;
                 }
 
-                match &kind {
-                    VariableSourceKind::Default => {
-                        handle_unused_assignment(
-                            config,
-                            statements_analyzer,
-                            pos,
-                            &mut unused_variable_nodes,
-                            node,
-                            analysis_data,
-                            label,
-                            calling_functionlike_id,
-                            pure,
-                            has_awaitable,
-                        );
-                    }
-                    _ => {}
+                if let VariableSourceKind::Default = &kind {
+                    handle_unused_assignment(
+                        config,
+                        statements_analyzer,
+                        pos,
+                        &mut unused_variable_nodes,
+                        node,
+                        analysis_data,
+                        label,
+                        calling_functionlike_id,
+                        pure,
+                        has_awaitable,
+                    );
                 }
             }
             _ => {

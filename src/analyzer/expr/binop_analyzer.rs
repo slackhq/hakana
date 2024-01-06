@@ -119,12 +119,15 @@ pub(crate) fn analyze(
 
             if let (Some(lhs_type), Some(rhs_type)) = (lhs_type, rhs_type) {
                 if is_resolvable(expr.1)
-                    && is_resolvable(expr.2) && (!lhs_type.is_single() || !rhs_type.is_single()) && !union_type_comparator::can_expression_types_be_identical(
+                    && is_resolvable(expr.2)
+                    && (!lhs_type.is_single() || !rhs_type.is_single())
+                    && !union_type_comparator::can_expression_types_be_identical(
                         statements_analyzer.get_codebase(),
                         lhs_type,
                         rhs_type,
                         true,
-                    ) {
+                    )
+                {
                     analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::ImpossibleTypeComparison,
@@ -231,9 +234,5 @@ pub(crate) fn analyze(
 }
 
 fn is_resolvable(expr: &aast::Expr<(), ()>) -> bool {
-    match expr.2 {
-        aast::Expr_::Lvar(_) => true,
-        aast::Expr_::ObjGet(_) => true,
-        _ => false,
-    }
+    matches!(expr.2, aast::Expr_::Lvar(_) | aast::Expr_::ObjGet(_))
 }

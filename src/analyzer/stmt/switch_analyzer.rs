@@ -3,7 +3,7 @@ use hakana_type::{combine_union_types, get_mixed_any};
 use indexmap::IndexMap;
 use oxidized::{aast, aast::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::{rc::Rc};
+use std::rc::Rc;
 
 use crate::{
     expr::expression_identifier,
@@ -55,7 +55,6 @@ pub(crate) fn analyze(
     let switch_var_id = if let Some(switch_var_id) = expression_identifier::get_var_id(
         stmt.0,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
             statements_analyzer.get_codebase(),
@@ -86,11 +85,7 @@ pub(crate) fn analyze(
 
     let mut case_action_map = FxHashMap::default();
 
-    let mut cases = stmt
-        .1
-        .iter()
-        .enumerate()
-        .collect::<IndexMap<_, _>>();
+    let mut cases = stmt.1.iter().enumerate().collect::<IndexMap<_, _>>();
     cases.reverse();
 
     if let Some(default_case) = stmt.2 {
@@ -168,7 +163,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             Some(&case.0),
             case.0.pos(),
-            &case.1 .0,
+            case.1 .0.clone(),
             &previous_empty_cases,
             analysis_data,
             context,
@@ -202,7 +197,7 @@ pub(crate) fn analyze(
             &switch_var_id,
             None,
             &default_case.0,
-            &default_case.1 .0,
+            default_case.1 .0.clone(),
             &previous_empty_cases,
             analysis_data,
             context,
@@ -215,9 +210,7 @@ pub(crate) fn analyze(
         )?;
     }
 
-    let mut possibly_redefined_vars = switch_scope
-        .possibly_redefined_vars
-        .unwrap_or_default();
+    let mut possibly_redefined_vars = switch_scope.possibly_redefined_vars.unwrap_or_default();
     if let Some(new_vars_in_scope) = switch_scope.new_vars_in_scope {
         possibly_redefined_vars.retain(|k, _| !new_vars_in_scope.contains_key(k));
         context.vars_in_scope.extend(new_vars_in_scope);

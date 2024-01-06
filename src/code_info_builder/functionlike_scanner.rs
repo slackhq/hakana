@@ -270,16 +270,12 @@ pub(crate) fn get_functionlike(
                 get_type_from_hint(&where_hint.2 .1, this_name, type_context, resolved_names)
                     .unwrap();
 
-            match where_first {
-                TAtomic::TGenericParam { param_name, .. } => match where_hint.1 {
-                    ast_defs::ConstraintKind::ConstraintEq => {
-                        functionlike_info
-                            .where_constraints
-                            .push((param_name, where_second));
-                    }
-                    _ => {}
-                },
-                _ => {}
+            if let TAtomic::TGenericParam { param_name, .. } = where_first {
+                if let ast_defs::ConstraintKind::ConstraintEq = where_hint.1 {
+                    functionlike_info
+                        .where_constraints
+                        .push((param_name, where_second));
+                }
             }
         }
     }
@@ -476,7 +472,7 @@ fn get_effect_from_contexts(
 fn get_async_version(
     expr: &oxidized::ast::Expr,
     resolved_names: &FxHashMap<usize, StrId>,
-    params: &Vec<FunctionLikeParameter>,
+    params: &[FunctionLikeParameter],
     interner: &mut ThreadedInterner,
 ) -> Option<FunctionLikeIdentifier> {
     if let aast::Expr_::Call(call) = &expr.2 {
@@ -525,8 +521,8 @@ fn get_async_version(
 }
 
 fn is_async_call_is_same_as_sync(
-    call_args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
-    params: &Vec<FunctionLikeParameter>,
+    call_args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
+    params: &[FunctionLikeParameter],
 ) -> bool {
     for (offset, (_, call_arg_expr)) in call_args.iter().enumerate() {
         if let aast::Expr_::Lvar(id) = &call_arg_expr.2 {
@@ -567,20 +563,17 @@ pub(crate) fn adjust_location_from_comments(
                         meta_start.start_offset = start_offset as u32;
                     }
                     Comment::CmtBlock(text) => {
-                        let trimmed_text = if text.starts_with('*') {
-                            text[1..].trim()
+                        let trimmed_text = if let Some(trimmed_text) = text.strip_prefix('*') {
+                            trimmed_text.trim()
                         } else {
                             text.trim()
                         };
 
-                        if let Some(issue_kind) =
+                        if let Some(Ok(issue_kind)) =
                             get_issue_from_comment(trimmed_text, all_custom_issues)
                         {
-                            if let Ok(issue_kind) = issue_kind {
-                                let comment_pos =
-                                    HPos::new(comment_pos, file_source.file_path, None);
-                                suppressed_issues.insert(issue_kind, comment_pos);
-                            }
+                            let comment_pos = HPos::new(comment_pos, file_source.file_path, None);
+                            suppressed_issues.insert(issue_kind, comment_pos);
                         }
 
                         meta_start.start_line = start_line as u32;
@@ -595,7 +588,7 @@ pub(crate) fn adjust_location_from_comments(
 fn convert_param_nodes(
     codebase: &CodebaseInfo,
     interner: &mut ThreadedInterner,
-    param_nodes: &Vec<aast::FunParam<(), ()>>,
+    param_nodes: &[aast::FunParam<(), ()>],
     resolved_names: &FxHashMap<usize, StrId>,
     type_context: &TypeResolutionContext,
     file_source: &FileSource,

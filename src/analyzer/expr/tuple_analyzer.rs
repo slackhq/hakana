@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    tuple_fields: &Vec<aast::Expr<(), ()>>,
+    tuple_fields: &[aast::Expr<(), ()>],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,

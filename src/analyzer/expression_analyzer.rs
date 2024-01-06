@@ -171,7 +171,6 @@ pub(crate) fn analyze(
             let keyed_array_var_id = expression_identifier::get_var_id(
                 expr,
                 context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().get_file_source(),
                 statements_analyzer.get_file_analyzer().resolved_names,
                 Some((
                     statements_analyzer.get_codebase(),
@@ -602,16 +601,16 @@ pub(crate) fn analyze(
 
 pub(crate) fn expr_has_logic(expr: &aast::Expr<(), ()>) -> bool {
     match &expr.2 {
-        aast::Expr_::Binop(boxed) => match boxed.bop {
+        aast::Expr_::Binop(boxed) => matches!(
+            boxed.bop,
             oxidized::nast::Bop::Eqeq
-            | oxidized::nast::Bop::Eqeqeq
-            | oxidized::nast::Bop::Diff
-            | oxidized::nast::Bop::Diff2
-            | oxidized::nast::Bop::Ampamp
-            | oxidized::nast::Bop::Barbar
-            | oxidized::nast::Bop::QuestionQuestion => true,
-            _ => false,
-        },
+                | oxidized::nast::Bop::Eqeqeq
+                | oxidized::nast::Bop::Diff
+                | oxidized::nast::Bop::Diff2
+                | oxidized::nast::Bop::Ampamp
+                | oxidized::nast::Bop::Barbar
+                | oxidized::nast::Bop::QuestionQuestion
+        ),
         aast::Expr_::Is(_) => true,
         _ => false,
     }

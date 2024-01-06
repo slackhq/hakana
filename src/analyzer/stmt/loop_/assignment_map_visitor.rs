@@ -36,8 +36,8 @@ impl<'ast> Visitor<'ast> for Scanner {
 
     fn visit_expr(&mut self, c: &mut Context, expr: &aast::Expr<(), ()>) -> Result<(), ()> {
         match &expr.2 {
-            aast::Expr_::Binop(boxed) => match boxed.bop {
-                ast_defs::Bop::Eq(_) => {
+            aast::Expr_::Binop(boxed) => {
+                if let ast_defs::Bop::Eq(_) = boxed.bop {
                     let right_var_id = expression_identifier::get_root_var_id(
                         &boxed.rhs,
                         c.this_class_name.as_ref(),
@@ -80,8 +80,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                         }
                     }
                 }
-                _ => {}
-            },
+            }
             aast::Expr_::Unop(boxed) => match boxed.0 {
                 ast_defs::Uop::Udecr
                 | ast_defs::Uop::Uincr

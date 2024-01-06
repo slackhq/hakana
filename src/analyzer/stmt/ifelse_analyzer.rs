@@ -111,11 +111,7 @@ pub(crate) fn analyze(
         false,
     );
 
-    let mut if_clauses = if let Err(_) = if_clauses {
-        Vec::new()
-    } else {
-        if_clauses.unwrap()
-    };
+    let mut if_clauses = if_clauses.unwrap_or_default();
 
     if if_clauses.len() > 200 {
         if_clauses = Vec::new();

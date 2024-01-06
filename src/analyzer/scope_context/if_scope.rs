@@ -42,13 +42,13 @@ pub struct IfScope {
     pub if_actions: FxHashSet<ControlAction>,
 }
 
-impl<'a> Default for IfScope {
+impl Default for IfScope {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a> IfScope {
+impl IfScope {
     pub fn new() -> Self {
         Self {
             new_vars: None,

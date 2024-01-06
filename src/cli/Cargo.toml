@@ -20,3 +20,6 @@ tokio = { version = "1.26.0", features = ["full"] }
 
 [lib]
 path = "lib.rs"
+
+[lints.clippy]
+too_many_arguments = "allow"

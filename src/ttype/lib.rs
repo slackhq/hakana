@@ -390,7 +390,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             }
 
             if let Some(known_items) = known_items {
-                for (_, (_, property_type)) in known_items {
+                for (_, property_type) in known_items.values() {
                     value_param = combine_union_types(property_type, &value_param, codebase, false);
                 }
             }
@@ -405,7 +405,7 @@ pub fn get_value_param(atomic: &TAtomic, codebase: &CodebaseInfo) -> Option<TUni
             let mut type_param = (**type_param).clone();
 
             if let Some(known_items) = known_items {
-                for (_, (_, property_type)) in known_items {
+                for (_, property_type) in known_items.values() {
                     type_param = combine_union_types(property_type, &type_param, codebase, false);
                 }
             }

@@ -36,7 +36,6 @@ pub(crate) fn analyze(
     let extended_var_id = expression_identifier::get_var_id(
         expr.0,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
             statements_analyzer.get_codebase(),
@@ -797,7 +796,7 @@ pub(crate) fn handle_array_access_on_dict(
             get_nothing()
         };
 
-        for (_, (_, known_item)) in known_items {
+        for (_, known_item) in known_items.values() {
             value_param = add_union_type(value_param, known_item, codebase, false);
         }
 

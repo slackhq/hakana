@@ -441,7 +441,6 @@ pub(crate) fn check_arguments_match(
                 if let Some(expr_var_id) = expression_identifier::get_var_id(
                     arg_expr,
                     None,
-                    statements_analyzer.get_file_analyzer().get_file_source(),
                     statements_analyzer.get_file_analyzer().resolved_names,
                     Some((
                         statements_analyzer.get_codebase(),
@@ -687,7 +686,7 @@ fn handle_closure_arg(
     context: &mut ScopeContext,
     functionlike_id: &FunctionLikeIdentifier,
     template_result: &mut TemplateResult,
-    args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
     closure_expr: &aast::Expr<(), ()>,
     param_type: &TUnion,
 ) {
@@ -923,7 +922,6 @@ pub(crate) fn evaluate_arbitrary_param(
         let var_id = get_var_id(
             expr,
             context.function_context.calling_class.as_ref(),
-            statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
             Some((
                 statements_analyzer.get_codebase(),

@@ -49,9 +49,8 @@ fn get_tuple_type_from_hints(
         non_empty: true,
         known_items: Some({
             let mut map = BTreeMap::new();
-            let mut i = 0;
 
-            for hint in hints {
+            for (i, hint) in hints.iter().enumerate() {
                 map.insert(
                     i,
                     (
@@ -60,7 +59,6 @@ fn get_tuple_type_from_hints(
                             .unwrap(),
                     ),
                 );
-                i += 1;
             }
 
             map
@@ -300,7 +298,7 @@ fn get_function_type_from_hints(
 
 fn get_reference_type(
     applied_type: &Id,
-    extra_info: &Vec<Hint>,
+    extra_info: &[Hint],
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
@@ -546,7 +544,7 @@ pub fn get_type_from_hint(
             let mut last = None;
 
             for atomic_type in union.types.into_iter() {
-                if let None = last {
+                if last.is_none() {
                     last = Some(atomic_type);
                 } else {
                     types.push(atomic_type);
@@ -684,12 +682,9 @@ pub fn get_type_references_from_hint(
             for field in &shape_info.field_map {
                 refs.extend(get_type_references_from_hint(&field.hint, resolved_names));
 
-                match &field.name {
-                    ast_defs::ShapeFieldName::SFclassConst(lhs, _) => {
-                        let lhs_name = resolved_names.get(&lhs.0.start_offset()).unwrap();
-                        refs.push((*lhs_name, lhs.0.start_offset(), lhs.0.end_offset()));
-                    }
-                    _ => {}
+                if let ast_defs::ShapeFieldName::SFclassConst(lhs, _) = &field.name {
+                    let lhs_name = resolved_names.get(&lhs.0.start_offset()).unwrap();
+                    refs.push((*lhs_name, lhs.0.start_offset(), lhs.0.end_offset()));
                 }
             }
         }

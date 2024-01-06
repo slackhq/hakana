@@ -35,8 +35,6 @@ use super::if_conditional_analyzer::add_branch_dataflow;
 
 use oxidized::ast_defs;
 
-
-
 use hakana_type::get_mixed_any;
 
 use crate::expression_analyzer;
@@ -69,7 +67,7 @@ pub(crate) fn analyze_case(
     switch_var_id: &String,
     case_cond: Option<&aast::Expr<(), ()>>,
     case_pos: &Pos,
-    case_stmts: &Vec<aast::Stmt<(), ()>>,
+    case_stmts: Vec<aast::Stmt<(), ()>>,
     previous_empty_cases: &Vec<&aast::Case<(), ()>>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
@@ -199,7 +197,7 @@ pub(crate) fn analyze_case(
 
     let mut leftover_statements = switch_scope.leftover_statements.clone();
 
-    leftover_statements.extend(case_stmts.clone());
+    leftover_statements.extend(case_stmts);
 
     let case_stmts = leftover_statements;
 
@@ -324,20 +322,24 @@ pub(crate) fn analyze_case(
                 .collect::<Vec<_>>()
         };
 
-    case_context.clauses = if !case_clauses.is_empty() && case_cond.is_some() {
-        algebra_analyzer::check_for_paradox(
-            statements_analyzer,
-            &entry_clauses.iter().map(|v| Rc::new(v.clone())).collect(),
-            &case_clauses,
-            analysis_data,
-            case_cond.unwrap().pos(),
-            &context.function_context.calling_functionlike_id,
-        );
+    case_context.clauses = if !case_clauses.is_empty() {
+        if let Some(case_cond) = case_cond {
+            algebra_analyzer::check_for_paradox(
+                statements_analyzer,
+                &entry_clauses.iter().map(|v| Rc::new(v.clone())).collect(),
+                &case_clauses,
+                analysis_data,
+                case_cond.pos(),
+                &context.function_context.calling_functionlike_id,
+            );
 
-        entry_clauses.extend(case_clauses.clone());
+            entry_clauses.extend(case_clauses.clone());
 
-        if entry_clauses.len() < 50 {
-            hakana_algebra::simplify_cnf(entry_clauses.iter().collect())
+            if entry_clauses.len() < 50 {
+                hakana_algebra::simplify_cnf(entry_clauses.iter().collect())
+            } else {
+                entry_clauses
+            }
         } else {
             entry_clauses
         }

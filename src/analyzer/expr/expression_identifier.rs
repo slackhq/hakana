@@ -11,7 +11,6 @@ use oxidized::{aast, ast_defs};
 pub fn get_var_id(
     conditional: &aast::Expr<(), ()>,
     this_class_name: Option<&StrId>,
-    source: &FileSource,
     resolved_names: &FxHashMap<usize, StrId>,
     codebase: Option<(&CodebaseInfo, &Interner)>,
 ) -> Option<String> {
@@ -20,7 +19,7 @@ pub fn get_var_id(
         aast::Expr_::ObjGet(boxed) => {
             if let ast_defs::PropOrMethod::IsProp = boxed.3 {
                 if let Some(base_id) =
-                    get_var_id(&boxed.0, this_class_name, source, resolved_names, codebase)
+                    get_var_id(&boxed.0, this_class_name, resolved_names, codebase)
                 {
                     if let aast::Expr_::Id(boxed) = &boxed.1 .2 {
                         return Some(format!("{}->{}", base_id, boxed.1));
@@ -76,14 +75,12 @@ pub fn get_var_id(
             None
         }
         aast::Expr_::ArrayGet(boxed) => {
-            if let Some(base_id) =
-                get_var_id(&boxed.0, this_class_name, source, resolved_names, codebase)
-            {
+            if let Some(base_id) = get_var_id(&boxed.0, this_class_name, resolved_names, codebase) {
                 if let Some(dim) = &boxed.1 {
                     if let Some(dim_id) = get_dim_id(dim, codebase, resolved_names) {
                         return Some(format!("{}[{}]", base_id, dim_id));
                     } else if let Some(dim_id) =
-                        get_var_id(dim, this_class_name, source, resolved_names, codebase)
+                        get_var_id(dim, this_class_name, resolved_names, codebase)
                     {
                         if dim_id.contains('\'') {
                             return None;
@@ -126,39 +123,36 @@ pub(crate) fn get_dim_id(
         aast::Expr_::Int(value) => Some(value.clone().to_string()),
         aast::Expr_::ClassConst(boxed) => {
             if let Some((codebase, interner)) = codebase {
-                match &boxed.0 .2 {
-                    aast::ClassId_::CIexpr(lhs_expr) => {
-                        if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                            let mut is_static = false;
-                            let classlike_name = match get_id_name(
-                                id,
-                                &None,
-                                false,
-                                codebase,
-                                &mut is_static,
-                                resolved_names,
-                            ) {
-                                Some(value) => value,
-                                None => return None,
-                            };
+                if let aast::ClassId_::CIexpr(lhs_expr) = &boxed.0 .2 {
+                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                        let mut is_static = false;
+                        let classlike_name = match get_id_name(
+                            id,
+                            &None,
+                            false,
+                            codebase,
+                            &mut is_static,
+                            resolved_names,
+                        ) {
+                            Some(value) => value,
+                            None => return None,
+                        };
 
-                            let constant_type = codebase.get_class_constant_type(
-                                &classlike_name,
-                                is_static,
-                                &interner.get(&boxed.1 .1)?,
-                                FxHashSet::default(),
-                            );
+                        let constant_type = codebase.get_class_constant_type(
+                            &classlike_name,
+                            is_static,
+                            &interner.get(&boxed.1 .1)?,
+                            FxHashSet::default(),
+                        );
 
-                            if let Some(constant_type) = constant_type {
-                                if let Some(constant_type_string) =
-                                    constant_type.get_single_literal_string_value()
-                                {
-                                    return Some(format!("'{}'", constant_type_string));
-                                }
+                        if let Some(constant_type) = constant_type {
+                            if let Some(constant_type_string) =
+                                constant_type.get_single_literal_string_value()
+                            {
+                                return Some(format!("'{}'", constant_type_string));
                             }
                         }
                     }
-                    _ => {}
                 }
             }
             None
@@ -197,8 +191,6 @@ pub fn get_functionlike_id_from_call(
                 match &class_id.2 {
                     aast::ClassId_::CIexpr(lhs_expr) => {
                         if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                            let resolved_names = resolved_names;
-
                             if let (Some(class_name), Some(method_name)) = (
                                 resolved_names.get(&id.0.start_offset()),
                                 interner.get(&rhs_expr.1),

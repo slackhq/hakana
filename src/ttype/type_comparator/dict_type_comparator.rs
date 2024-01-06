@@ -90,7 +90,7 @@ pub(crate) fn is_contained_by(
                 }
 
                 let mut all_possibly_undefined = true;
-                for (_, (c_u, _)) in container_known_items {
+                for (c_u, _) in container_known_items.values() {
                     if !c_u {
                         all_possibly_undefined = false;
                     }

@@ -109,7 +109,7 @@ impl NameContext<'_> {
         &mut self,
         interner: &mut ThreadedInterner,
         name: &str,
-        alias_name: &String,
+        alias_name: &str,
         alias_kind: &NsKind,
     ) {
         let current_context = self.name_resolution_contexts.last_mut().unwrap();
@@ -159,13 +159,13 @@ impl NameContext<'_> {
         uses: &mut Vec<(StrId, StrId)>,
     ) -> StrId {
         // fully qualified names are already resolved
-        if name.starts_with('\\') {
-            return interner.intern_str(&name[1..]);
+        if let Some(stripped) = name.strip_prefix('\\') {
+            return interner.intern_str(stripped);
         }
 
         // XHP names preceded by : are already resolved
-        if name.starts_with(':') {
-            return interner.intern_str(&name[1..].replace(':', "\\"));
+        if let Some(stripped) = name.strip_prefix(':') {
+            return interner.intern(stripped.replace(':', "\\"));
         }
 
         match name.as_str() {
@@ -222,7 +222,7 @@ impl NameContext<'_> {
     fn resolve_alias(
         &mut self,
         interner: &mut ThreadedInterner,
-        name: &String,
+        name: &str,
         alias_kind: NsKind,
         uses: &mut Vec<(StrId, StrId)>,
     ) -> Option<StrId> {
@@ -278,7 +278,7 @@ impl NameContext<'_> {
         None
     }
 
-    pub fn is_reserved(name: &String) -> bool {
+    pub fn is_reserved(name: &str) -> bool {
         let reserved_types = [
             "mixed",
             "vec",
@@ -303,7 +303,7 @@ impl NameContext<'_> {
             "nonnull",
         ];
 
-        reserved_types.contains(&name.as_str())
+        reserved_types.contains(&name)
     }
 }
 

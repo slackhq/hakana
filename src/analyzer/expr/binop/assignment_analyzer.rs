@@ -58,7 +58,6 @@ pub(crate) fn analyze(
     let var_id = get_var_id(
         assign_var,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
             statements_analyzer.get_codebase(),
@@ -383,7 +382,7 @@ fn check_variable_or_property_assignment(
     var_type: TUnion,
     analysis_data: &mut FunctionAnalysisData,
     assign_var_pos: &Pos,
-    var_id: &String,
+    var_id: &str,
     context: &ScopeContext,
     is_inout: bool,
 ) -> TUnion {
@@ -428,7 +427,7 @@ fn check_variable_or_property_assignment(
 
 fn analyze_list_assignment(
     statements_analyzer: &StatementsAnalyzer,
-    expressions: &Vec<aast::Expr<(), ()>>,
+    expressions: &[aast::Expr<(), ()>],
     source_expr: Option<&aast::Expr<(), ()>>,
     assign_value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
@@ -440,7 +439,6 @@ fn analyze_list_assignment(
         let list_var_id = expression_identifier::get_var_id(
             assign_var_item,
             context.function_context.calling_class.as_ref(),
-            statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
             Some((
                 statements_analyzer.get_codebase(),
@@ -509,7 +507,6 @@ fn analyze_list_assignment(
             let source_expr_id = expression_identifier::get_var_id(
                 source_expr,
                 context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().get_file_source(),
                 statements_analyzer.get_file_analyzer().resolved_names,
                 Some((
                     statements_analyzer.get_codebase(),
@@ -551,7 +548,7 @@ pub(crate) fn add_dataflow_to_assignment(
     statements_analyzer: &StatementsAnalyzer,
     mut assignment_type: TUnion,
     data_flow_graph: &mut DataFlowGraph,
-    var_id: &String,
+    var_id: &str,
     var_pos: &Pos,
     added_taints: FxHashSet<SinkType>,
     removed_taints: FxHashSet<SinkType>,
@@ -566,7 +563,7 @@ pub(crate) fn add_dataflow_to_assignment(
     let mut new_parent_nodes = FxHashSet::default();
 
     let new_parent_node =
-        DataFlowNode::get_for_assignment(var_id.clone(), statements_analyzer.get_hpos(var_pos));
+        DataFlowNode::get_for_assignment(var_id.to_string(), statements_analyzer.get_hpos(var_pos));
     data_flow_graph.add_node(new_parent_node.clone());
     new_parent_nodes.insert(new_parent_node.clone());
 

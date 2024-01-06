@@ -254,7 +254,6 @@ fn handle_shapes_static_method(
                 let expr_var_id = expression_identifier::get_var_id(
                     &call_expr.1[0].1,
                     context.function_context.calling_class.as_ref(),
-                    statements_analyzer.get_file_analyzer().get_file_source(),
                     statements_analyzer.get_file_analyzer().resolved_names,
                     Some((
                         statements_analyzer.get_codebase(),
@@ -298,7 +297,6 @@ fn handle_shapes_static_method(
                 let expr_var_id = expression_identifier::get_var_id(
                     &call_expr.1[0].1,
                     context.function_context.calling_class.as_ref(),
-                    statements_analyzer.get_file_analyzer().get_file_source(),
                     statements_analyzer.get_file_analyzer().resolved_names,
                     Some((
                         statements_analyzer.get_codebase(),
@@ -562,7 +560,6 @@ fn handle_defined_shape_idx(
     let expr_var_id = expression_identifier::get_var_id(
         &call_expr.1[0].1,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
             statements_analyzer.get_codebase(),

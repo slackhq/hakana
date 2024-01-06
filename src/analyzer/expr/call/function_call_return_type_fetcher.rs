@@ -53,21 +53,18 @@ pub(crate) fn fetch(
     let codebase = statements_analyzer.get_codebase();
     let mut stmt_type = None;
 
-    match functionlike_id {
-        FunctionLikeIdentifier::Function(name) => {
-            if let Some(t) = handle_special_functions(
-                statements_analyzer,
-                statements_analyzer.get_interner().lookup(name),
-                expr.2,
-                pos,
-                codebase,
-                analysis_data,
-                context,
-            ) {
-                stmt_type = Some(t);
-            }
+    if let FunctionLikeIdentifier::Function(name) = functionlike_id {
+        if let Some(t) = handle_special_functions(
+            statements_analyzer,
+            statements_analyzer.get_interner().lookup(name),
+            expr.2,
+            pos,
+            codebase,
+            analysis_data,
+            context,
+        ) {
+            stmt_type = Some(t);
         }
-        _ => {}
     }
 
     // todo support custom return type providers for functions
@@ -443,7 +440,7 @@ fn handle_special_functions(
 
                     let mut cur_literal = "".to_string();
 
-                    for c in simple_string.to_vec() {
+                    for c in simple_string.iter().copied() {
                         if in_format_string {
                             in_format_string = false;
                             continue;

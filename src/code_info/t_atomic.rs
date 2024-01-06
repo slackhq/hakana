@@ -1596,7 +1596,7 @@ pub fn populate_atomic_type(
             }
 
             if let Some(known_items) = known_items {
-                for (_, (_, prop_type)) in known_items {
+                for (_, prop_type) in known_items.values_mut() {
                     populate_union_type(
                         Arc::make_mut(prop_type),
                         codebase_symbols,

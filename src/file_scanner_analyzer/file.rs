@@ -35,7 +35,7 @@ impl VirtualFileSystem {
         config: &Config,
         files_to_analyze: &mut Vec<String>,
     ) {
-        for (file, _) in &self.file_hashes_and_times {
+        for file in self.file_hashes_and_times.keys() {
             let str_path = interner.lookup(&file.0).to_string();
 
             if !language_server_changes.contains_key(&str_path) {
@@ -96,7 +96,7 @@ impl VirtualFileSystem {
         }
 
         if let Some(existing_file_system) = existing_file_system {
-            for (file_path, _) in &existing_file_system.file_hashes_and_times {
+            for file_path in existing_file_system.file_hashes_and_times.keys() {
                 if !file_statuses.contains_key(file_path) {
                     file_statuses.insert(*file_path, FileStatus::Deleted);
                 }
@@ -110,7 +110,7 @@ impl VirtualFileSystem {
         &self,
         existing_file_system: &Option<VirtualFileSystem>,
         interned_file_path: FilePath,
-        file_path: &String,
+        file_path: &str,
     ) -> FileStatus {
         if let Some((old_contents_hash, _)) =
             if let Some(existing_file_system) = existing_file_system {

@@ -16,3 +16,6 @@ rustc-hash = "1.1.0"
 
 [lib]
 path = "lib.rs"
+
+[lints.clippy]
+type_complexity = "allow"

@@ -265,7 +265,7 @@ fn scrape_type_properties(
                     return;
                 }
 
-                for (_, existing_value_type) in &combination.value_types {
+                for existing_value_type in combination.value_types.values() {
                     if !existing_value_type.is_truthy() {
                         combination.vanilla_mixed = true;
                         return;
@@ -294,7 +294,7 @@ fn scrape_type_properties(
                     return;
                 }
 
-                for (_, existing_value_type) in &combination.value_types {
+                for existing_value_type in combination.value_types.values() {
                     if !existing_value_type.is_falsy() {
                         combination.vanilla_mixed = true;
                         return;
@@ -470,7 +470,7 @@ fn scrape_type_properties(
                     *tu = true;
                 }
             } else {
-                for (_, (_, entry_type)) in &combination.vec_entries {
+                for (_, entry_type) in combination.vec_entries.values() {
                     if let Some(ref mut existing_value_param) = combination.vec_type_param {
                         *existing_value_param = combine_union_types(
                             existing_value_param,
@@ -1071,7 +1071,7 @@ fn scrape_type_properties(
         }
 
         if is_truthy || is_nonempty {
-            for (_, literal_string_type) in &combination.literal_strings {
+            for literal_string_type in combination.literal_strings.values() {
                 if let TAtomic::TLiteralString { value, .. } = literal_string_type {
                     if value.is_empty() {
                         is_nonempty = false;
@@ -1199,7 +1199,7 @@ fn adjust_key_value_dict_params(
     );
 }
 
-fn get_combiner_key(name: &StrId, type_params: &Vec<TUnion>, codebase: &CodebaseInfo) -> String {
+fn get_combiner_key(name: &StrId, type_params: &[TUnion], codebase: &CodebaseInfo) -> String {
     let covariants = if let Some(classlike_storage) = codebase.classlike_infos.get(name) {
         &classlike_storage.generic_variance
     } else {

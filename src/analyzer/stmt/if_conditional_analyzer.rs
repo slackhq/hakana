@@ -22,7 +22,7 @@ use crate::{
 
 use super::if_conditional_scope::IfConditionalScope;
 
-pub(crate) fn analyze<'a>(
+pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     cond: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,

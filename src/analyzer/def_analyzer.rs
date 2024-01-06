@@ -27,38 +27,33 @@ pub(crate) fn analyze(
         aast::Def::Fun(_) => {
             let file_analyzer = scope_analyzer.get_file_analyzer();
             let mut function_analyzer = FunctionLikeAnalyzer::new(file_analyzer);
-            match function_analyzer.analyze_fun(def.as_fun().unwrap(), analysis_result) {
-                Err(AnalysisError::InternalError(error, pos)) => {
-                    return Err(InternalError(error, pos));
-                }
-                _ => {}
+            if let Err(AnalysisError::InternalError(error, pos)) =
+                function_analyzer.analyze_fun(def.as_fun().unwrap(), analysis_result)
+            {
+                return Err(InternalError(error, pos));
             }
         }
         aast::Def::Class(boxed) => {
             let file_analyzer = scope_analyzer.get_file_analyzer();
             let mut class_analyzer = ClassLikeAnalyzer::new(file_analyzer);
-            match class_analyzer.analyze(boxed, statements_analyzer, analysis_result) {
-                Err(AnalysisError::InternalError(error, pos)) => {
-                    return Err(InternalError(error, pos));
-                }
-                _ => {}
+            if let Err(AnalysisError::InternalError(error, pos)) =
+                class_analyzer.analyze(boxed, statements_analyzer, analysis_result)
+            {
+                return Err(InternalError(error, pos));
             }
         }
         aast::Def::Typedef(_) | aast::Def::NamespaceUse(_) => {
             // already handled
         }
         aast::Def::Stmt(boxed) => {
-            match stmt_analyzer::analyze(
+            if let Err(AnalysisError::InternalError(error, pos)) = stmt_analyzer::analyze(
                 statements_analyzer,
                 boxed,
                 analysis_data,
                 context,
                 loop_scope,
             ) {
-                Err(AnalysisError::InternalError(error, pos)) => {
-                    return Err(InternalError(error, pos));
-                }
-                _ => {}
+                return Err(InternalError(error, pos));
             }
         }
         aast::Def::Constant(boxed) => {
@@ -80,17 +75,14 @@ pub(crate) fn analyze(
 
             let mut context = ScopeContext::new(function_context);
 
-            match expression_analyzer::analyze(
+            if let Err(AnalysisError::InternalError(error, pos)) = expression_analyzer::analyze(
                 statements_analyzer,
                 &boxed.value,
                 analysis_data,
                 &mut context,
                 &mut None,
             ) {
-                Err(AnalysisError::InternalError(error, pos)) => {
-                    return Err(InternalError(error, pos));
-                }
-                _ => {}
+                return Err(InternalError(error, pos));
             }
         }
         aast::Def::Namespace(_) => {

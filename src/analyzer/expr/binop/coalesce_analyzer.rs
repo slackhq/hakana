@@ -12,7 +12,7 @@ use oxidized::aast::{self, CallExpr};
 use oxidized::ast_defs::ParamKind;
 use rustc_hash::FxHashSet;
 
-pub(crate) fn analyze<'expr, 'map, 'new_expr>(
+pub(crate) fn analyze<'expr>(
     statements_analyzer: &StatementsAnalyzer,
     pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,

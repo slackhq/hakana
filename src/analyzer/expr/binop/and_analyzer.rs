@@ -11,7 +11,7 @@ use crate::{expression_analyzer, formula_generator};
 use hakana_type::get_bool;
 use oxidized::aast;
 
-pub(crate) fn analyze<'expr, 'map, 'new_expr>(
+pub(crate) fn analyze<'expr>(
     statements_analyzer: &StatementsAnalyzer,
     stmt_pos: &aast::Pos,
     left: &'expr aast::Expr<(), ()>,

@@ -859,7 +859,7 @@ fn do_migrate(
 
 fn do_migration_candidates(
     sub_matches: &clap::ArgMatches,
-    root_dir: &String,
+    root_dir: &str,
     all_custom_issues: FxHashSet<String>,
     migration_hooks: Vec<Box<dyn CustomHook>>,
     config_path: Option<&Path>,
@@ -870,7 +870,7 @@ fn do_migration_candidates(
 ) {
     let migration_name = sub_matches.value_of("migration").unwrap().to_string();
 
-    let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+    let mut config = config::Config::new(root_dir.to_string(), all_custom_issues);
     config.hooks = migration_hooks
         .into_iter()
         .filter(|m| {
@@ -1061,7 +1061,7 @@ fn do_security_check(
 fn do_analysis(
     sub_matches: &clap::ArgMatches,
     all_custom_issues: FxHashSet<String>,
-    root_dir: &String,
+    root_dir: &str,
     analysis_hooks: Vec<Box<dyn CustomHook>>,
     config_path: Option<&Path>,
     cwd: &String,
@@ -1105,7 +1105,7 @@ fn do_analysis(
         }
     }
 
-    let mut config = config::Config::new(root_dir.clone(), all_custom_issues);
+    let mut config = config::Config::new(root_dir.to_string(), all_custom_issues);
     config.find_unused_expressions = find_unused_expressions;
     config.find_unused_definitions = find_unused_definitions;
     config.ignore_mixed_issues = ignore_mixed_issues;

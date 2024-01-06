@@ -20,7 +20,7 @@ pub(crate) struct SwitchScope {
     pub new_assigned_var_ids: FxHashMap<String, usize>,
 }
 
-impl<'a> SwitchScope {
+impl SwitchScope {
     pub(crate) fn new() -> Self {
         Self {
             new_vars_in_scope: None,

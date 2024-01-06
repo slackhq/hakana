@@ -684,7 +684,7 @@ fn combine_parent_nodes(first: &TUnion, second: &TUnion) -> TUnion {
 fn apply_pre_condition_to_loop_context(
     statements_analyzer: &StatementsAnalyzer,
     pre_condition: &aast::Expr<(), ()>,
-    pre_condition_clauses: &Vec<Clause>,
+    pre_condition_clauses: &[Clause],
     loop_context: &mut ScopeContext,
     loop_parent_context: &mut ScopeContext,
     analysis_data: &mut FunctionAnalysisData,

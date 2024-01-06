@@ -93,7 +93,7 @@ pub fn reconcile(
         if let Some(key) = key {
             if let Some(pos) = pos {
                 if can_report_issues {
-                    if &existing_var_type.types == &refined_type.types {
+                    if existing_var_type.types == refined_type.types {
                         if !assertion.has_equality() && !assertion_type.is_mixed() {
                             trigger_issue_for_impossible(
                                 analysis_data,
@@ -396,11 +396,13 @@ pub(crate) fn intersect_atomic_with_atomic(
             },
             _,
         ) => {
-            return intersect_union_with_atomic(codebase, type_1_as, type_2_atomic).map(|intersected| TAtomic::TTypeAlias {
+            return intersect_union_with_atomic(codebase, type_1_as, type_2_atomic).map(
+                |intersected| TAtomic::TTypeAlias {
                     name: *name,
                     type_params: type_params.clone(),
                     as_type: Some(Box::new(intersected)),
-                })
+                },
+            )
         }
         (
             _,
@@ -410,11 +412,13 @@ pub(crate) fn intersect_atomic_with_atomic(
                 type_params,
             },
         ) => {
-            return intersect_union_with_atomic(codebase, type_2_as, type_1_atomic).map(|intersected| TAtomic::TTypeAlias {
+            return intersect_union_with_atomic(codebase, type_2_as, type_1_atomic).map(
+                |intersected| TAtomic::TTypeAlias {
                     name: *name,
                     type_params: type_params.clone(),
                     as_type: Some(Box::new(intersected)),
-                })
+                },
+            )
         }
         (
             TAtomic::TNamedObject {
@@ -427,7 +431,9 @@ pub(crate) fn intersect_atomic_with_atomic(
             },
         ) => {
             if type_1_name == &StrId::XHP_CHILD {
-                if type_2_name == &StrId::KEYED_CONTAINER || type_2_name == &StrId::KEYED_TRAVERSABLE {
+                if type_2_name == &StrId::KEYED_CONTAINER
+                    || type_2_name == &StrId::KEYED_TRAVERSABLE
+                {
                     let mut atomic = TAtomic::TNamedObject {
                         name: StrId::ANY_ARRAY,
                         type_params: type_2_params.clone(),
@@ -438,7 +444,9 @@ pub(crate) fn intersect_atomic_with_atomic(
                     atomic.remove_placeholders();
                     return Some(atomic);
                 } else if type_2_name == &StrId::CONTAINER || type_2_name == &StrId::TRAVERSABLE {
-                    let type_2_params = type_2_params.as_ref().map(|type_2_params| vec![get_arraykey(true), type_2_params[0].clone()]);
+                    let type_2_params = type_2_params
+                        .as_ref()
+                        .map(|type_2_params| vec![get_arraykey(true), type_2_params[0].clone()]);
 
                     let mut atomic = TAtomic::TNamedObject {
                         name: StrId::ANY_ARRAY,
@@ -606,10 +614,11 @@ fn intersect_vecs(
             for (type_2_key, type_2_value) in type_2_known_items.iter_mut() {
                 if let Some(type_1_value) = type_1_known_items.get(type_2_key) {
                     type_2_value.0 = type_2_value.0 && type_1_value.0;
-                    type_2_value.1 = intersect_union_with_union(&type_1_value.1, &type_2_value.1, codebase)?
+                    type_2_value.1 =
+                        intersect_union_with_union(&type_1_value.1, &type_2_value.1, codebase)?
                 } else if !type_1_param.is_nothing() {
-                    type_2_value.0 = type_2_value.0;
-                    type_2_value.1 = intersect_union_with_union(type_1_param, &type_2_value.1, codebase)?
+                    type_2_value.1 =
+                        intersect_union_with_union(type_1_param, &type_2_value.1, codebase)?
                 } else {
                     // if the type_2 key is always defined, the intersection is impossible
                     if !type_2_value.0 {
@@ -633,7 +642,8 @@ fn intersect_vecs(
             let mut type_2_known_items = type_2_known_items.clone();
 
             for (_, type_2_value) in type_2_known_items.iter_mut() {
-                type_2_value.1 = intersect_union_with_union(&type_2_value.1, type_1_param, codebase)?
+                type_2_value.1 =
+                    intersect_union_with_union(&type_2_value.1, type_1_param, codebase)?
             }
 
             if let Some(type_param) = type_param {
@@ -651,7 +661,8 @@ fn intersect_vecs(
             let mut type_1_known_items = type_1_known_items.clone();
 
             for (_, type_1_value) in type_1_known_items.iter_mut() {
-                type_1_value.1 = intersect_union_with_union(&type_1_value.1, type_2_param, codebase)?
+                type_1_value.1 =
+                    intersect_union_with_union(&type_1_value.1, type_2_param, codebase)?
             }
 
             if let Some(type_param) = type_param {
@@ -813,13 +824,12 @@ pub(crate) fn intersect_union_with_union(
     codebase: &CodebaseInfo,
 ) -> Option<TUnion> {
     let type_param = match (type_1_param.is_single(), type_2_param.is_single()) {
-        (true, true) => {
-            intersect_atomic_with_atomic(
-                type_1_param.get_single(),
-                type_2_param.get_single(),
-                codebase,
-            ).map(wrap_atomic)
-        }
+        (true, true) => intersect_atomic_with_atomic(
+            type_1_param.get_single(),
+            type_2_param.get_single(),
+            codebase,
+        )
+        .map(wrap_atomic),
         (false, true) => {
             intersect_union_with_atomic(codebase, type_1_param, type_2_param.get_single())
         }

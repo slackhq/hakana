@@ -276,7 +276,7 @@ impl ScopeContext {
                 continue;
             }
 
-            for (key, _) in &c.possibilities {
+            for key in c.possibilities.keys() {
                 for changed_var_id in changed_var_ids {
                     if changed_var_id == key || var_has_root(key, changed_var_id) {
                         rejected_clauses.push(c.clone());
@@ -304,7 +304,7 @@ impl ScopeContext {
                 continue;
             }
 
-            for (key, _) in &c.possibilities {
+            for key in c.possibilities.keys() {
                 if changed_var_ids.contains(key) {
                     rejected_clauses.push(c.clone());
                     continue 'outer;
@@ -329,7 +329,7 @@ impl ScopeContext {
         let mut other_clauses = Vec::new();
 
         'outer: for clause in clauses {
-            for (var_id, _) in &clause.possibilities {
+            for var_id in clause.possibilities.keys() {
                 if var_has_root(var_id, remove_var_id) {
                     break 'outer;
                 }
@@ -430,9 +430,7 @@ impl ScopeContext {
             analysis_data,
         );
 
-        let keys = self
-            .vars_in_scope.keys().cloned()
-            .collect::<Vec<_>>();
+        let keys = self.vars_in_scope.keys().cloned().collect::<Vec<_>>();
 
         for var_id in keys {
             if var_has_root(&var_id, remove_var_id) {
@@ -461,7 +459,7 @@ impl ScopeContext {
         self.clauses.retain(|clause| {
             let mut retain_clause = true;
 
-            for (var_id, _) in &clause.possibilities {
+            for var_id in clause.possibilities.keys() {
                 if var_id.contains("->") || var_id.contains("::") {
                     retain_clause = false;
                 }
@@ -513,10 +511,7 @@ pub fn var_has_root(var_id: &String, root_var_id: &String) -> bool {
             return false;
         }
         let i = root_var_id.len() + pos;
-        return match bytes[i] as char {
-            '[' | '-' | ']' => true,
-            _ => false,
-        };
+        return matches!(bytes[i] as char, '[' | '-' | ']');
     }
 
     false

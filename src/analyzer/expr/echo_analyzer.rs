@@ -17,7 +17,7 @@ use super::call::argument_analyzer;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
     call_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,

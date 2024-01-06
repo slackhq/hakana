@@ -84,62 +84,58 @@ pub(crate) fn analyze(
 
     let mut fq_class_names = Vec::new();
 
-    match &stmt_class.2 {
-        aast::ClassId_::CIexpr(expr) => {
-            match &expr.2 {
-                aast::Expr_::Id(id) => {
-                    let mut is_static = false;
+    if let aast::ClassId_::CIexpr(expr) = &stmt_class.2 {
+        match &expr.2 {
+            aast::Expr_::Id(id) => {
+                let mut is_static = false;
 
-                    let classlike_name = if let Some(name) = get_id_name(
-                        id,
-                        &context.function_context.calling_class,
-                        context.function_context.calling_class_final,
-                        codebase,
-                        &mut is_static,
-                        statements_analyzer.get_file_analyzer().resolved_names,
-                    ) {
-                        name
-                    } else {
-                        return Err(AnalysisError::InternalError(
-                            "Could not resolve class name for static property assignment"
-                                .to_string(),
-                            statements_analyzer.get_hpos(&id.0),
-                        ));
-                    };
+                let classlike_name = if let Some(name) = get_id_name(
+                    id,
+                    &context.function_context.calling_class,
+                    context.function_context.calling_class_final,
+                    codebase,
+                    &mut is_static,
+                    statements_analyzer.get_file_analyzer().resolved_names,
+                ) {
+                    name
+                } else {
+                    return Err(AnalysisError::InternalError(
+                        "Could not resolve class name for static property assignment".to_string(),
+                        statements_analyzer.get_hpos(&id.0),
+                    ));
+                };
 
-                    fq_class_names.push(classlike_name);
-                }
-                _ => {
-                    // eg. $class::$foo
-                    let was_inside_general_use = context.inside_general_use;
-                    context.inside_general_use = true;
-                    expression_analyzer::analyze(
-                        statements_analyzer,
-                        expr,
-                        analysis_data,
-                        context,
-                        &mut None,
-                    )?;
-                    context.inside_general_use = was_inside_general_use;
+                fq_class_names.push(classlike_name);
+            }
+            _ => {
+                // eg. $class::$foo
+                let was_inside_general_use = context.inside_general_use;
+                context.inside_general_use = true;
+                expression_analyzer::analyze(
+                    statements_analyzer,
+                    expr,
+                    analysis_data,
+                    context,
+                    &mut None,
+                )?;
+                context.inside_general_use = was_inside_general_use;
 
-                    let lhs_type = analysis_data.get_expr_type(&expr.1.clone());
+                let lhs_type = analysis_data.get_expr_type(&expr.1.clone());
 
-                    if let Some(lhs_type) = lhs_type {
-                        for lhs_atomic_type in lhs_type.types.clone() {
-                            if let TAtomic::TNamedObject {
-                                name,
-                                type_params: None,
-                                ..
-                            } = lhs_atomic_type
-                            {
-                                fq_class_names.push(name);
-                            }
+                if let Some(lhs_type) = lhs_type {
+                    for lhs_atomic_type in lhs_type.types.clone() {
+                        if let TAtomic::TNamedObject {
+                            name,
+                            type_params: None,
+                            ..
+                        } = lhs_atomic_type
+                        {
+                            fq_class_names.push(name);
                         }
                     }
                 }
             }
         }
-        _ => {}
     }
 
     if fq_class_names.is_empty() {

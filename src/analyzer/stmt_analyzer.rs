@@ -264,7 +264,7 @@ pub(crate) fn analyze(
 }
 
 fn detect_unused_statement_expressions(
-    boxed: &Box<aast::Expr<(), ()>>,
+    boxed: &aast::Expr<(), ()>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     stmt: &aast::Stmt<(), ()>,

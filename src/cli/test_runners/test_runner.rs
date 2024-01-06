@@ -23,7 +23,7 @@ use std::time::Duration;
 use walkdir::WalkDir;
 
 pub trait HooksProvider {
-    fn get_hooks_for_test(&self, dir: &String) -> Vec<Box<dyn CustomHook>>;
+    fn get_hooks_for_test(&self, dir: &str) -> Vec<Box<dyn CustomHook>>;
 }
 
 pub struct TestRunner(pub Box<dyn HooksProvider>);
@@ -126,8 +126,8 @@ impl TestRunner {
         );
     }
 
-    fn get_config_for_test(&self, dir: &String) -> config::Config {
-        let mut analysis_config = config::Config::new(dir.clone(), FxHashSet::default());
+    fn get_config_for_test(&self, dir: &str) -> config::Config {
+        let mut analysis_config = config::Config::new(dir.to_string(), FxHashSet::default());
         analysis_config.find_unused_expressions = dir.contains("/unused/")
             || dir.contains("UnusedAssignment")
             || dir.contains("UnusedParameter")
@@ -151,7 +151,7 @@ impl TestRunner {
         }
 
         if dir.contains("/migrations/") {
-            let replacements_path = dir.clone() + "/replacements.txt";
+            let replacements_path = dir.to_string() + "/replacements.txt";
             let replacements = fs::read_to_string(replacements_path).unwrap().to_string();
 
             analysis_config.migration_symbols = replacements

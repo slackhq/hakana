@@ -174,29 +174,27 @@ pub fn is_contained_by(
     }
 
     if let TAtomic::TEnum {
-        base_type: input_base_type,
+        base_type: Some(input_base_type),
         ..
     } = input_type_part
     {
-        if let Some(input_base_type) = input_base_type {
-            if let TAtomic::TStringWithFlags(..) = container_type_part {
-                return is_contained_by(
-                    codebase,
-                    input_base_type,
-                    &TAtomic::TString,
-                    inside_assertion,
-                    atomic_comparison_result,
-                );
-            }
-
-            return atomic_type_comparator::is_contained_by(
+        if let TAtomic::TStringWithFlags(..) = container_type_part {
+            return is_contained_by(
                 codebase,
                 input_base_type,
-                container_type_part,
+                &TAtomic::TString,
                 inside_assertion,
                 atomic_comparison_result,
             );
         }
+
+        return atomic_type_comparator::is_contained_by(
+            codebase,
+            input_base_type,
+            container_type_part,
+            inside_assertion,
+            atomic_comparison_result,
+        );
     }
 
     // handles newtypes (hopefully)
@@ -314,12 +312,13 @@ pub fn is_contained_by(
         return false;
     }
 
-    match container_type_part {
-        TAtomic::TStringWithFlags(
-            container_is_truthy,
-            container_is_nonempty,
-            container_is_nonspecific_literal,
-        ) => match input_type_part {
+    if let TAtomic::TStringWithFlags(
+        container_is_truthy,
+        container_is_nonempty,
+        container_is_nonspecific_literal,
+    ) = container_type_part
+    {
+        match input_type_part {
             TAtomic::TLiteralClassname { .. }
             | TAtomic::TClassname { .. }
             | TAtomic::TTypename { .. } => {
@@ -351,8 +350,7 @@ pub fn is_contained_by(
                 return true;
             }
             _ => {}
-        },
-        _ => {}
+        }
     }
 
     if matches!(input_type_part, TAtomic::TStringWithFlags(false, true, _))

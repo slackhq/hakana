@@ -14,7 +14,7 @@ use hakana_type::combine_union_types;
 use oxidized::ast::{Binop, Uop};
 use oxidized::{aast, ast};
 
-pub(crate) fn analyze<'expr, 'map, 'new_expr>(
+pub(crate) fn analyze<'expr>(
     statements_analyzer: &StatementsAnalyzer,
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
@@ -277,8 +277,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr>(
 
     let mut clauses_for_right_analysis = ScopeContext::remove_reconciled_clauses(
         &clauses_for_right_analysis,
-        &right_assigned_var_ids.into_keys()
-            .collect::<FxHashSet<_>>(),
+        &right_assigned_var_ids.into_keys().collect::<FxHashSet<_>>(),
     )
     .0;
 
@@ -335,12 +334,7 @@ pub(crate) fn analyze<'expr, 'map, 'new_expr>(
             } else if let Some(left_type) = left_vars.get(&var_id) {
                 if_body_context.vars_in_scope.insert(
                     var_id,
-                    Rc::new(combine_union_types(
-                        &right_type,
-                        left_type,
-                        codebase,
-                        false,
-                    )),
+                    Rc::new(combine_union_types(&right_type, left_type, codebase, false)),
                 );
             }
         }
@@ -361,10 +355,13 @@ fn is_or(cond: &aast::Expr<(), ()>, max_nesting: usize) -> bool {
         return true;
     }
 
-    if let Some(Binop { bop, lhs: left, .. }) = cond.2.as_binop() {
-        if let ast::Bop::Barbar = bop {
-            return is_or(left, max_nesting - 1);
-        }
+    if let Some(Binop {
+        bop: ast::Bop::Barbar,
+        lhs: left,
+        ..
+    }) = cond.2.as_binop()
+    {
+        return is_or(left, max_nesting - 1);
     }
 
     false

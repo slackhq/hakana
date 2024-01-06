@@ -470,64 +470,66 @@ fn add_array_value_dataflow(
     value: &oxidized::aast::Expr<(), ()>,
     array_creation_info: &mut ArrayCreationInfo,
 ) {
-    if !value_type.parent_nodes.is_empty()
-        && !(matches!(
+    if value_type.parent_nodes.is_empty()
+        || (matches!(
             &analysis_data.data_flow_graph.kind,
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         ) && !value_type.has_taintable_value())
     {
-        let mut node_name = "array".to_string();
+        return;
+    }
 
-        let key_item_single = if key_item_type.is_single() {
-            Some(key_item_type.get_single())
-        } else {
-            None
-        };
+    let mut node_name = "array".to_string();
 
-        if let Some(key_item_single) = key_item_single {
-            if let TAtomic::TLiteralString { value, .. } = key_item_single {
-                node_name = format!("array[{}]", value);
-            } else if let TAtomic::TLiteralInt { value, .. } = key_item_single {
-                node_name = format!("array[{}]", value);
-            }
+    let key_item_single = if key_item_type.is_single() {
+        Some(key_item_type.get_single())
+    } else {
+        None
+    };
+
+    if let Some(key_item_single) = key_item_single {
+        if let TAtomic::TLiteralString { value, .. } = key_item_single {
+            node_name = format!("array[{}]", value);
+        } else if let TAtomic::TLiteralInt { value, .. } = key_item_single {
+            node_name = format!("array[{}]", value);
         }
+    }
 
-        let new_parent_node =
-            DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(value.pos()));
-        analysis_data
-            .data_flow_graph
-            .add_node(new_parent_node.clone());
+    let new_parent_node =
+        DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(value.pos()));
+    analysis_data
+        .data_flow_graph
+        .add_node(new_parent_node.clone());
 
-        // TODO add taint event dispatches
+    // TODO add taint event dispatches
 
-        for parent_node in value_type.parent_nodes.iter() {
-            analysis_data.data_flow_graph.add_path(
-                parent_node,
-                &new_parent_node,
-                if let Some(key_item_single) = key_item_single {
-                    if let TAtomic::TLiteralInt {
-                        value: key_value, ..
-                    } = key_item_single
-                    {
-                        PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.to_string())
-                    } else if let TAtomic::TLiteralString {
-                        value: key_value, ..
-                    } = key_item_single
-                    {
-                        PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.clone())
-                    } else {
-                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
-                    }
+    for parent_node in value_type.parent_nodes.iter() {
+        analysis_data.data_flow_graph.add_path(
+            parent_node,
+            &new_parent_node,
+            if let Some(key_item_single) = key_item_single {
+                if let TAtomic::TLiteralInt {
+                    value: key_value, ..
+                } = key_item_single
+                {
+                    PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.to_string())
+                } else if let TAtomic::TLiteralString {
+                    value: key_value, ..
+                } = key_item_single
+                {
+                    PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.clone())
                 } else {
                     PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
-                },
-                None,
-                None,
-            );
-        }
-
-        array_creation_info.parent_nodes.insert(new_parent_node);
+                }
+            } else {
+                PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
+            },
+            None,
+            None,
+        );
     }
+
+    array_creation_info.parent_nodes.insert(new_parent_node);
 }
 
 fn add_array_key_dataflow(
@@ -537,54 +539,56 @@ fn add_array_key_dataflow(
     item_key_pos: &Pos,
     array_creation_info: &mut ArrayCreationInfo,
 ) {
-    if !key_item_type.parent_nodes.is_empty()
-        && !(matches!(
+    if key_item_type.parent_nodes.is_empty()
+        || (matches!(
             &analysis_data.data_flow_graph.kind,
             GraphKind::WholeProgram(WholeProgramKind::Taint)
         ) && !key_item_type.has_taintable_value())
     {
-        let node_name = "array".to_string();
+        return;
+    }
 
-        let new_parent_node =
-            DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(item_key_pos));
-        analysis_data
-            .data_flow_graph
-            .add_node(new_parent_node.clone());
+    let node_name = "array".to_string();
 
-        // TODO add taint event dispatches
+    let new_parent_node =
+        DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(item_key_pos));
+    analysis_data
+        .data_flow_graph
+        .add_node(new_parent_node.clone());
 
-        let key_item_single = if key_item_type.is_single() {
-            Some(key_item_type.get_single())
-        } else {
-            None
-        };
+    // TODO add taint event dispatches
 
-        for parent_node in key_item_type.parent_nodes.iter() {
-            analysis_data.data_flow_graph.add_path(
-                parent_node,
-                &new_parent_node,
-                if let Some(key_item_single) = key_item_single {
-                    if let TAtomic::TLiteralInt {
-                        value: key_value, ..
-                    } = key_item_single
-                    {
-                        PathKind::ArrayAssignment(ArrayDataKind::ArrayKey, key_value.to_string())
-                    } else if let TAtomic::TLiteralString {
-                        value: key_value, ..
-                    } = key_item_single
-                    {
-                        PathKind::ArrayAssignment(ArrayDataKind::ArrayKey, key_value.clone())
-                    } else {
-                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey)
-                    }
+    let key_item_single = if key_item_type.is_single() {
+        Some(key_item_type.get_single())
+    } else {
+        None
+    };
+
+    for parent_node in key_item_type.parent_nodes.iter() {
+        analysis_data.data_flow_graph.add_path(
+            parent_node,
+            &new_parent_node,
+            if let Some(key_item_single) = key_item_single {
+                if let TAtomic::TLiteralInt {
+                    value: key_value, ..
+                } = key_item_single
+                {
+                    PathKind::ArrayAssignment(ArrayDataKind::ArrayKey, key_value.to_string())
+                } else if let TAtomic::TLiteralString {
+                    value: key_value, ..
+                } = key_item_single
+                {
+                    PathKind::ArrayAssignment(ArrayDataKind::ArrayKey, key_value.clone())
                 } else {
                     PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey)
-                },
-                None,
-                None,
-            );
-        }
-
-        array_creation_info.parent_nodes.insert(new_parent_node);
+                }
+            } else {
+                PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey)
+            },
+            None,
+            None,
+        );
     }
+
+    array_creation_info.parent_nodes.insert(new_parent_node);
 }

@@ -214,7 +214,7 @@ fn replace_template_param(
         template_type = Some(template_type_inner);
     } else {
         for (_, template_type_map) in inferred_lower_bounds {
-            for (map_defining_entity, _) in template_type_map {
+            for map_defining_entity in template_type_map.keys() {
                 if !codebase.classlike_infos.contains_key(map_defining_entity) {
                     continue;
                 }
@@ -264,7 +264,7 @@ fn replace_atomic(
             *type_param = Box::new(replace(type_param, template_result, codebase));
 
             if let Some(known_items) = known_items {
-                for (_, (_, t)) in known_items {
+                for (_, t) in known_items.values_mut() {
                     *t = replace(t, template_result, codebase);
                 }
             }
@@ -280,7 +280,7 @@ fn replace_atomic(
             }
 
             if let Some(known_items) = known_items {
-                for (_, (_, t)) in known_items {
+                for (_, t) in known_items.values_mut() {
                     *t = Arc::new(replace(t, template_result, codebase));
                 }
             }
@@ -314,13 +314,11 @@ fn replace_atomic(
             }
         }
         TAtomic::TTypeAlias {
-            ref mut type_params,
+            type_params: Some(ref mut type_params),
             ..
         } => {
-            if let Some(type_params) = type_params {
-                for type_param in type_params {
-                    *type_param = replace(type_param, template_result, codebase);
-                }
+            for type_param in type_params {
+                *type_param = replace(type_param, template_result, codebase);
             }
         }
         _ => (),

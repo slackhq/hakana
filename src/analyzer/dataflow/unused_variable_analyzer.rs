@@ -334,41 +334,35 @@ impl<'a> Scanner<'a> {
     ) {
         for (comment_pos, comment) in self.comments {
             if comment_pos.line() == stmt.0.line() {
-                match comment {
-                    Comment::CmtBlock(block) => {
-                        if block.trim() == "HHAST_FIXME[UnusedVariable]" {
-                            analysis_data.add_replacement(
-                                (comment_pos.start_offset() as u32, limit as u32),
-                                Replacement::TrimPrecedingWhitespace(
-                                    comment_pos.to_raw_span().start.beg_of_line() as u32,
-                                ),
-                            );
+                if let Comment::CmtBlock(block) = comment {
+                    if block.trim() == "HHAST_FIXME[UnusedVariable]" {
+                        analysis_data.add_replacement(
+                            (comment_pos.start_offset() as u32, limit as u32),
+                            Replacement::TrimPrecedingWhitespace(
+                                comment_pos.to_raw_span().start.beg_of_line() as u32,
+                            ),
+                        );
 
-                            return;
-                        }
+                        return;
                     }
-                    _ => {}
                 }
             } else if comment_pos.line() == stmt.0.line() - 1 {
-                match comment {
-                    Comment::CmtBlock(block) => {
-                        if let "HAKANA_FIXME[UnusedAssignment]"
-                        | "HAKANA_FIXME[UnusedAssignmentStatement]" = block.trim()
-                        {
-                            let stmt_start = stmt.0.to_raw_span().start;
-                            analysis_data.add_replacement(
-                                (
-                                    comment_pos.start_offset() as u32,
-                                    (stmt_start.beg_of_line() as u32) - 1,
-                                ),
-                                Replacement::TrimPrecedingWhitespace(
-                                    comment_pos.to_raw_span().start.beg_of_line() as u32,
-                                ),
-                            );
-                            return;
-                        }
+                if let Comment::CmtBlock(block) = comment {
+                    if let "HAKANA_FIXME[UnusedAssignment]"
+                    | "HAKANA_FIXME[UnusedAssignmentStatement]" = block.trim()
+                    {
+                        let stmt_start = stmt.0.to_raw_span().start;
+                        analysis_data.add_replacement(
+                            (
+                                comment_pos.start_offset() as u32,
+                                (stmt_start.beg_of_line() as u32) - 1,
+                            ),
+                            Replacement::TrimPrecedingWhitespace(
+                                comment_pos.to_raw_span().start.beg_of_line() as u32,
+                            ),
+                        );
+                        return;
                     }
-                    _ => {}
                 }
             }
         }

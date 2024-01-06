@@ -12,7 +12,8 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic},
-    t_union::TUnion, StrId,
+    t_union::TUnion,
+    StrId,
 };
 use hakana_type::{
     get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
@@ -511,18 +512,18 @@ pub(crate) fn intersect_null(
                 did_remove_type = true;
             }
             TAtomic::TNamedObject {
-                name,
+                name: StrId::XHP_CHILD,
                 type_params: None,
                 ..
-            } => match *name {
-                StrId::XHP_CHILD => {
-                    acceptable_types.push(TAtomic::TNull);
-                    did_remove_type = true;
-                }
-                _ => {
-                    did_remove_type = true;
-                }
-            },
+            } => {
+                acceptable_types.push(TAtomic::TNull);
+                did_remove_type = true;
+            }
+            TAtomic::TNamedObject {
+                type_params: None, ..
+            } => {
+                did_remove_type = true;
+            }
             _ => {
                 did_remove_type = true;
             }
@@ -1659,7 +1660,7 @@ fn reconcile_non_empty_countable(
                 }
             } else {
                 if let Some(known_items) = known_items {
-                    for (_, (u, _)) in known_items {
+                    for (u, _) in known_items.values() {
                         if *u {
                             did_remove_type = true;
                         }
@@ -1769,7 +1770,7 @@ fn reconcile_exactly_countable(
 
                 did_remove_type = true;
             } else if let Some(known_items) = known_items {
-                for (_, (u, _)) in known_items {
+                for (u, _) in known_items.values() {
                     if *u {
                         did_remove_type = true;
                     }
@@ -2134,7 +2135,7 @@ fn reconcile_has_nonnull_entry_for_key(
                         if known_item.0 {
                             *known_item = (false, Arc::new(nonnull));
                             did_remove_type = true;
-                        } else if &*known_item.1 != &nonnull {
+                        } else if *known_item.1 != nonnull {
                             known_item.1 = Arc::new(nonnull);
                             did_remove_type = true;
                         }
@@ -2221,7 +2222,7 @@ fn reconcile_has_nonnull_entry_for_key(
                             if known_item.0 {
                                 *known_item = (false, nonnull);
                                 did_remove_type = true;
-                            } else if &known_item.1 != &nonnull {
+                            } else if known_item.1 != nonnull {
                                 known_item.1 = nonnull;
                                 did_remove_type = true;
                             }

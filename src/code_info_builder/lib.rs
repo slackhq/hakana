@@ -765,11 +765,11 @@ fn get_uses_hash(uses: &Vec<(StrId, StrId)>) -> u64 {
 }
 
 fn get_function_hashes(
-    file_contents: &String,
+    file_contents: &str,
     def_location: &HPos,
     name: &Id,
-    tparams: &Vec<Tparam>,
-    params: &Vec<FunParam>,
+    tparams: &[Tparam],
+    params: &[FunParam],
     ret: &TypeHint,
     uses: &Vec<(StrId, StrId)>,
 ) -> (u64, u64) {

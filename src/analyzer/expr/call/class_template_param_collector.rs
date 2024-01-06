@@ -92,7 +92,6 @@ pub(crate) fn collect(
                         .or_insert_with(FxHashMap::default)
                         .entry(class_storage.name)
                         .or_insert(TUnion::new(expand_type(
-                            codebase,
                             extended_type,
                             e,
                             &static_class_storage.name,
@@ -191,7 +190,6 @@ pub(crate) fn resolve_template_param(
 }
 
 fn expand_type(
-    codebase: &CodebaseInfo,
     input_type_extends: &Arc<TUnion>,
     e: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
     static_classlike_name: &StrId,
@@ -221,7 +219,6 @@ fn expand_type(
             None
         } {
             output_type_extends.extend(expand_type(
-                codebase,
                 extended_type,
                 e,
                 static_classlike_name,

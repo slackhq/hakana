@@ -222,8 +222,8 @@ pub(crate) fn extract_diff<'a>(
     trace: Vec<FxHashMap<isize, usize>>,
     mut x: usize,
     mut y: usize,
-    a_nodes: &'a Vec<DefSignatureNode>,
-    b_nodes: &'a Vec<DefSignatureNode>,
+    a_nodes: &'a [DefSignatureNode],
+    b_nodes: &'a [DefSignatureNode],
     bc: FxHashMap<usize, bool>,
 ) -> Vec<AstDiffElem<'a>> {
     let mut result = vec![];

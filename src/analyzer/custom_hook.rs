@@ -114,7 +114,7 @@ pub trait InternalHook {
         inferred_return_type: &mut Option<TUnion>,
         codebase: &CodebaseInfo,
         statements_analyzer: &StatementsAnalyzer,
-        fb_ast: &Vec<aast::Stmt<(), ()>>,
+        fb_ast: &[aast::Stmt<(), ()>],
     ) -> bool {
         false
     }

@@ -5,7 +5,7 @@ pub struct CoreHooksProvider {}
 impl HooksProvider for CoreHooksProvider {
     fn get_hooks_for_test(
         &self,
-        _: &String,
+        _: &str,
     ) -> Vec<Box<dyn hakana_analyzer::custom_hook::CustomHook>> {
         vec![]
     }

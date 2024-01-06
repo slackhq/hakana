@@ -18,7 +18,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    boxed: &Box<ast_defs::Id>,
+    boxed: &ast_defs::Id,
     analysis_data: &mut FunctionAnalysisData,
     context: &ScopeContext,
 ) -> Result<(), AnalysisError> {

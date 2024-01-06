@@ -19,7 +19,7 @@ use hakana_reflection_info::{
 use hakana_type::{get_mixed_any, get_num, type_combiner};
 use oxidized::{aast, ast, ast_defs::Pos};
 
-pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
+pub(crate) fn analyze<'expr: 'tast, 'tast>(
     statements_analyzer: &StatementsAnalyzer,
     stmt_pos: &aast::Pos,
     operator: &'expr ast::Bop,
@@ -57,13 +57,7 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
     }
 
     let e1_var_id = if context.inside_loop {
-        expression_identifier::get_var_id(
-            left,
-            None,
-            statements_analyzer.get_file_analyzer().get_file_source(),
-            &FxHashMap::default(),
-            None,
-        )
+        expression_identifier::get_var_id(left, None, &FxHashMap::default(), None)
     } else {
         None
     };
@@ -90,7 +84,6 @@ pub(crate) fn analyze<'expr: 'tast, 'map, 'new_expr, 'tast>(
         expression_identifier::get_var_id(
             right,
             None,
-            statements_analyzer.get_file_analyzer().get_file_source(),
             &FxHashMap::default(),
             None,
         )

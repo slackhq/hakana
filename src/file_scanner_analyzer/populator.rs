@@ -93,7 +93,7 @@ pub fn populate_codebase(
         }
 
         for (_, map) in storage.template_types.iter_mut() {
-            for (_, v) in map {
+            for v in map.values_mut() {
                 if v.needs_population() || userland_force_repopulation {
                     populate_union_type(
                         Arc::make_mut(v),
@@ -291,7 +291,7 @@ fn populate_functionlike_storage(
     }
 
     for (_, type_param_map) in storage.template_types.iter_mut() {
-        for (_, v) in type_param_map {
+        for v in type_param_map.values_mut() {
             if force_type_population || v.needs_population() {
                 populate_union_type(
                     Arc::make_mut(v),
@@ -345,7 +345,7 @@ fn populate_classlike_storage(
         symbol_references.add_symbol_reference_to_symbol(storage.name, attribute_info.name, true);
     }
 
-    for (property_id, _) in &storage.properties {
+    for property_id in storage.properties.keys() {
         storage
             .declaring_property_ids
             .insert(*property_id, *classlike_name);
@@ -922,7 +922,7 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
             }
         } else {
             for (template_name, template_type_map) in &parent_storage.template_types {
-                for (_, template_type) in template_type_map {
+                for template_type in template_type_map.values() {
                     storage
                         .template_extended_params
                         .entry(parent_storage.name)

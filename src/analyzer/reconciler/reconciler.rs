@@ -181,11 +181,7 @@ pub(crate) fn reconcile_keyed_types(
                     can_report_issues
                         && if referenced_var_ids.contains(key) && active_new_types.contains_key(key)
                         {
-                            active_new_types
-                                .get(key)
-                                .unwrap()
-                                .get(&{ i })
-                                .is_some()
+                            active_new_types.get(key).unwrap().get(&i).is_some()
                         } else {
                             false
                         },
@@ -303,13 +299,16 @@ pub(crate) fn reconcile_keyed_types(
             }
         }
 
-        if key.ends_with(']') && (type_changed || !did_type_exist) && !has_inverted_isset && !is_equality {
+        if key.ends_with(']')
+            && (type_changed || !did_type_exist)
+            && !has_inverted_isset
+            && !is_equality
+        {
             let key_parts = break_up_path_into_parts(key);
 
             adjust_array_type(
                 key_parts,
                 context,
-                &mut added_var_ids,
                 changed_var_ids,
                 &result_type,
             );
@@ -351,7 +350,6 @@ pub(crate) fn reconcile_keyed_types(
 fn adjust_array_type(
     mut key_parts: Vec<String>,
     context: &mut ScopeContext,
-    added_var_ids: &mut FxHashSet<String>,
     changed_var_ids: &mut FxHashSet<String>,
     result_type: &TUnion,
 ) {
@@ -439,7 +437,6 @@ fn adjust_array_type(
                 adjust_array_type(
                     key_parts.clone(),
                     context,
-                    added_var_ids,
                     changed_var_ids,
                     &wrap_atomic(base_atomic_type.clone()),
                 );
@@ -526,7 +523,10 @@ fn add_nested_assertions(
                         if key_parts.is_empty() {
                             keys_to_remove.push(nk.clone());
 
-                            if nesting == 0 && base_key_set && active_new_types.remove(&nk).is_some() {
+                            if nesting == 0
+                                && base_key_set
+                                && active_new_types.remove(&nk).is_some()
+                            {
                                 active_new_types
                                     .entry(base_key.clone())
                                     .or_default()
@@ -572,7 +572,7 @@ fn add_nested_assertions(
     new_types.retain(|k, _| !keys_to_remove.contains(k));
 }
 
-fn break_up_path_into_parts(path: &String) -> Vec<String> {
+fn break_up_path_into_parts(path: &str) -> Vec<String> {
     let chars: Vec<char> = path.chars().collect();
 
     let mut string_char: Option<char> = None;

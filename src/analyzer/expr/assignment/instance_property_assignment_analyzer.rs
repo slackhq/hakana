@@ -229,7 +229,6 @@ pub(crate) fn analyze_regular_assignment(
     let lhs_var_id = expression_identifier::get_var_id(
         stmt_var,
         context.function_context.calling_class.as_ref(),
-        statements_analyzer.get_file_analyzer().get_file_source(),
         statements_analyzer.get_file_analyzer().resolved_names,
         Some((
             statements_analyzer.get_codebase(),
@@ -283,8 +282,7 @@ pub(crate) fn analyze_regular_assignment(
             analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::NullablePropertyAssignment,
-                    lhs_var_id.unwrap_or("data".to_string())
-                        + " of type null cannot be assigned.",
+                    lhs_var_id.unwrap_or("data".to_string()) + " of type null cannot be assigned.",
                     statements_analyzer.get_hpos(&expr.1 .1),
                     &context.function_context.calling_functionlike_id,
                 ),
@@ -423,7 +421,6 @@ pub(crate) fn analyze_atomic_assignment(
         let var_id = expression_identifier::get_var_id(
             expr.0,
             None,
-            statements_analyzer.get_file_analyzer().get_file_source(),
             statements_analyzer.get_file_analyzer().resolved_names,
             Some((
                 statements_analyzer.get_codebase(),

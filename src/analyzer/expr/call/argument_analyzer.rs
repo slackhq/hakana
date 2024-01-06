@@ -436,10 +436,7 @@ pub(crate) fn verify_type(
 
     if !type_match_found && !union_comparison_result.type_coerced.unwrap_or(false) {
         let types_can_be_identical = union_type_comparator::can_expression_types_be_identical(
-            codebase,
-            input_type,
-            param_type,
-            false,
+            codebase, input_type, param_type, false,
         );
 
         if types_can_be_identical {
@@ -497,12 +494,10 @@ pub(crate) fn verify_type(
 
     if !param_type.is_nullable()
         && (match functionlike_id {
-            FunctionLikeIdentifier::Function(function_id) => {
-                match statements_analyzer.get_interner().lookup(function_id) {
-                    "echo" | "print" => false,
-                    _ => true,
-                }
-            }
+            FunctionLikeIdentifier::Function(function_id) => !matches!(
+                statements_analyzer.get_interner().lookup(function_id),
+                "echo" | "print"
+            ),
             FunctionLikeIdentifier::Method(_, _) => true,
         })
     {
@@ -551,12 +546,10 @@ pub(crate) fn verify_type(
         && !param_type.has_bool()
         && !param_type.has_scalar()
         && (match functionlike_id {
-            FunctionLikeIdentifier::Function(function_id) => {
-                match statements_analyzer.get_interner().lookup(function_id) {
-                    "echo" | "print" => false,
-                    _ => true,
-                }
-            }
+            FunctionLikeIdentifier::Function(function_id) => !matches!(
+                statements_analyzer.get_interner().lookup(function_id),
+                "echo" | "print"
+            ),
             FunctionLikeIdentifier::Method(_, _) => true,
         })
     {
@@ -665,8 +658,7 @@ fn add_dataflow(
                             .unwrap()
                     {
                         for dependent_classlike in dependent_classlikes {
-                            if codebase.declaring_method_exists(dependent_classlike, method_name)
-                            {
+                            if codebase.declaring_method_exists(dependent_classlike, method_name) {
                                 let new_sink = DataFlowNode::get_for_method_argument(
                                     statements_analyzer
                                         .get_interner()
@@ -831,8 +823,8 @@ pub(crate) fn get_removed_taints_in_comments(
             oxidized::prim_defs::Comment::CmtBlock(text) => {
                 let trimmed_text = text.trim();
 
-                if trimmed_text.starts_with("HAKANA_SECURITY_IGNORE[") {
-                    let trimmed_text = trimmed_text[23..].to_string();
+                if let Some(without_prefix) = trimmed_text.strip_prefix("HAKANA_SECURITY_IGNORE[") {
+                    let trimmed_text = without_prefix.to_string();
 
                     if let Some(bracket_pos) = trimmed_text.find(']') {
                         let string_types = trimmed_text[..bracket_pos].split(',');
@@ -915,13 +907,12 @@ fn get_argument_taints(
             _ => {}
         },
         FunctionLikeIdentifier::Method(fq_class, method_name) => {
-            match (interner.lookup(fq_class), interner.lookup(method_name)) {
-                ("AsyncMysqlConnection", "query") => {
-                    if arg_offset == 0 {
-                        return vec![SinkType::Sql];
-                    }
+            if let ("AsyncMysqlConnection", "query") =
+                (interner.lookup(fq_class), interner.lookup(method_name))
+            {
+                if arg_offset == 0 {
+                    return vec![SinkType::Sql];
                 }
-                _ => {}
             }
         }
     }

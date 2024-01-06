@@ -1757,7 +1757,7 @@ fn reconcile_not_in_array(
 ) -> TUnion {
     let intersection = intersect_union_types(typed_value, existing_var_type, codebase);
 
-    if let Some(_) = intersection {
+    if intersection.is_some() {
         return existing_var_type.clone();
     }
 

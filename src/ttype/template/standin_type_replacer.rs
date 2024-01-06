@@ -70,7 +70,7 @@ pub fn replace(
             add_lower_bound,
             bound_equality_classlike,
             depth,
-            &original_atomic_types.len() == &1,
+            original_atomic_types.len() == 1,
             &mut had_template,
         ))
     }
@@ -645,15 +645,11 @@ fn replace_atomic(
                     codebase,
                     interner,
                     &if let Some(TAtomic::TClosure {
-                        return_type: input_return_type,
+                        return_type: Some(input_return_type),
                         ..
                     }) = &input_type
                     {
-                        if let Some(t) = input_return_type {
-                            Some(t)
-                        } else {
-                            None
-                        }
+                        Some(input_return_type)
                     } else {
                         None
                     },

@@ -136,7 +136,7 @@ fn expand_atomic(
         }
 
         if let Some(known_items) = known_items {
-            for (_, (_, item_type)) in known_items {
+            for (_, item_type) in known_items.values_mut() {
                 expand_union(
                     codebase,
                     interner,
@@ -155,7 +155,7 @@ fn expand_atomic(
         expand_union(codebase, interner, type_param, options, data_flow_graph);
 
         if let Some(known_items) = known_items {
-            for (_, (_, item_type)) in known_items {
+            for (_, item_type) in known_items.values_mut() {
                 expand_union(codebase, interner, item_type, options, data_flow_graph);
             }
         }
@@ -325,16 +325,13 @@ fn expand_atomic(
             let mut untemplated_type = if let Some(type_params) = type_params {
                 let mut new_template_types = IndexMap::new();
 
-                let mut i: usize = 0;
-                for (k, v) in &type_definition.template_types {
+                for (i, (k, v)) in (&type_definition.template_types).into_iter().enumerate() {
                     let mut h = FxHashMap::default();
-                    for (kk, _) in v {
+                    for kk in v.keys() {
                         h.insert(*kk, type_params.get(i).unwrap().clone());
                     }
 
                     new_template_types.insert(*k, h);
-
-                    i += 1;
                 }
 
                 template::inferred_type_replacer::replace(
@@ -424,10 +421,9 @@ fn expand_atomic(
             let mut definition_as_type = if let Some(type_params) = type_params {
                 let mut new_template_types = IndexMap::new();
 
-                let mut i: usize = 0;
-                for (k, v) in &type_definition.template_types {
+                for (i, (k, v)) in (&type_definition.template_types).into_iter().enumerate() {
                     let mut h = FxHashMap::default();
-                    for (kk, _) in v {
+                    for kk in v.keys() {
                         h.insert(
                             *kk,
                             if let Some(t) = type_params.get(i) {
@@ -439,8 +435,6 @@ fn expand_atomic(
                     }
 
                     new_template_types.insert(*k, h);
-
-                    i += 1;
                 }
 
                 template::inferred_type_replacer::replace(

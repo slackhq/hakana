@@ -181,7 +181,7 @@ impl Config {
         true
     }
 
-    pub fn allow_taints_in_file(&self, file: &String) -> bool {
+    pub fn allow_taints_in_file(&self, file: &str) -> bool {
         for ignore_file_path in &self.security_config.ignore_files {
             if glob::Pattern::new(ignore_file_path).unwrap().matches(file) {
                 return false;

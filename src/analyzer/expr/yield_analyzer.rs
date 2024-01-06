@@ -17,17 +17,14 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> Result<(), AnalysisError> {
-    match &field {
-        aast::Afield::AFkvalue(key_expr, _) => {
-            expression_analyzer::analyze(
-                statements_analyzer,
-                key_expr,
-                analysis_data,
-                context,
-                if_body_context,
-            )?;
-        }
-        _ => {}
+    if let aast::Afield::AFkvalue(key_expr, _) = &field {
+        expression_analyzer::analyze(
+            statements_analyzer,
+            key_expr,
+            analysis_data,
+            context,
+            if_body_context,
+        )?;
     };
 
     let value_expr = match &field {

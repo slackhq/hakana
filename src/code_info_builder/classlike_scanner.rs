@@ -272,26 +272,23 @@ pub(crate) fn scan(
             storage.direct_parent_class = Some(StrId::BUILTIN_ENUM_CLASS);
             storage.all_parent_classes.insert(StrId::BUILTIN_ENUM_CLASS);
 
-            let mut params = Vec::new();
-
-            params.push(Arc::new(wrap_atomic(TAtomic::TTypeAlias {
-                name: StrId::MEMBER_OF,
-                type_params: Some(vec![
-                    wrap_atomic(TAtomic::TNamedObject {
-                        name: *class_name,
-                        type_params: None,
-                        is_this: false,
-                        extra_types: None,
-                        remapped_params: false,
-                    }),
-                    wrap_atomic(storage.enum_type.clone().unwrap()),
-                ]),
-                as_type: None,
-            })));
-
-            storage
-                .template_extended_offsets
-                .insert(StrId::BUILTIN_ENUM_CLASS, params);
+            storage.template_extended_offsets.insert(
+                StrId::BUILTIN_ENUM_CLASS,
+                vec![Arc::new(wrap_atomic(TAtomic::TTypeAlias {
+                    name: StrId::MEMBER_OF,
+                    type_params: Some(vec![
+                        wrap_atomic(TAtomic::TNamedObject {
+                            name: *class_name,
+                            type_params: None,
+                            is_this: false,
+                            extra_types: None,
+                            remapped_params: false,
+                        }),
+                        wrap_atomic(storage.enum_type.clone().unwrap()),
+                    ]),
+                    as_type: None,
+                }))],
+            );
         }
         ClassishKind::Cinterface => {
             storage.kind = SymbolKind::Interface;
@@ -388,13 +385,6 @@ pub(crate) fn scan(
             storage.direct_parent_class = Some(StrId::BUILTIN_ENUM);
             storage.all_parent_classes.insert(StrId::BUILTIN_ENUM);
 
-            let mut params = Vec::new();
-
-            params.push(Arc::new(wrap_atomic(TAtomic::TEnum {
-                name: *class_name,
-                base_type: None,
-            })));
-
             if let Some(enum_node) = &classlike_node.enum_ {
                 signature_end = enum_node.base.0.end_offset() as u32;
 
@@ -425,9 +415,13 @@ pub(crate) fn scan(
                 }
             }
 
-            storage
-                .template_extended_offsets
-                .insert(StrId::BUILTIN_ENUM, params);
+            storage.template_extended_offsets.insert(
+                StrId::BUILTIN_ENUM,
+                vec![Arc::new(wrap_atomic(TAtomic::TEnum {
+                    name: *class_name,
+                    base_type: None,
+                }))],
+            );
 
             codebase
                 .symbols
@@ -573,11 +567,8 @@ pub(crate) fn scan(
 
                 if let Some(attribute_param_type) = attribute_param_type {
                     for atomic in attribute_param_type.types.into_iter() {
-                        match atomic {
-                            TAtomic::TLiteralClassname { name: value } => {
-                                child_classlikes.insert(value);
-                            }
-                            _ => (),
+                        if let TAtomic::TLiteralClassname { name: value } = atomic {
+                            child_classlikes.insert(value);
                         }
                     }
                 }
@@ -1043,11 +1034,14 @@ fn get_classlike_storage(
     meta_start: MetaStart,
     name_pos: HPos,
 ) -> Result<ClassLikeInfo, bool> {
-    let storage;
     if codebase.classlike_infos.get(class_name).is_some() {
-        return Err(false);
+        Err(false)
     } else {
-        storage = ClassLikeInfo::new(*class_name, definition_pos, meta_start, name_pos);
+        Ok(ClassLikeInfo::new(
+            *class_name,
+            definition_pos,
+            meta_start,
+            name_pos,
+        ))
     }
-    Ok(storage)
 }

@@ -31,3 +31,7 @@ glob = "0.3.0"
 
 [lib]
 path = "lib.rs"
+
+[lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"

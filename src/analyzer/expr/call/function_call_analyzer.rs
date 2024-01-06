@@ -224,7 +224,6 @@ pub(crate) fn analyze(
             let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].1,
                 context.function_context.calling_class.as_ref(),
-                statements_analyzer.get_file_analyzer().get_file_source(),
                 resolved_names,
                 Some((
                     statements_analyzer.get_codebase(),
@@ -311,7 +310,6 @@ pub(crate) fn analyze(
                 let second_arg_var_id = expression_identifier::get_var_id(
                     &expr.2[1].1,
                     context.function_context.calling_class.as_ref(),
-                    statements_analyzer.get_file_analyzer().get_file_source(),
                     resolved_names,
                     Some((
                         statements_analyzer.get_codebase(),
@@ -339,7 +337,6 @@ pub(crate) fn analyze(
                     let expr_var_id = expression_identifier::get_var_id(
                         &expr.2[0].1,
                         context.function_context.calling_class.as_ref(),
-                        statements_analyzer.get_file_analyzer().get_file_source(),
                         resolved_names,
                         Some((
                             statements_analyzer.get_codebase(),
@@ -382,7 +379,6 @@ pub(crate) fn analyze(
                     let expr_var_id = expression_identifier::get_var_id(
                         &expr.2[0].1,
                         context.function_context.calling_class.as_ref(),
-                        statements_analyzer.get_file_analyzer().get_file_source(),
                         resolved_names,
                         Some((
                             statements_analyzer.get_codebase(),

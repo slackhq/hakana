@@ -238,8 +238,6 @@ fn get_hash(
             + Wrapping(creating_object_id.1)
             + Wrapping(if wedge { 100000 } else { 0 }))
         .0
-        .try_into()
-        .unwrap()
     } else {
         let mut hasher = rustc_hash::FxHasher::default();
 

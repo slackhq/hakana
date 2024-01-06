@@ -390,46 +390,43 @@ fn get_child_nodes(
 
             if match_sinks {
                 if let Some(sink) = graph.sinks.get(to_id) {
-                    match &sink.kind {
-                        DataFlowNodeKind::TaintSink { types, .. } => {
-                            let mut matching_sinks = types.clone();
-                            matching_sinks.retain(|t| new_taints.contains(t));
+                    if let DataFlowNodeKind::TaintSink { types, .. } = &sink.kind {
+                        let mut matching_sinks = types.clone();
+                        matching_sinks.retain(|t| new_taints.contains(t));
 
-                            if !matching_sinks.is_empty() {
-                                if let Some(issue_pos) = &generated_source.pos {
-                                    let taint_sources = generated_source.get_taint_sources();
-                                    for taint_source in taint_sources {
-                                        for matching_sink in &matching_sinks {
-                                            if !config.allow_data_from_source_in_file(
-                                                taint_source,
-                                                matching_sink,
-                                                &new_destination,
-                                                interner,
-                                            ) {
-                                                continue;
-                                            }
-
-                                            new_destination.taint_sinks.remove(matching_sink);
-
-                                            let message = format!(
-                                                "Data from {} found its way to {} using path {}",
-                                                taint_source.get_error_message(),
-                                                matching_sink.get_error_message(),
-                                                new_destination
-                                                    .get_trace(interner, &config.root_dir)
-                                            );
-                                            new_issues.push(Issue::new(
-                                                IssueKind::TaintedData(matching_sink.clone()),
-                                                message,
-                                                **issue_pos,
-                                                &None,
-                                            ));
+                        if !matching_sinks.is_empty() {
+                            if let Some(issue_pos) = &generated_source.pos {
+                                let taint_sources = generated_source.get_taint_sources();
+                                for taint_source in taint_sources {
+                                    for matching_sink in &matching_sinks {
+                                        if !config.allow_data_from_source_in_file(
+                                            taint_source,
+                                            matching_sink,
+                                            &new_destination,
+                                            interner,
+                                        ) {
+                                            continue;
                                         }
+
+                                        new_destination.taint_sinks.remove(matching_sink);
+
+                                        let message = format!(
+                                            "Data from {} found its way to {} using path {}",
+                                            taint_source.get_error_message(),
+                                            matching_sink.get_error_message(),
+                                            new_destination
+                                                .get_trace(interner, &config.root_dir)
+                                        );
+                                        new_issues.push(Issue::new(
+                                            IssueKind::TaintedData(matching_sink.clone()),
+                                            message,
+                                            **issue_pos,
+                                            &None,
+                                        ));
                                     }
                                 }
                             }
                         }
-                        _ => {}
                     }
                 }
             }
@@ -456,7 +453,7 @@ fn get_child_nodes(
     new_child_nodes
 }
 
-fn has_recent_assignment(generated_path_types: &Vec<PathKind>) -> bool {
+fn has_recent_assignment(generated_path_types: &[PathKind]) -> bool {
     let filtered_paths = generated_path_types
         .iter()
         .rev()
@@ -492,7 +489,7 @@ fn has_recent_assignment(generated_path_types: &Vec<PathKind>) -> bool {
     false
 }
 
-fn has_unmatched_property_assignment(symbol: &StrId, generated_path_types: &Vec<PathKind>) -> bool {
+fn has_unmatched_property_assignment(symbol: &StrId, generated_path_types: &[PathKind]) -> bool {
     let filtered_paths = generated_path_types
         .iter()
         .rev()
@@ -539,7 +536,7 @@ fn has_unmatched_property_assignment(symbol: &StrId, generated_path_types: &Vec<
 pub(crate) fn should_ignore_array_fetch(
     path_type: &PathKind,
     match_type: &ArrayDataKind,
-    previous_path_types: &Vec<PathKind>,
+    previous_path_types: &[PathKind],
 ) -> bool {
     // arraykey-fetch requires a matching arraykey-assignment at the same level
     // otherwise the tainting is not valid
@@ -609,7 +606,7 @@ pub(crate) fn should_ignore_array_fetch(
 
 pub(crate) fn should_ignore_property_fetch(
     path_type: &PathKind,
-    previous_path_types: &Vec<PathKind>,
+    previous_path_types: &[PathKind],
 ) -> bool {
     // arraykey-fetch requires a matching arraykey-assignment at the same level
     // otherwise the tainting is not valid

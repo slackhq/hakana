@@ -131,12 +131,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         nc: &mut NameContext<'ast>,
         p: &'ast oxidized::tast::ShapeFieldInfo,
     ) -> Result<(), ()> {
-        match &p.name {
-            oxidized::nast::ShapeFieldName::SFclassConst(_, member_name) => {
-                let p = self.interner.intern(member_name.1.clone());
-                self.resolved_names.insert(member_name.0.start_offset(), p);
-            }
-            _ => {}
+        if let oxidized::nast::ShapeFieldName::SFclassConst(_, member_name) = &p.name {
+            let p = self.interner.intern(member_name.1.clone());
+            self.resolved_names.insert(member_name.0.start_offset(), p);
         }
         p.recurse(nc, self)
     }
@@ -223,29 +220,26 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         nc: &mut NameContext<'ast>,
         p: &'ast oxidized::nast::ShapeFieldName,
     ) -> Result<(), ()> {
-        match p {
-            oxidized::nast::ShapeFieldName::SFclassConst(id, _) => {
-                let resolved_name = nc.get_resolved_name(
-                    self.interner,
-                    &id.1,
-                    aast::NsKind::NSClass,
-                    if let Some(symbol_name) = nc.symbol_name {
-                        if let Some(member_name) = nc.member_name {
-                            self.symbol_member_uses
-                                .entry((symbol_name, member_name))
-                                .or_default()
-                        } else {
-                            self.symbol_uses.entry(symbol_name).or_default()
-                        }
+        if let oxidized::nast::ShapeFieldName::SFclassConst(id, _) = p {
+            let resolved_name = nc.get_resolved_name(
+                self.interner,
+                &id.1,
+                aast::NsKind::NSClass,
+                if let Some(symbol_name) = nc.symbol_name {
+                    if let Some(member_name) = nc.member_name {
+                        self.symbol_member_uses
+                            .entry((symbol_name, member_name))
+                            .or_default()
                     } else {
-                        &mut self.file_uses
-                    },
-                );
+                        self.symbol_uses.entry(symbol_name).or_default()
+                    }
+                } else {
+                    &mut self.file_uses
+                },
+            );
 
-                self.resolved_names
-                    .insert(id.0.start_offset(), resolved_name);
-            }
-            _ => {}
+            self.resolved_names
+                .insert(id.0.start_offset(), resolved_name);
         };
 
         p.recurse(nc, self)
