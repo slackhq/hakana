@@ -99,6 +99,23 @@ pub(crate) fn analyze(
                     upper_bounds.push(bound);
                 }
             }
+
+            if union_comparison_result.upcasted_awaitable {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::UpcastAwaitable,
+                        format!(
+                            "{} contains Awaitable but was passed into a more general type {}",
+                            assignment_type.get_id(Some(statements_analyzer.get_interner())),
+                            class_property_type.get_id(Some(statements_analyzer.get_interner())),
+                        ),
+                        statements_analyzer.get_hpos(&stmt_var.1),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
         } else {
             if union_comparison_result.type_coerced.unwrap_or(false) {
                 if union_comparison_result

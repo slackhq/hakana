@@ -130,6 +130,7 @@ pub enum IssueKind {
     UnusedTrait,
     UnusedTypeDefinition,
     UnusedXhpAttribute,
+    UpcastAwaitable,
 }
 
 impl IssueKind {

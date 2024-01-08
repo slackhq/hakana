@@ -231,87 +231,6 @@ pub(crate) fn verify_type(
 ) {
     let codebase = statements_analyzer.get_codebase();
 
-    if param_type.is_mixed() {
-        if codebase.infer_types_from_usage && !input_type.is_mixed() && !param_type.had_template {
-            if let Some(method_call_info) = method_call_info {
-                if let Some(_declaring_method_id) = &method_call_info.declaring_method_id {
-                    // todo log potential method param type
-                }
-            } else {
-                // todo log potential function param type
-            }
-        }
-
-        add_dataflow(
-            statements_analyzer,
-            functionlike_id,
-            argument_offset,
-            input_expr,
-            input_type,
-            param_type,
-            context,
-            analysis_data,
-            function_param,
-            method_call_info,
-            ignore_taints,
-            specialize_taint,
-            function_call_pos,
-        );
-
-        return;
-    }
-
-    let mut mixed_from_any = false;
-    if input_type.is_mixed_with_any(&mut mixed_from_any) {
-        for origin in &input_type.parent_nodes {
-            analysis_data
-                .data_flow_graph
-                .add_mixed_data(origin, input_expr.pos());
-        }
-
-        analysis_data.maybe_add_issue(
-            Issue::new(
-                if mixed_from_any {
-                    IssueKind::MixedAnyArgument
-                } else {
-                    IssueKind::MixedArgument
-                },
-                format!(
-                    "Argument {} of {} expects {}, {} provided",
-                    (argument_offset + 1),
-                    functionlike_id.to_string(statements_analyzer.get_interner()),
-                    param_type.get_id(Some(statements_analyzer.get_interner())),
-                    input_type.get_id(Some(statements_analyzer.get_interner())),
-                ),
-                statements_analyzer.get_hpos(input_expr.pos()),
-                &context.function_context.calling_functionlike_id,
-            ),
-            statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual(),
-        );
-
-        // todo handle mixed values, including coercing when passed into functions
-        // that have hard type expectations
-
-        add_dataflow(
-            statements_analyzer,
-            functionlike_id,
-            argument_offset,
-            input_expr,
-            input_type,
-            param_type,
-            context,
-            analysis_data,
-            function_param,
-            method_call_info,
-            ignore_taints,
-            specialize_taint,
-            function_call_pos,
-        );
-
-        return;
-    }
-
     if input_type.is_nothing() {
         analysis_data.maybe_add_issue(
             Issue::new(
@@ -372,6 +291,58 @@ pub(crate) fn verify_type(
         replace_input_type = true;
         input_type.parent_nodes = FxHashMap::default();
     }*/
+
+    if union_comparison_result.upcasted_awaitable && context.inside_general_use {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::UpcastAwaitable,
+                format!(
+                    "{} contains Awaitable but was passed into a more general type {}",
+                    input_type.get_id(Some(statements_analyzer.get_interner())),
+                    param_type.get_id(Some(statements_analyzer.get_interner())),
+                ),
+                statements_analyzer.get_hpos(input_expr.pos()),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+    }
+
+    if !param_type.is_mixed() {
+        let mut mixed_from_any = false;
+
+        if input_type.is_mixed_with_any(&mut mixed_from_any) {
+            for origin in &input_type.parent_nodes {
+                analysis_data
+                    .data_flow_graph
+                    .add_mixed_data(origin, input_expr.pos());
+            }
+
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    if mixed_from_any {
+                        IssueKind::MixedAnyArgument
+                    } else {
+                        IssueKind::MixedArgument
+                    },
+                    format!(
+                        "Argument {} of {} expects {}, {} provided",
+                        (argument_offset + 1),
+                        functionlike_id.to_string(statements_analyzer.get_interner()),
+                        param_type.get_id(Some(statements_analyzer.get_interner())),
+                        input_type.get_id(Some(statements_analyzer.get_interner())),
+                    ),
+                    statements_analyzer.get_hpos(input_expr.pos()),
+                    &context.function_context.calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+
+            return;
+        }
+    }
 
     if union_comparison_result.type_coerced.unwrap_or(false) && !input_type.is_mixed() {
         if union_comparison_result

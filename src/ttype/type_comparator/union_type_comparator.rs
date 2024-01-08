@@ -143,6 +143,10 @@ pub fn is_contained_by(
                     atomic_comparison_result.type_coerced_to_literal;
             }
 
+            if atomic_comparison_result.upcasted_awaitable && !container_type.had_template {
+                union_comparison_result.upcasted_awaitable = true;
+            }
+
             if is_atomic_contained_by {
                 if let Some(replacement_atomic_type) =
                     atomic_comparison_result.replacement_atomic_type

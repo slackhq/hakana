@@ -54,6 +54,17 @@ pub fn is_contained_by(
             return false;
         }
 
+        if matches!(
+            input_type_part,
+            &TAtomic::TNamedObject {
+                name: StrId::AWAITABLE,
+                ..
+            }
+        ) && container_type_part.is_mixed()
+        {
+            atomic_comparison_result.upcasted_awaitable = true;
+        }
+
         return true;
     }
 

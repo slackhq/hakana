@@ -15,6 +15,8 @@ pub struct TypeComparisonResult {
     /* type is coerced from a generic `as mixed` param e.g. dict<string, T> into dict<string, string> */
     pub type_coerced_from_as_mixed: Option<bool>,
 
+    pub upcasted_awaitable: bool,
+
     /**
      * This is used for array access. In the function below
      * we know that there are only two possible keys, 0 and 1,
@@ -53,6 +55,7 @@ impl TypeComparisonResult {
             replacement_atomic_type: None,
             type_variable_lower_bounds: vec![],
             type_variable_upper_bounds: vec![],
+            upcasted_awaitable: false,
         }
     }
 }

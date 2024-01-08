@@ -395,6 +395,23 @@ pub(crate) fn analyze(
                     );
                 }
             } else {
+                if union_comparison_result.upcasted_awaitable {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::UpcastAwaitable,
+                            format!(
+                                "{} contains Awaitable but was passed into a more general type {}",
+                                inferred_return_type.get_id(Some(interner)),
+                                expected_return_type.get_id(Some(interner)),
+                            ),
+                            statements_analyzer.get_hpos(&return_expr.1),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+
                 for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
                     if let Some((lower_bounds, _)) =
                         analysis_data.type_variable_bounds.get_mut(&name)
