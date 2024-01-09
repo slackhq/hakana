@@ -30,7 +30,9 @@ use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::{Interner, StrId};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
-use hakana_type::{add_optional_union_type, get_mixed_any, get_void, type_comparator, wrap_atomic};
+use hakana_type::{
+    add_optional_union_type, get_mixed_any, get_nothing, get_void, type_comparator, wrap_atomic,
+};
 use itertools::Itertools;
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
@@ -185,8 +187,14 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             Some(analysis_data),
         )?;
 
-        lambda_storage.return_type = Some(inferred_return_type.unwrap_or(get_mixed_any()));
-        lambda_storage.effects = FnEffect::from_u8(&Some(effects));
+        if if let Some(existing_return_type) = &lambda_storage.return_type {
+            !existing_return_type.is_nothing()
+        } else {
+            true
+        } {
+            lambda_storage.return_type = Some(inferred_return_type.unwrap_or(get_mixed_any()));
+            lambda_storage.effects = FnEffect::from_u8(&Some(effects));
+        }
 
         Ok(lambda_storage)
     }
@@ -673,16 +681,21 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         }
                     }
                 } else {
+                    let fn_return_value = if context.has_returned {
+                        get_nothing()
+                    } else {
+                        get_void()
+                    };
                     inferred_return_type = Some(if functionlike_storage.is_async {
                         wrap_atomic(TAtomic::TNamedObject {
                             name: StrId::AWAITABLE,
-                            type_params: Some(vec![get_void()]),
+                            type_params: Some(vec![fn_return_value]),
                             is_this: false,
                             extra_types: None,
                             remapped_params: false,
                         })
                     } else {
-                        get_void()
+                        fn_return_value
                     });
                 }
             }

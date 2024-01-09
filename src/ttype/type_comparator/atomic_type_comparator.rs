@@ -1,5 +1,13 @@
+use std::{collections::BTreeMap, sync::Arc};
+
 use crate::{get_arrayish_params, get_value_param, wrap_atomic};
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, StrId};
+use hakana_reflection_info::{
+    codebase_info::CodebaseInfo,
+    t_atomic::{DictKey, TAtomic},
+    t_union::TUnion,
+    StrId,
+};
+use itertools::Itertools;
 
 use super::{
     closure_type_comparator, dict_type_comparator,
@@ -901,32 +909,28 @@ pub(crate) fn can_be_identical<'a>(
     if let (
         TAtomic::TDict {
             params: type_1_dict_params,
+            non_empty: type_1_non_empty,
+            known_items: type_1_known_items,
             ..
         },
         TAtomic::TDict {
             params: type_2_dict_params,
+            non_empty: type_2_non_empty,
+            known_items: type_2_known_items,
             ..
         },
     ) = (type1_part, type2_part)
     {
-        if type2_part.is_non_empty_dict() || type1_part.is_non_empty_dict() {
-            return match (type_1_dict_params, type_2_dict_params) {
-                (None, None) | (None, Some(_)) | (Some(_), None) => true,
-                (Some(type_1_dict_params), Some(type_2_dict_params)) => {
-                    union_type_comparator::can_expression_types_be_identical(
-                        codebase,
-                        &type_1_dict_params.0,
-                        &type_2_dict_params.0,
-                        inside_assertion,
-                    ) && union_type_comparator::can_expression_types_be_identical(
-                        codebase,
-                        &type_1_dict_params.1,
-                        &type_2_dict_params.1,
-                        inside_assertion,
-                    )
-                }
-            };
-        }
+        return dicts_can_be_identical(
+            type_1_dict_params,
+            type_2_dict_params,
+            type_1_known_items,
+            type_2_known_items,
+            type_1_non_empty,
+            type_2_non_empty,
+            codebase,
+            inside_assertion,
+        );
     }
 
     let mut first_comparison_result = TypeComparisonResult::new();
@@ -946,4 +950,137 @@ pub(crate) fn can_be_identical<'a>(
         &mut second_comparison_result,
     ) || (first_comparison_result.type_coerced.unwrap_or(false)
         && second_comparison_result.type_coerced.unwrap_or(false))
+}
+
+fn dicts_can_be_identical(
+    type_1_dict_params: &Option<(Box<TUnion>, Box<TUnion>)>,
+    type_2_dict_params: &Option<(Box<TUnion>, Box<TUnion>)>,
+    type_1_known_items: &Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
+    type_2_known_items: &Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
+    type_1_non_empty: &bool,
+    type_2_non_empty: &bool,
+    codebase: &CodebaseInfo,
+    inside_assertion: bool,
+) -> bool {
+    if *type_1_non_empty || *type_2_non_empty {
+        return match (type_1_dict_params, type_2_dict_params) {
+            (None, None) | (None, Some(_)) | (Some(_), None) => true,
+            (Some(type_1_dict_params), Some(type_2_dict_params)) => {
+                union_type_comparator::can_expression_types_be_identical(
+                    codebase,
+                    &type_1_dict_params.0,
+                    &type_2_dict_params.0,
+                    inside_assertion,
+                ) && union_type_comparator::can_expression_types_be_identical(
+                    codebase,
+                    &type_1_dict_params.1,
+                    &type_2_dict_params.1,
+                    inside_assertion,
+                )
+            }
+        };
+    }
+
+    match (type_1_known_items, type_2_known_items) {
+        (Some(type_1_known_items), Some(type_2_known_items)) => {
+            let mut all_keys = type_1_known_items.keys().collect_vec();
+            all_keys.extend(type_2_known_items.keys());
+
+            for key in all_keys {
+                match (type_1_known_items.get(key), type_2_known_items.get(key)) {
+                    (Some(type_1_entry), Some(type_2_entry)) => {
+                        if !union_type_comparator::can_expression_types_be_identical(
+                            codebase,
+                            &type_1_entry.1,
+                            &type_2_entry.1,
+                            inside_assertion,
+                        ) {
+                            return false;
+                        }
+                    }
+                    (Some(type_1_entry), None) => {
+                        if let Some(type_2_dict_params) = type_2_dict_params {
+                            if !union_type_comparator::can_expression_types_be_identical(
+                                codebase,
+                                &type_1_entry.1,
+                                &type_2_dict_params.1,
+                                inside_assertion,
+                            ) {
+                                return false;
+                            }
+                        } else if !type_1_entry.0 {
+                            return false;
+                        }
+                    }
+                    (None, Some(type_2_entry)) => {
+                        if let Some(type_1_dict_params) = type_1_dict_params {
+                            if !union_type_comparator::can_expression_types_be_identical(
+                                codebase,
+                                &type_1_dict_params.1,
+                                &type_2_entry.1,
+                                inside_assertion,
+                            ) {
+                                return false;
+                            }
+                        } else if !type_2_entry.0 {
+                            return false;
+                        }
+                    }
+                    _ => {
+                        panic!("impossible");
+                    }
+                }
+            }
+        }
+        (Some(type_1_known_items), None) => {
+            for (_, type_1_entry) in type_1_known_items {
+                if let Some(type_2_dict_params) = type_2_dict_params {
+                    if !union_type_comparator::can_expression_types_be_identical(
+                        codebase,
+                        &type_1_entry.1,
+                        &type_2_dict_params.1,
+                        inside_assertion,
+                    ) {
+                        return false;
+                    }
+                } else if !type_1_entry.0 {
+                    return false;
+                }
+            }
+        }
+        (None, Some(type_2_known_items)) => {
+            for (_, type_2_entry) in type_2_known_items {
+                if let Some(type_1_dict_params) = type_1_dict_params {
+                    if !union_type_comparator::can_expression_types_be_identical(
+                        codebase,
+                        &type_1_dict_params.1,
+                        &type_2_entry.1,
+                        inside_assertion,
+                    ) {
+                        return false;
+                    }
+                } else if !type_2_entry.0 {
+                    return false;
+                }
+            }
+        }
+        _ => {}
+    };
+
+    match (type_1_dict_params, type_2_dict_params) {
+        (None, None) | (None, Some(_)) | (Some(_), None) => true,
+        (Some(type_1_dict_params), Some(type_2_dict_params)) => {
+            union_type_comparator::can_expression_types_be_identical(
+                codebase,
+                &type_1_dict_params.0,
+                &type_2_dict_params.0,
+                inside_assertion,
+            ) && union_type_comparator::can_expression_types_be_identical(
+                codebase,
+                &type_1_dict_params.1,
+                &type_2_dict_params.1,
+                inside_assertion,
+            )
+        }
+    }
 }

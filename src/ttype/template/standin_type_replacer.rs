@@ -1336,29 +1336,7 @@ fn handle_template_param_type_standin(
 
             for input_atomic_type in &input_type.types {
                 if let TAtomic::TLiteralClassname { name } = input_atomic_type {
-                    if let Some(typedefinition_info) = codebase.type_definitions.get(name) {
-                        if typedefinition_info.newtype_file.is_some() {
-                            valid_input_atomic_types.push(TAtomic::TTypeAlias {
-                                name: *name,
-                                type_params: None,
-                                as_type: typedefinition_info
-                                    .as_type
-                                    .as_ref()
-                                    .map(|t| Box::new(t.clone())),
-                            });
-                        } else {
-                            valid_input_atomic_types
-                                .extend(typedefinition_info.actual_type.clone().types);
-                        }
-                    } else if codebase.classlike_infos.get(name).is_some() {
-                        valid_input_atomic_types.push(TAtomic::TNamedObject {
-                            name: *name,
-                            type_params: None,
-                            is_this: false,
-                            extra_types: None,
-                            remapped_params: false,
-                        });
-                    }
+                    valid_input_atomic_types.extend(get_actual_type_from_literal(name, codebase));
                 } else if let TAtomic::TGenericTypename {
                     param_name,
                     as_type,
@@ -1481,6 +1459,33 @@ fn handle_template_param_type_standin(
         atomic_types
     } else {
         panic!();
+    }
+}
+
+pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Vec<TAtomic> {
+    if let Some(typedefinition_info) = codebase.type_definitions.get(name) {
+        if typedefinition_info.newtype_file.is_some() {
+            vec![TAtomic::TTypeAlias {
+                name: *name,
+                type_params: None,
+                as_type: typedefinition_info
+                    .as_type
+                    .as_ref()
+                    .map(|t| Box::new(t.clone())),
+            }]
+        } else {
+            typedefinition_info.actual_type.clone().types
+        }
+    } else if codebase.classlike_infos.get(name).is_some() {
+        vec![TAtomic::TNamedObject {
+            name: *name,
+            type_params: None,
+            is_this: false,
+            extra_types: None,
+            remapped_params: false,
+        }]
+    } else {
+        vec![]
     }
 }
 
