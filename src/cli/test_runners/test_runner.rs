@@ -292,6 +292,36 @@ impl TestRunner {
                 ));
                 ("F".to_string(), Some(result.1), Some(result.0))
             }
+        } else if dir.contains("/migration-candidates/") {
+            let candidates_file = format!("{}/candidates.txt", dir);
+            let expected_candidates_contents = fs::read_to_string(candidates_file).unwrap();
+
+            let result = result.unwrap();
+
+            *total_time_in_analysis += result.0.time_in_analysis;
+
+            let mut migration_candidates = vec![];
+            for config_hook in &config.hooks {
+                for candidate in
+                    config_hook.get_candidates(&result.1.codebase, &result.1.interner, &result.0)
+                {
+                    migration_candidates.push(candidate);
+                }
+            }
+
+            if migration_candidates.join("\n") == expected_candidates_contents {
+                (".".to_string(), Some(result.1), Some(result.0))
+            } else {
+                test_diagnostics.push((
+                    dir,
+                    format!(
+                        "- {}\n+ {}",
+                        expected_candidates_contents,
+                        migration_candidates.join("\n")
+                    ),
+                ));
+                ("F".to_string(), Some(result.1), Some(result.0))
+            }
         } else {
             match result {
                 Ok((analysis_result, run_data)) => {
