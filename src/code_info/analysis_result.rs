@@ -8,7 +8,7 @@ use crate::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
-    Interner,
+    Interner, function_context::FunctionLikeIdentifier,
 };
 
 #[derive(Clone, Debug)]
@@ -30,6 +30,7 @@ pub struct AnalysisResult {
     pub symbol_references: SymbolReferences,
     pub issue_counts: FxHashMap<IssueKind, usize>,
     pub time_in_analysis: Duration,
+    pub functions_to_migrate: FxHashMap<FunctionLikeIdentifier, bool>,
 }
 
 impl AnalysisResult {
@@ -47,6 +48,7 @@ impl AnalysisResult {
             issue_counts: FxHashMap::default(),
             symbol_references,
             time_in_analysis: Duration::default(),
+            functions_to_migrate: FxHashMap::default(),
         }
     }
 
@@ -68,6 +70,7 @@ impl AnalysisResult {
         for (kind, count) in other.issue_counts {
             *self.issue_counts.entry(kind).or_insert(0) += count;
         }
+        self.functions_to_migrate.extend(other.functions_to_migrate);
     }
 
     pub fn get_all_issues(

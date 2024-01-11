@@ -40,6 +40,7 @@ pub struct FunctionAnalysisData {
     pub hakana_fixme_or_ignores: BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>>,
     pub matched_ignore_positions: FxHashSet<(u32, u32)>,
     pub type_variable_bounds: FxHashMap<String, (Vec<TemplateBound>, Vec<TemplateBound>)>,
+    pub migrate_function: Option<bool>,
 }
 
 impl FunctionAnalysisData {
@@ -79,6 +80,7 @@ impl FunctionAnalysisData {
             matched_ignore_positions: FxHashSet::default(),
             issue_counts: FxHashMap::default(),
             type_variable_bounds: FxHashMap::default(),
+            migrate_function: None,
         }
     }
 

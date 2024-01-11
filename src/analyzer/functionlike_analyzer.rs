@@ -835,6 +835,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 }
             }
 
+            if let Some(b) = analysis_data.migrate_function {
+                analysis_result
+                    .functions_to_migrate
+                    .insert(context.function_context.calling_functionlike_id.unwrap(), b);
+            }
+
             update_analysis_result_with_tast(
                 analysis_data,
                 analysis_result,
