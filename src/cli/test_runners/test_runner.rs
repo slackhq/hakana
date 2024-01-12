@@ -309,7 +309,7 @@ impl TestRunner {
                 }
             }
 
-            if migration_candidates.join("\n") == expected_candidates_contents {
+            if migration_candidates.join("\n").trim() == expected_candidates_contents.trim() {
                 (".".to_string(), Some(result.1), Some(result.0))
             } else {
                 test_diagnostics.push((
