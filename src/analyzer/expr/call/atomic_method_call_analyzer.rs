@@ -216,7 +216,7 @@ pub(crate) fn handle_method_call_on_named_object(
             // check whether class exists using long method which emits an issue
             // but for now we use the quick one
 
-            codebase.class_or_interface_or_enum_exists(classlike_name)
+            codebase.class_or_interface_or_enum_or_trait_exists(classlike_name)
         };
 
         if !does_class_exist {

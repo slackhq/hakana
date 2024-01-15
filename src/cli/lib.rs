@@ -92,6 +92,11 @@ pub fn init(
                         .help("Only output issues of this/these type(s)"),
                 )
                 .arg(
+                    arg!(--"all-issues")
+                        .required(false)
+                        .help("Show all issues"),
+                )
+                .arg(
                     arg!(--"ignore-mixed-issues")
                         .required(false)
                         .help("Ignore mixed/any issues"),
@@ -1092,6 +1097,8 @@ fn do_analysis(
         .values_of("show-issue")
         .map(|values| values.collect::<FxHashSet<_>>());
 
+    let show_all_issues = sub_matches.is_present("all-issues");
+
     if let Some(filter_issue_strings) = filter_issue_strings {
         for filter_issue_string in filter_issue_strings {
             if let Ok(issue_kind) =
@@ -1122,6 +1129,8 @@ fn do_analysis(
     // do this after we've loaded from file, as they can be overridden
     if !issue_kinds_filter.is_empty() {
         config.allowed_issues = Some(issue_kinds_filter);
+    } else if show_all_issues {
+        config.allowed_issues = None;
     }
 
     let root_dir = config.root_dir.clone();

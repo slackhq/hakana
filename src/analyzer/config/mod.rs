@@ -18,7 +18,6 @@ pub struct Config {
     pub find_unused_expressions: bool,
     pub find_unused_definitions: bool,
     pub allowed_issues: Option<FxHashSet<IssueKind>>,
-    pub allowable_issues: Option<FxHashSet<IssueKind>>,
     pub issues_to_fix: FxHashSet<IssueKind>,
     pub graph_kind: GraphKind,
     pub ignore_files: Vec<String>,
@@ -78,7 +77,6 @@ impl Config {
             add_fixmes: false,
             remove_fixmes: false,
             all_custom_issues,
-            allowable_issues: None,
             ast_diff: false,
         }
     }
