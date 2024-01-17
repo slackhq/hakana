@@ -294,9 +294,8 @@ impl TestRunner {
             }
         } else if dir.contains("/migration-candidates/") {
             let candidates_file = format!("{}/candidates.txt", dir);
-            let expected_candidates_contents = fs::read_to_string(candidates_file).unwrap();
-            let expected_candidates = expected_candidates_contents
-                .trim()
+            let expected_candidates = fs::read_to_string(candidates_file)
+                .unwrap()
                 .lines()
                 .map(String::from)
                 .collect::<Vec<String>>();
