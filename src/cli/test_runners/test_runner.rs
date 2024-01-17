@@ -295,6 +295,11 @@ impl TestRunner {
         } else if dir.contains("/migration-candidates/") {
             let candidates_file = format!("{}/candidates.txt", dir);
             let expected_candidates_contents = fs::read_to_string(candidates_file).unwrap();
+            let expected_candidates = expected_candidates_contents
+                .trim()
+                .lines()
+                .map(String::from)
+                .collect::<Vec<String>>();
 
             let result = result.unwrap();
 
@@ -309,18 +314,40 @@ impl TestRunner {
                 }
             }
 
-            if migration_candidates.join("\n") == expected_candidates_contents {
-                (".".to_string(), Some(result.1), Some(result.0))
-            } else {
+            let missing_candidates = expected_candidates
+                .iter()
+                .filter(|item| !migration_candidates.contains(item))
+                .map(String::from)
+                .collect::<Vec<String>>();
+            let unexpected_candidates = migration_candidates
+                .iter()
+                .filter(|item| !expected_candidates.contains(item))
+                .map(String::from)
+                .collect::<Vec<String>>();
+
+            if unexpected_candidates.len() > 0 {
                 test_diagnostics.push((
-                    dir,
+                    dir.clone(),
                     format!(
-                        "- {}\n+ {}",
-                        expected_candidates_contents,
-                        migration_candidates.join("\n")
+                        "Found unexpected candidates: {}",
+                        unexpected_candidates.join("\n")
                     ),
                 ));
+            }
+            if missing_candidates.len() > 0 {
+                test_diagnostics.push((
+                    dir.clone(),
+                    format!(
+                        "Missing expected candidates: {}",
+                        missing_candidates.join("\n")
+                    ),
+                ));
+            }
+
+            if unexpected_candidates.len() > 0 || missing_candidates.len() > 0 {
                 ("F".to_string(), Some(result.1), Some(result.0))
+            } else {
+                (".".to_string(), Some(result.1), Some(result.0))
             }
         } else {
             match result {
