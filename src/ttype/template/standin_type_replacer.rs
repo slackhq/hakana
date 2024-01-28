@@ -1474,7 +1474,23 @@ pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Ve
                     .map(|t| Box::new(t.clone())),
             }]
         } else {
-            typedefinition_info.actual_type.clone().types
+            typedefinition_info
+                .actual_type
+                .clone()
+                .types
+                .into_iter()
+                .map(|mut t| match t {
+                    TAtomic::TDict {
+                        known_items: Some(_),
+                        ref mut shape_name,
+                        ..
+                    } => {
+                        *shape_name = Some((*name, None));
+                        t
+                    }
+                    _ => t,
+                })
+                .collect()
         }
     } else if codebase.classlike_infos.get(name).is_some() {
         vec![TAtomic::TNamedObject {
