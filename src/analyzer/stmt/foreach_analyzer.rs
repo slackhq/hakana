@@ -452,7 +452,7 @@ fn check_iterator_type(
         } = iterator_atomic_type
         {
             match name {
-                StrId::KEYED_CONTAINER | StrId::KEYED_ITERATOR => {
+                StrId::KEYED_CONTAINER | StrId::KEYED_ITERATOR | StrId::KEYED_TRAVERSABLE => {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
                         key_type.as_ref(),
