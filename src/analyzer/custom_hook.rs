@@ -63,6 +63,7 @@ pub trait InternalHook {
     fn after_def_analysis(
         &self,
         analysis_data: &mut FunctionAnalysisData,
+        analysis_result: &mut AnalysisResult,
         after_def_analysis_data: AfterDefAnalysisData,
     ) {
     }

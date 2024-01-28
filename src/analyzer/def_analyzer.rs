@@ -123,6 +123,7 @@ pub(crate) fn analyze(
     for hook in &statements_analyzer.get_config().hooks {
         hook.after_def_analysis(
             analysis_data,
+            analysis_result,
             AfterDefAnalysisData {
                 statements_analyzer,
                 def,
