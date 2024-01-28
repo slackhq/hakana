@@ -488,7 +488,14 @@ impl TUnion {
     }
 
     pub fn get_id(&self, interner: Option<&Interner>) -> String {
-        let mut tatomic_strings = self.types.iter().map(|atomic| atomic.get_id(interner));
+        self.get_id_with_refs(interner, &mut vec![])
+    }
+
+    pub fn get_id_with_refs(&self, interner: Option<&Interner>, refs: &mut Vec<StrId>) -> String {
+        let mut tatomic_strings = self
+            .types
+            .iter()
+            .map(|atomic| atomic.get_id_with_refs(interner, refs));
         tatomic_strings.join("|")
     }
 

@@ -161,20 +161,24 @@ pub enum TAtomic {
 
 impl TAtomic {
     pub fn get_id(&self, interner: Option<&Interner>) -> String {
+        self.get_id_with_refs(interner, &mut vec![])
+    }
+
+    pub fn get_id_with_refs(&self, interner: Option<&Interner>, refs: &mut Vec<StrId>) -> String {
         match self {
             TAtomic::TArraykey { .. } => "arraykey".to_string(),
             TAtomic::TBool { .. } => "bool".to_string(),
             TAtomic::TClassname { as_type, .. } => {
                 let mut str = String::new();
                 str += "classname<";
-                str += as_type.get_id(interner).as_str();
+                str += as_type.get_id_with_refs(interner, refs).as_str();
                 str += ">";
                 str
             }
             TAtomic::TTypename { as_type, .. } => {
                 let mut str = String::new();
                 str += "typename<";
-                str += as_type.get_id(interner).as_str();
+                str += as_type.get_id_with_refs(interner, refs).as_str();
                 str += ">";
                 str
             }
@@ -193,11 +197,15 @@ impl TAtomic {
                                 interner.lookup(shape_member_name)
                             )
                         } else {
+                            refs.push(shape_name.0);
+
                             format!("shape-from({})", interner.lookup(&shape_name.0),)
                         }
                     } else if let Some(shape_member_name) = &shape_name.1 {
                         format!("shape-from({}::{})", shape_name.0 .0, shape_member_name.0)
                     } else {
+                        refs.push(shape_name.0);
+
                         format!("shape-from({})", shape_name.0 .0)
                     };
                 }
@@ -214,7 +222,7 @@ impl TAtomic {
                                 "{}{} => {}",
                                 if *u { "?" } else { "" },
                                 property.to_string(interner),
-                                property_type.get_id(interner)
+                                property_type.get_id_with_refs(interner, refs)
                             )
                         })
                         .join(", ")
@@ -222,9 +230,9 @@ impl TAtomic {
 
                     if let Some(params) = params {
                         str += ", ...dict<";
-                        str += params.0.get_id(interner).as_str();
+                        str += params.0.get_id_with_refs(interner, refs).as_str();
                         str += ",";
-                        str += params.1.get_id(interner).as_str();
+                        str += params.1.get_id_with_refs(interner, refs).as_str();
                         str += ">";
                     }
 
@@ -234,9 +242,9 @@ impl TAtomic {
 
                 if let Some(params) = params {
                     str += "dict<";
-                    str += params.0.get_id(interner).as_str();
+                    str += params.0.get_id_with_refs(interner, refs).as_str();
                     str += ",";
-                    str += params.1.get_id(interner).as_str();
+                    str += params.1.get_id_with_refs(interner, refs).as_str();
                     str += ">";
                     str
                 } else {
@@ -244,6 +252,7 @@ impl TAtomic {
                 }
             }
             TAtomic::TEnum { name, .. } => {
+                refs.push(*name);
                 if let Some(interner) = interner {
                     interner.lookup(name).to_string()
                 } else {
@@ -266,7 +275,7 @@ impl TAtomic {
                         format!(
                             "{}{}",
                             if let Some(param_type) = &param.signature_type {
-                                param_type.get_id(interner)
+                                param_type.get_id_with_refs(interner, refs)
                             } else {
                                 "mixed".to_string()
                             },
@@ -278,7 +287,7 @@ impl TAtomic {
 
                 str += "): ";
                 if let Some(return_type) = return_type {
-                    str += return_type.get_id(interner).as_str();
+                    str += return_type.get_id_with_refs(interner, refs).as_str();
                 } else {
                     str += "mixed";
                 }
@@ -302,7 +311,7 @@ impl TAtomic {
             TAtomic::TKeyset { type_param, .. } => {
                 let mut str = String::new();
                 str += "keyset<";
-                str += type_param.get_id(interner).as_str();
+                str += type_param.get_id_with_refs(interner, refs).as_str();
                 str += ">";
                 str
             }
@@ -376,77 +385,86 @@ impl TAtomic {
                 is_this,
                 extra_types,
                 ..
-            } => match type_params {
-                None => format!(
-                    "{}{}{}",
-                    if let Some(interner) = interner {
-                        interner.lookup(name).to_string()
-                    } else {
-                        name.0.to_string()
-                    },
-                    if *is_this { "&static" } else { "" },
-                    if let Some(extra_types) = extra_types {
-                        "&".to_string()
-                            + extra_types
-                                .iter()
-                                .map(|atomic| atomic.get_id(interner))
-                                .join("&")
-                                .as_str()
-                    } else {
-                        "".to_string()
-                    }
-                ),
-                Some(type_params) => {
-                    let mut str = String::new();
-                    if let Some(interner) = interner {
-                        str += interner.lookup(name);
-                    } else {
-                        str += name.0.to_string().as_str();
-                    }
-                    if *is_this {
-                        str += "&static";
-                    }
-                    str += "<";
-                    str += type_params
-                        .iter()
-                        .map(|tunion| tunion.get_id(interner))
-                        .join(", ")
-                        .as_str();
-                    str += ">";
-                    str
+            } => {
+                if *name != StrId::THIS {
+                    refs.push(*name);
                 }
-            },
+
+                match type_params {
+                    None => format!(
+                        "{}{}{}",
+                        if let Some(interner) = interner {
+                            interner.lookup(name).to_string()
+                        } else {
+                            name.0.to_string()
+                        },
+                        if *is_this { "&static" } else { "" },
+                        if let Some(extra_types) = extra_types {
+                            "&".to_string()
+                                + extra_types
+                                    .iter()
+                                    .map(|atomic| atomic.get_id_with_refs(interner, refs))
+                                    .join("&")
+                                    .as_str()
+                        } else {
+                            "".to_string()
+                        }
+                    ),
+                    Some(type_params) => {
+                        let mut str = String::new();
+                        if let Some(interner) = interner {
+                            str += interner.lookup(name);
+                        } else {
+                            str += name.0.to_string().as_str();
+                        }
+                        if *is_this {
+                            str += "&static";
+                        }
+                        str += "<";
+                        str += type_params
+                            .iter()
+                            .map(|tunion| tunion.get_id_with_refs(interner, refs))
+                            .join(", ")
+                            .as_str();
+                        str += ">";
+                        str
+                    }
+                }
+            }
             TAtomic::TTypeAlias {
                 name, type_params, ..
-            } => match type_params {
-                None => {
-                    let mut str = "type-alias(".to_string();
-                    if let Some(interner) = interner {
-                        str += interner.lookup(name);
-                    } else {
-                        str += name.0.to_string().as_str();
+            } => {
+                refs.push(*name);
+                match type_params {
+                    None => {
+                        let mut str = "type-alias(".to_string();
+                        if let Some(interner) = interner {
+                            str += interner.lookup(name);
+                        } else {
+                            str += name.0.to_string().as_str();
+                        }
+                        str += ")";
+                        str
                     }
-                    str += ")";
-                    str
-                }
-                Some(type_params) => {
-                    let mut str = String::new();
-                    str += "type-alias(";
-                    if let Some(interner) = interner {
-                        str += interner.lookup(name);
-                    } else {
-                        str += name.0.to_string().as_str();
+                    Some(type_params) => {
+                        let mut str = String::new();
+                        str += "type-alias(";
+                        if let Some(interner) = interner {
+                            str += interner.lookup(name);
+                        } else {
+                            str += name.0.to_string().as_str();
+                        }
+                        str += "<";
+                        str += type_params
+                            .iter()
+                            .map(|tunion| tunion.get_id_with_refs(interner, refs))
+                            .join(", ")
+                            .as_str();
+                        str += ">)";
+                        str
                     }
-                    str += "<";
-                    str += type_params
-                        .iter()
-                        .map(|tunion| tunion.get_id(interner))
-                        .join(", ")
-                        .as_str();
-                    str += ">)";
-                    str
                 }
-            },
+            }
             TAtomic::TNothing => "nothing".to_string(),
             TAtomic::TNull { .. } => "null".to_string(),
             TAtomic::TNum { .. } => "num".to_string(),
@@ -540,13 +558,13 @@ impl TAtomic {
                     str += "tuple(";
                     str += known_items
                         .iter()
-                        .map(|(_, (_, tunion))| tunion.get_id(interner))
+                        .map(|(_, (_, tunion))| tunion.get_id_with_refs(interner, refs))
                         .join(", ")
                         .as_str();
 
                     if !type_param.is_nothing() {
                         str += ", ...vec<";
-                        str += type_param.get_id(interner).as_str();
+                        str += type_param.get_id_with_refs(interner, refs).as_str();
                         str += ">";
                     }
 
@@ -555,7 +573,7 @@ impl TAtomic {
                 }
                 let mut str = String::new();
                 str += if *non_empty { "non-empty-vec<" } else { "vec<" };
-                str += type_param.get_id(interner).as_str();
+                str += type_param.get_id_with_refs(interner, refs).as_str();
                 str += ">";
                 str
             }
@@ -579,7 +597,7 @@ impl TAtomic {
             } => {
                 format!(
                     "{}::{}",
-                    class_type.get_id(interner),
+                    class_type.get_id_with_refs(interner, refs),
                     if let Some(interner) = interner {
                         interner.lookup(member_name).to_string()
                     } else {
@@ -658,7 +676,7 @@ impl TAtomic {
             | TAtomic::TBool { .. }
             | TAtomic::TEnumClassLabel { .. }
             | TAtomic::TMixedWithFlags(..)
-            | TAtomic::TTypeVariable { .. } => self.get_id(None),
+            | TAtomic::TTypeVariable { .. } => self.get_id_with_refs(None, &mut vec![]),
 
             TAtomic::TStringWithFlags(..) => "string".to_string(),
 

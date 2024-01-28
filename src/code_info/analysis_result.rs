@@ -25,6 +25,7 @@ pub struct AnalysisResult {
     pub emitted_definition_issues: FxHashMap<FilePath, Vec<Issue>>,
     pub replacements: FxHashMap<FilePath, BTreeMap<(u32, u32), Replacement>>,
     pub insertions: FxHashMap<FilePath, BTreeMap<u32, Vec<String>>>,
+    pub codegen: BTreeMap<String, String>,
     pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
@@ -49,6 +50,7 @@ impl AnalysisResult {
             symbol_references,
             time_in_analysis: Duration::default(),
             functions_to_migrate: FxHashMap::default(),
+            codegen: BTreeMap::default(),
         }
     }
 
@@ -71,6 +73,7 @@ impl AnalysisResult {
             *self.issue_counts.entry(kind).or_insert(0) += count;
         }
         self.functions_to_migrate.extend(other.functions_to_migrate);
+        self.codegen.extend(other.codegen);
     }
 
     pub fn get_all_issues(
