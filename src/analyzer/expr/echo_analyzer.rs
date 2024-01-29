@@ -11,7 +11,7 @@ use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::{StrId, EFFECT_IMPURE};
-use hakana_type::{get_arraykey, get_mixed_any};
+use hakana_type::get_mixed_any;
 use oxidized::ast_defs::Pos;
 use oxidized::{aast, ast_defs};
 
@@ -24,7 +24,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> Result<(), AnalysisError> {
-    let mut echo_param = FunctionLikeParameter::new(
+    let echo_param = FunctionLikeParameter::new(
         "var".to_string(),
         HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
         HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
