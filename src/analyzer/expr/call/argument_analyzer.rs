@@ -257,8 +257,8 @@ pub(crate) fn verify_type(
         codebase,
         input_type,
         param_type,
-        true,
-        true,
+        false,
+        input_type.ignore_falsable_issues,
         false,
         &mut union_comparison_result,
     );
@@ -309,258 +309,159 @@ pub(crate) fn verify_type(
         );
     }
 
-    if !param_type.is_mixed() {
-        let mut mixed_from_any = false;
+    if !type_match_found {
+        if !param_type.is_mixed() {
+            let mut mixed_from_any = false;
 
-        if input_type.is_mixed_with_any(&mut mixed_from_any) {
-            for origin in &input_type.parent_nodes {
-                analysis_data
-                    .data_flow_graph
-                    .add_mixed_data(origin, input_expr.pos());
-            }
+            if input_type.is_mixed_with_any(&mut mixed_from_any) {
+                for origin in &input_type.parent_nodes {
+                    analysis_data
+                        .data_flow_graph
+                        .add_mixed_data(origin, input_expr.pos());
+                }
 
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    if mixed_from_any {
-                        IssueKind::MixedAnyArgument
-                    } else {
-                        IssueKind::MixedArgument
-                    },
-                    format!(
-                        "Argument {} of {} expects {}, {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        if mixed_from_any {
+                            IssueKind::MixedAnyArgument
+                        } else {
+                            IssueKind::MixedArgument
+                        },
+                        format!(
+                            "Argument {} of {} expects {}, {} provided",
+                            (argument_offset + 1),
+                            functionlike_id.to_string(statements_analyzer.get_interner()),
+                            param_type.get_id(Some(statements_analyzer.get_interner())),
+                            input_type.get_id(Some(statements_analyzer.get_interner())),
+                        ),
+                        statements_analyzer.get_hpos(input_expr.pos()),
+                        &context.function_context.calling_functionlike_id,
                     ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+
+                return;
+            }
+        }
+
+        if union_comparison_result.type_coerced.unwrap_or(false) && !input_type.is_mixed() {
+            if union_comparison_result
+                .type_coerced_from_nested_any
+                .unwrap_or(false)
+            {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::LessSpecificNestedAnyArgumentType,
+                        format!(
+                            "Argument {} of {} expects {}, parent type {} provided",
+                            (argument_offset + 1),
+                            functionlike_id.to_string(statements_analyzer.get_interner()),
+                            param_type.get_id(Some(statements_analyzer.get_interner())),
+                            input_type.get_id(Some(statements_analyzer.get_interner())),
+                        ),
+                        statements_analyzer.get_hpos(input_expr.pos()),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            } else if union_comparison_result
+                .type_coerced_from_nested_mixed
+                .unwrap_or(false)
+            {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::LessSpecificNestedArgumentType,
+                        format!(
+                            "Argument {} of {} expects {}, parent type {} provided",
+                            (argument_offset + 1),
+                            functionlike_id.to_string(statements_analyzer.get_interner()),
+                            param_type.get_id(Some(statements_analyzer.get_interner())),
+                            input_type.get_id(Some(statements_analyzer.get_interner())),
+                        ),
+                        statements_analyzer.get_hpos(input_expr.pos()),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            } else {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::LessSpecificArgument,
+                        format!(
+                            "Argument {} of {} expects {}, parent type {} provided",
+                            (argument_offset + 1),
+                            functionlike_id.to_string(statements_analyzer.get_interner()),
+                            param_type.get_id(Some(statements_analyzer.get_interner())),
+                            input_type.get_id(Some(statements_analyzer.get_interner())),
+                        ),
+                        statements_analyzer.get_hpos(input_expr.pos()),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
+
+        if !union_comparison_result.type_coerced.unwrap_or(false) {
+            let types_can_be_identical = union_type_comparator::can_expression_types_be_identical(
+                codebase, input_type, param_type, false,
             );
+
+            if types_can_be_identical {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::PossiblyInvalidArgument,
+                        format!(
+                            "Argument {} of {} expects {}, possibly different type {} provided",
+                            (argument_offset + 1),
+                            functionlike_id.to_string(statements_analyzer.get_interner()),
+                            param_type.get_id(Some(statements_analyzer.get_interner())),
+                            input_type.get_id(Some(statements_analyzer.get_interner())),
+                        ),
+                        statements_analyzer.get_hpos(input_expr.pos()),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            } else {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::InvalidArgument,
+                        format!(
+                            "Argument {} of {} expects {}, different type {} provided",
+                            (argument_offset + 1),
+                            functionlike_id.to_string(statements_analyzer.get_interner()),
+                            param_type.get_id(Some(statements_analyzer.get_interner())),
+                            input_type.get_id(Some(statements_analyzer.get_interner())),
+                        ),
+                        statements_analyzer.get_hpos(input_expr.pos()),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
 
             return;
         }
     }
 
-    if union_comparison_result.type_coerced.unwrap_or(false) && !input_type.is_mixed() {
-        if union_comparison_result
-            .type_coerced_from_nested_any
-            .unwrap_or(false)
-        {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::LessSpecificNestedAnyArgumentType,
-                    format!(
-                        "Argument {} of {} expects {}, parent type {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
-                    ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-        } else if union_comparison_result
-            .type_coerced_from_nested_mixed
-            .unwrap_or(false)
-        {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::LessSpecificNestedArgumentType,
-                    format!(
-                        "Argument {} of {} expects {}, parent type {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
-                    ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-        } else {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::LessSpecificArgument,
-                    format!(
-                        "Argument {} of {} expects {}, parent type {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
-                    ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
+    for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
+        if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(&name) {
+            bound.pos = Some(statements_analyzer.get_hpos(input_expr.pos()));
+            lower_bounds.push(bound);
         }
     }
 
-    if !type_match_found && !union_comparison_result.type_coerced.unwrap_or(false) {
-        let types_can_be_identical = union_type_comparator::can_expression_types_be_identical(
-            codebase, input_type, param_type, false,
-        );
-
-        if types_can_be_identical {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::PossiblyInvalidArgument,
-                    format!(
-                        "Argument {} of {} expects {}, possibly different type {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
-                    ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-        } else {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::InvalidArgument,
-                    format!(
-                        "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
-                    ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-        }
-
-        return;
-    } else {
-        for (name, mut bound) in union_comparison_result.type_variable_lower_bounds {
-            if let Some((lower_bounds, _)) = analysis_data.type_variable_bounds.get_mut(&name) {
-                bound.pos = Some(statements_analyzer.get_hpos(input_expr.pos()));
-                lower_bounds.push(bound);
-            }
-        }
-
-        for (name, mut bound) in union_comparison_result.type_variable_upper_bounds {
-            if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(&name) {
-                bound.pos = Some(statements_analyzer.get_hpos(input_expr.pos()));
-                upper_bounds.push(bound);
-            }
-        }
-    }
-
-    if !param_type.is_nullable()
-        && (match functionlike_id {
-            FunctionLikeIdentifier::Function(function_id) => !matches!(
-                statements_analyzer.get_interner().lookup(function_id),
-                "echo" | "print"
-            ),
-            FunctionLikeIdentifier::Method(_, _) => true,
-        })
-    {
-        if input_type.is_null() && !param_type.is_null() {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::NullArgument,
-                    format!(
-                        "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
-                    ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-
-            return;
-        }
-
-        if input_type.is_nullable() {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::PossiblyNullArgument,
-                    format!(
-                        "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
-                    ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-        }
-    }
-
-    if !param_type.is_falsable()
-        && !param_type.has_bool()
-        && !param_type.has_scalar()
-        && (match functionlike_id {
-            FunctionLikeIdentifier::Function(function_id) => !matches!(
-                statements_analyzer.get_interner().lookup(function_id),
-                "echo" | "print"
-            ),
-            FunctionLikeIdentifier::Method(_, _) => true,
-        })
-    {
-        if input_type.is_false() {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::PossiblyFalseArgument,
-                    format!(
-                        "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
-                    ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
-            return;
-        }
-
-        if input_type.is_falsable() && !input_type.ignore_falsable_issues {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::FalseArgument,
-                    format!(
-                        "Argument {} of {} expects {}, different type {} provided",
-                        (argument_offset + 1),
-                        functionlike_id.to_string(statements_analyzer.get_interner()),
-                        param_type.get_id(Some(statements_analyzer.get_interner())),
-                        input_type.get_id(Some(statements_analyzer.get_interner())),
-                    ),
-                    statements_analyzer.get_hpos(input_expr.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
+    for (name, mut bound) in union_comparison_result.type_variable_upper_bounds {
+        if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(&name) {
+            bound.pos = Some(statements_analyzer.get_hpos(input_expr.pos()));
+            upper_bounds.push(bound);
         }
     }
 }

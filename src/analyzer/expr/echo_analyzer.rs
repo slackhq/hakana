@@ -8,6 +8,8 @@ use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
+use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::{StrId, EFFECT_IMPURE};
 use hakana_type::{get_arraykey, get_mixed_any};
 use oxidized::ast_defs::Pos;
@@ -22,7 +24,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> Result<(), AnalysisError> {
-    let echo_param = FunctionLikeParameter::new(
+    let mut echo_param = FunctionLikeParameter::new(
         "var".to_string(),
         HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
         HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
@@ -44,7 +46,7 @@ pub(crate) fn analyze(
         argument_analyzer::verify_type(
             statements_analyzer,
             &arg_type.unwrap_or(Rc::new(get_mixed_any())),
-            &get_arraykey(false),
+            &TUnion::new(vec![TAtomic::TScalar, TAtomic::TNull]),
             &FunctionLikeIdentifier::Function(StrId::ECHO),
             i,
             arg_expr,

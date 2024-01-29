@@ -243,13 +243,11 @@ impl FunctionAnalysisData {
                         | IssueKind::MixedPropertyTypeCoercion
                         | IssueKind::PropertyTypeCoercion
                         | IssueKind::NonNullableReturnType
-                        | IssueKind::NullArgument
                         | IssueKind::NullablePropertyAssignment
                         | IssueKind::NullableReturnStatement
                         | IssueKind::NullableReturnValue
                         | IssueKind::PossiblyFalseArgument
                         | IssueKind::PossiblyInvalidArgument
-                        | IssueKind::PossiblyNullArgument
                         | IssueKind::InvalidPropertyAssignmentValue
                         | IssueKind::LessSpecificNestedAnyReturnStatement
                         | IssueKind::LessSpecificNestedAnyArgumentType => {
@@ -296,11 +294,6 @@ impl FunctionAnalysisData {
                         }
                         _ => {}
                     },
-                    4323 => {
-                        if let IssueKind::PossiblyNullArgument = &issue_kind {
-                            return true;
-                        }
-                    }
                     4063 => match &issue_kind {
                         IssueKind::MixedArrayAccess | IssueKind::PossiblyNullArrayAccess => {
                             return true;
@@ -308,7 +301,7 @@ impl FunctionAnalysisData {
                         _ => {}
                     },
                     4064 => match &issue_kind {
-                        IssueKind::PossiblyNullArgument | IssueKind::PossiblyNullPropertyFetch => {
+                        IssueKind::PossiblyNullPropertyFetch => {
                             return true;
                         }
                         _ => {}

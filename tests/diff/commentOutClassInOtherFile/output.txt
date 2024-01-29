@@ -1,7 +1,7 @@
 ERROR: NonExistentClass - input.hack:8:11 - Cannot call new on undefined class A
 ERROR: NonExistentType - input.hack:12:10 - Unknown class A
-ERROR: MixedAnyArgument - input.hack:12:10 - Argument 1 of echo expects arraykey, any provided
+ERROR: MixedAnyArgument - input.hack:12:10 - Argument 1 of echo expects scalar|null, any provided
 ERROR: NonExistentType - input.hack:17:14 - Unknown class A
-ERROR: MixedAnyArgument - input.hack:17:14 - Argument 1 of echo expects arraykey, any provided
+ERROR: MixedAnyArgument - input.hack:17:14 - Argument 1 of echo expects scalar|null, any provided
 ERROR: NonExistentClass - input.hack:21:15 - Cannot call new on undefined class A
 ERROR: InvalidReturnStatement - input.hack:26:16 - The type string(a) does not match the declared return type int for B::bat

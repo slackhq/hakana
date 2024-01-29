@@ -1,1 +1,1 @@
-ERROR: InvalidArgument - input.hack:11:14 - Argument 1 of echo expects arraykey, different type Exception provided
+ERROR: InvalidArgument - input.hack:11:14 - Argument 1 of echo expects scalar|null, different type Exception provided

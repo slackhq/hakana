@@ -106,18 +106,20 @@ pub fn is_contained_by(
         return false;
     }
 
-    if matches!(input_type_part, TAtomic::TNull { .. }) {
-        return false;
-    }
+    if input_type_part.is_some_scalar() {
+        if let TAtomic::TScalar = container_type_part {
+            return true;
+        }
 
-    if input_type_part.is_some_scalar() && container_type_part.is_some_scalar() {
-        return scalar_type_comparator::is_contained_by(
-            codebase,
-            input_type_part,
-            container_type_part,
-            inside_assertion,
-            atomic_comparison_result,
-        );
+        if container_type_part.is_some_scalar() {
+            return scalar_type_comparator::is_contained_by(
+                codebase,
+                input_type_part,
+                container_type_part,
+                inside_assertion,
+                atomic_comparison_result,
+            );
+        }
     }
 
     if let TAtomic::TNamedObject {
