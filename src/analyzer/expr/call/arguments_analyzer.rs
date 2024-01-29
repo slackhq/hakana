@@ -781,10 +781,7 @@ fn handle_closure_arg(
         if matches!(
             analysis_data.data_flow_graph.kind,
             GraphKind::WholeProgram(_)
-        ) || !statements_analyzer
-            .get_config()
-            .migration_symbols
-            .is_empty()
+        ) || !statements_analyzer.get_config().in_migration
         {
             if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
                 match statements_analyzer.get_interner().lookup(function_name) {

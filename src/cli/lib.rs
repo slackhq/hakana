@@ -91,11 +91,7 @@ pub fn init(
                         .multiple(true)
                         .help("Only output issues of this/these type(s)"),
                 )
-                .arg(
-                    arg!(--"all-issues")
-                        .required(false)
-                        .help("Show all issues"),
-                )
+                .arg(arg!(--"all-issues").required(false).help("Show all issues"))
                 .arg(
                     arg!(--"ignore-mixed-issues")
                         .required(false)
@@ -157,6 +153,38 @@ pub fn init(
                     arg!(--"migration" <PATH>)
                         .required(true)
                         .help("The migration you want to perform"),
+                )
+                .arg(
+                    arg!(--"threads" <PATH>)
+                        .required(false)
+                        .help("How many threads to use"),
+                )
+                .arg(
+                    arg!(--"filter" <PATH>)
+                        .required(false)
+                        .help("Filter the files that are analyzed"),
+                )
+                .arg(
+                    arg!(--"debug")
+                        .required(false)
+                        .help("Add output for debugging"),
+                ),
+        )
+        .subcommand(
+            Command::new("codegen")
+                .about("Generates code for the named target")
+                .arg(arg!(--"root" <PATH>).required(false).help(
+                    "The root directory that Hakana runs in. Defaults to the current directory",
+                ))
+                .arg(
+                    arg!(--"config" <PATH>)
+                        .required(false)
+                        .help("Hakana config path — defaults to ./hakana.json"),
+                )
+                .arg(
+                    arg!(--"name" <PATH>)
+                        .required(true)
+                        .help("The codegen you want to perform"),
                 )
                 .arg(
                     arg!(--"threads" <PATH>)
@@ -525,6 +553,19 @@ pub fn init(
                 header,
             );
         }
+        Some(("codegen", sub_matches)) => {
+            do_codegen(
+                sub_matches,
+                &root_dir,
+                all_custom_issues,
+                analysis_hooks,
+                config_path,
+                &cwd,
+                threads,
+                logger,
+                header,
+            );
+        }
         Some(("add-fixmes", sub_matches)) => {
             do_add_fixmes(
                 sub_matches,
@@ -829,6 +870,7 @@ fn do_migrate(
                 (first_part.to_string(), parts.join(","))
             })
             .collect();
+        config.in_migration = true;
     } else {
         println!(
             "\nERROR: File {} does not exist or could not be read\n",
@@ -887,6 +929,8 @@ fn do_migration_candidates(
         })
         .collect();
 
+    config.in_migration = true;
+
     if config.hooks.is_empty() {
         println!("Migration {} not recognised", migration_name);
         exit(1);
@@ -901,9 +945,11 @@ fn do_migration_candidates(
 
     let config = Arc::new(config);
 
+    let filter = sub_matches.value_of("filter").map(|f| f.to_string());
+
     let result = hakana_workhorse::scan_and_analyze(
         Vec::new(),
-        None,
+        filter,
         None,
         config.clone(),
         None,
@@ -925,6 +971,68 @@ fn do_migration_candidates(
                 println!("{}", migration_candidate);
             }
         }
+    }
+}
+
+fn do_codegen(
+    sub_matches: &clap::ArgMatches,
+    root_dir: &str,
+    all_custom_issues: FxHashSet<String>,
+    analysis_hooks: Vec<Box<dyn CustomHook>>,
+    config_path: Option<&Path>,
+    cwd: &String,
+    threads: u8,
+    logger: Logger,
+    header: &str,
+) {
+    let codegen_name = sub_matches.value_of("name").unwrap().to_string();
+
+    let mut config = config::Config::new(root_dir.to_string(), all_custom_issues);
+    config.hooks = analysis_hooks;
+
+    let config_path = config_path.unwrap();
+
+    if config_path.exists() {
+        config.update_from_file(cwd, config_path).ok();
+    }
+    config.allowed_issues = None;
+
+    let config = Arc::new(config);
+
+    let codegen_hook = if let Some(codegen) = config
+        .hooks
+        .iter()
+        .filter(|hook| {
+            if let Some(candidate_name) = hook.get_codegen_name() {
+                candidate_name == &codegen_name
+            } else {
+                false
+            }
+        })
+        .next()
+    {
+        codegen
+    } else {
+        println!("Codegen {} not recognised", codegen_name);
+        exit(1);
+    };
+
+    let result = hakana_workhorse::scan_and_analyze(
+        Vec::new(),
+        None,
+        None,
+        config.clone(),
+        None,
+        threads,
+        Arc::new(logger),
+        header,
+        None,
+        None,
+        None,
+    );
+
+    if let Ok(result) = result {
+        codegen_hook.do_codegen(&result.1.codebase, &result.1.interner, &result.0);
     }
 }
 

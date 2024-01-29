@@ -460,11 +460,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if let Some(parent_analysis_data) = &parent_analysis_data {
             analysis_data.type_variable_bounds = parent_analysis_data.type_variable_bounds.clone();
 
-            if !statements_analyzer
-                .get_config()
-                .migration_symbols
-                .is_empty()
-            {
+            if statements_analyzer.get_config().in_migration {
                 analysis_data.data_flow_graph = parent_analysis_data.data_flow_graph.clone();
             }
         }
@@ -789,6 +785,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             for (kind, count) in analysis_data.issue_counts {
                 *parent_analysis_data.issue_counts.entry(kind).or_insert(0) += count;
+            }
+
+            if matches!(parent_analysis_data.migrate_function, None | Some(true)) {
+                parent_analysis_data.migrate_function = analysis_data.migrate_function;
             }
 
             if statements_analyzer.get_config().add_fixmes {

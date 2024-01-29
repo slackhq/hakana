@@ -58,6 +58,10 @@ pub trait InternalHook {
         None
     }
 
+    fn get_codegen_name(&self) -> Option<&str> {
+        None
+    }
+
     // This hook is run after analysing every top-level definition (class, function etc)
     #[allow(unused_variables)]
     fn after_def_analysis(
@@ -132,6 +136,15 @@ pub trait InternalHook {
         analysis_result: &AnalysisResult,
     ) -> Vec<String> {
         vec![]
+    }
+
+    #[allow(unused_variables)]
+    fn do_codegen(
+        &self,
+        codebase: &CodebaseInfo,
+        interner: &Interner,
+        analysis_result: &AnalysisResult,
+    ) {
     }
 }
 

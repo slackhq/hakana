@@ -15,6 +15,7 @@ pub mod json_config;
 #[derive(Debug)]
 pub struct Config {
     pub migration_symbols: FxHashMap<String, String>,
+    pub in_migration: bool,
     pub find_unused_expressions: bool,
     pub find_unused_definitions: bool,
     pub allowed_issues: Option<FxHashSet<IssueKind>>,
@@ -78,6 +79,7 @@ impl Config {
             remove_fixmes: false,
             all_custom_issues,
             ast_diff: false,
+            in_migration: false,
         }
     }
 

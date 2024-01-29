@@ -162,6 +162,7 @@ impl TestRunner {
                     (first_part.to_string(), parts.join(","))
                 })
                 .collect();
+            analysis_config.in_migration = true;
         } else if dir.contains("/fix/") {
             let issue_name = dir_parts.get(1).unwrap().to_string();
 
