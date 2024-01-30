@@ -8,7 +8,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
-use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
+use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::function_context::FunctionContext;
 use oxidized::aast;
 
@@ -39,7 +39,9 @@ impl<'a> ClassLikeAnalyzer<'a> {
 
         let codebase = self.file_analyzer.get_codebase();
 
-        if self.file_analyzer.analysis_config.ast_diff && self.file_analyzer.codebase.safe_symbols.contains(&name) {
+        if self.file_analyzer.analysis_config.ast_diff
+            && self.file_analyzer.codebase.safe_symbols.contains(&name)
+        {
             return Ok(());
         }
 
@@ -77,7 +79,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
         let mut class_context = ScopeContext::new(function_context);
 
         let mut analysis_data = FunctionAnalysisData::new(
-            DataFlowGraph::new(GraphKind::FunctionBody),
+            DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             statements_analyzer.get_file_analyzer().get_file_source(),
             &statements_analyzer.comments,
             &statements_analyzer.get_config().all_custom_issues,
