@@ -33,6 +33,7 @@ members = [
     "src/language_server",
     "src/logger",
     "src/ttype",
+    "src/js_interop"
 ]
 exclude = ["third-party"]
 
