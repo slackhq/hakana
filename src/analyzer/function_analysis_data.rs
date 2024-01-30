@@ -304,12 +304,11 @@ impl FunctionAnalysisData {
                         }
                         _ => {}
                     },
-                    4064 => match &issue_kind {
-                        IssueKind::PossiblyNullPropertyFetch => {
+                    4064 => {
+                        if let IssueKind::PossiblyNullPropertyFetch = &issue_kind {
                             return true;
                         }
-                        _ => {}
-                    },
+                    }
                     4005 => {
                         if let IssueKind::MixedArrayAccess = &issue_kind {
                             return true;

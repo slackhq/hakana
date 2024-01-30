@@ -30,7 +30,7 @@ impl ScannerAndAnalyzer {
             file_contents.clone(),
             true,
         );
-        return match result {
+        match result {
             Ok((analysis_result, interner)) => {
                 self.interner = interner;
 
@@ -71,6 +71,6 @@ impl ScannerAndAnalyzer {
                 "error": err,
             })
             .to_string(),
-        };
+        }
     }
 }

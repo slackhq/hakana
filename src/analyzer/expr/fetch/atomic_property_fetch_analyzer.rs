@@ -186,6 +186,7 @@ pub(crate) fn analyze(
             class_property_type,
             in_assignment,
             &property_id,
+            declaring_property_class,
             lhs_var_id,
             var_id,
         );
@@ -333,20 +334,14 @@ pub(crate) fn localize_property_type(
                         template_types
                             .entry(*calling_param_name)
                             .or_insert_with(FxHashMap::default)
-                            .insert(
-                                property_class_storage.name,
-                                lhs_param_type.clone(),
-                            );
+                            .insert(property_class_storage.name, lhs_param_type.clone());
                         break;
                     }
                 }
             }
         }
 
-        let template_type_keys = template_types
-            .iter()
-            .map(|(k, _)| *k)
-            .collect::<Vec<_>>();
+        let template_type_keys = template_types.iter().map(|(k, _)| *k).collect::<Vec<_>>();
 
         for type_name in template_type_keys {
             if let Some(mapped_type) = extended_types
@@ -392,9 +387,10 @@ fn add_property_dataflow(
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     classlike_storage: &ClassLikeInfo,
-    stmt_type: TUnion,
+    mut stmt_type: TUnion,
     in_assignment: bool,
     property_id: &(StrId, StrId),
+    declaring_property_class: &StrId,
     lhs_var_id: &Option<String>,
     expr_id: &Option<String>,
 ) -> TUnion {
@@ -441,16 +437,11 @@ fn add_property_dataflow(
                     );
                 }
 
-                let mut stmt_type = stmt_type.clone();
                 stmt_type.parent_nodes.insert(property_node.clone());
-
-                return stmt_type;
             }
         }
-
-        stmt_type
     } else {
-        let stmt_type = add_unspecialized_property_fetch_dataflow(
+        stmt_type = add_unspecialized_property_fetch_dataflow(
             expr_id,
             property_id,
             statements_analyzer.get_hpos(pos),
@@ -459,9 +450,28 @@ fn add_property_dataflow(
             stmt_type,
             statements_analyzer.get_interner(),
         );
-
-        stmt_type
     }
+
+    let localized_property_node = DataFlowNode::get_for_assignment(
+        format!(
+            "{}::${}",
+            statements_analyzer
+                .get_interner()
+                .lookup(declaring_property_class),
+            statements_analyzer.get_interner().lookup(&property_id.1)
+        ),
+        statements_analyzer.get_hpos(pos),
+    );
+
+    analysis_data
+        .data_flow_graph
+        .add_node(localized_property_node.clone());
+
+    stmt_type
+        .parent_nodes
+        .insert(localized_property_node.clone());
+
+    stmt_type
 }
 
 pub(crate) fn add_unspecialized_property_fetch_dataflow(
