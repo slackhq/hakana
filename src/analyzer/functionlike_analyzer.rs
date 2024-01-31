@@ -787,7 +787,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 *parent_analysis_data.issue_counts.entry(kind).or_insert(0) += count;
             }
 
-            if matches!(parent_analysis_data.migrate_function, None | Some(true)) {
+            if !matches!(parent_analysis_data.migrate_function, Some(false))
+                && analysis_data.migrate_function.is_some()
+            {
                 parent_analysis_data.migrate_function = analysis_data.migrate_function;
             }
 
