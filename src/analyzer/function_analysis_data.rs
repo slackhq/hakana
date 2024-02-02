@@ -527,9 +527,6 @@ impl FunctionAnalysisData {
 
         for hakana_fixme_or_ignores in &self.hakana_fixme_or_ignores {
             for line_issue in hakana_fixme_or_ignores.1 {
-                if line_issue.0 == IssueKind::NoJoinInAsyncFunction {
-                    continue;
-                }
                 if !self
                     .matched_ignore_positions
                     .contains(&(line_issue.1 .0, line_issue.1 .1))

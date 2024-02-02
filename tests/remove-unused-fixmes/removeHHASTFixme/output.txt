@@ -1,3 +1,3 @@
-function foo(): void {
+async function foo(): Awaitable<void> {
     echo(5);
 }

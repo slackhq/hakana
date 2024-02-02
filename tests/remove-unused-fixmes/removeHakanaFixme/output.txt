@@ -1,0 +1,3 @@
+function foo(): void {
+    echo(5);
+}

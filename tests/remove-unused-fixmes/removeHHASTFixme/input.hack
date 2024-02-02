@@ -1,3 +1,4 @@
-function foo(): void {
-    echo(/* HAKANA_FIXME[NoValue] */ 5);
+async function foo(): Awaitable<void> {
+    /* HHAST_FIXME[NoJoinInAsyncFunction] */
+    echo(5);
 }
