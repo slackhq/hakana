@@ -9,10 +9,11 @@ use hakana_reflection_info::{
     },
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    StrId,
 };
 use hakana_type::{
     combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
-    type_combiner, wrap_atomic,
+    template::TemplateBound, type_combiner, wrap_atomic,
 };
 use oxidized::{
     aast::{self, Expr},
@@ -153,7 +154,9 @@ pub(crate) fn analyze(
         )
     } else if !root_is_string {
         update_array_assignment_child_type(
-            statements_analyzer.get_codebase(),
+            statements_analyzer,
+            analysis_data,
+            expr.2,
             dim_type,
             context,
             current_type,
@@ -476,12 +479,15 @@ fn add_array_assignment_dataflow(
  * Updates an array when the $key used does not have literals
 */
 fn update_array_assignment_child_type(
-    codebase: &CodebaseInfo,
+    statements_analyzer: &StatementsAnalyzer,
+    analysis_data: &mut FunctionAnalysisData,
+    pos: &Pos,
     key_type: Option<Rc<TUnion>>,
     context: &mut ScopeContext,
     value_type: TUnion,
     root_type: TUnion,
 ) -> TUnion {
+    let codebase = statements_analyzer.get_codebase();
     let mut collection_types = Vec::new();
 
     if let Some(key_type) = &key_type {
@@ -495,12 +501,7 @@ fn update_array_assignment_child_type(
             match original_type {
                 TAtomic::TVec { known_items, .. } => collection_types.push(TAtomic::TVec {
                     type_param: Box::new(value_type.clone()),
-                    known_items: known_items.as_ref().map(|known_items| {
-                        known_items
-                            .iter()
-                            .map(|(k, v)| (*k, (v.0, v.1.clone())))
-                            .collect::<BTreeMap<_, _>>()
-                    }),
+                    known_items: known_items.clone(),
                     known_count: None,
                     non_empty: true,
                 }),
@@ -523,6 +524,28 @@ fn update_array_assignment_child_type(
                 TAtomic::TKeyset { .. } => collection_types.push(TAtomic::TKeyset {
                     type_param: Box::new(value_type.clone()),
                 }),
+                TAtomic::TTypeVariable { name } => {
+                    if let Some((_, upper_bounds)) =
+                        analysis_data.type_variable_bounds.get_mut(name)
+                    {
+                        let mut bound = TemplateBound::new(
+                            wrap_atomic(TAtomic::TNamedObject {
+                                name: StrId::KEYED_CONTAINER,
+                                type_params: Some(vec![(*key_type).clone(), value_type.clone()]),
+                                is_this: false,
+                                extra_types: None,
+                                remapped_params: false,
+                            }),
+                            0,
+                            None,
+                            None,
+                        );
+                        bound.pos = Some(statements_analyzer.get_hpos(pos));
+                        upper_bounds.push(bound);
+                    }
+
+                    collection_types.push(original_type.clone());
+                }
                 _ => collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false)),
             }
         }
@@ -570,6 +593,28 @@ fn update_array_assignment_child_type(
                 TAtomic::TMixed | TAtomic::TMixedWithFlags(..) => {
                     // todo handle illegal
                     collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false))
+                }
+                TAtomic::TTypeVariable { name } => {
+                    if let Some((_, upper_bounds)) =
+                        analysis_data.type_variable_bounds.get_mut(name)
+                    {
+                        let mut bound = TemplateBound::new(
+                            wrap_atomic(TAtomic::TNamedObject {
+                                name: StrId::CONTAINER,
+                                type_params: Some(vec![value_type.clone()]),
+                                is_this: false,
+                                extra_types: None,
+                                remapped_params: false,
+                            }),
+                            0,
+                            None,
+                            None,
+                        );
+                        bound.pos = Some(statements_analyzer.get_hpos(pos));
+                        upper_bounds.push(bound);
+                    }
+
+                    collection_types.push(original_type.clone());
                 }
                 _ => collection_types.push(TAtomic::TMixedWithFlags(true, false, false, false)),
             }

@@ -39,6 +39,16 @@ pub fn is_contained_by(
                 }
             }
             TAtomic::TTypeVariable { name } => {
+                if container_type.is_single() {
+                    if let TAtomic::TTypeVariable {
+                        name: container_name,
+                    } = container_type.get_single()
+                    {
+                        if container_name == name {
+                            continue;
+                        }
+                    }
+                }
                 union_comparison_result.type_variable_upper_bounds.push((
                     name.clone(),
                     TemplateBound::new(container_type.clone(), 0, None, None),
