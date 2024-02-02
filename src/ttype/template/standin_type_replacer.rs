@@ -1998,7 +1998,7 @@ pub fn get_most_specific_type_from_bounds(
 
 pub fn get_relevant_bounds(lower_bounds: &Vec<TemplateBound>) -> Vec<&TemplateBound> {
     if lower_bounds.len() == 1 {
-        return vec![lower_bounds.first().unwrap()];
+        return vec![&lower_bounds[0]];
     }
 
     let mut lower_bounds = lower_bounds.iter().collect::<Vec<_>>();

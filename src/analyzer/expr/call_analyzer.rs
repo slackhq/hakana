@@ -163,6 +163,9 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
 
     let relevant_lower_bounds = get_relevant_bounds(lower_bounds);
 
+    // println!("{:#?}", lower_bounds);
+    // println!("{:#?}", upper_bounds);
+
     let mut union_comparison_result = TypeComparisonResult::new();
 
     let mut has_issue = false;
@@ -216,6 +219,7 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
             .collect::<Vec<_>>();
 
         if equality_strings.len() > 1 {
+            has_issue = true;
             analysis_data.maybe_add_issue(
                 Issue::new(
                     IssueKind::IncompatibleTypeParameters,
@@ -247,6 +251,7 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
                         }
                     }
 
+                    has_issue = true;
                     analysis_data.maybe_add_issue(
                         Issue::new(
                             IssueKind::IncompatibleTypeParameters,
@@ -255,6 +260,49 @@ pub(crate) fn reconcile_lower_bounds_with_upper_bounds(
                                 "type variable",
                                 lower_bound.bound_type.get_id(Some(interner)),
                                 equality_strings.join(", "),
+                            ),
+                            pos,
+                            &None,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                }
+            }
+        }
+    }
+
+    if !has_issue && upper_bounds.len() > 1 {
+        let upper_bounds_with_equality = upper_bounds
+            .iter()
+            .filter(|bound| bound.equality_bound_classlike.is_some())
+            .enumerate()
+            .collect::<Vec<_>>();
+
+        if upper_bounds_with_equality.is_empty() {
+            return;
+        }
+
+        for (i, upper_bound_with_equality) in upper_bounds_with_equality {
+            for (j, upper_bound) in upper_bounds.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+
+                if !union_type_comparator::can_expression_types_be_identical(
+                    codebase,
+                    &upper_bound_with_equality.bound_type,
+                    &upper_bound.bound_type,
+                    false,
+                ) {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::IncompatibleTypeParameters,
+                            format!(
+                                "Incompatible types found for {} ({} is not in {})",
+                                "type variable",
+                                upper_bound.bound_type.get_id(Some(interner)),
+                                upper_bound_with_equality.bound_type.get_id(Some(interner)),
                             ),
                             pos,
                             &None,

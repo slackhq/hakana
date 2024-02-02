@@ -425,6 +425,10 @@ pub(crate) fn analyze(
                     if let Some((_, upper_bounds)) =
                         analysis_data.type_variable_bounds.get_mut(&name)
                     {
+                        if bound.equality_bound_classlike.is_none() {
+                            // bit of a hack but this ensures that we add strict checks
+                            bound.equality_bound_classlike = Some(StrId::EMPTY);
+                        }
                         bound.pos = Some(statements_analyzer.get_hpos(&return_expr.1));
                         upper_bounds.push(bound);
                     }
