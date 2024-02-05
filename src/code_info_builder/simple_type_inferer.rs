@@ -13,7 +13,7 @@ use oxidized::{
     ast_defs::{self, Pos},
 };
 use rustc_hash::FxHashMap;
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, num::ParseIntError, sync::Arc};
 
 pub fn infer(
     codebase: &CodebaseInfo,
@@ -140,16 +140,7 @@ pub fn infer(
         aast::Expr_::Null => Some(get_null()),
         aast::Expr_::True => Some(get_true()),
         aast::Expr_::False => Some(get_false()),
-        aast::Expr_::Int(value) => Some(get_literal_int(
-            if value.starts_with("0x") {
-                i64::from_str_radix(value.trim_start_matches("0x"), 16)
-            } else if value.starts_with("0b") {
-                i64::from_str_radix(value.trim_start_matches("0b"), 2)
-            } else {
-                value.parse::<i64>()
-            }
-            .unwrap(),
-        )),
+        aast::Expr_::Int(value) => Some(get_literal_int(int_from_string(value).unwrap())),
         aast::Expr_::Float(_) => Some(get_float()),
         aast::Expr_::String(value) => Some(if value.len() < 200 {
             get_literal_string(value.to_string())
@@ -274,4 +265,14 @@ pub fn infer(
             panic!()
         }
     };
+}
+
+pub fn int_from_string(value: &str) -> Result<i64, ParseIntError> {
+    if value.starts_with("0x") {
+        i64::from_str_radix(value.trim_start_matches("0x"), 16)
+    } else if value.starts_with("0b") {
+        i64::from_str_radix(value.trim_start_matches("0b"), 2)
+    } else {
+        value.parse::<i64>()
+    }
 }

@@ -14,6 +14,7 @@ fn main() {
     hakana_cli::init(
         vec![],
         vec![],
+        vec![],
         header.as_str(),
         &TestRunner(Box::new(CoreHooksProvider {})),
     );

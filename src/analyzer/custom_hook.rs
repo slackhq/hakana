@@ -137,15 +137,6 @@ pub trait InternalHook {
     ) -> Vec<String> {
         vec![]
     }
-
-    #[allow(unused_variables)]
-    fn do_codegen(
-        &self,
-        codebase: &CodebaseInfo,
-        interner: &Interner,
-        analysis_result: &AnalysisResult,
-    ) {
-    }
 }
 
 pub trait CustomHook: InternalHook + Send + Sync + core::fmt::Debug {}

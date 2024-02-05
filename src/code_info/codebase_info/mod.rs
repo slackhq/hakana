@@ -25,7 +25,8 @@ pub struct CodebaseInfo {
     pub constant_infos: FxHashMap<StrId, ConstantInfo>,
     pub closures_in_files: FxHashMap<FilePath, FxHashSet<StrId>>,
     pub const_files: FxHashMap<String, FxHashSet<StrId>>,
-    pub classlike_descendants: FxHashMap<StrId, FxHashSet<StrId>>,
+    pub all_classlike_descendants: FxHashMap<StrId, FxHashSet<StrId>>,
+    pub direct_classlike_descendants: FxHashMap<StrId, FxHashSet<StrId>>,
     pub files: FxHashMap<FilePath, FileInfo>,
 
     /* Symbols that have already been checked on a previous Hakana run */
@@ -51,7 +52,8 @@ impl CodebaseInfo {
             constant_infos: FxHashMap::default(),
             closures_in_files: FxHashMap::default(),
             const_files: FxHashMap::default(),
-            classlike_descendants: FxHashMap::default(),
+            all_classlike_descendants: FxHashMap::default(),
+            direct_classlike_descendants: FxHashMap::default(),
             files: FxHashMap::default(),
             safe_symbols: FxHashSet::default(),
             safe_symbol_members: FxHashSet::default(),
@@ -395,7 +397,7 @@ impl CodebaseInfo {
     pub fn get_all_descendants(&self, classlike_name: &StrId) -> FxHashSet<StrId> {
         let mut base_set = FxHashSet::default();
 
-        if let Some(classlike_descendants) = self.classlike_descendants.get(classlike_name) {
+        if let Some(classlike_descendants) = self.all_classlike_descendants.get(classlike_name) {
             base_set.extend(classlike_descendants);
             for classlike_descendant in classlike_descendants {
                 base_set.extend(self.get_all_descendants(classlike_descendant));

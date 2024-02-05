@@ -201,7 +201,7 @@ pub(crate) fn find_unused_definitions(
                         for trait_user in get_trait_users(
                             classlike_name,
                             &codebase.symbols,
-                            &codebase.classlike_descendants,
+                            &codebase.all_classlike_descendants,
                         ) {
                             if let Some(classlike_info) = codebase.classlike_infos.get(&trait_user)
                             {

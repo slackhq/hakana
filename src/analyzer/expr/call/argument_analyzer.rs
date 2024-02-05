@@ -525,7 +525,7 @@ fn add_dataflow(
         if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id {
             if let Some(method_call_info) = method_call_info {
                 if let Some(dependent_classlikes) = codebase
-                    .classlike_descendants
+                    .all_classlike_descendants
                     .get(&method_call_info.classlike_storage.name)
                 {
                     if method_name

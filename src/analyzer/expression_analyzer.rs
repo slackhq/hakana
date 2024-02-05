@@ -33,6 +33,7 @@ use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::{StrId, EFFECT_IMPURE};
+use hakana_reflector::simple_type_inferer::int_from_string;
 use hakana_type::type_expander::get_closure_from_id;
 use hakana_type::{
     get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
@@ -97,20 +98,12 @@ pub(crate) fn analyze(
         aast::Expr_::Int(value) => {
             analysis_data.expr_types.insert(
                 (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
-                Rc::new(
-                    if let Ok(value) = if value.starts_with("0x") {
-                        i64::from_str_radix(value.trim_start_matches("0x"), 16)
-                    } else if value.starts_with("0b") {
-                        i64::from_str_radix(value.trim_start_matches("0b"), 2)
-                    } else {
-                        value.parse::<i64>()
-                    } {
-                        get_literal_int(value)
-                    } else {
-                        // should never happen
-                        get_int()
-                    },
-                ),
+                Rc::new(if let Ok(value) = int_from_string(value) {
+                    get_literal_int(value)
+                } else {
+                    // should never happen
+                    get_int()
+                }),
             );
         }
         aast::Expr_::String(value) => {

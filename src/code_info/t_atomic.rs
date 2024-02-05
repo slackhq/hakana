@@ -171,14 +171,14 @@ impl TAtomic {
             TAtomic::TClassname { as_type, .. } => {
                 let mut str = String::new();
                 str += "classname<";
-                str += as_type.get_id_with_refs(interner, refs).as_str();
+                str += as_type.get_id_with_refs(interner, &mut vec![]).as_str();
                 str += ">";
                 str
             }
             TAtomic::TTypename { as_type, .. } => {
                 let mut str = String::new();
                 str += "typename<";
-                str += as_type.get_id_with_refs(interner, refs).as_str();
+                str += as_type.get_id_with_refs(interner, &mut vec![]).as_str();
                 str += ">";
                 str
             }

@@ -202,9 +202,18 @@ pub fn populate_codebase(
         }
     }
 
+    let mut direct_classlike_descendants = FxHashMap::default();
+
     for (classlike_name, classlike_storage) in &codebase.classlike_infos {
         for parent_interface in &classlike_storage.all_parent_interfaces {
             all_classlike_descendants
+                .entry(*parent_interface)
+                .or_insert_with(FxHashSet::default)
+                .insert(*classlike_name);
+        }
+
+        for parent_interface in &classlike_storage.direct_parent_interfaces {
+            direct_classlike_descendants
                 .entry(*parent_interface)
                 .or_insert_with(FxHashSet::default)
                 .insert(*classlike_name);
@@ -217,17 +226,33 @@ pub fn populate_codebase(
                 .insert(*classlike_name);
         }
 
+        for class_interface in &classlike_storage.direct_class_interfaces {
+            direct_classlike_descendants
+                .entry(*class_interface)
+                .or_insert_with(FxHashSet::default)
+                .insert(*classlike_name);
+        }
+
         for parent_class in &classlike_storage.all_parent_classes {
             all_classlike_descendants
                 .entry(*parent_class)
                 .or_insert_with(FxHashSet::default)
                 .insert(*classlike_name);
         }
+
+        if let Some(parent_class) = classlike_storage.direct_parent_class {
+            direct_classlike_descendants
+                .entry(parent_class)
+                .or_insert_with(FxHashSet::default)
+                .insert(*classlike_name);
+        }
     }
 
     all_classlike_descendants.retain(|k, _| !interner.lookup(k).starts_with("HH\\"));
+    direct_classlike_descendants.retain(|k, _| !interner.lookup(k).starts_with("HH\\"));
 
-    codebase.classlike_descendants = all_classlike_descendants;
+    codebase.all_classlike_descendants = all_classlike_descendants;
+    codebase.direct_classlike_descendants = direct_classlike_descendants;
     codebase.safe_symbols = safe_symbols;
     codebase.safe_symbol_members = safe_symbol_members;
 }
