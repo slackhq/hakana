@@ -192,6 +192,11 @@ pub fn init(
                             .help("If passed, will just verify that codegen is accurate"),
                     )
                     .arg(
+                        arg!(--"overwrite")
+                            .required(false)
+                            .help("If passed, will overwrite any conflicting files"),
+                    )
+                    .arg(
                         arg!(--"threads" <PATH>)
                             .required(false)
                             .help("How many threads to use"),
