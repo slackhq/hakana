@@ -43,6 +43,7 @@ pub struct TypeExpansionOptions<'a> {
     pub expand_generic: bool,
     pub expand_templates: bool,
     pub expand_hakana_types: bool,
+    pub expand_all_type_aliases: bool,
 }
 
 impl Default for TypeExpansionOptions<'_> {
@@ -58,6 +59,7 @@ impl Default for TypeExpansionOptions<'_> {
             expand_generic: false,
             expand_templates: true,
             expand_hakana_types: true,
+            expand_all_type_aliases: false,
         }
     }
 }
@@ -127,6 +129,7 @@ fn expand_atomic(
     if let TAtomic::TDict {
         ref mut known_items,
         ref mut params,
+        ref mut shape_name,
         ..
     } = return_type_part
     {
@@ -145,6 +148,10 @@ fn expand_atomic(
                     data_flow_graph,
                 );
             }
+        }
+
+        if options.expand_all_type_aliases {
+            *shape_name = None;
         }
     } else if let TAtomic::TVec {
         ref mut known_items,
@@ -307,7 +314,7 @@ fn expand_atomic(
             if let Some(expanding_file_path) = options.file_path {
                 expanding_file_path == type_file_path
             } else {
-                false
+                options.expand_all_type_aliases
             }
         } else {
             true
@@ -409,7 +416,10 @@ fn expand_atomic(
 
                                 data_flow_graph.add_node(shape_node);
                             }
-                            *shape_name = Some((*type_name, None));
+
+                            if !options.expand_all_type_aliases {
+                                *shape_name = Some((*type_name, None));
+                            }
                         };
                     }
                     v
