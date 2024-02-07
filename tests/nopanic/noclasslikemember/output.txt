@@ -1,13 +1,13 @@
 ERROR: NonExistentClassConstant - input.hack:8:10 - Unknown class constant Foo::B1
-ERROR: MixedAnyArgument - input.hack:8:10 - Argument 1 of echo expects scalar|null, any provided
+ERROR: MixedAnyArgument - input.hack:8:10 - Argument 1 of echo expects ?scalar, any provided
 ERROR: NonExistentClassConstant - input.hack:16:5 - Unknown class constant Foo::B3
 ERROR: NonExistentClassConstant - input.hack:20:10 - Unknown class constant Foo::B4
-ERROR: MixedAnyArgument - input.hack:20:10 - Argument 1 of echo expects scalar|null, any provided
+ERROR: MixedAnyArgument - input.hack:20:10 - Argument 1 of echo expects ?scalar, any provided
 ERROR: NonExistentMethod - input.hack:24:5 - Method Foo::b5 does not exist
 ERROR: NonExistentMethod - input.hack:28:5 - Method Foo::b6 does not exist
 ERROR: NonExistentProperty - input.hack:32:10 - Cannot access undefined property Foo::$b7
-ERROR: MixedAnyArgument - input.hack:32:10 - Argument 1 of echo expects scalar|null, any provided
+ERROR: MixedAnyArgument - input.hack:32:10 - Argument 1 of echo expects ?scalar, any provided
 ERROR: NonExistentProperty - input.hack:36:10 - Cannot access undefined property Foo::$b8
-ERROR: InvalidArgument - input.hack:36:10 - Argument 1 of echo expects scalar|null, different type Foo provided
+ERROR: InvalidArgument - input.hack:36:10 - Argument 1 of echo expects ?scalar, different type Foo provided
 ERROR: NonExistentProperty - input.hack:40:10 - Property Foo::$b9 is undefined
 ERROR: NonExistentProperty - input.hack:44:9 - Undefined property Foo::$b10

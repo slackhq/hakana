@@ -1,4 +1,4 @@
 ERROR: ImpossibleKeyCheck - input.hack:7:9 - Type vec<string> never has key 's'
 ERROR: ImpossibleKeyCheck - input.hack:11:9 - Type vec<string> never has key 't'
-ERROR: ImpossibleKeyCheck - input.hack:24:9 - Type dict<string,string> never has key 1
-ERROR: ImpossibleKeyCheck - input.hack:28:9 - Type dict<string,string> never has key 2
+ERROR: ImpossibleKeyCheck - input.hack:24:9 - Type dict<string, string> never has key 1
+ERROR: ImpossibleKeyCheck - input.hack:28:9 - Type dict<string, string> never has key 2

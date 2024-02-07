@@ -1,1 +1,1 @@
-InvalidReturnStatement - input.hack:9:12 - The type dict<string,keyset<int>> does not match the declared return type dict<string,keyset<string>> for foo
+InvalidReturnStatement - input.hack:9:12 - The type dict<string, keyset<int>> does not match the declared return type dict<string, keyset<string>> for foo

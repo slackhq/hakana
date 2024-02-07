@@ -9,7 +9,7 @@ use hakana_reflection_info::Interner;
 use indexmap::IndexMap;
 use rand::Rng;
 use rustc_hash::FxHashSet;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
@@ -1056,15 +1056,17 @@ fn do_codegen(
                     errors.push(format!("File {} doesn’t exist", name));
                     continue;
                 }
-            } else if check_codegen || !overwrite_codegen {
+            } else {
                 let existing_contents = fs::read_to_string(path).unwrap();
                 if existing_contents.trim() != info.trim() {
-                    errors.push(format!("File {} differs from codegen", name,));
+                    if check_codegen || !overwrite_codegen {
+                        errors.push(format!("File {} differs from codegen", name));
+                        continue;
+                    }
                 } else {
                     verified_count += 1;
+                    continue;
                 }
-
-                continue;
             }
 
             if let Some(dir) = path.parent() {
@@ -1072,6 +1074,7 @@ fn do_codegen(
             }
             let mut output_path = fs::File::create(path).unwrap();
             write!(output_path, "{}", &info).unwrap();
+            println!("Saved {}", name);
             updated_count += 1;
         }
 

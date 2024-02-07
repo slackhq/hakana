@@ -1,2 +1,2 @@
 ERROR: MixedAnyArgument - input.hack:4:29 - Argument 1 of HH\vec expects HH\Traversable<any>, any provided
-ERROR: LessSpecificNestedAnyArgumentType - input.hack:6:9 - Argument 1 of foo expects shape('a' => null|vec<shape('b' => string)>), parent type shape('a' => vec<any>|null) provided
+ERROR: LessSpecificNestedAnyArgumentType - input.hack:6:9 - Argument 1 of foo expects shape('a' => ?vec<shape('b' => string)>), parent type shape('a' => ?vec<any>) provided

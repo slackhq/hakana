@@ -1,1 +1,1 @@
-ERROR: InvalidArgument - input.hack:21:10 - Argument 1 of echo expects scalar|null, different type Node provided
+ERROR: InvalidArgument - input.hack:21:10 - Argument 1 of echo expects ?scalar, different type Node provided

@@ -1,3 +1,3 @@
-ERROR: LessSpecificNestedAnyReturnStatement - input.hack:2:12 - The type dict<arraykey,string> is more general than the declared return type dict<string,string> for foo
+ERROR: LessSpecificNestedAnyReturnStatement - input.hack:2:12 - The type dict<arraykey, string> is more general than the declared return type dict<string, string> for foo
 ERROR: MixedArgument - input.hack:3:9 - Argument 1 of HH\Lib\Dict\from_keys expects HH\Traversable<arraykey>, mixed provided
 ERROR: LessSpecificNestedAnyArgumentType - input.hack:4:28 - Argument 1 of takesString expects string, parent type arraykey provided
