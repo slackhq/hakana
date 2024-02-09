@@ -16,7 +16,7 @@ use oxidized::{aast, ast, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    function_analysis_data::FunctionAnalysisData, reconciler::reconciler,
+    function_analysis_data::FunctionAnalysisData, reconciler,
     statements_analyzer::StatementsAnalyzer,
 };
 

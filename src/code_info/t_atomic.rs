@@ -239,11 +239,7 @@ impl TAtomic {
                                 property_type.get_id_with_refs(
                                     interner,
                                     refs,
-                                    if let Some(indent) = indent {
-                                        Some(indent + 1)
-                                    } else {
-                                        None
-                                    }
+                                    indent.map(|indent| indent + 1)
                                 )
                             )
                         })

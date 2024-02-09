@@ -1,6 +1,6 @@
 use super::{
-    assertion_reconciler::intersect_atomic_with_atomic, reconciler::trigger_issue_for_impossible,
-    simple_negated_assertion_reconciler,
+    assertion_reconciler::intersect_atomic_with_atomic, simple_negated_assertion_reconciler,
+    trigger_issue_for_impossible,
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};

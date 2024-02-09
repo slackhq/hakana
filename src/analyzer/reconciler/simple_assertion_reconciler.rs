@@ -1,8 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use super::{
-    reconciler::trigger_issue_for_impossible, simple_negated_assertion_reconciler::subtract_null,
-};
+use super::{simple_negated_assertion_reconciler::subtract_null, trigger_issue_for_impossible};
 use crate::{
     function_analysis_data::FunctionAnalysisData, intersect_simple, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
@@ -227,7 +225,6 @@ pub(crate) fn reconcile(
             } => {
                 if params.0.is_placeholder() && params.1.is_placeholder() {
                     return Some(intersect_dict(
-                        codebase,
                         assertion,
                         existing_var_type,
                         key,
@@ -861,7 +858,6 @@ fn intersect_keyset(
 }
 
 fn intersect_dict(
-    codebase: &CodebaseInfo,
     assertion: &Assertion,
     existing_var_type: &TUnion,
     key: Option<&String>,
@@ -892,7 +888,6 @@ fn intersect_dict(
                     acceptable_types.push(atomic);
                 } else {
                     let atomic = atomic.replace_template_extends(intersect_dict(
-                        codebase,
                         assertion,
                         as_type,
                         None,

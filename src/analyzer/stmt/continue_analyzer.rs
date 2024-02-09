@@ -41,22 +41,18 @@ pub(crate) fn analyze(
             );
         }
 
-        if loop_scope.iteration_count == 0 {
-            for (_var_id, _var_type) in &context.vars_in_scope {
-                // todo populate finally scope
-            }
-        }
+        // if loop_scope.iteration_count == 0 {
+        //     for (_var_id, _var_type) in &context.vars_in_scope {
+        //         // todo populate finally scope
+        //     }
+        // }
 
         if let Some(finally_scope) = context.finally_scope.clone() {
             let mut finally_scope = (*finally_scope).borrow_mut();
             for (var_id, var_type) in &context.vars_in_scope {
                 if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
-                    *finally_type = Rc::new(combine_union_types(
-                        finally_type,
-                        var_type,
-                        codebase,
-                        false,
-                    ));
+                    *finally_type =
+                        Rc::new(combine_union_types(finally_type, var_type, codebase, false));
                 } else {
                     finally_scope
                         .vars_in_scope

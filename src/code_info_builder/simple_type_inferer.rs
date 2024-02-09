@@ -1,5 +1,4 @@
 use hakana_reflection_info::{
-    codebase_info::CodebaseInfo,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
     StrId,
@@ -8,16 +7,11 @@ use hakana_type::{
     get_false, get_float, get_int, get_literal_int, get_literal_string, get_nothing, get_null,
     get_true, wrap_atomic,
 };
-use oxidized::{
-    aast,
-    ast_defs::{self, Pos},
-};
+use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, num::ParseIntError, sync::Arc};
 
 pub fn infer(
-    codebase: &CodebaseInfo,
-    expr_types: &mut FxHashMap<Pos, TUnion>,
     expr: &aast::Expr<(), ()>,
     resolved_names: &FxHashMap<usize, StrId>,
 ) -> Option<TUnion> {
@@ -57,7 +51,7 @@ pub fn infer(
 
             for (shape_field_name, field_expr) in shape_fields {
                 if let ast_defs::ShapeFieldName::SFlitStr((_, str)) = shape_field_name {
-                    let field_type = infer(codebase, expr_types, field_expr, resolved_names);
+                    let field_type = infer(field_expr, resolved_names);
 
                     if let Some(field_type) = field_type {
                         known_items.insert(
@@ -83,7 +77,7 @@ pub fn infer(
             let mut entries = BTreeMap::new();
 
             for (i, entry_expr) in boxed.2.iter().enumerate() {
-                let entry_type = infer(codebase, expr_types, entry_expr, resolved_names);
+                let entry_type = infer(entry_expr, resolved_names);
 
                 if let Some(entry_type) = entry_type {
                     entries.insert(i, (false, entry_type));
@@ -108,7 +102,7 @@ pub fn infer(
 
             for entry_field in &boxed.2 {
                 if let aast::Expr_::String(key_value) = &entry_field.0 .2 {
-                    let value_type = infer(codebase, expr_types, &entry_field.1, resolved_names);
+                    let value_type = infer(&entry_field.1, resolved_names);
 
                     if let Some(value_type) = value_type {
                         known_items.insert(
@@ -151,7 +145,7 @@ pub fn infer(
             let mut entries = BTreeMap::new();
 
             for (i, entry_expr) in values.iter().enumerate() {
-                let entry_type = infer(codebase, expr_types, entry_expr, resolved_names);
+                let entry_type = infer(entry_expr, resolved_names);
 
                 if let Some(entry_type) = entry_type {
                     entries.insert(i, (false, entry_type));
@@ -176,7 +170,7 @@ pub fn infer(
         }
         aast::Expr_::Unop(boxed) => {
             if let ast_defs::Uop::Uminus = boxed.0 {
-                let number_type = infer(codebase, expr_types, &boxed.1, resolved_names);
+                let number_type = infer(&boxed.1, resolved_names);
 
                 if let Some(number_type) = number_type {
                     if number_type.is_single() {
@@ -216,7 +210,7 @@ pub fn infer(
 
             for (key_expr, value_expr) in &boxed.1 {
                 if let aast::Expr_::String(key_value) = &key_expr.2 {
-                    let value_type = infer(codebase, expr_types, value_expr, resolved_names);
+                    let value_type = infer(value_expr, resolved_names);
 
                     if let Some(value_type) = value_type {
                         known_items.insert(
@@ -242,7 +236,7 @@ pub fn infer(
             let mut entries = BTreeMap::new();
 
             for (i, entry_expr) in boxed.1.iter().enumerate() {
-                let entry_type = infer(codebase, expr_types, entry_expr, resolved_names);
+                let entry_type = infer(entry_expr, resolved_names);
 
                 if let Some(entry_type) = entry_type {
                     entries.insert(i, (false, entry_type));

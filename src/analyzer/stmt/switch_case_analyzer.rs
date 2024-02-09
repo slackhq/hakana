@@ -22,7 +22,7 @@ use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::reconciler::reconciler;
+use crate::reconciler;
 
 use std::rc::Rc;
 

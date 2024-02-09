@@ -15,7 +15,7 @@ use crate::expr::{
     unop_analyzer, variable_fetch_analyzer, xml_analyzer, yield_analyzer,
 };
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::reconciler::reconciler;
+use crate::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::{var_has_root, ScopeContext};
 use crate::statements_analyzer::StatementsAnalyzer;

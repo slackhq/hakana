@@ -15,11 +15,7 @@ pub struct ScannerAndAnalyzer {
 impl ScannerAndAnalyzer {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        console_error_panic_hook::set_once();
-
-        let (codebase, interner, file_system) = get_single_file_codebase(vec![]);
-
-        Self { codebase, interner }
+        Self::default()
     }
 
     pub fn get_results(&mut self, file_contents: String) -> String {
@@ -35,7 +31,7 @@ impl ScannerAndAnalyzer {
                 self.interner = interner;
 
                 let mut issue_json_objects = vec![];
-                for (file_path, issues) in analysis_result.get_all_issues(&self.interner, &"", true)
+                for (file_path, issues) in analysis_result.get_all_issues(&self.interner, "", true)
                 {
                     for issue in issues {
                         issue_json_objects.push(json!({
@@ -72,5 +68,15 @@ impl ScannerAndAnalyzer {
             })
             .to_string(),
         }
+    }
+}
+
+impl Default for ScannerAndAnalyzer {
+    fn default() -> Self {
+        console_error_panic_hook::set_once();
+
+        let (codebase, interner, _) = get_single_file_codebase(vec![]);
+
+        Self { codebase, interner }
     }
 }

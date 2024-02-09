@@ -1,4 +1,3 @@
-use hakana_reflection_info::StrId;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
@@ -14,9 +13,7 @@ struct Scanner {
     pub first_var_id: Option<String>,
 }
 
-struct Context {
-    this_class_name: Option<StrId>,
-}
+struct Context {}
 
 impl Scanner {
     fn new() -> Self {
@@ -38,19 +35,11 @@ impl<'ast> Visitor<'ast> for Scanner {
         match &expr.2 {
             aast::Expr_::Binop(boxed) => {
                 if let ast_defs::Bop::Eq(_) = boxed.bop {
-                    let right_var_id = expression_identifier::get_root_var_id(
-                        &boxed.rhs,
-                        c.this_class_name.as_ref(),
-                        None,
-                    );
+                    let right_var_id = expression_identifier::get_root_var_id(&boxed.rhs);
 
                     if let aast::Expr_::List(contents) = &boxed.lhs.2 {
                         for list_expr in contents {
-                            let left_var_id = expression_identifier::get_root_var_id(
-                                list_expr,
-                                c.this_class_name.as_ref(),
-                                None,
-                            );
+                            let left_var_id = expression_identifier::get_root_var_id(list_expr);
 
                             if let Some(left_var_id) = &left_var_id {
                                 if self.first_var_id.is_none() {
@@ -63,11 +52,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                             }
                         }
                     } else {
-                        let left_var_id = expression_identifier::get_root_var_id(
-                            &boxed.lhs,
-                            c.this_class_name.as_ref(),
-                            None,
-                        );
+                        let left_var_id = expression_identifier::get_root_var_id(&boxed.lhs);
 
                         if let Some(left_var_id) = &left_var_id {
                             if self.first_var_id.is_none() {
@@ -86,11 +71,7 @@ impl<'ast> Visitor<'ast> for Scanner {
                 | ast_defs::Uop::Uincr
                 | ast_defs::Uop::Updecr
                 | ast_defs::Uop::Upincr => {
-                    let var_id = expression_identifier::get_root_var_id(
-                        &boxed.1,
-                        c.this_class_name.as_ref(),
-                        None,
-                    );
+                    let var_id = expression_identifier::get_root_var_id(&boxed.1);
 
                     if let Some(var_id) = &var_id {
                         if self.first_var_id.is_none() {
@@ -107,11 +88,7 @@ impl<'ast> Visitor<'ast> for Scanner {
             aast::Expr_::Call(boxed) => {
                 for arg_expr in &boxed.args {
                     if let ParamKind::Pinout(..) = arg_expr.0 {
-                        let arg_var_id = expression_identifier::get_root_var_id(
-                            &arg_expr.1,
-                            c.this_class_name.as_ref(),
-                            None,
-                        );
+                        let arg_var_id = expression_identifier::get_root_var_id(&arg_expr.1);
 
                         if let Some(arg_var_id) = &arg_var_id {
                             if self.first_var_id.is_none() {
@@ -135,9 +112,8 @@ impl<'ast> Visitor<'ast> for Scanner {
 
                             match prop_or_method {
                                 ast_defs::PropOrMethod::IsMethod => {
-                                    let lhs_var_id = expression_identifier::get_root_var_id(
-                                        lhs_expr, None, None,
-                                    );
+                                    let lhs_var_id =
+                                        expression_identifier::get_root_var_id(lhs_expr);
 
                                     if let Some(lhs_var_id) = lhs_var_id {
                                         if self.first_var_id.is_none() {
@@ -174,10 +150,9 @@ pub fn get_assignment_map(
     pre_conditions: &Vec<&aast::Expr<(), ()>>,
     post_expressions: &Vec<&aast::Expr<(), ()>>,
     stmts: &Vec<aast::Stmt<(), ()>>,
-    this_class_name: Option<StrId>,
 ) -> (FxHashMap<String, FxHashSet<String>>, Option<String>) {
     let mut scanner = Scanner::new();
-    let mut context = Context { this_class_name };
+    let mut context = Context {};
 
     for pre_condition in pre_conditions {
         visit(&mut scanner, &mut context, pre_condition).unwrap();

@@ -4,7 +4,6 @@ use hakana_reflection_info::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use hakana_reflection_info::FileSource;
 use oxidized::{aast, ast_defs};
 
 // gets a var id from a simple variable
@@ -97,15 +96,11 @@ pub fn get_var_id(
 }
 
 // gets a the beginning var id from a chain
-pub(crate) fn get_root_var_id(
-    conditional: &aast::Expr<(), ()>,
-    this_class_name: Option<&StrId>,
-    source: Option<&FileSource>,
-) -> Option<String> {
+pub(crate) fn get_root_var_id(conditional: &aast::Expr<(), ()>) -> Option<String> {
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => Some(var_expr.1 .1.clone()),
-        aast::Expr_::ArrayGet(boxed) => get_root_var_id(&boxed.0, this_class_name, source),
-        aast::Expr_::ObjGet(boxed) => get_root_var_id(&boxed.0, this_class_name, source),
+        aast::Expr_::ArrayGet(boxed) => get_root_var_id(&boxed.0),
+        aast::Expr_::ObjGet(boxed) => get_root_var_id(&boxed.0),
         _ => None,
     }
 }

@@ -1,7 +1,7 @@
 use super::simple_assertion_reconciler::{get_acceptable_type, intersect_null};
 use crate::{
     function_analysis_data::FunctionAnalysisData,
-    reconciler::reconciler::trigger_issue_for_impossible, scope_analyzer::ScopeAnalyzer,
+    reconciler::trigger_issue_for_impossible, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
 use hakana_reflection_info::{
@@ -262,7 +262,6 @@ pub(crate) fn reconcile(
             return Some(get_nothing());
         }
         Assertion::DoesNotHaveArrayKey(key_name) => Some(reconcile_no_array_key(
-            statements_analyzer.get_codebase(),
             assertion,
             existing_var_type,
             key,
@@ -1782,7 +1781,6 @@ fn reconcile_not_in_array(
 }
 
 fn reconcile_no_array_key(
-    codebase: &CodebaseInfo,
     assertion: &Assertion,
     existing_var_type: &TUnion,
     key: Option<&String>,
@@ -1881,7 +1879,6 @@ fn reconcile_no_array_key(
                     acceptable_types.push(atomic);
                 } else {
                     let atomic = atomic.replace_template_extends(reconcile_no_array_key(
-                        codebase,
                         assertion,
                         as_type,
                         None,

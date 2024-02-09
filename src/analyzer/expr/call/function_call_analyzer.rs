@@ -12,7 +12,7 @@ use crate::expr::call::arguments_analyzer;
 use crate::expr::call_analyzer::{apply_effects, check_template_result};
 use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_analyzer};
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::reconciler::reconciler;
+use crate::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;

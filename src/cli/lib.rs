@@ -9,7 +9,7 @@ use hakana_reflection_info::Interner;
 use indexmap::IndexMap;
 use rand::Rng;
 use rustc_hash::FxHashSet;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
@@ -1492,7 +1492,7 @@ fn replace_contents(
                 }
                 Replacement::Substitute(string) => {
                     file_contents = file_contents[..start as usize].to_string()
-                        + string
+                        + &string
                         + &*file_contents[end as usize..].to_string();
                 }
             }

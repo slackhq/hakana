@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::{
     expression_analyzer, formula_generator,
     function_analysis_data::FunctionAnalysisData,
-    reconciler::reconciler,
+    reconciler,
     scope_analyzer::ScopeAnalyzer,
     scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
@@ -35,12 +35,8 @@ pub(crate) fn analyze<'a>(
     is_do: bool,
     always_enters_loop: bool,
 ) -> Result<ScopeContext, AnalysisError> {
-    let (assignment_map, first_var_id) = get_assignment_map(
-        &pre_conditions,
-        &post_expressions,
-        stmts,
-        loop_context.function_context.calling_class,
-    );
+    let (assignment_map, first_var_id) =
+        get_assignment_map(&pre_conditions, &post_expressions, stmts);
 
     let assignment_depth = if let Some(first_var_id) = first_var_id {
         get_assignment_map_depth(&first_var_id, &mut assignment_map.clone())

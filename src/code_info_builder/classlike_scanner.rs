@@ -517,7 +517,6 @@ pub(crate) fn scan(
             resolved_names,
             &mut storage,
             file_source,
-            codebase,
             interner,
             &mut def_signature_node.children,
             all_uses,
@@ -558,12 +557,8 @@ pub(crate) fn scan(
             let mut child_classlikes = FxHashSet::default();
 
             for attribute_param_expr in &user_attribute.params {
-                let attribute_param_type = simple_type_inferer::infer(
-                    codebase,
-                    &mut FxHashMap::default(),
-                    attribute_param_expr,
-                    resolved_names,
-                );
+                let attribute_param_type =
+                    simple_type_inferer::infer(attribute_param_expr, resolved_names);
 
                 if let Some(attribute_param_type) = attribute_param_type {
                     for atomic in attribute_param_type.types.into_iter() {
@@ -773,7 +768,6 @@ fn visit_class_const_declaration(
     resolved_names: &FxHashMap<usize, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
-    codebase: &CodebaseInfo,
     interner: &mut ThreadedInterner,
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
     all_uses: &Uses,
@@ -831,12 +825,7 @@ fn visit_class_const_declaration(
         inferred_type: if let ClassConstKind::CCAbstract(Some(const_expr))
         | ClassConstKind::CCConcrete(const_expr) = &const_node.kind
         {
-            simple_type_inferer::infer(
-                codebase,
-                &mut FxHashMap::default(),
-                const_expr,
-                resolved_names,
-            )
+            simple_type_inferer::infer(const_expr, resolved_names)
         } else {
             None
         },

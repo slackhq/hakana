@@ -1035,7 +1035,7 @@ fn dicts_can_be_identical(
             }
         }
         (Some(type_1_known_items), None) => {
-            for (_, type_1_entry) in type_1_known_items {
+            for type_1_entry in type_1_known_items.values() {
                 if let Some(type_2_dict_params) = type_2_dict_params {
                     if !union_type_comparator::can_expression_types_be_identical(
                         codebase,
@@ -1051,7 +1051,7 @@ fn dicts_can_be_identical(
             }
         }
         (None, Some(type_2_known_items)) => {
-            for (_, type_2_entry) in type_2_known_items {
+            for type_2_entry in type_2_known_items.values() {
                 if let Some(type_1_dict_params) = type_1_dict_params {
                     if !union_type_comparator::can_expression_types_be_identical(
                         codebase,

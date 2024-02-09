@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use super::{
-    negated_assertion_reconciler, reconciler::trigger_issue_for_impossible,
-    simple_assertion_reconciler,
+    negated_assertion_reconciler, simple_assertion_reconciler, trigger_issue_for_impossible,
 };
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,

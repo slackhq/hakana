@@ -270,11 +270,7 @@ pub(crate) fn analyze(
             analysis_data,
         );
     } else {
-        let root_var_id = get_root_var_id(
-            assign_var,
-            context.function_context.calling_class.as_ref(),
-            Some(statements_analyzer.get_file_analyzer().get_file_source()),
-        );
+        let root_var_id = get_root_var_id(assign_var);
 
         if let Some(root_var_id) = root_var_id {
             if let Some(existing_root_type) = context.vars_in_scope.get(&root_var_id).cloned() {
@@ -286,12 +282,6 @@ pub(crate) fn analyze(
                 );
             }
         }
-    }
-
-    if assign_value_type.is_mixed() {
-        // we don't really need to know about MixedAssignment, but in Psalm we trigger an issue here
-    } else {
-        // todo increment non-mixed count
     }
 
     analysis_data.expr_effects.insert(

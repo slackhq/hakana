@@ -63,7 +63,6 @@ pub(crate) fn scan_method(
     };
 
     let mut functionlike_info = get_functionlike(
-        codebase,
         interner,
         all_custom_issues,
         method_name,
@@ -144,7 +143,6 @@ fn add_promoted_param_property(
 }
 
 pub(crate) fn get_functionlike(
-    codebase: &CodebaseInfo,
     interner: &mut ThreadedInterner,
     all_custom_issues: &FxHashSet<String>,
     name: StrId,
@@ -286,7 +284,6 @@ pub(crate) fn get_functionlike(
 
     if !params.is_empty() {
         functionlike_info.params = convert_param_nodes(
-            codebase,
             interner,
             params,
             resolved_names,
@@ -328,12 +325,8 @@ pub(crate) fn get_functionlike(
                 let mut source_types = FxHashSet::default();
 
                 for attribute_param_expr in &user_attribute.params {
-                    let attribute_param_type = simple_type_inferer::infer(
-                        codebase,
-                        &mut FxHashMap::default(),
-                        attribute_param_expr,
-                        resolved_names,
-                    );
+                    let attribute_param_type =
+                        simple_type_inferer::infer(attribute_param_expr, resolved_names);
 
                     if let Some(attribute_param_type) = attribute_param_type {
                         if let Some(str) = attribute_param_type.get_single_literal_string_value() {
@@ -359,12 +352,8 @@ pub(crate) fn get_functionlike(
                 let mut removed_types = FxHashSet::default();
 
                 for attribute_param_expr in &user_attribute.params {
-                    let attribute_param_type = simple_type_inferer::infer(
-                        codebase,
-                        &mut FxHashMap::default(),
-                        attribute_param_expr,
-                        resolved_names,
-                    );
+                    let attribute_param_type =
+                        simple_type_inferer::infer(attribute_param_expr, resolved_names);
                     if let Some(attribute_param_type) = attribute_param_type {
                         attribute_param_type
                             .get_literal_string_values()
@@ -586,7 +575,6 @@ pub(crate) fn adjust_location_from_comments(
 }
 
 fn convert_param_nodes(
-    codebase: &CodebaseInfo,
     interner: &mut ThreadedInterner,
     param_nodes: &[aast::FunParam<(), ()>],
     resolved_names: &FxHashMap<usize, StrId>,
@@ -664,12 +652,8 @@ fn convert_param_nodes(
                         let mut sink_types = FxHashSet::default();
 
                         for attribute_param_expr in &user_attribute.params {
-                            let attribute_param_type = simple_type_inferer::infer(
-                                codebase,
-                                &mut FxHashMap::default(),
-                                attribute_param_expr,
-                                resolved_names,
-                            );
+                            let attribute_param_type =
+                                simple_type_inferer::infer(attribute_param_expr, resolved_names);
 
                             if let Some(attribute_param_type) = attribute_param_type {
                                 if let Some(str) =
@@ -686,12 +670,8 @@ fn convert_param_nodes(
                         let mut removed_taints = FxHashSet::default();
 
                         for attribute_param_expr in &user_attribute.params {
-                            let attribute_param_type = simple_type_inferer::infer(
-                                codebase,
-                                &mut FxHashMap::default(),
-                                attribute_param_expr,
-                                resolved_names,
-                            );
+                            let attribute_param_type =
+                                simple_type_inferer::infer(attribute_param_expr, resolved_names);
 
                             if let Some(attribute_param_type) = attribute_param_type {
                                 if let Some(str) =

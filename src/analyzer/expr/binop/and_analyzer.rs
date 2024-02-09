@@ -2,7 +2,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::reconciler::reconciler;
+use crate::reconciler;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;

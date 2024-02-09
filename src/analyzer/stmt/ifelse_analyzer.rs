@@ -17,7 +17,7 @@ use std::{collections::BTreeMap, rc::Rc};
 
 use crate::{
     algebra_analyzer, formula_generator, function_analysis_data::FunctionAnalysisData,
-    reconciler::reconciler, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    reconciler, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
 };
 
 use super::{

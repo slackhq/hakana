@@ -170,12 +170,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 } else {
                     None
                 },
-                inferred_type: simple_type_inferer::infer(
-                    self.codebase,
-                    &mut FxHashMap::default(),
-                    &gc.value,
-                    self.resolved_names,
-                ),
+                inferred_type: simple_type_inferer::infer(&gc.value, self.resolved_names),
                 unresolved_value: None,
                 is_abstract: false,
             },
@@ -355,12 +350,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
             let attribute_param_expr = &shape_source_attribute.params[0];
 
-            let attribute_param_type = simple_type_inferer::infer(
-                self.codebase,
-                &mut FxHashMap::default(),
-                attribute_param_expr,
-                self.resolved_names,
-            );
+            let attribute_param_type =
+                simple_type_inferer::infer(attribute_param_expr, self.resolved_names);
 
             if let Some(attribute_param_type) = attribute_param_type {
                 let atomic_param_attribute = attribute_param_type.get_single();
@@ -676,7 +667,6 @@ impl<'a> Scanner<'a> {
         };
 
         let mut functionlike_storage = functionlike_scanner::get_functionlike(
-            self.codebase,
             self.interner,
             self.all_custom_issues,
             name,

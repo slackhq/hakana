@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
-use crate::reconciler::reconciler;
+use crate::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;

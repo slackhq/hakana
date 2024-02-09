@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::reconciler::{assertion_reconciler, reconciler};
+use crate::reconciler::{self, assertion_reconciler};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::if_scope::IfScope;
 use crate::scope_context::{var_has_root, ScopeContext};
@@ -92,9 +92,7 @@ pub(crate) fn analyze(
     if_clauses = if_clauses
         .into_iter()
         .map(|c| {
-            let keys = &c
-                .possibilities.keys()
-                .collect::<Vec<&String>>();
+            let keys = &c.possibilities.keys().collect::<Vec<&String>>();
 
             let mut new_mixed_var_ids = vec![];
             for i in mixed_var_ids.clone() {
@@ -340,10 +338,12 @@ pub(crate) fn analyze(
     let mut removed_vars = FxHashSet::default();
 
     let redef_var_ifs = if_context
-        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars).into_keys()
+        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars)
+        .into_keys()
         .collect::<FxHashSet<_>>();
     let redef_var_else = temp_else_context
-        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars).into_keys()
+        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars)
+        .into_keys()
         .collect::<FxHashSet<_>>();
 
     let redef_all = redef_var_ifs

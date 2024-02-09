@@ -325,7 +325,7 @@ impl TestRunner {
                 .map(String::from)
                 .collect::<Vec<String>>();
 
-            if unexpected_candidates.len() > 0 {
+            if !unexpected_candidates.is_empty() {
                 test_diagnostics.push((
                     dir.clone(),
                     format!(
@@ -334,7 +334,7 @@ impl TestRunner {
                     ),
                 ));
             }
-            if missing_candidates.len() > 0 {
+            if !missing_candidates.is_empty() {
                 test_diagnostics.push((
                     dir.clone(),
                     format!(
@@ -344,7 +344,7 @@ impl TestRunner {
                 ));
             }
 
-            if unexpected_candidates.len() > 0 || missing_candidates.len() > 0 {
+            if !unexpected_candidates.is_empty() || !missing_candidates.is_empty() {
                 ("F".to_string(), Some(result.1), Some(result.0))
             } else {
                 (".".to_string(), Some(result.1), Some(result.0))
