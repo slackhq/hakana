@@ -260,6 +260,8 @@ pub(crate) fn analyze(
         );
     }
 
+    analysis_data.applicable_fixme_start = stmt.0.end_offset() as u32;
+
     Ok(())
 }
 

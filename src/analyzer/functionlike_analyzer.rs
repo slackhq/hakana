@@ -452,6 +452,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             } else {
                 None
             },
+            functionlike_storage.meta_start.start_offset,
             parent_analysis_data
                 .as_ref()
                 .map(|parent_analysis_data| parent_analysis_data.hakana_fixme_or_ignores.clone()),
