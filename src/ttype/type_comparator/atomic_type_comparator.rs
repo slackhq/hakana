@@ -889,10 +889,10 @@ pub(crate) fn can_be_identical<'a>(
             type1_part,
             TAtomic::TEnum { .. } | TAtomic::TEnumLiteralCase { .. }
         ) {
-            let enum_info = codebase.classlike_infos.get(name).unwrap();
-
-            if let Some(enum_type) = &enum_info.enum_type {
-                type2_part = enum_type;
+            if let Some(enum_info) = codebase.classlike_infos.get(name) {
+                if let Some(enum_type) = &enum_info.enum_type {
+                    type2_part = enum_type;
+                }
             }
         }
     }
