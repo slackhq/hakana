@@ -2,7 +2,7 @@ use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS, StrId};
+use hakana_reflection_info::{StrId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{get_arrayish_params, get_void};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -209,18 +209,16 @@ pub(crate) fn analyze(
         context.has_returned = true;
     }
 
-    let real_name = statements_analyzer.get_interner().lookup(&name);
-
-    match real_name {
-        "HH\\invariant" => {
+    match name {
+        StrId::INVARIANT => {
             if let Some((_, first_arg)) = &expr.2.first() {
                 process_invariant(first_arg, context, statements_analyzer, analysis_data);
             }
         }
-        "HH\\Lib\\C\\contains_key"
-        | "HH\\Lib\\Dict\\contains_key"
-        | "HH\\Lib\\C\\contains"
-        | "HH\\Lib\\Dict\\contains" => {
+        StrId::C_CONTAINS
+        | StrId::C_CONTAINS_KEY
+        | StrId::DICT_CONTAINS
+        | StrId::DICT_CONTAINS_KEY => {
             let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].1,
                 context.function_context.calling_class.as_ref(),
@@ -231,7 +229,7 @@ pub(crate) fn analyze(
                 )),
             );
 
-            if real_name == "HH\\Lib\\C\\contains" || real_name == "HH\\Lib\\Dict\\contains" {
+            if name == StrId::C_CONTAINS || name == StrId::DICT_CONTAINS {
                 let container_type = analysis_data.get_expr_type(expr.2[0].1.pos()).cloned();
                 let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos()).cloned();
                 check_array_key_or_value_type(
@@ -242,12 +240,10 @@ pub(crate) fn analyze(
                     second_arg_type,
                     pos,
                     false,
-                    &real_name.to_string(),
+                    name,
                     &context.function_context.calling_functionlike_id,
                 );
-            } else if real_name == "HH\\Lib\\C\\contains_key"
-                || real_name == "HH\\Lib\\Dict\\contains_key"
-            {
+            } else {
                 let container_type = analysis_data.get_expr_type(expr.2[0].1.pos()).cloned();
 
                 if let Some(expr_var_id) = expr_var_id {
@@ -266,7 +262,7 @@ pub(crate) fn analyze(
                             FxHashMap::from_iter([(
                                 expr_var_id.clone(),
                                 vec![Assertion::HasArrayKey(DictKey::Int(
-                                    boxed.parse::<u32>().unwrap(),
+                                    boxed.parse::<u64>().unwrap(),
                                 ))],
                             )]),
                         );
@@ -298,7 +294,7 @@ pub(crate) fn analyze(
                                 Some(second_arg_type.clone()),
                                 pos,
                                 true,
-                                &real_name.to_string(),
+                                name,
                                 &context.function_context.calling_functionlike_id,
                             );
                         }
@@ -331,7 +327,7 @@ pub(crate) fn analyze(
                 }
             }
         }
-        "HH\\Lib\\Str\\starts_with" => {
+        StrId::STR_STARTS_WITH => {
             if expr.2.len() == 2 {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(
@@ -373,7 +369,7 @@ pub(crate) fn analyze(
                 }
             }
         }
-        "HH\\Lib\\Regex\\matches" => {
+        StrId::REGEX_MATCHES => {
             if expr.2.len() == 2 {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(
@@ -396,17 +392,18 @@ pub(crate) fn analyze(
                         if let Some(str) = second_arg_type.get_single_literal_string_value() {
                             let mut hashes_to_remove = FxHashSet::default();
 
-                            if str.starts_with('^') && str != "^http:\\/\\/"
-                                    && str != "^https:\\/\\/" && str != "^https?:\\/\\/" {
+                            if str.starts_with('^')
+                                && str != "^http:\\/\\/"
+                                && str != "^https:\\/\\/"
+                                && str != "^https?:\\/\\/"
+                            {
                                 hashes_to_remove.extend([
                                     SinkType::HtmlAttributeUri,
                                     SinkType::CurlUri,
                                     SinkType::RedirectUri,
                                 ]);
 
-                                if str.ends_with('$')
-                                    && !str.contains(".*")
-                                    && !str.contains(".+")
+                                if str.ends_with('$') && !str.contains(".*") && !str.contains(".+")
                                 {
                                     hashes_to_remove.extend([
                                         SinkType::HtmlTag,
@@ -434,7 +431,7 @@ pub(crate) fn analyze(
                 }
             }
         }
-        "HH\\Asio\\join" => {
+        StrId::ASIO_JOIN => {
             if context.inside_async {
                 let issue = Issue::new(
                     IssueKind::NoJoinInAsyncFunction,
@@ -518,8 +515,7 @@ fn process_invariant(
                 active_type_assertions,
                 context,
                 &mut changed_var_ids,
-                &assert_type_assertions.keys().cloned()
-                    .collect(),
+                &assert_type_assertions.keys().cloned().collect(),
                 statements_analyzer,
                 analysis_data,
                 first_arg.pos(),
@@ -548,7 +544,7 @@ fn check_array_key_or_value_type(
     arg_type: Option<TUnion>,
     pos: &Pos,
     is_key: bool,
-    function_name: &String,
+    function_name: StrId,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
 ) {
     let mut has_valid_container_type = false;
@@ -574,7 +570,7 @@ fn check_array_key_or_value_type(
                     } else {
                         error_message = Some(format!(
                             "Second arg of {} expects type {}, saw {}",
-                            function_name,
+                            statements_analyzer.get_interner().lookup(&function_name),
                             param.get_id(Some(statements_analyzer.get_interner())),
                             arg_type.get_id(Some(statements_analyzer.get_interner()))
                         ));

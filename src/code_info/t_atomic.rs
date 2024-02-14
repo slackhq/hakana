@@ -13,7 +13,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, PartialOrd, Ord, Hash)]
 pub enum DictKey {
-    Int(u32),
+    Int(u64),
     String(String),
     Enum(StrId, StrId),
 }

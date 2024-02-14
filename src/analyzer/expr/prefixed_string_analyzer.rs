@@ -103,7 +103,7 @@ fn get_shape_fields_from_regex(inner_text: &str) -> BTreeMap<DictKey, (bool, Arc
             if let Some(v) = v {
                 shape_fields.insert(DictKey::String(v.clone()), (false, Arc::new(get_string())));
             } else {
-                shape_fields.insert(DictKey::Int(i as u32), (false, Arc::new(get_string())));
+                shape_fields.insert(DictKey::Int(i as u64), (false, Arc::new(get_string())));
             }
         }
     }

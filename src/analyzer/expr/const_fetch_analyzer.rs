@@ -41,7 +41,18 @@ pub(crate) fn analyze(
     };
 
     let mut stmt_type = if let Some(constant_storage) = codebase.constant_infos.get(name) {
-        if let Some(t) = &constant_storage.inferred_type {
+        if *name == StrId::FILE_CONST {
+            get_literal_string(statements_analyzer.get_file_path_actual().to_string())
+        } else if *name == StrId::DIR_CONST {
+            let path = Path::new(statements_analyzer.get_file_path_actual());
+            if let Some(dir) = path.parent() {
+                get_literal_string(dir.to_str().unwrap().to_owned())
+            } else {
+                get_string()
+            }
+        } else if *name == StrId::FUNCTION_CONST {
+            get_string()
+        } else if let Some(t) = &constant_storage.inferred_type {
             t.clone()
         } else if let Some(t) = &constant_storage.provided_type {
             t.clone()
@@ -49,36 +60,20 @@ pub(crate) fn analyze(
             get_mixed_any()
         }
     } else {
-        match name {
-            &StrId::FILE_CONST => {
-                get_literal_string(statements_analyzer.get_file_path_actual().to_string())
-            }
-            &StrId::DIR_CONST => {
-                let path = Path::new(statements_analyzer.get_file_path_actual());
-                if let Some(dir) = path.parent() {
-                    get_literal_string(dir.to_str().unwrap().to_owned())
-                } else {
-                    get_string()
-                }
-            }
-            &StrId::FUNCTION_CONST => get_string(),
-            _ => {
-                let constant_name = statements_analyzer.get_interner().lookup(name);
+        let constant_name = statements_analyzer.get_interner().lookup(name);
 
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::NonExistentConstant,
-                        format!("Constant {} not recognized", constant_name),
-                        statements_analyzer.get_hpos(boxed.pos()),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentConstant,
+                format!("Constant {} not recognized", constant_name),
+                statements_analyzer.get_hpos(boxed.pos()),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
 
-                get_mixed_any()
-            }
-        }
+        get_mixed_any()
     };
 
     type_expander::expand_union(

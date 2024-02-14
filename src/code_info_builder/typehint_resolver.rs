@@ -187,7 +187,7 @@ fn get_shape_type_from_hints(
         match &field.name {
             ast_defs::ShapeFieldName::SFlitInt(int) => {
                 known_items.insert(
-                    DictKey::Int(int.1.parse::<u32>().unwrap()),
+                    DictKey::Int(int.1.parse::<u64>().unwrap()),
                     (field.optional, Arc::new(field_type)),
                 );
             }

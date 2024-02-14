@@ -574,7 +574,7 @@ impl TUnion {
     pub fn get_single_dict_key(&self) -> Option<DictKey> {
         if self.is_single() {
             match self.get_single() {
-                TAtomic::TLiteralInt { value, .. } => Some(DictKey::Int(*value as u32)),
+                TAtomic::TLiteralInt { value, .. } => Some(DictKey::Int(*value as u64)),
                 TAtomic::TLiteralString { value, .. } => Some(DictKey::String(value.clone())),
                 TAtomic::TEnumLiteralCase {
                     enum_name,

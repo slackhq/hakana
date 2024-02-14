@@ -383,7 +383,7 @@ fn scrape_shapes_isset(
                     if let (Some(shape_name), Some(dim_id)) = (shape_name, dim_id) {
                         let dict_key = if dim_id.starts_with('\'') {
                             DictKey::String(dim_id[1..(dim_id.len() - 1)].to_string())
-                        } else if let Ok(arraykey_value) = dim_id.parse::<u32>() {
+                        } else if let Ok(arraykey_value) = dim_id.parse::<u64>() {
                             DictKey::Int(arraykey_value)
                         } else {
                             panic!("bad int key {}", dim_id);

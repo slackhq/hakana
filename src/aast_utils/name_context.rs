@@ -169,11 +169,14 @@ impl NameContext<'_> {
         }
 
         match name.as_str() {
-            "this"
-            | "static"
-            | "self"
-            | "parent"
-            | "_"
+            "__FUNCTION__" => return StrId::FUNCTION_CONST,
+            "__FILE__" => return StrId::FILE_CONST,
+            "__DIR__" => return StrId::DIR_CONST,
+            "this" => return StrId::THIS,
+            "static" => return StrId::STATIC,
+            "self" => return StrId::SELF,
+            "parent" => return StrId::PARENT,
+            "_"
             | "__AcceptDisposable"
             | "__ConsistentConstruct"
             | "__Deprecated"
@@ -193,9 +196,6 @@ impl NameContext<'_> {
             | "__ReturnDisposable"
             | "__Sealed"
             | "__Soft"
-            | "__FUNCTION__"
-            | "__FILE__"
-            | "__DIR__"
             | "__CLASS__" => {
                 return interner.intern_str(name);
             }

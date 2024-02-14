@@ -54,7 +54,7 @@ pub(crate) fn analyze(
         }
 
         let name = match name {
-            ShapeFieldName::SFlitInt(name) => Some(DictKey::Int(name.1.parse::<u32>().unwrap())),
+            ShapeFieldName::SFlitInt(name) => Some(DictKey::Int(name.1.parse::<u64>().unwrap())),
             ShapeFieldName::SFlitStr(name) => Some(DictKey::String(name.1.to_string())),
             ShapeFieldName::SFclassConst(lhs, name) => {
                 let lhs_name = if let Some(name) = statements_analyzer

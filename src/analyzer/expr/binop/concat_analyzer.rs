@@ -8,7 +8,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     taint::SinkType,
 };
-use hakana_type::{get_string, wrap_atomic};
+use hakana_type::{get_literal_string, get_string, wrap_atomic};
 use oxidized::aast;
 use rustc_hash::FxHashSet;
 
@@ -63,10 +63,16 @@ pub(crate) fn analyze_concat_nodes(
     let mut has_slash = false;
     let mut has_query = false;
 
+    let mut string_content = Some("".to_string());
+
     for (i, concat_node) in concat_nodes.iter().enumerate() {
         if let aast::Expr_::String(simple_string) = &concat_node.2 {
             if simple_string == "" {
                 continue;
+            }
+
+            if let Some(ref mut string_content) = string_content {
+                *string_content += &simple_string.to_string();
             }
 
             if simple_string.contains(&b'/') {
@@ -91,6 +97,12 @@ pub(crate) fn analyze_concat_nodes(
                     if str.contains('?') {
                         has_query = true;
                     }
+
+                    if let Some(ref mut string_content) = string_content {
+                        *string_content += &str;
+                    }
+                } else {
+                    string_content = None;
                 }
 
                 for old_parent_node in &expr_type.parent_nodes {
@@ -112,12 +124,17 @@ pub(crate) fn analyze_concat_nodes(
                 }
             } else {
                 all_literals = false;
+                string_content = None;
             }
         }
     }
 
     let mut result_type = if all_literals {
-        wrap_atomic(TAtomic::TStringWithFlags(true, false, true))
+        if let Some(string_content) = string_content {
+            get_literal_string(string_content)
+        } else {
+            wrap_atomic(TAtomic::TStringWithFlags(true, false, true))
+        }
     } else {
         get_string()
     };

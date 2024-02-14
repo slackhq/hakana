@@ -66,6 +66,7 @@ pub enum IssueKind {
     NonExistentClassConstant,
     NonExistentClasslike,
     NonExistentConstant,
+    NonExistentFile,
     NonExistentFunction,
     NonExistentMethod,
     NonExistentProperty,

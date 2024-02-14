@@ -395,7 +395,7 @@ fn adjust_array_type(
             } => {
                 let dictkey = if has_string_offset {
                     DictKey::String(arraykey_offset.clone())
-                } else if let Ok(arraykey_value) = arraykey_offset.parse::<u32>() {
+                } else if let Ok(arraykey_value) = arraykey_offset.parse::<u64>() {
                     DictKey::Int(arraykey_value)
                 } else {
                     println!("bad int key {}", arraykey_offset);
@@ -511,7 +511,7 @@ fn add_nested_assertions(
                         ))
                     } else if array_key.starts_with('$') {
                         None
-                    } else if let Ok(arraykey_value) = array_key.parse::<u32>() {
+                    } else if let Ok(arraykey_value) = array_key.parse::<u64>() {
                         Some(DictKey::Int(arraykey_value))
                     } else {
                         println!("bad int key {}", array_key);

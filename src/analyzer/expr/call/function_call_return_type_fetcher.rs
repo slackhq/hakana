@@ -15,12 +15,13 @@ use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
-    add_union_type, get_arrayish_params, get_float, get_int, get_mixed, get_mixed_any,
-    get_mixed_vec, get_nothing, get_null, get_object, get_string, get_vec, template, type_expander,
-    wrap_atomic,
+    add_union_type, get_arrayish_params, get_float, get_int, get_literal_string, get_mixed,
+    get_mixed_any, get_mixed_vec, get_nothing, get_null, get_object, get_string, get_vec, template,
+    type_expander, wrap_atomic,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::expr::binop::concat_analyzer::analyze_concat_nodes;
@@ -56,7 +57,7 @@ pub(crate) fn fetch(
     if let FunctionLikeIdentifier::Function(name) = functionlike_id {
         if let Some(t) = handle_special_functions(
             statements_analyzer,
-            statements_analyzer.get_interner().lookup(name),
+            name,
             expr.2,
             pos,
             codebase,
@@ -163,7 +164,7 @@ pub(crate) fn fetch(
 
 fn handle_special_functions(
     statements_analyzer: &StatementsAnalyzer,
-    name: &str,
+    name: &StrId,
     args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
     pos: &Pos,
     codebase: &CodebaseInfo,
@@ -171,7 +172,7 @@ fn handle_special_functions(
     context: &mut ScopeContext,
 ) -> Option<TUnion> {
     match name {
-        "HH\\type_structure" => {
+        &StrId::TYPE_STRUCTURE => {
             if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
                 (args.first(), args.get(1))
             {
@@ -192,7 +193,7 @@ fn handle_special_functions(
                 None
             }
         }
-        "HH\\global_get" => {
+        &StrId::GLOBAL_GET => {
             if let Some((_, arg_expr)) = args.first() {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     expr_type.get_single_literal_string_value().map(|value| {
@@ -210,7 +211,7 @@ fn handle_special_functions(
                 None
             }
         }
-        "preg_split" => {
+        &StrId::PREG_SPLIT => {
             if let Some((_, arg_expr)) = args.get(3) {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     return if let Some(value) = expr_type.get_single_literal_int_value() {
@@ -293,7 +294,7 @@ fn handle_special_functions(
 
             None
         }
-        "debug_backtrace" => Some(wrap_atomic(TAtomic::TVec {
+        &StrId::DEBUG_BACKTRACE => Some(wrap_atomic(TAtomic::TVec {
             known_items: None,
             type_param: Box::new(wrap_atomic(TAtomic::TDict {
                 known_items: Some(BTreeMap::from([
@@ -333,7 +334,7 @@ fn handle_special_functions(
             known_count: None,
             non_empty: true,
         })),
-        "str_replace" => {
+        &StrId::STR_REPLACE_LEGACY => {
             // returns string if the second arg is a string
             if let Some((_, arg_expr)) = args.get(1) {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -357,7 +358,7 @@ fn handle_special_functions(
                 None
             }
         }
-        "preg_replace" => {
+        &StrId::PREG_REPLACE => {
             // returns string if the third arg is a string
             if let Some((_, arg_expr)) = args.get(2) {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -382,7 +383,7 @@ fn handle_special_functions(
                 None
             }
         }
-        "microtime" => {
+        &StrId::MICROTIME => {
             if let Some((_, arg_expr)) = args.first() {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
                     if expr_type.is_always_truthy() {
@@ -399,7 +400,7 @@ fn handle_special_functions(
                 None
             }
         }
-        "HH\\Lib\\Str\\join" => {
+        &StrId::STR_JOIN => {
             if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
                 (args.first(), args.get(1))
             {
@@ -430,7 +431,7 @@ fn handle_special_functions(
                 None
             }
         }
-        "HH\\Lib\\Str\\format" => {
+        &StrId::STR_FORMAT => {
             if let Some(first_arg) = args.first() {
                 if let aast::Expr_::String(simple_string) = &first_arg.1 .2 {
                     let mut escaped = false;
@@ -502,10 +503,7 @@ fn handle_special_functions(
 
             None
         }
-        "HH\\Lib\\Str\\trim"
-        | "HH\\Lib\\Str\\strip_suffix"
-        | "HH\\Lib\\Str\\slice"
-        | "HH\\Lib\\Str\\replace" => {
+        &StrId::STR_TRIM | &StrId::STR_STRIP_SUFFIX | &StrId::STR_SLICE | &StrId::STR_REPLACE => {
             let mut all_literals = true;
             for (_, arg_expr) in args {
                 if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -525,7 +523,7 @@ fn handle_special_functions(
                 TAtomic::TString
             }))
         }
-        "HH\\Lib\\Str\\split" => {
+        &StrId::STR_SPLIT => {
             let mut all_literals = true;
             for (_, arg_expr) in args {
                 if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -545,7 +543,7 @@ fn handle_special_functions(
                 TAtomic::TString
             })))
         }
-        "range" => {
+        &StrId::RANGE => {
             let mut all_ints = true;
             for (_, arg_expr) in args {
                 if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -565,7 +563,7 @@ fn handle_special_functions(
                 None
             }
         }
-        "HH\\idx" => {
+        &StrId::IDX => {
             if args.len() >= 2 {
                 let dict_type = analysis_data.get_rc_expr_type(args[0].1.pos()).cloned();
                 let dim_type = analysis_data.get_rc_expr_type(args[1].1.pos()).cloned();
@@ -614,6 +612,22 @@ fn handle_special_functions(
             } else {
                 None
             }
+        }
+        &StrId::DIRNAME => {
+            if args.len() == 1 {
+                let file_type = analysis_data.get_rc_expr_type(args[0].1.pos()).cloned();
+
+                if let Some(file_type) = file_type {
+                    if let Some(literal_value) = file_type.get_single_literal_string_value() {
+                        let path = Path::new(&literal_value);
+                        if let Some(dir) = path.parent() {
+                            return Some(get_literal_string(dir.to_str().unwrap().to_owned()));
+                        }
+                    }
+                }
+            }
+
+            None
         }
         _ => None,
     }
@@ -670,7 +684,7 @@ fn get_type_structure_type(
             {
                 if let Some(type_constant_info) = classlike_info.type_constants.get(&const_name) {
                     return Some(wrap_atomic(TAtomic::TTypeAlias {
-                        name: StrId::TYPE_STRUCTURE,
+                        name: StrId::TYPE_STRUCTURE_OBJ,
                         type_params: Some(vec![match type_constant_info {
                             ClassConstantType::Concrete(actual_type) => actual_type.clone(),
                             ClassConstantType::Abstract(Some(as_type)) => as_type.clone(),

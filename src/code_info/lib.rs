@@ -89,7 +89,7 @@ impl StrId {
     pub const SIMPLE_XML_ELEMENT: StrId = StrId(31);
     pub const ASIO_JOIN: StrId = StrId(32);
     pub const INCLUDE: StrId = StrId(33);
-    pub const TYPE_STRUCTURE: StrId = StrId(34);
+    pub const TYPE_STRUCTURE_OBJ: StrId = StrId(34);
     pub const INVARIANT: StrId = StrId(35);
     pub const COERCE: StrId = StrId(36);
     pub const ASSERT: StrId = StrId(37);
@@ -100,9 +100,30 @@ impl StrId {
     pub const FILE_CONST: StrId = StrId(42);
     pub const DIR_CONST: StrId = StrId(43);
     pub const FUNCTION_CONST: StrId = StrId(44);
-    pub const REQUIRE: StrId = StrId(45);
-    pub const REQUIRE_ONCE: StrId = StrId(46);
-    pub const INCLUDE_ONCE: StrId = StrId(47);
+    pub const STR_FORMAT: StrId = StrId(45);
+    pub const STR_JOIN: StrId = StrId(46);
+    pub const STR_REPLACE: StrId = StrId(47);
+    pub const STR_SLICE: StrId = StrId(48);
+    pub const STR_SPLIT: StrId = StrId(49);
+    pub const STR_STRIP_SUFFIX: StrId = StrId(50);
+    pub const STR_TRIM: StrId = StrId(51);
+    pub const GLOBAL_GET: StrId = StrId(52);
+    pub const IDX: StrId = StrId(53);
+    pub const TYPE_STRUCTURE: StrId = StrId(54);
+    pub const DEBUG_BACKTRACE: StrId = StrId(55);
+    pub const MICROTIME: StrId = StrId(56);
+    pub const PREG_REPLACE: StrId = StrId(57);
+    pub const PREG_SPLIT: StrId = StrId(58);
+    pub const RANGE: StrId = StrId(59);
+    pub const STR_REPLACE_LEGACY: StrId = StrId(60);
+    pub const C_CONTAINS: StrId = StrId(61);
+    pub const C_CONTAINS_KEY: StrId = StrId(62);
+    pub const DICT_CONTAINS: StrId = StrId(63);
+    pub const DICT_CONTAINS_KEY: StrId = StrId(64);
+    pub const REGEX_MATCHES: StrId = StrId(65);
+    pub const STR_STARTS_WITH: StrId = StrId(66);
+    pub const PARENT: StrId = StrId(67);
+    pub const DIRNAME: StrId = StrId(68);
 
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -174,9 +195,31 @@ impl Default for Interner {
         interner.intern("__FILE__".to_string());
         interner.intern("__DIR__".to_string());
         interner.intern("__FUNCTION__".to_string());
-        interner.intern("require".to_string());
-        interner.intern("require_once".to_string());
-        interner.intern("include_once".to_string());
+        interner.intern("HH\\Lib\\Str\\format".to_string());
+        interner.intern("HH\\Lib\\Str\\join".to_string());
+        interner.intern("HH\\Lib\\Str\\replace".to_string());
+        interner.intern("HH\\Lib\\Str\\slice".to_string());
+        interner.intern("HH\\Lib\\Str\\split".to_string());
+        interner.intern("HH\\Lib\\Str\\strip_suffix".to_string());
+        interner.intern("HH\\Lib\\Str\\trim".to_string());
+        interner.intern("HH\\global_get".to_string());
+        interner.intern("HH\\idx".to_string());
+        interner.intern("HH\\type_structure".to_string());
+        interner.intern("debug_backtrace".to_string());
+        interner.intern("microtime".to_string());
+        interner.intern("preg_replace".to_string());
+        interner.intern("preg_split".to_string());
+        interner.intern("range".to_string());
+        interner.intern("str_replace".to_string());
+        interner.intern("HH\\Lib\\C\\contains".to_string());
+        interner.intern("HH\\Lib\\C\\contains_key".to_string());
+        interner.intern("HH\\Lib\\Dict\\contains".to_string());
+        interner.intern("HH\\Lib\\Dict\\contains_key".to_string());
+        interner.intern("HH\\Lib\\Regex\\matches".to_string());
+        interner.intern("HH\\Lib\\Str\\starts_with".to_string());
+        interner.intern("parent".to_string());
+        interner.intern("dirname".to_string());
+
         interner
     }
 }
