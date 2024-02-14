@@ -1,7 +1,10 @@
+use std::path::Path;
 use std::rc::Rc;
 
 use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::issue::IssueKind;
+use hakana_reflection_info::StrId;
+use hakana_type::get_literal_string;
 use hakana_type::get_mixed_any;
 use hakana_type::get_string;
 use hakana_type::type_expander;
@@ -46,10 +49,22 @@ pub(crate) fn analyze(
             get_mixed_any()
         }
     } else {
-        let constant_name = statements_analyzer.get_interner().lookup(name);
-        match constant_name {
-            "__FILE__" | "__DIR__" | "__FUNCTION__" => get_string(),
+        match name {
+            &StrId::FILE_CONST => {
+                get_literal_string(statements_analyzer.get_file_path_actual().to_string())
+            }
+            &StrId::DIR_CONST => {
+                let path = Path::new(statements_analyzer.get_file_path_actual());
+                if let Some(dir) = path.parent() {
+                    get_literal_string(dir.to_str().unwrap().to_owned())
+                } else {
+                    get_string()
+                }
+            }
+            &StrId::FUNCTION_CONST => get_string(),
             _ => {
+                let constant_name = statements_analyzer.get_interner().lookup(name);
+
                 analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::NonExistentConstant,

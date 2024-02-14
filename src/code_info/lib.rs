@@ -97,6 +97,12 @@ impl StrId {
     pub const KEY_EXISTS: StrId = StrId(39);
     pub const REMOVE_KEY: StrId = StrId(40);
     pub const MATH_INT32_MAX: StrId = StrId(41);
+    pub const FILE_CONST: StrId = StrId(42);
+    pub const DIR_CONST: StrId = StrId(43);
+    pub const FUNCTION_CONST: StrId = StrId(44);
+    pub const REQUIRE: StrId = StrId(45);
+    pub const REQUIRE_ONCE: StrId = StrId(46);
+    pub const INCLUDE_ONCE: StrId = StrId(47);
 
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -165,6 +171,12 @@ impl Default for Interner {
         interner.intern("keyExists".to_string());
         interner.intern("removeKey".to_string());
         interner.intern("HH\\Lib\\Math\\INT32_MAX".to_string());
+        interner.intern("__FILE__".to_string());
+        interner.intern("__DIR__".to_string());
+        interner.intern("__FUNCTION__".to_string());
+        interner.intern("require".to_string());
+        interner.intern("require_once".to_string());
+        interner.intern("include_once".to_string());
         interner
     }
 }
