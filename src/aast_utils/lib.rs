@@ -19,6 +19,7 @@ mod naming_visitor;
 
 #[derive(Debug)]
 pub enum ParserError {
+    CannotReadFile,
     NotAHackFile,
     SyntaxError { message: String, pos: HPos },
 }

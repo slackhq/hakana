@@ -234,6 +234,21 @@ fn analyze_file(
                             },
                             &None,
                         ),
+                        ParserError::CannotReadFile => Issue::new(
+                            IssueKind::InvalidHackFile,
+                            "Cannot read file".to_string(),
+                            HPos {
+                                file_path,
+                                start_offset: 0,
+                                end_offset: 0,
+                                start_line: 0,
+                                end_line: 0,
+                                start_column: 0,
+                                end_column: 0,
+                                insertion_start: None,
+                            },
+                            &None,
+                        ),
                         ParserError::SyntaxError { message, pos } => {
                             Issue::new(IssueKind::InvalidHackFile, message, pos, &None)
                         }

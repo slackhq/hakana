@@ -242,6 +242,7 @@ pub fn analyze_single_file(
         Ok(aast) => aast,
         Err(error) => match error {
             ParserError::NotAHackFile => return Err("Not a Hack file".to_string()),
+            ParserError::CannotReadFile => return Err("Cannot read file".to_string()),
             ParserError::SyntaxError { message, pos } => {
                 analysis_result.emitted_issues.insert(
                     file_path,

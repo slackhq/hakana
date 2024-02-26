@@ -411,7 +411,7 @@ pub fn get_aast_for_path(
     } else {
         match fs::read_to_string(file_path_str) {
             Ok(str_file) => str_file,
-            Err(_) => return Err(ParserError::NotAHackFile),
+            Err(_) => return Err(ParserError::CannotReadFile),
         }
     };
 

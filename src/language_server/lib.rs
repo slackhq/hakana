@@ -72,8 +72,12 @@ impl LanguageServer for Backend {
                             kind: None,
                         },
                         FileSystemWatcher {
-                            glob_pattern: GlobPattern::String("**/index.lock".to_string()),
-                            kind: None,
+                            glob_pattern: GlobPattern::String("**/.git/index.lock".to_string()),
+                            kind: Some(WatchKind::Delete),
+                        },
+                        FileSystemWatcher {
+                            glob_pattern: GlobPattern::String("**/[!.]*/**/".to_string()),
+                            kind: Some(WatchKind::Delete),
                         },
                     ],
                 })
@@ -100,32 +104,41 @@ impl LanguageServer for Backend {
     async fn did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
         let mut new_file_statuses = FxHashMap::default();
 
+        // self.client
+        //     .log_message(
+        //         MessageType::INFO,
+        //         format!("receiving changes {:?}", params.changes),
+        //     )
+        //     .await;
+
         for file_event in params.changes {
             //let uri = file_event.uri;
             let change_type = file_event.typ;
 
             let file_path = file_event.uri.path().to_string();
 
-            match change_type {
-                FileChangeType::CREATED => {
-                    new_file_statuses.insert(file_path, FileStatus::Added(0, 0));
+            if file_path.ends_with(".php")
+                || file_path.ends_with(".hack")
+                || file_path.ends_with(".hhi")
+            {
+                match change_type {
+                    FileChangeType::CREATED => {
+                        new_file_statuses.insert(file_path, FileStatus::Added(0, 0));
+                    }
+                    FileChangeType::CHANGED => {
+                        new_file_statuses.insert(file_path, FileStatus::Modified(0, 0));
+                    }
+                    FileChangeType::DELETED => {
+                        new_file_statuses.insert(file_path, FileStatus::Deleted);
+                    }
+                    _ => {}
                 }
-                FileChangeType::CHANGED => {
-                    new_file_statuses.insert(file_path, FileStatus::Modified(0, 0));
+            } else if Path::new(&file_path).extension().is_none() {
+                if let FileChangeType::DELETED = change_type {
+                    new_file_statuses.insert(file_path, FileStatus::DeletedDir);
                 }
-                FileChangeType::DELETED => {
-                    new_file_statuses.insert(file_path, FileStatus::Deleted);
-                }
-                _ => {}
             }
         }
-
-        // self.client
-        //     .log_message(
-        //         MessageType::INFO,
-        //         format!("adding changes {:?}", new_file_statuses),
-        //     )
-        //     .await;
 
         if let Some(ref mut existing_file_changes) = self.file_changes {
             existing_file_changes.extend(new_file_statuses);
@@ -138,12 +151,12 @@ impl LanguageServer for Backend {
                 .log_message(MessageType::INFO, "Waiting a sec while git is doing stuff")
                 .await;
         } else {
-            // self.client
-            //     .log_message(
-            //         MessageType::INFO,
-            //         format!("analyzing changes {:?}", self.file_changes),
-            //     )
-            //     .await;
+            self.client
+                .log_message(
+                    MessageType::INFO,
+                    format!("analyzing changes {:?}", self.file_changes),
+                )
+                .await;
             self.do_analysis().await;
             self.file_changes = None;
             self.emit_issues().await;

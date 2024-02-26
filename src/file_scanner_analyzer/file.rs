@@ -11,6 +11,7 @@ pub enum FileStatus {
     Unchanged(u64, u64),
     Added(u64, u64),
     Deleted,
+    DeletedDir,
     Modified(u64, u64),
 }
 
@@ -35,10 +36,29 @@ impl VirtualFileSystem {
         config: &Config,
         files_to_analyze: &mut Vec<String>,
     ) {
+        let deleted_folders = language_server_changes
+            .iter()
+            .filter(|(_, v)| matches!(v, FileStatus::DeletedDir))
+            .into_iter()
+            .map(|(k, _)| k)
+            .collect::<Vec<_>>();
+
+        let mut deleted_files = vec![];
+
         for file in self.file_hashes_and_times.keys() {
             let str_path = interner.lookup(&file.0).to_string();
 
-            if !language_server_changes.contains_key(&str_path) {
+            let in_deleted_folder = deleted_folders
+                .iter()
+                .any(|f| str_path.starts_with(&(f.to_string() + "/")));
+
+            if in_deleted_folder {
+                deleted_files.push(*file);
+            } else if let Some(file_status) = language_server_changes.get(&str_path) {
+                if let FileStatus::Deleted = file_status {
+                    deleted_files.push(*file);
+                }
+            } else {
                 files_to_scan.push(str_path.clone());
 
                 if !str_path.starts_with("hsl_embedded") && !str_path.ends_with(".hhi") {
@@ -51,6 +71,10 @@ impl VirtualFileSystem {
                     }
                 }
             }
+        }
+
+        for deleted_file in deleted_files {
+            self.file_hashes_and_times.remove(&deleted_file);
         }
 
         for (file_path, status) in language_server_changes {
@@ -70,9 +94,8 @@ impl VirtualFileSystem {
                         files_to_analyze,
                     );
                 }
-                FileStatus::Deleted => {
-                    let file_path = interner.intern(path.to_str().unwrap().to_string());
-                    self.file_hashes_and_times.remove(&FilePath(file_path));
+                FileStatus::Deleted | FileStatus::DeletedDir => {
+                    // handled above
                 }
             }
         }
