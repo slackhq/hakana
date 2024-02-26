@@ -22,6 +22,7 @@ export class LanguageServer {
     private initalizing = false;
     private disposable: Disposable;
     private serverProcess: ChildProcess | null = null;
+    private restartCount: number = 0;
 
     constructor(
         workspacePath: string,
@@ -34,7 +35,11 @@ export class LanguageServer {
         this.configurationService = configurationService;
         this.loggingService = loggingService;
 
-        const { file, args: fileArgs } = this.getHakanaPath([]);
+        this.initClient([]);
+    }
+
+    private initClient(args: string[]) {
+        const { file, args: fileArgs } = this.getHakanaPath(args);
 
         const serverOptions: ServerOptions = {
             command: file,
@@ -52,16 +57,13 @@ export class LanguageServer {
                 uriConverters: {
                     // VS Code by default %-encodes even the colon after the drive letter
                     // NodeJS handles it much better
-                    code2Protocol: (uri: Uri): string =>
-                        format(new URL(uri.toString(true))),
+                    code2Protocol: (uri: Uri): string => format(new URL(uri.toString(true))),
                     protocol2Code: (str: string): Uri => Uri.parse(str),
                 },
                 synchronize: {
                     // Synchronize the setting section 'hakana' to the server
                     configurationSection: 'hakana',
                     fileEvents: [
-                        // this is for when files get changed outside of vscode
-                        workspace.createFileSystemWatcher('**/*.(php|hack|hhi)'),
                         workspace.createFileSystemWatcher('**/hakana.json'),
                     ],
                 },
@@ -183,22 +185,31 @@ export class LanguageServer {
         await this.languageClient.stop();
     }
 
-    public async start() {
+    public async start(fromManualRestart: boolean) {
         this.initalizing = true;
         this.statusBar.update(LanguageServerStatus.Initializing, 'starting');
         this.loggingService.logInfo('Starting language server');
+
+        if (fromManualRestart) {
+            // re-initialises the client object, ensuring we pass in the correct args
+            this.initClient(['--from-restart']);
+        } else if (this.restartCount > 0) {
+            this.initClient([]);
+        }
+
         await this.languageClient.start();
         this.statusBar.update(LanguageServerStatus.Initialized, 'Ready');
         this.initalizing = false;
         this.ready = true;
         this.loggingService.logInfo(JSON.stringify(this.languageClient.initializeResult?.capabilities.textDocumentSync ?? ''));
         this.loggingService.logInfo('The Language Server is ready');
+        this.restartCount++;
     }
 
     public async restart() {
         this.loggingService.logInfo('Restarting language server');
         await this.stop();
-        await this.start();
+        await this.start(false);
     }
 
     public getLanguageClient(): LanguageClient {

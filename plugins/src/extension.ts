@@ -98,7 +98,7 @@ export async function activate(
     );
 
     // Start Lanuage Server
-    await languageServer.start();
+    await languageServer.start(false);
 
     vscode.workspace.onDidChangeConfiguration(async (change) => {
         if (

@@ -16,7 +16,7 @@ async function restartSever(
     configurationService: ConfigurationService
 ) {
     await client.stop();
-    client.start();
+    client.start(true);
 }
 
 function analyzeWorkSpace(
