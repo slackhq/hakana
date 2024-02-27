@@ -15,6 +15,7 @@ use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 use std::{fs, io};
 
 pub fn analyze_files(
@@ -83,6 +84,11 @@ pub fn analyze_files(
                 analyze_file(
                     file_path,
                     str_path,
+                    scan_data
+                        .file_system
+                        .file_hashes_and_times
+                        .get(&file_path)
+                        .map(|k| k.1),
                     codebase,
                     interner,
                     &config,
@@ -154,6 +160,11 @@ pub fn analyze_files(
                         analyze_file(
                             file_path,
                             str_path,
+                            scan_data
+                                .file_system
+                                .file_hashes_and_times
+                                .get(&file_path)
+                                .map(|k| k.1),
                             codebase,
                             interner,
                             &analysis_config,
@@ -191,6 +202,7 @@ pub fn analyze_files(
 fn analyze_file(
     file_path: FilePath,
     str_path: &String,
+    last_updated_time: Option<u64>,
     codebase: &CodebaseInfo,
     interner: &Interner,
     config: &Arc<Config>,
@@ -213,6 +225,40 @@ fn analyze_file(
             analysis_result,
         );
     } else {
+        if let Ok(metadata) = fs::metadata(str_path) {
+            let updated_time = metadata
+                .modified()
+                .unwrap()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros() as u64;
+
+            if let Some(last_updated_time) = last_updated_time {
+                if updated_time != last_updated_time {
+                    analysis_result.emitted_issues.insert(
+                        file_path,
+                        vec![Issue::new(
+                            IssueKind::InvalidHackFile,
+                            "File changed during analysis".to_string(),
+                            HPos {
+                                file_path,
+                                start_offset: 0,
+                                end_offset: 0,
+                                start_line: 0,
+                                end_line: 0,
+                                start_column: 0,
+                                end_column: 0,
+                                insertion_start: None,
+                            },
+                            &None,
+                        )],
+                    );
+
+                    return;
+                }
+            }
+        }
+
         let aast = match get_aast_for_path(file_path, str_path) {
             Ok(aast) => (aast.0, aast.1),
             Err(err) => {

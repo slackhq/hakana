@@ -39,7 +39,6 @@ impl VirtualFileSystem {
         let deleted_folders = language_server_changes
             .iter()
             .filter(|(_, v)| matches!(v, FileStatus::DeletedDir))
-            .into_iter()
             .map(|(k, _)| k)
             .collect::<Vec<_>>();
 
