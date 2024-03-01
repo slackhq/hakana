@@ -1,0 +1,2 @@
+ERROR: RedundantNonnullEntryCheck - input.hack:2:10 - Type shape('bar' => string, 'baz' => ?int) always has entry 'bar'
+ERROR: RedundantNonnullEntryCheck - input.hack:4:10 - Type shape('bar' => string, 'baz' => ?int) always has entry 'baz'
