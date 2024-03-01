@@ -2129,9 +2129,11 @@ fn reconcile_has_nonnull_entry_for_key(
 
                         if known_item.0 {
                             *known_item = (false, Arc::new(nonnull));
+                            // optional field
                             did_remove_type = true;
                         } else if *known_item.1 != nonnull {
                             known_item.1 = Arc::new(nonnull);
+                            // required field, nullable value
                             did_remove_type = true;
                         }
                     } else if let Some((_, value_param)) = params {
