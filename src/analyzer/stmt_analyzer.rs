@@ -219,7 +219,7 @@ pub(crate) fn analyze(
             }
         }
         aast::Stmt_::Fallthrough => {} // do nothing
-        aast::Stmt_::YieldBreak | aast::Stmt_::AssertEnv(_) | aast::Stmt_::Match(_) => {
+        aast::Stmt_::YieldBreak | aast::Stmt_::Match(_) => {
             //println!("{:#?}", stmt);
             analysis_data.maybe_add_issue(
                 Issue::new(

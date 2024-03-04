@@ -205,53 +205,6 @@ pub fn infer(
             None
         }
         aast::Expr_::Eif(_) => None,
-        aast::Expr_::Darray(boxed) => {
-            let mut known_items = BTreeMap::new();
-
-            for (key_expr, value_expr) in &boxed.1 {
-                if let aast::Expr_::String(key_value) = &key_expr.2 {
-                    let value_type = infer(value_expr, resolved_names);
-
-                    if let Some(value_type) = value_type {
-                        known_items.insert(
-                            DictKey::String(key_value.to_string()),
-                            (false, Arc::new(value_type)),
-                        );
-                    } else {
-                        return None;
-                    }
-                } else {
-                    return None;
-                }
-            }
-
-            Some(wrap_atomic(TAtomic::TDict {
-                non_empty: !known_items.is_empty(),
-                known_items: Some(known_items),
-                params: None,
-                shape_name: None,
-            }))
-        }
-        aast::Expr_::Varray(boxed) => {
-            let mut entries = BTreeMap::new();
-
-            for (i, entry_expr) in boxed.1.iter().enumerate() {
-                let entry_type = infer(entry_expr, resolved_names);
-
-                if let Some(entry_type) = entry_type {
-                    entries.insert(i, (false, entry_type));
-                } else {
-                    return None;
-                }
-            }
-
-            Some(wrap_atomic(TAtomic::TVec {
-                known_count: Some(entries.len()),
-                known_items: Some(entries),
-                type_param: Box::new(get_nothing()),
-                non_empty: true,
-            }))
-        }
         aast::Expr_::New(..) => None,
         aast::Expr_::Omitted => None,
         _ => {

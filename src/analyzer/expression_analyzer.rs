@@ -39,7 +39,6 @@ use hakana_type::{
     get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
     get_null, get_true, wrap_atomic,
 };
-use oxidized::ast::Field;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -142,9 +141,9 @@ pub(crate) fn analyze(
             as_analyzer::analyze(
                 statements_analyzer,
                 expr.pos(),
-                &boxed.0,
-                &boxed.1,
-                boxed.2,
+                &boxed.expr,
+                &boxed.hint,
+                boxed.is_nullable,
                 analysis_data,
                 context,
                 if_body_context,
@@ -501,32 +500,6 @@ pub(crate) fn analyze(
                     Rc::new(get_mixed_any()),
                 );
             }
-        }
-        aast::Expr_::Darray(boxed) => {
-            let fields = boxed
-                .1
-                .iter()
-                .map(|(key_expr, value_expr)| Field(key_expr.clone(), value_expr.clone()))
-                .collect::<Vec<_>>();
-
-            collection_analyzer::analyze_keyvals(
-                statements_analyzer,
-                &oxidized::tast::KvcKind::Dict,
-                &fields,
-                expr.pos(),
-                analysis_data,
-                context,
-            )?;
-        }
-        aast::Expr_::Varray(boxed) => {
-            collection_analyzer::analyze_vals(
-                statements_analyzer,
-                &oxidized::tast::VcKind::Vec,
-                &boxed.1,
-                expr.pos(),
-                analysis_data,
-                context,
-            )?;
         }
         aast::Expr_::ValCollection(boxed) => {
             collection_analyzer::analyze_vals(

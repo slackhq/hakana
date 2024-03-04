@@ -529,7 +529,6 @@ pub fn get_type_from_hint(
             }
         }
         Hint_::Hmixed => TAtomic::TMixed,
-        Hint_::Hany => TAtomic::TMixedWithFlags(true, false, false, false),
         Hint_::Hshape(shape_info) => {
             get_shape_type_from_hints(shape_info, classlike_name, type_context, resolved_names)
         }
@@ -553,7 +552,22 @@ pub fn get_type_from_hint(
 
             last.unwrap()
         }
-        Hint_::Hlike(_) => panic!(),
+        Hint_::Hlike(inner) => {
+            let union =
+                get_type_from_hint(&inner.1, classlike_name, type_context, resolved_names).unwrap();
+
+            let mut last = None;
+
+            for atomic_type in union.types.into_iter() {
+                if last.is_none() {
+                    last = Some(atomic_type);
+                } else {
+                    types.push(atomic_type);
+                }
+            }
+
+            last.unwrap()
+        }
         Hint_::Hfun(hint_fun) => {
             get_function_type_from_hints(hint_fun, classlike_name, type_context, resolved_names)
         }
@@ -580,7 +594,6 @@ pub fn get_type_from_hint(
         Hint_::Hsoft(hint) => {
             return get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names);
         }
-        Hint_::Herr => panic!(),
         Hint_::Hnonnull => TAtomic::TMixedWithFlags(false, false, false, true),
         Hint_::Habstr(_, _) => panic!(),
         Hint_::HvecOrDict(_, _) => panic!(),
