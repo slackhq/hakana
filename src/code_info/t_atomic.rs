@@ -1698,20 +1698,6 @@ pub fn populate_atomic_type(
                 force,
             );
         }
-        TAtomic::TTypeAlias {
-            type_params: Some(ref mut type_params),
-            ..
-        } => {
-            for type_param in type_params {
-                populate_union_type(
-                    type_param,
-                    codebase_symbols,
-                    reference_source,
-                    symbol_references,
-                    force,
-                );
-            }
-        }
         TAtomic::TVec {
             ref mut type_param,
             ref mut known_items,
@@ -1739,17 +1725,24 @@ pub fn populate_atomic_type(
         }
         TAtomic::TNamedObject {
             name,
-            type_params: Some(ref mut type_params),
+            ref mut type_params,
+            ..
+        }
+        | TAtomic::TTypeAlias {
+            name,
+            ref mut type_params,
             ..
         } => {
-            for type_param in type_params {
-                populate_union_type(
-                    type_param,
-                    codebase_symbols,
-                    reference_source,
-                    symbol_references,
-                    force,
-                );
+            if let Some(type_params) = type_params {
+                for type_param in type_params {
+                    populate_union_type(
+                        type_param,
+                        codebase_symbols,
+                        reference_source,
+                        symbol_references,
+                        force,
+                    );
+                }
             }
 
             match reference_source {

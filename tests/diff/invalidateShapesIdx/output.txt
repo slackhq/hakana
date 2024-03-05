@@ -1,0 +1,1 @@
+ERROR: UnnecessaryShapesIdx - bar.hack:7:10 - The field 'b' is always present on the shape -- consider using $foo['b'] instead

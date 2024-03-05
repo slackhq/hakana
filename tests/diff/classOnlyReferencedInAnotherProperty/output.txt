@@ -1,0 +1,2 @@
+ERROR: UnusedPublicOrProtectedProperty - foo.hack:2:46 - Unused public or protected property ApiResourcePermissions::$experiment
+ERROR: UnusedPublicOrProtectedProperty - foo.hack:7:39 - Unused public or protected property ApiResourcePermissionsExperiment::$value
