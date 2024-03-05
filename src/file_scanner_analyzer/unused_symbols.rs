@@ -19,6 +19,11 @@ pub(crate) fn find_unused_definitions(
     interner: &Interner,
     ignored_paths: &Option<FxHashSet<String>>,
 ) {
+    // don’t show unused definitions if we have any invalid Hack files
+    if analysis_result.has_invalid_hack_files {
+        return;
+    }
+
     let referenced_symbols_and_members = analysis_result
         .symbol_references
         .get_referenced_symbols_and_members();

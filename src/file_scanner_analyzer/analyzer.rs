@@ -235,6 +235,7 @@ fn analyze_file(
 
             if let Some(last_updated_time) = last_updated_time {
                 if updated_time != last_updated_time {
+                    analysis_result.has_invalid_hack_files = true;
                     analysis_result.emitted_issues.insert(
                         file_path,
                         vec![Issue::new(
@@ -262,6 +263,7 @@ fn analyze_file(
         let aast = match get_aast_for_path(file_path, str_path) {
             Ok(aast) => (aast.0, aast.1),
             Err(err) => {
+                analysis_result.has_invalid_hack_files = true;
                 analysis_result.emitted_issues.insert(
                     file_path,
                     vec![match err {
@@ -349,6 +351,7 @@ fn analyze_loaded_ast(
     match file_analyzer.analyze(&aast.0, analysis_result) {
         Ok(()) => {}
         Err(err) => {
+            analysis_result.has_invalid_hack_files = true;
             analysis_result.emitted_issues.insert(
                 file_path,
                 vec![Issue::new(IssueKind::InternalError, err.0, err.1, &None)],

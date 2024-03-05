@@ -6,9 +6,10 @@ use serde::Serialize;
 use crate::{
     code_location::FilePath,
     data_flow::graph::{DataFlowGraph, GraphKind},
+    function_context::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
-    Interner, function_context::FunctionLikeIdentifier,
+    Interner,
 };
 
 #[derive(Clone, Debug)]
@@ -32,6 +33,7 @@ pub struct AnalysisResult {
     pub issue_counts: FxHashMap<IssueKind, usize>,
     pub time_in_analysis: Duration,
     pub functions_to_migrate: FxHashMap<FunctionLikeIdentifier, bool>,
+    pub has_invalid_hack_files: bool,
 }
 
 impl AnalysisResult {
@@ -51,6 +53,7 @@ impl AnalysisResult {
             time_in_analysis: Duration::default(),
             functions_to_migrate: FxHashMap::default(),
             codegen: BTreeMap::default(),
+            has_invalid_hack_files: false,
         }
     }
 
@@ -74,6 +77,7 @@ impl AnalysisResult {
         }
         self.functions_to_migrate.extend(other.functions_to_migrate);
         self.codegen.extend(other.codegen);
+        self.has_invalid_hack_files = self.has_invalid_hack_files || other.has_invalid_hack_files;
     }
 
     pub fn get_all_issues(
