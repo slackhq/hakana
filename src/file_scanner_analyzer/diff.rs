@@ -26,6 +26,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
     codebase_diff: CodebaseDiff,
     codebase: &CodebaseInfo,
     interner: &mut Interner,
+    invalid_scanned_files: FxHashSet<FilePath>,
     files_to_analyze: &mut Vec<String>,
     issues_path: &Option<String>,
     references_path: &Option<String>,
@@ -90,7 +91,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
         .symbol_references
         .remove_references_from_invalid_symbols(&invalid_symbols_and_members);
 
-    let invalid_files = codebase
+    let mut invalid_files = codebase
         .files
         .iter()
         .filter(|(_, file_info)| {
@@ -101,6 +102,12 @@ pub(crate) fn mark_safe_symbols_from_diff(
         })
         .map(|(file_id, _)| interner.lookup(&file_id.0))
         .collect::<FxHashSet<_>>();
+
+    invalid_files.extend(
+        invalid_scanned_files
+            .iter()
+            .map(|file_id| interner.lookup(&file_id.0)),
+    );
 
     files_to_analyze.retain(|full_path| invalid_files.contains(&full_path.as_str()));
 

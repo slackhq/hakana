@@ -47,6 +47,7 @@ pub struct ScanFilesResult {
     pub codebase_diff: CodebaseDiff,
     pub asts: FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>,
     pub files_to_analyze: Vec<String>,
+    pub invalid_files: FxHashSet<FilePath>,
 }
 
 pub fn scan_files(
@@ -254,6 +255,8 @@ pub fn scan_files(
 
     let has_new_files = !files_to_scan.is_empty() || !changed_files.is_empty();
 
+    let invalid_files = Arc::new(Mutex::new(vec![]));
+
     if !files_to_scan.is_empty() {
         let file_scanning_now = Instant::now();
 
@@ -329,6 +332,7 @@ pub fn scan_files(
                     asts.lock().unwrap().remove(*file_path);
                     resolved_names.lock().unwrap().remove(*file_path);
                     new_codebase.files.remove(*file_path);
+                    invalid_files.lock().unwrap().push(**file_path);
                 }
 
                 update_progressbar(i as u64, bar.clone());
@@ -365,6 +369,7 @@ pub fn scan_files(
                 let test_patterns = test_patterns.clone();
                 let asts = asts.clone();
                 let logger = logger.clone();
+                let invalid_files = invalid_files.clone();
 
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
@@ -401,6 +406,7 @@ pub fn scan_files(
                             local_asts.remove(file_path);
                             local_resolved_names.remove(file_path);
                             new_codebase.files.remove(file_path);
+                            invalid_files.lock().unwrap().push(*file_path);
                         };
 
                         let mut tally = files_processed.lock().unwrap();
@@ -449,6 +455,10 @@ pub fn scan_files(
     }
 
     let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
+    let invalid_files = Arc::try_unwrap(invalid_files)
+        .unwrap()
+        .into_inner()
+        .unwrap();
 
     let resolved_names = Arc::try_unwrap(resolved_names)
         .unwrap()
@@ -485,6 +495,7 @@ pub fn scan_files(
         asts,
         files_to_analyze,
         file_system,
+        invalid_files: invalid_files.into_iter().collect(),
     })
 }
 

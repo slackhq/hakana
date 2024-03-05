@@ -98,9 +98,9 @@ pub fn analyze_files(
                     &asts,
                 );
             } else {
-                new_analysis_result.emitted_issues.insert(
+                new_analysis_result.invalid_files.insert(
                     file_path,
-                    vec![Issue::new(
+                    Issue::new(
                         IssueKind::InvalidHackFile,
                         "Invalid Hack file".to_string(),
                         HPos {
@@ -114,7 +114,7 @@ pub fn analyze_files(
                             insertion_start: None,
                         },
                         &None,
-                    )],
+                    ),
                 );
             }
 
@@ -172,6 +172,25 @@ pub fn analyze_files(
                             resolved_names,
                             &logger,
                             &asts,
+                        );
+                    } else {
+                        new_analysis_result.invalid_files.insert(
+                            file_path,
+                            Issue::new(
+                                IssueKind::InvalidHackFile,
+                                "Invalid Hack file".to_string(),
+                                HPos {
+                                    file_path,
+                                    start_offset: 1,
+                                    end_offset: 1,
+                                    start_line: 1,
+                                    end_line: 1,
+                                    start_column: 1,
+                                    end_column: 1,
+                                    insertion_start: None,
+                                },
+                                &None,
+                            ),
                         );
                     }
 
@@ -264,44 +283,34 @@ fn analyze_file(
             Ok(aast) => (aast.0, aast.1),
             Err(err) => {
                 analysis_result.has_invalid_hack_files = true;
-                analysis_result.emitted_issues.insert(
-                    file_path,
-                    vec![match err {
-                        ParserError::NotAHackFile => Issue::new(
-                            IssueKind::InvalidHackFile,
-                            "Invalid Hack file".to_string(),
-                            HPos {
-                                file_path,
-                                start_offset: 0,
-                                end_offset: 0,
-                                start_line: 0,
-                                end_line: 0,
-                                start_column: 0,
-                                end_column: 0,
-                                insertion_start: None,
-                            },
-                            &None,
-                        ),
-                        ParserError::CannotReadFile => Issue::new(
-                            IssueKind::InvalidHackFile,
-                            "Cannot read file".to_string(),
-                            HPos {
-                                file_path,
-                                start_offset: 0,
-                                end_offset: 0,
-                                start_line: 0,
-                                end_line: 0,
-                                start_column: 0,
-                                end_column: 0,
-                                insertion_start: None,
-                            },
-                            &None,
-                        ),
-                        ParserError::SyntaxError { message, pos } => {
-                            Issue::new(IssueKind::InvalidHackFile, message, pos, &None)
-                        }
-                    }],
-                );
+                match err {
+                    ParserError::NotAHackFile | ParserError::CannotReadFile => {
+                        analysis_result.invalid_files.insert(
+                            file_path,
+                            Issue::new(
+                                IssueKind::InvalidHackFile,
+                                "Invalid Hack file".to_string(),
+                                HPos {
+                                    file_path,
+                                    start_offset: 1,
+                                    end_offset: 1,
+                                    start_line: 1,
+                                    end_line: 1,
+                                    start_column: 1,
+                                    end_column: 1,
+                                    insertion_start: None,
+                                },
+                                &None,
+                            ),
+                        );
+                    }
+                    ParserError::SyntaxError { message, pos } => {
+                        analysis_result.emitted_issues.insert(
+                            file_path,
+                            vec![Issue::new(IssueKind::InvalidHackFile, message, pos, &None)],
+                        );
+                    }
+                }
 
                 return;
             }

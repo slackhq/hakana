@@ -94,6 +94,7 @@ pub async fn scan_and_analyze_async(
         file_system,
         asts,
         mut files_to_analyze,
+        invalid_files,
     } = scan_files(
         &all_scanned_dirs,
         None,
@@ -111,6 +112,7 @@ pub async fn scan_and_analyze_async(
             codebase_diff,
             &codebase,
             &mut interner,
+            invalid_files,
             &mut files_to_analyze,
             &None,
             &None,
@@ -207,6 +209,7 @@ pub fn scan_and_analyze(
         file_system,
         asts,
         mut files_to_analyze,
+        invalid_files,
     } = scan_files(
         &all_scanned_dirs,
         cache_dir,
@@ -245,6 +248,7 @@ pub fn scan_and_analyze(
             codebase_diff,
             &codebase,
             &mut interner,
+            invalid_files,
             &mut files_to_analyze,
             &get_issues_path(cache_dir),
             &get_references_path(cache_dir),

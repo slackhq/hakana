@@ -24,6 +24,7 @@ pub enum Replacement {
 pub struct AnalysisResult {
     pub emitted_issues: FxHashMap<FilePath, Vec<Issue>>,
     pub emitted_definition_issues: FxHashMap<FilePath, Vec<Issue>>,
+    pub invalid_files: FxHashMap<FilePath, Issue>,
     pub replacements: FxHashMap<FilePath, BTreeMap<(u32, u32), Replacement>>,
     pub insertions: FxHashMap<FilePath, BTreeMap<u32, Vec<String>>>,
     pub codegen: BTreeMap<String, String>,
@@ -44,6 +45,7 @@ impl AnalysisResult {
         Self {
             emitted_issues: FxHashMap::default(),
             emitted_definition_issues: FxHashMap::default(),
+            invalid_files: FxHashMap::default(),
             replacements: FxHashMap::default(),
             insertions: FxHashMap::default(),
             mixed_source_counts: FxHashMap::default(),
@@ -78,6 +80,7 @@ impl AnalysisResult {
         self.functions_to_migrate.extend(other.functions_to_migrate);
         self.codegen.extend(other.codegen);
         self.has_invalid_hack_files = self.has_invalid_hack_files || other.has_invalid_hack_files;
+        self.invalid_files.extend(other.invalid_files);
     }
 
     pub fn get_all_issues(
@@ -105,6 +108,16 @@ impl AnalysisResult {
                 )
             })
             .collect::<BTreeMap<_, _>>();
+
+        for (file_path, issue) in &self.invalid_files {
+            let file_path = if use_relative_path {
+                file_path.get_relative_path(interner, root_dir)
+            } else {
+                interner.lookup(&file_path.0).to_string()
+            };
+
+            issues.insert(file_path, vec![issue]);
+        }
 
         for (file_path, file_definition_issues) in &self.emitted_definition_issues {
             let file_path = if use_relative_path {
