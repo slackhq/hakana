@@ -1698,20 +1698,6 @@ pub fn populate_atomic_type(
                 force,
             );
         }
-        TAtomic::TNamedObject {
-            type_params: Some(ref mut type_params),
-            ..
-        } => {
-            for type_param in type_params {
-                populate_union_type(
-                    type_param,
-                    codebase_symbols,
-                    reference_source,
-                    symbol_references,
-                    force,
-                );
-            }
-        }
         TAtomic::TTypeAlias {
             type_params: Some(ref mut type_params),
             ..
@@ -1749,6 +1735,29 @@ pub fn populate_atomic_type(
                         force,
                     );
                 }
+            }
+        }
+        TAtomic::TNamedObject {
+            name,
+            type_params: Some(ref mut type_params),
+            ..
+        } => {
+            for type_param in type_params {
+                populate_union_type(
+                    type_param,
+                    codebase_symbols,
+                    reference_source,
+                    symbol_references,
+                    force,
+                );
+            }
+
+            match reference_source {
+                ReferenceSource::Symbol(in_signature, a) => {
+                    symbol_references.add_symbol_reference_to_symbol(*a, *name, *in_signature)
+                }
+                ReferenceSource::ClasslikeMember(in_signature, a, b) => symbol_references
+                    .add_class_member_reference_to_symbol((*a, *b), *name, *in_signature),
             }
         }
         TAtomic::TReference {
