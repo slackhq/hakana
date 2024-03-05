@@ -1,232 +1,1272 @@
-diff --cc hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
-index 48eff2109c7,7deac576a18..00000000000
+diff --git a/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml b/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
+index 48eff2109c7..c191982d7c7 100644
 --- a/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
 +++ b/hphp/hack/src/decl/cargo/rust_decl_ffi/Cargo.toml
-@@@ -20,11 -17,11 +20,13 @@@ crossbeam = "0.8
-  direct_decl_parser = { version = "0.0.0", path = "../../../parser/api/cargo/direct_decl_parser" }
-  hh_hash = { version = "0.0.0", path = "../../../utils/hh_hash" }
-  ocamlrep = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
-- ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
- +ocamlrep_custom = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
-  ocamlrep_ocamlpool = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
-  oxidized = { version = "0.0.0", path = "../../../oxidized" }
-  oxidized_by_ref = { version = "0.0.0", path = "../../../oxidized_by_ref" }
-  parser_core_types = { version = "0.0.0", path = "../../../parser/cargo/core_types" }
- +rayon = "1.2"
-  relative_path = { version = "0.0.0", path = "../../../utils/rust/relative_path" }
-+ 
-+ [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-+ ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
-diff --cc hphp/hack/src/deps/rust/file_info.rs
-index e3a025dc023,122c094ba64..00000000000
+@@ -20,7 +20,6 @@ crossbeam = "0.8"
+ direct_decl_parser = { version = "0.0.0", path = "../../../parser/api/cargo/direct_decl_parser" }
+ hh_hash = { version = "0.0.0", path = "../../../utils/hh_hash" }
+ ocamlrep = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+-ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+ ocamlrep_custom = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+ ocamlrep_ocamlpool = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+ oxidized = { version = "0.0.0", path = "../../../oxidized" }
+@@ -28,3 +27,6 @@ oxidized_by_ref = { version = "0.0.0", path = "../../../oxidized_by_ref" }
+ parser_core_types = { version = "0.0.0", path = "../../../parser/cargo/core_types" }
+ rayon = "1.2"
+ relative_path = { version = "0.0.0", path = "../../../utils/rust/relative_path" }
++
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
++ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+\ No newline at end of file
+diff --git a/hphp/hack/src/deps/rust/file_info.rs b/hphp/hack/src/deps/rust/file_info.rs
+index e3a025dc023..ad6d2a54f61 100644
 --- a/hphp/hack/src/deps/rust/file_info.rs
 +++ b/hphp/hack/src/deps/rust/file_info.rs
-@@@ -213,11 -121,7 +213,11 @@@ pub enum Pos 
-  )]
-  #[rust_to_ocaml(attr = "deriving (eq, show)")]
-  #[repr(C)]
- -pub struct Id(pub Pos, pub String, pub Option<u64>);
- +pub struct Id {
- +    pub pos: Pos,
- +    pub name: String,
--     pub decl_hash: Option<Int64>,
-++    pub decl_hash: Option<u64>,
- +}
-  
-  #[derive(
-      Clone,
-@@@ -236,8 -140,9 +236,8 @@@
-  )]
-  #[rust_to_ocaml(attr = "deriving eq")]
-  #[repr(C)]
-- pub struct HashType(pub Option<Int64>);
-+ pub struct HashType(pub Option<u64>);
-  
- -/// The record produced by the parsing phase.
-  #[derive(
-      Clone,
-      Debug,
-@@@ -287,30 -171,6 +287,30 @@@ pub struct FileInfo 
-      pub comments: Option<Vec<(pos::Pos, Comment)>>,
-  }
-  
-- pub type PfhHash = Int64;
-++pub type PfhHash = u64;
- +
- +#[derive(
- +    Clone,
- +    Debug,
- +    Deserialize,
- +    Eq,
- +    FromOcamlRep,
- +    Hash,
- +    NoPosHash,
- +    Ord,
- +    PartialEq,
- +    PartialOrd,
- +    Serialize,
- +    ToOcamlRep,
- +)]
- +#[repr(C)]
- +pub struct Change {
- +    pub path: relative_path::RelativePath,
- +    pub old_ids: Option<Ids>,
- +    pub new_ids: Option<Ids>,
- +    pub new_pfh_hash: Option<PfhHash>,
- +}
- +
-  /// The simplified record used after parsing.
-  #[derive(
-      Clone,
-diff --cc hphp/hack/src/oxidized_by_ref/gen/file_info.rs
-index 89410c84e9d,b3cd4c553ef..00000000000
+@@ -13,7 +13,7 @@ use no_pos_hash::NoPosHash;
+ use ocamlrep::FromOcamlRep;
+ use ocamlrep::FromOcamlRepIn;
+ use ocamlrep::ToOcamlRep;
+-use ocamlrep_caml_builtins::Int64;
++//use ocamlrep_caml_builtins::Int64;
+ use serde::Deserialize;
+ use serde::Serialize;
+ 
+@@ -216,7 +216,7 @@ pub enum Pos {
+ pub struct Id {
+     pub pos: Pos,
+     pub name: String,
+-    pub decl_hash: Option<Int64>,
++    pub decl_hash: Option<u64>,
+ }
+ 
+ #[derive(
+@@ -236,7 +236,7 @@ pub struct Id {
+ )]
+ #[rust_to_ocaml(attr = "deriving eq")]
+ #[repr(C)]
+-pub struct HashType(pub Option<Int64>);
++pub struct HashType(pub Option<u64>);
+ 
+ #[derive(
+     Clone,
+@@ -287,7 +287,7 @@ pub struct FileInfo {
+     pub comments: Option<Vec<(pos::Pos, Comment)>>,
+ }
+ 
+-pub type PfhHash = Int64;
++pub type PfhHash = u64;
+ 
+ #[derive(
+     Clone,
+diff --git a/hphp/hack/src/deps/rust/file_info/Cargo.toml b/hphp/hack/src/deps/rust/file_info/Cargo.toml
+index bf00c11c98a..8f308da1bc6 100644
+--- a/hphp/hack/src/deps/rust/file_info/Cargo.toml
++++ b/hphp/hack/src/deps/rust/file_info/Cargo.toml
+@@ -17,11 +17,13 @@ eq_modulo_pos = { version = "0.0.0", path = "../../../utils/eq_modulo_pos" }
+ naming_types = { version = "0.0.0", path = "../../../naming/rust/naming_types" }
+ no_pos_hash = { version = "0.0.0", path = "../../../utils/no_pos_hash" }
+ ocamlrep = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+-ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+ parser_core_types = { version = "0.0.0", path = "../../../parser/cargo/core_types" }
+ rc_pos = { version = "0.0.0", path = "../../../utils/rust/pos" }
+ relative_path = { version = "0.0.0", path = "../../../utils/rust/relative_path" }
+-rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype", "limits"] }
+ serde = { version = "1.0.185", features = ["derive", "rc"] }
+ thiserror = "1.0.49"
+ typing_deps_hash = { version = "0.0.0", path = "../../cargo/typing_deps_hash" }
++
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
++rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype", "limits"] }
++ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+\ No newline at end of file
+diff --git a/hphp/hack/src/deps/rust/file_info_lib.rs b/hphp/hack/src/deps/rust/file_info_lib.rs
+index ab6789911ec..4ce9b155a3e 100644
+--- a/hphp/hack/src/deps/rust/file_info_lib.rs
++++ b/hphp/hack/src/deps/rust/file_info_lib.rs
+@@ -15,10 +15,13 @@ mod s_set {
+ }
+ 
+ use naming_types::KindOfType;
+-use relative_path::RelativePath;
++#[cfg(unix)]
+ use rusqlite::types::FromSql;
++#[cfg(unix)]
+ use rusqlite::types::FromSqlError;
++#[cfg(unix)]
+ use rusqlite::types::FromSqlResult;
++#[cfg(unix)]
+ use rusqlite::types::ValueRef;
+ 
+ impl From<Mode> for parser_core_types::FileMode {
+@@ -48,15 +51,6 @@ impl std::cmp::PartialEq<Mode> for parser_core_types::FileMode {
+     }
+ }
+ 
+-impl Pos {
+-    pub fn path(&self) -> &RelativePath {
+-        match self {
+-            Pos::Full(pos) => pos.filename(),
+-            Pos::File(_, path) => path,
+-        }
+-    }
+-}
+-
+ impl From<KindOfType> for NameType {
+     fn from(kind: KindOfType) -> Self {
+         match kind {
+@@ -93,6 +87,7 @@ impl From<NameType> for typing_deps_hash::DepType {
+     }
+ }
+ 
++#[cfg(unix)]
+ impl FromSql for NameType {
+     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+         match value {
+@@ -116,6 +111,7 @@ impl FromSql for NameType {
+     }
+ }
+ 
++#[cfg(unix)]
+ impl rusqlite::ToSql for NameType {
+     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+         Ok(rusqlite::types::ToSqlOutput::from(*self as i64))
+diff --git a/hphp/hack/src/naming/names_rust/Cargo.toml b/hphp/hack/src/naming/names_rust/Cargo.toml
+index 677c4e42c7d..6b108243e1d 100644
+--- a/hphp/hack/src/naming/names_rust/Cargo.toml
++++ b/hphp/hack/src/naming/names_rust/Cargo.toml
+@@ -18,6 +18,8 @@ oxidized = { version = "0.0.0", path = "../../oxidized" }
+ oxidized_by_ref = { version = "0.0.0", path = "../../oxidized_by_ref" }
+ rand = { version = "0.8", features = ["small_rng"] }
+ relative_path = { version = "0.0.0", path = "../../utils/rust/relative_path" }
+-rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype", "limits"] }
+ serde = { version = "1.0.185", features = ["derive", "rc"] }
+ typing_deps_hash = { version = "0.0.0", path = "../../deps/cargo/typing_deps_hash" }
++
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
++rusqlite = { version = "0.29.0", features = ["backup", "blob", "column_decltype", "limits"] }
+\ No newline at end of file
+diff --git a/hphp/hack/src/naming/names_rust/datatypes.rs b/hphp/hack/src/naming/names_rust/datatypes.rs
+index 91106097aa3..930dfa897c5 100644
+--- a/hphp/hack/src/naming/names_rust/datatypes.rs
++++ b/hphp/hack/src/naming/names_rust/datatypes.rs
+@@ -11,9 +11,13 @@ use oxidized::file_info::Mode;
+ use oxidized::file_info::NameType;
+ use relative_path::Prefix;
+ use relative_path::RelativePath;
++#[cfg(unix)]
+ use rusqlite::types::FromSql;
++#[cfg(unix)]
+ use rusqlite::types::FromSqlError;
++#[cfg(unix)]
+ use rusqlite::types::FromSqlResult;
++#[cfg(unix)]
+ use rusqlite::types::ValueRef;
+ 
+ #[derive(Debug, Default)]
+@@ -83,6 +87,7 @@ impl FileInfoId {
+     }
+ }
+ 
++#[cfg(unix)]
+ impl rusqlite::ToSql for FileInfoId {
+     fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+         Ok(rusqlite::types::ToSqlOutput::from(self.0.get() as i64))
+diff --git a/hphp/hack/src/naming/names_rust/naming_sqlite.rs b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
+index 8768bd5b52a..b595a7444d0 100644
+--- a/hphp/hack/src/naming/names_rust/naming_sqlite.rs
++++ b/hphp/hack/src/naming/names_rust/naming_sqlite.rs
+@@ -12,8 +12,11 @@ use hh24_types::ToplevelCanonSymbolHash;
+ use hh24_types::ToplevelSymbolHash;
+ use oxidized::file_info::NameType;
+ use relative_path::RelativePath;
++#[cfg(unix)]
+ use rusqlite::params;
++#[cfg(unix)]
+ use rusqlite::Connection;
++#[cfg(unix)]
+ use rusqlite::OptionalExtension;
+ 
+ pub struct Names {
+diff --git a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
+index 9ea618b9305..fa8991f71ae 100644
+--- a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
++++ b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
+@@ -2223,7 +2223,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
+         self.file_attributes.accept(c, v)?;
+         self.mode.accept(c, v)?;
+         self.vis.accept(c, v)?;
+-        self.namespace.accept(c, v)?;
+         self.span.accept(c, v)?;
+         self.emit_id.accept(c, v)?;
+         self.is_ctx.accept(c, v)?;
+diff --git a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
+index 6c05fab4b51..1f84e3466da 100644
+--- a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
++++ b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
+@@ -2223,7 +2223,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
+         self.file_attributes.accept(c, v)?;
+         self.mode.accept(c, v)?;
+         self.vis.accept(c, v)?;
+-        self.namespace.accept(c, v)?;
+         self.span.accept(c, v)?;
+         self.emit_id.accept(c, v)?;
+         self.is_ctx.accept(c, v)?;
+diff --git a/hphp/hack/src/oxidized_by_ref/Cargo.toml b/hphp/hack/src/oxidized_by_ref/Cargo.toml
+index 2252858a312..e640c206d4e 100644
+--- a/hphp/hack/src/oxidized_by_ref/Cargo.toml
++++ b/hphp/hack/src/oxidized_by_ref/Cargo.toml
+@@ -22,12 +22,14 @@ hh24_types = { version = "0.0.0", path = "../utils/hh24_types" }
+ hh_hash = { version = "0.0.0", path = "../utils/hh_hash" }
+ no_pos_hash = { version = "0.0.0", path = "../utils/no_pos_hash" }
+ ocamlrep = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+-ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+ oxidized = { version = "0.0.0", path = "../oxidized" }
+ relative_path = { version = "0.0.0", path = "../utils/rust/relative_path" }
+ rust_to_ocaml_attr = { version = "0.0.0", path = "../rust_to_ocaml/rust_to_ocaml_attr" }
+ serde = { version = "1.0.185", features = ["derive", "rc"] }
+ 
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
++ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
++
+ [dev-dependencies]
+ pretty_assertions = { version = "1.2", features = ["alloc"], default-features = false }
+ serde_json = { version = "1.0.100", features = ["float_roundtrip", "unbounded_depth"] }
+diff --git a/hphp/hack/src/oxidized_by_ref/gen/file_info.rs b/hphp/hack/src/oxidized_by_ref/gen/file_info.rs
+index 89410c84e9d..d4770e9b5fb 100644
 --- a/hphp/hack/src/oxidized_by_ref/gen/file_info.rs
 +++ b/hphp/hack/src/oxidized_by_ref/gen/file_info.rs
-@@@ -11,10 -11,8 +11,9 @@@
-  use arena_trait::TrivialDrop;
-  use eq_modulo_pos::EqModuloPos;
-  use no_pos_hash::NoPosHash;
- +use ocamlrep::FromOcamlRep;
-  use ocamlrep::FromOcamlRepIn;
-  use ocamlrep::ToOcamlRep;
-- use ocamlrep_caml_builtins::Int64;
-  pub use oxidized::file_info::Mode;
-  pub use oxidized::file_info::NameType;
-  pub use prim_defs::*;
-@@@ -173,14 -76,11 +172,14 @@@ arena_deserializer::impl_deserialize_in
-  )]
-  #[rust_to_ocaml(attr = "deriving (eq, show)")]
-  #[repr(C)]
- -pub struct Id<'a>(
- -    #[serde(deserialize_with = "arena_deserializer::arena", borrow)] pub Pos<'a>,
- -    #[serde(deserialize_with = "arena_deserializer::arena", borrow)] pub &'a str,
- -    #[serde(deserialize_with = "arena_deserializer::arena", borrow)] pub Option<&'a u64>,
- -);
- +pub struct Id<'a> {
- +    #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
- +    pub pos: Pos<'a>,
- +    #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
- +    pub name: &'a str,
- +    #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
--     pub decl_hash: Option<&'a Int64>,
-++    pub decl_hash: Option<&'a u64>,
- +}
-  impl<'a> TrivialDrop for Id<'a> {}
-  arena_deserializer::impl_deserialize_in_arena!(Id<'arena>);
-  
-@@@ -268,36 -145,6 +267,36 @@@ pub struct FileInfo<'a> 
-  impl<'a> TrivialDrop for FileInfo<'a> {}
-  arena_deserializer::impl_deserialize_in_arena!(FileInfo<'arena>);
-  
-- pub type PfhHash<'a> = Int64;
-++pub type PfhHash<'a> = u64;
- +
- +#[derive(
- +    Clone,
- +    Debug,
- +    Deserialize,
- +    Eq,
- +    FromOcamlRepIn,
- +    Hash,
- +    NoPosHash,
- +    Ord,
- +    PartialEq,
- +    PartialOrd,
- +    Serialize,
- +    ToOcamlRep
- +)]
- +#[repr(C)]
- +pub struct Change<'a> {
- +    #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
- +    pub path: &'a relative_path::RelativePath<'a>,
- +    #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
- +    pub old_ids: Option<&'a Ids<'a>>,
- +    #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
- +    pub new_ids: Option<&'a Ids<'a>>,
- +    #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
- +    pub new_pfh_hash: Option<&'a PfhHash<'a>>,
- +}
- +impl<'a> TrivialDrop for Change<'a> {}
- +arena_deserializer::impl_deserialize_in_arena!(Change<'arena>);
- +
-  pub use oxidized::file_info::Names;
-  
-  /// The simplified record stored in saved-state.
-diff --cc hphp/hack/src/parser/aast_parser.rs
-index 01413aba90c,93d79e22298..00000000000
+@@ -14,7 +14,6 @@ use no_pos_hash::NoPosHash;
+ use ocamlrep::FromOcamlRep;
+ use ocamlrep::FromOcamlRepIn;
+ use ocamlrep::ToOcamlRep;
+-use ocamlrep_caml_builtins::Int64;
+ pub use oxidized::file_info::Mode;
+ pub use oxidized::file_info::NameType;
+ pub use prim_defs::*;
+@@ -179,7 +178,7 @@ pub struct Id<'a> {
+     #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
+     pub name: &'a str,
+     #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
+-    pub decl_hash: Option<&'a Int64>,
++    pub decl_hash: Option<&'a u64>,
+ }
+ impl<'a> TrivialDrop for Id<'a> {}
+ arena_deserializer::impl_deserialize_in_arena!(Id<'arena>);
+@@ -202,7 +201,7 @@ arena_deserializer::impl_deserialize_in_arena!(Id<'arena>);
+ #[rust_to_ocaml(attr = "deriving eq")]
+ #[repr(C)]
+ pub struct HashType<'a>(
+-    #[serde(deserialize_with = "arena_deserializer::arena", borrow)] pub Option<&'a Int64>,
++    #[serde(deserialize_with = "arena_deserializer::arena", borrow)] pub Option<&'a u64>,
+ );
+ impl<'a> TrivialDrop for HashType<'a> {}
+ arena_deserializer::impl_deserialize_in_arena!(HashType<'arena>);
+@@ -268,7 +267,7 @@ pub struct FileInfo<'a> {
+ impl<'a> TrivialDrop for FileInfo<'a> {}
+ arena_deserializer::impl_deserialize_in_arena!(FileInfo<'arena>);
+ 
+-pub type PfhHash<'a> = Int64;
++pub type PfhHash<'a> = u64;
+ 
+ #[derive(
+     Clone,
+diff --git a/hphp/hack/src/oxidized_by_ref/manual/pos.rs b/hphp/hack/src/oxidized_by_ref/manual/pos.rs
+index 0f58d4d92df..7a324fa3189 100644
+--- a/hphp/hack/src/oxidized_by_ref/manual/pos.rs
++++ b/hphp/hack/src/oxidized_by_ref/manual/pos.rs
+@@ -124,7 +124,7 @@ impl<'a> Pos<'a> {
+             if start_minus1 == end {
+                 end = start
+             }
+-            (line, start, end)
++            (line as usize, start as usize, end as usize)
+         }
+         match self.0 {
+             Small { start, end, .. } => compute(start, end),
+@@ -144,7 +144,7 @@ impl<'a> Pos<'a> {
+             Tiny { span, .. } => span.to_raw_span().end.line_column_beg(),
+         }
+         .0;
+-        (line_begin, line_end, start, end)
++        (line_begin, line_end as usize, start, end)
+     }
+ 
+     pub fn info_raw(&self) -> (usize, usize) {
+@@ -153,9 +153,9 @@ impl<'a> Pos<'a> {
+ 
+     pub fn line(&self) -> usize {
+         match self.0 {
+-            Small { start, .. } => start.line(),
+-            Large { start, .. } => start.line(),
+-            Tiny { span, .. } => span.start_line_number(),
++            Small { start, .. } => start.line() as usize,
++            Large { start, .. } => start.line() as usize,
++            Tiny { span, .. } => span.start_line_number() as usize,
+         }
+     }
+ 
+@@ -167,22 +167,31 @@ impl<'a> Pos<'a> {
+     ) -> &'a Self {
+         let (start_line, start_bol, start_offset) = start;
+         let (end_line, end_bol, end_offset) = end;
+-        let start = FilePosLarge::from_lnum_bol_offset(start_line, start_bol, start_offset);
+-        let end = FilePosLarge::from_lnum_bol_offset(end_line, end_bol, end_offset);
++        let start = FilePosLarge::from_lnum_bol_offset(
++            start_line as u64,
++            start_bol as u64,
++            start_offset as u64,
++        );
++        let end =
++            FilePosLarge::from_lnum_bol_offset(end_line as u64, end_bol as u64, end_offset as u64);
+         Self::from_raw_span(b, file, PosSpanRaw { start, end })
+     }
+ 
+     pub fn to_start_and_end_lnum_bol_offset(
+         &self,
+     ) -> ((usize, usize, usize), (usize, usize, usize)) {
+-        match &self.0 {
++        let (start, end) = match &self.0 {
+             Small { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
+             Large { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
+             Tiny { span, .. } => {
+                 let PosSpanRaw { start, end } = span.to_raw_span();
+                 (start.line_beg_offset(), end.line_beg_offset())
+             }
+-        }
++        };
++        (
++            (start.0 as usize, start.1 as usize, start.2 as usize),
++            (end.0 as usize, end.1 as usize, end.2 as usize),
++        )
+     }
+ 
+     /// For single-line spans only.
+@@ -193,11 +202,15 @@ impl<'a> Pos<'a> {
+         cols: Range<usize>,
+         start_offset: usize,
+     ) -> &'a Self {
+-        let start = FilePosLarge::from_line_column_offset(line, cols.start, start_offset);
++        let start = FilePosLarge::from_line_column_offset(
++            line as u64,
++            cols.start as u64,
++            start_offset as u64,
++        );
+         let end = FilePosLarge::from_line_column_offset(
+-            line,
+-            cols.end,
+-            start_offset + (cols.end - cols.start),
++            line as u64,
++            cols.end as u64,
++            (start_offset + (cols.end - cols.start)) as u64,
+         );
+         Self::from_raw_span(b, file, PosSpanRaw { start, end })
+     }
+@@ -294,27 +307,29 @@ impl<'a> Pos<'a> {
+ 
+     pub fn end_offset(&self) -> usize {
+         match &self.0 {
+-            Small { end, .. } => end.offset(),
+-            Large { end, .. } => end.offset(),
+-            Tiny { span, .. } => span.end_offset(),
++            Small { end, .. } => end.offset() as usize,
++            Large { end, .. } => end.offset() as usize,
++            Tiny { span, .. } => span.end_offset() as usize,
+         }
+     }
+ 
+     pub fn start_offset(&self) -> usize {
+         match &self.0 {
+-            Small { start, .. } => start.offset(),
+-            Large { start, .. } => start.offset(),
+-            Tiny { span, .. } => span.start_offset(),
++            Small { start, .. } => start.offset() as usize,
++            Large { start, .. } => start.offset() as usize,
++            Tiny { span, .. } => span.start_offset() as usize,
+         }
+     }
+ 
+     pub fn to_owned(&self) -> oxidized::pos::Pos {
+         let file = self.filename();
+         let PosSpanRaw { start, end } = self.to_raw_span();
++        let start = start.line_beg_offset();
++        let end = end.line_beg_offset();
+         oxidized::pos::Pos::from_lnum_bol_offset(
+             std::sync::Arc::new(file.to_oxidized()),
+-            start.line_beg_offset(),
+-            end.line_beg_offset(),
++            (start.0 as usize, start.1 as usize, start.2 as usize),
++            (end.0 as usize, end.1 as usize, end.2 as usize),
+         )
+     }
+ }
+diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
+index 01413aba90c..3f6e56749f0 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
-@@@ -85,14 -85,7 +85,14 @@@ impl<'src> AastParser 
-          indexed_source_text: &'src IndexedSourceText<'src>,
-          default_unstable_features: HashSet<rust_parser_errors::UnstableFeatures>,
-      ) -> Result<ParserResult> {
- +        // TODO(T120858428): remove this check (and always verify_utf8) once
- +        // we're strict everywhere!
- +        if env.parser_options.po_strict_utf8 {
- +            if let Some(err) = Self::verify_utf8(indexed_source_text) {
- +                return Ok(err);
- +            }
- +        }
--         let start_t = Instant::now();
-+         //let start_t = Instant::now();
-          let arena = Bump::new();
-          stack_limit::reset();
-          let (language, mode, tree) = Self::parse_text(&arena, env, indexed_source_text)?;
-@@@ -358,9 -333,15 +358,9 @@@
-                      disable_hh_ignore_error: env.parser_options.po_disable_hh_ignore_error,
-                      allowed_decl_fixme_codes: &env.parser_options.po_allowed_decl_fixme_codes,
-                  };
--             Ok(scourer.scour_comments(script))
-+             Ok(scourer.scour_comments(script, indexed_source_text.source_text().file_path()))
-          } else {
- -            Ok(ScouredComments {
- -                comments: Default::default(),
- -                fixmes: Default::default(),
- -                misuses: Default::default(),
- -                error_pos: Default::default(),
- -                bad_ignore_pos: Default::default(),
- -            })
- +            Ok(default_scoured_comments())
-          }
-      }
-  }
-diff --cc hphp/hack/src/providers/hackrs_provider_backend/Cargo.toml
-index 711c6045eda,154f2cdb3d5..00000000000
---- a/hphp/hack/src/providers/hackrs_provider_backend/Cargo.toml
-+++ b/hphp/hack/src/providers/hackrs_provider_backend/Cargo.toml
-diff --cc hphp/hack/src/utils/arena_deserializer/Cargo.toml
-index d0f6c7271be,6a697f0fb42..00000000000
+@@ -5,7 +5,7 @@
+ // LICENSE file in the "hack" directory of this source tree.
+ 
+ use std::sync::Arc;
+-use std::time::Instant;
++
+ 
+ use bumpalo::Bump;
+ use hash::HashSet;
+@@ -92,11 +92,11 @@ impl<'src> AastParser {
+                 return Ok(err);
+             }
+         }
+-        let start_t = Instant::now();
++        //let start_t = Instant::now();
+         let arena = Bump::new();
+         stack_limit::reset();
+         let (language, mode, tree) = Self::parse_text(&arena, env, indexed_source_text)?;
+-        let parsing_t = start_t.elapsed();
++        //let parsing_t = start_t.elapsed();
+         let parse_peak = stack_limit::peak();
+         let mut pr = Self::from_tree_with_namespace_env(
+             env,
+@@ -110,8 +110,8 @@ impl<'src> AastParser {
+         )?;
+ 
+         pr.profile.parse_peak = parse_peak as u64;
+-        pr.profile.parsing_t = parsing_t;
+-        pr.profile.total_t = start_t.elapsed();
++        //pr.profile.parsing_t = parsing_t;
++        //pr.profile.total_t = start_t.elapsed();
+         Ok(pr)
+     }
+ 
+@@ -172,7 +172,7 @@ impl<'src> AastParser {
+         tree: PositionedSyntaxTree<'src, 'arena>,
+         default_unstable_features: HashSet<rust_parser_errors::UnstableFeatures>,
+     ) -> Result<ParserResult> {
+-        let lowering_t = Instant::now();
++        //let lowering_t = Instant::now();
+         match language {
+             Language::Hack => {}
+             _ => return Err(Error::NotAHackFile()),
+@@ -193,14 +193,14 @@ impl<'src> AastParser {
+         );
+         stack_limit::reset();
+         let ret = lower(&mut lowerer_env, tree.root());
+-        let (lowering_t, elaboration_t) = (lowering_t.elapsed(), Instant::now());
++        //let (lowering_t, elaboration_t) = (lowering_t.elapsed(), Instant::now());
+         let lower_peak = stack_limit::peak() as u64;
+         let mut ret = if env.elaborate_namespaces {
+             namespaces::toplevel_elaborator::elaborate_toplevel_defs(ns, ret)
+         } else {
+             ret
+         };
+-        let (elaboration_t, error_t) = (elaboration_t.elapsed(), Instant::now());
++        //let (elaboration_t, error_t) = (elaboration_t.elapsed(), Instant::now());
+         stack_limit::reset();
+         let syntax_errors = Self::check_syntax_error(
+             env,
+@@ -213,7 +213,7 @@ impl<'src> AastParser {
+         let lowerer_parsing_errors = lowerer_env.parsing_errors().to_vec();
+         let errors = lowerer_env.hh_errors().to_vec();
+         let lint_errors = lowerer_env.lint_errors().to_vec();
+-        let error_t = error_t.elapsed();
++        //let error_t = error_t.elapsed();
+ 
+         Ok(ParserResult {
+             file_mode: mode,
+@@ -225,9 +225,9 @@ impl<'src> AastParser {
+             lint_errors,
+             profile: ParserProfile {
+                 lower_peak,
+-                lowering_t,
+-                elaboration_t,
+-                error_t,
++                lowering_t: std::time::Duration::new(0, 0),
++                elaboration_t: std::time::Duration::new(0, 0),
++                error_t: std::time::Duration::new(0, 0),
+                 error_peak,
+                 arena_bytes: arena.allocated_bytes() as u64,
+                 ..Default::default()
+@@ -358,7 +358,7 @@ impl<'src> AastParser {
+                     disable_hh_ignore_error: env.parser_options.po_disable_hh_ignore_error,
+                     allowed_decl_fixme_codes: &env.parser_options.po_allowed_decl_fixme_codes,
+                 };
+-            Ok(scourer.scour_comments(script))
++            Ok(scourer.scour_comments(script, indexed_source_text.source_text().file_path()))
+         } else {
+             Ok(default_scoured_comments())
+         }
+diff --git a/hphp/hack/src/parser/core/lexer.rs b/hphp/hack/src/parser/core/lexer.rs
+index ab9bf36c7c6..05b6f906190 100644
+--- a/hphp/hack/src/parser/core/lexer.rs
++++ b/hphp/hack/src/parser/core/lexer.rs
+@@ -1979,7 +1979,7 @@ where
+                         acc.push(t);
+                         return acc;
+                     }
+-                    TriviaKind::FixMe | TriviaKind::IgnoreError => {
++                    TriviaKind::FixMe | TriviaKind::IgnoreError | TriviaKind::DelimitedComment => {
+                         return acc;
+                     }
+                     _ => {
+diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
+index f3ff8398f7c..4d7a7f9bd32 100644
+--- a/hphp/hack/src/parser/lowerer/lowerer.rs
++++ b/hphp/hack/src/parser/lowerer/lowerer.rs
+@@ -3294,12 +3294,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+             let markup_hashbang = &c.hashbang;
+             let markup_suffix = &c.suffix;
+             let pos = p_pos(node, env);
+-            let f = pos.filename();
+             let expected_suffix_offset = if markup_hashbang.is_missing() {
+                 0
+             } else {
+                 markup_hashbang.width() + 1 /* for newline */
+             };
++            let f = env.source_text().file_path();
+             if (f.has_extension("hack") || f.has_extension("hackpartial"))
+                 && !(markup_suffix.is_missing())
+             {
+diff --git a/hphp/hack/src/parser/lowerer/scour_comment.rs b/hphp/hack/src/parser/lowerer/scour_comment.rs
+index 88c2e445a47..7aab53c3f1c 100644
+--- a/hphp/hack/src/parser/lowerer/scour_comment.rs
++++ b/hphp/hack/src/parser/lowerer/scour_comment.rs
+@@ -17,6 +17,7 @@ use parser_core_types::syntax_by_ref::syntax_variant_generated::SyntaxVariant::*
+ use parser_core_types::syntax_trait::SyntaxTrait;
+ use parser_core_types::trivia_kind::TriviaKind;
+ use regex::bytes::Regex;
++use relative_path::RelativePath;
+ use rescan_trivia::RescanTrivia;
+ 
+ /** The full fidelity parser considers all comments "simply" trivia. Some
+@@ -41,7 +42,11 @@ where
+     V: 'arena,
+     Syntax<'arena, T, V>: SyntaxTrait,
+ {
+-    pub fn scour_comments<'r>(&self, top_node: &'r Syntax<'arena, T, V>) -> ScouredComments
++    pub fn scour_comments<'r>(
++        &self,
++        top_node: &'r Syntax<'arena, T, V>,
++        file_path: &RelativePath,
++    ) -> ScouredComments
+     where
+         'r: 'arena,
+     {
+@@ -62,7 +67,7 @@ where
+                         let leading = t.scan_leading(self.source_text());
+                         let trailing = t.scan_trailing(self.source_text());
+                         for tr in leading.iter().chain(trailing.iter()) {
+-                            self.on_trivia(in_block, node, tr, &mut acc);
++                            self.on_trivia(in_block, node, tr, &mut acc, file_path);
+                         }
+                     }
+                     continue;
+@@ -83,6 +88,7 @@ where
+         node: &Syntax<'arena, T, V>,
+         t: &PositionedTrivium,
+         acc: &mut ScouredComments,
++        file_path: &RelativePath,
+     ) {
+         use relative_path::Prefix;
+         use TriviaKind::*;
+@@ -127,7 +133,7 @@ where
+                     Some(code) => {
+                         let code = std::str::from_utf8(code).unwrap();
+                         let code: isize = std::str::FromStr::from_str(code).unwrap();
+-                        let in_hhi = pos.filename().prefix() == Prefix::Hhi;
++                        let in_hhi = file_path.prefix() == Prefix::Hhi;
+                         if !(in_block || in_hhi || self.allowed_decl_fixme_codes.contains(&code)) {
+                             acc.add_to_misuses(line, code, p);
+                         } else if self.disable_hh_ignore_error == 1 && t.kind() == IgnoreError {
+diff --git a/hphp/hack/src/utils/arena_deserializer/Cargo.toml b/hphp/hack/src/utils/arena_deserializer/Cargo.toml
+index d0f6c7271be..81d0fa34ebf 100644
 --- a/hphp/hack/src/utils/arena_deserializer/Cargo.toml
 +++ b/hphp/hack/src/utils/arena_deserializer/Cargo.toml
-@@@ -12,6 -10,8 +12,8 @@@ path = "lib.rs
-  
-  [dependencies]
-  bstr = { version = "1.4.0", features = ["serde", "std", "unicode"] }
- -bumpalo = { version = "3.11.1", features = ["collections"] }
- +bumpalo = { version = "3.14.0", features = ["allocator_api", "collections"] }
-- ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
-  serde = { version = "1.0.185", features = ["derive", "rc"] }
-+ 
-+ [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-+ ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
-diff --cc hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
-index 191268eb7de,22ec5903b71..00000000000
+@@ -13,5 +13,7 @@ path = "lib.rs"
+ [dependencies]
+ bstr = { version = "1.4.0", features = ["serde", "std", "unicode"] }
+ bumpalo = { version = "3.14.0", features = ["allocator_api", "collections"] }
+-ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+ serde = { version = "1.0.185", features = ["derive", "rc"] }
++
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
++ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+\ No newline at end of file
+diff --git a/hphp/hack/src/utils/arena_deserializer/impls.rs b/hphp/hack/src/utils/arena_deserializer/impls.rs
+index 671fb6c2b3e..2fe88b076d4 100644
+--- a/hphp/hack/src/utils/arena_deserializer/impls.rs
++++ b/hphp/hack/src/utils/arena_deserializer/impls.rs
+@@ -8,7 +8,7 @@ use std::marker::PhantomData;
+ 
+ use bumpalo::collections::Vec as ArenaVec;
+ use bumpalo::Bump;
+-use ocamlrep_caml_builtins::Int64;
++//use ocamlrep_caml_builtins::Int64;
+ use serde::de::Deserializer;
+ use serde::de::SeqAccess;
+ use serde::de::Visitor;
+@@ -95,7 +95,7 @@ impl_deserialize_in_arena!(usize);
+ impl_deserialize_in_arena!(f32);
+ impl_deserialize_in_arena!(f64);
+ impl_deserialize_in_arena!(char);
+-impl_deserialize_in_arena!(Int64);
++//impl_deserialize_in_arena!(Int64);
+ 
+ impl<'arena> DeserializeInArena<'arena> for &'arena str {
+     fn deserialize_in_arena<D>(arena: &'arena Bump, deserializer: D) -> Result<Self, D::Error>
+diff --git a/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml b/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
+index 191268eb7de..b6fdb9a49d2 100644
 --- a/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
 +++ b/hphp/hack/src/utils/eq_modulo_pos/Cargo.toml
-@@@ -15,5 -13,7 +15,7 @@@ arena_collections = { version = "0.0.0"
-  bstr = { version = "1.4.0", features = ["serde", "std", "unicode"] }
-  eq_modulo_pos_derive = { version = "0.0.0", path = "../eq_modulo_pos_derive" }
-  hcons = { version = "0.0.0", path = "../../hcons" }
- -indexmap = { version = "1.9.2", features = ["arbitrary", "rayon", "serde-1"] }
- +indexmap = { version = "2.1.0", features = ["arbitrary", "rayon", "serde"] }
-+ 
-+ [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-  ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+@@ -16,4 +16,6 @@ bstr = { version = "1.4.0", features = ["serde", "std", "unicode"] }
+ eq_modulo_pos_derive = { version = "0.0.0", path = "../eq_modulo_pos_derive" }
+ hcons = { version = "0.0.0", path = "../../hcons" }
+ indexmap = { version = "2.1.0", features = ["arbitrary", "rayon", "serde"] }
++
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+diff --git a/hphp/hack/src/utils/eq_modulo_pos/eq_modulo_pos.rs b/hphp/hack/src/utils/eq_modulo_pos/eq_modulo_pos.rs
+index 0e00043925c..daee5924305 100644
+--- a/hphp/hack/src/utils/eq_modulo_pos/eq_modulo_pos.rs
++++ b/hphp/hack/src/utils/eq_modulo_pos/eq_modulo_pos.rs
+@@ -7,7 +7,6 @@ use std::rc::Rc;
+ use std::sync::Arc;
+ 
+ pub use eq_modulo_pos_derive::EqModuloPos;
+-use ocamlrep_caml_builtins::Int64;
+ 
+ /// An implementation of `Eq` which is insensitive to positions
+ /// (e.g., `pos::BPos`) and reasons (e.g., `ty::reason::BReason`).
+@@ -109,7 +108,6 @@ impl_with_equal! {
+     std::path::PathBuf,
+     bstr::BStr,
+     bstr::BString,
+-    Int64,
+ }
+ 
+ macro_rules! impl_deref {
+diff --git a/hphp/hack/src/utils/hh24_types/hh24_types.rs b/hphp/hack/src/utils/hh24_types/hh24_types.rs
+index 0febd35fe7d..4fd8c642cac 100644
+--- a/hphp/hack/src/utils/hh24_types/hh24_types.rs
++++ b/hphp/hack/src/utils/hh24_types/hh24_types.rs
+@@ -32,12 +32,14 @@ macro_rules! u64_hash_wrapper_impls {
+             }
+         }
+ 
++        #[cfg(unix)]
+         impl rusqlite::ToSql for $name {
+             fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+                 Ok(rusqlite::types::ToSqlOutput::from(self.0 as i64))
+             }
+         }
+ 
++        #[cfg(unix)]
+         impl rusqlite::types::FromSql for $name {
+             fn column_result(
+                 value: rusqlite::types::ValueRef<'_>,
+diff --git a/hphp/hack/src/utils/no_pos_hash/Cargo.toml b/hphp/hack/src/utils/no_pos_hash/Cargo.toml
+index b29b2b60765..12834563fcd 100644
+--- a/hphp/hack/src/utils/no_pos_hash/Cargo.toml
++++ b/hphp/hack/src/utils/no_pos_hash/Cargo.toml
+@@ -15,4 +15,6 @@ arena_collections = { version = "0.0.0", path = "../../arena_collections" }
+ bstr = { version = "1.4.0", features = ["serde", "std", "unicode"] }
+ fnv = "1.0"
+ no_pos_hash_derive = { version = "0.0.0", path = "derive" }
++
++[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ ocamlrep_caml_builtins = { version = "0.1.0", git = "https://github.com/facebook/ocamlrep/", branch = "main" }
+diff --git a/hphp/hack/src/utils/no_pos_hash/no_pos_hash.rs b/hphp/hack/src/utils/no_pos_hash/no_pos_hash.rs
+index 396831e47f5..32693ed0a4b 100644
+--- a/hphp/hack/src/utils/no_pos_hash/no_pos_hash.rs
++++ b/hphp/hack/src/utils/no_pos_hash/no_pos_hash.rs
+@@ -44,8 +44,6 @@ pub fn position_insensitive_hash<T: NoPosHash>(value: &T) -> u64 {
+ }
+ 
+ mod impls {
+-    use ocamlrep_caml_builtins::Int64;
+-
+     use super::*;
+ 
+     impl<T: NoPosHash> NoPosHash for [T] {
+@@ -107,7 +105,6 @@ mod impls {
+         String,
+         std::path::PathBuf,
+         bstr::BString,
+-        Int64,
+     }
+ 
+     macro_rules! impl_with_std_hash_unsized {
+diff --git a/hphp/hack/src/utils/rust/pos/file_pos.rs b/hphp/hack/src/utils/rust/pos/file_pos.rs
+index fff34e9c159..49ae1121f9c 100644
+--- a/hphp/hack/src/utils/rust/pos/file_pos.rs
++++ b/hphp/hack/src/utils/rust/pos/file_pos.rs
+@@ -4,6 +4,6 @@
+ // LICENSE file in the "hack" directory of this source tree.
+ 
+ pub trait FilePos {
+-    fn offset(&self) -> usize;
+-    fn line_column_beg(&self) -> (usize, usize, usize);
++    fn offset(&self) -> u64;
++    fn line_column_beg(&self) -> (u64, u64, u64);
+ }
+diff --git a/hphp/hack/src/utils/rust/pos/file_pos_large.rs b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
+index f59e0a024cc..a1929b265f5 100644
+--- a/hphp/hack/src/utils/rust/pos/file_pos_large.rs
++++ b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
+@@ -15,13 +15,13 @@ use crate::file_pos_small::FilePosSmall;
+ #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+ pub struct FilePosLarge {
+     /// line number. Starts at 1.
+-    lnum: usize,
++    lnum: u64,
+     /// character number of the beginning of line of this position.
+     /// The column number is therefore offset - bol
+     /// Starts at 0
+-    bol: usize,
++    bol: u64,
+     /// character offset from the beginning of the file. Starts at 0.
+-    offset: usize,
++    offset: u64,
+ }
+ arena_deserializer::impl_deserialize_in_arena!(FilePosLarge);
+ 
+@@ -30,7 +30,7 @@ impl arena_trait::TrivialDrop for FilePosLarge {}
+ const DUMMY: FilePosLarge = FilePosLarge {
+     lnum: 0,
+     bol: 0,
+-    offset: usize::max_value(),
++    offset: u64::max_value(),
+ };
+ 
+ impl FilePosLarge {
+@@ -56,7 +56,7 @@ impl FilePosLarge {
+     // constructors
+ 
+     #[inline]
+-    pub const fn from_line_column_offset(line: usize, column: usize, offset: usize) -> Self {
++    pub const fn from_line_column_offset(line: u64, column: u64, offset: u64) -> Self {
+         FilePosLarge {
+             lnum: line,
+             bol: offset - column,
+@@ -65,29 +65,29 @@ impl FilePosLarge {
+     }
+ 
+     #[inline]
+-    pub const fn from_lnum_bol_offset(lnum: usize, bol: usize, offset: usize) -> Self {
++    pub const fn from_lnum_bol_offset(lnum: u64, bol: u64, offset: u64) -> Self {
+         FilePosLarge { lnum, bol, offset }
+     }
+ 
+     // accessors
+ 
+     #[inline]
+-    pub const fn line(self) -> usize {
++    pub const fn line(self) -> u64 {
+         self.lnum
+     }
+ 
+     #[inline]
+-    pub const fn column(self) -> usize {
++    pub fn column(self) -> u64 {
+         self.offset - self.bol
+     }
+ 
+     #[inline]
+-    pub const fn beg_of_line(self) -> usize {
++    pub const fn beg_of_line(self) -> u64 {
+         self.bol
+     }
+ 
+     #[inline]
+-    pub const fn with_column(self, col: usize) -> Self {
++    pub const fn with_column(self, col: u64) -> Self {
+         FilePosLarge {
+             lnum: self.lnum,
+             bol: self.bol,
+@@ -96,34 +96,34 @@ impl FilePosLarge {
+     }
+ 
+     #[inline]
+-    pub const fn line_beg(self) -> (usize, usize) {
++    pub const fn line_beg(self) -> (u64, u64) {
+         (self.lnum, self.bol)
+     }
+ 
+     #[inline]
+-    pub const fn line_column(self) -> (usize, usize) {
++    pub const fn line_column(self) -> (u64, u64) {
+         (self.lnum, self.offset - self.bol)
+     }
+ 
+     #[inline]
+-    pub const fn line_column_offset(self) -> (usize, usize, usize) {
++    pub const fn line_column_offset(self) -> (u64, u64, u64) {
+         (self.lnum, self.offset - self.bol, self.offset)
+     }
+ 
+     #[inline]
+-    pub const fn line_beg_offset(self) -> (usize, usize, usize) {
++    pub const fn line_beg_offset(self) -> (u64, u64, u64) {
+         (self.lnum, self.bol, self.offset)
+     }
+ }
+ 
+ impl FilePos for FilePosLarge {
+     #[inline]
+-    fn offset(&self) -> usize {
++    fn offset(&self) -> u64 {
+         self.offset
+     }
+ 
+     #[inline]
+-    fn line_column_beg(&self) -> (usize, usize, usize) {
++    fn line_column_beg(&self) -> (u64, u64, u64) {
+         (self.lnum, self.offset - self.bol, self.bol)
+     }
+ }
+@@ -166,7 +166,7 @@ impl FromOcamlRep for FilePosLarge {
+         Ok(Self {
+             lnum,
+             bol,
+-            offset: offset as usize,
++            offset: offset as u64,
+         })
+     }
+ }
+diff --git a/hphp/hack/src/utils/rust/pos/file_pos_small.rs b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
+index ce3bd4e0172..66579bfceab 100644
+--- a/hphp/hack/src/utils/rust/pos/file_pos_small.rs
++++ b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
+@@ -38,23 +38,23 @@ arena_deserializer::impl_deserialize_in_arena!(FilePosSmall);
+ 
+ impl arena_trait::TrivialDrop for FilePosSmall {}
+ 
+-const COLUMN_BITS: usize = 9;
+-const LINE_BITS: usize = 24;
+-const BOL_BITS: usize = 30;
++const COLUMN_BITS: u64 = 9;
++const LINE_BITS: u64 = 24;
++const BOL_BITS: u64 = 30;
+ 
+ #[inline]
+-const fn mask(bits: usize) -> usize {
++const fn mask(bits: u64) -> u64 {
+     (1 << bits) - 1
+ }
+ 
+ #[inline]
+-const fn mask_by(bits: usize, x: u64) -> usize {
+-    (x & (mask(bits) as u64)) as usize
++const fn mask_by(bits: u64, x: u64) -> u64 {
++    x & mask(bits)
+ }
+ 
+-const MAX_COLUMN: usize = mask(COLUMN_BITS);
+-const MAX_LINE: usize = mask(LINE_BITS);
+-const MAX_BOL: usize = mask(BOL_BITS);
++const MAX_COLUMN: u64 = mask(COLUMN_BITS);
++const MAX_LINE: u64 = mask(LINE_BITS);
++const MAX_BOL: u64 = mask(BOL_BITS);
+ 
+ const DUMMY: u64 = u64::max_value();
+ 
+@@ -70,7 +70,7 @@ impl FilePosSmall {
+     }
+ 
+     #[inline]
+-    pub fn beg_of_line(self) -> usize {
++    pub fn beg_of_line(self) -> u64 {
+         if self.is_dummy() {
+             0
+         } else {
+@@ -79,7 +79,7 @@ impl FilePosSmall {
+     }
+ 
+     #[inline]
+-    pub fn line(self) -> usize {
++    pub fn line(self) -> u64 {
+         if self.is_dummy() {
+             0
+         } else {
+@@ -88,25 +88,25 @@ impl FilePosSmall {
+     }
+ 
+     #[inline]
+-    pub fn column(self) -> usize {
++    pub fn column(self) -> u64 {
+         if self.is_dummy() {
+-            DUMMY as usize
++            DUMMY
+         } else {
+             mask_by(COLUMN_BITS, self.0)
+         }
+     }
+ 
+     #[inline]
+-    const fn bol_line_col_unchecked(bol: usize, line: usize, col: usize) -> Self {
++    const fn bol_line_col_unchecked(bol: u64, line: u64, col: u64) -> Self {
+         FilePosSmall(
+-            ((bol as u64) << (COLUMN_BITS + LINE_BITS))
+-                + ((line as u64) << COLUMN_BITS)
+-                + (col as u64),
++            (bol << (COLUMN_BITS + LINE_BITS))
++                + (line << COLUMN_BITS)
++                + col,
+         )
+     }
+ 
+     #[inline]
+-    fn bol_line_col(bol: usize, line: usize, col: usize) -> Option<Self> {
++    fn bol_line_col(bol: u64, line: u64, col: u64) -> Option<Self> {
+         if col > MAX_COLUMN || line > MAX_LINE || bol > MAX_BOL {
+             None
+         } else {
+@@ -122,39 +122,39 @@ impl FilePosSmall {
+     // constructors
+ 
+     #[inline]
+-    pub fn from_line_column_offset(line: usize, column: usize, offset: usize) -> Option<Self> {
++    pub fn from_line_column_offset(line: u64, column: u64, offset: u64) -> Option<Self> {
+         Self::bol_line_col(offset - column, line, column)
+     }
+ 
+     #[inline]
+-    pub fn from_lnum_bol_offset(lnum: usize, bol: usize, offset: usize) -> Option<Self> {
++    pub fn from_lnum_bol_offset(lnum: u64, bol: u64, offset: u64) -> Option<Self> {
+         Self::bol_line_col(bol, lnum, offset - bol)
+     }
+ 
+     // accessors
+ 
+     #[inline]
+-    pub fn line_beg(self) -> (usize, usize) {
++    pub fn line_beg(self) -> (u64, u64) {
+         (self.line(), self.beg_of_line())
+     }
+ 
+     #[inline]
+-    pub fn line_column(self) -> (usize, usize) {
++    pub fn line_column(self) -> (u64, u64) {
+         (self.line(), self.column())
+     }
+ 
+     #[inline]
+-    pub fn line_column_offset(self) -> (usize, usize, usize) {
++    pub fn line_column_offset(self) -> (u64, u64, u64) {
+         (self.line(), self.column(), self.offset())
+     }
+ 
+     #[inline]
+-    pub fn line_beg_offset(self) -> (usize, usize, usize) {
++    pub fn line_beg_offset(self) -> (u64, u64, u64) {
+         (self.line(), self.beg_of_line(), self.offset())
+     }
+ 
+     #[inline]
+-    pub fn with_column(self, col: usize) -> Self {
++    pub fn with_column(self, col: u64) -> Self {
+         match Self::bol_line_col(self.beg_of_line(), self.line(), col) {
+             None => FilePosSmall(DUMMY),
+             Some(pos) => pos,
+@@ -164,12 +164,12 @@ impl FilePosSmall {
+ 
+ impl FilePos for FilePosSmall {
+     #[inline]
+-    fn offset(&self) -> usize {
++    fn offset(&self) -> u64 {
+         self.beg_of_line() + self.column()
+     }
+ 
+     #[inline]
+-    fn line_column_beg(&self) -> (usize, usize, usize) {
++    fn line_column_beg(&self) -> (u64, u64, u64) {
+         (self.line(), self.column(), self.beg_of_line())
+     }
+ }
+diff --git a/hphp/hack/src/utils/rust/pos/pos_impl.rs b/hphp/hack/src/utils/rust/pos/pos_impl.rs
+index a8d7881987d..cb1df15913e 100644
+--- a/hphp/hack/src/utils/rust/pos/pos_impl.rs
++++ b/hphp/hack/src/utils/rust/pos/pos_impl.rs
+@@ -153,7 +153,7 @@ impl Pos {
+             if end == start_minus1 {
+                 end = start
+             }
+-            (line, start, end)
++            (line as usize, start as usize, end as usize)
+         }
+         match &self.0 {
+             PosImpl::Small { start, end, .. } => compute(start, end),
+@@ -169,12 +169,11 @@ impl Pos {
+     pub fn info_pos_extended(&self) -> (usize, usize, usize, usize) {
+         let (line_begin, start, end) = self.info_pos();
+         let line_end = match &self.0 {
+-            PosImpl::Small { end, .. } => end.line_column_beg(),
+-            PosImpl::Large { end, .. } => (*end).line_column_beg(),
+-            PosImpl::Tiny { span, .. } => span.to_raw_span().end.line_column_beg(),
++            PosImpl::Small { start, .. } => start.line() as usize,
++            PosImpl::Large { start, .. } => start.line() as usize,
++            PosImpl::Tiny { span, .. } => span.start_line_number() as usize,
+             PosImpl::FromReason(_p) => unimplemented!(),
+-        }
+-        .0;
++        };
+         (line_begin, line_end, start, end)
+     }
+ 
+@@ -184,9 +183,9 @@ impl Pos {
+ 
+     pub fn line(&self) -> usize {
+         match &self.0 {
+-            PosImpl::Small { start, .. } => start.line(),
+-            PosImpl::Large { start, .. } => start.line(),
+-            PosImpl::Tiny { span, .. } => span.start_line_number(),
++            PosImpl::Small { start, .. } => start.line() as usize,
++            PosImpl::Large { start, .. } => start.line() as usize,
++            PosImpl::Tiny { span, .. } => span.start_line_number() as usize,
+             PosImpl::FromReason(_p) => unimplemented!(),
+         }
+     }
+@@ -198,15 +197,20 @@ impl Pos {
+     ) -> Self {
+         let (start_line, start_bol, start_offset) = start;
+         let (end_line, end_bol, end_offset) = end;
+-        let start = FilePosLarge::from_lnum_bol_offset(start_line, start_bol, start_offset);
+-        let end = FilePosLarge::from_lnum_bol_offset(end_line, end_bol, end_offset);
++        let start = FilePosLarge::from_lnum_bol_offset(
++            start_line as u64,
++            start_bol as u64,
++            start_offset as u64,
++        );
++        let end =
++            FilePosLarge::from_lnum_bol_offset(end_line as u64, end_bol as u64, end_offset as u64);
+         Self::from_raw_span(file, PosSpanRaw { start, end })
+     }
+ 
+     pub fn to_start_and_end_lnum_bol_offset(
+         &self,
+     ) -> ((usize, usize, usize), (usize, usize, usize)) {
+-        match &self.0 {
++        let (start, end) = match &self.0 {
+             PosImpl::Small { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
+             PosImpl::Large { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
+             PosImpl::Tiny { span, .. } => {
+@@ -214,7 +218,11 @@ impl Pos {
+                 (start.line_beg_offset(), end.line_beg_offset())
+             }
+             PosImpl::FromReason(_p) => unimplemented!(),
+-        }
++        };
++        (
++            (start.0 as usize, start.1 as usize, start.2 as usize),
++            (end.0 as usize, end.1 as usize, end.2 as usize),
++        )
+     }
+ 
+     /// For single-line spans only.
+@@ -224,11 +232,15 @@ impl Pos {
+         cols: Range<usize>,
+         start_offset: usize,
+     ) -> Self {
+-        let start = FilePosLarge::from_line_column_offset(line, cols.start, start_offset);
++        let start = FilePosLarge::from_line_column_offset(
++            line as u64,
++            cols.start as u64,
++            start_offset as u64,
++        );
+         let end = FilePosLarge::from_line_column_offset(
+-            line,
+-            cols.end,
+-            start_offset + (cols.end - cols.start),
++            line as u64,
++            cols.end as u64,
++            (start_offset + (cols.end - cols.start)) as u64,
+         );
+         Self::from_raw_span(file, PosSpanRaw { start, end })
+     }
+@@ -317,18 +329,18 @@ impl Pos {
+ 
+     pub fn end_offset(&self) -> usize {
+         match &self.0 {
+-            PosImpl::Small { end, .. } => end.offset(),
+-            PosImpl::Large { end, .. } => end.offset(),
+-            PosImpl::Tiny { span, .. } => span.end_offset(),
++            PosImpl::Small { end, .. } => end.offset() as usize,
++            PosImpl::Large { end, .. } => end.offset() as usize,
++            PosImpl::Tiny { span, .. } => span.end_offset() as usize,
+             PosImpl::FromReason(_p) => unimplemented!(),
+         }
+     }
+ 
+     pub fn start_offset(&self) -> usize {
+         match &self.0 {
+-            PosImpl::Small { start, .. } => start.offset(),
+-            PosImpl::Large { start, .. } => start.offset(),
+-            PosImpl::Tiny { span, .. } => span.start_offset(),
++            PosImpl::Small { start, .. } => start.offset() as usize,
++            PosImpl::Large { start, .. } => start.offset() as usize,
++            PosImpl::Tiny { span, .. } => span.start_offset() as usize,
+             PosImpl::FromReason(_p) => unimplemented!(),
+         }
+     }
+@@ -576,22 +588,18 @@ mod tests {
+     #[test]
+     fn test_pos() {
+         assert!(Pos::NONE.is_none());
+-        assert!(
+-            !Pos::from_lnum_bol_offset(
+-                Arc::new(RelativePath::make(Prefix::Dummy, PathBuf::from("a"))),
+-                (0, 0, 0),
+-                (0, 0, 0)
+-            )
+-            .is_none(),
+-        );
+-        assert!(
+-            !Pos::from_lnum_bol_offset(
+-                Arc::new(RelativePath::make(Prefix::Dummy, PathBuf::from(""))),
+-                (1, 0, 0),
+-                (0, 0, 0)
+-            )
+-            .is_none(),
+-        );
++        assert!(!Pos::from_lnum_bol_offset(
++            Arc::new(RelativePath::make(Prefix::Dummy, PathBuf::from("a"))),
++            (0, 0, 0),
++            (0, 0, 0)
++        )
++        .is_none(),);
++        assert!(!Pos::from_lnum_bol_offset(
++            Arc::new(RelativePath::make(Prefix::Dummy, PathBuf::from(""))),
++            (1, 0, 0),
++            (0, 0, 0)
++        )
++        .is_none(),);
+     }
+ 
+     #[test]
 diff --git a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
-index 6a492ad3c3e..a6149eab11f 100644
+index dc31a9504bf..a6149eab11f 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
-@@ -376,9 +376,9 @@ mod test {
+@@ -130,83 +130,83 @@ impl PosSpanTiny {
+         ))
+     }
+ 
+-    pub fn start_beginning_of_line(self) -> usize {
++    pub fn start_beginning_of_line(self) -> u64 {
+         if self.is_dummy() {
+             0
+         } else {
+             mask_by(
+                 START_BEGINNING_OF_LINE_BITS,
+                 self.0 >> START_BEGINNING_OF_LINE_OFFSET,
+-            ) as usize
++            )
+         }
+     }
+ 
+-    pub fn start_line_number(self) -> usize {
++    pub fn start_line_number(self) -> u64 {
+         if self.is_dummy() {
+             0
+         } else {
+-            mask_by(START_LINE_NUMBER_BITS, self.0 >> START_LINE_NUMBER_OFFSET) as usize
++            mask_by(START_LINE_NUMBER_BITS, self.0 >> START_LINE_NUMBER_OFFSET)
+         }
+     }
+ 
+-    pub fn start_column(self) -> usize {
++    pub fn start_column(self) -> u64 {
+         if self.is_dummy() {
+-            usize::MAX
++            u64::MAX
+         } else {
+             mask_by(
+                 START_COLUMN_NUMBER_BITS,
+                 self.0 >> START_COLUMN_NUMBER_OFFSET,
+-            ) as usize
++            )
+         }
+     }
+ 
+-    fn beginning_of_line_increment(self) -> usize {
++    fn beginning_of_line_increment(self) -> u64 {
+         if self.is_dummy() {
+             0
+         } else {
+             mask_by(
+                 BEGINNING_OF_LINE_INCREMENT_BITS,
+                 self.0 >> BEGINNING_OF_LINE_INCREMENT_OFFSET,
+-            ) as usize
++            )
+         }
+     }
+ 
+-    fn line_number_increment(self) -> usize {
++    fn line_number_increment(self) -> u64 {
+         if self.is_dummy() {
+             0
+         } else {
+             mask_by(
+                 LINE_NUMBER_INCREMENT_BITS,
+                 self.0 >> LINE_NUMBER_INCREMENT_OFFSET,
+-            ) as usize
++            )
+         }
+     }
+ 
+-    fn width(self) -> usize {
++    fn width(self) -> u64 {
+         if self.is_dummy() {
+             0
+         } else {
+-            mask_by(WIDTH_BITS, self.0 >> WIDTH_OFFSET) as usize
++            mask_by(WIDTH_BITS, self.0 >> WIDTH_OFFSET)
+         }
+     }
+ 
+-    pub fn start_offset(self) -> usize {
++    pub fn start_offset(self) -> u64 {
+         self.start_beginning_of_line() + self.start_column()
+     }
+ 
+-    pub fn end_line_number(self) -> usize {
++    pub fn end_line_number(self) -> u64 {
+         self.start_line_number() + self.line_number_increment()
+     }
+ 
+-    pub fn end_beginning_of_line(self) -> usize {
++    pub fn end_beginning_of_line(self) -> u64 {
+         self.start_beginning_of_line() + self.beginning_of_line_increment()
+     }
+ 
+-    pub fn end_offset(self) -> usize {
++    pub fn end_offset(self) -> u64 {
+         self.start_offset() + self.width()
+     }
+ 
+-    pub fn end_column(self) -> usize {
++    pub fn end_column(self) -> u64 {
+         self.end_offset() - self.end_beginning_of_line()
+     }
+ 
+@@ -221,8 +221,16 @@ impl PosSpanTiny {
+             let end_bol = self.end_beginning_of_line();
+             let end_offset = self.end_offset();
+             PosSpanRaw {
+-                start: FilePosLarge::from_lnum_bol_offset(start_lnum, start_bol, start_offset),
+-                end: FilePosLarge::from_lnum_bol_offset(end_lnum, end_bol, end_offset),
++                start: FilePosLarge::from_lnum_bol_offset(
++                    start_lnum as u64,
++                    start_bol as u64,
++                    start_offset as u64,
++                ),
++                end: FilePosLarge::from_lnum_bol_offset(
++                    end_lnum as u64,
++                    end_bol as u64,
++                    end_offset as u64,
++                ),
+             }
+         }
+     }
+@@ -368,9 +376,9 @@ mod test {
          let start_offset = u64::max_value();
          let end_offset = u64::max_value();
          let start =
@@ -238,7 +1278,7 @@ index 6a492ad3c3e..a6149eab11f 100644
          let span = PosSpanTiny::make_dummy();
          assert_eq!(line, span.start_line_number() as u64);
          assert_eq!(line, span.end_line_number() as u64);
-@@ -404,9 +404,9 @@ mod test {
+@@ -396,9 +404,9 @@ mod test {
          let start_offset = max_int;
          let end_offset = max_int;
          let start =
@@ -250,7 +1290,7 @@ index 6a492ad3c3e..a6149eab11f 100644
          match PosSpanTiny::make(&start, &end) {
              None => {
                  // expected
-@@ -440,8 +440,8 @@ mod test {
+@@ -432,8 +440,8 @@ mod test {
          let bol = 1667611usize;
          let start_offset = 1667617usize;
          let end_offset = 1667673usize;
