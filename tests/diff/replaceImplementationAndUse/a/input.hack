@@ -10,6 +10,12 @@ class A {
     }
 }
 
+class B extends A {
+    public function returnSelf() : A {
+        return parent::returnSelf();
+    }
+}
+
 <<__EntryPoint>>
 function main(): void {
     $a = A::gen();

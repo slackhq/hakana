@@ -97,25 +97,6 @@ pub fn analyze_files(
                     &logger,
                     &asts,
                 );
-            } else {
-                new_analysis_result.emitted_issues.insert(
-                    file_path,
-                    vec![Issue::new(
-                        IssueKind::InvalidHackFile,
-                        "Invalid Hack file".to_string(),
-                        HPos {
-                            file_path,
-                            start_offset: 1,
-                            end_offset: 1,
-                            start_line: 1,
-                            end_line: 1,
-                            start_column: 1,
-                            end_column: 1,
-                            insertion_start: None,
-                        },
-                        &None,
-                    )],
-                );
             }
 
             update_progressbar(i as u64, bar.clone());

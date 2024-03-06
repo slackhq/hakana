@@ -394,6 +394,14 @@ impl CodebaseInfo {
         self.functionlike_infos.get(&(method_id.0, method_id.1))
     }
 
+    pub fn has_invalid_file(&self, file_path: &FilePath) -> bool {
+        if let Some(file_info) = self.files.get(file_path) {
+            !file_info.valid_file
+        } else {
+            false
+        }
+    }
+
     pub fn get_all_descendants(&self, classlike_name: &StrId) -> FxHashSet<StrId> {
         let mut base_set = FxHashSet::default();
 

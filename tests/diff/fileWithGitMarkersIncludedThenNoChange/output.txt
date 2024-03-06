@@ -1,0 +1,2 @@
+ERROR: InvalidHackFile - input.hack:1:1 - Invalid Hack file
+ERROR: NonExistentFunction - main.hack:4:5 - Function foo is not defined

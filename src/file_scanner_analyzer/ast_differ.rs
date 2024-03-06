@@ -130,6 +130,15 @@ pub(crate) fn get_diff(
         }
     }
 
+    for (_, invalid_file_info) in existing_files
+        .iter()
+        .filter(|(file_path, _)| !new_files.contains_key(file_path))
+    {
+        for node in &invalid_file_info.ast_nodes {
+            add_or_delete.insert((node.name, StrId::EMPTY));
+        }
+    }
+
     CodebaseDiff {
         keep,
         keep_signature,

@@ -840,6 +840,7 @@ pub fn collect_info_for_aast(
             FileInfo {
                 closure_infos: checker.closures,
                 ast_nodes: checker.ast_nodes,
+                valid_file: true,
             },
         );
     }

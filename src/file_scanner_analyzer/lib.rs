@@ -8,9 +8,11 @@ use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_logger::Logger;
 use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::code_location::FilePath;
+use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
+use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::{Interner, StrId};
 use indicatif::ProgressBar;
 use oxidized::aast;
@@ -94,6 +96,7 @@ pub async fn scan_and_analyze_async(
         file_system,
         asts,
         mut files_to_analyze,
+        invalid_files,
     } = scan_files(
         &all_scanned_dirs,
         None,
@@ -111,6 +114,7 @@ pub async fn scan_and_analyze_async(
             codebase_diff,
             &codebase,
             &mut interner,
+            invalid_files,
             &mut files_to_analyze,
             &None,
             &None,
@@ -130,21 +134,15 @@ pub async fn scan_and_analyze_async(
         cached_analysis.safe_symbol_members,
     );
 
-    let mut analysis_result =
-        AnalysisResult::new(config.graph_kind, cached_analysis.symbol_references);
-
-    analysis_result.emitted_issues = cached_analysis.existing_issues;
-
-    let analysis_result = Arc::new(Mutex::new(analysis_result));
-
-    let scan_data = SuccessfulScanData {
+    let (analysis_result, arc_scan_data) = get_analysis_ready(
+        &config,
         codebase,
         interner,
         file_system,
         resolved_names,
-    };
-
-    let arc_scan_data = Arc::new(scan_data);
+        cached_analysis.symbol_references,
+        cached_analysis.existing_issues,
+    );
 
     logger
         .log(&format!("Analyzing {} files", files_to_analyze.len()))
@@ -165,6 +163,8 @@ pub async fn scan_and_analyze_async(
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
 
     let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
+
+    add_invalid_files(&scan_data, &mut analysis_result);
 
     if config.find_unused_definitions {
         find_unused_definitions(
@@ -207,6 +207,7 @@ pub fn scan_and_analyze(
         file_system,
         asts,
         mut files_to_analyze,
+        invalid_files,
     } = scan_files(
         &all_scanned_dirs,
         cache_dir,
@@ -245,6 +246,7 @@ pub fn scan_and_analyze(
             codebase_diff,
             &codebase,
             &mut interner,
+            invalid_files,
             &mut files_to_analyze,
             &get_issues_path(cache_dir),
             &get_references_path(cache_dir),
@@ -275,21 +277,15 @@ pub fn scan_and_analyze(
         ));
     }
 
-    let mut analysis_result =
-        AnalysisResult::new(config.graph_kind, cached_analysis.symbol_references);
-
-    analysis_result.emitted_issues = cached_analysis.existing_issues;
-
-    let analysis_result = Arc::new(Mutex::new(analysis_result));
-
-    let scan_data = SuccessfulScanData {
+    let (analysis_result, arc_scan_data) = get_analysis_ready(
+        &config,
         codebase,
         interner,
         file_system,
         resolved_names,
-    };
-
-    let arc_scan_data = Arc::new(scan_data);
+        cached_analysis.symbol_references,
+        cached_analysis.existing_issues,
+    );
 
     let analyzed_files_now = Instant::now();
 
@@ -323,6 +319,8 @@ pub fn scan_and_analyze(
     cache_analysis_data(cache_dir, &analysis_result)?;
 
     let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
+
+    add_invalid_files(&scan_data, &mut analysis_result);
 
     if config.find_unused_definitions {
         find_unused_definitions(
@@ -360,6 +358,32 @@ pub fn scan_and_analyze(
     }
 
     Ok((analysis_result, scan_data))
+}
+
+fn get_analysis_ready(
+    config: &Arc<Config>,
+    codebase: CodebaseInfo,
+    interner: Interner,
+    file_system: VirtualFileSystem,
+    resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
+    symbol_references: SymbolReferences,
+    existing_issues: FxHashMap<FilePath, Vec<Issue>>,
+) -> (Arc<Mutex<AnalysisResult>>, Arc<SuccessfulScanData>) {
+    let mut analysis_result = AnalysisResult::new(config.graph_kind, symbol_references);
+
+    analysis_result.emitted_issues = existing_issues;
+
+    let analysis_result = Arc::new(Mutex::new(analysis_result));
+
+    let scan_data = SuccessfulScanData {
+        codebase,
+        interner,
+        file_system,
+        resolved_names,
+    };
+
+    let arc_scan_data = Arc::new(scan_data);
+    (analysis_result, arc_scan_data)
 }
 
 fn cache_analysis_data(
@@ -421,5 +445,30 @@ pub fn get_aast_for_path(
 fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
     if let Some(bar) = bar {
         bar.set_position(percentage);
+    }
+}
+
+fn add_invalid_files(scan_data: &SuccessfulScanData, analysis_result: &mut AnalysisResult) {
+    for (file_path, file_info) in &scan_data.codebase.files {
+        if !file_info.valid_file {
+            analysis_result.emitted_issues.insert(
+                *file_path,
+                vec![Issue::new(
+                    IssueKind::InvalidHackFile,
+                    "Invalid Hack file".to_string(),
+                    HPos {
+                        file_path: *file_path,
+                        start_offset: 1,
+                        end_offset: 1,
+                        start_line: 1,
+                        end_line: 1,
+                        start_column: 1,
+                        end_column: 1,
+                        insertion_start: None,
+                    },
+                    &None,
+                )],
+            );
+        }
     }
 }

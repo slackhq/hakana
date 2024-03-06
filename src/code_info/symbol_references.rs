@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     diff::CodebaseDiff,
     function_context::{FunctionContext, FunctionLikeIdentifier},
-    StrId,
+    Interner, StrId,
 };
 
 pub enum ReferenceSource {
@@ -48,6 +48,31 @@ impl SymbolReferences {
         }
     }
 
+    pub fn print(&self, interner: &Interner) {
+        for (a, bb) in &self.symbol_references_to_symbols {
+            for b in bb {
+                println!(
+                    "{}::{} to {}::{}",
+                    interner.lookup(&a.0),
+                    interner.lookup(&a.1),
+                    interner.lookup(&b.0),
+                    interner.lookup(&b.1)
+                )
+            }
+        }
+        for (a, bb) in &self.symbol_references_to_symbols_in_signature {
+            for b in bb {
+                println!(
+                    "{}::{} sig to {}::{}",
+                    interner.lookup(&a.0),
+                    interner.lookup(&a.1),
+                    interner.lookup(&b.0),
+                    interner.lookup(&b.1)
+                )
+            }
+        }
+    }
+
     pub fn add_symbol_reference_to_class_member(
         &mut self,
         referencing_symbol: StrId,
@@ -75,6 +100,10 @@ impl SymbolReferences {
         symbol: StrId,
         in_signature: bool,
     ) {
+        if referencing_symbol == symbol {
+            return;
+        }
+
         if in_signature {
             self.symbol_references_to_symbols_in_signature
                 .entry((referencing_symbol, StrId::EMPTY))
@@ -103,6 +132,10 @@ impl SymbolReferences {
         class_member: (StrId, StrId),
         in_signature: bool,
     ) {
+        if referencing_class_member == class_member {
+            return;
+        }
+
         self.add_symbol_reference_to_symbol(
             referencing_class_member.0,
             class_member.0,
@@ -134,6 +167,10 @@ impl SymbolReferences {
         symbol: StrId,
         in_signature: bool,
     ) {
+        if referencing_class_member.0 == symbol {
+            return;
+        }
+
         self.add_symbol_reference_to_symbol(referencing_class_member.0, symbol, in_signature);
 
         if in_signature {
@@ -475,9 +512,14 @@ impl SymbolReferences {
         &mut self,
         invalid_symbols_and_members: &FxHashSet<(StrId, StrId)>,
     ) {
-        self.symbol_references_to_symbols
-            .retain(|symbol, _| !invalid_symbols_and_members.contains(symbol));
+        self.symbol_references_to_symbols.retain(|symbol, _| {
+            !invalid_symbols_and_members.contains(symbol)
+                && !invalid_symbols_and_members.contains(&(symbol.0, StrId::EMPTY))
+        });
         self.symbol_references_to_symbols_in_signature
-            .retain(|symbol, _| !invalid_symbols_and_members.contains(symbol));
+            .retain(|symbol, _| {
+                !invalid_symbols_and_members.contains(symbol)
+                    && !invalid_symbols_and_members.contains(&(symbol.0, StrId::EMPTY))
+            });
     }
 }

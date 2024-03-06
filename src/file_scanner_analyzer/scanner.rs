@@ -27,6 +27,7 @@ use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::diff::CodebaseDiff;
+use hakana_reflection_info::file_info::FileInfo;
 use hakana_reflection_info::FileSource;
 use hakana_reflection_info::Interner;
 use hakana_reflection_info::StrId;
@@ -47,6 +48,7 @@ pub struct ScanFilesResult {
     pub codebase_diff: CodebaseDiff,
     pub asts: FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>,
     pub files_to_analyze: Vec<String>,
+    pub invalid_files: FxHashSet<FilePath>,
 }
 
 pub fn scan_files(
@@ -211,21 +213,21 @@ pub fn scan_files(
         }
     }
 
-    let mut updated_files = FxHashMap::default();
+    let mut existing_changed_files = FxHashMap::default();
 
     let files = codebase.files;
 
-    let mut unchanged_files = FxHashMap::default();
+    let mut existing_unchanged_files = FxHashMap::default();
 
     for (file_id, file_info) in files {
         if changed_files.contains(&file_id) {
-            updated_files.insert(file_id, file_info);
+            existing_changed_files.insert(file_id, file_info);
         } else {
-            unchanged_files.insert(file_id, file_info);
+            existing_unchanged_files.insert(file_id, file_info);
         }
     }
 
-    codebase.files = unchanged_files;
+    codebase.files = existing_unchanged_files;
 
     // get the full list of unchanged symbols
     let mut codebase_diff = if config.ast_diff {
@@ -233,7 +235,7 @@ pub fn scan_files(
 
         for (target_file, status) in &file_statuses {
             if let FileStatus::Deleted = status {
-                if let Some(deleted_file_info) = updated_files.get(target_file) {
+                if let Some(deleted_file_info) = existing_changed_files.get(target_file) {
                     for node in &deleted_file_info.ast_nodes {
                         codebase_diff
                             .add_or_delete
@@ -253,6 +255,8 @@ pub fn scan_files(
     let asts = Arc::new(Mutex::new(FxHashMap::default()));
 
     let has_new_files = !files_to_scan.is_empty() || !changed_files.is_empty();
+
+    let invalid_files = Arc::new(Mutex::new(vec![]));
 
     if !files_to_scan.is_empty() {
         let file_scanning_now = Instant::now();
@@ -328,14 +332,15 @@ pub fn scan_files(
                 } else {
                     asts.lock().unwrap().remove(*file_path);
                     resolved_names.lock().unwrap().remove(*file_path);
-                    new_codebase.files.remove(*file_path);
+                    new_codebase.files.insert(**file_path, FileInfo::default());
+                    invalid_files.lock().unwrap().push(**file_path);
                 }
 
                 update_progressbar(i as u64, bar.clone());
             }
 
             if config.ast_diff {
-                codebase_diff.extend(get_diff(&updated_files, &new_codebase.files));
+                codebase_diff.extend(get_diff(&existing_changed_files, &new_codebase.files));
             }
 
             codebase.extend(new_codebase);
@@ -365,6 +370,7 @@ pub fn scan_files(
                 let test_patterns = test_patterns.clone();
                 let asts = asts.clone();
                 let logger = logger.clone();
+                let invalid_files = invalid_files.clone();
 
                 let handle = std::thread::spawn(move || {
                     let mut new_codebase = CodebaseInfo::new();
@@ -400,7 +406,8 @@ pub fn scan_files(
                         } else {
                             local_asts.remove(file_path);
                             local_resolved_names.remove(file_path);
-                            new_codebase.files.remove(file_path);
+                            new_codebase.files.insert(*file_path, FileInfo::default());
+                            invalid_files.lock().unwrap().push(*file_path);
                         };
 
                         let mut tally = files_processed.lock().unwrap();
@@ -426,7 +433,8 @@ pub fn scan_files(
             if let Ok(thread_codebases) = Arc::try_unwrap(thread_codebases) {
                 for thread_codebase in thread_codebases.into_inner().unwrap().into_iter() {
                     if config.ast_diff {
-                        codebase_diff.extend(get_diff(&updated_files, &thread_codebase.files));
+                        codebase_diff
+                            .extend(get_diff(&existing_changed_files, &thread_codebase.files));
                     }
 
                     codebase.extend(thread_codebase.clone());
@@ -449,6 +457,10 @@ pub fn scan_files(
     }
 
     let interner = Arc::try_unwrap(interner).unwrap().into_inner().unwrap();
+    let invalid_files = Arc::try_unwrap(invalid_files)
+        .unwrap()
+        .into_inner()
+        .unwrap();
 
     let resolved_names = Arc::try_unwrap(resolved_names)
         .unwrap()
@@ -485,6 +497,7 @@ pub fn scan_files(
         asts,
         files_to_analyze,
         file_system,
+        invalid_files: invalid_files.into_iter().collect(),
     })
 }
 
@@ -611,7 +624,15 @@ fn invalidate_changed_codebase_elements(
                     if let SymbolKind::TypeDefinition = kind {
                         codebase.type_definitions.remove(&ast_node.name);
                     } else {
-                        codebase.classlike_infos.remove(&ast_node.name);
+                        if let Some(classlike_info) =
+                            codebase.classlike_infos.remove(&ast_node.name)
+                        {
+                            for method_name in classlike_info.methods {
+                                codebase
+                                    .functionlike_infos
+                                    .remove(&(ast_node.name, method_name));
+                            }
+                        }
                         codebase.symbols.classlike_files.remove(&ast_node.name);
                     }
                 }
