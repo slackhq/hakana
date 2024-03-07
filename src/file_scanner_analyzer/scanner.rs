@@ -613,7 +613,7 @@ fn invalidate_changed_codebase_elements(
     codebase: &mut CodebaseInfo,
     changed_files: &FxHashSet<FilePath>,
 ) {
-    for (_, file_storage) in codebase
+    for (file_path, file_storage) in codebase
         .files
         .iter()
         .filter(|f| changed_files.contains(f.0))
@@ -646,6 +646,12 @@ fn invalidate_changed_codebase_elements(
                     }
                 }
             }
+        }
+
+        for closure_ref in &file_storage.closure_refs {
+            codebase
+                .functionlike_infos
+                .remove(&(file_path.0, StrId(*closure_ref)));
         }
     }
 

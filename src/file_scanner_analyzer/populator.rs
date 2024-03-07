@@ -55,7 +55,7 @@ pub fn populate_codebase(
         populate_functionlike_storage(
             v,
             &codebase.symbols,
-            &if name.1 == StrId::EMPTY {
+            &if name.1 == StrId::EMPTY || v.is_closure {
                 ReferenceSource::Symbol(true, name.0)
             } else {
                 ReferenceSource::ClasslikeMember(true, name.0, name.1)
@@ -186,18 +186,6 @@ pub fn populate_codebase(
                 &ReferenceSource::Symbol(true, *name),
                 symbol_references,
                 !safe_symbols.contains(name),
-            );
-        }
-    }
-
-    for (name, file_info) in codebase.files.iter_mut() {
-        for (_, functionlike_info) in file_info.closure_infos.iter_mut() {
-            populate_functionlike_storage(
-                functionlike_info,
-                &codebase.symbols,
-                &ReferenceSource::Symbol(true, name.0),
-                symbol_references,
-                false,
             );
         }
     }

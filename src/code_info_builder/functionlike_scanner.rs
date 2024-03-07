@@ -302,6 +302,7 @@ pub(crate) fn get_functionlike(
         get_type_from_optional_hint(ret.get_hint(), None, type_context, resolved_names);
 
     functionlike_info.user_defined = user_defined && !is_anonymous;
+    functionlike_info.is_closure = is_anonymous;
 
     if let Some(name_pos) = name_pos {
         let name_offset = 9 + if fun_kind.is_async() { 6 } else { 0 };

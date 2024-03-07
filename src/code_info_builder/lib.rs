@@ -48,7 +48,7 @@ struct Scanner<'a> {
     resolved_names: &'a FxHashMap<usize, StrId>,
     all_custom_issues: &'a FxHashSet<String>,
     user_defined: bool,
-    closures: FxHashMap<usize, FunctionLikeInfo>,
+    closure_refs: Vec<u32>,
     ast_nodes: Vec<DefSignatureNode>,
     uses: Uses,
 }
@@ -607,8 +607,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             let functionlike_storage =
                 self.visit_function(true, c, name, fun, &vec![], &vec![], None);
 
-            self.closures
-                .insert(fun.span.start_offset(), functionlike_storage);
+            self.codebase.functionlike_infos.insert(
+                (
+                    self.file_source.file_path.0,
+                    StrId(fun.span.start_offset() as u32),
+                ),
+                functionlike_storage,
+            );
+
+            self.closure_refs.push(fun.span.start_offset() as u32);
         }
 
         result
@@ -819,7 +826,7 @@ pub fn collect_info_for_aast(
         resolved_names,
         user_defined,
         all_custom_issues,
-        closures: FxHashMap::default(),
+        closure_refs: vec![],
         ast_nodes: Vec::new(),
         uses,
     };
@@ -838,7 +845,7 @@ pub fn collect_info_for_aast(
         checker.codebase.files.insert(
             file_path_id,
             FileInfo {
-                closure_infos: checker.closures,
+                closure_refs: checker.closure_refs,
                 ast_nodes: checker.ast_nodes,
                 valid_file: true,
             },

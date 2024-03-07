@@ -1478,14 +1478,12 @@ pub(crate) fn get_closure_storage(
     file_analyzer: &FileAnalyzer,
     offset: usize,
 ) -> Option<FunctionLikeInfo> {
-    let file_storage = file_analyzer
+    file_analyzer
         .codebase
-        .files
-        .get(&file_analyzer.get_file_source().file_path);
-
-    if let Some(file_storage) = file_storage {
-        file_storage.closure_infos.get(&offset).cloned()
-    } else {
-        None
-    }
+        .functionlike_infos
+        .get(&(
+            file_analyzer.get_file_source().file_path.0,
+            StrId(offset as u32),
+        ))
+        .cloned()
 }

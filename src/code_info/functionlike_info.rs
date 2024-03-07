@@ -162,6 +162,8 @@ pub struct FunctionLikeInfo {
     pub async_version: Option<FunctionLikeIdentifier>,
 
     pub is_production_code: bool,
+
+    pub is_closure: bool,
 }
 
 impl FunctionLikeInfo {
@@ -205,6 +207,7 @@ impl FunctionLikeInfo {
             async_version: None,
             is_production_code: true,
             pure_can_throw: false,
+            is_closure: false,
         }
     }
 
