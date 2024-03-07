@@ -182,7 +182,7 @@ pub(crate) fn get_functionlike(
         all_custom_issues,
     );
 
-    let mut functionlike_info = FunctionLikeInfo::new(name, definition_location, meta_start);
+    let mut functionlike_info = FunctionLikeInfo::new(definition_location, meta_start);
 
     let mut template_supers = FxHashMap::default();
 
@@ -220,6 +220,8 @@ pub(crate) fn get_functionlike(
                         this_name,
                         type_context,
                         resolved_names,
+                        file_source.file_path,
+                        constraint_hint.0.start_offset() as u32,
                     );
                 }
             }
@@ -231,6 +233,8 @@ pub(crate) fn get_functionlike(
                         this_name,
                         type_context,
                         resolved_names,
+                        file_source.file_path,
+                        constraint_hint.0.start_offset() as u32,
                     )
                     .unwrap();
 
@@ -259,14 +263,26 @@ pub(crate) fn get_functionlike(
         }
 
         for where_hint in where_constraints {
-            let where_first =
-                get_type_from_hint(&where_hint.0 .1, this_name, type_context, resolved_names)
-                    .unwrap()
-                    .get_single_owned();
+            let where_first = get_type_from_hint(
+                &where_hint.0 .1,
+                this_name,
+                type_context,
+                resolved_names,
+                file_source.file_path,
+                where_hint.0 .0.start_offset() as u32,
+            )
+            .unwrap()
+            .get_single_owned();
 
-            let where_second =
-                get_type_from_hint(&where_hint.2 .1, this_name, type_context, resolved_names)
-                    .unwrap();
+            let where_second = get_type_from_hint(
+                &where_hint.2 .1,
+                this_name,
+                type_context,
+                resolved_names,
+                file_source.file_path,
+                where_hint.2 .0.start_offset() as u32,
+            )
+            .unwrap();
 
             if let TAtomic::TGenericParam { param_name, .. } = where_first {
                 if let ast_defs::ConstraintKind::ConstraintEq = where_hint.1 {
@@ -298,8 +314,13 @@ pub(crate) fn get_functionlike(
     }
 
     type_context.template_supers = template_supers;
-    functionlike_info.return_type =
-        get_type_from_optional_hint(ret.get_hint(), None, type_context, resolved_names);
+    functionlike_info.return_type = get_type_from_optional_hint(
+        ret.get_hint(),
+        None,
+        type_context,
+        resolved_names,
+        file_source.file_path,
+    );
 
     functionlike_info.user_defined = user_defined && !is_anonymous;
     functionlike_info.is_closure = is_anonymous;
@@ -631,7 +652,14 @@ fn convert_param_nodes(
 
             param.is_variadic = param_node.is_variadic;
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
-                get_type_from_hint(&param_type.1, None, type_context, resolved_names)
+                get_type_from_hint(
+                    &param_type.1,
+                    None,
+                    type_context,
+                    resolved_names,
+                    file_source.file_path,
+                    param_type.0.start_offset() as u32,
+                )
             } else {
                 None
             };

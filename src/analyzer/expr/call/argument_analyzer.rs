@@ -792,6 +792,7 @@ fn get_argument_taints(
                 }
             }
         }
+        _ => {}
     }
 
     vec![]

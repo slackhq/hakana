@@ -840,6 +840,9 @@ fn analyze_function_pointer(
                 return Ok(());
             }
         }
+        _ => {
+            panic!()
+        }
     }
 
     if let Some(closure) = get_closure_from_id(

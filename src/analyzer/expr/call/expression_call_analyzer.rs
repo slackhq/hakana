@@ -59,7 +59,6 @@ pub(crate) fn analyze(
             let mut template_result = TemplateResult::new(IndexMap::new(), IndexMap::new());
 
             let mut lambda_storage = FunctionLikeInfo::new(
-                *closure_id,
                 statements_analyzer.get_hpos(pos),
                 MetaStart {
                     start_offset: 0,
@@ -84,7 +83,7 @@ pub(crate) fn analyze(
             lambda_storage.return_type = closure_return_type.clone().map(|t| (*t).clone());
             lambda_storage.effects = FnEffect::from_u8(effects);
 
-            let functionlike_id = FunctionLikeIdentifier::Function(*closure_id);
+            let functionlike_id = FunctionLikeIdentifier::Closure(closure_id.0, closure_id.1);
 
             arguments_analyzer::check_arguments_match(
                 statements_analyzer,
@@ -102,7 +101,13 @@ pub(crate) fn analyze(
                 None,
             )?;
 
-            apply_effects(&lambda_storage, analysis_data, pos, &expr.args);
+            apply_effects(
+                functionlike_id,
+                &lambda_storage,
+                analysis_data,
+                pos,
+                &expr.args,
+            );
 
             stmt_type = Some(hakana_type::combine_optional_union_types(
                 stmt_type.as_ref(),

@@ -396,7 +396,13 @@ pub(crate) fn check_method_args(
         method_name_pos,
     )?;
 
-    apply_effects(functionlike_storage, analysis_data, pos, call_expr.1);
+    apply_effects(
+        FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+        functionlike_storage,
+        analysis_data,
+        pos,
+        call_expr.1,
+    );
 
     if !template_result.template_types.is_empty() {
         check_template_result(statements_analyzer, template_result, pos, &functionlike_id);
@@ -406,12 +412,13 @@ pub(crate) fn check_method_args(
 }
 
 pub(crate) fn apply_effects(
+    functionlike_id: FunctionLikeIdentifier,
     function_storage: &FunctionLikeInfo,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     expr_args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
 ) {
-    if function_storage.name == StrId::ASIO_JOIN {
+    if functionlike_id == FunctionLikeIdentifier::Function(StrId::ASIO_JOIN) {
         analysis_data.expr_effects.insert(
             (pos.start_offset() as u32, pos.end_offset() as u32),
             EFFECT_IMPURE,

@@ -85,6 +85,9 @@ pub(crate) fn fetch(
                             FunctionLikeIdentifier::Function(function_id) =>
                                 function_id.0.to_string(),
                             FunctionLikeIdentifier::Method(_, _) => panic!(),
+                            _ => {
+                                panic!()
+                            }
                         }
                     )
                     .as_str(),
@@ -1244,7 +1247,7 @@ fn get_special_argument_nodes(
                 (vec![], None)
             }
         },
-        FunctionLikeIdentifier::Method(_, _) => panic!(),
+        _ => panic!(),
     }
 }
 
@@ -1272,6 +1275,6 @@ fn get_special_added_removed_taints(
             }
             _ => FxHashMap::default(),
         },
-        FunctionLikeIdentifier::Method(_, _) => panic!(),
+        _ => panic!(),
     }
 }

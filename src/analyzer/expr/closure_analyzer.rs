@@ -74,12 +74,6 @@ pub(crate) fn analyze(
         analysis_data.replacements.extend(replacements);
     }
 
-    let closure_id = format!(
-        "{}:{}",
-        statements_analyzer.get_file_path().0 .0,
-        fun.span.start_offset()
-    );
-
     let mut closure_type = wrap_atomic(TAtomic::TClosure {
         params: lambda_storage
             .params
@@ -93,8 +87,17 @@ pub(crate) fn analyze(
             .collect(),
         return_type: lambda_storage.return_type.map(Box::new),
         effects: lambda_storage.effects.to_u8(),
-        closure_id: statements_analyzer.get_interner().get(&closure_id).unwrap(),
+        closure_id: (
+            *statements_analyzer.get_file_path(),
+            fun.span.start_offset() as u32,
+        ),
     });
+
+    let closure_id = format!(
+        "{}:{}",
+        statements_analyzer.get_file_path().0 .0,
+        fun.span.start_offset()
+    );
 
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let application_node = DataFlowNode::get_for_method_reference(

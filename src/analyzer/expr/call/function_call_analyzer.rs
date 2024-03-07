@@ -149,7 +149,7 @@ pub(crate) fn analyze(
             .extend(function_storage.template_types.clone());
     }
 
-    let functionlike_id = FunctionLikeIdentifier::Function(function_storage.name);
+    let functionlike_id = FunctionLikeIdentifier::Function(name);
 
     arguments_analyzer::check_arguments_match(
         statements_analyzer,
@@ -167,7 +167,13 @@ pub(crate) fn analyze(
         Some(expr.0 .0),
     )?;
 
-    apply_effects(function_storage, analysis_data, pos, expr.2);
+    apply_effects(
+        functionlike_id,
+        function_storage,
+        analysis_data,
+        pos,
+        expr.2,
+    );
 
     if let Some(effects) = analysis_data
         .expr_effects

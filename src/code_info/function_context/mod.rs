@@ -35,6 +35,9 @@ impl FunctionContext {
                 FunctionLikeIdentifier::Method(a, b) => {
                     ReferenceSource::ClasslikeMember(false, *a, *b)
                 }
+                _ => {
+                    panic!()
+                }
             }
         } else {
             ReferenceSource::Symbol(false, *file_path)

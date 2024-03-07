@@ -1,3 +1,4 @@
+use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::functionlike_parameter::FnParameter;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -26,10 +27,19 @@ fn get_vec_type_from_hint(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
 ) -> TAtomic {
     TAtomic::TVec {
         type_param: Box::new(
-            get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names).unwrap(),
+            get_type_from_hint(
+                &hint.1,
+                classlike_name,
+                type_context,
+                resolved_names,
+                file_path,
+                hint.0.start_offset() as u32,
+            )
+            .unwrap(),
         ),
         known_count: None,
         non_empty: false,
@@ -42,6 +52,7 @@ fn get_tuple_type_from_hints(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
 ) -> TAtomic {
     TAtomic::TVec {
         type_param: Box::new(get_nothing()),
@@ -55,8 +66,15 @@ fn get_tuple_type_from_hints(
                     i,
                     (
                         false,
-                        get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
-                            .unwrap(),
+                        get_type_from_hint(
+                            &hint.1,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                            file_path,
+                            hint.0.start_offset() as u32,
+                        )
+                        .unwrap(),
                     ),
                 );
             }
@@ -71,10 +89,19 @@ fn get_keyset_type_from_hint(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
 ) -> TAtomic {
     TAtomic::TKeyset {
         type_param: Box::new(
-            get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names).unwrap(),
+            get_type_from_hint(
+                &hint.1,
+                classlike_name,
+                type_context,
+                resolved_names,
+                file_path,
+                hint.0.start_offset() as u32,
+            )
+            .unwrap(),
         ),
     }
 }
@@ -84,10 +111,16 @@ fn get_classname_type_from_hint(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
 ) -> TAtomic {
-    if let Some(inner_type) =
-        get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
-    {
+    if let Some(inner_type) = get_type_from_hint(
+        &hint.1,
+        classlike_name,
+        type_context,
+        resolved_names,
+        file_path,
+        hint.0.start_offset() as u32,
+    ) {
         let as_type = inner_type.get_single_owned();
 
         if let TAtomic::TGenericParam {
@@ -117,10 +150,16 @@ fn get_typename_type_from_hint(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
 ) -> TAtomic {
-    if let Some(inner_type) =
-        get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names)
-    {
+    if let Some(inner_type) = get_type_from_hint(
+        &hint.1,
+        classlike_name,
+        type_context,
+        resolved_names,
+        file_path,
+        hint.0.start_offset() as u32,
+    ) {
         let as_type = inner_type.get_single_owned();
 
         if let TAtomic::TGenericParam {
@@ -151,16 +190,33 @@ fn get_dict_type_from_hints(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
 ) -> TAtomic {
     TAtomic::TDict {
         params: Some((
             Box::new(if let Some(k) = &key_hint {
-                get_type_from_hint(&k.1, classlike_name, type_context, resolved_names).unwrap()
+                get_type_from_hint(
+                    &k.1,
+                    classlike_name,
+                    type_context,
+                    resolved_names,
+                    file_path,
+                    k.0.start_offset() as u32,
+                )
+                .unwrap()
             } else {
                 get_arraykey(true)
             }),
             Box::new(if let Some(v) = &value_hint {
-                get_type_from_hint(&v.1, classlike_name, type_context, resolved_names).unwrap()
+                get_type_from_hint(
+                    &v.1,
+                    classlike_name,
+                    type_context,
+                    resolved_names,
+                    file_path,
+                    v.0.start_offset() as u32,
+                )
+                .unwrap()
             } else {
                 get_mixed_any()
             }),
@@ -176,13 +232,20 @@ fn get_shape_type_from_hints(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
 ) -> TAtomic {
     let mut known_items = BTreeMap::new();
 
     for field in &shape_info.field_map {
-        let field_type =
-            get_type_from_hint(&field.hint.1, classlike_name, type_context, resolved_names)
-                .unwrap();
+        let field_type = get_type_from_hint(
+            &field.hint.1,
+            classlike_name,
+            type_context,
+            resolved_names,
+            file_path,
+            field.hint.0.start_offset() as u32,
+        )
+        .unwrap();
 
         match &field.name {
             ast_defs::ShapeFieldName::SFlitInt(int) => {
@@ -230,6 +293,8 @@ fn get_function_type_from_hints(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
+    offset: u32,
 ) -> TAtomic {
     let mut params = function_info
         .param_tys
@@ -249,6 +314,8 @@ fn get_function_type_from_hints(
                     classlike_name,
                     type_context,
                     resolved_names,
+                    file_path,
+                    param_type.0.start_offset() as u32,
                 )
                 .map(Box::new),
                 is_variadic: false,
@@ -265,6 +332,8 @@ fn get_function_type_from_hints(
                 classlike_name,
                 type_context,
                 resolved_names,
+                file_path,
+                variadic_type.0.start_offset() as u32,
             )
             .map(Box::new),
             is_variadic: true,
@@ -281,6 +350,8 @@ fn get_function_type_from_hints(
             classlike_name,
             type_context,
             resolved_names,
+            file_path,
+            function_info.return_ty.0.start_offset() as u32,
         )
         .map(Box::new),
         effects: if let Some(contexts) = &function_info.ctxs {
@@ -292,7 +363,7 @@ fn get_function_type_from_hints(
         } else {
             Some(EFFECT_IMPURE)
         },
-        closure_id: StrId::ANONYMOUS_FN,
+        closure_id: (file_path, offset),
     }
 }
 
@@ -302,6 +373,7 @@ fn get_reference_type(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
 ) -> TAtomic {
     let type_name = &applied_type.1;
 
@@ -330,7 +402,15 @@ fn get_reference_type(
     let type_params: Vec<TUnion> = extra_info
         .iter()
         .map(|hint| {
-            get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names).unwrap()
+            get_type_from_hint(
+                &hint.1,
+                classlike_name,
+                type_context,
+                resolved_names,
+                file_path,
+                hint.0.start_offset() as u32,
+            )
+            .unwrap()
         })
         .collect();
 
@@ -401,6 +481,8 @@ pub fn get_type_from_hint(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
+    offset: u32,
 ) -> Option<TUnion> {
     let mut types = Vec::new();
 
@@ -430,7 +512,13 @@ pub fn get_type_from_hint(
                 "dynamic" => TAtomic::TMixedWithFlags(true, false, false, false),
                 "vec" | "HH\\varray" | "varray" => {
                     if let Some(first) = extra_info.first() {
-                        get_vec_type_from_hint(first, classlike_name, type_context, resolved_names)
+                        get_vec_type_from_hint(
+                            first,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                            file_path,
+                        )
                     } else {
                         TAtomic::TVec {
                             type_param: Box::new(get_mixed_any()),
@@ -446,6 +534,7 @@ pub fn get_type_from_hint(
                     classlike_name,
                     type_context,
                     resolved_names,
+                    file_path,
                 ),
                 "keyset" => {
                     if let Some(param) = extra_info.first() {
@@ -454,6 +543,7 @@ pub fn get_type_from_hint(
                             classlike_name,
                             type_context,
                             resolved_names,
+                            file_path,
                         )
                     } else {
                         TAtomic::TKeyset {
@@ -468,6 +558,7 @@ pub fn get_type_from_hint(
                             classlike_name,
                             type_context,
                             resolved_names,
+                            file_path,
                         )
                     } else {
                         get_reference_type(
@@ -476,6 +567,7 @@ pub fn get_type_from_hint(
                             classlike_name,
                             type_context,
                             resolved_names,
+                            file_path,
                         )
                     }
                 }
@@ -486,6 +578,7 @@ pub fn get_type_from_hint(
                             classlike_name,
                             type_context,
                             resolved_names,
+                            file_path,
                         )
                     } else {
                         get_reference_type(
@@ -494,6 +587,7 @@ pub fn get_type_from_hint(
                             classlike_name,
                             type_context,
                             resolved_names,
+                            file_path,
                         )
                     }
                 }
@@ -523,22 +617,42 @@ pub fn get_type_from_hint(
                 "HH\\FIXME\\MISSING_RETURN_TYPE" | "\\HH\\FIXME\\MISSING_RETURN_TYPE" => {
                     return None;
                 }
-                _ => {
-                    get_reference_type(id, extra_info, classlike_name, type_context, resolved_names)
-                }
+                _ => get_reference_type(
+                    id,
+                    extra_info,
+                    classlike_name,
+                    type_context,
+                    resolved_names,
+                    file_path,
+                ),
             }
         }
         Hint_::Hmixed => TAtomic::TMixed,
-        Hint_::Hshape(shape_info) => {
-            get_shape_type_from_hints(shape_info, classlike_name, type_context, resolved_names)
-        }
-        Hint_::Htuple(tuple_hints) => {
-            get_tuple_type_from_hints(tuple_hints, classlike_name, type_context, resolved_names)
-        }
+        Hint_::Hshape(shape_info) => get_shape_type_from_hints(
+            shape_info,
+            classlike_name,
+            type_context,
+            resolved_names,
+            file_path,
+        ),
+        Hint_::Htuple(tuple_hints) => get_tuple_type_from_hints(
+            tuple_hints,
+            classlike_name,
+            type_context,
+            resolved_names,
+            file_path,
+        ),
         Hint_::Hoption(inner) => {
             types.push(TAtomic::TNull);
-            let union =
-                get_type_from_hint(&inner.1, classlike_name, type_context, resolved_names).unwrap();
+            let union = get_type_from_hint(
+                &inner.1,
+                classlike_name,
+                type_context,
+                resolved_names,
+                file_path,
+                inner.0.start_offset() as u32,
+            )
+            .unwrap();
 
             let mut last = None;
 
@@ -553,8 +667,15 @@ pub fn get_type_from_hint(
             last.unwrap()
         }
         Hint_::Hlike(inner) => {
-            let union =
-                get_type_from_hint(&inner.1, classlike_name, type_context, resolved_names).unwrap();
+            let union = get_type_from_hint(
+                &inner.1,
+                classlike_name,
+                type_context,
+                resolved_names,
+                file_path,
+                inner.0.start_offset() as u32,
+            )
+            .unwrap();
 
             let mut last = None;
 
@@ -568,13 +689,25 @@ pub fn get_type_from_hint(
 
             last.unwrap()
         }
-        Hint_::Hfun(hint_fun) => {
-            get_function_type_from_hints(hint_fun, classlike_name, type_context, resolved_names)
-        }
+        Hint_::Hfun(hint_fun) => get_function_type_from_hints(
+            hint_fun,
+            classlike_name,
+            type_context,
+            resolved_names,
+            file_path,
+            offset,
+        ),
         Hint_::Haccess(class, type_names) => {
-            let mut inner_type = get_type_from_hint(&class.1, None, type_context, resolved_names)
-                .unwrap()
-                .get_single_owned();
+            let mut inner_type = get_type_from_hint(
+                &class.1,
+                None,
+                type_context,
+                resolved_names,
+                file_path,
+                class.0.start_offset() as u32,
+            )
+            .unwrap()
+            .get_single_owned();
 
             for type_id in type_names {
                 inner_type = TAtomic::TClassTypeConstant {
@@ -592,7 +725,14 @@ pub fn get_type_from_hint(
             inner_type
         }
         Hint_::Hsoft(hint) => {
-            return get_type_from_hint(&hint.1, classlike_name, type_context, resolved_names);
+            return get_type_from_hint(
+                &hint.1,
+                classlike_name,
+                type_context,
+                resolved_names,
+                file_path,
+                hint.0.start_offset() as u32,
+            );
         }
         Hint_::Hnonnull => TAtomic::TMixedWithFlags(false, false, false, true),
         Hint_::Habstr(_, _) => panic!(),
@@ -604,8 +744,14 @@ pub fn get_type_from_hint(
         Hint_::Hunion(union_hints) => {
             let mut all_atomic_types = vec![];
             for inner_hint in union_hints {
-                let inner_type =
-                    get_type_from_hint(&inner_hint.1, classlike_name, type_context, resolved_names);
+                let inner_type = get_type_from_hint(
+                    &inner_hint.1,
+                    classlike_name,
+                    type_context,
+                    resolved_names,
+                    file_path,
+                    inner_hint.0.start_offset() as u32,
+                );
 
                 if let Some(inner_type) = inner_type {
                     all_atomic_types.extend(inner_type.types);
@@ -634,9 +780,17 @@ pub fn get_type_from_optional_hint(
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<usize, StrId>,
+    file_path: FilePath,
 ) -> Option<TUnion> {
     match hint {
-        Some(x) => get_type_from_hint(&x.1, classlike_name, type_context, resolved_names),
+        Some(x) => get_type_from_hint(
+            &x.1,
+            classlike_name,
+            type_context,
+            resolved_names,
+            file_path,
+            x.0.start_offset() as u32,
+        ),
         _ => None,
     }
 }

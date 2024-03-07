@@ -117,6 +117,8 @@ pub(crate) fn scan(
                     Some(class_name),
                     &type_context,
                     resolved_names,
+                    file_source.file_path,
+                    constraint_hint.0.start_offset() as u32,
                 )
                 .unwrap()
             } else {
@@ -192,6 +194,8 @@ pub(crate) fn scan(
                                             template_supers: FxHashMap::default(),
                                         },
                                         resolved_names,
+                                        file_source.file_path,
+                                        param.0.start_offset() as u32,
                                     )
                                     .unwrap(),
                                 )
@@ -236,6 +240,8 @@ pub(crate) fn scan(
                                                 template_supers: FxHashMap::default(),
                                             },
                                             resolved_names,
+                                            file_source.file_path,
+                                            param.0.start_offset() as u32,
                                         )
                                         .unwrap(),
                                     )
@@ -263,6 +269,8 @@ pub(crate) fn scan(
                         None,
                         &TypeResolutionContext::new(),
                         resolved_names,
+                        file_source.file_path,
+                        enum_node.base.0.start_offset() as u32,
                     )
                     .unwrap()
                     .get_single_owned(),
@@ -296,7 +304,13 @@ pub(crate) fn scan(
                 .symbols
                 .add_interface_name(class_name, Some(file_source.file_path));
 
-            handle_reqs(classlike_node, resolved_names, &mut storage, class_name);
+            handle_reqs(
+                classlike_node,
+                resolved_names,
+                &mut storage,
+                class_name,
+                file_source,
+            );
 
             for parent_interface in &classlike_node.extends {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_interface.1 {
@@ -325,6 +339,8 @@ pub(crate) fn scan(
                                             template_supers: FxHashMap::default(),
                                         },
                                         resolved_names,
+                                        file_source.file_path,
+                                        param.0.start_offset() as u32,
                                     )
                                     .unwrap(),
                                 )
@@ -341,7 +357,13 @@ pub(crate) fn scan(
                 .symbols
                 .add_trait_name(class_name, Some(file_source.file_path));
 
-            handle_reqs(classlike_node, resolved_names, &mut storage, class_name);
+            handle_reqs(
+                classlike_node,
+                resolved_names,
+                &mut storage,
+                class_name,
+                file_source,
+            );
 
             for extended_interface in &classlike_node.implements {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
@@ -370,6 +392,8 @@ pub(crate) fn scan(
                                             template_supers: FxHashMap::default(),
                                         },
                                         resolved_names,
+                                        file_source.file_path,
+                                        param.0.start_offset() as u32,
                                     )
                                     .unwrap(),
                                 )
@@ -394,6 +418,8 @@ pub(crate) fn scan(
                         None,
                         &TypeResolutionContext::new(),
                         resolved_names,
+                        file_source.file_path,
+                        enum_node.base.0.start_offset() as u32,
                     )
                     .unwrap()
                     .get_single_owned(),
@@ -408,6 +434,8 @@ pub(crate) fn scan(
                             None,
                             &TypeResolutionContext::new(),
                             resolved_names,
+                            file_source.file_path,
+                            constraint.0.start_offset() as u32,
                         )
                         .unwrap()
                         .get_single_owned(),
@@ -486,6 +514,8 @@ pub(crate) fn scan(
                 template_supers: FxHashMap::default(),
             },
             resolved_names,
+            file_source.file_path,
+            trait_use.0.start_offset() as u32,
         )
         .unwrap()
         .get_single_owned();
@@ -611,6 +641,7 @@ fn handle_reqs(
     resolved_names: &FxHashMap<usize, StrId>,
     storage: &mut ClassLikeInfo,
     class_name: &StrId,
+    file_source: &FileSource,
 ) {
     for req in &classlike_node.reqs {
         if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
@@ -644,6 +675,8 @@ fn handle_reqs(
                                     template_supers: FxHashMap::default(),
                                 },
                                 resolved_names,
+                                file_source.file_path,
+                                param.0.start_offset() as u32,
                             )
                             .unwrap(),
                         )
@@ -674,6 +707,8 @@ fn visit_xhp_attribute(
                 template_supers: FxHashMap::default(),
             },
             resolved_names,
+            file_source.file_path,
+            hint.0.start_offset() as u32,
         )
         .unwrap()
     } else {
@@ -785,6 +820,8 @@ fn visit_class_const_declaration(
                 template_supers: FxHashMap::default(),
             },
             resolved_names,
+            file_source.file_path,
+            supplied_type_hint.0.start_offset() as u32,
         );
 
         supplied_type_location = Some(HPos::new(
@@ -857,6 +894,8 @@ fn visit_class_typeconst_declaration(
                             template_supers: FxHashMap::default(),
                         },
                         resolved_names,
+                        file_source.file_path,
+                        hint.0.start_offset() as u32,
                     )
                     .unwrap(),
                 )
@@ -873,6 +912,8 @@ fn visit_class_typeconst_declaration(
                     template_supers: FxHashMap::default(),
                 },
                 resolved_names,
+                file_source.file_path,
+                const_node.c_tc_type.0.start_offset() as u32,
             )
             .unwrap(),
         ),
@@ -929,6 +970,8 @@ fn visit_property_declaration(
                 template_supers: FxHashMap::default(),
             },
             resolved_names,
+            file_source.file_path,
+            property_type_hint.0.start_offset() as u32,
         );
 
         property_type_location = Some(HPos::new(

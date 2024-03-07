@@ -159,6 +159,8 @@ pub(crate) fn analyze<'expr>(
             context.function_context.calling_class.as_ref(),
             statements_analyzer.get_type_resolution_context(),
             statements_analyzer.get_file_analyzer().resolved_names,
+            *statements_analyzer.get_file_path(),
+            hint.0.start_offset() as u32,
         )
         .unwrap();
 
@@ -207,10 +209,7 @@ fn get_fake_as_var(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> Option<aast::Expr<(), ()>> {
-    let left_var_id = format!(
-        "$<tmp coalesce var>{}",
-        left.pos().start_offset()
-    );
+    let left_var_id = format!("$<tmp coalesce var>{}", left.pos().start_offset());
 
     expression_analyzer::analyze(
         statements_analyzer,

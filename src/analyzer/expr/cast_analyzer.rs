@@ -40,6 +40,8 @@ pub(crate) fn analyze(
         None,
         statements_analyzer.get_type_resolution_context(),
         &FxHashMap::default(),
+        *statements_analyzer.get_file_path(),
+        hint.0.start_offset() as u32,
     )
     .unwrap();
 

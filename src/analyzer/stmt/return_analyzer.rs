@@ -201,7 +201,7 @@ pub(crate) fn analyze(
             &inferred_return_type,
             &mut analysis_data.data_flow_graph,
             &if let Some(closure_id) = context.calling_closure_id {
-                FunctionLikeIdentifier::Function(closure_id)
+                FunctionLikeIdentifier::Closure(*statements_analyzer.get_file_path(), closure_id)
             } else {
                 context.function_context.calling_functionlike_id.unwrap()
             },
@@ -478,10 +478,10 @@ pub(crate) fn analyze(
     } else if !expected_return_type.is_void()
         && !functionlike_storage.has_yield
         && !functionlike_storage.is_async
-        && statements_analyzer
-            .get_interner()
-            .lookup(&functionlike_storage.name)
-            != "__construct"
+        && !matches!(
+            context.function_context.calling_functionlike_id,
+            Some(FunctionLikeIdentifier::Method(_, StrId::CONSTRUCT)),
+        )
     {
         analysis_data.maybe_add_issue(
             Issue::new(

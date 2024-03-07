@@ -110,6 +110,9 @@ impl<'a> StatementsAnalyzer<'a> {
                     FunctionLikeIdentifier::Method(a, b) => {
                         ReferenceSource::ClasslikeMember(false, *a, *b)
                     }
+                    _ => {
+                        panic!()
+                    }
                 },
                 None => ReferenceSource::Symbol(false, self.get_file_path().0),
             },

@@ -217,6 +217,8 @@ fn get_is_assertions(
         assertion_context.this_class_name,
         assertion_context.type_resolution_context,
         assertion_context.resolved_names,
+        assertion_context.file_source.file_path,
+        hint.0.start_offset() as u32,
     ) {
         t
     } else {

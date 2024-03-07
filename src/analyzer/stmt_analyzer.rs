@@ -321,6 +321,7 @@ fn detect_unused_statement_expressions(
                             fn_can_throw = true;
                         }
                     }
+                    _ => {}
                 }
             };
 

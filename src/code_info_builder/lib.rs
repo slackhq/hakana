@@ -166,6 +166,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         None,
                         &TypeResolutionContext::new(),
                         self.resolved_names,
+                        self.file_source.file_path,
+                        t.0.start_offset() as u32,
                     )
                 } else {
                     None
@@ -218,7 +220,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             let constraint = param.constraints.first();
 
             let constraint_type = if let Some(k) = constraint {
-                get_type_from_hint(&k.1 .1, None, &type_context, self.resolved_names).unwrap()
+                get_type_from_hint(
+                    &k.1 .1,
+                    None,
+                    &type_context,
+                    self.resolved_names,
+                    self.file_source.file_path,
+                    k.1 .0.start_offset() as u32,
+                )
+                .unwrap()
             } else {
                 get_mixed_any()
             };
@@ -321,6 +331,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                         template_supers: FxHashMap::default(),
                     },
                     self.resolved_names,
+                    self.file_source.file_path,
+                    as_hint.0.start_offset() as u32,
                 )
             } else {
                 None
@@ -333,6 +345,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     template_supers: FxHashMap::default(),
                 },
                 self.resolved_names,
+                self.file_source.file_path,
+                typedef.kind.0.start_offset() as u32,
             )
             .unwrap(),
             template_types: template_type_map,
@@ -469,7 +483,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     .unwrap_or(&vec![]),
             );
             last_current_node.children.push(DefSignatureNode {
-                name: functionlike_storage.name,
+                name: method_name,
                 start_offset: functionlike_storage.def_location.start_offset,
                 end_offset: functionlike_storage.def_location.end_offset,
                 start_line: functionlike_storage.def_location.start_line,

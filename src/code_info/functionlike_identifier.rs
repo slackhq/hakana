@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{method_identifier::MethodIdentifier, Interner, StrId};
+use crate::{code_location::FilePath, method_identifier::MethodIdentifier, Interner, StrId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 pub enum FunctionLikeIdentifier {
     Function(StrId),
     Method(StrId, StrId),
+    Closure(FilePath, u32),
 }
 
 impl FunctionLikeIdentifier {
@@ -27,6 +28,9 @@ impl FunctionLikeIdentifier {
                     interner.lookup(method_name)
                 )
             }
+            FunctionLikeIdentifier::Closure(file_name, offset) => {
+                format!("{}:{}", file_name.0 .0, offset)
+            }
         }
     }
 
@@ -35,6 +39,9 @@ impl FunctionLikeIdentifier {
             FunctionLikeIdentifier::Function(fn_name) => fn_name.0.to_string(),
             FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => {
                 format!("{}::{}", fq_classlike_name.0, method_name.0)
+            }
+            FunctionLikeIdentifier::Closure(file_name, offset) => {
+                format!("{}::{}", file_name.0 .0, offset)
             }
         }
     }

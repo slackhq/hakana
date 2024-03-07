@@ -3,8 +3,8 @@ use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_algebra::Clause;
 use hakana_reflection_info::function_context::FunctionContext;
+use hakana_reflection_info::EFFECT_PURE;
 use hakana_reflection_info::{assertion::Assertion, t_union::TUnion};
-use hakana_reflection_info::{StrId, EFFECT_PURE};
 use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -153,7 +153,7 @@ pub struct ScopeContext {
 
     /// The id of the closure that's being analyzed, if any.
     /// This may be different from the overall function context.
-    pub calling_closure_id: Option<StrId>,
+    pub calling_closure_id: Option<u32>,
 
     pub inside_negation: bool,
 

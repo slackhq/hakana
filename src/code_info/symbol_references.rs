@@ -1,3 +1,5 @@
+use core::panic;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
@@ -215,6 +217,9 @@ impl SymbolReferences {
                         class_member,
                         in_signature,
                     ),
+                _ => {
+                    panic!()
+                }
             }
         } else if let Some(calling_class) = &function_context.calling_class {
             self.add_symbol_reference_to_class_member(*calling_class, class_member, in_signature)
@@ -239,6 +244,9 @@ impl SymbolReferences {
                         .entry((*class_name, *function_name))
                         .or_default()
                         .insert(class_member);
+                }
+                _ => {
+                    panic!()
                 }
             }
         } else if let Some(calling_class) = &function_context.calling_class {
@@ -266,6 +274,9 @@ impl SymbolReferences {
                         symbol,
                         in_signature,
                     ),
+                _ => {
+                    panic!()
+                }
             }
         } else if let Some(calling_class) = &function_context.calling_class {
             self.add_symbol_reference_to_symbol(*calling_class, symbol, in_signature)

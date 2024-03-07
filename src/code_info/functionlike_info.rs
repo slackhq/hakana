@@ -70,8 +70,6 @@ pub struct FunctionLikeInfo {
 
     pub return_type_location: Option<HPos>,
 
-    pub name: StrId,
-
     pub is_populated: bool,
 
     pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
@@ -167,7 +165,7 @@ pub struct FunctionLikeInfo {
 }
 
 impl FunctionLikeInfo {
-    pub fn new(name: StrId, def_location: HPos, meta_start: MetaStart) -> Self {
+    pub fn new(def_location: HPos, meta_start: MetaStart) -> Self {
         Self {
             def_location,
             meta_start,
@@ -175,7 +173,6 @@ impl FunctionLikeInfo {
             params: Vec::new(),
             return_type: None,
             return_type_location: None,
-            name,
             is_populated: false,
             user_defined: false,
             suppressed_issues: None,

@@ -857,6 +857,9 @@ fn handle_template_param_standin(
                                     calling_function != replacement_defining_entity
                                 }
                                 FunctionLikeIdentifier::Method(_, _) => true,
+                                _ => {
+                                    panic!()
+                                }
                             })
                     {
                         for nested_type_atomic in &replacement_as_type.types {

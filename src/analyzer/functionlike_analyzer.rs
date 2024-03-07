@@ -111,11 +111,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let mut function_context = FunctionContext::new();
 
-        function_context.calling_functionlike_id =
-            Some(FunctionLikeIdentifier::Function(function_storage.name));
+        let functionlike_id = FunctionLikeIdentifier::Function(name);
+
+        function_context.calling_functionlike_id = Some(functionlike_id);
 
         self.analyze_functionlike(
             &mut statements_analyzer,
+            functionlike_id,
             function_storage,
             ScopeContext::new(function_context),
             &stmt.fun.params,
@@ -173,12 +175,15 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .collect(),
         );
 
-        context.calling_closure_id = Some(lambda_storage.name);
+        context.calling_closure_id = Some(expr_pos.start_offset() as u32);
 
         statements_analyzer.set_function_info(&lambda_storage);
 
+        let file_path = *statements_analyzer.get_file_path();
+
         let (inferred_return_type, effects) = self.analyze_functionlike(
             &mut statements_analyzer,
+            FunctionLikeIdentifier::Closure(file_path, expr_pos.start_offset() as u32),
             &lambda_storage,
             context,
             &stmt.params,
@@ -266,10 +271,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         );
 
         let mut function_context = FunctionContext::new();
-        function_context.calling_functionlike_id = Some(FunctionLikeIdentifier::Method(
-            classlike_storage.name,
-            method_name,
-        ));
+        let functionlike_id = FunctionLikeIdentifier::Method(classlike_storage.name, method_name);
+        function_context.calling_functionlike_id = Some(functionlike_id);
         function_context.calling_class = Some(classlike_storage.name);
         function_context.calling_class_final = classlike_storage.is_final;
 
@@ -326,6 +329,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         self.analyze_functionlike(
             &mut statements_analyzer,
+            functionlike_id,
             functionlike_storage,
             context,
             &stmt.params,
@@ -433,6 +437,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     fn analyze_functionlike(
         &mut self,
         statements_analyzer: &mut StatementsAnalyzer,
+        functionlike_id: FunctionLikeIdentifier,
         functionlike_storage: &FunctionLikeInfo,
         mut context: ScopeContext,
         params: &[aast::FunParam<(), ()>],
@@ -556,7 +561,12 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         let new_call_node = DataFlowNode::get_for_this_after_method(
                             &MethodIdentifier(
                                 context.function_context.calling_class.unwrap(),
-                                functionlike_storage.name,
+                                match functionlike_id {
+                                    FunctionLikeIdentifier::Method(_, method_name) => method_name,
+                                    _ => {
+                                        panic!()
+                                    }
+                                },
                             ),
                             functionlike_storage.name_location,
                             None,
@@ -1105,7 +1115,10 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                 let calling_id = if let Some(calling_closure_id) = context.calling_closure_id {
-                    FunctionLikeIdentifier::Function(calling_closure_id)
+                    FunctionLikeIdentifier::Closure(
+                        self.get_file_analyzer().get_file_source().file_path,
+                        calling_closure_id,
+                    )
                 } else {
                     context.function_context.calling_functionlike_id.unwrap()
                 };

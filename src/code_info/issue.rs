@@ -234,6 +234,9 @@ impl Issue {
                 Some(FunctionLikeIdentifier::Function(id)) => (*id, StrId::EMPTY),
                 Some(FunctionLikeIdentifier::Method(a, b)) => (*a, *b),
                 None => (pos.file_path.0, StrId::EMPTY),
+                _ => {
+                    panic!()
+                }
             },
             pos,
             can_fix: false,

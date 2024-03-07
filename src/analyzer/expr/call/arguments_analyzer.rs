@@ -67,6 +67,8 @@ pub(crate) fn check_arguments_match(
                 context.function_context.calling_class.as_ref(),
                 statements_analyzer.get_type_resolution_context(),
                 statements_analyzer.get_file_analyzer().resolved_names,
+                *statements_analyzer.get_file_path(),
+                type_arg.1 .0.start_offset() as u32,
             )
             .unwrap();
 

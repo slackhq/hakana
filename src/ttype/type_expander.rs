@@ -584,6 +584,9 @@ pub fn get_closure_from_id(
                 ));
             }
         }
+        _ => {
+            panic!()
+        }
     }
     None
 }
@@ -635,6 +638,9 @@ fn get_expanded_closure(
             None
         },
         effects: functionlike_info.effects.to_u8(),
-        closure_id: functionlike_info.name,
+        closure_id: (
+            functionlike_info.def_location.file_path,
+            functionlike_info.def_location.start_offset,
+        ),
     }
 }

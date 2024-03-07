@@ -1,3 +1,4 @@
+use crate::code_location::FilePath;
 use crate::functionlike_identifier::FunctionLikeIdentifier;
 use crate::functionlike_parameter::FnParameter;
 use crate::symbol_references::{ReferenceSource, SymbolReferences};
@@ -60,7 +61,7 @@ pub enum TAtomic {
         params: Vec<FnParameter>,
         return_type: Option<Box<TUnion>>,
         effects: Option<u8>,
-        closure_id: StrId,
+        closure_id: (FilePath, u32),
     },
     TClosureAlias {
         id: FunctionLikeIdentifier,
