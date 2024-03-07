@@ -545,9 +545,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let name = *self.resolved_names.get(&f.name.0.start_offset()).unwrap();
 
         let functionlike_storage = self.visit_function(
-            false,
             c,
-            name,
+            Some(name),
             &f.fun,
             &f.tparams,
             &f.where_constraints,
@@ -610,16 +609,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
 
         if let Some(fun) = fun {
-            let function_id = format!(
-                "{}:{}",
-                self.file_source.file_path.0 .0,
-                fun.span.start_offset()
-            );
-
-            let name = self.interner.intern(function_id);
-
-            let functionlike_storage =
-                self.visit_function(true, c, name, fun, &vec![], &vec![], None);
+            let functionlike_storage = self.visit_function(c, None, fun, &vec![], &vec![], None);
 
             self.codebase.functionlike_infos.insert(
                 (
@@ -639,15 +629,14 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 impl<'a> Scanner<'a> {
     fn visit_function(
         &mut self,
-        is_anonymous: bool,
         c: &mut Context,
-        name: StrId,
+        name: Option<StrId>,
         fun: &aast::Fun_<(), ()>,
         tparams: &Vec<aast::Tparam<(), ()>>,
         where_constraints: &Vec<aast::WhereConstraintHint>,
         name_pos: Option<&oxidized::tast::Pos>,
     ) -> FunctionLikeInfo {
-        let parent_function_storage = if is_anonymous {
+        let parent_function_storage = if name.is_none() {
             if let Some(parent_function_id) = &c.function_name {
                 self.codebase
                     .functionlike_infos
@@ -706,20 +695,21 @@ impl<'a> Scanner<'a> {
             self.resolved_names,
             self.file_source.comments,
             &self.file_source,
-            is_anonymous,
             self.user_defined,
         );
 
         functionlike_storage.is_production_code = self.file_source.is_production_code;
 
-        if name == StrId::INVARIANT {
+        if name == Some(StrId::INVARIANT) {
             functionlike_storage.pure_can_throw = true;
         }
 
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
 
         if !self.user_defined {
-            fix_function_return_type(self.interner.lookup(name), &mut functionlike_storage);
+            if let Some(name) = name {
+                fix_function_return_type(self.interner.lookup(name), &mut functionlike_storage);
+            }
         }
         functionlike_storage
     }

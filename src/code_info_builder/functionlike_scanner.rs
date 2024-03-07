@@ -65,7 +65,7 @@ pub(crate) fn scan_method(
     let mut functionlike_info = get_functionlike(
         interner,
         all_custom_issues,
-        method_name,
+        Some(method_name),
         &m.span,
         Some(&m.name.0),
         &m.tparams,
@@ -81,7 +81,6 @@ pub(crate) fn scan_method(
         resolved_names,
         comments,
         file_source,
-        false,
         user_defined,
     );
 
@@ -145,7 +144,7 @@ fn add_promoted_param_property(
 pub(crate) fn get_functionlike(
     interner: &mut ThreadedInterner,
     all_custom_issues: &FxHashSet<String>,
-    name: StrId,
+    name: Option<StrId>,
     def_pos: &Pos,
     name_pos: Option<&Pos>,
     tparams: &Vec<aast::Tparam<(), ()>>,
@@ -161,7 +160,6 @@ pub(crate) fn get_functionlike(
     resolved_names: &FxHashMap<usize, StrId>,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
-    is_anonymous: bool,
     user_defined: bool,
 ) -> FunctionLikeInfo {
     let definition_location = HPos::new(def_pos, file_source.file_path, None);
@@ -188,9 +186,9 @@ pub(crate) fn get_functionlike(
 
     if !tparams.is_empty() {
         let fn_id = if let Some(this_name) = this_name {
-            format!("fn-{}::{}", this_name.0, name.0)
+            format!("fn-{}::{}", this_name.0, name.unwrap().0)
         } else {
-            format!("fn-{}", name.0)
+            format!("fn-{}", name.unwrap().0)
         };
         let fn_id = interner.intern(fn_id);
 
@@ -322,8 +320,8 @@ pub(crate) fn get_functionlike(
         file_source.file_path,
     );
 
-    functionlike_info.user_defined = user_defined && !is_anonymous;
-    functionlike_info.is_closure = is_anonymous;
+    functionlike_info.user_defined = user_defined && name.is_some();
+    functionlike_info.is_closure = name.is_none();
 
     if let Some(name_pos) = name_pos {
         let name_offset = 9 + if fun_kind.is_async() { 6 } else { 0 };
@@ -423,7 +421,7 @@ pub(crate) fn get_functionlike(
     functionlike_info.is_async = fun_kind.is_async();
     functionlike_info.effects = if let Some(contexts) = contexts {
         get_effect_from_contexts(contexts, &functionlike_info)
-    } else if is_anonymous {
+    } else if name.is_none() {
         FnEffect::Unknown
     } else {
         FnEffect::Some(EFFECT_IMPURE)
