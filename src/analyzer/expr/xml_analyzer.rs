@@ -139,6 +139,20 @@ pub(crate) fn analyze(
                 statements_analyzer.get_file_path_actual(),
             );
         }
+    } else {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::NonExistentClass,
+                format!(
+                    "Unknown XHP class {}",
+                    statements_analyzer.get_interner().lookup(&xhp_class_name)
+                ),
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
     }
 
     let element_name = statements_analyzer.get_interner().lookup(xhp_class_name);

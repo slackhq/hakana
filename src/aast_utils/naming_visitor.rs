@@ -69,10 +69,21 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let namespace_name = nc.get_namespace_name();
 
         let p = if let Some(namespace_name) = namespace_name {
-            let str = namespace_name.clone() + "\\" + c.name.1.as_str();
+            let str = namespace_name.clone()
+                + "\\"
+                + &if c.is_xhp {
+                    c.name
+                        .1
+                        .to_string()
+                        .trim_start_matches(":")
+                        .replace(':', "\\")
+                } else {
+                    c.name.1.to_string()
+                };
             self.interner.intern(str)
         } else if c.is_xhp {
-            self.interner.intern(c.name.1.replace(':', "\\"))
+            self.interner
+                .intern(c.name.1.trim_start_matches(":").replace(':', "\\"))
         } else {
             self.interner.intern(c.name.1.clone())
         };
