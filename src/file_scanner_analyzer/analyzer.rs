@@ -188,7 +188,7 @@ fn analyze_file(
     interner: &Interner,
     config: &Arc<Config>,
     analysis_result: &mut AnalysisResult,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     logger: &Logger,
     asts: &Arc<FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>>,
 ) {
@@ -305,7 +305,7 @@ fn analyze_loaded_ast(
     str_path: &String,
     file_path: FilePath,
     aast: &(aast::Program<(), ()>, ScouredComments),
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     codebase: &CodebaseInfo,
     interner: &Interner,
     config: &Arc<Config>,

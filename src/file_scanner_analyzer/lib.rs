@@ -57,7 +57,7 @@ pub struct SuccessfulScanData {
     pub codebase: CodebaseInfo,
     pub interner: Interner,
     pub file_system: VirtualFileSystem,
-    pub resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
+    pub resolved_names: FxHashMap<FilePath, FxHashMap<u32, StrId>>,
 }
 
 impl Default for SuccessfulScanData {
@@ -365,7 +365,7 @@ fn get_analysis_ready(
     codebase: CodebaseInfo,
     interner: Interner,
     file_system: VirtualFileSystem,
-    resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
+    resolved_names: FxHashMap<FilePath, FxHashMap<u32, StrId>>,
     symbol_references: SymbolReferences,
     existing_issues: FxHashMap<FilePath, Vec<Issue>>,
 ) -> (Arc<Mutex<AnalysisResult>>, Arc<SuccessfulScanData>) {

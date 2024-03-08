@@ -153,7 +153,7 @@ pub(crate) fn analyze(
         }
 
         let catch_classlike_name =
-            if let Some(name) = resolved_names.get(&catch.0 .0.start_offset()) {
+            if let Some(name) = resolved_names.get(&(catch.0 .0.start_offset() as u32)) {
                 name
             } else {
                 return Err(AnalysisError::InternalError(

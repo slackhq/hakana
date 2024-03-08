@@ -442,10 +442,8 @@ impl ScopeContext {
     pub(crate) fn remove_mutable_object_vars(&mut self) {
         let mut removed_var_ids = vec![];
 
-        self.vars_in_scope.retain(|var_id, context_type| {
-            let retain =
-                !context_type.has_mutations || (!var_id.contains("->") && !var_id.contains("::"));
-
+        self.vars_in_scope.retain(|var_id, _| {
+            let retain = !var_id.contains("->") && !var_id.contains("::");
             if !retain {
                 removed_var_ids.push(var_id.clone());
             }

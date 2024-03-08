@@ -26,7 +26,7 @@ fn get_vec_type_from_hint(
     hint: &Hint,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
     TAtomic::TVec {
@@ -51,7 +51,7 @@ fn get_tuple_type_from_hints(
     hints: &Vec<Hint>,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
     TAtomic::TVec {
@@ -88,7 +88,7 @@ fn get_keyset_type_from_hint(
     hint: &Hint,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
     TAtomic::TKeyset {
@@ -110,7 +110,7 @@ fn get_classname_type_from_hint(
     hint: &Hint,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
     if let Some(inner_type) = get_type_from_hint(
@@ -149,7 +149,7 @@ fn get_typename_type_from_hint(
     hint: &Hint,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
     if let Some(inner_type) = get_type_from_hint(
@@ -189,7 +189,7 @@ fn get_dict_type_from_hints(
     value_hint: Option<&Hint>,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
     TAtomic::TDict {
@@ -231,7 +231,7 @@ fn get_shape_type_from_hints(
     shape_info: &NastShapeInfo,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
     let mut known_items = BTreeMap::new();
@@ -261,8 +261,8 @@ fn get_shape_type_from_hints(
                 );
             }
             ast_defs::ShapeFieldName::SFclassConst(lhs, name) => {
-                let lhs_name = resolved_names.get(&lhs.0.start_offset()).unwrap();
-                let rhs_name = resolved_names.get(&name.0.start_offset()).unwrap();
+                let lhs_name = resolved_names.get(&(lhs.0.start_offset() as u32)).unwrap();
+                let rhs_name = resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
                 known_items.insert(
                     DictKey::Enum(*lhs_name, *rhs_name),
                     (field.optional, Arc::new(field_type)),
@@ -292,7 +292,7 @@ fn get_function_type_from_hints(
     function_info: &HintFun,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
     offset: u32,
 ) -> TAtomic {
@@ -372,7 +372,7 @@ fn get_reference_type(
     extra_info: &[Hint],
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> TAtomic {
     let type_name = &applied_type.1;
@@ -416,7 +416,7 @@ fn get_reference_type(
 
     if type_name == "Generator" {
         return TAtomic::TNamedObject {
-            name: *resolved_names.get(&applied_type.0.start_offset()).unwrap(),
+            name: *resolved_names.get(&(applied_type.0.start_offset() as u32)).unwrap(),
             type_params: if type_params.len() == 3 {
                 Some(vec![
                     type_params.first().unwrap().clone(),
@@ -441,7 +441,7 @@ fn get_reference_type(
     }
 
     let resolved_name =
-        if let Some(resolved_name) = resolved_names.get(&applied_type.0.start_offset()) {
+        if let Some(resolved_name) = resolved_names.get(&(applied_type.0.start_offset() as u32)) {
             resolved_name
         } else {
             return TAtomic::TMixed;
@@ -480,7 +480,7 @@ pub fn get_type_from_hint(
     hint: &Hint_,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
     offset: u32,
 ) -> Option<TUnion> {
@@ -490,7 +490,7 @@ pub fn get_type_from_hint(
         Hint_::Happly(id, extra_info) => {
             let applied_type = &id.1;
 
-            if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+            if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
                 if let Some(type_name) = type_context.template_supers.get(resolved_name) {
                     return Some(type_name.clone());
                 }
@@ -713,7 +713,7 @@ pub fn get_type_from_hint(
                 inner_type = TAtomic::TClassTypeConstant {
                     class_type: Box::new(inner_type),
                     member_name: if let Some(resolved_name) =
-                        resolved_names.get(&type_id.0.start_offset())
+                        resolved_names.get(&(type_id.0.start_offset() as u32))
                     {
                         *resolved_name
                     } else {
@@ -779,7 +779,7 @@ pub fn get_type_from_optional_hint(
     hint: &Option<Hint>,
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     file_path: FilePath,
 ) -> Option<TUnion> {
     match hint {
@@ -797,7 +797,7 @@ pub fn get_type_from_optional_hint(
 
 pub fn get_type_references_from_hint(
     hint: &Hint,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
 ) -> Vec<(StrId, usize, usize)> {
     let mut refs = vec![];
     match &*hint.1 {
@@ -835,7 +835,7 @@ pub fn get_type_references_from_hint(
                 | "HH\\FIXME\\MISSING_RETURN_TYPE"
                 | "\\HH\\FIXME\\MISSING_RETURN_TYPE" => {}
                 _ => {
-                    if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                    if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
                         refs.push((*resolved_name, id.0.start_offset(), id.0.end_offset()));
                     }
                 }
@@ -850,7 +850,7 @@ pub fn get_type_references_from_hint(
                 refs.extend(get_type_references_from_hint(&field.hint, resolved_names));
 
                 if let ast_defs::ShapeFieldName::SFclassConst(lhs, _) = &field.name {
-                    let lhs_name = resolved_names.get(&lhs.0.start_offset()).unwrap();
+                    let lhs_name = resolved_names.get(&(lhs.0.start_offset() as u32)).unwrap();
                     refs.push((*lhs_name, lhs.0.start_offset(), lhs.0.end_offset()));
                 }
             }

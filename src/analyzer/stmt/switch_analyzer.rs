@@ -252,7 +252,7 @@ fn update_case_exit_map(
     interner: &Interner,
     case_stmts: &Vec<aast::Stmt<(), ()>>,
     analysis_data: &mut FunctionAnalysisData,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     case_action_map: &mut FxHashMap<usize, FxHashSet<ControlAction>>,
     i: usize,
     last_case_exit_type: &mut ControlAction,

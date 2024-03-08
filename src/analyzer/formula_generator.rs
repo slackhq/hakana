@@ -19,7 +19,7 @@ use crate::{expr::assertion_finder, function_analysis_data::FunctionAnalysisData
 
 pub(crate) struct AssertionContext<'a> {
     pub file_source: &'a FileSource<'a>,
-    pub resolved_names: &'a FxHashMap<usize, StrId>,
+    pub resolved_names: &'a FxHashMap<u32, StrId>,
     pub codebase: Option<(&'a CodebaseInfo, &'a Interner)>,
     pub this_class_name: Option<&'a StrId>,
     pub type_resolution_context: &'a TypeResolutionContext,

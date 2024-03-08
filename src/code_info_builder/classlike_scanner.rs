@@ -32,7 +32,7 @@ pub(crate) fn scan(
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
     all_custom_issues: &FxHashSet<String>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     class_name: &StrId,
     classlike_node: &aast::Class_<(), ()>,
     file_source: &FileSource,
@@ -88,7 +88,7 @@ pub(crate) fn scan(
 
         for type_param_node in classlike_node.tparams.iter() {
             let param_name = resolved_names
-                .get(&type_param_node.name.0.start_offset())
+                .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
             type_context.template_type_map.insert(
                 *param_name,
@@ -126,7 +126,7 @@ pub(crate) fn scan(
             };
 
             let param_name = resolved_names
-                .get(&type_param_node.name.0.start_offset())
+                .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
 
             storage.template_types.insert(*param_name, {
@@ -171,7 +171,7 @@ pub(crate) fn scan(
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_class.1 {
                     signature_end = name.0.end_offset() as u32;
 
-                    let parent_name = *resolved_names.get(&name.0.start_offset()).unwrap();
+                    let parent_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
@@ -209,7 +209,8 @@ pub(crate) fn scan(
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
-                    let interface_name = *resolved_names.get(&name.0.start_offset()).unwrap();
+                    let interface_name =
+                        *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
@@ -316,7 +317,7 @@ pub(crate) fn scan(
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
-                    let parent_name = *resolved_names.get(&name.0.start_offset()).unwrap();
+                    let parent_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
@@ -369,7 +370,8 @@ pub(crate) fn scan(
                 if let oxidized::tast::Hint_::Happly(name, params) = &*extended_interface.1 {
                     signature_end = name.0.end_offset() as u32;
 
-                    let interface_name = *resolved_names.get(&name.0.start_offset()).unwrap();
+                    let interface_name =
+                        *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
                     if !params.is_empty() {
                         signature_end = params.last().unwrap().0.end_offset() as u32;
@@ -574,7 +576,7 @@ pub(crate) fn scan(
 
     for user_attribute in &classlike_node.user_attributes {
         let name = *resolved_names
-            .get(&user_attribute.name.0.start_offset())
+            .get(&(user_attribute.name.0.start_offset() as u32))
             .unwrap();
 
         if name == codegen_id {
@@ -638,14 +640,14 @@ pub(crate) fn scan(
 
 fn handle_reqs(
     classlike_node: &aast::Class_<(), ()>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     storage: &mut ClassLikeInfo,
     class_name: &StrId,
     file_source: &FileSource,
 ) {
     for req in &classlike_node.reqs {
         if let oxidized::tast::Hint_::Happly(name, params) = &*req.0 .1 {
-            let require_name = *resolved_names.get(&name.0.start_offset()).unwrap();
+            let require_name = *resolved_names.get(&(name.0.start_offset() as u32)).unwrap();
 
             match &req.1 {
                 aast::RequireKind::RequireExtends => {
@@ -689,7 +691,7 @@ fn handle_reqs(
 
 fn visit_xhp_attribute(
     xhp_attribute: &aast::XhpAttr<(), ()>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     def_child_signature_nodes: &mut Vec<DefSignatureNode>,
@@ -800,7 +802,7 @@ fn visit_xhp_attribute(
 
 fn visit_class_const_declaration(
     const_node: &aast::ClassConst<(), ()>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     interner: &mut ThreadedInterner,
@@ -875,7 +877,7 @@ fn visit_class_const_declaration(
 
 fn visit_class_typeconst_declaration(
     const_node: &aast::ClassTypeconstDef<(), ()>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     interner: &mut ThreadedInterner,
@@ -950,7 +952,7 @@ fn visit_class_typeconst_declaration(
 
 fn visit_property_declaration(
     property_node: &aast::ClassVar<(), ()>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     classlike_storage: &mut ClassLikeInfo,
     file_source: &FileSource,
     interner: &mut ThreadedInterner,

@@ -100,7 +100,7 @@ pub(crate) fn analyze(
                     _ => {
                         let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                        if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                        if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
                             let name_string = *resolved_name;
 
                             classlike_name = Some(name_string);

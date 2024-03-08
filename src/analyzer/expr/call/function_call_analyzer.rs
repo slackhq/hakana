@@ -95,7 +95,7 @@ pub(crate) fn analyze(
 
     let name = if name == "\\in_array" {
         statements_analyzer.get_interner().get("in_array").unwrap()
-    } else if let Some(fq_name) = resolved_names.get(&expr.0 .0.start_offset()) {
+    } else if let Some(fq_name) = resolved_names.get(&(expr.0 .0.start_offset() as u32)) {
         *fq_name
     } else {
         return Err(AnalysisError::InternalError(

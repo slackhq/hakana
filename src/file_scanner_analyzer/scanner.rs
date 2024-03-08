@@ -44,7 +44,7 @@ pub struct ScanFilesResult {
     pub codebase: CodebaseInfo,
     pub interner: Interner,
     pub file_system: VirtualFileSystem,
-    pub resolved_names: FxHashMap<FilePath, FxHashMap<usize, StrId>>,
+    pub resolved_names: FxHashMap<FilePath, FxHashMap<u32, StrId>>,
     pub codebase_diff: CodebaseDiff,
     pub asts: FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>,
     pub files_to_analyze: Vec<String>,
@@ -569,7 +569,7 @@ pub(crate) fn scan_file(
     logger: &Logger,
 ) -> Result<
     (
-        FxHashMap<usize, StrId>,
+        FxHashMap<u32, StrId>,
         (aast::Program<(), ()>, ScouredComments),
     ),
     ParserError,

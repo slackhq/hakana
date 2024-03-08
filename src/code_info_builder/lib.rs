@@ -45,7 +45,7 @@ struct Scanner<'a> {
     codebase: &'a mut CodebaseInfo,
     interner: &'a mut ThreadedInterner,
     file_source: FileSource<'a>,
-    resolved_names: &'a FxHashMap<usize, StrId>,
+    resolved_names: &'a FxHashMap<u32, StrId>,
     all_custom_issues: &'a FxHashSet<String>,
     user_defined: bool,
     closure_refs: Vec<u32>,
@@ -96,7 +96,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     fn visit_class_(&mut self, c: &mut Context, class: &aast::Class_<(), ()>) -> Result<(), ()> {
         let class_name = *self
             .resolved_names
-            .get(&class.name.0.start_offset())
+            .get(&(class.name.0.start_offset() as u32))
             .unwrap();
 
         classlike_scanner::scan(
@@ -126,7 +126,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_gconst(&mut self, c: &mut Context, gc: &aast::Gconst<(), ()>) -> Result<(), ()> {
-        let name = *self.resolved_names.get(&gc.name.0.start_offset()).unwrap();
+        let name = *self.resolved_names.get(&(gc.name.0.start_offset() as u32)).unwrap();
 
         self.codebase
             .const_files
@@ -196,7 +196,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         let type_name = *self
             .resolved_names
-            .get(&typedef.name.0.start_offset())
+            .get(&(typedef.name.0.start_offset() as u32))
             .unwrap();
 
         let mut template_type_map = IndexMap::new();
@@ -208,7 +208,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         for type_param_node in typedef.tparams.iter() {
             let param_name = self
                 .resolved_names
-                .get(&type_param_node.name.0.start_offset())
+                .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
             type_context.template_type_map.insert(
                 *param_name,
@@ -254,7 +254,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
             let param_name = self
                 .resolved_names
-                .get(&param.name.0.start_offset())
+                .get(&(param.name.0.start_offset() as u32))
                 .unwrap();
 
             template_type_map.insert(*param_name, h);
@@ -292,7 +292,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         for user_attribute in &typedef.user_attributes {
             let attribute_name = self
                 .resolved_names
-                .get(&user_attribute.name.0.start_offset())
+                .get(&(user_attribute.name.0.start_offset() as u32))
                 .unwrap();
 
             let attribute_str = self.interner.lookup(*attribute_name);
@@ -542,7 +542,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_fun_def(&mut self, c: &mut Context, f: &aast::FunDef<(), ()>) -> Result<(), ()> {
-        let name = *self.resolved_names.get(&f.name.0.start_offset()).unwrap();
+        let name = *self.resolved_names.get(&(f.name.0.start_offset() as u32)).unwrap();
 
         let functionlike_storage = self.visit_function(
             c,
@@ -813,7 +813,7 @@ fn get_function_hashes(
 
 pub fn collect_info_for_aast(
     program: &aast::Program<(), ()>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     interner: &mut ThreadedInterner,
     codebase: &mut CodebaseInfo,
     all_custom_issues: &FxHashSet<String>,

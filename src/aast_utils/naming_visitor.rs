@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap;
 use crate::name_context::NameContext;
 
 pub(crate) struct Scanner<'a> {
-    pub resolved_names: FxHashMap<usize, StrId>,
+    pub resolved_names: FxHashMap<u32, StrId>,
     pub symbol_uses: FxHashMap<StrId, Vec<(StrId, StrId)>>,
     pub symbol_member_uses: FxHashMap<(StrId, StrId), Vec<(StrId, StrId)>>,
     pub file_uses: Vec<(StrId, StrId)>,
@@ -88,12 +88,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             self.interner.intern(c.name.1.clone())
         };
 
-        self.resolved_names.insert(c.name.0.start_offset(), p);
+        self.resolved_names
+            .insert(c.name.0.start_offset() as u32, p);
 
         for type_param_node in &c.tparams {
             nc.generic_params.push(&type_param_node.name.1);
             self.resolved_names.insert(
-                type_param_node.name.0.start_offset(),
+                type_param_node.name.0.start_offset() as u32,
                 self.interner.intern_str(&type_param_node.name.1),
             );
         }
@@ -120,12 +121,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             self.interner.intern(t.name.1.clone())
         };
 
-        self.resolved_names.insert(t.name.0.start_offset(), p);
+        self.resolved_names
+            .insert(t.name.0.start_offset() as u32, p);
 
         for type_param_node in &t.tparams {
             nc.generic_params.push(&type_param_node.name.1);
             self.resolved_names.insert(
-                type_param_node.name.0.start_offset(),
+                type_param_node.name.0.start_offset() as u32,
                 self.interner.intern_str(&type_param_node.name.1),
             );
         }
@@ -144,7 +146,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         if let oxidized::nast::ShapeFieldName::SFclassConst(_, member_name) = &p.name {
             let p = self.interner.intern(member_name.1.clone());
-            self.resolved_names.insert(member_name.0.start_offset(), p);
+            self.resolved_names
+                .insert(member_name.0.start_offset() as u32, p);
         }
         p.recurse(nc, self)
     }
@@ -172,7 +175,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         if !p.name.1.starts_with("data-") && !p.name.1.starts_with("aria-") {
             let name = self.interner.intern(":".to_string() + &p.name.1);
-            self.resolved_names.insert(p.name.0.start_offset(), name);
+            self.resolved_names
+                .insert(p.name.0.start_offset() as u32, name);
         }
 
         p.recurse(nc, self)
@@ -250,7 +254,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             );
 
             self.resolved_names
-                .insert(id.0.start_offset(), resolved_name);
+                .insert(id.0.start_offset() as u32, resolved_name);
         };
 
         p.recurse(nc, self)
@@ -290,7 +294,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         if nc.in_class_id || nc.in_function_id || nc.in_xhp_id || nc.in_constant_id {
             if let std::collections::hash_map::Entry::Vacant(e) =
-                self.resolved_names.entry(id.0.start_offset())
+                self.resolved_names.entry(id.0.start_offset() as u32)
             {
                 let resolved_name = if nc.in_xhp_id {
                     nc.get_resolved_name(
@@ -360,12 +364,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             self.interner.intern(f.name.1.clone())
         };
 
-        self.resolved_names.insert(f.name.0.start_offset(), p);
+        self.resolved_names
+            .insert(f.name.0.start_offset() as u32, p);
 
         for type_param_node in &f.tparams {
             nc.generic_params.push(&type_param_node.name.1);
             self.resolved_names.insert(
-                type_param_node.name.0.start_offset(),
+                type_param_node.name.0.start_offset() as u32,
                 self.interner.intern_str(&type_param_node.name.1),
             );
         }
@@ -387,14 +392,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         let p = self.interner.intern(m.name.1.clone());
 
-        self.resolved_names.insert(m.name.0.start_offset(), p);
+        self.resolved_names
+            .insert(m.name.0.start_offset() as u32, p);
 
         let original_param_count = nc.generic_params.len();
 
         for type_param_node in &m.tparams {
             nc.generic_params.push(&type_param_node.name.1);
             self.resolved_names.insert(
-                type_param_node.name.0.start_offset(),
+                type_param_node.name.0.start_offset() as u32,
                 self.interner.intern_str(&type_param_node.name.1),
             );
         }
@@ -417,7 +423,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     ) -> Result<(), ()> {
         let p = self.interner.intern(c.id.1.clone());
 
-        self.resolved_names.insert(c.id.0.start_offset(), p);
+        self.resolved_names.insert(c.id.0.start_offset() as u32, p);
 
         nc.member_name = Some(p);
         let result = c.recurse(nc, self);
@@ -449,7 +455,8 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             self.interner.intern(c.name.1.clone())
         };
 
-        self.resolved_names.insert(c.name.0.start_offset(), p);
+        self.resolved_names
+            .insert(c.name.0.start_offset() as u32, p);
 
         nc.symbol_name = Some(p);
         let result = c.recurse(nc, self);
@@ -480,7 +487,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     );
 
                     self.resolved_names
-                        .insert(id.0.start_offset(), resolved_name);
+                        .insert(id.0.start_offset() as u32, resolved_name);
                 }
             }
             oxidized::tast::Hint_::Haccess(_, const_names) => {
@@ -488,7 +495,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     let resolved_name = self.interner.intern(const_name.1.clone());
 
                     self.resolved_names
-                        .insert(const_name.0.start_offset(), resolved_name);
+                        .insert(const_name.0.start_offset() as u32, resolved_name);
                 }
             }
             _ => {}

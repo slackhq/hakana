@@ -89,7 +89,7 @@ pub(crate) fn analyze(
                         let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
                         let name_string =
-                            if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+                            if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
                                 *resolved_name
                             } else {
                                 return Err(AnalysisError::InternalError(

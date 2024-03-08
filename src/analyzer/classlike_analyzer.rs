@@ -28,7 +28,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
         analysis_result: &mut AnalysisResult,
     ) -> Result<(), AnalysisError> {
         let resolved_names = self.file_analyzer.resolved_names.clone();
-        let name = if let Some(resolved_name) = resolved_names.get(&stmt.name.0.start_offset()) {
+        let name = if let Some(resolved_name) = resolved_names.get(&(stmt.name.0.start_offset() as u32)) {
             *resolved_name
         } else {
             return Err(AnalysisError::InternalError(

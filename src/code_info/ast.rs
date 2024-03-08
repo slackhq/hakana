@@ -8,7 +8,7 @@ pub fn get_id_name(
     calling_class_final: bool,
     codebase: &CodebaseInfo,
     is_static: &mut bool,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
 ) -> Option<StrId> {
     Some(match id.1.as_str() {
         "self" => {
@@ -44,7 +44,7 @@ pub fn get_id_name(
             *self_name
         }
         _ => {
-            if let Some(resolved_name) = resolved_names.get(&id.0.start_offset()) {
+            if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
                 *resolved_name
             } else {
                 // this is bad

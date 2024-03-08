@@ -42,7 +42,7 @@ pub(crate) fn scan_method(
     codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
     all_custom_issues: &FxHashSet<String>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     m: &aast::Method_<(), ()>,
     c: &mut Context,
     comments: &Vec<(Pos, Comment)>,
@@ -124,7 +124,7 @@ pub(crate) fn scan_method(
     }
 
     functionlike_info.type_resolution_context = Some(type_resolution_context);
-    functionlike_info.method_info = Some(method_info);
+    functionlike_info.method_info = Some(Box::new(method_info));
 
     (method_name, functionlike_info)
 }
@@ -157,7 +157,7 @@ pub(crate) fn get_functionlike(
     where_constraints: &Vec<WhereConstraintHint>,
     type_context: &mut TypeResolutionContext,
     this_name: Option<&StrId>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
     user_defined: bool,
@@ -194,7 +194,7 @@ pub(crate) fn get_functionlike(
 
         for type_param_node in tparams.iter() {
             let param_name = resolved_names
-                .get(&type_param_node.name.0.start_offset())
+                .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
             type_context.template_type_map.insert(
                 *param_name,
@@ -204,7 +204,7 @@ pub(crate) fn get_functionlike(
 
         for type_param_node in tparams.iter() {
             let param_name = resolved_names
-                .get(&type_param_node.name.0.start_offset())
+                .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
 
             let mut template_as_type = None;
@@ -335,7 +335,7 @@ pub(crate) fn get_functionlike(
 
     for user_attribute in user_attributes {
         let name = *resolved_names
-            .get(&user_attribute.name.0.start_offset())
+            .get(&(user_attribute.name.0.start_offset() as u32))
             .unwrap();
 
         functionlike_info.attributes.push(AttributeInfo { name });
@@ -480,13 +480,13 @@ fn get_effect_from_contexts(
 
 fn get_async_version(
     expr: &oxidized::ast::Expr,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     params: &[FunctionLikeParameter],
     interner: &mut ThreadedInterner,
 ) -> Option<FunctionLikeIdentifier> {
     if let aast::Expr_::Call(call) = &expr.2 {
         if let aast::Expr_::Id(boxed_id) = &call.func.2 {
-            if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset()) {
+            if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
                 if fn_id == &StrId::ASIO_JOIN && call.args.len() == 1 {
                     let first_join_expr = &call.args[0].1;
 
@@ -497,7 +497,7 @@ fn get_async_version(
 
                         match &call.func.2 {
                             aast::Expr_::Id(boxed_id) => {
-                                if let Some(fn_id) = resolved_names.get(&boxed_id.0.start_offset())
+                                if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32))
                                 {
                                     return Some(FunctionLikeIdentifier::Function(*fn_id));
                                 }
@@ -508,7 +508,7 @@ fn get_async_version(
                                 if let aast::ClassId_::CIexpr(lhs_expr) = &class_id.2 {
                                     if let aast::Expr_::Id(id) = &lhs_expr.2 {
                                         if let Some(class_name) =
-                                            resolved_names.get(&id.0.start_offset())
+                                            resolved_names.get(&(id.0.start_offset() as u32))
                                         {
                                             return Some(FunctionLikeIdentifier::Method(
                                                 *class_name,
@@ -597,7 +597,7 @@ pub(crate) fn adjust_location_from_comments(
 fn convert_param_nodes(
     interner: &mut ThreadedInterner,
     param_nodes: &[aast::FunParam<(), ()>],
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     type_context: &TypeResolutionContext,
     file_source: &FileSource,
     all_custom_issues: &FxHashSet<String>,
@@ -669,7 +669,7 @@ fn convert_param_nodes(
                 .map(|param_type| HPos::new(&param_type.0, file_source.file_path, None));
             for user_attribute in &param_node.user_attributes {
                 let name = resolved_names
-                    .get(&user_attribute.name.0.start_offset())
+                    .get(&(user_attribute.name.0.start_offset() as u32))
                     .unwrap();
 
                 param.attributes.push(AttributeInfo { name: *name });

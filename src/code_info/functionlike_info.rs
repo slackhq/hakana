@@ -76,8 +76,6 @@ pub struct FunctionLikeInfo {
 
     pub deprecated: bool,
 
-    pub internal_to: Option<String>,
-
     /**
      * An array holding the class template "as" types.
      *
@@ -132,11 +130,11 @@ pub struct FunctionLikeInfo {
 
     pub removed_taints: Option<FxHashSet<SinkType>>,
 
-    pub return_source_params: FxHashMap<usize, StrId>,
+    pub return_source_params: FxHashMap<u32, StrId>,
 
     pub attributes: Vec<AttributeInfo>,
 
-    pub method_info: Option<MethodInfo>,
+    pub method_info: Option<Box<MethodInfo>>,
 
     // used for dead-code analysis
     pub user_defined: bool,
@@ -177,7 +175,6 @@ impl FunctionLikeInfo {
             user_defined: false,
             suppressed_issues: None,
             deprecated: false,
-            internal_to: None,
             template_types: IndexMap::new(),
             assertions: None,
             if_true_assertions: None,

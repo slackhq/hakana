@@ -14,10 +14,6 @@ pub struct MethodInfo {
 
     pub is_abstract: bool,
 
-    pub overridden_downstream: bool,
-
-    pub overridden_somewhere: bool,
-
     pub defining_fqcln: Option<StrId>,
 
     pub external_mutation_free: bool,
@@ -46,8 +42,6 @@ impl MethodInfo {
             visibility: MemberVisibility::Public,
             is_final: false,
             is_abstract: false,
-            overridden_downstream: false,
-            overridden_somewhere: false,
             defining_fqcln: None,
             external_mutation_free: false,
             immutable: false,

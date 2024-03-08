@@ -13,7 +13,7 @@ use std::{collections::BTreeMap, num::ParseIntError, sync::Arc};
 
 pub fn infer(
     expr: &aast::Expr<(), ()>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
 ) -> Option<TUnion> {
     return match &expr.2 {
         aast::Expr_::ArrayGet(_) => None,
@@ -26,7 +26,7 @@ pub fn infer(
                                 "self" | "parent" | "static" => None,
                                 _ => {
                                     let name_string =
-                                        *resolved_names.get(&id.0.start_offset()).unwrap();
+                                        *resolved_names.get(&(id.0.start_offset() as u32)).unwrap();
 
                                     Some(wrap_atomic(TAtomic::TLiteralClassname {
                                         name: name_string,
@@ -194,7 +194,7 @@ pub fn infer(
             }
         }
         aast::Expr_::Id(name) => {
-            if let Some(name_string) = resolved_names.get(&name.0.start_offset()) {
+            if let Some(name_string) = resolved_names.get(&(name.0.start_offset() as u32)) {
                 if *name_string == StrId::MATH_INT32_MAX {
                     return Some(wrap_atomic(TAtomic::TLiteralInt {
                         value: i32::MAX as i64,

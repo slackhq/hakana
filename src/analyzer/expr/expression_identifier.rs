@@ -10,7 +10,7 @@ use oxidized::{aast, ast_defs};
 pub fn get_var_id(
     conditional: &aast::Expr<(), ()>,
     this_class_name: Option<&StrId>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     codebase: Option<(&CodebaseInfo, &Interner)>,
 ) -> Option<String> {
     match &conditional.2 {
@@ -110,7 +110,7 @@ pub(crate) fn get_root_var_id(conditional: &aast::Expr<(), ()>) -> Option<String
 pub(crate) fn get_dim_id(
     conditional: &aast::Expr<(), ()>,
     codebase: Option<(&CodebaseInfo, &Interner)>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
 ) -> Option<String> {
     match &conditional.2 {
         aast::Expr_::Lvar(var_expr) => Some(var_expr.1 .1.clone()),
@@ -159,7 +159,7 @@ pub(crate) fn get_dim_id(
 pub fn get_functionlike_id_from_call(
     call: &oxidized::ast::CallExpr,
     interner: Option<&Interner>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
 ) -> Option<FunctionLikeIdentifier> {
     match &call.func.2 {
         aast::Expr_::Id(boxed_id) => {
@@ -168,7 +168,7 @@ pub fn get_functionlike_id_from_call(
                     StrId::ISSET
                 } else if boxed_id.1 == "\\in_array" {
                     interner.get("in_array").unwrap()
-                } else if let Some(resolved_name) = resolved_names.get(&boxed_id.0.start_offset()) {
+                } else if let Some(resolved_name) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
                     *resolved_name
                 } else {
                     return None;
@@ -187,7 +187,7 @@ pub fn get_functionlike_id_from_call(
                     aast::ClassId_::CIexpr(lhs_expr) => {
                         if let aast::Expr_::Id(id) = &lhs_expr.2 {
                             if let (Some(class_name), Some(method_name)) = (
-                                resolved_names.get(&id.0.start_offset()),
+                                resolved_names.get(&(id.0.start_offset() as u32)),
                                 interner.get(&rhs_expr.1),
                             ) {
                                 Some(FunctionLikeIdentifier::Method(*class_name, method_name))

@@ -43,7 +43,7 @@ pub(crate) fn analyze(
     if_body_context: &mut Option<ScopeContext>,
 ) -> Result<(), AnalysisError> {
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
-    let xhp_class_name = if let Some(resolved_name) = resolved_names.get(&boxed.0 .0.start_offset())
+    let xhp_class_name = if let Some(resolved_name) = resolved_names.get(&(boxed.0 .0.start_offset() as u32))
     {
         resolved_name
     } else {
@@ -449,7 +449,7 @@ fn add_all_dataflow(
 fn get_attribute_name(
     statements_analyzer: &StatementsAnalyzer,
     attribute_info: &oxidized::tast::XhpSimple<(), ()>,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     analysis_data: &mut FunctionAnalysisData,
     context: &ScopeContext,
     element_name: &StrId,
@@ -460,7 +460,7 @@ fn get_attribute_name(
         Ok(StrId::ARIA_ATTRIBUTE)
     } else {
         let attribute_name = if let Some(resolved_name) =
-            resolved_names.get(&attribute_info.name.0.start_offset())
+            resolved_names.get(&(attribute_info.name.0.start_offset() as u32))
         {
             *resolved_name
         } else {

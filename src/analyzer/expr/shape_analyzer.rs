@@ -60,7 +60,7 @@ pub(crate) fn analyze(
                 let lhs_name = if let Some(name) = statements_analyzer
                     .get_file_analyzer()
                     .resolved_names
-                    .get(&lhs.0.start_offset())
+                    .get(&(lhs.0.start_offset() as u32))
                 {
                     name
                 } else {

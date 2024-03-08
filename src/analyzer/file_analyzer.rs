@@ -21,7 +21,7 @@ pub struct InternalError(pub String, pub HPos);
 pub struct FileAnalyzer<'a> {
     file_source: FileSource<'a>,
     namespace_name: Option<String>,
-    pub resolved_names: &'a FxHashMap<usize, StrId>,
+    pub resolved_names: &'a FxHashMap<u32, StrId>,
     pub codebase: &'a CodebaseInfo,
     pub interner: &'a Interner,
     pub analysis_config: &'a Config,
@@ -30,7 +30,7 @@ pub struct FileAnalyzer<'a> {
 impl<'a> FileAnalyzer<'a> {
     pub fn new(
         file_source: FileSource<'a>,
-        resolved_names: &'a FxHashMap<usize, StrId>,
+        resolved_names: &'a FxHashMap<u32, StrId>,
         codebase: &'a CodebaseInfo,
         interner: &'a Interner,
         analysis_config: &'a Config,

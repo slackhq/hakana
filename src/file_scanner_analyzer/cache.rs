@@ -49,13 +49,13 @@ pub(crate) fn load_cached_aast_names(
     aast_names_path: &String,
     use_codebase_cache: bool,
     logger: &Logger,
-) -> Option<FxHashMap<FilePath, FxHashMap<usize, StrId>>> {
+) -> Option<FxHashMap<FilePath, FxHashMap<u32, StrId>>> {
     if Path::new(aast_names_path).exists() && use_codebase_cache {
         logger.log_sync("Deserializing aast names cache");
         let serialized = fs::read(aast_names_path)
             .unwrap_or_else(|_| panic!("Could not read file {}", &aast_names_path));
         if let Ok(d) =
-            bincode::deserialize::<FxHashMap<FilePath, FxHashMap<usize, StrId>>>(&serialized)
+            bincode::deserialize::<FxHashMap<FilePath, FxHashMap<u32, StrId>>>(&serialized)
         {
             return Some(d);
         }

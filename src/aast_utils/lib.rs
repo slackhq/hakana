@@ -129,7 +129,7 @@ pub fn scope_names<'ast>(
     program: &'ast aast::Program<(), ()>,
     interner: &mut ThreadedInterner,
     mut name_context: NameContext<'ast>,
-) -> (FxHashMap<usize, StrId>, Uses) {
+) -> (FxHashMap<u32, StrId>, Uses) {
     let mut scanner = Scanner {
         interner,
         resolved_names: FxHashMap::default(),

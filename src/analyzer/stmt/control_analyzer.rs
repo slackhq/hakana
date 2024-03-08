@@ -15,7 +15,7 @@ pub enum BreakContext {
 pub(crate) fn get_control_actions(
     codebase: &CodebaseInfo,
     interner: &Interner,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     stmts: &Vec<aast::Stmt<(), ()>>,
     analysis_data: Option<&FunctionAnalysisData>,
     break_context: Vec<BreakContext>,
@@ -481,7 +481,7 @@ pub(crate) fn get_control_actions(
 fn handle_block(
     codebase: &CodebaseInfo,
     interner: &Interner,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     block_stmts: &aast::Block<(), ()>,
     analysis_data: Option<&FunctionAnalysisData>,
     break_context: Vec<BreakContext>,
@@ -513,7 +513,7 @@ fn handle_block(
 
 fn handle_call(
     call_expr: &CallExpr,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     codebase: &CodebaseInfo,
     interner: &Interner,
     control_actions: &FxHashSet<ControlAction>,
@@ -524,7 +524,7 @@ fn handle_call(
                 return Some(control_end(control_actions.clone()));
             }
 
-            let resolved_name = resolved_names.get(&id.0.start_offset())?;
+            let resolved_name = resolved_names.get(&(id.0.start_offset() as u32))?;
             if let Some(functionlike_storage) = codebase
                 .functionlike_infos
                 .get(&(*resolved_name, StrId::EMPTY))
@@ -546,7 +546,7 @@ fn handle_call(
                             // do nothing
                         }
                         _ => {
-                            let name_string = resolved_names.get(&id.0.start_offset())?;
+                            let name_string = resolved_names.get(&(id.0.start_offset() as u32))?;
 
                             let method_name = interner.get(&boxed.1 .1)?;
 

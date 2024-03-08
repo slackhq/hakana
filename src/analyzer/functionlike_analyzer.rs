@@ -56,7 +56,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     ) -> Result<(), AnalysisError> {
         let resolved_names = self.file_analyzer.resolved_names.clone();
 
-        let name = if let Some(name) = resolved_names.get(&stmt.name.0.start_offset()) {
+        let name = if let Some(name) = resolved_names.get(&(stmt.name.0.start_offset() as u32)) {
             *name
         } else {
             return Err(AnalysisError::InternalError(

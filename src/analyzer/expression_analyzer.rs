@@ -482,7 +482,7 @@ pub(crate) fn analyze(
             let class_name = if let Some(id) = &boxed.0 {
                 let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                Some(resolved_names.get(&id.0.start_offset()).cloned().unwrap())
+                Some(resolved_names.get(&(id.0.start_offset() as u32)).cloned().unwrap())
             } else {
                 None
             };
@@ -719,7 +719,7 @@ fn analyze_function_pointer(
         aast::FunctionPtrId::FPId(id) => FunctionLikeIdentifier::Function({
             let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-            if let Some(name) = resolved_names.get(&id.0.start_offset()).cloned() {
+            if let Some(name) = resolved_names.get(&(id.0.start_offset() as u32)).cloned() {
                 name
             } else {
                 return Err(AnalysisError::InternalError(

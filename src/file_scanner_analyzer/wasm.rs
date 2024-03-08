@@ -190,7 +190,7 @@ pub fn scan_single_file(
     interner: &mut ThreadedInterner,
     path: String,
     file_contents: String,
-) -> std::result::Result<FxHashMap<usize, StrId>, ParserError> {
+) -> std::result::Result<FxHashMap<u32, StrId>, ParserError> {
     let aast = match get_aast_for_path_and_contents(FilePath(StrId::EMPTY), &path, file_contents) {
         Ok(aast) => aast,
         Err(err) => return Err(err),
@@ -228,7 +228,7 @@ pub fn analyze_single_file(
     file_contents: String,
     codebase: &CodebaseInfo,
     interner: &Interner,
-    resolved_names: &FxHashMap<usize, StrId>,
+    resolved_names: &FxHashMap<u32, StrId>,
     analysis_config: &Config,
 ) -> std::result::Result<AnalysisResult, String> {
     let mut analysis_result =
