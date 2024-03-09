@@ -145,7 +145,7 @@ pub(crate) fn analyze(
                 IssueKind::NonExistentClass,
                 format!(
                     "Unknown XHP class {}",
-                    statements_analyzer.get_interner().lookup(&xhp_class_name)
+                    statements_analyzer.get_interner().lookup(xhp_class_name)
                 ),
                 statements_analyzer.get_hpos(pos),
                 &context.function_context.calling_functionlike_id,

@@ -75,7 +75,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     c.name
                         .1
                         .to_string()
-                        .trim_start_matches(":")
+                        .trim_start_matches(':')
                         .replace(':', "\\")
                 } else {
                     c.name.1.to_string()
@@ -83,7 +83,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             self.interner.intern(str)
         } else if c.is_xhp {
             self.interner
-                .intern(c.name.1.trim_start_matches(":").replace(':', "\\"))
+                .intern(c.name.1.trim_start_matches(':').replace(':', "\\"))
         } else {
             self.interner.intern(c.name.1.clone())
         };

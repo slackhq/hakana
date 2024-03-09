@@ -89,15 +89,16 @@ pub(crate) fn analyze(
                     _ => {
                         let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                        let name_string =
-                            if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
-                                *resolved_name
-                            } else {
-                                return Err(AnalysisError::InternalError(
-                                    "Unable to resolve new constructor class name".to_string(),
-                                    statements_analyzer.get_hpos(pos),
-                                ));
-                            };
+                        let name_string = if let Some(resolved_name) =
+                            resolved_names.get(&(id.0.start_offset() as u32))
+                        {
+                            *resolved_name
+                        } else {
+                            return Err(AnalysisError::InternalError(
+                                "Unable to resolve new constructor class name".to_string(),
+                                statements_analyzer.get_hpos(pos),
+                            ));
+                        };
 
                         get_named_object(name_string)
                     }

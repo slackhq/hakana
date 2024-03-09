@@ -496,7 +496,8 @@ fn get_async_version(
 
                         match &call.func.2 {
                             aast::Expr_::Id(boxed_id) => {
-                                if let Some(fn_id) = resolved_names.get(&(boxed_id.0.start_offset() as u32))
+                                if let Some(fn_id) =
+                                    resolved_names.get(&(boxed_id.0.start_offset() as u32))
                                 {
                                     return Some(FunctionLikeIdentifier::Function(*fn_id));
                                 }
