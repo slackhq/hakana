@@ -368,7 +368,7 @@ fn scrape_shapes_isset(
 
         if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
             if let Some((codebase, interner)) = assertion_context.codebase {
-                if class_name == StrId::SHAPES && interner.lookup(&member_name) == "idx" {
+                if class_name == StrId::SHAPES && member_name == StrId::IDX {
                     let shape_name = get_var_id(
                         &call.args[0].1,
                         assertion_context.this_class_name,

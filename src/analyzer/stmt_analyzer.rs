@@ -312,10 +312,7 @@ fn detect_unused_statement_expressions(
                             is_constructor_call = true;
                         }
 
-                        let method_name =
-                            statements_analyzer.get_interner().lookup(&method_name_id);
-
-                        if method_name == "assert" {
+                        if method_name_id == StrId::ASSERT {
                             fn_can_throw = true;
                         }
                     }

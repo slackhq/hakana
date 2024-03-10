@@ -10,6 +10,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
+use hakana_str::StrId;
 use hakana_type::{
     add_optional_union_type, add_union_type, get_arraykey, get_int, get_mixed_any,
     get_mixed_maybe_from_loop, get_nothing, get_null, get_string,
@@ -438,8 +439,8 @@ pub(crate) fn get_array_access_type_given_offset(
             }
             TAtomic::TNamedObject {
                 name, type_params, ..
-            } => match statements_analyzer.get_interner().lookup(name) {
-                "HH\\KeyedContainer" | "HH\\AnyArray" => {
+            } => match *name {
+                StrId::KEYED_CONTAINER | StrId::ANY_ARRAY => {
                     if let Some(type_params) = type_params {
                         if let Some(existing_type) = stmt_type {
                             stmt_type = Some(add_union_type(
@@ -455,7 +456,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         has_valid_expected_offset = true;
                     }
                 }
-                "HH\\Container" => {
+                StrId::CONTAINER => {
                     if let Some(type_params) = type_params {
                         if let Some(existing_type) = stmt_type {
                             stmt_type = Some(add_union_type(
@@ -471,7 +472,7 @@ pub(crate) fn get_array_access_type_given_offset(
                         has_valid_expected_offset = true;
                     }
                 }
-                "XHPChild" => {
+                StrId::XHP_CHILD => {
                     let new_type = handle_array_access_on_mixed(
                         statements_analyzer,
                         stmt.2,

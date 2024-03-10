@@ -339,8 +339,8 @@ pub(crate) fn get_functionlike(
 
         functionlike_info.attributes.push(AttributeInfo { name });
 
-        match interner.lookup(name) {
-            "Hakana\\SecurityAnalysis\\Source" => {
+        match name {
+            StrId::HAKANA_SECURITY_ANALYSIS_SOURCE => {
                 let mut source_types = FxHashSet::default();
 
                 for attribute_param_expr in &user_attribute.params {
@@ -358,16 +358,16 @@ pub(crate) fn get_functionlike(
 
                 functionlike_info.taint_source_types = source_types;
             }
-            "Hakana\\SecurityAnalysis\\SpecializeCall" => {
+            StrId::HAKANA_SECURITY_ANALYSIS_SPECIALIZE_CALL => {
                 functionlike_info.specialize_call = true;
             }
-            "Hakana\\SecurityAnalysis\\IgnorePath" => {
+            StrId::HAKANA_SECURITY_ANALYSIS_IGNORE_PATH => {
                 functionlike_info.ignore_taint_path = true;
             }
-            "Hakana\\SecurityAnalysis\\IgnorePathIfTrue" => {
+            StrId::HAKANA_SECURITY_ANALYSIS_IGNORE_PATH_IF_TRUE => {
                 functionlike_info.ignore_taints_if_true = true;
             }
-            "Hakana\\SecurityAnalysis\\Sanitize" | "Hakana\\FindPaths\\Sanitize" => {
+            StrId::HAKANA_SECURITY_ANALYSIS_SANITIZE | StrId::HAKANA_FIND_PATHS_SANITIZE => {
                 let mut removed_types = FxHashSet::default();
 
                 for attribute_param_expr in &user_attribute.params {
@@ -387,17 +387,17 @@ pub(crate) fn get_functionlike(
 
                 functionlike_info.removed_taints = Some(removed_types);
             }
-            "Hakana\\MustUse" => {
+            StrId::HAKANA_MUST_USE => {
                 functionlike_info.must_use = true;
             }
-            "__EntryPoint" => {
+            StrId::ENTRY_POINT => {
                 functionlike_info.dynamically_callable = true;
                 functionlike_info.ignore_taint_path = true;
             }
-            "__DynamicallyCallable" => {
+            StrId::DYNAMICALLY_CALLABLE => {
                 functionlike_info.dynamically_callable = true;
             }
-            "Codegen" => {
+            StrId::CODEGEN => {
                 functionlike_info.generated = true;
             }
             _ => {}

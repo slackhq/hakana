@@ -299,21 +299,19 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 .get(&(user_attribute.name.0.start_offset() as u32))
                 .unwrap();
 
-            let attribute_str = self.interner.lookup(*attribute_name);
-
             attributes.push(AttributeInfo {
                 name: *attribute_name,
             });
 
-            match attribute_str {
-                "Hakana\\SecurityAnalysis\\ShapeSource" => {
+            match *attribute_name {
+                StrId::HAKANA_SECURITY_ANALYSIS_SHAPE_SOURCE => {
                     shape_source_attribute = Some(user_attribute);
                     break;
                 }
-                "Hakana\\SpecialTypes\\LiteralString" => {
+                StrId::HAKANA_SPECIAL_TYPES_LITERAL_STRING => {
                     is_literal_string = true;
                 }
-                "Codegen" => {
+                StrId::CODEGEN => {
                     is_codegen = true;
                 }
                 _ => {}

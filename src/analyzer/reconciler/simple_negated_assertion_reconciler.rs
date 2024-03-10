@@ -1,8 +1,7 @@
 use super::simple_assertion_reconciler::{get_acceptable_type, intersect_null};
 use crate::{
-    function_analysis_data::FunctionAnalysisData,
-    reconciler::trigger_issue_for_impossible, scope_analyzer::ScopeAnalyzer,
-    statements_analyzer::StatementsAnalyzer,
+    function_analysis_data::FunctionAnalysisData, reconciler::trigger_issue_for_impossible,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
 };
 use hakana_reflection_info::{
     assertion::Assertion,
@@ -11,6 +10,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
+use hakana_str::StrId;
 use hakana_type::{
     get_mixed_any, get_nothing, get_null, intersect_union_types,
     type_comparator::union_type_comparator, wrap_atomic,
@@ -1262,18 +1262,13 @@ pub(crate) fn subtract_null(
                 did_remove_type = true;
             }
             TAtomic::TNamedObject {
-                name,
+                name: StrId::XHP_CHILD,
                 type_params: None,
                 ..
-            } => match statements_analyzer.get_interner().lookup(&name) {
-                "XHPChild" => {
-                    did_remove_type = true;
-                    acceptable_types.push(atomic);
-                }
-                _ => {
-                    acceptable_types.push(atomic);
-                }
-            },
+            } => {
+                did_remove_type = true;
+                acceptable_types.push(atomic);
+            }
             _ => {
                 acceptable_types.push(atomic);
             }

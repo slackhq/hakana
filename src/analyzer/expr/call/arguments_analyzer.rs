@@ -561,9 +561,7 @@ fn adjust_param_type(
                 if let Some(calling_class) = &context.function_context.calling_class {
                     if !context.function_context.is_static {
                         if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id {
-                            if statements_analyzer.get_interner().lookup(method_name)
-                                == "__construct"
-                            {
+                            if *method_name == StrId::CONSTRUCT {
                                 None
                             } else {
                                 Some(calling_class)

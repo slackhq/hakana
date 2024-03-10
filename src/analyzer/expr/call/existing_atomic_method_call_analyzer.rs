@@ -104,30 +104,27 @@ pub(crate) fn analyze(
         }
     }
 
-    let classlike_name_str = statements_analyzer.get_interner().lookup(&classlike_name);
+    let class_template_params =
+        if classlike_name != StrId::VECTOR || *method_name != StrId::FROM_ITEMS {
+            let declaring_classlike_storage =
+                if let Some(s) = codebase.classlike_infos.get(&declaring_method_id.0) {
+                    s
+                } else {
+                    return Err(AnalysisError::InternalError(
+                        "could not load storage for declaring method".to_string(),
+                        statements_analyzer.get_hpos(pos),
+                    ));
+                };
 
-    let class_template_params = if classlike_name_str != "HH\\Vector"
-        || statements_analyzer.get_interner().lookup(method_name) != "fromItems"
-    {
-        let declaring_classlike_storage =
-            if let Some(s) = codebase.classlike_infos.get(&declaring_method_id.0) {
-                s
-            } else {
-                return Err(AnalysisError::InternalError(
-                    "could not load storage for declaring method".to_string(),
-                    statements_analyzer.get_hpos(pos),
-                ));
-            };
-
-        class_template_param_collector::collect(
-            codebase,
-            declaring_classlike_storage,
-            classlike_storage,
-            Some(lhs_type_part),
-        )
-    } else {
-        None
-    };
+            class_template_param_collector::collect(
+                codebase,
+                declaring_classlike_storage,
+                classlike_storage,
+                Some(lhs_type_part),
+            )
+        } else {
+            None
+        };
 
     let functionlike_storage = codebase.get_method(&declaring_method_id).unwrap();
 
@@ -166,7 +163,7 @@ pub(crate) fn analyze(
     }
 
     // .hhi for NumberFormatter was incorrect
-    if classlike_name_str == "NumberFormatter" {
+    if classlike_name == StrId::NUMBER_FORMATTER {
         analysis_data.expr_effects.insert(
             (pos.start_offset() as u32, pos.end_offset() as u32),
             EFFECT_WRITE_PROPS,
@@ -193,7 +190,7 @@ pub(crate) fn analyze(
         );
     }
 
-    if statements_analyzer.get_interner().lookup(&method_id.0) == "HH\\Shapes" {
+    if method_id.0 == StrId::SHAPES {
         if let Some(value) = handle_shapes_static_method(
             &method_id,
             call_expr,
@@ -249,8 +246,8 @@ fn handle_shapes_static_method(
     pos: &Pos,
     codebase: &hakana_reflection_info::codebase_info::CodebaseInfo,
 ) -> Option<TUnion> {
-    match statements_analyzer.get_interner().lookup(&method_id.1) {
-        "keyExists" => {
+    match method_id.1 {
+        StrId::KEY_EXISTS => {
             if call_expr.1.len() == 2 {
                 let expr_var_id = expression_identifier::get_var_id(
                     &call_expr.1[0].1,
@@ -293,7 +290,7 @@ fn handle_shapes_static_method(
             }
         }
 
-        "removeKey" => {
+        StrId::REMOVE_KEY => {
             if call_expr.1.len() == 2 {
                 let expr_var_id = expression_identifier::get_var_id(
                     &call_expr.1[0].1,
@@ -355,7 +352,7 @@ fn handle_shapes_static_method(
                 }
             }
         }
-        "idx" => {
+        StrId::IDX => {
             if call_expr.1.len() >= 2 {
                 let dict_type = analysis_data
                     .get_rc_expr_type(call_expr.1[0].1.pos())
@@ -455,7 +452,7 @@ fn handle_shapes_static_method(
                 return Some(expr_type.unwrap_or(get_mixed_any()));
             }
         }
-        "at" => {
+        StrId::AT => {
             if call_expr.1.len() == 2 {
                 let dict_type = analysis_data
                     .get_rc_expr_type(call_expr.1[0].1.pos())
@@ -491,7 +488,7 @@ fn handle_shapes_static_method(
                 return Some(expr_type.unwrap_or(get_mixed_any()));
             }
         }
-        "toDict" | "toArray" => {
+        StrId::TO_DICT | StrId::TO_ARRAY => {
             let arg_type = analysis_data.get_expr_type(call_expr.1[0].1.pos()).cloned();
 
             return Some(if let Some(arg_type) = arg_type {

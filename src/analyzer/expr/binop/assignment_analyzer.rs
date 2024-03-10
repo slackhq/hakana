@@ -1,6 +1,7 @@
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::EFFECT_WRITE_LOCAL;
+use hakana_str::StrId;
 use indexmap::IndexMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
@@ -477,7 +478,7 @@ fn analyze_list_assignment(
                 ..
             } = assign_value_atomic_type
             {
-                if statements_analyzer.get_interner().lookup(name) == "HH\\Vector" {
+                if *name == StrId::VECTOR {
                     type_params[0].clone()
                 } else {
                     get_nothing()

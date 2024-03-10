@@ -1219,8 +1219,8 @@ fn intersect_string(
                 name,
                 type_params: None,
                 ..
-            } => match statements_analyzer.get_interner().lookup(name) {
-                "XHPChild" => {
+            } => match *name {
+                StrId::XHP_CHILD => {
                     acceptable_types.push(TAtomic::TString);
                     did_remove_type = true;
                 }
