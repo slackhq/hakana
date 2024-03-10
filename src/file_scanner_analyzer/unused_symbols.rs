@@ -7,7 +7,7 @@ use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::property_info::PropertyKind;
-use hakana_reflection_info::{Interner, StrId};
+use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use std::sync::Arc;

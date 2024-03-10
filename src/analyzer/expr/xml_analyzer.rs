@@ -15,9 +15,9 @@ use hakana_reflection_info::property_info::PropertyKind;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::StrId;
 use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_reflection_info::EFFECT_PURE;
+use hakana_str::StrId;
 use hakana_type::get_named_object;
 use itertools::Itertools;
 use oxidized::aast;
@@ -43,15 +43,15 @@ pub(crate) fn analyze(
     if_body_context: &mut Option<ScopeContext>,
 ) -> Result<(), AnalysisError> {
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
-    let xhp_class_name = if let Some(resolved_name) = resolved_names.get(&(boxed.0 .0.start_offset() as u32))
-    {
-        resolved_name
-    } else {
-        return Err(AnalysisError::InternalError(
-            "could not resolve XML name".to_string(),
-            statements_analyzer.get_hpos(pos),
-        ));
-    };
+    let xhp_class_name =
+        if let Some(resolved_name) = resolved_names.get(&(boxed.0 .0.start_offset() as u32)) {
+            resolved_name
+        } else {
+            return Err(AnalysisError::InternalError(
+                "could not resolve XML name".to_string(),
+                statements_analyzer.get_hpos(pos),
+            ));
+        };
 
     analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
@@ -279,7 +279,7 @@ fn handle_attribute_spread(
                 ..
             } = expr_type_atomic
             {
-                if let Some(spread_class_info) = codebase.classlike_infos.get(spread_xhp_class) {
+                if let Some(spread_class_info) = codebase.classlike_infos.get(&spread_xhp_class) {
                     let all_attributes = spread_class_info
                         .properties
                         .iter()

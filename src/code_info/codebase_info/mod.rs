@@ -10,7 +10,7 @@ use crate::property_info::PropertyInfo;
 use crate::t_atomic::TAtomic;
 use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
-use crate::StrId;
+use hakana_str::StrId;
 use crate::{class_constant_info::ConstantInfo, code_location::FilePath};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};

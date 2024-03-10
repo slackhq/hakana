@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hakana_str::StrId;
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -15,7 +16,6 @@ use crate::{
     t_union::TUnion,
     taint::{SinkType, SourceType},
     type_resolution::TypeResolutionContext,
-    StrId,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

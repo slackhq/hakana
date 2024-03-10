@@ -5,7 +5,7 @@ use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry, Replacement};
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::IssueKind;
-use hakana_reflection_info::Interner;
+use hakana_str::Interner;
 use indexmap::IndexMap;
 use rand::Rng;
 use rustc_hash::FxHashSet;

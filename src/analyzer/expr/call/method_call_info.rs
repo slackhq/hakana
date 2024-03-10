@@ -1,6 +1,6 @@
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
-use hakana_reflection_info::StrId;
+use hakana_str::StrId;
 
 pub(crate) struct MethodCallInfo<'a> {
     pub self_fq_classlike_name: StrId,

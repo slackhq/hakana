@@ -14,7 +14,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_reflection_info::{Interner, StrId};
+use hakana_str::{Interner, StrId};
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     add_optional_union_type, get_mixed_any,

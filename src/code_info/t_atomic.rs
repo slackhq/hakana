@@ -6,8 +6,8 @@ use crate::{
     codebase_info::{symbols::SymbolKind, Symbols},
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
 };
-use crate::{Interner, StrId};
 use derivative::Derivative;
+use hakana_str::{Interner, StrId};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, sync::Arc};

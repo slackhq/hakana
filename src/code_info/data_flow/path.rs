@@ -1,8 +1,9 @@
+use hakana_str::StrId;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
-use crate::{taint::SinkType, StrId};
+use crate::taint::SinkType;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Display)]
 pub enum ArrayDataKind {

@@ -10,7 +10,7 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::{Interner, StrId};
+use hakana_str::{Interner, StrId};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
@@ -337,7 +337,7 @@ fn handle_special_functions(
             known_count: None,
             non_empty: true,
         })),
-        &StrId::STR_REPLACE_LEGACY => {
+        &StrId::STR_REPLACE => {
             // returns string if the second arg is a string
             if let Some((_, arg_expr)) = args.get(1) {
                 if let Some(expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -403,7 +403,7 @@ fn handle_special_functions(
                 None
             }
         }
-        &StrId::STR_JOIN => {
+        &StrId::LIB_STR_JOIN => {
             if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
                 (args.first(), args.get(1))
             {
@@ -434,7 +434,7 @@ fn handle_special_functions(
                 None
             }
         }
-        &StrId::STR_FORMAT => {
+        &StrId::LIB_STR_FORMAT => {
             if let Some(first_arg) = args.first() {
                 if let aast::Expr_::String(simple_string) = &first_arg.1 .2 {
                     let mut escaped = false;
@@ -506,7 +506,7 @@ fn handle_special_functions(
 
             None
         }
-        &StrId::STR_TRIM | &StrId::STR_STRIP_SUFFIX | &StrId::STR_SLICE | &StrId::STR_REPLACE => {
+        &StrId::LIB_STR_TRIM | &StrId::LIB_STR_STRIP_SUFFIX | &StrId::LIB_STR_SLICE | &StrId::LIB_STR_REPLACE => {
             let mut all_literals = true;
             for (_, arg_expr) in args {
                 if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -526,7 +526,7 @@ fn handle_special_functions(
                 TAtomic::TString
             }))
         }
-        &StrId::STR_SPLIT => {
+        &StrId::LIB_STR_SPLIT => {
             let mut all_literals = true;
             for (_, arg_expr) in args {
                 if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -566,7 +566,7 @@ fn handle_special_functions(
                 None
             }
         }
-        &StrId::IDX => {
+        &StrId::IDX_FN => {
             if args.len() >= 2 {
                 let dict_type = analysis_data.get_rc_expr_type(args[0].1.pos()).cloned();
                 let dim_type = analysis_data.get_rc_expr_type(args[1].1.pos()).cloned();
@@ -687,7 +687,7 @@ fn get_type_structure_type(
             {
                 if let Some(type_constant_info) = classlike_info.type_constants.get(&const_name) {
                     return Some(wrap_atomic(TAtomic::TTypeAlias {
-                        name: StrId::TYPE_STRUCTURE_OBJ,
+                        name: StrId::TYPE_STRUCTURE,
                         type_params: Some(vec![match type_constant_info {
                             ClassConstantType::Concrete(actual_type) => actual_type.clone(),
                             ClassConstantType::Abstract(Some(as_type)) => as_type.clone(),

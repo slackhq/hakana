@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::file_analyzer::FileAnalyzer;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::Interner;
+use hakana_str::Interner;
 
 pub trait ScopeAnalyzer {
     fn get_namespace(&self) -> &Option<String>;

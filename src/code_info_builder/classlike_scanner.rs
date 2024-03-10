@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hakana_aast_helper::Uses;
+use hakana_str::{StrId, ThreadedInterner};
 use no_pos_hash::{position_insensitive_hash, Hasher, NoPosHash};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -16,7 +17,7 @@ use hakana_reflection_info::{
     property_info::{PropertyInfo, PropertyKind},
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
-    FileSource, StrId, ThreadedInterner,
+    FileSource,
 };
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use indexmap::IndexMap;

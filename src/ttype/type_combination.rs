@@ -3,8 +3,8 @@ use std::{collections::BTreeMap, sync::Arc};
 use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
 };
+use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Debug)]

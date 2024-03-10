@@ -11,8 +11,8 @@ use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
 };
+use hakana_str::StrId;
 use hakana_type::{
     get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
     get_mixed_dict, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing, get_null, get_num,

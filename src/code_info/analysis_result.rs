@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, time::Duration};
 
+use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 
@@ -9,7 +10,6 @@ use crate::{
     function_context::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
-    Interner,
 };
 
 #[derive(Clone, Debug)]

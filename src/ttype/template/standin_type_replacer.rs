@@ -5,14 +5,14 @@ use crate::{
     type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
 };
+use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    Interner,
 };
-use hakana_reflection_info::{function_context::FunctionLikeIdentifier, StrId};
+use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::Arc;

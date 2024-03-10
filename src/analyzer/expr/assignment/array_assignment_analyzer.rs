@@ -9,8 +9,8 @@ use hakana_reflection_info::{
     },
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
 };
+use hakana_str::StrId;
 use hakana_type::{
     combine_union_types, get_arrayish_params, get_arraykey, get_int, get_mixed_any, get_nothing,
     template::TemplateBound, type_combiner, wrap_atomic,

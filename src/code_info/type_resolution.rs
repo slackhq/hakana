@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
+use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{t_union::TUnion, StrId};
+use crate::t_union::TUnion;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TypeResolutionContext {

@@ -6,8 +6,9 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    StrId, EFFECT_WRITE_PROPS,
+    EFFECT_WRITE_PROPS,
 };
+use hakana_str::StrId;
 use hakana_type::{
     add_optional_union_type, get_mixed_any,
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},

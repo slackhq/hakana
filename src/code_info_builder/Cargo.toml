@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 hakana-type = { path = "../ttype" }
 hakana-reflection-info = { path = "../code_info" }
+hakana-str = { path = "../str" }
 hakana-aast-helper = { path = "../aast_utils" }
 indexmap = "1.8.0"
 parser_core_types = { path = "../../third-party/hhvm/hphp/hack/src/parser/cargo/core_types" }

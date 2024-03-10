@@ -3,9 +3,9 @@ use crate::{
     data_flow::node::DataFlowNode,
     symbol_references::{ReferenceSource, SymbolReferences},
     t_atomic::{populate_atomic_type, DictKey, TAtomic},
-    Interner, StrId,
 };
 use derivative::Derivative;
+use hakana_str::{Interner, StrId};
 use itertools::Itertools;
 use std::hash::{Hash, Hasher};
 

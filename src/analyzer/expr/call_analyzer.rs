@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::{StrId, EFFECT_IMPURE, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{EFFECT_IMPURE, EFFECT_WRITE_PROPS};
+use hakana_str::StrId;
 use hakana_type::template::standin_type_replacer::get_relevant_bounds;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;

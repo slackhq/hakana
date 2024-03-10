@@ -1,7 +1,7 @@
 use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
 
 use hakana_reflection_info::code_location::{FilePath, HPos};
-use hakana_reflection_info::{StrId, ThreadedInterner};
+use hakana_str::{StrId, ThreadedInterner};
 use name_context::NameContext;
 use naming_visitor::Scanner;
 use oxidized::ast_defs::Pos;

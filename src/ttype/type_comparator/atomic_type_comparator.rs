@@ -5,8 +5,8 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
 };
+use hakana_str::StrId;
 use itertools::Itertools;
 
 use super::{

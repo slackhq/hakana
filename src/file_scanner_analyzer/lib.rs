@@ -13,7 +13,7 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
-use hakana_reflection_info::{Interner, StrId};
+use hakana_str::{Interner, StrId};
 use indicatif::ProgressBar;
 use oxidized::aast;
 use oxidized::scoured_comments::ScouredComments;

@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::issue::IssueKind;
-use hakana_reflection_info::StrId;
+use hakana_str::StrId;
 use hakana_type::get_literal_string;
 use hakana_type::get_mixed_any;
 use hakana_type::get_string;

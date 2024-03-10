@@ -2,7 +2,8 @@ use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{StrId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
+use hakana_str::StrId;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{get_arrayish_params, get_void};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -221,10 +222,10 @@ pub(crate) fn analyze(
                 process_invariant(first_arg, context, statements_analyzer, analysis_data);
             }
         }
-        StrId::C_CONTAINS
-        | StrId::C_CONTAINS_KEY
-        | StrId::DICT_CONTAINS
-        | StrId::DICT_CONTAINS_KEY => {
+        StrId::LIB_C_CONTAINS
+        | StrId::LIB_C_CONTAINS_KEY
+        | StrId::LIB_DICT_CONTAINS
+        | StrId::LIB_DICT_CONTAINS_KEY => {
             let expr_var_id = expression_identifier::get_var_id(
                 &expr.2[0].1,
                 context.function_context.calling_class.as_ref(),
@@ -235,7 +236,7 @@ pub(crate) fn analyze(
                 )),
             );
 
-            if name == StrId::C_CONTAINS || name == StrId::DICT_CONTAINS {
+            if name == StrId::LIB_C_CONTAINS || name == StrId::LIB_DICT_CONTAINS {
                 let container_type = analysis_data.get_expr_type(expr.2[0].1.pos()).cloned();
                 let second_arg_type = analysis_data.get_expr_type(expr.2[1].1.pos()).cloned();
                 check_array_key_or_value_type(
@@ -333,7 +334,7 @@ pub(crate) fn analyze(
                 }
             }
         }
-        StrId::STR_STARTS_WITH => {
+        StrId::LIB_STR_STARTS_WITH => {
             if expr.2.len() == 2 {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(
@@ -375,7 +376,7 @@ pub(crate) fn analyze(
                 }
             }
         }
-        StrId::REGEX_MATCHES => {
+        StrId::LIB_REGEX_MATCHES => {
             if expr.2.len() == 2 {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     let expr_var_id = expression_identifier::get_var_id(

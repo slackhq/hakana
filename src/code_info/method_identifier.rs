@@ -1,4 +1,4 @@
-use crate::{Interner, StrId};
+use hakana_str::{Interner, StrId};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct MethodIdentifier(pub StrId, pub StrId);

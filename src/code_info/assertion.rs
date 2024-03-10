@@ -1,6 +1,7 @@
 use std::hash::Hasher;
 
 use derivative::Derivative;
+use hakana_str::Interner;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +9,6 @@ use crate::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
     taint::SinkType,
-    Interner,
 };
 use core::hash::Hash;
 

@@ -1,6 +1,7 @@
+use hakana_str::{Interner, StrId};
 use rustc_hash::FxHashMap;
 
-use crate::{codebase_info::CodebaseInfo, Interner, StrId};
+use crate::codebase_info::CodebaseInfo;
 
 pub fn get_id_name(
     id: &oxidized::ast_defs::Id,

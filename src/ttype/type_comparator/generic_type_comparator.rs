@@ -9,8 +9,8 @@ use hakana_reflection_info::{
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    StrId,
 };
+use hakana_str::StrId;
 
 pub(crate) fn is_contained_by(
     codebase: &CodebaseInfo,

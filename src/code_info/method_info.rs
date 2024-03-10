@@ -1,8 +1,9 @@
+use hakana_str::StrId;
 use rustc_hash::FxHashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{member_visibility::MemberVisibility, StrId};
+use crate::member_visibility::MemberVisibility;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MethodInfo {

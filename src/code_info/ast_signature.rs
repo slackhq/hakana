@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::StrId;
+use hakana_str::StrId;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct DefSignatureNode {

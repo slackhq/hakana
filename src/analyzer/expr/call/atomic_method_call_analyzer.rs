@@ -1,10 +1,10 @@
+use hakana_str::StrId;
 use rustc_hash::FxHashSet;
 
 use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    StrId,
 };
 use hakana_type::get_mixed_any;
 use oxidized::{

@@ -1,6 +1,7 @@
+use hakana_str::{Interner, StrId};
 use serde::{Deserialize, Serialize};
 
-use crate::{code_location::FilePath, method_identifier::MethodIdentifier, Interner, StrId};
+use crate::{code_location::FilePath, method_identifier::MethodIdentifier};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 pub enum FunctionLikeIdentifier {

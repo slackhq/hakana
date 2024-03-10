@@ -4,9 +4,9 @@ use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
-use hakana_reflection_info::StrId;
 use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_reflection_info::EFFECT_PURE;
+use hakana_str::StrId;
 use hakana_type::get_arraykey;
 use hakana_type::get_mixed_any;
 use hakana_type::get_nothing;
@@ -416,7 +416,9 @@ fn get_reference_type(
 
     if type_name == "Generator" {
         return TAtomic::TNamedObject {
-            name: *resolved_names.get(&(applied_type.0.start_offset() as u32)).unwrap(),
+            name: *resolved_names
+                .get(&(applied_type.0.start_offset() as u32))
+                .unwrap(),
             type_params: if type_params.len() == 3 {
                 Some(vec![
                     type_params.first().unwrap().clone(),

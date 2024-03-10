@@ -27,7 +27,7 @@ use hakana_reflection_info::member_visibility::MemberVisibility;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{Interner, StrId};
+use hakana_str::{Interner, StrId};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{

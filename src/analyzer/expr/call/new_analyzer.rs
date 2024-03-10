@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::classlike_info::Variance;
-use hakana_reflection_info::{StrId, EFFECT_WRITE_GLOBALS};
+use hakana_reflection_info::EFFECT_WRITE_GLOBALS;
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
+use hakana_str::StrId;
 use hakana_type::template::standin_type_replacer::get_most_specific_type_from_bounds;
 use rustc_hash::{FxHashMap, FxHashSet};
 

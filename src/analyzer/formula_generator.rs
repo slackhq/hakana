@@ -1,18 +1,18 @@
 use std::collections::BTreeMap;
 
-use hakana_reflection_info::symbol_references::ReferenceSource;
-use indexmap::IndexMap;
-use rustc_hash::FxHashMap;
-
 use hakana_algebra::Clause;
+use hakana_reflection_info::symbol_references::ReferenceSource;
+use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     assertion::Assertion, codebase_info::CodebaseInfo, type_resolution::TypeResolutionContext,
 };
-use hakana_reflection_info::{FileSource, Interner, StrId};
+use hakana_str::{Interner, StrId};
+use indexmap::IndexMap;
 use oxidized::{
     aast,
     ast::{Bop, Uop},
 };
+use rustc_hash::FxHashMap;
 
 use crate::config::Config;
 use crate::{expr::assertion_finder, function_analysis_data::FunctionAnalysisData};

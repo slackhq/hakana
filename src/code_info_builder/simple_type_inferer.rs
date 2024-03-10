@@ -1,8 +1,8 @@
 use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
 };
+use hakana_str::StrId;
 use hakana_type::{
     get_false, get_float, get_int, get_literal_int, get_literal_string, get_nothing, get_null,
     get_true, wrap_atomic,
@@ -11,10 +11,7 @@ use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, num::ParseIntError, sync::Arc};
 
-pub fn infer(
-    expr: &aast::Expr<(), ()>,
-    resolved_names: &FxHashMap<u32, StrId>,
-) -> Option<TUnion> {
+pub fn infer(expr: &aast::Expr<(), ()>, resolved_names: &FxHashMap<u32, StrId>) -> Option<TUnion> {
     return match &expr.2 {
         aast::Expr_::ArrayGet(_) => None,
         aast::Expr_::ClassConst(boxed) => {
@@ -195,7 +192,7 @@ pub fn infer(
         }
         aast::Expr_::Id(name) => {
             if let Some(name_string) = resolved_names.get(&(name.0.start_offset() as u32)) {
-                if *name_string == StrId::MATH_INT32_MAX {
+                if *name_string == StrId::LIB_MATH_INT32_MAX {
                     return Some(wrap_atomic(TAtomic::TLiteralInt {
                         value: i32::MAX as i64,
                     }));

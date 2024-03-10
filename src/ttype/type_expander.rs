@@ -13,11 +13,11 @@ use hakana_reflection_info::{
     functionlike_parameter::FnParameter,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    Interner, StrId,
 };
 use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier, method_identifier::MethodIdentifier,
 };
+use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;

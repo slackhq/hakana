@@ -1,7 +1,8 @@
+use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{code_location::FilePath, StrId};
+use crate::code_location::FilePath;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SymbolKind {

@@ -18,8 +18,8 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    Interner, StrId,
 };
+use hakana_str::{Interner, StrId};
 use hakana_type::{
     add_union_type, get_mixed_any, get_null, get_value_param,
     type_expander::{self, StaticClassType, TypeExpansionOptions},
@@ -967,7 +967,7 @@ fn get_value_for_key(
                         ..
                     } = existing_key_type_part
                     {
-                        if fq_class_name == StrId::STDCLASS
+                        if fq_class_name == StrId::STD_CLASS
                             || !codebase.class_or_interface_exists(&fq_class_name)
                         {
                             class_property_type = get_mixed_any();

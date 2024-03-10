@@ -11,7 +11,8 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::function_context::FunctionContext;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
-use hakana_reflection_info::{FileSource, Interner, StrId};
+use hakana_reflection_info::FileSource;
+use hakana_str::{Interner, StrId};
 use oxidized::aast;
 use rustc_hash::FxHashMap;
 

@@ -4,9 +4,9 @@ use crate::{formula_generator::AssertionContext, function_analysis_data::Functio
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_str::StrId;
 use hakana_reflection_info::symbol_references::ReferenceSource;
 use hakana_reflection_info::t_atomic::DictKey;
-use hakana_reflection_info::StrId;
 use hakana_reflection_info::{
     assertion::Assertion,
     data_flow::graph::{DataFlowGraph, GraphKind},

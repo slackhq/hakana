@@ -1,6 +1,7 @@
+use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{code_location::FilePath, StrId};
+use crate::code_location::FilePath;
 
 #[derive(Default, Debug)]
 pub struct CodebaseDiff {

@@ -1,6 +1,7 @@
 use hakana_reflection_info::code_location::{HPos, StmtStart};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::{StrId, EFFECT_PURE};
+use hakana_reflection_info::EFFECT_PURE;
+use hakana_str::StrId;
 use hakana_type::get_arrayish_params;
 use rustc_hash::FxHashSet;
 
@@ -293,18 +294,15 @@ fn detect_unused_statement_expressions(
             if let Some(functionlike_id) = functionlike_id {
                 match functionlike_id {
                     FunctionLikeIdentifier::Function(function_id) => {
-                        let function_name = statements_analyzer.get_interner().lookup(&function_id);
-
-                        if function_name == "HH\\invariant"
-                            || function_name == "HH\\invariant_violation"
-                            || function_name == "trigger_error"
-                            || function_name == "function_exists"
-                            || function_name == "class_exists"
-                            || function_name == "HH\\set_frame_metadata"
-                            || function_name == "HH\\Lib\\C\\firstx"
-                            || function_name == "HH\\Lib\\C\\lastx"
-                            || function_name == "HH\\Lib\\C\\onlyx"
-                            || function_name.contains("assert")
+                        if function_id == StrId::INVARIANT
+                            || function_id == StrId::INVARIANT_VIOLATION
+                            || function_id == StrId::TRIGGER_ERROR
+                            || function_id == StrId::FUNCTION_EXISTS
+                            || function_id == StrId::CLASS_EXISTS
+                            || function_id == StrId::SET_FRAME_METADATA
+                            || function_id == StrId::LIB_C_FIRSTX
+                            || function_id == StrId::LIB_C_LASTX
+                            || function_id == StrId::LIB_C_ONLYX
                         {
                             fn_can_throw = true;
                         }

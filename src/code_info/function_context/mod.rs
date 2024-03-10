@@ -1,5 +1,7 @@
+use hakana_str::StrId;
+
 pub use crate::functionlike_identifier::FunctionLikeIdentifier;
-use crate::{symbol_references::ReferenceSource, StrId};
+use crate::symbol_references::ReferenceSource;
 
 #[derive(Clone, Debug, Copy)]
 pub struct FunctionContext {

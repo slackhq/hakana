@@ -10,7 +10,8 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
-use hakana_reflection_info::{FileSource, Interner, StrId, ThreadedInterner};
+use hakana_reflection_info::FileSource;
+use hakana_str::{Interner, StrId, ThreadedInterner};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Mutex};
 

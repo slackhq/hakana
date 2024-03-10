@@ -1,12 +1,12 @@
 use core::panic;
 
+use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     diff::CodebaseDiff,
     function_context::{FunctionContext, FunctionLikeIdentifier},
-    Interner, StrId,
 };
 
 pub enum ReferenceSource {

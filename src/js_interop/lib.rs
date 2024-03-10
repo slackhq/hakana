@@ -1,5 +1,5 @@
 use hakana_reflection_info::codebase_info::CodebaseInfo;
-use hakana_reflection_info::Interner;
+use hakana_str::Interner;
 use hakana_workhorse::wasm::{get_single_file_codebase, scan_and_analyze_single_file};
 use serde_json::json;
 use wasm_bindgen::prelude::*;

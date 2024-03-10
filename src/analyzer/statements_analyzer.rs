@@ -13,7 +13,7 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::ReferenceSource;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
-use hakana_reflection_info::{Interner, StrId};
+use hakana_str::{Interner, StrId};
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
 use oxidized::prim_defs::Comment;

@@ -1,10 +1,10 @@
+use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    Interner, StrId,
 };
 use itertools::Itertools;
 use type_combiner::combine;

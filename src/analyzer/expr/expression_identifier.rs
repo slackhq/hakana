@@ -1,7 +1,7 @@
 use hakana_reflection_info::{
     ast::get_id_name, codebase_info::CodebaseInfo, functionlike_identifier::FunctionLikeIdentifier,
-    Interner, StrId,
 };
+use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use oxidized::{aast, ast_defs};
@@ -168,7 +168,9 @@ pub fn get_functionlike_id_from_call(
                     StrId::ISSET
                 } else if boxed_id.1 == "\\in_array" {
                     interner.get("in_array").unwrap()
-                } else if let Some(resolved_name) = resolved_names.get(&(boxed_id.0.start_offset() as u32)) {
+                } else if let Some(resolved_name) =
+                    resolved_names.get(&(boxed_id.0.start_offset() as u32))
+                {
                     *resolved_name
                 } else {
                     return None;

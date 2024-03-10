@@ -2,10 +2,11 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
-use hakana_reflection_info::{Interner, StrId, EFFECT_WRITE_LOCAL};
+use hakana_reflection_info::EFFECT_WRITE_LOCAL;
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
+use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::expr::binop::assignment_analyzer;

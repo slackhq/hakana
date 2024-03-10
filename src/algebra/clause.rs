@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::num::Wrapping;
 
 use hakana_reflection_info::assertion::Assertion;
-use hakana_reflection_info::Interner;
+use hakana_str::Interner;
 use indexmap::IndexMap;
 
 #[derive(Clone, Debug, Eq)]

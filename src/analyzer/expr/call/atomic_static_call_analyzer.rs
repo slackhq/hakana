@@ -1,8 +1,9 @@
 use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
-    StrId, EFFECT_IMPURE,
+    EFFECT_IMPURE,
 };
+use hakana_str::StrId;
 use oxidized::{
     aast,
     ast_defs::{self, Pos},

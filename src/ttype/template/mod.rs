@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 
-use hakana_reflection_info::{code_location::HPos, t_union::TUnion, StrId};
+use hakana_reflection_info::{code_location::HPos, t_union::TUnion};
 use indexmap::IndexMap;
 
 pub mod inferred_type_replacer;

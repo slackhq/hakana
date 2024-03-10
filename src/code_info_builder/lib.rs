@@ -7,13 +7,14 @@ use hakana_reflection_info::attribute_info::AttributeInfo;
 use hakana_reflection_info::file_info::FileInfo;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_union::TUnion;
+use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     ast_signature::DefSignatureNode, class_constant_info::ConstantInfo, classlike_info::Variance,
     code_location::HPos, codebase_info::CodebaseInfo, t_atomic::TAtomic,
     taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
-    type_resolution::TypeResolutionContext, StrId,
+    type_resolution::TypeResolutionContext,
 };
-use hakana_reflection_info::{FileSource, ThreadedInterner};
+use hakana_str::{StrId, ThreadedInterner};
 use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
 use indexmap::IndexMap;
 use no_pos_hash::{position_insensitive_hash, Hasher};
@@ -126,7 +127,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_gconst(&mut self, c: &mut Context, gc: &aast::Gconst<(), ()>) -> Result<(), ()> {
-        let name = *self.resolved_names.get(&(gc.name.0.start_offset() as u32)).unwrap();
+        let name = *self
+            .resolved_names
+            .get(&(gc.name.0.start_offset() as u32))
+            .unwrap();
 
         self.codebase
             .const_files
@@ -542,7 +546,10 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_fun_def(&mut self, c: &mut Context, f: &aast::FunDef<(), ()>) -> Result<(), ()> {
-        let name = *self.resolved_names.get(&(f.name.0.start_offset() as u32)).unwrap();
+        let name = *self
+            .resolved_names
+            .get(&(f.name.0.start_offset() as u32))
+            .unwrap();
 
         let functionlike_storage = self.visit_function(
             c,
@@ -708,45 +715,63 @@ impl<'a> Scanner<'a> {
 
         if !self.user_defined {
             if let Some(name) = name {
-                fix_function_return_type(self.interner.lookup(name), &mut functionlike_storage);
+                fix_function_return_type(name, &mut functionlike_storage);
             }
         }
         functionlike_storage
     }
 }
 
-fn fix_function_return_type(function_name: &str, functionlike_storage: &mut FunctionLikeInfo) {
+fn fix_function_return_type(function_name: StrId, functionlike_storage: &mut FunctionLikeInfo) {
     match function_name {
         // bool
-        "hash_equals" | "in_array" => {
+        StrId::HASH_EQUALS | StrId::IN_ARRAY => {
             functionlike_storage.return_type = Some(get_bool());
         }
 
         // int
-        "mb_strlen" | "rand" => functionlike_storage.return_type = Some(get_int()),
+        StrId::MB_STRLEN | StrId::RAND => functionlike_storage.return_type = Some(get_int()),
 
         // string
-        "utf8_encode" | "sha1" | "dirname" | "vsprintf" | "trim" | "ltrim" | "rtrim" | "strpad"
-        | "str_repeat" | "md5" | "basename" | "strtolower" | "strtoupper" | "mb_strtolower"
-        | "mb_strtoupper" => functionlike_storage.return_type = Some(get_string()),
+        StrId::UTF8_ENCODE
+        | StrId::SHA1
+        | StrId::DIRNAME
+        | StrId::VSPRINTF
+        | StrId::TRIM
+        | StrId::LTRIM
+        | StrId::RTRIM
+        | StrId::STRPAD
+        | StrId::STR_REPLACE
+        | StrId::MD5
+        | StrId::BASENAME
+        | StrId::STRTOLOWER
+        | StrId::STRTOUPPER
+        | StrId::MB_STRTOLOWER
+        | StrId::MB_STRTOUPPER => functionlike_storage.return_type = Some(get_string()),
 
         // falsable strings
-        "json_encode" | "file_get_contents" | "hex2bin" | "realpath" | "date" | "base64_decode"
-        | "date_format" | "hash_hmac" => {
+        StrId::JSON_ENCODE
+        | StrId::FILE_GET_CONTENTS
+        | StrId::HEX2BIN
+        | StrId::REALPATH
+        | StrId::DATE
+        | StrId::BASE64_DECODE
+        | StrId::DATE_FORMAT
+        | StrId::HASH_HMAC => {
             let mut false_or_string = TUnion::new(vec![TAtomic::TString, TAtomic::TFalse]);
             false_or_string.ignore_falsable_issues = true;
             functionlike_storage.return_type = Some(false_or_string);
         }
 
         // falsable ints
-        "strtotime" | "mktime" => {
+        StrId::STRTOTIME | StrId::MKTIME => {
             let mut false_or_int = TUnion::new(vec![TAtomic::TInt, TAtomic::TFalse]);
             false_or_int.ignore_falsable_issues = true;
             functionlike_storage.return_type = Some(false_or_int);
         }
 
         // falsable strings
-        "password_hash" => {
+        StrId::PASSWORD_HASH => {
             let mut false_or_null_or_string = TUnion::new(vec![
                 TAtomic::TStringWithFlags(false, true, false),
                 TAtomic::TFalse,

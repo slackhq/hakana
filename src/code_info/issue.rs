@@ -1,12 +1,11 @@
 use std::str::FromStr;
 
+use hakana_str::StrId;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-use crate::{
-    code_location::HPos, function_context::FunctionLikeIdentifier, taint::SinkType, StrId,
-};
+use crate::{code_location::HPos, function_context::FunctionLikeIdentifier, taint::SinkType};
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum IssueKind {

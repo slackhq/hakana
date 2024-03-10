@@ -4,8 +4,8 @@ use hakana_reflection_info::{
     data_flow::{graph::GraphKind, tainted_node::TaintedNode},
     issue::{Issue, IssueKind},
     taint::{SinkType, SourceType},
-    Interner,
 };
+use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::custom_hook::CustomHook;
@@ -115,8 +115,7 @@ impl Config {
             .collect();
 
         if let Some(v) = json_config.ignore_issue_files.get("*") {
-            self.ignore_all_issues_in_files =
-                v.iter().map(|v| format!("{}/{}", cwd, v)).collect();
+            self.ignore_all_issues_in_files = v.iter().map(|v| format!("{}/{}", cwd, v)).collect();
         }
 
         self.allowed_issues = if json_config.allowed_issues.is_empty() {

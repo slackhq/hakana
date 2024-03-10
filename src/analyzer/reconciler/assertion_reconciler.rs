@@ -13,8 +13,8 @@ use hakana_reflection_info::{
     functionlike_identifier::FunctionLikeIdentifier,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
-    StrId,
 };
+use hakana_str::StrId;
 use hakana_type::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
     type_comparator::{atomic_type_comparator, type_comparison_result::TypeComparisonResult},

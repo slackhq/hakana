@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use indexmap::IndexMap;
@@ -12,7 +13,6 @@ use crate::{
     t_atomic::DictKey,
     t_union::TUnion,
     taint::SourceType,
-    StrId,
 };
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

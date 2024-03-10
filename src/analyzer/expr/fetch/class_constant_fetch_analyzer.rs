@@ -5,7 +5,7 @@ use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer
 use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::StrId;
+use hakana_str::StrId;
 use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{

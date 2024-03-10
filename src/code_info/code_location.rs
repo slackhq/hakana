@@ -1,7 +1,7 @@
 use oxidized::ast::Pos;
 use serde::{Deserialize, Serialize};
 
-use crate::{Interner, StrId};
+use hakana_str::{Interner, StrId};
 
 // offset, start line, start column
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]

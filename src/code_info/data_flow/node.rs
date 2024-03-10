@@ -1,7 +1,7 @@
 use std::hash::{Hash, Hasher};
 
 use crate::method_identifier::MethodIdentifier;
-use crate::Interner;
+use hakana_str::Interner;
 use crate::{
     code_location::HPos,
     taint::{SinkType, SourceType},

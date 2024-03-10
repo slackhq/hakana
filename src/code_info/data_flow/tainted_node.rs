@@ -6,13 +6,13 @@ use super::{
 use core::panic;
 use std::{collections::BTreeSet, sync::Arc};
 
+use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     code_location::HPos,
     taint::{self, SinkType, SourceType},
-    Interner,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

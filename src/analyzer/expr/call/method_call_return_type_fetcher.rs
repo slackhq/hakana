@@ -1,17 +1,17 @@
 use std::rc::Rc;
 
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::StrId;
+use hakana_str::{Interner, StrId};
 use oxidized::{aast, ast_defs};
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{classlike_info::ClassLikeInfo, Interner};
 use hakana_type::{
     get_mixed_any, get_nothing, get_string, template,
     type_expander::{self, TypeExpansionOptions},
@@ -156,8 +156,8 @@ pub(crate) fn fetch(
 }
 
 fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) -> Option<TUnion> {
-    match interner.lookup(&method_id.0) {
-        "DateTime" | "DateTimeImmutable" => {
+    match method_id.0 {
+        StrId::DATE_TIME | StrId::DATE_TIME_IMMUTABLE => {
             if interner.lookup(&method_id.1) == "createFromFormat" {
                 let mut false_or_datetime = TUnion::new(vec![
                     TAtomic::TNamedObject {
@@ -173,7 +173,7 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
                 return Some(false_or_datetime);
             }
         }
-        "DOMDocument" => {
+        StrId::DOMDOCUMENT => {
             if interner.lookup(&method_id.1) == "createElement" {
                 let mut false_or_domelement = TUnion::new(vec![
                     TAtomic::TNamedObject {
@@ -189,7 +189,7 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
                 return Some(false_or_domelement);
             }
         }
-        "SimpleXMLElement" => match interner.lookup(&method_id.1) {
+        StrId::SIMPLE_XML_ELEMENT => match interner.lookup(&method_id.1) {
             "children" | "attributes" | "addChild" => {
                 let null_or_simplexmlelement = TUnion::new(vec![
                     TAtomic::TNamedObject {

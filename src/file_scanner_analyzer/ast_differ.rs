@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use hakana_reflection_info::{
     ast_signature::DefSignatureNode, code_location::FilePath, diff::CodebaseDiff,
-    file_info::FileInfo, StrId,
+    file_info::FileInfo,
 };
+use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) fn get_diff(

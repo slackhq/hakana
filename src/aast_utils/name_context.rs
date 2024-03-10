@@ -1,4 +1,4 @@
-use hakana_reflection_info::{StrId, ThreadedInterner};
+use hakana_str::{StrId, ThreadedInterner};
 use rustc_hash::FxHashMap;
 
 use oxidized::aast::NsKind;

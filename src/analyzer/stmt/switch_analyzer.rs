@@ -1,4 +1,5 @@
-use hakana_reflection_info::{codebase_info::CodebaseInfo, Interner, StrId};
+use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_str::{Interner, StrId};
 use hakana_type::{combine_union_types, get_mixed_any};
 use indexmap::IndexMap;
 use oxidized::{aast, aast::Pos};

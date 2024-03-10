@@ -5,8 +5,8 @@ use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::diff::CodebaseDiff;
 use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::symbol_references::SymbolReferences;
-use hakana_reflection_info::Interner;
-use hakana_reflection_info::StrId;
+use hakana_str::Interner;
+use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 

@@ -1,5 +1,5 @@
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::StrId;
+use hakana_str::StrId;
 
 use hakana_reflection_info::t_union::TUnion;
 use hakana_type::wrap_atomic;

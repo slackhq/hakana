@@ -32,8 +32,9 @@ use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::method_identifier::MethodIdentifier;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{StrId, EFFECT_IMPURE};
+use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_reflector::simple_type_inferer::int_from_string;
+use hakana_str::StrId;
 use hakana_type::type_expander::get_closure_from_id;
 use hakana_type::{
     get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
@@ -482,7 +483,12 @@ pub(crate) fn analyze(
             let class_name = if let Some(id) = &boxed.0 {
                 let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
 
-                Some(resolved_names.get(&(id.0.start_offset() as u32)).cloned().unwrap())
+                Some(
+                    resolved_names
+                        .get(&(id.0.start_offset() as u32))
+                        .cloned()
+                        .unwrap(),
+                )
             } else {
                 None
             };

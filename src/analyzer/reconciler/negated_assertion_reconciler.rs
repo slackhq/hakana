@@ -6,8 +6,9 @@ use crate::function_analysis_data::FunctionAnalysisData;
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::{
     assertion::Assertion, codebase_info::CodebaseInfo,
-    functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion, StrId,
+    functionlike_identifier::FunctionLikeIdentifier, t_atomic::TAtomic, t_union::TUnion,
 };
+use hakana_str::StrId;
 use hakana_type::{get_nothing, get_placeholder, wrap_atomic};
 use hakana_type::{
     type_combiner,

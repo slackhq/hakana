@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::scope_context::ScopeContext;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_reflection_info::StrId;
+use hakana_str::StrId;
 use hakana_reflection_info::{
     data_flow::{
         graph::{DataFlowGraph, GraphKind},
