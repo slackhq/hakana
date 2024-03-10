@@ -53,24 +53,28 @@ impl SymbolReferences {
     pub fn print(&self, interner: &Interner) {
         for (a, bb) in &self.symbol_references_to_symbols {
             for b in bb {
-                println!(
-                    "{}::{} to {}::{}",
-                    interner.lookup(&a.0),
-                    interner.lookup(&a.1),
-                    interner.lookup(&b.0),
-                    interner.lookup(&b.1)
-                )
+                if a.0 .0 > 10665 {
+                    println!(
+                        "{}::{} to {}::{}",
+                        interner.lookup(&a.0),
+                        interner.lookup(&a.1),
+                        interner.lookup(&b.0),
+                        interner.lookup(&b.1)
+                    )
+                }
             }
         }
         for (a, bb) in &self.symbol_references_to_symbols_in_signature {
             for b in bb {
-                println!(
-                    "{}::{} sig to {}::{}",
-                    interner.lookup(&a.0),
-                    interner.lookup(&a.1),
-                    interner.lookup(&b.0),
-                    interner.lookup(&b.1)
-                )
+                if a.0 .0 > 10665 {
+                    println!(
+                        "{}::{} sig to {}::{}",
+                        interner.lookup(&a.0),
+                        interner.lookup(&a.1),
+                        interner.lookup(&b.0),
+                        interner.lookup(&b.1)
+                    )
+                }
             }
         }
     }
@@ -419,6 +423,15 @@ impl SymbolReferences {
         let mut invalid_symbols = FxHashSet::default();
         let mut invalid_symbol_members = FxHashSet::default();
 
+        for sig_ref in self.symbol_references_to_symbols_in_signature.keys() {
+            if codebase_diff
+                .add_or_delete
+                .contains(&(sig_ref.0, StrId::EMPTY))
+            {
+                invalid_symbol_members.insert(*sig_ref);
+            }
+        }
+
         let mut new_invalid_symbols = codebase_diff
             .add_or_delete
             .iter()
@@ -512,7 +525,6 @@ impl SymbolReferences {
         partially_invalid_symbols.extend(invalid_symbol_member_bodies.iter().map(|(a, _)| *a));
 
         invalid_symbols.extend(invalid_symbol_members);
-
         invalid_symbols.extend(invalid_symbol_bodies);
         invalid_symbols.extend(invalid_symbol_member_bodies);
 
@@ -523,14 +535,9 @@ impl SymbolReferences {
         &mut self,
         invalid_symbols_and_members: &FxHashSet<(StrId, StrId)>,
     ) {
-        self.symbol_references_to_symbols.retain(|symbol, _| {
-            !invalid_symbols_and_members.contains(symbol)
-                && !invalid_symbols_and_members.contains(&(symbol.0, StrId::EMPTY))
-        });
+        self.symbol_references_to_symbols
+            .retain(|symbol, _| !invalid_symbols_and_members.contains(symbol));
         self.symbol_references_to_symbols_in_signature
-            .retain(|symbol, _| {
-                !invalid_symbols_and_members.contains(symbol)
-                    && !invalid_symbols_and_members.contains(&(symbol.0, StrId::EMPTY))
-            });
+            .retain(|symbol, _| !invalid_symbols_and_members.contains(symbol));
     }
 }
