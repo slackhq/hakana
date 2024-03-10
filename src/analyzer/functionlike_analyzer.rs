@@ -234,6 +234,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 .safe_symbol_members
                 .contains(&(classlike_storage.name, method_name))
         {
+            println!(
+                "safe {}::{}",
+                self.get_interner().lookup(&classlike_storage.name),
+                self.get_interner().lookup(&method_name)
+            );
             return Ok(());
         }
 

@@ -32,6 +32,7 @@ pub(crate) fn mark_safe_symbols_from_diff(
     references_path: &Option<String>,
     previous_analysis_result: Option<AnalysisResult>,
 ) -> CachedAnalysis {
+    println!("{:#?}", codebase_diff);
     let (existing_references, mut existing_issues) = if let Some(previous_analysis_result) =
         previous_analysis_result
     {
