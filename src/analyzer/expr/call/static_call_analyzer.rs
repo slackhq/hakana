@@ -6,6 +6,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_WRITE_PROPS;
+use hakana_str::StrId;
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
@@ -31,12 +32,21 @@ pub(crate) fn analyze(
 
     let mut classlike_name = None;
 
+    let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+
     let lhs_type = match &expr.0 .2 {
         aast::ClassId_::CIexpr(lhs_expr) => {
             if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                let name_string = id.1.clone();
-                match name_string.as_str() {
-                    "self" => {
+                let name = if let Some(name) = resolved_names.get(&(id.0.start_offset() as u32)) {
+                    name
+                } else {
+                    return Err(AnalysisError::InternalError(
+                        "Cannot resolve class name in static call".to_string(),
+                        statements_analyzer.get_hpos(pos),
+                    ));
+                };
+                match *name {
+                    StrId::SELF => {
                         let self_name =
                             if let Some(calling_class) = &context.function_context.calling_class {
                                 calling_class
@@ -48,7 +58,7 @@ pub(crate) fn analyze(
 
                         get_named_object(*self_name)
                     }
-                    "parent" => {
+                    StrId::PARENT => {
                         let self_name =
                             if let Some(calling_class) = &context.function_context.calling_class {
                                 calling_class
@@ -58,14 +68,13 @@ pub(crate) fn analyze(
 
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
 
-                        let parent_name = if let Some(parent_class) =
-                            classlike_storage.direct_parent_class
-                        {
-                            parent_class
-                        } else {
-                            // todo handle for traits
-                            return Err(AnalysisError::UserError);
-                        };
+                        let parent_name =
+                            if let Some(parent_class) = classlike_storage.direct_parent_class {
+                                parent_class
+                            } else {
+                                // todo handle for traits
+                                return Err(AnalysisError::UserError);
+                            };
 
                         classlike_name = Some(parent_name);
 
@@ -77,7 +86,7 @@ pub(crate) fn analyze(
                             remapped_params: false,
                         })
                     }
-                    "static" => {
+                    StrId::STATIC => {
                         let self_name =
                             if let Some(calling_class) = &context.function_context.calling_class {
                                 calling_class
@@ -98,20 +107,9 @@ pub(crate) fn analyze(
                         })
                     }
                     _ => {
-                        let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
+                        classlike_name = Some(*name);
 
-                        if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
-                            let name_string = *resolved_name;
-
-                            classlike_name = Some(name_string);
-
-                            get_named_object(name_string)
-                        } else {
-                            return Err(AnalysisError::InternalError(
-                                "Cannot resolve class name in static call".to_string(),
-                                statements_analyzer.get_hpos(pos),
-                            ));
-                        }
+                        get_named_object(*name)
                     }
                 }
             } else {
