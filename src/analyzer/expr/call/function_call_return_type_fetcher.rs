@@ -175,7 +175,7 @@ fn handle_special_functions(
     context: &mut ScopeContext,
 ) -> Option<TUnion> {
     match name {
-        &StrId::TYPE_STRUCTURE => {
+        &StrId::TYPE_STRUCTURE_FN => {
             if let (Some((_, first_arg_expr)), Some((_, second_arg_expr))) =
                 (args.first(), args.get(1))
             {
