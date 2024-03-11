@@ -189,12 +189,7 @@ export class LanguageServer {
     }
 
     public async stop() {
-        if (this.initalizing) {
-            this.loggingService.logWarning(
-                'Server is in the process of intializing'
-            );
-            return;
-        }
+        this.initalizing = false;
         this.loggingService.logInfo('Stopping language server');
         await this.languageClient.stop();
     }
