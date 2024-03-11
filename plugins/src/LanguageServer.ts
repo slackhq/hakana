@@ -268,10 +268,12 @@ export class LanguageServer {
 
         childProcess.on('exit', (code, signal) => {
             this.loggingService.logInfo('Exited with ' + code + ' and signal ' + signal?.toString());
-            this.statusBar.update(
-                LanguageServerStatus.Exited,
-                'Exited (Should Restart)'
-            );
+            if (code != 0) {
+                this.statusBar.update(
+                    LanguageServerStatus.Exited,
+                    'Exited (Should Restart)'
+                );
+            }
         });
         return childProcess;
     }
