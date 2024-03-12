@@ -22,7 +22,6 @@ use std::{fs, io};
 pub fn analyze_files(
     mut paths: Vec<String>,
     scan_data: Arc<SuccessfulScanData>,
-    asts: FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>,
     config: Arc<Config>,
     analysis_result: &Arc<Mutex<AnalysisResult>>,
     filter: Option<String>,
@@ -77,8 +76,6 @@ pub fn analyze_files(
         let mut new_analysis_result =
             AnalysisResult::new(config.graph_kind, SymbolReferences::new());
 
-        let asts = Arc::new(asts);
-
         for (i, str_path) in path_groups[&0].iter().enumerate() {
             let file_path = FilePath(interner.get(str_path).unwrap());
             if let Some(resolved_names) = resolved_names.get(&file_path) {
@@ -96,7 +93,6 @@ pub fn analyze_files(
                     &mut new_analysis_result,
                     resolved_names,
                     &logger,
-                    &asts,
                 );
             }
 
@@ -109,8 +105,6 @@ pub fn analyze_files(
 
         let files_processed = Arc::new(Mutex::new(0));
 
-        let asts = Arc::new(asts);
-
         for (_, path_group) in path_groups {
             let scan_data = scan_data.clone();
 
@@ -122,8 +116,6 @@ pub fn analyze_files(
 
             let files_processed = files_processed.clone();
             let bar = bar.clone();
-
-            let asts = asts.clone();
 
             let logger = logger.clone();
 
@@ -153,7 +145,6 @@ pub fn analyze_files(
                             &mut new_analysis_result,
                             resolved_names,
                             &logger,
-                            &asts,
                         );
                     }
 
@@ -191,115 +182,101 @@ fn analyze_file(
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<u32, StrId>,
     logger: &Logger,
-    asts: &Arc<FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>>,
 ) {
     logger.log_debug_sync(&format!("Analyzing {}", &str_path));
 
-    if let Some(aast) = asts.get(&file_path) {
-        analyze_loaded_ast(
-            str_path,
-            file_path,
-            aast,
-            resolved_names,
-            codebase,
-            interner,
-            config,
-            analysis_result,
-        );
-    } else {
-        if let Ok(metadata) = fs::metadata(str_path) {
-            let updated_time = metadata
-                .modified()
-                .unwrap()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_micros() as u64;
+    if let Ok(metadata) = fs::metadata(str_path) {
+        let updated_time = metadata
+            .modified()
+            .unwrap()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_micros() as u64;
 
-            if let Some(last_updated_time) = last_updated_time {
-                if updated_time != last_updated_time {
-                    analysis_result.has_invalid_hack_files = true;
-                    analysis_result.emitted_issues.insert(
-                        file_path,
-                        vec![Issue::new(
-                            IssueKind::InvalidHackFile,
-                            "File changed during analysis".to_string(),
-                            HPos {
-                                file_path,
-                                start_offset: 0,
-                                end_offset: 0,
-                                start_line: 0,
-                                end_line: 0,
-                                start_column: 0,
-                                end_column: 0,
-                                insertion_start: None,
-                            },
-                            &None,
-                        )],
-                    );
-
-                    return;
-                }
-            }
-        }
-
-        let aast = match get_aast_for_path(file_path, str_path) {
-            Ok(aast) => (aast.0, aast.1),
-            Err(err) => {
+        if let Some(last_updated_time) = last_updated_time {
+            if updated_time != last_updated_time {
                 analysis_result.has_invalid_hack_files = true;
                 analysis_result.emitted_issues.insert(
                     file_path,
-                    vec![match err {
-                        ParserError::NotAHackFile => Issue::new(
-                            IssueKind::InvalidHackFile,
-                            "Invalid Hack file".to_string(),
-                            HPos {
-                                file_path,
-                                start_offset: 0,
-                                end_offset: 0,
-                                start_line: 0,
-                                end_line: 0,
-                                start_column: 0,
-                                end_column: 0,
-                                insertion_start: None,
-                            },
-                            &None,
-                        ),
-                        ParserError::CannotReadFile => Issue::new(
-                            IssueKind::InvalidHackFile,
-                            "Cannot read file".to_string(),
-                            HPos {
-                                file_path,
-                                start_offset: 0,
-                                end_offset: 0,
-                                start_line: 0,
-                                end_line: 0,
-                                start_column: 0,
-                                end_column: 0,
-                                insertion_start: None,
-                            },
-                            &None,
-                        ),
-                        ParserError::SyntaxError { message, pos } => {
-                            Issue::new(IssueKind::InvalidHackFile, message, pos, &None)
-                        }
-                    }],
+                    vec![Issue::new(
+                        IssueKind::InvalidHackFile,
+                        "File changed during analysis".to_string(),
+                        HPos {
+                            file_path,
+                            start_offset: 0,
+                            end_offset: 0,
+                            start_line: 0,
+                            end_line: 0,
+                            start_column: 0,
+                            end_column: 0,
+                            insertion_start: None,
+                        },
+                        &None,
+                    )],
                 );
 
                 return;
             }
-        };
+        }
+    }
 
-        analyze_loaded_ast(
-            str_path,
-            file_path,
-            &aast,
-            resolved_names,
-            codebase,
-            interner,
-            config,
-            analysis_result,
-        );
+    let aast = match get_aast_for_path(file_path, str_path) {
+        Ok(aast) => (aast.0, aast.1),
+        Err(err) => {
+            analysis_result.has_invalid_hack_files = true;
+            analysis_result.emitted_issues.insert(
+                file_path,
+                vec![match err {
+                    ParserError::NotAHackFile => Issue::new(
+                        IssueKind::InvalidHackFile,
+                        "Invalid Hack file".to_string(),
+                        HPos {
+                            file_path,
+                            start_offset: 0,
+                            end_offset: 0,
+                            start_line: 0,
+                            end_line: 0,
+                            start_column: 0,
+                            end_column: 0,
+                            insertion_start: None,
+                        },
+                        &None,
+                    ),
+                    ParserError::CannotReadFile => Issue::new(
+                        IssueKind::InvalidHackFile,
+                        "Cannot read file".to_string(),
+                        HPos {
+                            file_path,
+                            start_offset: 0,
+                            end_offset: 0,
+                            start_line: 0,
+                            end_line: 0,
+                            start_column: 0,
+                            end_column: 0,
+                            insertion_start: None,
+                        },
+                        &None,
+                    ),
+                    ParserError::SyntaxError { message, pos } => {
+                        Issue::new(IssueKind::InvalidHackFile, message, pos, &None)
+                    }
+                }],
+            );
+
+            return;
+        }
     };
+
+    analyze_loaded_ast(
+        str_path,
+        file_path,
+        &aast,
+        resolved_names,
+        codebase,
+        interner,
+        config,
+        analysis_result,
+    );
 }
 
 fn analyze_loaded_ast(

@@ -34,8 +34,6 @@ use hakana_str::StrId;
 use hakana_str::ThreadedInterner;
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
-use oxidized::aast;
-use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
@@ -46,7 +44,6 @@ pub struct ScanFilesResult {
     pub file_system: VirtualFileSystem,
     pub resolved_names: FxHashMap<FilePath, FxHashMap<u32, StrId>>,
     pub codebase_diff: CodebaseDiff,
-    pub asts: FxHashMap<FilePath, (aast::Program<(), ()>, ScouredComments)>,
     pub files_to_analyze: Vec<String>,
     pub invalid_files: FxHashSet<FilePath>,
 }
@@ -252,7 +249,6 @@ pub fn scan_files(
 
     let interner = Arc::new(Mutex::new(interner));
     let resolved_names = Arc::new(Mutex::new(resolved_names));
-    let asts = Arc::new(Mutex::new(FxHashMap::default()));
 
     let has_new_files = !files_to_scan.is_empty() || !changed_files.is_empty();
 
@@ -321,16 +317,11 @@ pub fn scan_files(
                     !test_patterns.iter().any(|p| p.matches(&str_path)),
                     &logger,
                 ) {
-                    if !config.ast_diff && analyze_map.contains(&str_path) {
-                        asts.lock().unwrap().insert(**file_path, scanner_result.1);
-                    }
-
                     resolved_names
                         .lock()
                         .unwrap()
-                        .insert(**file_path, scanner_result.0);
+                        .insert(**file_path, scanner_result);
                 } else {
-                    asts.lock().unwrap().remove(*file_path);
                     resolved_names.lock().unwrap().remove(*file_path);
                     new_codebase.files.insert(**file_path, FileInfo::default());
                     invalid_files.lock().unwrap().push(**file_path);
@@ -368,7 +359,6 @@ pub fn scan_files(
 
                 let config = config.clone();
                 let test_patterns = test_patterns.clone();
-                let asts = asts.clone();
                 let logger = logger.clone();
                 let invalid_files = invalid_files.clone();
 
@@ -377,7 +367,6 @@ pub fn scan_files(
                     let mut new_interner = ThreadedInterner::new(interner);
                     let empty_name_context = NameContext::new(&mut new_interner);
                     let mut local_resolved_names = FxHashMap::default();
-                    let mut local_asts = FxHashMap::default();
 
                     for file_path in &pgc {
                         let str_path = new_interner
@@ -398,13 +387,8 @@ pub fn scan_files(
                             !test_patterns.iter().any(|p| p.matches(&str_path)),
                             &logger.clone(),
                         ) {
-                            if !config.ast_diff && analyze_map.contains(&str_path) {
-                                local_asts.insert(*file_path, scanner_result.1);
-                            }
-
-                            local_resolved_names.insert(*file_path, scanner_result.0);
+                            local_resolved_names.insert(*file_path, scanner_result);
                         } else {
-                            local_asts.remove(file_path);
                             local_resolved_names.remove(file_path);
                             new_codebase.files.insert(*file_path, FileInfo::default());
                             invalid_files.lock().unwrap().push(*file_path);
@@ -417,7 +401,6 @@ pub fn scan_files(
                     }
 
                     resolved_names.lock().unwrap().extend(local_resolved_names);
-                    asts.lock().unwrap().extend(local_asts);
 
                     let mut codebases = codebases.lock().unwrap();
                     codebases.push(new_codebase);
@@ -467,8 +450,6 @@ pub fn scan_files(
         .into_inner()
         .unwrap();
 
-    let asts = Arc::try_unwrap(asts).unwrap().into_inner().unwrap();
-
     if has_new_files {
         if let Some(codebase_path) = codebase_path {
             let mut codebase_file = fs::File::create(codebase_path).unwrap();
@@ -494,7 +475,6 @@ pub fn scan_files(
         interner,
         resolved_names,
         codebase_diff,
-        asts,
         files_to_analyze,
         file_system,
         invalid_files: invalid_files.into_iter().collect(),
@@ -567,13 +547,7 @@ pub(crate) fn scan_file(
     user_defined: bool,
     is_production_code: bool,
     logger: &Logger,
-) -> Result<
-    (
-        FxHashMap<u32, StrId>,
-        (aast::Program<(), ()>, ScouredComments),
-    ),
-    ParserError,
-> {
+) -> Result<FxHashMap<u32, StrId>, ParserError> {
     logger.log_debug_sync(&format!("scanning {}", str_path));
 
     let aast = get_aast_for_path(file_path, str_path);
@@ -606,7 +580,7 @@ pub(crate) fn scan_file(
         uses,
     );
 
-    Ok((resolved_names, (aast.0, aast.1)))
+    Ok(resolved_names)
 }
 
 fn invalidate_changed_codebase_elements(

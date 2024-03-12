@@ -94,7 +94,6 @@ pub async fn scan_and_analyze_async(
         resolved_names,
         codebase_diff,
         file_system,
-        asts,
         mut files_to_analyze,
         invalid_files,
     } = scan_files(
@@ -151,7 +150,6 @@ pub async fn scan_and_analyze_async(
     analyze_files(
         files_to_analyze,
         arc_scan_data.clone(),
-        asts,
         config.clone(),
         &analysis_result,
         filter,
@@ -205,7 +203,6 @@ pub fn scan_and_analyze(
         resolved_names,
         codebase_diff,
         file_system,
-        asts,
         mut files_to_analyze,
         invalid_files,
     } = scan_files(
@@ -294,7 +291,6 @@ pub fn scan_and_analyze(
     analyze_files(
         files_to_analyze,
         arc_scan_data.clone(),
-        asts,
         config.clone(),
         &analysis_result,
         filter,
