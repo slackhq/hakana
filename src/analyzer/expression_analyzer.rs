@@ -340,9 +340,11 @@ pub(crate) fn analyze(
                 ))
                 .cloned()
             {
+                let mut stmt_type = (*stmt_type).clone();
+                stmt_type.reference_free = true;
                 analysis_data.expr_types.insert(
                     (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
-                    stmt_type.clone(),
+                    Rc::new(stmt_type),
                 );
             }
         }

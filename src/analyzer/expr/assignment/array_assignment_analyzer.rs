@@ -29,6 +29,8 @@ use crate::{
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 
+use super::instance_property_assignment_analyzer;
+
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&Expr<(), ()>, Option<&Expr<(), ()>>, &Pos),
@@ -166,6 +168,18 @@ pub(crate) fn analyze(
         root_type
     };
 
+    if let aast::Expr_::ObjGet(lhs_root) = &root_array_expr.2 {
+        instance_property_assignment_analyzer::analyze(
+            statements_analyzer,
+            (&lhs_root.0, &lhs_root.1),
+            pos,
+            None,
+            &root_type,
+            analysis_data,
+            context,
+        )?;
+    }
+
     if let Some(root_var_id) = &root_var_id {
         context
             .vars_in_scope
@@ -173,8 +187,6 @@ pub(crate) fn analyze(
     }
 
     analysis_data.set_expr_type(&root_array_expr.1, root_type);
-
-    // InstancePropertyAssignmentAnalyzer (do we need it?)
 
     // StaticPropertyAssignmentAnalyzer (do we need it?)
 

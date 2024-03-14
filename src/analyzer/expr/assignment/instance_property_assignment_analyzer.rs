@@ -3,6 +3,7 @@ use std::rc::Rc;
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
+    function_context::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
@@ -336,6 +337,7 @@ pub(crate) fn analyze_regular_assignment(
                 lhs_type_part,
                 analysis_data,
                 context,
+                lhs_type.reference_free,
             );
 
             if let Some(assigned_prop) = assigned_prop {
@@ -370,6 +372,7 @@ pub(crate) fn analyze_atomic_assignment(
     lhs_type_part: &TAtomic,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
+    is_lhs_reference_free: bool,
 ) -> Option<(TUnion, (StrId, StrId), TUnion)> {
     let codebase = statements_analyzer.get_codebase();
     let fq_class_name = match lhs_type_part {
@@ -490,6 +493,34 @@ pub(crate) fn analyze_atomic_assignment(
             .classlike_infos
             .get(declaring_property_class)
             .unwrap();
+
+        if declaring_classlike_storage.immutable && !is_lhs_reference_free {
+            let in_self_constructor =
+                if let Some(FunctionLikeIdentifier::Method(context_class, StrId::CONSTRUCT)) =
+                    context.function_context.calling_functionlike_id
+                {
+                    context_class == *declaring_property_class
+                } else {
+                    false
+                };
+
+            if !in_self_constructor {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::ImmutablePropertyWrite,
+                        format!(
+                            "Property {}::${} is defined on an immutable class",
+                            statements_analyzer.get_interner().lookup(&property_id.0),
+                            statements_analyzer.get_interner().lookup(&property_id.1),
+                        ),
+                        statements_analyzer.get_hpos(expr.1.pos()),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+            }
+        }
 
         // TODO trackPropertyImpurity and mutatable/immtable states
         let mut class_property_type =

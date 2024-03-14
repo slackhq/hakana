@@ -141,7 +141,10 @@ pub(crate) fn analyze(
         )?;
     }
 
-    analysis_data.set_expr_type(pos, result.return_type.clone().unwrap_or(get_mixed_any()));
+    let mut return_type = result.return_type.unwrap_or(get_mixed_any());
+    return_type.reference_free = true;
+
+    analysis_data.set_expr_type(pos, return_type);
 
     Ok(())
 }

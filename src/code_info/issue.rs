@@ -15,6 +15,7 @@ pub enum IssueKind {
     FalsableReturnStatement,
     FalseArgument,
     ForLoopInvalidation,
+    ImmutablePropertyWrite,
     ImpossibleArrayAssignment,
     ImpossibleAssignment,
     ImpossibleKeyCheck,

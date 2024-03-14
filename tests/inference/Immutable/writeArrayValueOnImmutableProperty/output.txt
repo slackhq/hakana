@@ -1,0 +1,3 @@
+ERROR: ImmutablePropertyWrite - input.hack:14:16 - Property A::$arr is defined on an immutable class
+ERROR: ImmutablePropertyWrite - input.hack:15:16 - Property A::$foo is defined on an immutable class
+ERROR: ImmutablePropertyWrite - input.hack:16:16 - Property A::$foo is defined on an immutable class

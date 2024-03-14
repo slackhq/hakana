@@ -572,21 +572,22 @@ pub(crate) fn scan(
 
     storage.specialize_instance = true;
 
-    let codegen_id = interner.intern_str("Codegen");
-    let sealed_id = interner.intern_str("__Sealed");
-
     for user_attribute in &classlike_node.user_attributes {
         let name = *resolved_names
             .get(&(user_attribute.name.0.start_offset() as u32))
             .unwrap();
 
-        if name == codegen_id {
+        if name == StrId::CODEGEN {
             storage.generated = true;
+        }
+
+        if name == StrId::HAKANA_IMMUTABLE {
+            storage.immutable = true;
         }
 
         storage.attributes.push(AttributeInfo { name });
 
-        if name == sealed_id {
+        if name == StrId::SEALED {
             let mut child_classlikes = FxHashSet::default();
 
             for attribute_param_expr in &user_attribute.params {
