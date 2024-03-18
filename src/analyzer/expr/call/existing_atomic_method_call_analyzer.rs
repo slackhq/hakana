@@ -126,7 +126,14 @@ pub(crate) fn analyze(
             None
         };
 
-    let functionlike_storage = codebase.get_method(&declaring_method_id).unwrap();
+    let functionlike_storage = if let Some(s) = codebase.get_method(&declaring_method_id) {
+        s
+    } else {
+        return Err(AnalysisError::InternalError(
+            "could not load storage for declaring method".to_string(),
+            statements_analyzer.get_hpos(pos),
+        ));
+    };
 
     let functionlike_template_types = functionlike_storage.template_types.clone();
 
