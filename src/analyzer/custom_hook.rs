@@ -1,13 +1,14 @@
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_str::Interner;
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo, functionlike_info::FunctionLikeInfo, t_union::TUnion,
 };
+use hakana_str::{Interner, StrId};
 use oxidized::{
     aast,
     ast_defs::{self, Pos},
 };
+use rustc_hash::FxHashMap;
 
 use crate::{
     config, function_analysis_data::FunctionAnalysisData, scope_context::ScopeContext,
@@ -136,6 +137,17 @@ pub trait InternalHook {
         analysis_result: &AnalysisResult,
     ) -> Vec<String> {
         vec![]
+    }
+
+    #[allow(unused_variables)]
+    fn can_codegen_def(
+        &self,
+        interner: &Interner,
+        codebase: &CodebaseInfo,
+        resolved_names: &FxHashMap<u32, StrId>,
+        def: &aast::Def<(), ()>,
+    ) -> bool {
+        return false;
     }
 }
 

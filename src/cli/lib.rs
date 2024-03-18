@@ -1003,6 +1003,7 @@ fn do_codegen(
 
     let mut config = config::Config::new(root_dir.to_string(), all_custom_issues);
     config.hooks = analysis_hooks;
+    config.in_codegen = true;
 
     if let Some(codegen_name) = codegen_name {
         codegen_hooks.retain(|hook| {
