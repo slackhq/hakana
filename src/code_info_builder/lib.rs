@@ -874,7 +874,7 @@ pub fn collect_info_for_aast(
             FileInfo {
                 closure_refs: checker.closure_refs,
                 ast_nodes: checker.ast_nodes,
-                valid_file: true,
+                parser_error: None,
             },
         );
     }

@@ -798,8 +798,11 @@ pub(crate) fn can_be_identical<'a>(
         if let Some(as_type) = as_type {
             type2_part = as_type.get_single();
         } else if inside_assertion {
-            let type_alias_info = codebase.type_definitions.get(name).unwrap();
-            type2_part = type_alias_info.actual_type.get_single();
+            if let Some(type_alias_info) = codebase.type_definitions.get(name) {
+                type2_part = type_alias_info.actual_type.get_single();
+            } else {
+                break;
+            }
         } else {
             break;
         }

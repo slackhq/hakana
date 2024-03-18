@@ -1,6 +1,7 @@
 use aast_parser::rust_aast_parser_types::Env as AastParserEnv;
 
 use hakana_reflection_info::code_location::{FilePath, HPos};
+use hakana_reflection_info::file_info::ParserError;
 use hakana_str::{StrId, ThreadedInterner};
 use name_context::NameContext;
 use naming_visitor::Scanner;
@@ -16,13 +17,6 @@ use std::sync::Arc;
 
 pub mod name_context;
 mod naming_visitor;
-
-#[derive(Debug)]
-pub enum ParserError {
-    CannotReadFile,
-    NotAHackFile,
-    SyntaxError { message: String, pos: HPos },
-}
 
 pub fn get_aast_for_path_and_contents(
     file_path: FilePath,

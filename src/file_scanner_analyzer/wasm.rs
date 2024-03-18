@@ -1,5 +1,5 @@
+use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_aast_helper::name_context::NameContext;
-use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::find_tainted_data;
 use hakana_analyzer::file_analyzer;
@@ -8,6 +8,7 @@ use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
+use hakana_reflection_info::file_info::ParserError;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::FileSource;

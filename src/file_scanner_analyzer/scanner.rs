@@ -20,7 +20,6 @@ use crate::get_aast_for_path;
 use crate::SuccessfulScanData;
 use ast_differ::get_diff;
 use hakana_aast_helper::name_context::NameContext;
-use hakana_aast_helper::ParserError;
 use hakana_analyzer::config::Config;
 use hakana_logger::Logger;
 use hakana_reflection_info::code_location::FilePath;
@@ -28,6 +27,7 @@ use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::diff::CodebaseDiff;
 use hakana_reflection_info::file_info::FileInfo;
+use hakana_reflection_info::file_info::ParserError;
 use hakana_reflection_info::FileSource;
 use hakana_str::Interner;
 use hakana_str::StrId;
@@ -306,7 +306,7 @@ pub fn scan_files(
                     .lookup(&file_path.0)
                     .to_string();
 
-                if let Ok(scanner_result) = scan_file(
+                match scan_file(
                     &str_path,
                     **file_path,
                     &config.all_custom_issues,
@@ -317,14 +317,23 @@ pub fn scan_files(
                     !test_patterns.iter().any(|p| p.matches(&str_path)),
                     &logger,
                 ) {
-                    resolved_names
-                        .lock()
-                        .unwrap()
-                        .insert(**file_path, scanner_result);
-                } else {
-                    resolved_names.lock().unwrap().remove(*file_path);
-                    new_codebase.files.insert(**file_path, FileInfo::default());
-                    invalid_files.lock().unwrap().push(**file_path);
+                    Ok(scanner_result) => {
+                        resolved_names
+                            .lock()
+                            .unwrap()
+                            .insert(**file_path, scanner_result);
+                    }
+                    Err(parser_error) => {
+                        resolved_names.lock().unwrap().remove(*file_path);
+                        new_codebase.files.insert(
+                            **file_path,
+                            FileInfo {
+                                parser_error: Some(parser_error),
+                                ..FileInfo::default()
+                            },
+                        );
+                        invalid_files.lock().unwrap().push(**file_path);
+                    }
                 }
 
                 update_progressbar(i as u64, bar.clone());

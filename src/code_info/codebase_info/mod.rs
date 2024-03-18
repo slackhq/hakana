@@ -10,8 +10,8 @@ use crate::property_info::PropertyInfo;
 use crate::t_atomic::TAtomic;
 use crate::t_union::TUnion;
 use crate::type_definition_info::TypeDefinitionInfo;
-use hakana_str::StrId;
 use crate::{class_constant_info::ConstantInfo, code_location::FilePath};
+use hakana_str::StrId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
@@ -396,7 +396,7 @@ impl CodebaseInfo {
 
     pub fn has_invalid_file(&self, file_path: &FilePath) -> bool {
         if let Some(file_info) = self.files.get(file_path) {
-            !file_info.valid_file
+            file_info.parser_error.is_some()
         } else {
             false
         }

@@ -1,2 +1,2 @@
-ERROR: InvalidHackFile - input.hack:1:1 - Invalid Hack file
+ERROR: InvalidHackFile - input.hack:7:0 - A name is expected here.
 ERROR: NonExistentFunction - main.hack:4:5 - Function foo is not defined

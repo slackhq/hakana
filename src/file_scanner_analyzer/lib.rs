@@ -3,7 +3,7 @@ pub(crate) mod populator;
 use analyzer::analyze_files;
 use diff::{mark_safe_symbols_from_diff, CachedAnalysis};
 use file::{FileStatus, VirtualFileSystem};
-use hakana_aast_helper::{get_aast_for_path_and_contents, ParserError};
+use hakana_aast_helper::get_aast_for_path_and_contents;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::dataflow::program_analyzer::{find_connections, find_tainted_data};
 use hakana_logger::Logger;
@@ -11,6 +11,7 @@ use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
+use hakana_reflection_info::file_info::ParserError;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_str::{Interner, StrId};
@@ -446,24 +447,44 @@ fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
 
 fn add_invalid_files(scan_data: &SuccessfulScanData, analysis_result: &mut AnalysisResult) {
     for (file_path, file_info) in &scan_data.codebase.files {
-        if !file_info.valid_file {
+        if let Some(parser_error) = &file_info.parser_error {
             analysis_result.emitted_issues.insert(
                 *file_path,
-                vec![Issue::new(
-                    IssueKind::InvalidHackFile,
-                    "Invalid Hack file".to_string(),
-                    HPos {
-                        file_path: *file_path,
-                        start_offset: 1,
-                        end_offset: 1,
-                        start_line: 1,
-                        end_line: 1,
-                        start_column: 1,
-                        end_column: 1,
-                        insertion_start: None,
-                    },
-                    &None,
-                )],
+                vec![match parser_error {
+                    ParserError::NotAHackFile => Issue::new(
+                        IssueKind::InvalidHackFile,
+                        "Invalid Hack file".to_string(),
+                        HPos {
+                            file_path: *file_path,
+                            start_offset: 0,
+                            end_offset: 0,
+                            start_line: 0,
+                            end_line: 0,
+                            start_column: 0,
+                            end_column: 0,
+                            insertion_start: None,
+                        },
+                        &None,
+                    ),
+                    ParserError::CannotReadFile => Issue::new(
+                        IssueKind::InvalidHackFile,
+                        "Cannot read file".to_string(),
+                        HPos {
+                            file_path: *file_path,
+                            start_offset: 0,
+                            end_offset: 0,
+                            start_line: 0,
+                            end_line: 0,
+                            start_column: 0,
+                            end_column: 0,
+                            insertion_start: None,
+                        },
+                        &None,
+                    ),
+                    ParserError::SyntaxError { message, pos } => {
+                        Issue::new(IssueKind::InvalidHackFile, message.clone(), *pos, &None)
+                    }
+                }],
             );
         }
     }

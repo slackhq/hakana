@@ -1,11 +1,11 @@
 use crate::{get_aast_for_path, update_progressbar, SuccessfulScanData};
-use hakana_aast_helper::ParserError;
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
 use hakana_logger::Logger;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
+use hakana_reflection_info::file_info::ParserError;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::FileSource;
