@@ -71,8 +71,8 @@ pub fn get_aast_for_path_and_contents(
                 end_offset: first_error.end_offset as u32,
                 start_line: line_count as u32,
                 end_line: line_count as u32,
-                start_column: column as u16,
-                end_column: column as u16,
+                start_column: (column as u16) + 1,
+                end_column: (column as u16) + 1,
                 insertion_start: None,
             },
         });
