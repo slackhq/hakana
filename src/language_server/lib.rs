@@ -133,7 +133,7 @@ impl LanguageServer for Backend {
                     }
                     _ => {}
                 }
-            } else if Path::new(&file_path).extension().is_none() {
+            } else if Path::new(&file_path).extension().is_none() && !file_path.contains("/.git/") {
                 if let FileChangeType::DELETED = change_type {
                     new_file_statuses.insert(file_path, FileStatus::DeletedDir);
                 }
