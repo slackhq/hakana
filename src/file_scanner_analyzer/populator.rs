@@ -469,6 +469,17 @@ fn populate_classlike_storage(
         }
     }
 
+    storage.all_class_interfaces.shrink_to_fit();
+    storage.all_parent_classes.shrink_to_fit();
+    storage.all_parent_interfaces.shrink_to_fit();
+    storage.direct_class_interfaces.shrink_to_fit();
+    storage.direct_parent_interfaces.shrink_to_fit();
+    storage.appearing_method_ids.shrink_to_fit();
+    storage.declaring_method_ids.shrink_to_fit();
+    storage.appearing_property_ids.shrink_to_fit();
+    storage.declaring_property_ids.shrink_to_fit();
+    storage.methods.shrink_to_fit();
+
     storage.is_populated = true;
 
     codebase.classlike_infos.insert(*classlike_name, storage);

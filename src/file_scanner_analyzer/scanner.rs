@@ -477,6 +477,9 @@ pub fn scan_files(
             let serialized_aast_names = bincode::serialize(&resolved_names).unwrap();
             aast_names_file.write_all(&serialized_aast_names)?;
         }
+
+        codebase.functionlike_infos.shrink_to_fit();
+        codebase.classlike_infos.shrink_to_fit();
     }
 
     Ok(ScanFilesResult {
