@@ -506,7 +506,10 @@ fn handle_special_functions(
 
             None
         }
-        &StrId::LIB_STR_TRIM | &StrId::LIB_STR_STRIP_SUFFIX | &StrId::LIB_STR_SLICE | &StrId::LIB_STR_REPLACE => {
+        &StrId::LIB_STR_TRIM
+        | &StrId::LIB_STR_STRIP_SUFFIX
+        | &StrId::LIB_STR_SLICE
+        | &StrId::LIB_STR_REPLACE => {
             let mut all_literals = true;
             for (_, arg_expr) in args {
                 if let Some(arg_expr_type) = analysis_data.get_expr_type(arg_expr.pos()) {
@@ -767,8 +770,7 @@ fn add_dataflow(
 
     data_flow_graph.add_node(function_call_node.clone());
 
-    let (param_offsets, variadic_path) =
-        get_special_argument_nodes(functionlike_id, expr, statements_analyzer.get_interner());
+    let (param_offsets, variadic_path) = get_special_argument_nodes(functionlike_id, expr);
 
     let added_removed_taints = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         get_special_added_removed_taints(functionlike_id, statements_analyzer.get_interner())
@@ -914,167 +916,167 @@ fn get_special_argument_nodes(
         &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
         &Option<aast::Expr<(), ()>>,
     ),
-    interner: &Interner,
 ) -> (Vec<(usize, PathKind)>, Option<PathKind>) {
     match functionlike_id {
-        FunctionLikeIdentifier::Function(function_name) => match interner.lookup(function_name) {
-            "var_export"
-            | "print_r"
-            | "highlight_string"
-            | "strtolower"
-            | "strtoupper"
-            | "trim"
-            | "ltrim"
-            | "rtrim"
-            | "HH\\Lib\\Str\\trim"
-            | "HH\\Lib\\Str\\trim_left"
-            | "HH\\Lib\\Str\\trim_right"
-            | "HH\\Lib\\Str\\lowercase"
-            | "HH\\Lib\\Str\\uppercase"
-            | "HH\\Lib\\Str\\capitalize"
-            | "HH\\Asio\\join"
-            | "strip_tags"
-            | "stripslashes"
-            | "stripcslashes"
-            | "htmlentities"
-            | "htmlentitydecode"
-            | "htmlspecialchars"
-            | "htmlspecialchars_decode"
-            | "str_repeat"
-            | "str_rot13"
-            | "str_shuffle"
-            | "strstr"
-            | "stristr"
-            | "strchr"
-            | "strpbrk"
-            | "strrchr"
-            | "strrev"
-            | "substr"
-            | "preg_quote"
-            | "wordwrap"
-            | "realpath"
-            | "strval"
-            | "strgetcsv"
-            | "addcslashes"
-            | "addslashes"
-            | "ucfirst"
-            | "ucwords"
-            | "lcfirst"
-            | "nl2br"
-            | "quoted_printable_decode"
-            | "quoted_printable_encode"
-            | "quote_meta"
-            | "chop"
-            | "convert_uudecode"
-            | "convert_uuencode"
-            | "json_decode"
-            | "base64_encode"
-            | "base64_decode"
-            | "urlencode"
-            | "HH\\Lib\\Dict\\filter"
-            | "HH\\Lib\\Dict\\filter_async"
-            | "HH\\Lib\\Dict\\filter_keys"
-            | "HH\\Lib\\Dict\\filter_nulls"
-            | "HH\\Lib\\Dict\\filter_with_key"
-            | "HH\\Lib\\Dict\\flatten"
-            | "HH\\Lib\\Vec\\filter"
-            | "HH\\Lib\\Vec\\filter_async"
-            | "HH\\Lib\\Vec\\filter_nulls"
-            | "HH\\Lib\\Vec\\filter_with_key"
-            | "HH\\Lib\\Vec\\take"
-            | "HH\\Lib\\Vec\\drop"
-            | "HH\\Lib\\Vec\\reverse"
-            | "HH\\Lib\\Vec\\unique"
-            | "HH\\Lib\\Keyset\\filter"
-            | "HH\\Lib\\Keyset\\filter_nulls"
-            | "HH\\Lib\\Keyset\\filter_async"
-            | "HH\\Lib\\Keyset\\flatten"
-            | "HH\\Lib\\Keyset\\keys"
-            | "HH\\Lib\\Str\\slice"
-            | "HH\\Lib\\Regex\\first_match"
-            | "HH\\keyset"
-            | "HH\\vec"
-            | "HH\\dict"
-            | "HH\\strval"
-            | "get_object_vars" => (vec![(0, PathKind::Default)], None),
-            "HH\\Lib\\Vec\\diff"
-            | "HH\\Lib\\Keyset\\diff"
-            | "HH\\Lib\\Keyset\\intersect"
-            | "HH\\Lib\\Vec\\intersect"
-            | "HH\\Lib\\Vec\\slice"
-            | "HH\\Lib\\Vec\\range"
-            | "HH\\Lib\\Vec\\chunk"
-            | "HH\\Lib\\String\\strip_prefix" => {
+        FunctionLikeIdentifier::Function(function_name) => match *function_name {
+            StrId::VAR_EXPORT
+            | StrId::PRINT_R
+            | StrId::HIGHLIGHT_STRING
+            | StrId::STRTOLOWER
+            | StrId::STRTOUPPER
+            | StrId::TRIM
+            | StrId::LTRIM
+            | StrId::RTRIM
+            | StrId::LIB_STR_TRIM
+            | StrId::LIB_STR_TRIM_LEFT
+            | StrId::LIB_STR_TRIM_RIGHT
+            | StrId::LIB_STR_LOWERCASE
+            | StrId::LIB_STR_UPPERCASE
+            | StrId::LIB_STR_CAPITALIZE
+            | StrId::ASIO_JOIN
+            | StrId::STRIP_TAGS
+            | StrId::STRIPSLASHES
+            | StrId::STRIPCSLASHES
+            | StrId::HTMLENTITIES
+            | StrId::HTMLENTITYDECODE
+            | StrId::HTMLSPECIALCHARS
+            | StrId::HTMLSPECIALCHARS_DECODE
+            | StrId::STR_REPEAT
+            | StrId::STR_ROT13
+            | StrId::STR_SHUFFLE
+            | StrId::STRSTR
+            | StrId::STRISTR
+            | StrId::STRCHR
+            | StrId::STRPBRK
+            | StrId::STRRCHR
+            | StrId::STRREV
+            | StrId::SUBSTR
+            | StrId::PREG_QUOTE
+            | StrId::WORDWRAP
+            | StrId::REALPATH
+            | StrId::STRVAL
+            | StrId::STRGETCSV
+            | StrId::ADDCSLASHES
+            | StrId::ADDSLASHES
+            | StrId::UCFIRST
+            | StrId::UCWORDS
+            | StrId::LCFIRST
+            | StrId::NL2BR
+            | StrId::QUOTED_PRINTABLE_DECODE
+            | StrId::QUOTED_PRINTABLE_ENCODE
+            | StrId::QUOTE_META
+            | StrId::CHOP
+            | StrId::CONVERT_UUDECODE
+            | StrId::CONVERT_UUENCODE
+            | StrId::JSON_DECODE
+            | StrId::BASE64_ENCODE
+            | StrId::BASE64_DECODE
+            | StrId::URLENCODE
+            | StrId::LIB_DICT_FILTER
+            | StrId::LIB_DICT_FILTER_ASYNC
+            | StrId::LIB_DICT_FILTER_KEYS
+            | StrId::LIB_DICT_FILTER_NULLS
+            | StrId::LIB_DICT_FILTER_WITH_KEY
+            | StrId::LIB_DICT_FLATTEN
+            | StrId::LIB_VEC_FILTER
+            | StrId::LIB_VEC_FILTER_ASYNC
+            | StrId::LIB_VEC_FILTER_NULLS
+            | StrId::LIB_VEC_FILTER_WITH_KEY
+            | StrId::LIB_VEC_TAKE
+            | StrId::LIB_VEC_DROP
+            | StrId::LIB_VEC_REVERSE
+            | StrId::LIB_VEC_UNIQUE
+            | StrId::LIB_KEYSET_FILTER
+            | StrId::LIB_KEYSET_FILTER_NULLS
+            | StrId::LIB_KEYSET_FILTER_ASYNC
+            | StrId::LIB_KEYSET_FLATTEN
+            | StrId::LIB_KEYSET_KEYS
+            | StrId::LIB_STR_SLICE
+            | StrId::LIB_REGEX_FIRST_MATCH
+            | StrId::KEYSET
+            | StrId::VEC
+            | StrId::DICT
+            | StrId::GET_OBJECT_VARS => (vec![(0, PathKind::Default)], None),
+            StrId::LIB_VEC_DIFF
+            | StrId::LIB_KEYSET_DIFF
+            | StrId::LIB_KEYSET_INTERSECT
+            | StrId::LIB_VEC_INTERSECT
+            | StrId::LIB_VEC_SLICE
+            | StrId::LIB_VEC_RANGE
+            | StrId::LIB_VEC_CHUNK
+            | StrId::LIB_STRING_STRIP_PREFIX => {
                 (vec![(0, PathKind::Default)], Some(PathKind::Aggregate))
             }
-            "HH\\Lib\\Dict\\associate" => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
-            "HH\\Lib\\C\\is_empty"
-            | "HH\\Lib\\C\\count"
-            | "count"
-            | "HH\\Lib\\C\\any"
-            | "HH\\Lib\\C\\every"
-            | "HH\\Lib\\C\\search"
-            | "HH\\Lib\\Str\\is_empty"
-            | "HH\\Lib\\Str\\compare"
-            | "HH\\Lib\\Str\\compare_ci"
-            | "HH\\Lib\\Str\\length"
-            | "HH\\Lib\\Vec\\keys"
-            | "HH\\Lib\\Str\\to_int"
-            | "HH\\Lib\\Math\\round"
-            | "HH\\Lib\\Math\\sum"
-            | "HH\\Lib\\Math\\sum_float"
-            | "HH\\Lib\\Math\\min"
-            | "HH\\Lib\\Math\\min_by"
-            | "HH\\Lib\\Math\\minva"
-            | "HH\\Lib\\Math\\max"
-            | "HH\\Lib\\Math\\mean"
-            | "HH\\Lib\\Math\\median"
-            | "HH\\Lib\\Math\\ceil"
-            | "HH\\Lib\\Math\\cos"
-            | "HH\\Lib\\Math\\floor"
-            | "HH\\Lib\\Math\\is_nan"
-            | "HH\\Lib\\Math\\log"
-            | "HH\\Lib\\Math\\sin"
-            | "HH\\Lib\\Math\\sqrt"
-            | "HH\\Lib\\Math\\tan"
-            | "HH\\Lib\\Math\\abs"
-            | "intval" => (vec![(0, PathKind::Aggregate)], None),
-            "HH\\Lib\\Math\\almost_equals"
-            | "HH\\Lib\\Math\\base_convert"
-            | "HH\\Lib\\Math\\exp"
-            | "HH\\Lib\\Math\\from_base"
-            | "HH\\Lib\\Math\\int_div"
-            | "HH\\Lib\\Math\\to_base"
-            | "HH\\Lib\\Math\\max_by"
-            | "HH\\Lib\\Math\\maxva"
-            | "HH\\Lib\\Str\\starts_with"
-            | "HH\\Lib\\Str\\starts_with_ci"
-            | "HH\\Lib\\Str\\ends_with"
-            | "HH\\Lib\\Str\\ends_with_ci"
-            | "HH\\Lib\\Str\\search"
-            | "HH\\Lib\\Str\\contains"
-            | "HH\\Lib\\Str\\contains_ci" => (vec![], Some(PathKind::Aggregate)),
-            "HH\\Lib\\C\\contains"
-            | "HH\\Lib\\C\\contains_key"
-            | "in_array"
-            | "preg_match"
-            | "HH\\Lib\\Regex\\matches"
-            | "preg_match_with_matches" => (
+            StrId::LIB_DICT_ASSOCIATE => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
+            StrId::LIB_C_IS_EMPTY
+            | StrId::LIB_C_COUNT
+            | StrId::COUNT
+            | StrId::LIB_C_ANY
+            | StrId::LIB_C_EVERY
+            | StrId::LIB_C_SEARCH
+            | StrId::LIB_STR_IS_EMPTY
+            | StrId::LIB_STR_COMPARE
+            | StrId::LIB_STR_COMPARE_CI
+            | StrId::LIB_STR_LENGTH
+            | StrId::LIB_VEC_KEYS
+            | StrId::LIB_STR_TO_INT
+            | StrId::LIB_MATH_ROUND
+            | StrId::LIB_MATH_SUM
+            | StrId::LIB_MATH_SUM_FLOAT
+            | StrId::LIB_MATH_MIN
+            | StrId::LIB_MATH_MIN_BY
+            | StrId::LIB_MATH_MINVA
+            | StrId::LIB_MATH_MAX
+            | StrId::LIB_MATH_MEAN
+            | StrId::LIB_MATH_MEDIAN
+            | StrId::LIB_MATH_CEIL
+            | StrId::LIB_MATH_COS
+            | StrId::LIB_MATH_FLOOR
+            | StrId::LIB_MATH_IS_NAN
+            | StrId::LIB_MATH_LOG
+            | StrId::LIB_MATH_SIN
+            | StrId::LIB_MATH_SQRT
+            | StrId::LIB_MATH_TAN
+            | StrId::LIB_MATH_ABS
+            | StrId::INTVAL => (vec![(0, PathKind::Aggregate)], None),
+            StrId::LIB_MATH_ALMOST_EQUALS
+            | StrId::LIB_MATH_BASE_CONVERT
+            | StrId::LIB_MATH_EXP
+            | StrId::LIB_MATH_FROM_BASE
+            | StrId::LIB_MATH_INT_DIV
+            | StrId::LIB_MATH_TO_BASE
+            | StrId::LIB_MATH_MAX_BY
+            | StrId::LIB_MATH_MAXVA
+            | StrId::LIB_STR_STARTS_WITH
+            | StrId::LIB_STR_STARTS_WITH_CI
+            | StrId::LIB_STR_ENDS_WITH
+            | StrId::LIB_STR_ENDS_WITH_CI
+            | StrId::LIB_STR_SEARCH
+            | StrId::LIB_STR_CONTAINS
+            | StrId::LIB_STR_CONTAINS_CI => (vec![], Some(PathKind::Aggregate)),
+            StrId::LIB_C_CONTAINS
+            | StrId::LIB_C_CONTAINS_KEY
+            | StrId::IN_ARRAY
+            | StrId::PREG_MATCH
+            | StrId::LIB_REGEX_MATCHES
+            | StrId::PREG_MATCH_WITH_MATCHES => (
                 vec![(0, PathKind::Aggregate), (1, PathKind::Aggregate)],
                 None,
             ),
-            "json_encode" | "serialize" => (vec![(0, PathKind::Serialize)], None),
-            "var_dump" | "printf" => (vec![(0, PathKind::Serialize)], Some(PathKind::Serialize)),
-            "sscanf" | "substr_replace" => {
+            StrId::JSON_ENCODE | StrId::SERIALIZE => (vec![(0, PathKind::Serialize)], None),
+            StrId::VAR_DUMP | StrId::PRINTF => {
+                (vec![(0, PathKind::Serialize)], Some(PathKind::Serialize))
+            }
+            StrId::SSCANF | StrId::SUBSTR_REPLACE => {
                 (vec![(0, PathKind::Default), (1, PathKind::Default)], None)
             }
-            "str_replace" | "str_ireplace" | "preg_filter" | "preg_replace" => {
+            StrId::STR_REPLACE | StrId::STR_IREPLACE | StrId::PREG_FILTER | StrId::PREG_REPLACE => {
                 (vec![(1, PathKind::Default), (2, PathKind::Default)], None)
             }
-            "HH\\Lib\\Str\\replace" | "HH\\Lib\\Str\\replace_ci" => {
+            StrId::LIB_STR_REPLACE | StrId::LIB_STR_REPLACE_CI => {
                 (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
             }
-            "HH\\Lib\\Regex\\replace" => (
+            StrId::LIB_REGEX_REPLACE => (
                 vec![
                     (0, PathKind::Default),
                     (1, PathKind::Aggregate),
@@ -1082,17 +1084,17 @@ fn get_special_argument_nodes(
                 ],
                 None,
             ),
-            "str_pad" | "chunk_split" => {
+            StrId::STR_PAD | StrId::CHUNK_SPLIT => {
                 (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
             }
-            "implode" | "join" => (
+            StrId::IMPLODE | StrId::JOIN => (
                 vec![
                     (0, PathKind::Default),
                     (1, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
                 ],
                 None,
             ),
-            "HH\\Lib\\Dict\\fill_keys" => (
+            StrId::LIB_DICT_FILL_KEYS => (
                 vec![
                     (0, PathKind::Default),
                     (
@@ -1102,18 +1104,18 @@ fn get_special_argument_nodes(
                 ],
                 None,
             ),
-            "http_build_query" => (
+            StrId::HTTP_BUILD_QUERY => (
                 vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
                 None,
             ),
-            "explode" | "preg_split" => (
+            StrId::EXPLODE | StrId::PREG_SPLIT => (
                 vec![(
                     1,
                     PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 )],
                 None,
             ),
-            "pathinfo" => (
+            StrId::PATHINFO => (
                 vec![
                     (
                         0,
@@ -1143,68 +1145,72 @@ fn get_special_argument_nodes(
                 ],
                 None,
             ),
-            "str_split"
-            | "HH\\Lib\\Str\\split"
-            | "HH\\Lib\\Str\\chunk"
-            | "HH\\Lib\\Regex\\every_match" => (
+            StrId::STR_SPLIT
+            | StrId::LIB_STR_SPLIT
+            | StrId::LIB_STR_CHUNK
+            | StrId::LIB_REGEX_EVERY_MATCH => (
                 vec![(
                     0,
                     PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 )],
                 None,
             ),
-            "HH\\Lib\\Vec\\sort" => (vec![(0, PathKind::Default)], None),
-            "HH\\Lib\\Str\\join" => (
+            StrId::LIB_VEC_SORT => (vec![(0, PathKind::Default)], None),
+            StrId::LIB_STR_JOIN => (
                 vec![
                     (0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
                     (1, PathKind::Default),
                 ],
                 None,
             ),
-            "HH\\Lib\\Vec\\map"
-            | "HH\\Lib\\Dict\\map"
-            | "HH\\Lib\\Keyset\\map"
-            | "HH\\Lib\\Vec\\map_async"
-            | "HH\\Lib\\Dict\\map_async"
-            | "HH\\Lib\\Keyset\\map_async"
-            | "HH\\Lib\\Vec\\map_with_key"
-            | "HH\\Lib\\Dict\\map_with_key"
-            | "HH\\Lib\\Keyset\\map_with_key"
-            | "HH\\Lib\\Dict\\map_with_key_async" => (
+            StrId::LIB_VEC_MAP
+            | StrId::LIB_DICT_MAP
+            | StrId::LIB_KEYSET_MAP
+            | StrId::LIB_VEC_MAP_ASYNC
+            | StrId::LIB_DICT_MAP_ASYNC
+            | StrId::LIB_KEYSET_MAP_ASYNC
+            | StrId::LIB_VEC_MAP_WITH_KEY
+            | StrId::LIB_DICT_MAP_WITH_KEY
+            | StrId::LIB_KEYSET_MAP_WITH_KEY
+            | StrId::LIB_DICT_MAP_WITH_KEY_ASYNC => (
                 vec![(
                     1,
                     PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 )],
                 None,
             ),
-            "HH\\Lib\\Dict\\from_entries" => (
+            StrId::LIB_DICT_FROM_ENTRIES => (
                 // todo improve this
                 vec![(0, PathKind::Default)],
                 None,
             ),
-            "HH\\Lib\\Dict\\flip" => (
+            StrId::LIB_DICT_FLIP => (
                 // todo improve this
                 vec![(0, PathKind::Default)],
                 None,
             ),
-            "HH\\Lib\\Dict\\from_keys" | "HH\\Lib\\Dict\\from_keys_async" => (
+            StrId::LIB_DICT_FROM_KEYS | StrId::LIB_DICT_FROM_KEYS_ASYNC => (
                 vec![(
                     1,
                     PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 )],
                 None,
             ),
-            "HH\\Lib\\C\\first" | "HH\\Lib\\C\\firstx" | "HH\\Lib\\C\\last"
-            | "HH\\Lib\\C\\lastx" | "HH\\Lib\\C\\onlyx" | "HH\\Lib\\C\\find"
-            | "HH\\Lib\\C\\findx" => (
+            StrId::LIB_C_FIRST
+            | StrId::LIB_C_FIRSTX
+            | StrId::LIB_C_LAST
+            | StrId::LIB_C_LASTX
+            | StrId::LIB_C_ONLYX
+            | StrId::LIB_C_FIND
+            | StrId::LIB_C_FINDX => (
                 vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
                 None,
             ),
-            "HH\\Lib\\Vec\\flatten" => (
+            StrId::LIB_VEC_FLATTEN => (
                 vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
                 None,
             ),
-            "HH\\idx" => {
+            StrId::IDX_FN => {
                 if let Some(second_arg) = expr.2.get(1) {
                     if let aast::Expr_::String(str) = &second_arg.1 .2 {
                         return (
@@ -1227,15 +1233,15 @@ fn get_special_argument_nodes(
                     None,
                 )
             }
-            "HH\\Lib\\C\\first_key"
-            | "HH\\Lib\\C\\first_keyx"
-            | "HH\\Lib\\C\\last_key"
-            | "HH\\Lib\\C\\last_keyx"
-            | "HH\\Lib\\C\\find_key" => (
+            StrId::LIB_C_FIRST_KEY
+            | StrId::LIB_C_FIRST_KEYX
+            | StrId::LIB_C_LAST_KEY
+            | StrId::LIB_C_LAST_KEYX
+            | StrId::LIB_C_FIND_KEY => (
                 vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey))],
                 None,
             ),
-            "HH\\Lib\\Dict\\merge" | "HH\\Lib\\Vec\\concat" | "HH\\Lib\\Keyset\\union" => {
+            StrId::LIB_DICT_MERGE | StrId::LIB_VEC_CONCAT | StrId::LIB_KEYSET_UNION => {
                 (vec![(0, PathKind::Default)], Some(PathKind::Default))
             }
             _ => {

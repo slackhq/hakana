@@ -297,7 +297,6 @@ pub(crate) fn get_functionlike(
 
     if !params.is_empty() {
         functionlike_info.params = convert_param_nodes(
-            interner,
             params,
             resolved_names,
             type_context,
@@ -596,7 +595,6 @@ pub(crate) fn adjust_location_from_comments(
 }
 
 fn convert_param_nodes(
-    interner: &mut ThreadedInterner,
     param_nodes: &[aast::FunParam<(), ()>],
     resolved_names: &FxHashMap<u32, StrId>,
     type_context: &TypeResolutionContext,
@@ -675,8 +673,8 @@ fn convert_param_nodes(
 
                 param.attributes.push(AttributeInfo { name: *name });
 
-                match interner.lookup(*name) {
-                    "Hakana\\SecurityAnalysis\\Sink" => {
+                match *name {
+                    StrId::HAKANA_SECURITY_ANALYSIS_SINK => {
                         let mut sink_types = FxHashSet::default();
 
                         for attribute_param_expr in &user_attribute.params {
@@ -694,7 +692,7 @@ fn convert_param_nodes(
 
                         param.taint_sinks = Some(sink_types);
                     }
-                    "Hakana\\SecurityAnalysis\\RemoveTaintsWhenReturningTrue" => {
+                    StrId::HAKANA_SECURITY_ANALYSIS_REMOVE_TAINTS_WHEN_RETURNING_TRUE => {
                         let mut removed_taints = FxHashSet::default();
 
                         for attribute_param_expr in &user_attribute.params {

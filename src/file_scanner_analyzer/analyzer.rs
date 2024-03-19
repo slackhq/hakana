@@ -1,4 +1,4 @@
-use crate::{file, get_aast_for_path, update_progressbar, SuccessfulScanData};
+use crate::{get_aast_for_path, update_progressbar, SuccessfulScanData};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
 use hakana_logger::Logger;
