@@ -50,7 +50,7 @@ pub(crate) fn analyze(
     if hint_type.has_taintable_value()
         || analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
     {
-        hint_type.parent_nodes = expr_type.parent_nodes.clone();
+        hint_type.parent_nodes.clone_from(&expr_type.parent_nodes);
     }
 
     analysis_data.set_expr_type(expr_pos, hint_type);

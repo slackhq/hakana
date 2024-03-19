@@ -328,7 +328,7 @@ pub(crate) fn analyze(
 
             static_property_assignment_analyzer::analyze(
                 statements_analyzer,
-                (lhs, &rhs),
+                (lhs, rhs),
                 if let Some(assign_value) = assign_value {
                     Some(assign_value.pos())
                 } else {
@@ -609,7 +609,9 @@ fn analyze_assignment_to_variable(
                 ));
         } else if let Some(existing_var_type) = &existing_var_type {
             if !existing_var_type.parent_nodes.is_empty() {
-                assign_value_type.parent_nodes = existing_var_type.parent_nodes.clone();
+                assign_value_type
+                    .parent_nodes
+                    .clone_from(&existing_var_type.parent_nodes);
             }
         }
     }

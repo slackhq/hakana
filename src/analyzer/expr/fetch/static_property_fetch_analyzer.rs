@@ -318,7 +318,7 @@ fn analyze_variable_static_property_fetch(
 
         instance_property_fetch_analyzer::analyze(
             statements_analyzer,
-            (&lhs, &rhs),
+            (lhs, &rhs),
             pos,
             analysis_data,
             context,

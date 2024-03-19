@@ -1299,7 +1299,7 @@ impl TAtomic {
                                 ref mut as_type, ..
                             } = type_part
                             {
-                                *as_type = extends_as_type.clone();
+                                as_type.clone_from(extends_as_type);
                             }
                             new_intersection_types.push(type_part);
 

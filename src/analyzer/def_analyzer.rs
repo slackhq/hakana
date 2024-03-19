@@ -23,17 +23,17 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     analysis_result: &mut AnalysisResult,
 ) -> Result<(), InternalError> {
-    if statements_analyzer.get_config().in_codegen {
-        if !statements_analyzer.get_config().hooks.iter().any(|hook| {
+    if statements_analyzer.get_config().in_codegen
+        && !statements_analyzer.get_config().hooks.iter().any(|hook| {
             hook.can_codegen_def(
                 statements_analyzer.get_interner(),
                 statements_analyzer.get_codebase(),
                 statements_analyzer.get_file_analyzer().resolved_names,
                 def,
             )
-        }) {
-            return Ok(());
-        }
+        })
+    {
+        return Ok(());
     }
 
     match def {

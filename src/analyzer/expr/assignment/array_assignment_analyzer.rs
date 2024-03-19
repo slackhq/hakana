@@ -832,7 +832,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         *last_array_expr_type = array_expr_type;
         last_array_expr_dim = array_expr.1;
 
-        parent_var_id = extended_var_id.clone();
+        parent_var_id.clone_from(&extended_var_id);
     }
 
     array_exprs.reverse();

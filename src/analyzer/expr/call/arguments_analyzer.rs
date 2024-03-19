@@ -45,8 +45,8 @@ use super::method_call_info::MethodCallInfo;
 
 pub(crate) fn check_arguments_match(
     statements_analyzer: &StatementsAnalyzer,
-    type_args: &Vec<aast::Targ<()>>,
-    args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+    type_args: &[aast::Targ<()>],
+    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
     unpacked_arg: &Option<aast::Expr<(), ()>>,
     functionlike_id: &FunctionLikeIdentifier,
     functionlike_info: &FunctionLikeInfo,

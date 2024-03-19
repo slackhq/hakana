@@ -297,11 +297,15 @@ pub(crate) fn reconcile_keyed_types(
 
                         analysis_data.data_flow_graph.add_node(narrowing_node);
                     } else {
-                        result_type.parent_nodes = before_adjustment.parent_nodes.clone();
+                        result_type
+                            .parent_nodes
+                            .clone_from(&before_adjustment.parent_nodes);
                     }
                 }
             } else {
-                result_type.parent_nodes = before_adjustment.parent_nodes.clone();
+                result_type
+                    .parent_nodes
+                    .clone_from(&before_adjustment.parent_nodes);
             }
         }
 

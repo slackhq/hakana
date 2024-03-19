@@ -27,7 +27,9 @@ pub fn find_tainted_data(
     let mut new_issues = vec![];
 
     let sources = graph
-        .sources.values().map(|v| Arc::new(TaintedNode::from(v)))
+        .sources
+        .values()
+        .map(|v| Arc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
     logger.log_sync("Security analysis: detecting paths");
@@ -208,7 +210,7 @@ fn get_specialized_sources(
         if graph.forward_edges.contains_key(unspecialized_id) {
             let mut new_source = (*source).clone();
 
-            new_source.id = unspecialized_id.clone();
+            new_source.id.clone_from(unspecialized_id);
             new_source.unspecialized_id = None;
             new_source.specialization_key = None;
 
@@ -376,8 +378,10 @@ fn get_child_nodes(
             let mut new_destination = TaintedNode::from(destination_node);
 
             new_destination.previous = Some(generated_source.clone());
-            new_destination.taint_sinks = new_taints.clone();
-            new_destination.specialized_calls = generated_source.specialized_calls.clone();
+            new_destination.taint_sinks.clone_from(&new_taints);
+            new_destination
+                .specialized_calls
+                .clone_from(&generated_source.specialized_calls);
 
             let mut new_path_types = generated_source.path_types.clone();
 
@@ -414,8 +418,7 @@ fn get_child_nodes(
                                             "Data from {} found its way to {} using path {}",
                                             taint_source.get_error_message(),
                                             matching_sink.get_error_message(),
-                                            new_destination
-                                                .get_trace(interner, &config.root_dir)
+                                            new_destination.get_trace(interner, &config.root_dir)
                                         );
                                         new_issues.push(Issue::new(
                                             IssueKind::TaintedData(matching_sink.clone()),

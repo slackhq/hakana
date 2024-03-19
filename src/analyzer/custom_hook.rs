@@ -147,7 +147,7 @@ pub trait InternalHook {
         resolved_names: &FxHashMap<u32, StrId>,
         def: &aast::Def<(), ()>,
     ) -> bool {
-        return false;
+        false
     }
 }
 

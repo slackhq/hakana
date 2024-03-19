@@ -226,7 +226,7 @@ pub(crate) fn analyze(
                 ast_defs::PropOrMethod::IsProp => {
                     instance_property_fetch_analyzer::analyze(
                         statements_analyzer,
-                        (&lhs_expr, &rhs_expr),
+                        (lhs_expr, rhs_expr),
                         &expr.1,
                         analysis_data,
                         context,
@@ -260,7 +260,7 @@ pub(crate) fn analyze(
                 ast_defs::PropOrMethod::IsProp => {
                     static_property_fetch_analyzer::analyze(
                         statements_analyzer,
-                        (lhs, &rhs),
+                        (lhs, rhs),
                         &expr.1,
                         analysis_data,
                         context,

@@ -5,7 +5,7 @@ use std::{
 };
 
 use indexmap::{IndexMap, IndexSet};
-use rustc_hash::{self, FxHashMap, FxHasher};
+use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]

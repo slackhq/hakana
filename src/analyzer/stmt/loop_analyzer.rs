@@ -325,7 +325,9 @@ pub(crate) fn analyze<'a>(
                 continue_context.vars_in_scope.remove(&var_id);
             }
 
-            continue_context.clauses = pre_loop_context.clauses.clone();
+            continue_context
+                .clauses
+                .clone_from(&pre_loop_context.clauses);
 
             analysis_data.start_recording_issues();
 
@@ -348,7 +350,7 @@ pub(crate) fn analyze<'a>(
 
                 if if different_from_pre_loop_types.contains(var_id) {
                     true
-                } else if continue_context.vars_in_scope.get(var_id).is_some() {
+                } else if continue_context.vars_in_scope.contains_key(var_id) {
                     pre_loop_context_type.is_none()
                 } else {
                     true
@@ -363,7 +365,9 @@ pub(crate) fn analyze<'a>(
                 }
             }
 
-            continue_context.clauses = pre_loop_context.clauses.clone();
+            continue_context
+                .clauses
+                .clone_from(&pre_loop_context.clauses);
 
             clean_nodes(stmts, analysis_data);
 

@@ -16,8 +16,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
 
 use crate::{
-    algebra_analyzer, formula_generator, function_analysis_data::FunctionAnalysisData,
-    reconciler, scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
+    algebra_analyzer, formula_generator, function_analysis_data::FunctionAnalysisData, reconciler,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
 };
 
 use super::{
@@ -174,7 +174,9 @@ pub(crate) fn analyze(
     }
 
     // define this before we alter local clauses after reconciliation
-    if_scope.reasonable_clauses = if_body_context.clauses.clone();
+    if_scope
+        .reasonable_clauses
+        .clone_from(&if_body_context.clauses);
 
     if let Ok(negated_if_clauses) = hakana_algebra::negate_formula(if_clauses) {
         if_scope.negated_clauses = negated_if_clauses;

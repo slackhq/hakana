@@ -1493,7 +1493,7 @@ fn replace_contents(
                 }
                 Replacement::Substitute(string) => {
                     file_contents = file_contents[..start as usize].to_string()
-                        + &string
+                        + string
                         + &*file_contents[end as usize..].to_string();
                 }
             }

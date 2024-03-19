@@ -1070,7 +1070,7 @@ fn get_classlike_storage(
     meta_start: MetaStart,
     name_pos: HPos,
 ) -> Result<ClassLikeInfo, bool> {
-    if codebase.classlike_infos.get(class_name).is_some() {
+    if codebase.classlike_infos.contains_key(class_name) {
         Err(false)
     } else {
         Ok(ClassLikeInfo::new(

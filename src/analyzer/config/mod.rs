@@ -219,7 +219,7 @@ impl Config {
                 }
 
                 if let Some(more_previous) = &previous.previous {
-                    previous = &more_previous;
+                    previous = more_previous;
                 } else {
                     return true;
                 }

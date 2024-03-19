@@ -464,7 +464,9 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         );
 
         if let Some(parent_analysis_data) = &parent_analysis_data {
-            analysis_data.type_variable_bounds = parent_analysis_data.type_variable_bounds.clone();
+            analysis_data
+                .type_variable_bounds
+                .clone_from(&parent_analysis_data.type_variable_bounds);
 
             if statements_analyzer.get_config().in_migration {
                 analysis_data.data_flow_graph = parent_analysis_data.data_flow_graph.clone();

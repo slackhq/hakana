@@ -279,7 +279,7 @@ fn handle_attribute_spread(
                 ..
             } = expr_type_atomic
             {
-                if let Some(spread_class_info) = codebase.classlike_infos.get(&spread_xhp_class) {
+                if let Some(spread_class_info) = codebase.classlike_infos.get(spread_xhp_class) {
                     let all_attributes = spread_class_info
                         .properties
                         .iter()

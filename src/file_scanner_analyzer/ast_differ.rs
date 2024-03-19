@@ -69,7 +69,7 @@ pub(crate) fn get_diff(
                                         ));
                                     }
                                 }
-                                AstDiffElem::KeepSignature(a_child, _) => {
+                                AstDiffElem::KeepSignature(a_child) => {
                                     has_change = true;
                                     keep_signature.insert((a.name, a_child.name));
                                     deletion_ranges
@@ -103,7 +103,7 @@ pub(crate) fn get_diff(
                             }
                         }
                     }
-                    AstDiffElem::KeepSignature(a, _) => {
+                    AstDiffElem::KeepSignature(a) => {
                         keep_signature.insert((a.name, StrId::EMPTY));
                         deletion_ranges.push((a.start_offset, a.end_offset));
                     }
@@ -254,7 +254,7 @@ pub(crate) fn extract_diff<'a>(
 
         while x > prev_x && y as isize > prev_y {
             result.push(if bc[&(x - 1)] {
-                AstDiffElem::KeepSignature(&a_nodes[x - 1], &b_nodes[y - 1])
+                AstDiffElem::KeepSignature(&a_nodes[x - 1])
             } else {
                 AstDiffElem::Keep(&a_nodes[x - 1], &b_nodes[y - 1])
             });
@@ -285,7 +285,7 @@ pub(crate) fn extract_diff<'a>(
 #[derive(Debug)]
 pub(crate) enum AstDiffElem<'a> {
     Keep(&'a DefSignatureNode, &'a DefSignatureNode),
-    KeepSignature(&'a DefSignatureNode, &'a DefSignatureNode),
+    KeepSignature(&'a DefSignatureNode),
     Remove(&'a DefSignatureNode),
     Add(&'a DefSignatureNode),
 }

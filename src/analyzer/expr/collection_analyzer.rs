@@ -70,7 +70,7 @@ impl FromStr for TContainerType {
 pub(crate) fn analyze_vals(
     statements_analyzer: &StatementsAnalyzer,
     vc_kind: &oxidized::tast::VcKind,
-    items: &Vec<oxidized::ast::Expr>,
+    items: &[oxidized::ast::Expr],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,

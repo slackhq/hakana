@@ -133,7 +133,7 @@ pub(crate) fn analyze(
     let has_break_statement =
         final_actions.len() == 1 && final_actions.contains(&ControlAction::Break);
 
-    if_scope.if_actions = final_actions.clone();
+    if_scope.if_actions.clone_from(&final_actions);
     if_scope.final_actions = final_actions;
 
     let new_assigned_var_ids = if_context.assigned_var_ids.clone();

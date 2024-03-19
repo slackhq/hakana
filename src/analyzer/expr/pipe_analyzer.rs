@@ -63,7 +63,7 @@ pub(crate) fn analyze(
         if_body_context,
     );
 
-    context.vars_in_scope.remove(&"$$".to_string());
+    context.vars_in_scope.remove("$$");
     context.pipe_var_effects = EFFECT_PURE;
 
     analysis_data.set_rc_expr_type(

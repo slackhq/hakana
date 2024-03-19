@@ -138,7 +138,7 @@ fn get_variable_child_nodes(
 
     if let Some(forward_edges) = graph.forward_edges.get(generated_source_id) {
         for (to_id, path) in forward_edges {
-            if graph.sinks.get(to_id).is_some() {
+            if graph.sinks.contains_key(to_id) {
                 return None;
             }
 

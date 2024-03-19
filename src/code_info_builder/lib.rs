@@ -614,7 +614,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         }
 
         if let Some(fun) = fun {
-            let functionlike_storage = self.visit_function(c, None, fun, &vec![], &vec![], None);
+            let functionlike_storage = self.visit_function(c, None, fun, &[], &vec![], None);
 
             self.codebase.functionlike_infos.insert(
                 (
@@ -637,7 +637,7 @@ impl<'a> Scanner<'a> {
         c: &mut Context,
         name: Option<StrId>,
         fun: &aast::Fun_<(), ()>,
-        tparams: &Vec<aast::Tparam<(), ()>>,
+        tparams: &[aast::Tparam<(), ()>],
         where_constraints: &Vec<aast::WhereConstraintHint>,
         name_pos: Option<&oxidized::tast::Pos>,
     ) -> FunctionLikeInfo {

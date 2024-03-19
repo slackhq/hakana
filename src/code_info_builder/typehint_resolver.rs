@@ -48,7 +48,7 @@ fn get_vec_type_from_hint(
 }
 
 fn get_tuple_type_from_hints(
-    hints: &Vec<Hint>,
+    hints: &[Hint],
     classlike_name: Option<&StrId>,
     type_context: &TypeResolutionContext,
     resolved_names: &FxHashMap<u32, StrId>,

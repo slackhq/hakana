@@ -1495,7 +1495,7 @@ pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Ve
                 })
                 .collect()
         }
-    } else if codebase.classlike_infos.get(name).is_some() {
+    } else if codebase.classlike_infos.contains_key(name) {
         vec![TAtomic::TNamedObject {
             name: *name,
             type_params: None,
@@ -1624,8 +1624,7 @@ fn find_matching_atomic_types_for_template(
                     if input_type_params.is_some()
                         && classlike_info
                             .template_extended_params
-                            .get(base_name)
-                            .is_some()
+                            .contains_key(base_name)
                     {
                         matching_atomic_types.push(atomic_input_type.clone());
                         continue;
@@ -1977,7 +1976,7 @@ pub(crate) fn get_root_template_type(
 }
 
 pub fn get_most_specific_type_from_bounds(
-    lower_bounds: &Vec<TemplateBound>,
+    lower_bounds: &[TemplateBound],
     codebase: &CodebaseInfo,
 ) -> TUnion {
     let relevant_bounds = get_relevant_bounds(lower_bounds);
@@ -1999,7 +1998,7 @@ pub fn get_most_specific_type_from_bounds(
     specific_type
 }
 
-pub fn get_relevant_bounds(lower_bounds: &Vec<TemplateBound>) -> Vec<&TemplateBound> {
+pub fn get_relevant_bounds(lower_bounds: &[TemplateBound]) -> Vec<&TemplateBound> {
     if lower_bounds.len() == 1 {
         return vec![&lower_bounds[0]];
     }
