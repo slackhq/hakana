@@ -138,7 +138,7 @@ pub(crate) fn analyze<'expr>(
     );
 
     let old_expr_types = analysis_data.expr_types.clone();
-    analysis_data.expr_types = analysis_data.expr_types.clone();
+    analysis_data.expr_types.clone_from(&old_expr_types);
 
     expression_analyzer::analyze(
         statements_analyzer,

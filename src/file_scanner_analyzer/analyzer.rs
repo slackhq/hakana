@@ -1,4 +1,4 @@
-use crate::{get_aast_for_path, update_progressbar, SuccessfulScanData};
+use crate::{file, get_aast_for_path, update_progressbar, SuccessfulScanData};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
 use hakana_logger::Logger;
@@ -16,7 +16,7 @@ use oxidized::scoured_comments::ScouredComments;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
+use std::time::{Duration, Instant, SystemTime};
 use std::{fs, io};
 
 pub fn analyze_files(
@@ -28,6 +28,7 @@ pub fn analyze_files(
     ignored_paths: &Option<FxHashSet<String>>,
     threads: u8,
     logger: Arc<Logger>,
+    file_analysis_time: &mut Duration,
 ) -> io::Result<()> {
     let mut group_size = threads as usize;
 
@@ -79,7 +80,7 @@ pub fn analyze_files(
         for (i, str_path) in path_groups[&0].iter().enumerate() {
             let file_path = FilePath(interner.get(str_path).unwrap());
             if let Some(resolved_names) = resolved_names.get(&file_path) {
-                analyze_file(
+                *file_analysis_time += analyze_file(
                     file_path,
                     str_path,
                     scan_data
@@ -105,6 +106,8 @@ pub fn analyze_files(
 
         let files_processed = Arc::new(Mutex::new(0));
 
+        let arc_file_analysis_time = Arc::new(Mutex::new(Duration::default()));
+
         for (_, path_group) in path_groups {
             let scan_data = scan_data.clone();
 
@@ -119,10 +122,14 @@ pub fn analyze_files(
 
             let logger = logger.clone();
 
+            let arc_file_analysis_time = arc_file_analysis_time.clone();
+
             let handle = std::thread::spawn(move || {
                 let codebase = &scan_data.codebase;
                 let interner = &scan_data.interner;
                 let resolved_names = &scan_data.resolved_names;
+
+                let mut file_analysis_time = Duration::default();
 
                 let mut new_analysis_result =
                     AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
@@ -131,7 +138,7 @@ pub fn analyze_files(
                     let file_path = FilePath(interner.get(str_path).unwrap());
 
                     if let Some(resolved_names) = resolved_names.get(&file_path) {
-                        analyze_file(
+                        file_analysis_time += analyze_file(
                             file_path,
                             str_path,
                             scan_data
@@ -154,6 +161,8 @@ pub fn analyze_files(
                     update_progressbar(*tally, bar.clone());
                 }
 
+                let mut t = arc_file_analysis_time.lock().unwrap();
+                *t += file_analysis_time;
                 analysis_result.lock().unwrap().extend(new_analysis_result);
             });
 
@@ -163,6 +172,11 @@ pub fn analyze_files(
         for handle in handles {
             handle.join().unwrap();
         }
+
+        *file_analysis_time = Arc::try_unwrap(arc_file_analysis_time)
+            .unwrap()
+            .into_inner()
+            .unwrap();
     }
 
     if let Some(bar) = &bar {
@@ -182,7 +196,7 @@ fn analyze_file(
     analysis_result: &mut AnalysisResult,
     resolved_names: &FxHashMap<u32, StrId>,
     logger: &Logger,
-) {
+) -> Duration {
     logger.log_debug_sync(&format!("Analyzing {}", &str_path));
 
     if let Ok(metadata) = fs::metadata(str_path) {
@@ -215,7 +229,7 @@ fn analyze_file(
                     )],
                 );
 
-                return;
+                return Duration::default();
             }
         }
     }
@@ -263,9 +277,11 @@ fn analyze_file(
                 }],
             );
 
-            return;
+            return Duration::default();
         }
     };
+
+    let analyzed_files_now = Instant::now();
 
     analyze_loaded_ast(
         str_path,
@@ -277,6 +293,8 @@ fn analyze_file(
         config,
         analysis_result,
     );
+
+    analyzed_files_now.elapsed()
 }
 
 fn analyze_loaded_ast(

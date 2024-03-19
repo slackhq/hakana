@@ -100,8 +100,6 @@ pub(crate) fn analyze_case(
 
         add_branch_dataflow(statements_analyzer, case_cond, analysis_data);
 
-        analysis_data.expr_types = analysis_data.expr_types.clone();
-
         if condition_is_fake {
             analysis_data.set_expr_type(
                 switch_condition.pos(),

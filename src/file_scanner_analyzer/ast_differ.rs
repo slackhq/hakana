@@ -158,8 +158,8 @@ pub(crate) fn get_diff(
  * Algorithmica 1.1 (1986): 251-266.
  */
 pub(crate) fn calculate_trace(
-    a_nodes: &Vec<DefSignatureNode>,
-    b_nodes: &Vec<DefSignatureNode>,
+    a_nodes: &[DefSignatureNode],
+    b_nodes: &[DefSignatureNode],
 ) -> (
     Vec<FxHashMap<isize, usize>>,
     usize,

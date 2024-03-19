@@ -25,7 +25,7 @@ use scanner::{scan_files, ScanFilesResult};
 use std::fs;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use unused_symbols::find_unused_definitions;
 
 mod analyzer;
@@ -157,6 +157,7 @@ pub async fn scan_and_analyze_async(
         &ignored_paths,
         threads,
         logger.clone(),
+        &mut Duration::default(),
     )?;
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
@@ -285,9 +286,9 @@ pub fn scan_and_analyze(
         cached_analysis.existing_issues,
     );
 
-    let analyzed_files_now = Instant::now();
-
     logger.log_sync(&format!("Analyzing {} files", files_to_analyze.len()));
+
+    let mut pure_file_analysis_time = Duration::default();
 
     analyze_files(
         files_to_analyze,
@@ -298,20 +299,19 @@ pub fn scan_and_analyze(
         &ignored_paths,
         threads,
         logger.clone(),
+        &mut pure_file_analysis_time,
     )?;
-
-    let analyzed_files_elapsed = analyzed_files_now.elapsed();
 
     if logger.can_log_timing() {
         logger.log_sync(&format!(
-            "File analysis took {:.2?}",
-            analyzed_files_elapsed
+            "File analysis took {:.2?} (excluding re-parsing)",
+            pure_file_analysis_time
         ));
     }
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
 
-    analysis_result.time_in_analysis = analyzed_files_elapsed;
+    analysis_result.time_in_analysis = pure_file_analysis_time;
 
     cache_analysis_data(cache_dir, &analysis_result)?;
 

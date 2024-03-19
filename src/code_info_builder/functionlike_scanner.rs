@@ -550,6 +550,7 @@ fn is_async_call_is_same_as_sync(
     true
 }
 
+#[allow(clippy::ptr_arg)]
 pub(crate) fn adjust_location_from_comments(
     comments: &Vec<(Pos, Comment)>,
     meta_start: &mut MetaStart,
