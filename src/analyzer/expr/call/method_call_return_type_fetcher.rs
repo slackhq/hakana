@@ -230,8 +230,8 @@ fn add_dataflow(
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
 
-    let added_taints = None;
-    let removed_taints = None;
+    let added_taints = vec![];
+    let removed_taints = vec![];
 
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
@@ -327,8 +327,8 @@ fn add_dataflow(
                         this_parent_node,
                         &before_construct_node,
                         PathKind::Default,
-                        None,
-                        None,
+                        vec![],
+                        vec![],
                     )
                 }
 
@@ -371,16 +371,16 @@ fn add_dataflow(
                             parent_node,
                             &this_before_method_node,
                             PathKind::Default,
-                            None,
-                            None,
+                            vec![],
+                            vec![],
                         );
 
                         data_flow_graph.add_path(
                             parent_node,
                             &var_node,
                             PathKind::Default,
-                            None,
-                            None,
+                            vec![],
+                            vec![],
                         );
                     }
 
@@ -395,8 +395,8 @@ fn add_dataflow(
                         &this_after_method_node,
                         &var_node,
                         PathKind::Default,
-                        None,
-                        None,
+                        vec![],
+                        vec![],
                     );
 
                     let mut context_type_inner = (**context_type).clone();

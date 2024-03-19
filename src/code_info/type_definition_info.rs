@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_str::StrId;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -34,7 +34,7 @@ pub struct TypeDefinitionInfo {
 
     pub generic_variance: FxHashMap<usize, Variance>,
 
-    pub shape_field_taints: Option<FxHashMap<DictKey, (HPos, FxHashSet<SourceType>)>>,
+    pub shape_field_taints: Option<FxHashMap<DictKey, (HPos, Vec<SourceType>)>>,
 
     pub is_literal_string: bool,
     pub location: HPos,

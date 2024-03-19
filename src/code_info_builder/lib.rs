@@ -378,11 +378,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 } = atomic_param_attribute
                 {
                     for (name, (_, item_type)) in attribute_known_items {
-                        let mut source_types = FxHashSet::default();
+                        let mut source_types = vec![];
 
                         if let Some(str) = item_type.get_single_literal_string_value() {
                             if let Some(source_type) = string_to_source_types(str) {
-                                source_types.insert(source_type);
+                                source_types.push(source_type);
                             }
                         }
 
@@ -869,6 +869,7 @@ pub fn collect_info_for_aast(
     visit(&mut checker, &mut context, program).unwrap();
 
     if user_defined {
+        checker.ast_nodes.shrink_to_fit();
         checker.codebase.files.insert(
             file_path_id,
             FileInfo {

@@ -104,8 +104,8 @@ fn add_tuple_value_dataflow(
             parent_node,
             &new_parent_node,
             PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.to_string()),
-            None,
-            None,
+            vec![],
+            vec![],
         );
     }
 

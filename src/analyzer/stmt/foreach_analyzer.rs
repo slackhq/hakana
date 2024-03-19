@@ -127,7 +127,10 @@ pub(crate) fn analyze(
 
     let value_type = value_type.unwrap_or(get_mixed_any());
 
-    foreach_context.for_loop_init_bounds = Some((value_expr.pos().end_offset(), pos.end_offset()));
+    foreach_context.for_loop_init_bounds = (
+        value_expr.pos().end_offset() as u32,
+        pos.end_offset() as u32,
+    );
 
     assignment_analyzer::analyze(
         statements_analyzer,
@@ -139,7 +142,7 @@ pub(crate) fn analyze(
         false,
     )?;
 
-    foreach_context.for_loop_init_bounds = None;
+    foreach_context.for_loop_init_bounds = (0, 0);
 
     loop_analyzer::analyze(
         statements_analyzer,
@@ -540,8 +543,8 @@ fn check_iterator_type(
                 parent_node,
                 &foreach_node,
                 PathKind::Default,
-                None,
-                None,
+                vec![],
+                vec![],
             );
         }
         analysis_data.data_flow_graph.add_node(foreach_node);

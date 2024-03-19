@@ -19,7 +19,7 @@ use hakana_type::{
     get_mixed_any, get_mixed_vec, get_nothing, get_null, get_object, get_string, get_vec, template,
     type_expander, wrap_atomic,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -863,7 +863,7 @@ pub(crate) fn add_special_param_dataflow(
     param_offset: usize,
     arg_pos: HPos,
     pos: &Pos,
-    added_removed_taints: &FxHashMap<usize, (FxHashSet<SinkType>, FxHashSet<SinkType>)>,
+    added_removed_taints: &FxHashMap<usize, (Vec<SinkType>, Vec<SinkType>)>,
     data_flow_graph: &mut DataFlowGraph,
     function_call_node: &DataFlowNode,
     path_kind: PathKind,
@@ -883,23 +883,15 @@ pub(crate) fn add_special_param_dataflow(
         if let Some(added_removed_taints) = added_removed_taints.get(&param_offset) {
             added_removed_taints.clone()
         } else {
-            (FxHashSet::default(), FxHashSet::default())
+            (vec![], vec![])
         };
 
     data_flow_graph.add_path(
         &argument_node,
         function_call_node,
         path_kind,
-        if added_taints.is_empty() {
-            None
-        } else {
-            Some(added_taints)
-        },
-        if removed_taints.is_empty() {
-            None
-        } else {
-            Some(removed_taints)
-        },
+        added_taints,
+        removed_taints,
     );
     data_flow_graph.add_node(argument_node);
 }
@@ -1260,23 +1252,16 @@ fn get_special_argument_nodes(
 fn get_special_added_removed_taints(
     functionlike_id: &FunctionLikeIdentifier,
     interner: &Interner,
-) -> FxHashMap<usize, (FxHashSet<SinkType>, FxHashSet<SinkType>)> {
+) -> FxHashMap<usize, (Vec<SinkType>, Vec<SinkType>)> {
     match functionlike_id {
         FunctionLikeIdentifier::Function(function_name) => match interner.lookup(function_name) {
-            "html_entity_decode" | "htmlspecialchars_decode" => FxHashMap::from_iter([(
-                0,
-                (
-                    FxHashSet::from_iter([SinkType::HtmlTag]),
-                    FxHashSet::default(),
-                ),
-            )]),
+            "html_entity_decode" | "htmlspecialchars_decode" => {
+                FxHashMap::from_iter([(0, (vec![SinkType::HtmlTag], vec![]))])
+            }
             "htmlentities" | "htmlspecialchars" | "strip_tags" | "urlencode" => {
                 FxHashMap::from_iter([(
                     0,
-                    (
-                        FxHashSet::default(),
-                        FxHashSet::from_iter([SinkType::HtmlTag, SinkType::HtmlAttributeUri]),
-                    ),
+                    (vec![], vec![SinkType::HtmlTag, SinkType::HtmlAttributeUri]),
                 )])
             }
             _ => FxHashMap::default(),

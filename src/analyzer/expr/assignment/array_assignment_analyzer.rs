@@ -410,8 +410,8 @@ fn add_array_assignment_dataflow(
             &parent_node,
             &assignment_node,
             PathKind::Default,
-            None,
-            None,
+            vec![],
+            vec![]
         );
 
         analysis_data.data_flow_graph.add_node(assignment_node);
@@ -428,8 +428,8 @@ fn add_array_assignment_dataflow(
             &old_parent_node,
             &parent_node,
             PathKind::Default,
-            None,
-            None,
+            vec![],
+            vec![],
         );
     }
 
@@ -468,8 +468,8 @@ fn add_array_assignment_dataflow(
                     child_parent_node,
                     &parent_node,
                     PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value),
-                    None,
-                    None,
+                    vec![],
+                    vec![],
                 );
             }
         } else {
@@ -477,8 +477,8 @@ fn add_array_assignment_dataflow(
                 child_parent_node,
                 &parent_node,
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
-                None,
-                None,
+                vec![],
+                vec![],
             );
         }
     }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use hakana_str::StrId;
 use indexmap::IndexMap;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -124,11 +124,11 @@ pub struct FunctionLikeInfo {
      */
     pub ignore_taints_if_true: bool,
 
-    pub taint_source_types: FxHashSet<SourceType>,
+    pub taint_source_types: Vec<SourceType>,
 
-    pub added_taints: Option<FxHashSet<SinkType>>,
+    pub added_taints: Vec<SinkType>,
 
-    pub removed_taints: Option<FxHashSet<SinkType>>,
+    pub removed_taints: Vec<SinkType>,
 
     pub return_source_params: FxHashMap<u32, StrId>,
 
@@ -184,9 +184,9 @@ impl FunctionLikeInfo {
             mutation_free: false,
             effects: FnEffect::Unknown,
             specialize_call: false,
-            taint_source_types: FxHashSet::default(),
-            added_taints: None,
-            removed_taints: None,
+            taint_source_types: vec![],
+            added_taints: vec![],
+            removed_taints: vec![],
             return_source_params: FxHashMap::default(),
             attributes: Vec::new(),
             method_info: None,

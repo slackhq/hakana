@@ -227,7 +227,11 @@ fn get_specialized_sources(
             if source.specialized_calls.is_empty()
                 || source.specialized_calls.contains_key(specialization)
             {
-                let new_id = format!("{}-{}", source.id, specialization);
+                let new_id = format!(
+                    "{}-{}",
+                    source.id,
+                    format!("{}:{}", specialization.0 .0, specialization.1)
+                );
 
                 if graph.forward_edges.contains_key(&new_id) {
                     let mut new_source = (*source).clone();
@@ -243,7 +247,8 @@ fn get_specialized_sources(
     } else {
         for (key, map) in &source.specialized_calls {
             if map.contains(&source.id) {
-                let new_forward_edge_id = format!("{}-{}", source.id, key);
+                let new_forward_edge_id =
+                    format!("{}-{}", source.id, format!("{}:{}", key.0 .0, key.1));
 
                 if graph.forward_edges.contains_key(&new_forward_edge_id) {
                     let mut new_source = (*source).clone();
@@ -262,7 +267,7 @@ fn get_child_nodes(
     graph: &DataFlowGraph,
     config: &Config,
     generated_source: &Arc<TaintedNode>,
-    source_taints: &FxHashSet<SinkType>,
+    source_taints: &Vec<SinkType>,
     seen_sources: &mut FxHashSet<String>,
     file_nodes: &mut FxHashMap<FilePath, usize>,
     new_issues: &mut Vec<Issue>,
@@ -367,13 +372,8 @@ fn get_child_nodes(
             }
 
             let mut new_taints = source_taints.clone();
-            if let Some(added_taints) = &path.added_taints {
-                new_taints.extend(added_taints.clone());
-            }
-
-            if let Some(removed_taints) = &path.removed_taints {
-                new_taints.retain(|t| !removed_taints.contains(t));
-            }
+            new_taints.extend(path.added_taints.clone());
+            new_taints.retain(|t| !path.removed_taints.contains(t));
 
             let mut new_destination = TaintedNode::from(destination_node);
 
@@ -412,7 +412,7 @@ fn get_child_nodes(
                                             continue;
                                         }
 
-                                        new_destination.taint_sinks.remove(matching_sink);
+                                        new_destination.taint_sinks.retain(|s| s != matching_sink);
 
                                         let message = format!(
                                             "Data from {} found its way to {} using path {}",

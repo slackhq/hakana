@@ -345,8 +345,8 @@ fn handle_shapes_static_method(
                                 parent_node,
                                 &assignment_node,
                                 PathKind::RemoveDictKey(dim_var_id.clone()),
-                                None,
-                                None,
+                                vec![],
+                                vec![],
                             );
                         }
 

@@ -523,8 +523,8 @@ fn add_array_value_dataflow(
             } else {
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue)
             },
-            None,
-            None,
+            vec![],
+            vec![],
         );
     }
 
@@ -584,8 +584,8 @@ fn add_array_key_dataflow(
             } else {
                 PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayKey)
             },
-            None,
-            None,
+            vec![],
+            vec![],
         );
     }
 

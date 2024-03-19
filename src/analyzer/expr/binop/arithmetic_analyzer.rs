@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_type::template::TemplateBound;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -81,12 +81,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
     }
 
     let e2_var_id = if context.inside_loop {
-        expression_identifier::get_var_id(
-            right,
-            None,
-            &FxHashMap::default(),
-            None,
-        )
+        expression_identifier::get_var_id(right, None, &FxHashMap::default(), None)
     } else {
         None
     };
@@ -253,8 +248,8 @@ pub(crate) fn assign_arithmetic_type(
                 old_parent_node,
                 &decision_node,
                 PathKind::Default,
-                None,
-                None,
+                vec![],
+                vec![],
             );
         }
     }
@@ -270,15 +265,15 @@ pub(crate) fn assign_arithmetic_type(
                 old_parent_node,
                 &decision_node,
                 PathKind::Default,
-                None,
+                vec![],
                 if cond_type.has_string() {
-                    Some(FxHashSet::from_iter([
+                    vec![
                         SinkType::HtmlAttributeUri,
                         SinkType::CurlUri,
                         SinkType::RedirectUri,
-                    ]))
+                    ]
                 } else {
-                    None
+                    vec![]
                 },
             );
         }

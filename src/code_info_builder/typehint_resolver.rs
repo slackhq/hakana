@@ -773,6 +773,7 @@ pub fn get_type_from_hint(
     };
 
     types.push(base);
+    types.shrink_to_fit();
 
     Some(TUnion::new(types))
 }

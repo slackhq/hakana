@@ -165,7 +165,7 @@ pub struct ScopeContext {
 
     pub inside_async: bool,
 
-    pub for_loop_init_bounds: Option<(usize, usize)>,
+    pub for_loop_init_bounds: (u32, u32),
 
     /* Effects for pipe var, if applicable */
     pub pipe_var_effects: u8,
@@ -207,7 +207,7 @@ impl ScopeContext {
             parent_conflicting_clause_vars: FxHashSet::default(),
             allow_taints: true,
             inside_async: false,
-            for_loop_init_bounds: None,
+            for_loop_init_bounds: (0, 0),
 
             pipe_var_effects: EFFECT_PURE,
         }

@@ -422,8 +422,8 @@ fn add_property_dataflow(
                 &var_node,
                 &property_node,
                 PathKind::PropertyFetch(property_id.0, property_id.1),
-                None,
-                None,
+                vec![],
+                vec![],
             );
 
             if let Some(var_type) = var_type {
@@ -432,8 +432,8 @@ fn add_property_dataflow(
                         parent_node,
                         &var_node,
                         PathKind::Default,
-                        None,
-                        None,
+                        vec![],
+                        vec![],
                     );
                 }
 
@@ -511,16 +511,16 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
             &property_node,
             &localized_property_node,
             PathKind::PropertyAssignment(property_id.0, property_id.1),
-            None,
-            None,
+            vec![],
+            vec![],
         );
     } else {
         analysis_data.data_flow_graph.add_path(
             &property_node,
             &localized_property_node,
             PathKind::PropertyFetch(property_id.0, property_id.1),
-            None,
-            None,
+            vec![],
+            vec![],
         );
     }
 

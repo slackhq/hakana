@@ -114,8 +114,8 @@ pub(crate) fn analyze(
             &closure_return_node,
             &application_node,
             PathKind::Default,
-            None,
-            None,
+            vec![],
+            vec![],
         );
 
         analysis_data

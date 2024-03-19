@@ -1,5 +1,4 @@
 use hakana_str::StrId;
-use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 
@@ -116,6 +115,6 @@ impl std::fmt::Display for PathKind {
 #[derive(Debug, Clone)]
 pub struct DataFlowPath {
     pub kind: PathKind,
-    pub added_taints: Option<FxHashSet<SinkType>>,
-    pub removed_taints: Option<FxHashSet<SinkType>>,
+    pub added_taints: Vec<SinkType>,
+    pub removed_taints: Vec<SinkType>,
 }

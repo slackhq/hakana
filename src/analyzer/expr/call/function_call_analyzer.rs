@@ -362,11 +362,11 @@ pub(crate) fn analyze(
                                         "hakana taints".to_string(),
                                         vec![Assertion::RemoveTaints(
                                             expr_var_id.clone(),
-                                            FxHashSet::from_iter([
+                                            vec![
                                                 SinkType::HtmlAttributeUri,
                                                 SinkType::CurlUri,
                                                 SinkType::RedirectUri,
-                                            ]),
+                                            ],
                                         )],
                                     )]),
                                 );
@@ -397,7 +397,7 @@ pub(crate) fn analyze(
                         (expr_var_id, second_arg_type)
                     {
                         if let Some(str) = second_arg_type.get_single_literal_string_value() {
-                            let mut hashes_to_remove = FxHashSet::default();
+                            let mut hashes_to_remove = vec![];
 
                             if str.starts_with('^')
                                 && str != "^http:\\/\\/"

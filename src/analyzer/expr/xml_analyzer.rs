@@ -190,7 +190,7 @@ pub(crate) fn analyze(
                     kind: DataFlowNodeKind::TaintSink {
                         pos: None,
                         label: element_name.to_string(),
-                        types: FxHashSet::from_iter([SinkType::Output]),
+                        types: vec![SinkType::Output],
                     },
                 };
 
@@ -199,8 +199,8 @@ pub(crate) fn analyze(
                         parent_node,
                         &xml_body_taint,
                         PathKind::Default,
-                        None,
-                        None,
+                        vec![],
+                        vec![],
                     );
                 }
 
@@ -217,7 +217,7 @@ pub(crate) fn analyze(
                     kind: DataFlowNodeKind::TaintSink {
                         pos: None,
                         label: element_name.to_string(),
-                        types: FxHashSet::from_iter([SinkType::HtmlTag, SinkType::Output]),
+                        types: vec![SinkType::HtmlTag, SinkType::Output],
                     },
                 };
 
@@ -226,8 +226,8 @@ pub(crate) fn analyze(
                         parent_node,
                         &xml_body_taint,
                         PathKind::Default,
-                        None,
-                        None,
+                        vec![],
+                        vec![],
                     );
                 }
 
@@ -502,7 +502,7 @@ fn add_xml_attribute_dataflow(
                 statements_analyzer.get_interner().lookup(&property_id.1),
             );
 
-            let mut taints = FxHashSet::from_iter([SinkType::Output]);
+            let mut taints = vec![SinkType::Output];
 
             if classlike_storage
                 .appearing_property_ids
@@ -527,7 +527,7 @@ fn add_xml_attribute_dataflow(
                         | "Facebook\\XHP\\HTML\\link",
                         "href",
                     ) => {
-                        taints.insert(SinkType::HtmlAttributeUri);
+                        taints.push(SinkType::HtmlAttributeUri);
                     }
                     ("Facebook\\XHP\\HTML\\body", "background")
                     | ("Facebook\\XHP\\HTML\\form", "action")
@@ -545,10 +545,10 @@ fn add_xml_attribute_dataflow(
                         "src",
                     )
                     | ("Facebook\\XHP\\HTML\\video", "poster") => {
-                        taints.insert(SinkType::HtmlAttributeUri);
+                        taints.push(SinkType::HtmlAttributeUri);
                     }
                     _ => {
-                        taints.insert(SinkType::HtmlAttribute);
+                        taints.push(SinkType::HtmlAttribute);
                     }
                 }
             }

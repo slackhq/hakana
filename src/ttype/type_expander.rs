@@ -405,8 +405,8 @@ fn expand_atomic(
                                                 DictKey::Enum(_, _) => todo!(),
                                             },
                                         ),
-                                        None,
-                                        None,
+                                        vec![],
+                                        vec![],
                                     );
 
                                     data_flow_graph.add_node(field_node);

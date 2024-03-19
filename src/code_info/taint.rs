@@ -1,4 +1,3 @@
-use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use std::{hash::Hash, str::FromStr};
 use strum_macros::{Display, EnumString};
@@ -90,7 +89,7 @@ const PAIRS: [(SourceType, SinkType); 31] = [
     (SourceType::SystemSecret, SinkType::Output),
 ];
 
-pub fn get_sinks_for_sources(source: &SourceType) -> FxHashSet<SinkType> {
+pub fn get_sinks_for_sources(source: &SourceType) -> Vec<SinkType> {
     PAIRS
         .into_iter()
         .filter(|p| &p.0 == source)
@@ -119,8 +118,8 @@ impl SinkType {
         }
     }
 
-    pub fn user_controllable_taints() -> FxHashSet<SinkType> {
-        FxHashSet::from_iter([
+    pub fn user_controllable_taints() -> Vec<SinkType> {
+        vec![
             SinkType::HtmlTag,
             SinkType::Sql,
             SinkType::Shell,
@@ -133,7 +132,7 @@ impl SinkType {
             SinkType::CurlUri,
             SinkType::HtmlAttribute,
             SinkType::HtmlAttributeUri,
-        ])
+        ]
     }
 }
 
@@ -141,9 +140,9 @@ pub fn string_to_source_types(str: String) -> Option<SourceType> {
     SourceType::from_str(&str).ok()
 }
 
-pub fn string_to_sink_types(str: String) -> FxHashSet<SinkType> {
+pub fn string_to_sink_types(str: String) -> Vec<SinkType> {
     match str.as_str() {
-        "*" => FxHashSet::from_iter([
+        "*" => vec![
             SinkType::Sql,
             SinkType::HtmlTag,
             SinkType::HtmlAttribute,
@@ -155,14 +154,14 @@ pub fn string_to_sink_types(str: String) -> FxHashSet<SinkType> {
             SinkType::Shell,
             SinkType::Unserialize,
             SinkType::Cookie,
-        ]),
+        ],
         str => {
             if let Ok(sink_type) = SinkType::from_str(str) {
-                FxHashSet::from_iter([sink_type])
+                vec![sink_type]
             } else if str.starts_with("Custom:") {
-                FxHashSet::from_iter([SinkType::Custom(str.get(7..).unwrap().to_string())])
+                vec![SinkType::Custom(str.get(7..).unwrap().to_string())]
             } else {
-                FxHashSet::default()
+                vec![]
             }
         }
     }

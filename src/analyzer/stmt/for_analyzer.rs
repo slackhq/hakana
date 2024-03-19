@@ -26,8 +26,7 @@ pub(crate) fn analyze(
     context.assigned_var_ids.clear();
 
     if let Some(last_comparison_expr) = stmt.2.last() {
-        context.for_loop_init_bounds =
-            Some((last_comparison_expr.pos().end_offset(), pos.end_offset()));
+        context.for_loop_init_bounds = (last_comparison_expr.pos().end_offset() as u32, pos.end_offset() as u32);
     }
 
     for init_expr in stmt.0 {
@@ -40,7 +39,7 @@ pub(crate) fn analyze(
         )?;
     }
 
-    context.for_loop_init_bounds = None;
+    context.for_loop_init_bounds = (0, 0);
 
     context.assigned_var_ids.extend(pre_assigned_var_ids);
 

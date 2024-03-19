@@ -1,12 +1,11 @@
 use std::hash::{Hash, Hasher};
 
 use crate::method_identifier::MethodIdentifier;
-use hakana_str::Interner;
 use crate::{
     code_location::HPos,
     taint::{SinkType, SourceType},
 };
-use rustc_hash::FxHashSet;
+use hakana_str::{Interner, StrId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -30,7 +29,7 @@ pub enum DataFlowNodeKind {
         pos: Option<HPos>,
         unspecialized_id: Option<String>,
         label: String,
-        specialization_key: Option<String>,
+        specialization_key: Option<(StrId, u32)>,
     },
     VariableUseSource {
         pos: HPos,
@@ -44,8 +43,8 @@ pub enum DataFlowNodeKind {
     },
     ForLoopInit {
         var_name: String,
-        start_offset: usize,
-        end_offset: usize,
+        start_offset: u32,
+        end_offset: u32,
     },
     DataSource {
         pos: HPos,
@@ -55,12 +54,12 @@ pub enum DataFlowNodeKind {
     TaintSource {
         pos: Option<HPos>,
         label: String,
-        types: FxHashSet<SourceType>,
+        types: Vec<SourceType>,
     },
     TaintSink {
         pos: Option<HPos>,
         label: String,
-        types: FxHashSet<SinkType>,
+        types: Vec<SinkType>,
     },
 }
 
@@ -75,7 +74,7 @@ impl DataFlowNode {
         id: String,
         label: String,
         pos: Option<HPos>,
-        specialization_key: Option<String>,
+        specialization_key: Option<(StrId, u32)>,
     ) -> Self {
         let mut id = id;
         let mut unspecialized_id = None;
@@ -83,7 +82,9 @@ impl DataFlowNode {
         if let Some(specialization_key) = &specialization_key {
             unspecialized_id = Some(id.clone());
             id += "-";
-            id += specialization_key.as_str();
+            id += &specialization_key.0 .0.to_string();
+            id += ":";
+            id += &specialization_key.1.to_string();
         }
 
         DataFlowNode {
@@ -108,7 +109,7 @@ impl DataFlowNode {
         let mut specialization_key = None;
 
         if let Some(pos) = pos {
-            specialization_key = Some(format!("{}:{}", pos.file_path.0 .0, pos.start_offset));
+            specialization_key = Some((pos.file_path.0, pos.start_offset));
         }
 
         Self::new(arg_id.clone(), arg_id, arg_location, specialization_key)
@@ -128,7 +129,7 @@ impl DataFlowNode {
         let mut specialization_key = None;
 
         if let Some(pos) = pos {
-            specialization_key = Some(format!("{}:{}", pos.file_path.0 .0, pos.start_offset));
+            specialization_key = Some((pos.file_path.0, pos.start_offset));
         }
 
         Self::new(arg_id.clone(), arg_id, arg_location, specialization_key)
@@ -149,7 +150,7 @@ impl DataFlowNode {
         let mut specialization_key = None;
 
         if let Some(pos) = pos {
-            specialization_key = Some(format!("{}:{}", pos.file_path.0 .0, pos.start_offset));
+            specialization_key = Some((pos.file_path.0, pos.start_offset));
         }
 
         DataFlowNode::new(label.clone(), label, method_location, specialization_key)
@@ -170,7 +171,7 @@ impl DataFlowNode {
         let mut specialization_key = None;
 
         if let Some(pos) = pos {
-            specialization_key = Some(format!("{}:{}", pos.file_path.0 .0, pos.start_offset));
+            specialization_key = Some((pos.file_path.0, pos.start_offset));
         }
 
         DataFlowNode::new(label.clone(), label, method_location, specialization_key)
@@ -255,11 +256,10 @@ impl DataFlowNode {
         let mut specialization_key = None;
 
         if let Some(specialization_location) = specialization_location {
-            specialization_key = Some(
-                (specialization_location.file_path).0 .0.to_string()
-                    + ":"
-                    + specialization_location.start_offset.to_string().as_str(),
-            );
+            specialization_key = Some((
+                (specialization_location.file_path).0,
+                specialization_location.start_offset,
+            ));
         }
 
         Self::new(

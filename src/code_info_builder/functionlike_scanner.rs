@@ -340,7 +340,7 @@ pub(crate) fn get_functionlike(
 
         match name {
             StrId::HAKANA_SECURITY_ANALYSIS_SOURCE => {
-                let mut source_types = FxHashSet::default();
+                let mut source_types = vec![];
 
                 for attribute_param_expr in &user_attribute.params {
                     let attribute_param_type =
@@ -349,7 +349,7 @@ pub(crate) fn get_functionlike(
                     if let Some(attribute_param_type) = attribute_param_type {
                         if let Some(str) = attribute_param_type.get_single_literal_string_value() {
                             if let Some(source_type) = string_to_source_types(str) {
-                                source_types.insert(source_type);
+                                source_types.push(source_type);
                             }
                         }
                     }
@@ -367,7 +367,7 @@ pub(crate) fn get_functionlike(
                 functionlike_info.ignore_taints_if_true = true;
             }
             StrId::HAKANA_SECURITY_ANALYSIS_SANITIZE | StrId::HAKANA_FIND_PATHS_SANITIZE => {
-                let mut removed_types = FxHashSet::default();
+                let mut removed_types = vec![];
 
                 for attribute_param_expr in &user_attribute.params {
                     let attribute_param_type =
@@ -384,7 +384,7 @@ pub(crate) fn get_functionlike(
                     }
                 }
 
-                functionlike_info.removed_taints = Some(removed_types);
+                functionlike_info.removed_taints = removed_types;
             }
             StrId::HAKANA_MUST_USE => {
                 functionlike_info.must_use = true;
@@ -675,7 +675,7 @@ fn convert_param_nodes(
 
                 match *name {
                     StrId::HAKANA_SECURITY_ANALYSIS_SINK => {
-                        let mut sink_types = FxHashSet::default();
+                        let mut sink_types = vec![];
 
                         for attribute_param_expr in &user_attribute.params {
                             let attribute_param_type =
@@ -693,7 +693,7 @@ fn convert_param_nodes(
                         param.taint_sinks = Some(sink_types);
                     }
                     StrId::HAKANA_SECURITY_ANALYSIS_REMOVE_TAINTS_WHEN_RETURNING_TRUE => {
-                        let mut removed_taints = FxHashSet::default();
+                        let mut removed_taints = vec![];
 
                         for attribute_param_expr in &user_attribute.params {
                             let attribute_param_type =

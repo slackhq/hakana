@@ -2,7 +2,6 @@ use std::hash::Hasher;
 
 use derivative::Derivative;
 use hakana_str::Interner;
-use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -41,8 +40,8 @@ pub enum Assertion {
     DoesNotHaveExactCount(usize),
     IgnoreTaints,
     DontIgnoreTaints,
-    RemoveTaints(String, #[derivative(Hash = "ignore")] FxHashSet<SinkType>),
-    DontRemoveTaints(String, #[derivative(Hash = "ignore")] FxHashSet<SinkType>),
+    RemoveTaints(String, #[derivative(Hash = "ignore")] Vec<SinkType>),
+    DontRemoveTaints(String, #[derivative(Hash = "ignore")] Vec<SinkType>),
 }
 
 impl Assertion {

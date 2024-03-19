@@ -54,8 +54,8 @@ pub(crate) fn analyze(
                     parent_node,
                     &return_node,
                     PathKind::Default,
-                    None,
-                    None,
+                    vec![],
+                    vec![],
                 );
             }
             analysis_data.data_flow_graph.add_node(return_node);

@@ -897,8 +897,8 @@ pub(crate) fn add_decision_dataflow(
                 old_parent_node,
                 &decision_node,
                 PathKind::Default,
-                None,
-                None,
+                vec![],
+                vec![],
             );
         }
     }
@@ -915,8 +915,8 @@ pub(crate) fn add_decision_dataflow(
                     old_parent_node,
                     &decision_node,
                     PathKind::Default,
-                    None,
-                    None,
+                    vec![],
+                    vec![],
                 );
             }
         }

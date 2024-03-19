@@ -1,4 +1,4 @@
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -38,9 +38,9 @@ pub struct FunctionLikeParameter {
 
     pub is_variadic: bool,
 
-    pub taint_sinks: Option<FxHashSet<SinkType>>,
+    pub taint_sinks: Option<Vec<SinkType>>,
 
-    pub removed_taints_when_returning_true: Option<FxHashSet<SinkType>>,
+    pub removed_taints_when_returning_true: Option<Vec<SinkType>>,
 
     pub assert_untainted: bool,
 

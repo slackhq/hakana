@@ -212,8 +212,8 @@ fn add_shape_value_dataflow(
             parent_node,
             &new_parent_node,
             PathKind::ArrayAssignment(ArrayDataKind::ArrayValue, key_value.clone()),
-            None,
-            None,
+            vec![],
+            vec![],
         );
     }
 

@@ -579,8 +579,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                 parent_node,
                                 &new_call_node,
                                 PathKind::Default,
-                                None,
-                                None,
+                                vec![],
+                                vec![],
                             );
                         }
 
@@ -1135,8 +1135,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     &argument_node,
                     &new_parent_node,
                     PathKind::Default,
-                    None,
-                    None,
+                    vec![],
+                    vec![],
                 );
 
                 analysis_data.data_flow_graph.add_node(argument_node);

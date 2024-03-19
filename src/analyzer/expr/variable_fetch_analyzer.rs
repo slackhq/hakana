@@ -16,7 +16,6 @@ use hakana_reflection_info::{
 };
 use hakana_type::{get_int, get_mixed_any, get_mixed_dict};
 use oxidized::{ast_defs::Pos, tast::Lid};
-use rustc_hash::FxHashSet;
 use std::rc::Rc;
 
 pub(crate) fn analyze(
@@ -110,9 +109,9 @@ pub(crate) fn get_type_for_superglobal(
                     pos: None,
                     label: format!("${}", name.clone()),
                     types: if name == "_GET" || name == "_REQUEST" {
-                        FxHashSet::from_iter([SourceType::UriRequestHeader])
+                        vec![SourceType::UriRequestHeader]
                     } else {
-                        FxHashSet::from_iter([SourceType::NonUriRequestHeader])
+                        vec![SourceType::NonUriRequestHeader]
                     },
                 },
             };
@@ -141,7 +140,9 @@ fn add_dataflow_to_variable(
 
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
-    if data_flow_graph.kind == GraphKind::FunctionBody && (context.inside_general_use || context.inside_throw || context.inside_isset) {
+    if data_flow_graph.kind == GraphKind::FunctionBody
+        && (context.inside_general_use || context.inside_throw || context.inside_isset)
+    {
         let pos = statements_analyzer.get_hpos(pos);
 
         let assignment_node = DataFlowNode {
@@ -167,8 +168,8 @@ fn add_dataflow_to_variable(
                     parent_node,
                     &assignment_node,
                     PathKind::Default,
-                    None,
-                    None,
+                    vec![],
+                    vec![],
                 );
             }
         }

@@ -242,8 +242,8 @@ pub(crate) fn add_array_fetch_dataflow(
                     } else {
                         PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)
                     },
-                    None,
-                    None,
+                    vec![],
+                    vec![],
                 );
 
                 if let Some(array_key_node) = array_key_node.clone() {
@@ -251,8 +251,8 @@ pub(crate) fn add_array_fetch_dataflow(
                         parent_node,
                         &array_key_node,
                         PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey),
-                        None,
-                        None,
+                        vec![],
+                        vec![],
                     );
                 }
             }
@@ -992,8 +992,8 @@ pub(crate) fn handle_array_access_on_mixed(
                     parent_node,
                     &new_parent_node,
                     PathKind::Default,
-                    None,
-                    None,
+                    vec![],
+                    vec![],
                 );
             }
             if let Some(stmt_type) = stmt_type {

@@ -95,8 +95,8 @@ pub(crate) fn reconcile_keyed_types(
                                         old_parent_node,
                                         &new_parent_node,
                                         PathKind::Default,
-                                        None,
-                                        Some(taints.clone()),
+                                        vec![],
+                                        taints.clone(),
                                     );
                                 }
 
@@ -253,8 +253,8 @@ pub(crate) fn reconcile_keyed_types(
                             parent_node,
                             &scalar_check_node,
                             PathKind::ScalarTypeGuard,
-                            None,
-                            None,
+                            vec![],
+                            vec![],
                         );
                     }
 
@@ -288,8 +288,8 @@ pub(crate) fn reconcile_keyed_types(
                                 parent_node,
                                 &narrowing_node,
                                 PathKind::RefineSymbol(*narrowed_symbol),
-                                None,
-                                None,
+                                vec![],
+                                vec![],
                             );
                         }
 

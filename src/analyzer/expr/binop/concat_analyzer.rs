@@ -10,7 +10,6 @@ use hakana_reflection_info::{
 };
 use hakana_type::{get_literal_string, get_string, wrap_atomic};
 use oxidized::aast;
-use rustc_hash::FxHashSet;
 
 pub(crate) fn analyze<'expr>(
     statements_analyzer: &StatementsAnalyzer,
@@ -110,15 +109,15 @@ pub(crate) fn analyze_concat_nodes(
                         old_parent_node,
                         &decision_node,
                         PathKind::Default,
-                        None,
+                        vec![],
                         if i > 0 && (has_slash || has_query) {
-                            Some(FxHashSet::from_iter([
+                            vec![
                                 SinkType::HtmlAttributeUri,
                                 SinkType::CurlUri,
                                 SinkType::RedirectUri,
-                            ]))
+                            ]
                         } else {
-                            None
+                            vec![]
                         },
                     );
                 }

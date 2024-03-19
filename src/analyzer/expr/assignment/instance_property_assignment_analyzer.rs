@@ -19,7 +19,7 @@ use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use crate::{
     expr::{
@@ -666,16 +666,16 @@ fn add_instance_property_assignment_dataflow(
         &property_node,
         &var_node,
         PathKind::PropertyAssignment(property_id.0, property_id.1),
-        None,
-        None,
+        vec![],
+        vec![],
     );
     for parent_node in assignment_value_type.parent_nodes.iter() {
         analysis_data.data_flow_graph.add_path(
             parent_node,
             &property_node,
             PathKind::Default,
-            None,
-            None,
+            vec![],
+            vec![],
         );
     }
     let stmt_var_type = context.vars_in_scope.get_mut(&lhs_var_id);
@@ -727,7 +727,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     let removed_taints = if let Some(var_pos) = var_pos {
         get_removed_taints_in_comments(statements_analyzer, var_pos)
     } else {
-        FxHashSet::default()
+        vec![]
     };
 
     let property_node = DataFlowNode::new(property_id_str.clone(), property_id_str, None, None);
@@ -739,12 +739,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         &localized_property_node,
         &property_node,
         PathKind::PropertyAssignment(property_id.0, property_id.1),
-        None,
-        if removed_taints.is_empty() {
-            None
-        } else {
-            Some(removed_taints)
-        },
+        vec![],
+        removed_taints,
     );
 
     for parent_node in assignment_value_type.parent_nodes.iter() {
@@ -752,8 +748,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
             parent_node,
             &localized_property_node,
             PathKind::Default,
-            None,
-            None,
+            vec![],
+            vec![],
         );
     }
 
@@ -781,8 +777,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
                 &property_node,
                 &declaring_property_node,
                 PathKind::PropertyAssignment(property_id.0, property_id.1),
-                None,
-                None,
+                vec![],
+                vec![],
             );
 
             analysis_data

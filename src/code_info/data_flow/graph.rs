@@ -3,6 +3,7 @@ use super::{
     path::{ArrayDataKind, DataFlowPath, PathKind},
 };
 use crate::taint::SinkType;
+use hakana_str::StrId;
 use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -27,8 +28,8 @@ pub struct DataFlowGraph {
     pub sources: FxHashMap<String, DataFlowNode>,
     pub sinks: FxHashMap<String, DataFlowNode>,
     pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
-    pub specializations: FxHashMap<String, FxHashSet<String>>,
-    specialized_calls: FxHashMap<String, FxHashSet<String>>,
+    pub specializations: FxHashMap<String, FxHashSet<(StrId, u32)>>,
+    specialized_calls: FxHashMap<(StrId, u32), FxHashSet<String>>,
 }
 
 impl DataFlowGraph {
@@ -88,8 +89,8 @@ impl DataFlowGraph {
         from: &DataFlowNode,
         to: &DataFlowNode,
         path_kind: PathKind,
-        added_taints: Option<FxHashSet<SinkType>>,
-        removed_taints: Option<FxHashSet<SinkType>>,
+        added_taints: Vec<SinkType>,
+        removed_taints: Vec<SinkType>,
     ) {
         if matches!(
             path_kind,

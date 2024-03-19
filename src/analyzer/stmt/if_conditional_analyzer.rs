@@ -349,8 +349,8 @@ pub(crate) fn add_branch_dataflow(
                     parent_node,
                     &branch_node,
                     PathKind::Default,
-                    None,
-                    None,
+                    vec![],
+                    vec![],
                 );
             }
 

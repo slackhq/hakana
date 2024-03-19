@@ -3,7 +3,6 @@ use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::EFFECT_WRITE_LOCAL;
 use hakana_str::StrId;
 use indexmap::IndexMap;
-use rustc_hash::FxHashSet;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
@@ -198,7 +197,8 @@ pub(crate) fn analyze(
             assign_value_type.parent_nodes.push(assignment_node);
 
             if !context.inside_assignment_op && !var_id.starts_with("$_") {
-                if let Some((start_offset, end_offset)) = context.for_loop_init_bounds {
+                let (start_offset, end_offset) = context.for_loop_init_bounds;
+                if start_offset != 0 {
                     let for_node = DataFlowNode {
                         id: format!("for-init-{}-{}", start_offset, end_offset),
                         kind: DataFlowNodeKind::ForLoopInit {
@@ -221,7 +221,7 @@ pub(crate) fn analyze(
     {
         if context.inside_loop
             && !context.inside_assignment_op
-            && context.for_loop_init_bounds.is_some()
+            && context.for_loop_init_bounds.0 > 0
             && var_id != "$_"
         {
             let mut origin_nodes = vec![];
@@ -241,8 +241,8 @@ pub(crate) fn analyze(
                     end_offset,
                 } => {
                     var_name == var_id
-                        && pos.start_offset() > *start_offset
-                        && pos.end_offset() < *end_offset
+                        && (pos.start_offset() as u32) > *start_offset
+                        && (pos.end_offset() as u32) < *end_offset
                 }
                 _ => false,
             });
@@ -408,7 +408,7 @@ fn check_variable_or_property_assignment(
             data_flow_graph,
             var_id,
             assign_var_pos,
-            FxHashSet::default(),
+            vec![],
             removed_taints,
         );
     }
@@ -541,8 +541,8 @@ pub(crate) fn add_dataflow_to_assignment(
     data_flow_graph: &mut DataFlowGraph,
     var_id: &str,
     var_pos: &Pos,
-    added_taints: FxHashSet<SinkType>,
-    removed_taints: FxHashSet<SinkType>,
+    added_taints: Vec<SinkType>,
+    removed_taints: Vec<SinkType>,
 ) -> TUnion {
     if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
         if !assignment_type.has_taintable_value() {
@@ -562,16 +562,8 @@ pub(crate) fn add_dataflow_to_assignment(
             parent_node,
             &new_parent_node,
             PathKind::Default,
-            if added_taints.is_empty() {
-                None
-            } else {
-                Some(added_taints.clone())
-            },
-            if removed_taints.is_empty() {
-                None
-            } else {
-                Some(removed_taints.clone())
-            },
+            added_taints.clone(),
+            removed_taints.clone(),
         );
     }
 

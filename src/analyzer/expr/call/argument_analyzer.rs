@@ -21,7 +21,6 @@ use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{add_union_type, get_arraykey, get_int, get_mixed, get_mixed_any, get_nothing};
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
-use rustc_hash::FxHashSet;
 
 use super::method_call_info::MethodCallInfo;
 
@@ -558,8 +557,8 @@ fn add_dataflow(
                                     &method_node,
                                     &new_sink,
                                     PathKind::Default,
-                                    None,
-                                    None,
+                                    vec![],
+                                    vec![],
                                 );
                             }
                         }
@@ -588,8 +587,8 @@ fn add_dataflow(
                         &method_node,
                         &new_sink,
                         PathKind::Default,
-                        None,
-                        None,
+                        vec![],
+                        vec![],
                     );
                 }
             }
@@ -600,7 +599,7 @@ fn add_dataflow(
     // ALTHOUGH numbers may still contain PII
 
     let removed_taints = if data_flow_graph.kind == GraphKind::FunctionBody {
-        FxHashSet::default()
+        vec![]
     } else {
         get_removed_taints_in_comments(statements_analyzer, input_expr.pos())
     };
@@ -632,12 +631,8 @@ fn add_dataflow(
             parent_node,
             &argument_value_node,
             PathKind::Default,
-            None,
-            if removed_taints.is_empty() {
-                None
-            } else {
-                Some(removed_taints.clone())
-            },
+            vec![],
+            removed_taints.clone(),
         );
     }
 
@@ -645,8 +640,8 @@ fn add_dataflow(
         &argument_value_node,
         &method_node,
         PathKind::Default,
-        None,
-        None,
+        vec![],
+        vec![],
     );
 
     if matches!(data_flow_graph.kind, GraphKind::WholeProgram(_)) {
@@ -682,8 +677,8 @@ fn add_dataflow(
 pub(crate) fn get_removed_taints_in_comments(
     statements_analyzer: &StatementsAnalyzer,
     input_expr_pos: &Pos,
-) -> FxHashSet<SinkType> {
-    let mut removed_taints = FxHashSet::default();
+) -> Vec<SinkType> {
+    let mut removed_taints = vec![];
 
     let tags = statements_analyzer
         .comments

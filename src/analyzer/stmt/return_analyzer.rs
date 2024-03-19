@@ -545,8 +545,8 @@ pub(crate) fn handle_inout_at_return(
                         parent_node,
                         &new_parent_node,
                         PathKind::Default,
-                        None,
-                        None,
+                        vec![],
+                        vec![],
                     );
                 }
             }
@@ -570,7 +570,7 @@ fn handle_dataflow(
         );
 
         for parent_node in &inferred_type.parent_nodes {
-            data_flow_graph.add_path(parent_node, &return_node, PathKind::Default, None, None);
+            data_flow_graph.add_path(parent_node, &return_node, PathKind::Default, vec![], vec![]);
         }
         data_flow_graph.add_node(return_node);
     } else {
@@ -619,8 +619,8 @@ fn handle_dataflow(
             &return_expr_node,
             &method_node,
             PathKind::Default,
-            None,
-            None,
+            vec![],
+            vec![],
         );
 
         if let FunctionLikeIdentifier::Method(classlike_name, method_name) = functionlike_id {
@@ -651,8 +651,8 @@ fn handle_dataflow(
                                 &method_node,
                                 &new_sink,
                                 PathKind::Default,
-                                None,
-                                None,
+                                vec![],
+                                vec![],
                             );
                         }
                     }
