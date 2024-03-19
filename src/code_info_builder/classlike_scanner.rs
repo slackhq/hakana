@@ -179,7 +179,7 @@ pub(crate) fn scan(
                     }
 
                     storage.direct_parent_class = Some(parent_name);
-                    storage.all_parent_classes.insert(parent_name);
+                    storage.all_parent_classes.push(parent_name);
 
                     storage.template_extended_offsets.insert(
                         parent_name,
@@ -217,8 +217,8 @@ pub(crate) fn scan(
                         signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
-                    storage.direct_class_interfaces.insert(interface_name);
-                    storage.all_class_interfaces.insert(interface_name);
+                    storage.direct_class_interfaces.push(interface_name);
+                    storage.all_class_interfaces.push(interface_name);
 
                     if class_name == &StrId::SIMPLE_XML_ELEMENT
                         && interface_name == StrId::TRAVERSABLE
@@ -280,7 +280,7 @@ pub(crate) fn scan(
             }
 
             storage.direct_parent_class = Some(StrId::BUILTIN_ENUM_CLASS);
-            storage.all_parent_classes.insert(StrId::BUILTIN_ENUM_CLASS);
+            storage.all_parent_classes.push(StrId::BUILTIN_ENUM_CLASS);
 
             storage.template_extended_offsets.insert(
                 StrId::BUILTIN_ENUM_CLASS,
@@ -324,8 +324,8 @@ pub(crate) fn scan(
                         signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
-                    storage.direct_parent_interfaces.insert(parent_name);
-                    storage.all_parent_interfaces.insert(parent_name);
+                    storage.direct_parent_interfaces.push(parent_name);
+                    storage.all_parent_interfaces.push(parent_name);
 
                     storage.template_extended_offsets.insert(
                         parent_name,
@@ -378,8 +378,8 @@ pub(crate) fn scan(
                         signature_end = params.last().unwrap().0.end_offset() as u32;
                     }
 
-                    storage.direct_class_interfaces.insert(interface_name);
-                    storage.all_class_interfaces.insert(interface_name);
+                    storage.direct_class_interfaces.push(interface_name);
+                    storage.all_class_interfaces.push(interface_name);
 
                     storage.template_extended_offsets.insert(
                         interface_name,
@@ -410,7 +410,7 @@ pub(crate) fn scan(
             storage.kind = SymbolKind::Enum;
 
             storage.direct_parent_class = Some(StrId::BUILTIN_ENUM);
-            storage.all_parent_classes.insert(StrId::BUILTIN_ENUM);
+            storage.all_parent_classes.push(StrId::BUILTIN_ENUM);
 
             if let Some(enum_node) = &classlike_node.enum_ {
                 signature_end = enum_node.base.0.end_offset() as u32;
@@ -654,13 +654,13 @@ fn handle_reqs(
             match &req.1 {
                 aast::RequireKind::RequireExtends => {
                     storage.direct_parent_class = Some(require_name);
-                    storage.all_parent_classes.insert(require_name);
-                    storage.required_classlikes.insert(require_name);
+                    storage.all_parent_classes.push(require_name);
+                    storage.required_classlikes.push(require_name);
                 }
                 aast::RequireKind::RequireImplements => {
-                    storage.direct_class_interfaces.insert(require_name);
-                    storage.all_class_interfaces.insert(require_name);
-                    storage.required_classlikes.insert(require_name);
+                    storage.direct_class_interfaces.push(require_name);
+                    storage.all_class_interfaces.push(require_name);
+                    storage.required_classlikes.push(require_name);
                 }
                 aast::RequireKind::RequireClass => todo!(),
             };

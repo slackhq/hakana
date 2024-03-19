@@ -231,10 +231,20 @@ pub fn combine_union_types(
         combined_type.ignore_falsable_issues = true;
     }
 
-    if !type_1.parent_nodes.is_empty() || !type_2.parent_nodes.is_empty() {
-        let mut parent_nodes = type_1.parent_nodes.clone();
-        parent_nodes.extend(type_2.parent_nodes.clone());
-        combined_type.parent_nodes = parent_nodes;
+    let type_1_parent_nodes_empty = type_1.parent_nodes.is_empty();
+    let type_2_parent_nodes_empty = type_2.parent_nodes.is_empty();
+
+    if !type_1_parent_nodes_empty || !type_2_parent_nodes_empty {
+        if type_1_parent_nodes_empty {
+            combined_type.parent_nodes.clone_from(&type_2.parent_nodes);
+        } else if type_2_parent_nodes_empty {
+            combined_type.parent_nodes.clone_from(&type_1.parent_nodes);
+        } else {
+            combined_type.parent_nodes.clone_from(&type_1.parent_nodes);
+            combined_type
+                .parent_nodes
+                .extend(type_2.parent_nodes.clone());
+        }
     }
 
     combined_type

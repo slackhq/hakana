@@ -11,8 +11,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    aliases::Aliases, attribute_info::AttributeInfo, class_constant_info::ConstantInfo,
-    enum_case_info::EnumCaseInfo, property_info::PropertyInfo,
+    attribute_info::AttributeInfo, class_constant_info::ConstantInfo, enum_case_info::EnumCaseInfo,
+    property_info::PropertyInfo,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -32,11 +32,6 @@ pub enum ClassConstantType {
 pub struct ClassLikeInfo {
     pub constants: IndexMap<StrId, ConstantInfo>,
 
-    /**
-     * Aliases to help Hakana understand constant refs
-     */
-    pub aliases: Option<Aliases>,
-
     pub is_populated: bool,
 
     pub is_stubbed: bool,
@@ -45,29 +40,27 @@ pub struct ClassLikeInfo {
 
     pub internal_to: Option<String>,
 
-    pub suppressed_issues: Option<FxHashMap<u32, String>>,
-
     pub name: StrId,
 
     /**
      * Interfaces this class implements directly
      */
-    pub direct_class_interfaces: FxHashSet<StrId>,
+    pub direct_class_interfaces: Vec<StrId>,
 
     /**
      * Interfaces this class implements explicitly and implicitly
      */
-    pub all_class_interfaces: FxHashSet<StrId>,
+    pub all_class_interfaces: Vec<StrId>,
 
     /**
      * Parent interfaces listed explicitly
      */
-    pub direct_parent_interfaces: FxHashSet<StrId>,
+    pub direct_parent_interfaces: Vec<StrId>,
 
     /**
      * All parent interfaces
      */
-    pub all_parent_interfaces: FxHashSet<StrId>,
+    pub all_parent_interfaces: Vec<StrId>,
 
     /**
      * There can only be one parent class
@@ -77,12 +70,12 @@ pub struct ClassLikeInfo {
     /**
      * A trait can require extending classes and interfaces
      */
-    pub required_classlikes: FxHashSet<StrId>,
+    pub required_classlikes: Vec<StrId>,
 
     /**
      * Parent classes
      */
-    pub all_parent_classes: FxHashSet<StrId>,
+    pub all_parent_classes: Vec<StrId>,
 
     pub def_location: HPos,
 
@@ -178,7 +171,7 @@ pub struct ClassLikeInfo {
 
     pub template_type_uses_count: FxHashMap<String, u32>,
 
-    pub initialized_properties: FxHashSet<StrId>,
+    pub initialized_properties: Vec<StrId>,
 
     pub invalid_dependencies: Vec<StrId>,
 
@@ -236,26 +229,25 @@ impl ClassLikeInfo {
             preserve_constructor_signature: false,
             enforce_template_inheritance: false,
 
-            direct_class_interfaces: FxHashSet::default(),
-            aliases: None,
-            all_parent_classes: FxHashSet::default(),
+            direct_class_interfaces: vec![],
+            all_parent_classes: vec![],
             appearing_method_ids: FxHashMap::default(),
             attributes: Vec::new(),
-            all_class_interfaces: FxHashSet::default(),
-            all_parent_interfaces: FxHashSet::default(),
+            all_class_interfaces: vec![],
+            all_parent_interfaces: vec![],
             declaring_method_ids: FxHashMap::default(),
             appearing_property_ids: FxHashMap::default(),
             declaring_property_ids: FxHashMap::default(),
             direct_parent_class: None,
-            direct_parent_interfaces: FxHashSet::default(),
-            required_classlikes: FxHashSet::default(),
+            direct_parent_interfaces: vec![],
+            required_classlikes: vec![],
             inheritable_method_ids: FxHashMap::default(),
             enum_cases: None,
             enum_type: None,
             enum_constraint: None,
             hash: None,
             inheritable_property_ids: FxHashMap::default(),
-            initialized_properties: FxHashSet::default(),
+            initialized_properties: vec![],
             internal_to: None,
             invalid_dependencies: Vec::new(),
             def_location,
@@ -265,7 +257,6 @@ impl ClassLikeInfo {
             overridden_property_ids: FxHashMap::default(),
             potential_declaring_method_ids: FxHashMap::default(),
             properties: FxHashMap::default(),
-            suppressed_issues: None,
             generic_variance: FxHashMap::default(),
             template_extended_count: 0,
             template_extended_params: FxHashMap::default(),
