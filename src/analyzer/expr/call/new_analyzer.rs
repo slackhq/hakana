@@ -7,7 +7,7 @@ use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_str::StrId;
 use hakana_type::template::standin_type_replacer::get_most_specific_type_from_bounds;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use crate::expr::call_analyzer::{check_method_args, get_generic_param_for_offset};
 use crate::expression_analyzer;
@@ -660,7 +660,7 @@ fn add_dataflow<'a>(
 
         data_flow_graph.add_node(new_call_node.clone());
 
-        return_type_candidate.parent_nodes = FxHashSet::from_iter([new_call_node.clone()]);
+        return_type_candidate.parent_nodes = vec![new_call_node.clone()];
 
         if from_classname {
             let descendants = codebase.get_all_descendants(&method_id.0);
@@ -683,7 +683,7 @@ fn add_dataflow<'a>(
 
                 data_flow_graph.add_node(new_call_node.clone());
 
-                return_type_candidate.parent_nodes.insert(new_call_node);
+                return_type_candidate.parent_nodes.push(new_call_node);
             }
         }
     } else {
@@ -695,7 +695,7 @@ fn add_dataflow<'a>(
 
         data_flow_graph.add_node(new_call_node.clone());
 
-        return_type_candidate.parent_nodes = FxHashSet::from_iter([new_call_node.clone()]);
+        return_type_candidate.parent_nodes = vec![new_call_node.clone()];
     }
 
     return_type_candidate

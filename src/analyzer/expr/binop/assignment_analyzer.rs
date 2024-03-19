@@ -195,7 +195,7 @@ pub(crate) fn analyze(
                 .data_flow_graph
                 .add_node(assignment_node.clone());
 
-            assign_value_type.parent_nodes.insert(assignment_node);
+            assign_value_type.parent_nodes.push(assignment_node);
 
             if !context.inside_assignment_op && !var_id.starts_with("$_") {
                 if let Some((start_offset, end_offset)) = context.for_loop_init_bounds {
@@ -210,7 +210,7 @@ pub(crate) fn analyze(
 
                     analysis_data.data_flow_graph.add_node(for_node.clone());
 
-                    assign_value_type.parent_nodes.insert(for_node);
+                    assign_value_type.parent_nodes.push(for_node);
                 }
             }
         };
@@ -551,12 +551,11 @@ pub(crate) fn add_dataflow_to_assignment(
     }
 
     let parent_nodes = &assignment_type.parent_nodes;
-    let mut new_parent_nodes = FxHashSet::default();
 
     let new_parent_node =
         DataFlowNode::get_for_assignment(var_id.to_string(), statements_analyzer.get_hpos(var_pos));
     data_flow_graph.add_node(new_parent_node.clone());
-    new_parent_nodes.insert(new_parent_node.clone());
+    let new_parent_nodes = vec![new_parent_node.clone()];
 
     for parent_node in parent_nodes {
         data_flow_graph.add_path(

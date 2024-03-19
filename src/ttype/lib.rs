@@ -3,6 +3,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
+    data_flow::node::DataFlowNode,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
@@ -190,6 +191,15 @@ pub fn combine_optional_union_types(
     }
 }
 
+pub fn extend_dataflow_uniquely(
+    type_1_nodes: &mut Vec<DataFlowNode>,
+    type_2_nodes: Vec<DataFlowNode>,
+) {
+    type_1_nodes.extend(type_2_nodes);
+    type_1_nodes.sort_by(|a, b| a.id.cmp(&b.id));
+    type_1_nodes.dedup_by(|a, b| a.id.eq(&b.id));
+}
+
 pub fn combine_union_types(
     type_1: &TUnion,
     type_2: &TUnion,
@@ -241,9 +251,7 @@ pub fn combine_union_types(
             combined_type.parent_nodes.clone_from(&type_1.parent_nodes);
         } else {
             combined_type.parent_nodes.clone_from(&type_1.parent_nodes);
-            combined_type
-                .parent_nodes
-                .extend(type_2.parent_nodes.clone());
+            extend_dataflow_uniquely(&mut combined_type.parent_nodes, type_2.parent_nodes.clone());
         }
     }
 
@@ -286,9 +294,7 @@ pub fn add_union_type(
     }
 
     if !other_type.parent_nodes.is_empty() {
-        base_type
-            .parent_nodes
-            .extend(other_type.parent_nodes.clone());
+        extend_dataflow_uniquely(&mut base_type.parent_nodes, other_type.parent_nodes.clone());
     }
 
     base_type

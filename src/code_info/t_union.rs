@@ -9,13 +9,12 @@ use hakana_str::{Interner, StrId};
 use itertools::Itertools;
 use std::hash::{Hash, Hasher};
 
-use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, Derivative)]
 pub struct TUnion {
     pub types: Vec<TAtomic>,
-    pub parent_nodes: FxHashSet<DataFlowNode>,
+    pub parent_nodes: Vec<DataFlowNode>,
     pub had_template: bool,
 
     // Whether or not the data in this type could have references to it.
@@ -66,7 +65,7 @@ impl TUnion {
     pub fn new(types: Vec<TAtomic>) -> TUnion {
         TUnion {
             types,
-            parent_nodes: FxHashSet::default(),
+            parent_nodes: vec![],
             had_template: false,
             reference_free: false,
             possibly_undefined_from_try: false,

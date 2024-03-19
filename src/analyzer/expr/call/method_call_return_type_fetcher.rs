@@ -3,7 +3,7 @@ use std::rc::Rc;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_str::{Interner, StrId};
 use oxidized::{aast, ast_defs};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -343,7 +343,7 @@ fn add_dataflow(
 
                 let mut var_type_inner = (**var_type).clone();
 
-                var_type_inner.parent_nodes = FxHashSet::from_iter([after_construct_node.clone()]);
+                var_type_inner.parent_nodes = vec![after_construct_node.clone()];
 
                 data_flow_graph.add_node(after_construct_node);
 
@@ -401,7 +401,7 @@ fn add_dataflow(
 
                     let mut context_type_inner = (**context_type).clone();
 
-                    context_type_inner.parent_nodes = FxHashSet::from_iter([var_node.clone()]);
+                    context_type_inner.parent_nodes = vec![var_node.clone()];
 
                     *context_type = Rc::new(context_type_inner);
 
@@ -452,7 +452,7 @@ fn add_dataflow(
 
     data_flow_graph.add_node(method_call_node.clone());
 
-    return_type_candidate.parent_nodes = FxHashSet::from_iter([method_call_node.clone()]);
+    return_type_candidate.parent_nodes = vec![method_call_node.clone()];
 
     return_type_candidate
 }

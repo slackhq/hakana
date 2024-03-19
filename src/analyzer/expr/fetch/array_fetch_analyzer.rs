@@ -17,7 +17,6 @@ use hakana_type::{
     type_comparator::{type_comparison_result::TypeComparisonResult, union_type_comparator},
 };
 use oxidized::{aast, ast_defs::Pos};
-use rustc_hash::FxHashSet;
 
 use crate::{
     expr::expression_identifier, function_analysis_data::FunctionAnalysisData,
@@ -258,10 +257,10 @@ pub(crate) fn add_array_fetch_dataflow(
                 }
             }
 
-            value_type.parent_nodes.insert(new_parent_node.clone());
+            value_type.parent_nodes.push(new_parent_node.clone());
 
             if let Some(array_key_node) = &array_key_node {
-                key_type.parent_nodes.insert(array_key_node.clone());
+                key_type.parent_nodes.push(array_key_node.clone());
             }
         }
     }
@@ -999,7 +998,7 @@ pub(crate) fn handle_array_access_on_mixed(
             }
             if let Some(stmt_type) = stmt_type {
                 let mut stmt_type_new = stmt_type.clone();
-                stmt_type_new.parent_nodes = FxHashSet::from_iter([new_parent_node.clone()]);
+                stmt_type_new.parent_nodes = vec![new_parent_node.clone()];
             }
         }
     }

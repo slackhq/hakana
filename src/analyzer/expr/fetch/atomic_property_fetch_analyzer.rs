@@ -23,7 +23,7 @@ use hakana_type::{
 };
 use indexmap::IndexMap;
 use oxidized::{aast::Expr, ast_defs::Pos};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -437,7 +437,7 @@ fn add_property_dataflow(
                     );
                 }
 
-                stmt_type.parent_nodes.insert(property_node.clone());
+                stmt_type.parent_nodes.push(property_node.clone());
             }
         }
     } else {
@@ -467,9 +467,7 @@ fn add_property_dataflow(
         .data_flow_graph
         .add_node(localized_property_node.clone());
 
-    stmt_type
-        .parent_nodes
-        .insert(localized_property_node.clone());
+    stmt_type.parent_nodes.push(localized_property_node.clone());
 
     stmt_type
 }
@@ -528,7 +526,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
 
     let mut stmt_type = stmt_type.clone();
 
-    stmt_type.parent_nodes = FxHashSet::from_iter([localized_property_node.clone()]);
+    stmt_type.parent_nodes = vec![localized_property_node.clone()];
 
     stmt_type
 }

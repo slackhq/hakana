@@ -21,7 +21,7 @@ use oxidized::{
     aast,
     ast_defs::{self, Pos},
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
 use crate::stmt_analyzer::AnalysisError;
@@ -350,7 +350,7 @@ fn handle_shapes_static_method(
                             );
                         }
 
-                        new_type.parent_nodes = FxHashSet::from_iter([assignment_node.clone()]);
+                        new_type.parent_nodes = vec![assignment_node.clone()];
 
                         analysis_data.data_flow_graph.add_node(assignment_node);
 

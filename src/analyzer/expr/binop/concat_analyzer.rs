@@ -139,7 +139,7 @@ pub(crate) fn analyze_concat_nodes(
         get_string()
     };
 
-    result_type.parent_nodes.insert(decision_node.clone());
+    result_type.parent_nodes.push(decision_node.clone());
 
     analysis_data.data_flow_graph.add_node(decision_node);
 

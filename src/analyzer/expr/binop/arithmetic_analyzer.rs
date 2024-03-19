@@ -246,7 +246,7 @@ pub(crate) fn assign_arithmetic_type(
         lhs_expr.1.start_offset() as u32,
         lhs_expr.1.end_offset() as u32,
     )) {
-        cond_type.parent_nodes.insert(decision_node.clone());
+        cond_type.parent_nodes.push(decision_node.clone());
 
         for old_parent_node in &lhs_type.parent_nodes {
             analysis_data.data_flow_graph.add_path(
@@ -263,7 +263,7 @@ pub(crate) fn assign_arithmetic_type(
         rhs_expr.1.start_offset() as u32,
         rhs_expr.1.end_offset() as u32,
     )) {
-        cond_type.parent_nodes.insert(decision_node.clone());
+        cond_type.parent_nodes.push(decision_node.clone());
 
         for old_parent_node in &rhs_type.parent_nodes {
             analysis_data.data_flow_graph.add_path(

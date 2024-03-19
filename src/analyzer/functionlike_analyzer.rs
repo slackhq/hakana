@@ -36,7 +36,6 @@ use hakana_type::{
 use itertools::Itertools;
 use oxidized::aast;
 use oxidized::ast_defs::Pos;
-use rustc_hash::FxHashSet;
 
 use std::rc::Rc;
 
@@ -316,7 +315,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         statements_analyzer.get_interner(),
                     );
 
-                    this_type.parent_nodes = FxHashSet::from_iter([new_call_node]);
+                    this_type.parent_nodes = vec![new_call_node];
                 }
             }
 
@@ -1143,7 +1142,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 analysis_data.data_flow_graph.add_node(argument_node);
             }
 
-            param_type.parent_nodes.insert(new_parent_node);
+            param_type.parent_nodes.push(new_parent_node);
 
             let config = statements_analyzer.get_config();
 

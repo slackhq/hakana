@@ -851,7 +851,7 @@ fn add_dataflow(
         }
     }
 
-    stmt_type.parent_nodes.insert(function_call_node);
+    stmt_type.parent_nodes.push(function_call_node);
 
     stmt_type
 }

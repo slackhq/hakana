@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, rc::Rc};
 use hakana_algebra::Clause;
 
 use hakana_reflection_info::t_union::TUnion;
-use hakana_type::combine_union_types;
+use hakana_type::{combine_union_types, extend_dataflow_uniquely};
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -503,10 +503,14 @@ pub(crate) fn analyze<'a>(
                 loop_parent_context.vars_in_scope.get_mut(var_id)
             {
                 if loop_parent_context_type != loop_context_type {
-                    *loop_parent_context_type = Rc::new(combine_parent_nodes(
-                        loop_context_type,
-                        loop_parent_context_type,
-                    ));
+                    *loop_parent_context_type = Rc::new({
+                        let mut first = (**loop_context_type).clone();
+                        extend_dataflow_uniquely(
+                            &mut first.parent_nodes,
+                            loop_parent_context_type.parent_nodes.clone(),
+                        );
+                        first
+                    });
                 }
             }
         }
@@ -516,8 +520,15 @@ pub(crate) fn analyze<'a>(
         for (var_id, var_type) in loop_parent_context.vars_in_scope.clone() {
             if let Some(continue_context_type) = continue_context.vars_in_scope.get_mut(&var_id) {
                 if continue_context_type.is_mixed() {
-                    *continue_context_type =
-                        Rc::new(combine_parent_nodes(continue_context_type, &var_type));
+                    *continue_context_type = Rc::new({
+                        let second: &TUnion = &var_type;
+                        let mut first = (**continue_context_type).clone();
+                        extend_dataflow_uniquely(
+                            &mut first.parent_nodes,
+                            second.parent_nodes.clone(),
+                        );
+                        first
+                    });
 
                     loop_parent_context
                         .vars_in_scope
@@ -547,10 +558,14 @@ pub(crate) fn analyze<'a>(
                 } else if let Some(loop_parent_context_type) =
                     loop_parent_context.vars_in_scope.get_mut(&var_id)
                 {
-                    *loop_parent_context_type = Rc::new(combine_parent_nodes(
-                        continue_context_type,
-                        loop_parent_context_type,
-                    ));
+                    *loop_parent_context_type = Rc::new({
+                        let mut first = (**continue_context_type).clone();
+                        extend_dataflow_uniquely(
+                            &mut first.parent_nodes,
+                            loop_parent_context_type.parent_nodes.clone(),
+                        );
+                        first
+                    });
                 }
             } else {
                 loop_parent_context.vars_in_scope.remove(&var_id);
@@ -673,12 +688,6 @@ fn get_assignment_map_depth(
     }
 
     max_depth
-}
-
-fn combine_parent_nodes(first: &TUnion, second: &TUnion) -> TUnion {
-    let mut first = first.clone();
-    first.parent_nodes.extend(second.parent_nodes.clone());
-    first
 }
 
 fn apply_pre_condition_to_loop_context(

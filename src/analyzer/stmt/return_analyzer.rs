@@ -3,7 +3,6 @@ use std::rc::Rc;
 use crate::scope_context::ScopeContext;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
-use hakana_str::StrId;
 use hakana_reflection_info::{
     data_flow::{
         graph::{DataFlowGraph, GraphKind},
@@ -15,7 +14,8 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_type::combine_union_types;
+use hakana_str::StrId;
+use hakana_type::{combine_union_types, extend_dataflow_uniquely};
 use hakana_type::{
     get_mixed_any, get_null, get_void,
     type_comparator::type_comparison_result::TypeComparisonResult,
@@ -146,7 +146,7 @@ pub(crate) fn analyze(
             extra_types: None,
             remapped_params: false,
         });
-        inferred_return_type.parent_nodes.extend(parent_nodes);
+        extend_dataflow_uniquely(&mut inferred_return_type.parent_nodes, parent_nodes);
     }
 
     if return_expr.is_some() {

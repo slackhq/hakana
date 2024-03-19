@@ -30,7 +30,7 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
-    let mut parent_nodes = FxHashSet::default();
+    let mut parent_nodes = vec![];
 
     let mut effects = 0;
 
@@ -151,7 +151,7 @@ pub(crate) fn analyze(
                 },
                 value_expr,
             ) {
-                parent_nodes.insert(new_parent_node);
+                parent_nodes.push(new_parent_node);
             }
 
             known_items.insert(name, (false, Arc::new(value_item_type)));

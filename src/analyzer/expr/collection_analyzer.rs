@@ -18,7 +18,6 @@ use oxidized::{
     ast_defs::Pos,
     tast::{KvcKind, VcKind},
 };
-use rustc_hash::FxHashSet;
 
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
@@ -29,7 +28,7 @@ pub(crate) struct ArrayCreationInfo {
     item_key_atomic_types: Vec<TAtomic>,
     item_value_atomic_types: Vec<TAtomic>,
     known_items: Vec<(TAtomic, TUnion)>,
-    parent_nodes: FxHashSet<DataFlowNode>,
+    parent_nodes: Vec<DataFlowNode>,
     effects: u8,
 }
 
@@ -38,7 +37,7 @@ impl ArrayCreationInfo {
         Self {
             item_key_atomic_types: Vec::new(),
             item_value_atomic_types: Vec::new(),
-            parent_nodes: FxHashSet::default(),
+            parent_nodes: Vec::new(),
             known_items: Vec::new(),
             effects: 0,
         }
@@ -529,7 +528,7 @@ fn add_array_value_dataflow(
         );
     }
 
-    array_creation_info.parent_nodes.insert(new_parent_node);
+    array_creation_info.parent_nodes.push(new_parent_node);
 }
 
 fn add_array_key_dataflow(
@@ -590,5 +589,5 @@ fn add_array_key_dataflow(
         );
     }
 
-    array_creation_info.parent_nodes.insert(new_parent_node);
+    array_creation_info.parent_nodes.push(new_parent_node);
 }

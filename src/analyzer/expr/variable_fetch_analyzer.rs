@@ -119,7 +119,7 @@ pub(crate) fn get_type_for_superglobal(
 
             analysis_data.data_flow_graph.add_node(taint_source.clone());
 
-            var_type.parent_nodes.insert(taint_source);
+            var_type.parent_nodes.push(taint_source);
 
             var_type
         }
@@ -160,7 +160,7 @@ fn add_dataflow_to_variable(
         let mut parent_nodes = stmt_type.parent_nodes.clone();
 
         if parent_nodes.is_empty() {
-            parent_nodes.insert(assignment_node);
+            parent_nodes.push(assignment_node);
         } else {
             for parent_node in &parent_nodes {
                 data_flow_graph.add_path(

@@ -37,8 +37,8 @@ use hakana_reflector::simple_type_inferer::int_from_string;
 use hakana_str::StrId;
 use hakana_type::type_expander::get_closure_from_id;
 use hakana_type::{
-    get_bool, get_false, get_float, get_int, get_literal_int, get_literal_string, get_mixed_any,
-    get_null, get_true, wrap_atomic,
+    extend_dataflow_uniquely, get_bool, get_false, get_float, get_int, get_literal_int,
+    get_literal_string, get_mixed_any, get_null, get_true, wrap_atomic,
 };
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
@@ -426,9 +426,10 @@ pub(crate) fn analyze(
                 {
                     if type_params.len() == 1 {
                         let inside_type = type_params.first().unwrap().clone();
-                        awaited_stmt_type
-                            .parent_nodes
-                            .extend(inside_type.parent_nodes);
+                        extend_dataflow_uniquely(
+                            &mut awaited_stmt_type.parent_nodes,
+                            inside_type.parent_nodes,
+                        );
                         new_types.extend(inside_type.types);
                     } else {
                         new_types.push(atomic_type);
@@ -889,7 +890,7 @@ pub(crate) fn add_decision_dataflow(
         lhs_expr.1.start_offset() as u32,
         lhs_expr.1.end_offset() as u32,
     )) {
-        cond_type.parent_nodes.insert(decision_node.clone());
+        cond_type.parent_nodes.push(decision_node.clone());
 
         for old_parent_node in &lhs_type.parent_nodes {
             analysis_data.data_flow_graph.add_path(
@@ -907,7 +908,7 @@ pub(crate) fn add_decision_dataflow(
             rhs_expr.1.start_offset() as u32,
             rhs_expr.1.end_offset() as u32,
         )) {
-            cond_type.parent_nodes.insert(decision_node.clone());
+            cond_type.parent_nodes.push(decision_node.clone());
 
             for old_parent_node in &rhs_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(

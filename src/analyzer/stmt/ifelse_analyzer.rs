@@ -10,7 +10,7 @@ use hakana_reflection_info::{
     analysis_result::Replacement, issue::IssueKind, EFFECT_PURE, EFFECT_READ_GLOBALS,
     EFFECT_READ_PROPS,
 };
-use hakana_type::combine_union_types;
+use hakana_type::{combine_union_types, extend_dataflow_uniquely};
 use oxidized::{aast, ast::Uop, ast_defs::Pos};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{collections::BTreeMap, rc::Rc};
@@ -362,7 +362,10 @@ pub(crate) fn analyze(
                 context.vars_in_scope.insert(var_id, Rc::new(combined_type));
             } else {
                 let mut existing_var_type = (**existing_var_type).clone();
-                existing_var_type.parent_nodes.extend(var_type.parent_nodes);
+                extend_dataflow_uniquely(
+                    &mut existing_var_type.parent_nodes,
+                    var_type.parent_nodes,
+                );
                 context
                     .vars_in_scope
                     .insert(var_id, Rc::new(existing_var_type));

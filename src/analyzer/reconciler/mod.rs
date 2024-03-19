@@ -103,7 +103,7 @@ pub(crate) fn reconcile_keyed_types(
                                 let mut existing_var_type_inner = (**existing_var_type).clone();
 
                                 existing_var_type_inner.parent_nodes =
-                                    FxHashSet::from_iter([new_parent_node.clone()]);
+                                    vec![new_parent_node.clone()];
 
                                 *existing_var_type = Rc::new(existing_var_type_inner);
 
@@ -258,7 +258,7 @@ pub(crate) fn reconcile_keyed_types(
                         );
                     }
 
-                    result_type.parent_nodes = FxHashSet::from_iter([scalar_check_node.clone()]);
+                    result_type.parent_nodes = vec![scalar_check_node.clone()];
 
                     analysis_data.data_flow_graph.add_node(scalar_check_node);
                 } else {
@@ -293,7 +293,7 @@ pub(crate) fn reconcile_keyed_types(
                             );
                         }
 
-                        result_type.parent_nodes = FxHashSet::from_iter([narrowing_node.clone()]);
+                        result_type.parent_nodes = vec![narrowing_node.clone()];
 
                         analysis_data.data_flow_graph.add_node(narrowing_node);
                     } else {

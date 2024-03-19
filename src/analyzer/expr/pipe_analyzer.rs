@@ -39,7 +39,7 @@ pub(crate) fn analyze(
             false,
         );
 
-        pipe_expr_type.parent_nodes.insert(parent_node.clone());
+        pipe_expr_type.parent_nodes.push(parent_node.clone());
         analysis_data.data_flow_graph.add_node(parent_node);
     }
 

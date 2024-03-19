@@ -22,7 +22,7 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
-use crate::{get_nothing, template, type_combiner, wrap_atomic};
+use crate::{extend_dataflow_uniquely, get_nothing, template, type_combiner, wrap_atomic};
 
 #[derive(Debug)]
 pub enum StaticClassType<'a, 'b> {
@@ -113,7 +113,7 @@ pub fn expand_union(
         }
     }
 
-    return_type.parent_nodes.extend(extra_data_flow_nodes);
+    extend_dataflow_uniquely(&mut return_type.parent_nodes, extra_data_flow_nodes);
 }
 
 fn expand_atomic(

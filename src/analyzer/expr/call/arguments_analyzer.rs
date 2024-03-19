@@ -7,7 +7,7 @@ use hakana_reflection_info::EFFECT_WRITE_LOCAL;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
 use hakana_str::{Interner, StrId};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use crate::expr::binop::assignment_analyzer;
 use crate::expr::call_analyzer::get_generic_param_for_offset;
@@ -33,7 +33,8 @@ use hakana_type::template::{
 };
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{
-    add_optional_union_type, combine_optional_union_types, get_arraykey, get_mixed_any, wrap_atomic,
+    add_optional_union_type, combine_optional_union_types, extend_dataflow_uniquely, get_arraykey,
+    get_mixed_any, wrap_atomic,
 };
 use indexmap::IndexMap;
 use oxidized::ast_defs::ParamKind;
@@ -1055,13 +1056,11 @@ fn handle_possibly_matching_inout_param(
             Some(statements_analyzer.get_hpos(function_call_pos)),
         );
 
-        inout_type.parent_nodes = FxHashSet::from_iter([out_node.clone()]);
+        inout_type.parent_nodes = vec![out_node.clone()];
 
         analysis_data.data_flow_graph.add_node(out_node);
     } else {
-        inout_type
-            .parent_nodes
-            .extend(arg_type.parent_nodes.clone());
+        extend_dataflow_uniquely(&mut inout_type.parent_nodes, arg_type.parent_nodes.clone());
     }
 
     assignment_analyzer::analyze_inout_param(

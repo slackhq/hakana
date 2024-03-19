@@ -682,7 +682,13 @@ fn add_instance_property_assignment_dataflow(
     if let Some(stmt_var_type) = stmt_var_type {
         let mut stmt_type_inner = (**stmt_var_type).clone();
 
-        stmt_type_inner.parent_nodes.insert(var_node.clone());
+        if !stmt_type_inner
+            .parent_nodes
+            .iter()
+            .any(|n| &n.id == &var_node.id)
+        {
+            stmt_type_inner.parent_nodes.push(var_node.clone());
+        }
 
         *stmt_var_type = Rc::new(stmt_type_inner);
     }

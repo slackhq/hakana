@@ -14,7 +14,6 @@ use hakana_reflection_info::{
 };
 use hakana_type::{get_mixed_any, get_nothing, wrap_atomic};
 use oxidized::{aast, ast_defs::Pos};
-use rustc_hash::FxHashSet;
 
 use std::collections::BTreeMap;
 
@@ -25,7 +24,7 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> Result<(), AnalysisError> {
-    let mut parent_nodes = FxHashSet::default();
+    let mut parent_nodes = vec![];
 
     let mut known_items = BTreeMap::new();
     for (i, value_expr) in tuple_fields.iter().enumerate() {
@@ -50,7 +49,7 @@ pub(crate) fn analyze(
             i,
             value_expr,
         ) {
-            parent_nodes.insert(new_parent_node);
+            parent_nodes.push(new_parent_node);
         }
 
         known_items.insert(i, (false, value_item_type));
