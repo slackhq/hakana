@@ -786,27 +786,27 @@ fn handle_closure_arg(
         ) || !statements_analyzer.get_config().in_migration
         {
             if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
-                match statements_analyzer.get_interner().lookup(function_name) {
-                    "HH\\Lib\\Vec\\map"
-                    | "HH\\Lib\\Dict\\map"
-                    | "HH\\Lib\\Keyset\\map"
-                    | "HH\\Lib\\Vec\\map_async"
-                    | "HH\\Lib\\Dict\\map_async"
-                    | "HH\\Lib\\Keyset\\map_async"
-                    | "HH\\Lib\\Vec\\filter"
-                    | "HH\\Lib\\Dict\\filter"
-                    | "HH\\Lib\\Keyset\\filter"
-                    | "HH\\Lib\\Vec\\take"
-                    | "HH\\Lib\\Dict\\take"
-                    | "HH\\Lib\\Keyset\\take"
-                    | "HH\\Lib\\C\\find"
-                    | "HH\\Lib\\C\\findx"
-                    | "HH\\Lib\\Vec\\map_with_key"
-                    | "HH\\Lib\\Dict\\map_with_key"
-                    | "HH\\Lib\\Keyset\\map_with_key"
-                    | "HH\\Lib\\Dict\\map_with_key_async"
-                    | "HH\\Lib\\Dict\\from_keys"
-                    | "HH\\Lib\\Dict\\from_keys_async" => {
+                match *function_name {
+                    StrId::LIB_VEC_MAP
+                    | StrId::LIB_DICT_MAP
+                    | StrId::LIB_KEYSET_MAP
+                    | StrId::LIB_VEC_MAP_ASYNC
+                    | StrId::LIB_DICT_MAP_ASYNC
+                    | StrId::LIB_KEYSET_MAP_ASYNC
+                    | StrId::LIB_VEC_FILTER
+                    | StrId::LIB_DICT_FILTER
+                    | StrId::LIB_KEYSET_FILTER
+                    | StrId::LIB_VEC_TAKE
+                    | StrId::LIB_DICT_TAKE
+                    | StrId::LIB_KEYSET_TAKE
+                    | StrId::LIB_C_FIND
+                    | StrId::LIB_C_FINDX
+                    | StrId::LIB_VEC_MAP_WITH_KEY
+                    | StrId::LIB_DICT_MAP_WITH_KEY
+                    | StrId::LIB_KEYSET_MAP_WITH_KEY
+                    | StrId::LIB_DICT_MAP_WITH_KEY_ASYNC
+                    | StrId::LIB_DICT_FROM_KEYS
+                    | StrId::LIB_DICT_FROM_KEYS_ASYNC => {                
                         if param_offset == 0 {
                             if let Some(ref mut signature_type) = param_storage.signature_type {
                                 add_array_fetch_dataflow(
