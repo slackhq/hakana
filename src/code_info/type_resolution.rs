@@ -10,7 +10,7 @@ use crate::t_union::TUnion;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TypeResolutionContext {
-    pub template_type_map: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    pub template_type_map: Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
     pub template_supers: FxHashMap<StrId, TUnion>,
 }
 
@@ -23,7 +23,7 @@ impl Default for TypeResolutionContext {
 impl TypeResolutionContext {
     pub fn new() -> Self {
         Self {
-            template_type_map: IndexMap::new(),
+            template_type_map: vec![],
             template_supers: FxHashMap::default(),
         }
     }

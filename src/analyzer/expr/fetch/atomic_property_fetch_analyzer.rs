@@ -255,7 +255,7 @@ fn get_class_property_type(
                 let mut type_params = vec![];
 
                 for (_, type_map) in &declaring_class_storage.template_types {
-                    type_params.push((**type_map.iter().next().unwrap().1).clone());
+                    type_params.push((*type_map.iter().next().unwrap().1).clone());
                 }
 
                 lhs_type_part = TAtomic::TNamedObject {
@@ -353,7 +353,11 @@ pub(crate) fn localize_property_type(
                     if let TAtomic::TGenericParam { param_name, .. } = &mapped_type_atomic {
                         let position = property_class_storage
                             .template_types
-                            .get_index_of(param_name);
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, (k, _))| k == param_name)
+                            .map(|(i, _)| i)
+                            .next();
 
                         if let Some(position) = position {
                             if let Some(mapped_param) = lhs_type_params.get(position) {

@@ -50,7 +50,10 @@ pub(crate) fn find_unused_definitions(
 
             if !referenced_symbols_and_members.contains(&functionlike_name) {
                 if let Some(suppressed_issues) = &functionlike_info.suppressed_issues {
-                    if suppressed_issues.contains_key(&IssueKind::UnusedFunction) {
+                    if suppressed_issues
+                        .iter()
+                        .any(|(i, _)| i == &IssueKind::UnusedFunction)
+                    {
                         continue;
                     }
                 }
@@ -228,7 +231,10 @@ pub(crate) fn find_unused_definitions(
                         let method_storage = functionlike_storage.method_info.as_ref().unwrap();
 
                         if let Some(suppressed_issues) = &functionlike_storage.suppressed_issues {
-                            if suppressed_issues.contains_key(&IssueKind::UnusedPrivateMethod) {
+                            if suppressed_issues
+                                .iter()
+                                .any(|(i, _)| i == &IssueKind::UnusedPrivateMethod)
+                            {
                                 continue;
                             }
                         }

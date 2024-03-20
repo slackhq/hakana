@@ -93,7 +93,7 @@ pub fn populate_codebase(
         }
 
         for (_, map) in storage.template_types.iter_mut() {
-            for v in map.values_mut() {
+            for (_, v) in map {
                 if v.needs_population() || userland_force_repopulation {
                     populate_union_type(
                         Arc::make_mut(v),
@@ -304,7 +304,7 @@ fn populate_functionlike_storage(
     }
 
     for (_, type_param_map) in storage.template_types.iter_mut() {
-        for v in type_param_map.values_mut() {
+        for (_, v) in type_param_map {
             if force_type_population || v.needs_population() {
                 populate_union_type(
                     Arc::make_mut(v),
@@ -920,8 +920,11 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
 
         if let Some(parent_offsets) = storage.template_extended_offsets.get(&parent_storage.name) {
             for (i, extended_type) in parent_offsets.iter().enumerate() {
-                let parent_template_type_names =
-                    parent_storage.template_types.keys().collect::<Vec<_>>();
+                let parent_template_type_names = parent_storage
+                    .template_types
+                    .iter()
+                    .map(|(k, _)| k)
+                    .collect::<Vec<_>>();
 
                 let mapped_name = parent_template_type_names.get(i).cloned();
 
@@ -946,7 +949,7 @@ fn extend_template_params(storage: &mut ClassLikeInfo, parent_storage: &ClassLik
             }
         } else {
             for (template_name, template_type_map) in &parent_storage.template_types {
-                for template_type in template_type_map.values() {
+                for (_, template_type) in template_type_map {
                     storage
                         .template_extended_params
                         .entry(parent_storage.name)

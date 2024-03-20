@@ -334,7 +334,7 @@ fn expand_atomic(
 
                 for (i, (k, v)) in (&type_definition.template_types).into_iter().enumerate() {
                     let mut h = FxHashMap::default();
-                    for kk in v.keys() {
+                    for (kk, _) in v {
                         h.insert(*kk, type_params.get(i).unwrap().clone());
                     }
 
@@ -433,7 +433,7 @@ fn expand_atomic(
 
                 for (i, (k, v)) in (&type_definition.template_types).into_iter().enumerate() {
                     let mut h = FxHashMap::default();
-                    for kk in v.keys() {
+                    for (kk, _) in v {
                         h.insert(
                             *kk,
                             if let Some(t) = type_params.get(i) {

@@ -480,6 +480,9 @@ pub fn scan_files(
 
         codebase.functionlike_infos.shrink_to_fit();
         codebase.classlike_infos.shrink_to_fit();
+        codebase.type_definitions.shrink_to_fit();
+        codebase.constant_infos.shrink_to_fit();
+        codebase.files.shrink_to_fit();
     }
 
     Ok(ScanFilesResult {

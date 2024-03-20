@@ -28,7 +28,7 @@ pub mod standin_type_replacer;
  */
 #[derive(Clone, Debug)]
 pub struct TemplateResult {
-    pub template_types: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    pub template_types: IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
     pub lower_bounds: IndexMap<StrId, FxHashMap<StrId, Vec<TemplateBound>>>,
     pub upper_bounds: IndexMap<StrId, FxHashMap<StrId, TemplateBound>>,
     /**
@@ -40,7 +40,7 @@ pub struct TemplateResult {
 
 impl TemplateResult {
     pub fn new(
-        template_types: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+        template_types: IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
         lower_bounds: IndexMap<StrId, FxHashMap<StrId, TUnion>>,
     ) -> TemplateResult {
         let mut new_lower_bounds = IndexMap::new();

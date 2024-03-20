@@ -156,13 +156,17 @@ pub(crate) fn check_arguments_match(
             if lower_bounds.len() == 1 {
                 class_generic_params
                     .entry(*template_name)
-                    .or_insert_with(FxHashMap::default)
-                    .insert(
+                    .or_insert_with(Vec::new)
+                    .push((
                         *class,
                         Arc::new(lower_bounds.first().unwrap().bound_type.clone()),
-                    );
+                    ));
             }
         }
+    }
+
+    for tt in &functionlike_info.template_types {
+        println!("{}", statements_analyzer.get_interner().lookup(&tt.0));
     }
 
     refine_template_result_for_functionlike(
@@ -520,7 +524,7 @@ pub(crate) fn check_arguments_match(
 }
 
 fn adjust_param_type(
-    class_generic_params: &IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    class_generic_params: &IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
     mut arg_value_type: TUnion,
@@ -636,6 +640,7 @@ fn get_param_type(
     if let Some(param) = param {
         if let Some(param_type) = &param.signature_type {
             let mut param_type = param_type.clone();
+            println!("{:#?}", param_type);
 
             type_expander::expand_union(
                 codebase,
@@ -712,10 +717,10 @@ fn handle_closure_arg(
                                 )),
                             )
                         })
-                        .collect::<FxHashMap<_, _>>(),
+                        .collect::<Vec<_>>(),
                 )
             })
-            .collect::<IndexMap<_, _>>(),
+            .collect(),
         IndexMap::new(),
     );
 
@@ -833,7 +838,7 @@ fn handle_closure_arg(
 }
 
 fn map_class_generic_params(
-    class_generic_params: &IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    class_generic_params: &IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
     interner: &Interner,
@@ -1083,7 +1088,7 @@ fn refine_template_result_for_functionlike(
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     functionlike_storage: &FunctionLikeInfo,
-    class_template_params: &IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    class_template_params: &IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
 ) {
     let template_types = get_template_types_for_call(
         codebase,
@@ -1117,10 +1122,11 @@ pub(crate) fn get_template_types_for_call(
     declaring_classlike_storage: Option<&ClassLikeInfo>,
     appearing_class_name: Option<&StrId>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
-    existing_template_types: &IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
-    class_template_params: &IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    existing_template_types: &Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
+    class_template_params: &IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
 ) -> IndexMap<StrId, FxHashMap<StrId, TUnion>> {
-    let mut template_types = existing_template_types.clone();
+    let mut template_types: IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>> =
+        IndexMap::from_iter(existing_template_types.clone());
 
     if let Some(declaring_classlike_storage) = declaring_classlike_storage {
         let calling_has_extends = if let Some(calling_classlike_storage) = calling_classlike_storage
@@ -1177,8 +1183,8 @@ pub(crate) fn get_template_types_for_call(
 
                         template_types
                             .entry(*template_name)
-                            .or_insert_with(FxHashMap::default)
-                            .insert(declaring_classlike_storage.name, output_type);
+                            .or_insert_with(Vec::new)
+                            .push((declaring_classlike_storage.name, output_type));
                     }
                 }
             }
@@ -1187,16 +1193,19 @@ pub(crate) fn get_template_types_for_call(
                 for (key, type_) in type_map {
                     template_types
                         .entry(*template_name)
-                        .or_insert_with(FxHashMap::default)
-                        .insert(
+                        .or_insert_with(Vec::new)
+                        .push((
                             *key,
                             class_template_params
                                 .get(template_name)
-                                .unwrap_or(&FxHashMap::default())
-                                .get(key)
+                                .unwrap_or(&vec![])
+                                .iter()
+                                .filter(|(k, _)| k == key)
+                                .map(|(_, v)| v)
+                                .next()
                                 .cloned()
                                 .unwrap_or(type_.clone()),
-                        );
+                        ));
                 }
             }
         }

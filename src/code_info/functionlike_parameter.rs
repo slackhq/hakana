@@ -1,5 +1,3 @@
-use rustc_hash::FxHashMap;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -58,7 +56,7 @@ pub struct FunctionLikeParameter {
 
     pub attributes: Vec<AttributeInfo>,
 
-    pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
+    pub suppressed_issues: Option<Vec<(IssueKind, HPos)>>,
 }
 
 impl FunctionLikeParameter {
