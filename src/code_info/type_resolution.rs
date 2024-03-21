@@ -5,11 +5,11 @@ use rustc_hash::FxHashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::t_union::TUnion;
+use crate::{t_union::TUnion, GenericParent};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TypeResolutionContext {
-    pub template_type_map: Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
+    pub template_type_map: Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
     pub template_supers: FxHashMap<StrId, TUnion>,
 }
 

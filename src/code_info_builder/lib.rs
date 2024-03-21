@@ -7,13 +7,13 @@ use hakana_reflection_info::attribute_info::AttributeInfo;
 use hakana_reflection_info::file_info::FileInfo;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::FileSource;
 use hakana_reflection_info::{
     ast_signature::DefSignatureNode, class_constant_info::ConstantInfo, classlike_info::Variance,
     code_location::HPos, codebase_info::CodebaseInfo, t_atomic::TAtomic,
     taint::string_to_source_types, type_definition_info::TypeDefinitionInfo,
     type_resolution::TypeResolutionContext,
 };
+use hakana_reflection_info::{FileSource, GenericParent};
 use hakana_str::{StrId, ThreadedInterner};
 use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
 use no_pos_hash::{position_insensitive_hash, Hasher};
@@ -213,9 +213,13 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 .resolved_names
                 .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
-            type_context
-                .template_type_map
-                .push((*param_name, vec![(type_name, Arc::new(get_mixed_any()))]));
+            type_context.template_type_map.push((
+                *param_name,
+                vec![(
+                    GenericParent::TypeDefinition(type_name),
+                    Arc::new(get_mixed_any()),
+                )],
+            ));
         }
 
         for (i, param) in typedef.tparams.iter().enumerate() {
@@ -236,8 +240,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             };
 
             let h = vec![(
-                self.interner
-                    .intern("typedef-".to_string() + &type_name.0.to_string()),
+                GenericParent::TypeDefinition(type_name),
                 Arc::new(constraint_type.clone()),
             )];
 

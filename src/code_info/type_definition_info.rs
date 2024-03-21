@@ -12,6 +12,7 @@ use crate::{
     t_atomic::DictKey,
     t_union::TUnion,
     taint::SourceType,
+    GenericParent,
 };
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -29,7 +30,7 @@ pub struct TypeDefinitionInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
+    pub template_types: Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
 
     pub generic_variance: FxHashMap<usize, Variance>,
 

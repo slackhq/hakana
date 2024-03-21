@@ -2,6 +2,7 @@ use crate::code_location::FilePath;
 use crate::functionlike_identifier::FunctionLikeIdentifier;
 use crate::functionlike_parameter::FnParameter;
 use crate::symbol_references::{ReferenceSource, SymbolReferences};
+use crate::GenericParent;
 use crate::{
     codebase_info::{symbols::SymbolKind, Symbols},
     t_union::{populate_union_type, HasTypeNodes, TUnion, TypeNode},
@@ -115,18 +116,17 @@ pub enum TAtomic {
     TGenericParam {
         param_name: StrId,
         as_type: Box<TUnion>,
-        defining_entity: StrId,
-        from_class: bool,
+        defining_entity: GenericParent,
         extra_types: Option<Vec<TAtomic>>,
     },
     TGenericClassname {
         param_name: StrId,
-        defining_entity: StrId,
+        defining_entity: GenericParent,
         as_type: Box<TAtomic>,
     },
     TGenericTypename {
         param_name: StrId,
-        defining_entity: StrId,
+        defining_entity: GenericParent,
         as_type: Box<TAtomic>,
     },
     TTypeVariable {
@@ -533,11 +533,7 @@ impl TAtomic {
                     str += param_name.0.to_string().as_str();
                 };
                 str += ":";
-                if let Some(interner) = interner {
-                    str += interner.lookup(defining_entity);
-                } else {
-                    str += defining_entity.0.to_string().as_str();
-                }
+                str += &defining_entity.to_string(interner);
                 str
             }
             TAtomic::TGenericClassname {
@@ -553,11 +549,7 @@ impl TAtomic {
                     str += param_name.0.to_string().as_str();
                 }
                 str += ":";
-                if let Some(interner) = interner {
-                    str += interner.lookup(defining_entity);
-                } else {
-                    str += defining_entity.0.to_string().as_str();
-                }
+                str += &defining_entity.to_string(interner);
                 str += ">";
                 str
             }
@@ -574,11 +566,7 @@ impl TAtomic {
                     str += param_name.0.to_string().as_str();
                 }
                 str += ":";
-                if let Some(interner) = interner {
-                    str += interner.lookup(defining_entity);
-                } else {
-                    str += defining_entity.0.to_string().as_str();
-                }
+                str += &defining_entity.to_string(interner);
                 str += ">";
                 str
             }
@@ -773,7 +761,7 @@ impl TAtomic {
                 let mut str = String::new();
                 str += param_name.0.to_string().as_str();
                 str += ":";
-                str += defining_entity.0.to_string().as_str();
+                str += &defining_entity.to_string(None);
                 str
             }
             TAtomic::TGenericClassname {
@@ -785,7 +773,7 @@ impl TAtomic {
                 str += "classname<";
                 str += param_name.0.to_string().as_str();
                 str += ":";
-                str += defining_entity.0.to_string().as_str();
+                str += &defining_entity.to_string(None);
                 str += ">";
                 str
             }
@@ -798,7 +786,7 @@ impl TAtomic {
                 str += "typename<";
                 str += param_name.0.to_string().as_str();
                 str += ":";
-                str += defining_entity.0.to_string().as_str();
+                str += &defining_entity.to_string(None);
                 str += ">";
                 str
             }
@@ -1020,7 +1008,6 @@ impl TAtomic {
             param_name,
             defining_entity,
             extra_types,
-            from_class,
             ..
         } = self
         {
@@ -1029,7 +1016,6 @@ impl TAtomic {
                 param_name: *param_name,
                 defining_entity: *defining_entity,
                 extra_types: extra_types.clone(),
-                from_class: *from_class,
             };
         }
 

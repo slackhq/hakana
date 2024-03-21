@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
-use hakana_reflection_info::EFFECT_WRITE_LOCAL;
+use hakana_reflection_info::{GenericParent, EFFECT_WRITE_LOCAL};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
@@ -520,7 +520,7 @@ pub(crate) fn check_arguments_match(
 }
 
 fn adjust_param_type(
-    class_generic_params: &IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
+    class_generic_params: &IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
     mut arg_value_type: TUnion,
@@ -833,7 +833,7 @@ fn handle_closure_arg(
 }
 
 fn map_class_generic_params(
-    class_generic_params: &IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
+    class_generic_params: &IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
     param_type: &mut TUnion,
     codebase: &CodebaseInfo,
     interner: &Interner,
@@ -1083,7 +1083,7 @@ fn refine_template_result_for_functionlike(
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     functionlike_storage: &FunctionLikeInfo,
-    class_template_params: &IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
+    class_template_params: &IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
 ) {
     let template_types = get_template_types_for_call(
         codebase,
@@ -1117,10 +1117,10 @@ pub(crate) fn get_template_types_for_call(
     declaring_classlike_storage: Option<&ClassLikeInfo>,
     appearing_class_name: Option<&StrId>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
-    existing_template_types: &[(StrId, Vec<(StrId, Arc<TUnion>)>)],
-    class_template_params: &IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
-) -> IndexMap<StrId, FxHashMap<StrId, TUnion>> {
-    let mut template_types: IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>> =
+    existing_template_types: &[(StrId, Vec<(GenericParent, Arc<TUnion>)>)],
+    class_template_params: &IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
+) -> IndexMap<StrId, FxHashMap<GenericParent, TUnion>> {
+    let mut template_types: IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>> =
         IndexMap::from_iter(existing_template_types.to_owned());
 
     if let Some(declaring_classlike_storage) = declaring_classlike_storage {
@@ -1144,7 +1144,7 @@ pub(crate) fn get_template_types_for_call(
                             let mut output_type = None;
                             for atomic_type in &type_.types {
                                 let output_type_candidate = if let TAtomic::TGenericParam {
-                                    defining_entity,
+                                    defining_entity: GenericParent::ClassLike(defining_entity),
                                     param_name,
                                     ..
                                 } = &atomic_type
@@ -1179,7 +1179,10 @@ pub(crate) fn get_template_types_for_call(
                         template_types
                             .entry(*template_name)
                             .or_insert_with(Vec::new)
-                            .push((declaring_classlike_storage.name, output_type));
+                            .push((
+                                GenericParent::ClassLike(declaring_classlike_storage.name),
+                                output_type,
+                            ));
                     }
                 }
             }

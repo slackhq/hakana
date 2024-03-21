@@ -7,6 +7,7 @@ use crate::{
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_reflection_info::GenericParent;
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
@@ -334,7 +335,10 @@ pub(crate) fn localize_property_type(
                         template_types
                             .entry(*calling_param_name)
                             .or_insert_with(FxHashMap::default)
-                            .insert(property_class_storage.name, lhs_param_type.clone());
+                            .insert(
+                                GenericParent::ClassLike(property_class_storage.name),
+                                lhs_param_type.clone(),
+                            );
                         break;
                     }
                 }
@@ -365,7 +369,9 @@ pub(crate) fn localize_property_type(
                                     .entry(type_name)
                                     .or_insert_with(FxHashMap::default)
                                     .insert(
-                                        property_declaring_class_storage.name,
+                                        GenericParent::ClassLike(
+                                            property_declaring_class_storage.name,
+                                        ),
                                         mapped_param.clone(),
                                     );
                             }

@@ -221,13 +221,9 @@ fn expand_atomic(
             }
         }
     } else if let TAtomic::TGenericParam {
-        ref mut from_class,
-        ref defining_entity,
-        ref mut as_type,
-        ..
+        ref mut as_type, ..
     } = return_type_part
     {
-        *from_class = codebase.classlike_infos.contains_key(defining_entity);
         expand_union(codebase, interner, as_type, options, data_flow_graph);
 
         return;

@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_reflection_info::GenericParent;
 use hakana_str::{Interner, StrId};
 use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
@@ -72,20 +73,12 @@ pub(crate) fn fetch(
     let mut template_result = template_result.clone();
 
     if !functionlike_storage.template_types.is_empty() {
-        let fn_id = format!(
-            "fn-{}::{}",
-            declaring_method_id.0 .0, declaring_method_id.1 .0,
-        );
-        let fn_id = statements_analyzer
-            .get_interner()
-            .get(fn_id.as_str())
-            .unwrap();
         for (template_name, _) in &functionlike_storage.template_types {
             template_result
                 .lower_bounds
                 .entry(*template_name)
                 .or_insert(FxHashMap::from_iter([(
-                    fn_id,
+                    GenericParent::FunctionLike(declaring_method_id.1),
                     vec![TemplateBound::new(get_nothing(), 1, None, None)],
                 )]));
         }

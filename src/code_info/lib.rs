@@ -32,7 +32,9 @@ pub mod type_resolution;
 use std::collections::BTreeMap;
 
 use code_location::FilePath;
+use hakana_str::{Interner, StrId};
 use oxidized::{prim_defs::Comment, tast::Pos};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub struct FileSource<'a> {
@@ -52,3 +54,38 @@ pub const EFFECT_WRITE_PROPS: u8 = 0b00001000;
 pub const EFFECT_WRITE_GLOBALS: u8 = 0b0010000;
 pub const EFFECT_IMPURE: u8 =
     EFFECT_READ_PROPS | EFFECT_READ_GLOBALS | EFFECT_WRITE_PROPS | EFFECT_WRITE_GLOBALS;
+
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize, PartialOrd, Ord, Debug)]
+pub enum GenericParent {
+    ClassLike(StrId),
+    FunctionLike(StrId),
+    TypeDefinition(StrId),
+}
+
+impl GenericParent {
+    pub fn to_string(&self, interner: Option<&Interner>) -> String {
+        match self {
+            GenericParent::ClassLike(id) => {
+                if let Some(interner) = interner {
+                    interner.lookup(id).to_string()
+                } else {
+                    id.0.to_string()
+                }
+            }
+            GenericParent::FunctionLike(id) => {
+                if let Some(interner) = interner {
+                    format!("fn-{}", interner.lookup(id))
+                } else {
+                    format!("fn-{}", id.0)
+                }
+            }
+            GenericParent::TypeDefinition(id) => {
+                if let Some(interner) = interner {
+                    format!("type-{}", interner.lookup(id))
+                } else {
+                    format!("type-{}", id.0)
+                }
+            }
+        }
+    }
+}

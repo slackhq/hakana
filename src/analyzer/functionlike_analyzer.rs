@@ -292,7 +292,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                                     param_name: *param_name,
                                     as_type: Box::new((*first_map_entry.1).clone()),
                                     defining_entity: first_map_entry.0,
-                                    from_class: false,
                                     extra_types: None,
                                 })
                             })

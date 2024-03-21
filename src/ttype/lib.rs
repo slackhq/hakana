@@ -670,7 +670,7 @@ pub fn get_atomic_syntax_type(
         } => format!(
             "classname<{}:{}>",
             interner.lookup(param_name),
-            interner.lookup(defining_entity)
+            defining_entity.to_string(Some(interner))
         ),
         TAtomic::TGenericTypename {
             param_name,
@@ -679,7 +679,7 @@ pub fn get_atomic_syntax_type(
         } => format!(
             "typename<{}:{}>",
             interner.lookup(param_name),
-            interner.lookup(defining_entity)
+            defining_entity.to_string(Some(interner))
         ),
         TAtomic::TTrue { .. } => "bool".to_string(),
         TAtomic::TVec {

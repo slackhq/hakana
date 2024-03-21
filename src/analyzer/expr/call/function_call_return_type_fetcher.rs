@@ -10,6 +10,7 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
+use hakana_reflection_info::GenericParent;
 use hakana_str::{Interner, StrId};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
@@ -76,28 +77,20 @@ pub(crate) fn fetch(
         if !function_storage.template_types.is_empty()
             && !function_storage.template_types.is_empty()
         {
-            let interner = statements_analyzer.get_interner();
-            let fn_id = interner
-                .get(
-                    format!(
-                        "fn-{}",
-                        match functionlike_id {
-                            FunctionLikeIdentifier::Function(function_id) => function_id.0,
-                            FunctionLikeIdentifier::Method(_, _) => panic!(),
-                            _ => {
-                                panic!()
-                            }
-                        }
-                    )
-                    .as_str(),
-                )
-                .unwrap();
+            let fn_id = match functionlike_id {
+                FunctionLikeIdentifier::Function(function_id) => function_id,
+                FunctionLikeIdentifier::Method(_, _) => panic!(),
+                _ => {
+                    panic!()
+                }
+            };
+
             for (template_name, _) in &function_storage.template_types {
                 if template_result.lower_bounds.get(template_name).is_none() {
                     template_result.lower_bounds.insert(
                         *template_name,
                         FxHashMap::from_iter([(
-                            fn_id,
+                            GenericParent::FunctionLike(*fn_id),
                             vec![TemplateBound::new(get_nothing(), 1, None, None)],
                         )]),
                     );

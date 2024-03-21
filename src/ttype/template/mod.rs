@@ -3,14 +3,14 @@ use std::sync::Arc;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 
-use hakana_reflection_info::{code_location::HPos, t_union::TUnion};
+use hakana_reflection_info::{code_location::HPos, t_union::TUnion, GenericParent};
 use indexmap::IndexMap;
 
 pub mod inferred_type_replacer;
 pub mod standin_type_replacer;
 
 /**
- * This struct captures the result of running AHA's argument analysis with
+ * This struct captures the result of running Hakana's argument analysis with
  * regard to generic parameters.
  *
  * It captures upper and lower bounds for parameters. Mostly we just care about
@@ -28,9 +28,9 @@ pub mod standin_type_replacer;
  */
 #[derive(Clone, Debug)]
 pub struct TemplateResult {
-    pub template_types: IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
-    pub lower_bounds: IndexMap<StrId, FxHashMap<StrId, Vec<TemplateBound>>>,
-    pub upper_bounds: IndexMap<StrId, FxHashMap<StrId, TemplateBound>>,
+    pub template_types: IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
+    pub lower_bounds: IndexMap<StrId, FxHashMap<GenericParent, Vec<TemplateBound>>>,
+    pub upper_bounds: IndexMap<StrId, FxHashMap<GenericParent, TemplateBound>>,
     /**
      * If set to true then we shouldn't update the template bounds
      */
@@ -40,8 +40,8 @@ pub struct TemplateResult {
 
 impl TemplateResult {
     pub fn new(
-        template_types: IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
-        lower_bounds: IndexMap<StrId, FxHashMap<StrId, TUnion>>,
+        template_types: IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
+        lower_bounds: IndexMap<StrId, FxHashMap<GenericParent, TUnion>>,
     ) -> TemplateResult {
         let mut new_lower_bounds = IndexMap::new();
 

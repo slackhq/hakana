@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     code_location::HPos, codebase_info::symbols::SymbolKind, functionlike_info::MetaStart,
-    t_atomic::TAtomic, t_union::TUnion,
+    t_atomic::TAtomic, t_union::TUnion, GenericParent,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -131,7 +131,7 @@ pub struct ClassLikeInfo {
      * (i.e. the same as the class name). This allows operations with the same-named template defined
      * across multiple classes to not run into trouble.
      */
-    pub template_types: Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
+    pub template_types: Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
 
     /*
      * A list of all the templates that are only written in the constructor.

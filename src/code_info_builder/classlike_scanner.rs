@@ -17,7 +17,7 @@ use hakana_reflection_info::{
     property_info::{PropertyInfo, PropertyKind},
     t_atomic::TAtomic,
     type_resolution::TypeResolutionContext,
-    FileSource,
+    FileSource, GenericParent,
 };
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
 use oxidized::{
@@ -90,9 +90,13 @@ pub(crate) fn scan(
             let param_name = resolved_names
                 .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
-            type_context
-                .template_type_map
-                .push((*param_name, vec![(*class_name, Arc::new(get_mixed_any()))]));
+            type_context.template_type_map.push((
+                *param_name,
+                vec![(
+                    GenericParent::ClassLike(*class_name),
+                    Arc::new(get_mixed_any()),
+                )],
+            ));
         }
 
         for (i, type_param_node) in classlike_node.tparams.iter().enumerate() {
@@ -128,9 +132,13 @@ pub(crate) fn scan(
                 .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
 
-            storage
-                .template_types
-                .push((*param_name, vec![(*class_name, Arc::new(template_as_type))]));
+            storage.template_types.push((
+                *param_name,
+                vec![(
+                    GenericParent::ClassLike(*class_name),
+                    Arc::new(template_as_type),
+                )],
+            ));
 
             match type_param_node.variance {
                 ast_defs::Variance::Covariant => {

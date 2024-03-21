@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::classlike_info::Variance;
-use hakana_reflection_info::EFFECT_WRITE_GLOBALS;
+use hakana_reflection_info::{GenericParent, EFFECT_WRITE_GLOBALS};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
@@ -406,7 +406,9 @@ fn analyze_named_constructor(
                             let mut placeholder_lower_bounds = vec![];
 
                             if let Some(bounds) = template_result.lower_bounds.get(template_name) {
-                                if let Some(bounds) = bounds.get(&classlike_name) {
+                                if let Some(bounds) =
+                                    bounds.get(&GenericParent::ClassLike(classlike_name))
+                                {
                                     for bound in bounds {
                                         placeholder_lower_bounds.push(bound.clone());
                                     }
@@ -476,7 +478,7 @@ fn analyze_named_constructor(
 
                 let mut generic_param_type = if let Some(template_bounds) =
                     if let Some(result_map) = template_result.lower_bounds.get(template_name) {
-                        result_map.get(&classlike_name)
+                        result_map.get(&GenericParent::ClassLike(classlike_name))
                     } else {
                         None
                     } {

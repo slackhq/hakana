@@ -15,6 +15,7 @@ use crate::{
     t_union::TUnion,
     taint::{SinkType, SourceType},
     type_resolution::TypeResolutionContext,
+    GenericParent,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,7 +85,7 @@ pub struct FunctionLikeInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
+    pub template_types: Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
 
     pub assertions: Option<FxHashMap<usize, Assertion>>,
 

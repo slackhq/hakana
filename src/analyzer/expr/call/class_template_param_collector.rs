@@ -5,6 +5,7 @@ use rustc_hash::FxHashMap;
 
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo, codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion,
+    GenericParent,
 };
 use hakana_type::{add_optional_union_type, get_mixed_any, wrap_atomic};
 use indexmap::IndexMap;
@@ -14,7 +15,7 @@ pub(crate) fn collect(
     class_storage: &ClassLikeInfo,
     static_class_storage: &ClassLikeInfo,
     lhs_type_part: Option<&TAtomic>, // default None
-) -> Option<IndexMap<StrId, FxHashMap<StrId, TUnion>>> {
+) -> Option<IndexMap<StrId, FxHashMap<GenericParent, TUnion>>> {
     let template_types = &class_storage.template_types;
 
     if template_types.is_empty() {
@@ -38,7 +39,10 @@ pub(crate) fn collect(
                     class_template_params
                         .entry(*type_name)
                         .or_insert_with(FxHashMap::default)
-                        .insert(class_storage.name, type_param.clone());
+                        .insert(
+                            GenericParent::ClassLike(class_storage.name),
+                            type_param.clone(),
+                        );
                 }
             }
         }
@@ -65,7 +69,7 @@ pub(crate) fn collect(
                         .entry(*template_name)
                         .or_insert_with(FxHashMap::default)
                         .insert(
-                            class_storage.name,
+                            GenericParent::ClassLike(class_storage.name),
                             output_type_extends.unwrap_or(get_mixed_any()),
                         );
                 }
@@ -74,7 +78,7 @@ pub(crate) fn collect(
             class_template_params
                 .entry(*template_name)
                 .or_insert_with(FxHashMap::default)
-                .entry(class_storage.name)
+                .entry(GenericParent::ClassLike(class_storage.name))
                 .or_insert(get_mixed_any());
         }
     }
@@ -90,7 +94,7 @@ pub(crate) fn collect(
                     class_template_params
                         .entry(*template_name)
                         .or_insert_with(FxHashMap::default)
-                        .entry(class_storage.name)
+                        .entry(GenericParent::ClassLike(class_storage.name))
                         .or_insert(TUnion::new(expand_type(
                             extended_type,
                             e,
@@ -106,7 +110,7 @@ pub(crate) fn collect(
                 ..
             }) = lhs_type_part
             {
-                template_classname == self_class_name
+                template_classname == &GenericParent::ClassLike(*self_class_name)
             } else {
                 false
             };
@@ -115,7 +119,7 @@ pub(crate) fn collect(
                 class_template_params
                     .entry(*template_name)
                     .or_insert_with(FxHashMap::default)
-                    .entry(class_storage.name)
+                    .entry(GenericParent::ClassLike(class_storage.name))
                     .or_insert((**type_).clone());
             }
         }
@@ -135,7 +139,7 @@ pub(crate) fn resolve_template_param(
     for type_extends_atomic in &input_type_extends.types {
         if let TAtomic::TGenericParam {
             param_name,
-            defining_entity,
+            defining_entity: GenericParent::ClassLike(defining_entity),
             ..
         } = &type_extends_atomic
         {
@@ -191,14 +195,14 @@ fn expand_type(
     input_type_extends: &Arc<TUnion>,
     e: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
     static_classlike_name: &StrId,
-    static_template_types: &Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
+    static_template_types: &Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
 ) -> Vec<TAtomic> {
     let mut output_type_extends = Vec::new();
 
     for type_extends_atomic in &input_type_extends.types {
         if let Some(extended_type) = if let TAtomic::TGenericParam {
             param_name,
-            defining_entity,
+            defining_entity: GenericParent::ClassLike(defining_entity),
             ..
         } = type_extends_atomic
         {

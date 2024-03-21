@@ -5,13 +5,13 @@ use crate::{
     type_expander::{self, StaticClassType, TypeExpansionOptions},
     wrap_atomic,
 };
-use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::graph::{DataFlowGraph, GraphKind},
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_reflection_info::{function_context::FunctionLikeIdentifier, GenericParent};
 use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -750,7 +750,7 @@ fn handle_template_param_standin(
     };
 
     if let Some(calling_class) = calling_class {
-        if defining_entity == calling_class {
+        if defining_entity == &GenericParent::ClassLike(*calling_class) {
             return vec![atomic_type.clone()];
         }
     }
@@ -850,11 +850,13 @@ fn handle_template_param_standin(
                 } = replacement_atomic_type
                 {
                     if (calling_class.is_none()
-                        || replacement_defining_entity != calling_class.unwrap())
+                        || replacement_defining_entity
+                            != &GenericParent::ClassLike(*calling_class.unwrap()))
                         && (calling_function.is_none()
                             || match calling_function.unwrap() {
                                 FunctionLikeIdentifier::Function(calling_function) => {
-                                    calling_function != replacement_defining_entity
+                                    replacement_defining_entity
+                                        != &GenericParent::FunctionLike(*calling_function)
                                 }
                                 FunctionLikeIdentifier::Method(_, _) => true,
                                 _ => {
@@ -1138,7 +1140,7 @@ fn handle_template_param_class_standin(
     {
         let mut atomic_type_as = *as_type.clone();
         if let Some(calling_class) = calling_class {
-            if defining_entity == calling_class {
+            if defining_entity == &GenericParent::ClassLike(*calling_class) {
                 return vec![atomic_type.clone()];
             }
         }
@@ -1176,7 +1178,6 @@ fn handle_template_param_class_standin(
                         param_name: *param_name,
                         as_type: Box::new(wrap_atomic(*as_type.clone())),
                         defining_entity: *defining_entity,
-                        from_class: false,
                         extra_types: None,
                     });
                 } else if let TAtomic::TClassname {
@@ -1322,7 +1323,7 @@ fn handle_template_param_type_standin(
     {
         let mut atomic_type_as = *as_type.clone();
         if let Some(calling_class) = calling_class {
-            if defining_entity == calling_class {
+            if defining_entity == &GenericParent::ClassLike(*calling_class) {
                 return vec![atomic_type.clone()];
             }
         }
@@ -1354,7 +1355,6 @@ fn handle_template_param_type_standin(
                         param_name: *param_name,
                         as_type: Box::new(wrap_atomic(*as_type.clone())),
                         defining_entity: *defining_entity,
-                        from_class: false,
                         extra_types: None,
                     });
                 } else if let TAtomic::TTypename { .. } = input_atomic_type {
@@ -1515,9 +1515,9 @@ pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Ve
 }
 
 fn template_types_contains<'a>(
-    template_types: &'a IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
+    template_types: &'a IndexMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
     param_name: &StrId,
-    defining_entity: &StrId,
+    defining_entity: &GenericParent,
 ) -> Option<&'a Arc<TUnion>> {
     if let Some(mapped_classes) = template_types.get(param_name) {
         return mapped_classes
@@ -1804,7 +1804,7 @@ pub fn get_mapped_generic_type_params(
                 replacement_templates
                     .entry(*template_name)
                     .or_insert_with(FxHashMap::default)
-                    .insert(*input_name, input_type.clone().1);
+                    .insert(GenericParent::ClassLike(*input_name), input_type.clone().1);
 
                 i += 1;
             } else {
@@ -1840,7 +1840,7 @@ pub fn get_mapped_generic_type_params(
                         .enumerate()
                         .find(|(_, (n, _))| n == param_name)
                     {
-                        if defining_classes.iter().any(|(e, _)| e == defining_entity) {
+                        if defining_classes.iter().any(|(e, _)| defining_entity == e) {
                             let candidate_param_type_inner = input_type_params
                                 .get(old_params_offset)
                                 .unwrap_or(&(None, get_mixed_any()))
@@ -1908,7 +1908,7 @@ pub fn get_extended_templated_types<'a>(
     let mut extra_added_types = Vec::new();
 
     if let TAtomic::TGenericParam {
-        defining_entity,
+        defining_entity: GenericParent::ClassLike(defining_entity),
         param_name,
         ..
     } = atomic_type
@@ -1935,10 +1935,10 @@ pub fn get_extended_templated_types<'a>(
 }
 
 pub(crate) fn get_root_template_type(
-    lower_bounds: &IndexMap<StrId, FxHashMap<StrId, Vec<TemplateBound>>>,
+    lower_bounds: &IndexMap<StrId, FxHashMap<GenericParent, Vec<TemplateBound>>>,
     param_name: &StrId,
-    defining_entity: &StrId,
-    mut visited_entities: FxHashSet<StrId>,
+    defining_entity: &GenericParent,
+    mut visited_entities: FxHashSet<GenericParent>,
     codebase: &CodebaseInfo,
 ) -> Option<TUnion> {
     if visited_entities.contains(defining_entity) {

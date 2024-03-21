@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::{EFFECT_IMPURE, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{GenericParent, EFFECT_IMPURE, EFFECT_WRITE_PROPS};
 use hakana_str::StrId;
 use hakana_type::template::standin_type_replacer::get_relevant_bounds;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
@@ -321,13 +321,13 @@ pub(crate) fn get_generic_param_for_offset(
     classlike_name: &StrId,
     template_name: &StrId,
     template_extended_params: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
-    found_generic_params: &FxHashMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
+    found_generic_params: &FxHashMap<StrId, Vec<(GenericParent, Arc<TUnion>)>>,
 ) -> Arc<TUnion> {
     if let Some(found_generic_param) =
         if let Some(result_map) = found_generic_params.get(template_name) {
             result_map
                 .iter()
-                .filter(|(e, _)| e == classlike_name)
+                .filter(|(e, _)| e == &GenericParent::ClassLike(*classlike_name))
                 .map(|(_, v)| v)
                 .next()
         } else {
@@ -345,7 +345,8 @@ pub(crate) fn get_generic_param_for_offset(
                         ..
                     } = &extended_atomic_type
                     {
-                        if extended_param_name == template_name && defining_entity == classlike_name
+                        if extended_param_name == template_name
+                            && defining_entity == &GenericParent::ClassLike(*classlike_name)
                         {
                             return get_generic_param_for_offset(
                                 extended_class_name,

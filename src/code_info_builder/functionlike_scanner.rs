@@ -23,6 +23,7 @@ use hakana_reflection_info::taint::string_to_sink_types;
 use hakana_reflection_info::taint::string_to_source_types;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_reflection_info::FileSource;
+use hakana_reflection_info::GenericParent;
 use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_str::{StrId, ThreadedInterner};
 use hakana_type::get_mixed_any;
@@ -184,20 +185,17 @@ pub(crate) fn get_functionlike(
     let mut template_supers = FxHashMap::default();
 
     if !tparams.is_empty() {
-        let fn_id = if let Some(this_name) = this_name {
-            format!("fn-{}::{}", this_name.0, name.unwrap().0)
-        } else {
-            format!("fn-{}", name.unwrap().0)
-        };
-        let fn_id = interner.intern(fn_id);
-
         for type_param_node in tparams.iter() {
             let param_name = resolved_names
                 .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
-            type_context
-                .template_type_map
-                .push((*param_name, vec![(fn_id, Arc::new(get_mixed_any()))]));
+            type_context.template_type_map.push((
+                *param_name,
+                vec![(
+                    GenericParent::FunctionLike(name.unwrap()),
+                    Arc::new(get_mixed_any()),
+                )],
+            ));
         }
 
         for type_param_node in tparams.iter() {
@@ -241,8 +239,7 @@ pub(crate) fn get_functionlike(
                         } else {
                             get_mixed_any()
                         }),
-                        defining_entity: fn_id,
-                        from_class: false,
+                        defining_entity: GenericParent::FunctionLike(name.unwrap()),
                         extra_types: None,
                     });
 
@@ -252,7 +249,10 @@ pub(crate) fn get_functionlike(
 
             functionlike_info.template_types.push((
                 *param_name,
-                vec![(fn_id, Arc::new(template_as_type.unwrap_or(get_mixed_any())))],
+                vec![(
+                    GenericParent::FunctionLike(name.unwrap()),
+                    Arc::new(template_as_type.unwrap_or(get_mixed_any())),
+                )],
             ));
         }
 

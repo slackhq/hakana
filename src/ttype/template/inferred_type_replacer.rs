@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion};
+use hakana_reflection_info::{
+    codebase_info::CodebaseInfo, t_atomic::TAtomic, t_union::TUnion, GenericParent,
+};
 use hakana_str::StrId;
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -148,7 +150,7 @@ pub fn replace(
                                 param_name: *param_name,
                                 as_type: Box::new(first_atomic_type.clone()),
                                 defining_entity: *defining_entity,
-                            })
+                            });
                         }
                     }
 
@@ -176,9 +178,9 @@ pub fn replace(
 }
 
 fn replace_template_param(
-    inferred_lower_bounds: &IndexMap<StrId, FxHashMap<StrId, Vec<TemplateBound>>>,
+    inferred_lower_bounds: &IndexMap<StrId, FxHashMap<GenericParent, Vec<TemplateBound>>>,
     param_name: &StrId,
-    defining_entity: &StrId,
+    defining_entity: &GenericParent,
     codebase: &CodebaseInfo,
     as_type: &TUnion,
     extra_types: &Option<Vec<TAtomic>>,
@@ -214,30 +216,34 @@ fn replace_template_param(
     } else {
         for (_, template_type_map) in inferred_lower_bounds {
             for map_defining_entity in template_type_map.keys() {
-                if !codebase.classlike_infos.contains_key(map_defining_entity) {
-                    continue;
-                }
+                let classlike_name = match map_defining_entity {
+                    GenericParent::ClassLike(e) => e,
+                    _ => {
+                        continue;
+                    }
+                };
 
-                let classlike_info = codebase.classlike_infos.get(map_defining_entity).unwrap();
-
-                if let Some(param_map) =
-                    classlike_info.template_extended_params.get(defining_entity)
-                {
-                    if let Some(param_inner) = param_map.get(key) {
-                        let template_name = if let TAtomic::TGenericParam { param_name, .. } =
-                            param_inner.get_single()
-                        {
-                            param_name
-                        } else {
-                            panic!()
-                        };
-                        if let Some(bounds_map) = inferred_lower_bounds.get(template_name) {
-                            if let Some(bounds) = bounds_map.get(map_defining_entity) {
-                                template_type = Some(
-                                    standin_type_replacer::get_most_specific_type_from_bounds(
-                                        bounds, codebase,
-                                    ),
-                                );
+                if let Some(classlike_info) = codebase.classlike_infos.get(classlike_name) {
+                    if let Some(param_map) =
+                        classlike_info.template_extended_params.get(classlike_name)
+                    {
+                        if let Some(param_inner) = param_map.get(key) {
+                            let template_name =
+                                if let TAtomic::TGenericParam { param_name, .. } =
+                                    param_inner.get_single()
+                                {
+                                    param_name
+                                } else {
+                                    panic!()
+                                };
+                            if let Some(bounds_map) = inferred_lower_bounds.get(template_name) {
+                                if let Some(bounds) = bounds_map.get(map_defining_entity) {
+                                    template_type = Some(
+                                        standin_type_replacer::get_most_specific_type_from_bounds(
+                                            bounds, codebase,
+                                        ),
+                                    );
+                                }
                             }
                         }
                     }

@@ -4,6 +4,7 @@ use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
+use hakana_reflection_info::GenericParent;
 use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_reflection_info::EFFECT_PURE;
 use hakana_str::StrId;
@@ -467,14 +468,16 @@ fn get_reference_type(
     }
 }
 
-fn get_template_type(defining_entities: &[(StrId, Arc<TUnion>)], type_name: &StrId) -> TAtomic {
+fn get_template_type(
+    defining_entities: &[(GenericParent, Arc<TUnion>)],
+    type_name: &StrId,
+) -> TAtomic {
     let (defining_entity, as_type) = &defining_entities[0];
 
     TAtomic::TGenericParam {
         param_name: *type_name,
         as_type: Box::new((**as_type).clone()),
         defining_entity: *defining_entity,
-        from_class: false,
         extra_types: None,
     }
 }

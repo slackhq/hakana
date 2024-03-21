@@ -1,5 +1,5 @@
 use crate::wrap_atomic;
-use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic};
+use hakana_reflection_info::{codebase_info::CodebaseInfo, t_atomic::TAtomic, GenericParent};
 
 use super::{type_comparison_result::TypeComparisonResult, union_type_comparator};
 
@@ -49,62 +49,59 @@ fn is_intersection_shallowly_contained_by(
     if let TAtomic::TGenericParam {
         defining_entity: container_defining_entity,
         param_name: container_param_name,
-        from_class: container_param_from_class,
         ..
     } = intersection_container_type
     {
         if let TAtomic::TGenericParam {
             defining_entity: input_defining_entity,
-            from_class: input_param_from_class,
             param_name: input_param_name,
             as_type: input_extends,
             ..
         } = intersection_input_type
         {
-            if !input_param_from_class || !container_param_from_class {
-                if !input_param_from_class
-                    && !container_param_from_class
-                    && input_defining_entity != container_defining_entity
-                {
-                    return true;
-                }
-
-                for input_as_atomic in &input_extends.types {
-                    // todo use type equality
-                    if input_as_atomic == intersection_container_type {
-                        return true;
-                    }
-                }
-            }
-
             if input_param_name == container_param_name
                 && input_defining_entity == container_defining_entity
             {
                 return true;
             }
 
-            if input_param_name != container_param_name
-                || (input_defining_entity != container_defining_entity
-                    && *input_param_from_class
-                    && *container_param_from_class)
-            {
-                if !input_param_from_class && !container_param_from_class {
-                    return false;
+            match (input_defining_entity, container_defining_entity) {
+                (
+                    GenericParent::ClassLike(input_defining_class),
+                    GenericParent::ClassLike(container_defining_class),
+                ) => {
+                    if input_defining_class != container_defining_class {
+                        if let Some(input_class_storage) =
+                            codebase.classlike_infos.get(input_defining_class)
+                        {
+                            if let Some(defining_entity_params) = &input_class_storage
+                                .template_extended_params
+                                .get(container_defining_class)
+                            {
+                                if defining_entity_params.get(container_param_name).is_some() {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
                 }
-
-                if let Some(input_class_storage) =
-                    codebase.classlike_infos.get(input_defining_entity)
-                {
-                    if let Some(defining_entity_params) = &input_class_storage
-                        .template_extended_params
-                        .get(container_defining_entity)
-                    {
-                        if defining_entity_params.get(container_param_name).is_some() {
+                (GenericParent::ClassLike(_), _) | (_, GenericParent::ClassLike(_)) => {
+                    for input_as_atomic in &input_extends.types {
+                        // todo use type equality
+                        if input_as_atomic == intersection_container_type {
                             return true;
                         }
                     }
                 }
-            }
+                _ => {
+                    if input_param_name != container_param_name {
+                        return false;
+                    }
+                    if input_defining_entity != container_defining_entity {
+                        return true;
+                    }
+                }
+            };
 
             return false;
         }
