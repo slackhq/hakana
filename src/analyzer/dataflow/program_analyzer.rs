@@ -216,7 +216,7 @@ fn get_specialized_sources(
 
             new_source
                 .specialized_calls
-                .entry(specialization_key.clone())
+                .entry(*specialization_key)
                 .or_default()
                 .insert(new_source.id.clone());
 
@@ -227,11 +227,7 @@ fn get_specialized_sources(
             if source.specialized_calls.is_empty()
                 || source.specialized_calls.contains_key(specialization)
             {
-                let new_id = format!(
-                    "{}-{}",
-                    source.id,
-                    format!("{}:{}", specialization.0 .0, specialization.1)
-                );
+                let new_id = format!("{}-{}:{}", source.id, specialization.0 .0, specialization.1);
 
                 if graph.forward_edges.contains_key(&new_id) {
                     let mut new_source = (*source).clone();
@@ -247,8 +243,7 @@ fn get_specialized_sources(
     } else {
         for (key, map) in &source.specialized_calls {
             if map.contains(&source.id) {
-                let new_forward_edge_id =
-                    format!("{}-{}", source.id, format!("{}:{}", key.0 .0, key.1));
+                let new_forward_edge_id = format!("{}-{}:{}", source.id, key.0 .0, key.1);
 
                 if graph.forward_edges.contains_key(&new_forward_edge_id) {
                     let mut new_source = (*source).clone();

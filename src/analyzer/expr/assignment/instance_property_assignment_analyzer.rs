@@ -685,7 +685,7 @@ fn add_instance_property_assignment_dataflow(
         if !stmt_type_inner
             .parent_nodes
             .iter()
-            .any(|n| &n.id == &var_node.id)
+            .any(|n| n.id == var_node.id)
         {
             stmt_type_inner.parent_nodes.push(var_node.clone());
         }

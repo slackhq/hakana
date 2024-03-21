@@ -163,7 +163,7 @@ pub(crate) fn get_functionlike(
 ) -> FunctionLikeInfo {
     let definition_location = HPos::new(def_pos, file_source.file_path, None);
 
-    let mut suppressed_issues = FxHashMap::default();
+    let mut suppressed_issues = vec![];
 
     let mut meta_start = MetaStart {
         start_offset: definition_location.start_offset,
@@ -195,10 +195,9 @@ pub(crate) fn get_functionlike(
             let param_name = resolved_names
                 .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
-            type_context.template_type_map.insert(
-                *param_name,
-                FxHashMap::from_iter([(fn_id, Arc::new(get_mixed_any()))]),
-            );
+            type_context
+                .template_type_map
+                .push((*param_name, vec![(fn_id, Arc::new(get_mixed_any()))]));
         }
 
         for type_param_node in tparams.iter() {
@@ -251,12 +250,10 @@ pub(crate) fn get_functionlike(
                 }
             }
 
-            functionlike_info.template_types.insert(*param_name, {
-                FxHashMap::from_iter([(
-                    fn_id,
-                    Arc::new(template_as_type.unwrap_or(get_mixed_any())),
-                )])
-            });
+            functionlike_info.template_types.push((
+                *param_name,
+                vec![(fn_id, Arc::new(template_as_type.unwrap_or(get_mixed_any())))],
+            ));
         }
 
         for where_hint in where_constraints {
@@ -295,6 +292,20 @@ pub(crate) fn get_functionlike(
         .template_type_map
         .extend(functionlike_info.template_types.clone());
 
+    for row in &functionlike_info.template_types {
+        let mut matched = false;
+        for existing_template_type in type_context.template_type_map.iter_mut() {
+            if existing_template_type.0 == row.0 {
+                existing_template_type.1.clone_from(&row.1);
+                matched = true;
+                break;
+            }
+        }
+        if !matched {
+            type_context.template_type_map.push((row.0, row.1.clone()));
+        }
+    }
+
     if !params.is_empty() {
         functionlike_info.params = convert_param_nodes(
             params,
@@ -307,6 +318,7 @@ pub(crate) fn get_functionlike(
                 .filter(|comment| comment.0.start_offset() > def_pos.start_offset())
                 .collect(),
         );
+        functionlike_info.params.shrink_to_fit();
     }
 
     type_context.template_supers = template_supers;
@@ -554,7 +566,7 @@ pub(crate) fn adjust_location_from_comments(
     comments: &Vec<(Pos, Comment)>,
     meta_start: &mut MetaStart,
     file_source: &FileSource,
-    suppressed_issues: &mut FxHashMap<IssueKind, HPos>,
+    suppressed_issues: &mut Vec<(IssueKind, HPos)>,
     all_custom_issues: &FxHashSet<String>,
 ) {
     if !comments.is_empty() {
@@ -582,7 +594,7 @@ pub(crate) fn adjust_location_from_comments(
                             get_issue_from_comment(trimmed_text, all_custom_issues)
                         {
                             let comment_pos = HPos::new(comment_pos, file_source.file_path, None);
-                            suppressed_issues.insert(issue_kind, comment_pos);
+                            suppressed_issues.push((issue_kind, comment_pos));
                         }
 
                         meta_start.start_line = start_line as u32;
@@ -615,7 +627,7 @@ fn convert_param_nodes(
                     as u16;
             }
 
-            let mut suppressed_issues = FxHashMap::default();
+            let mut suppressed_issues = vec![];
 
             let mut meta_start = MetaStart {
                 start_offset: location.start_offset,

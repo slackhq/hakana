@@ -332,9 +332,9 @@ fn expand_atomic(
             let mut untemplated_type = if let Some(type_params) = type_params {
                 let mut new_template_types = IndexMap::new();
 
-                for (i, (k, v)) in (&type_definition.template_types).into_iter().enumerate() {
+                for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
                     let mut h = FxHashMap::default();
-                    for kk in v.keys() {
+                    for (kk, _) in v {
                         h.insert(*kk, type_params.get(i).unwrap().clone());
                     }
 
@@ -431,9 +431,9 @@ fn expand_atomic(
             let mut definition_as_type = if let Some(type_params) = type_params {
                 let mut new_template_types = IndexMap::new();
 
-                for (i, (k, v)) in (&type_definition.template_types).into_iter().enumerate() {
+                for (i, (k, v)) in type_definition.template_types.iter().enumerate() {
                     let mut h = FxHashMap::default();
-                    for kk in v.keys() {
+                    for (kk, _) in v {
                         h.insert(
                             *kk,
                             if let Some(t) = type_params.get(i) {

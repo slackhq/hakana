@@ -20,7 +20,6 @@ use hakana_reflection_info::{
     FileSource,
 };
 use hakana_type::{get_mixed_any, get_named_object, wrap_atomic};
-use indexmap::IndexMap;
 use oxidized::{
     aast::{self, ClassConstKind},
     ast_defs::{self, ClassishKind},
@@ -57,7 +56,7 @@ pub(crate) fn scan(
         comments,
         &mut meta_start,
         file_source,
-        &mut FxHashMap::default(),
+        &mut vec![],
         all_custom_issues,
     );
 
@@ -83,7 +82,7 @@ pub(crate) fn scan(
 
     if !classlike_node.tparams.is_empty() {
         let mut type_context = TypeResolutionContext {
-            template_type_map: IndexMap::new(),
+            template_type_map: vec![],
             template_supers: FxHashMap::default(),
         };
 
@@ -91,10 +90,9 @@ pub(crate) fn scan(
             let param_name = resolved_names
                 .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
-            type_context.template_type_map.insert(
-                *param_name,
-                FxHashMap::from_iter([(*class_name, Arc::new(get_mixed_any()))]),
-            );
+            type_context
+                .template_type_map
+                .push((*param_name, vec![(*class_name, Arc::new(get_mixed_any()))]));
         }
 
         for (i, type_param_node) in classlike_node.tparams.iter().enumerate() {
@@ -130,11 +128,9 @@ pub(crate) fn scan(
                 .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
 
-            storage.template_types.insert(*param_name, {
-                let mut h = FxHashMap::default();
-                h.insert(*class_name, Arc::new(template_as_type));
-                h
-            });
+            storage
+                .template_types
+                .push((*param_name, vec![(*class_name, Arc::new(template_as_type))]));
 
             match type_param_node.variance {
                 ast_defs::Variance::Covariant => {
@@ -707,7 +703,7 @@ fn visit_xhp_attribute(
             &hint.1,
             None,
             &TypeResolutionContext {
-                template_type_map: IndexMap::new(),
+                template_type_map: vec![],
                 template_supers: FxHashMap::default(),
             },
             resolved_names,

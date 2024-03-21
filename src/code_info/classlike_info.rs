@@ -131,7 +131,7 @@ pub struct ClassLikeInfo {
      * (i.e. the same as the class name). This allows operations with the same-named template defined
      * across multiple classes to not run into trouble.
      */
-    pub template_types: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    pub template_types: Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
 
     /*
      * A list of all the templates that are only written in the constructor.
@@ -216,7 +216,7 @@ impl ClassLikeInfo {
     ) -> ClassLikeInfo {
         ClassLikeInfo {
             meta_start,
-            constants: IndexMap::default(),
+            constants: IndexMap::new(),
             is_populated: false,
             is_stubbed: false,
             is_deprecated: false,
@@ -263,7 +263,7 @@ impl ClassLikeInfo {
             template_extended_offsets: FxHashMap::default(),
             template_type_implements_count: FxHashMap::default(),
             template_type_uses_count: FxHashMap::default(),
-            template_types: IndexMap::new(),
+            template_types: vec![],
             used_traits: FxHashSet::default(),
             name,
             type_constants: FxHashMap::default(),

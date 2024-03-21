@@ -343,7 +343,7 @@ fn analyze_named_constructor(
             if expr.1.is_empty() {
                 IndexMap::new()
             } else {
-                storage.template_types.clone()
+                IndexMap::from_iter(storage.template_types.clone())
             },
             IndexMap::new(),
         );
@@ -401,7 +401,7 @@ fn analyze_named_constructor(
                             let placeholder_name =
                                 format!("`_{}", analysis_data.type_variable_bounds.len());
 
-                            let upper_bound = (**map.iter().next().unwrap().1).clone();
+                            let upper_bound = (*map.iter().next().unwrap().1).clone();
 
                             let mut placeholder_lower_bounds = vec![];
 
@@ -503,7 +503,7 @@ fn analyze_named_constructor(
                                             )),
                                         )
                                     })
-                                    .collect::<FxHashMap<_, _>>(),
+                                    .collect::<Vec<_>>(),
                             )
                         })
                         .collect::<FxHashMap<_, _>>();
@@ -518,7 +518,7 @@ fn analyze_named_constructor(
                 } else if let Some(Variance::Contravariant) = storage.generic_variance.get(&i) {
                     get_nothing()
                 } else {
-                    (**base_type_map.iter().next().unwrap().1).clone()
+                    (*base_type_map.iter().next().unwrap().1).clone()
                 };
 
                 generic_param_type.had_template = true;

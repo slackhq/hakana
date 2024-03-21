@@ -71,7 +71,7 @@ pub struct ThreadedInterner {
 impl ThreadedInterner {
     pub fn new(interner: Arc<Mutex<Interner>>) -> Self {
         ThreadedInterner {
-            map: IndexMap::default(),
+            map: IndexMap::new(),
             reverse_map: BTreeMap::new(),
             parent: interner.clone(),
         }

@@ -61,10 +61,10 @@ impl DataFlowGraph {
                         self.specializations
                             .entry(unspecialized_id.clone())
                             .or_default()
-                            .insert(specialization_key.clone());
+                            .insert(*specialization_key);
 
                         self.specialized_calls
-                            .entry(specialization_key.clone())
+                            .entry(*specialization_key)
                             .or_default()
                             .insert(unspecialized_id.clone());
                     }

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use hakana_str::StrId;
-use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
@@ -72,7 +71,7 @@ pub struct FunctionLikeInfo {
 
     pub is_populated: bool,
 
-    pub suppressed_issues: Option<FxHashMap<IssueKind, HPos>>,
+    pub suppressed_issues: Option<Vec<(IssueKind, HPos)>>,
 
     pub deprecated: bool,
 
@@ -85,7 +84,7 @@ pub struct FunctionLikeInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    pub template_types: Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
 
     pub assertions: Option<FxHashMap<usize, Assertion>>,
 
@@ -175,7 +174,7 @@ impl FunctionLikeInfo {
             user_defined: false,
             suppressed_issues: None,
             deprecated: false,
-            template_types: IndexMap::new(),
+            template_types: vec![],
             assertions: None,
             if_true_assertions: None,
             if_false_assertions: None,

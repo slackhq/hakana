@@ -449,7 +449,11 @@ fn get_reference_type(
             return TAtomic::TMixed;
         };
 
-    if let Some(defining_entities) = type_context.template_type_map.get(resolved_name) {
+    if let Some((_, defining_entities)) = type_context
+        .template_type_map
+        .iter()
+        .find(|(n, _)| n == resolved_name)
+    {
         return get_template_type(defining_entities, resolved_name);
     }
 
@@ -463,11 +467,8 @@ fn get_reference_type(
     }
 }
 
-fn get_template_type(
-    defining_entities: &FxHashMap<StrId, Arc<TUnion>>,
-    type_name: &StrId,
-) -> TAtomic {
-    let (defining_entity, as_type) = defining_entities.iter().next().unwrap();
+fn get_template_type(defining_entities: &[(StrId, Arc<TUnion>)], type_name: &StrId) -> TAtomic {
+    let (defining_entity, as_type) = &defining_entities[0];
 
     TAtomic::TGenericParam {
         param_name: *type_name,

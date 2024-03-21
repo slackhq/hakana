@@ -3,7 +3,6 @@ use std::sync::Arc;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -30,7 +29,7 @@ pub struct TypeDefinitionInfo {
      * function identifier. This allows operations with the same-named template defined
      * across multiple classes and/or functions to not run into trouble.
      */
-    pub template_types: IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    pub template_types: Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
 
     pub generic_variance: FxHashMap<usize, Variance>,
 

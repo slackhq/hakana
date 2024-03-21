@@ -76,14 +76,13 @@ pub(crate) fn fetch(
         if !function_storage.template_types.is_empty()
             && !function_storage.template_types.is_empty()
         {
-            let fn_id = statements_analyzer
-                .get_interner()
+            let interner = statements_analyzer.get_interner();
+            let fn_id = interner
                 .get(
                     format!(
                         "fn-{}",
                         match functionlike_id {
-                            FunctionLikeIdentifier::Function(function_id) =>
-                                function_id.0.to_string(),
+                            FunctionLikeIdentifier::Function(function_id) => function_id.0,
                             FunctionLikeIdentifier::Method(_, _) => panic!(),
                             _ => {
                                 panic!()

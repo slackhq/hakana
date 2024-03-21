@@ -1258,7 +1258,10 @@ fn handle_template_param_class_standin(
                 .template_types
                 .get(param_name)
                 .unwrap()
-                .get(defining_entity)
+                .iter()
+                .filter(|(e, _)| e == defining_entity)
+                .map(|(_, v)| v)
+                .next()
                 .unwrap();
 
             for template_atomic_type in &template_type.types {
@@ -1430,7 +1433,10 @@ fn handle_template_param_type_standin(
                 .template_types
                 .get(param_name)
                 .unwrap()
-                .get(defining_entity)
+                .iter()
+                .filter(|(e, _)| e == defining_entity)
+                .map(|(_, v)| v)
+                .next()
                 .unwrap();
 
             for template_atomic_type in &template_type.types {
@@ -1509,12 +1515,16 @@ pub fn get_actual_type_from_literal(name: &StrId, codebase: &CodebaseInfo) -> Ve
 }
 
 fn template_types_contains<'a>(
-    template_types: &'a IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    template_types: &'a IndexMap<StrId, Vec<(StrId, Arc<TUnion>)>>,
     param_name: &StrId,
     defining_entity: &StrId,
 ) -> Option<&'a Arc<TUnion>> {
     if let Some(mapped_classes) = template_types.get(param_name) {
-        return mapped_classes.get(defining_entity);
+        return mapped_classes
+            .iter()
+            .filter(|(e, _)| e == defining_entity)
+            .map(|(_, v)| v)
+            .next();
     }
 
     None
@@ -1824,24 +1834,20 @@ pub fn get_mapped_generic_type_params(
                     ..
                 }) = ets.first()
                 {
-                    if let Some(defining_classes) =
-                        input_class_storage.template_types.get(param_name)
+                    if let Some((old_params_offset, (_, defining_classes))) = input_class_storage
+                        .template_types
+                        .iter()
+                        .enumerate()
+                        .find(|(_, (n, _))| n == param_name)
                     {
-                        if defining_classes.contains_key(defining_entity) {
-                            let old_params_offset = input_class_storage
-                                .template_types
-                                .keys()
-                                .position(|x| x == param_name)
-                                .unwrap();
-
+                        if defining_classes.iter().any(|(e, _)| e == defining_entity) {
                             let candidate_param_type_inner = input_type_params
                                 .get(old_params_offset)
                                 .unwrap_or(&(None, get_mixed_any()))
                                 .clone()
                                 .1;
 
-                            mapped_input_offset =
-                                input_class_storage.template_types.get_index_of(param_name);
+                            mapped_input_offset = Some(old_params_offset);
 
                             candidate_param_type = Some(candidate_param_type_inner);
                         }

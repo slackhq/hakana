@@ -138,7 +138,7 @@ pub(crate) fn analyze(
     let functionlike_template_types = functionlike_storage.template_types.clone();
 
     let mut template_result = TemplateResult::new(
-        functionlike_template_types,
+        IndexMap::from_iter(functionlike_template_types),
         class_template_params.clone().unwrap_or(IndexMap::new()),
     );
 

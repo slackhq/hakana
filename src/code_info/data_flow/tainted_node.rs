@@ -83,7 +83,7 @@ impl TaintedNode {
                 unspecialized_id: unspecialized_id.clone(),
                 label: label.clone(),
                 pos: pos.as_ref().map(|p| Arc::new(*p)),
-                specialization_key: specialization_key.clone(),
+                specialization_key: *specialization_key,
                 taint_sinks: vec![],
                 previous: None,
                 path_types: Vec::new(),

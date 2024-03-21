@@ -33,7 +33,7 @@ pub(crate) fn collect(
         if class_storage.name == static_class_storage.name
             && !static_class_storage.template_types.is_empty()
         {
-            for (i, type_name) in class_storage.template_types.keys().enumerate() {
+            for (i, (type_name, _)) in class_storage.template_types.iter().enumerate() {
                 if let Some(type_param) = lhs_type_params.get(i) {
                     class_template_params
                         .entry(*type_name)
@@ -139,22 +139,20 @@ pub(crate) fn resolve_template_param(
             ..
         } = &type_extends_atomic
         {
-            if static_class_storage
+            if let Some(entry) = static_class_storage
                 .template_types
-                .get(param_name)
-                .unwrap_or(&FxHashMap::default())
-                .contains_key(defining_entity)
+                .iter()
+                .enumerate()
+                .find(|(_, (k, _))| k == param_name)
             {
-                let mapped_offset = static_class_storage.template_types.get_index_of(param_name);
+                let mapped_offset = entry.0;
 
-                if let Some(mapped_offset) = mapped_offset {
-                    if let Some(type_param) = type_params.get(mapped_offset) {
-                        output_type_extends = Some(add_optional_union_type(
-                            type_param.clone(),
-                            output_type_extends.as_ref(),
-                            codebase,
-                        ));
-                    }
+                if let Some(type_param) = type_params.get(mapped_offset) {
+                    output_type_extends = Some(add_optional_union_type(
+                        type_param.clone(),
+                        output_type_extends.as_ref(),
+                        codebase,
+                    ));
                 }
             } else if let Some(input_type_extends) = static_class_storage
                 .template_extended_params
@@ -193,7 +191,7 @@ fn expand_type(
     input_type_extends: &Arc<TUnion>,
     e: &FxHashMap<StrId, IndexMap<StrId, Arc<TUnion>>>,
     static_classlike_name: &StrId,
-    static_template_types: &IndexMap<StrId, FxHashMap<StrId, Arc<TUnion>>>,
+    static_template_types: &Vec<(StrId, Vec<(StrId, Arc<TUnion>)>)>,
 ) -> Vec<TAtomic> {
     let mut output_type_extends = Vec::new();
 
@@ -205,7 +203,7 @@ fn expand_type(
         } = type_extends_atomic
         {
             if static_classlike_name != defining_entity
-                || !static_template_types.contains_key(param_name)
+                || !static_template_types.iter().any(|(k, _)| k == param_name)
             {
                 if let Some(extended_type_map) = e.get(defining_entity) {
                     extended_type_map.get(param_name)

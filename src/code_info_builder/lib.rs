@@ -16,7 +16,6 @@ use hakana_reflection_info::{
 };
 use hakana_str::{StrId, ThreadedInterner};
 use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
-use indexmap::IndexMap;
 use no_pos_hash::{position_insensitive_hash, Hasher};
 use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;
@@ -203,7 +202,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .get(&(typedef.name.0.start_offset() as u32))
             .unwrap();
 
-        let mut template_type_map = IndexMap::new();
+        let mut template_type_map = vec![];
 
         let mut generic_variance = FxHashMap::default();
 
@@ -214,10 +213,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 .resolved_names
                 .get(&(type_param_node.name.0.start_offset() as u32))
                 .unwrap();
-            type_context.template_type_map.insert(
-                *param_name,
-                FxHashMap::from_iter([(type_name, Arc::new(get_mixed_any()))]),
-            );
+            type_context
+                .template_type_map
+                .push((*param_name, vec![(type_name, Arc::new(get_mixed_any()))]));
         }
 
         for (i, param) in typedef.tparams.iter().enumerate() {
@@ -237,12 +235,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 get_mixed_any()
             };
 
-            let mut h = FxHashMap::default();
-            h.insert(
+            let h = vec![(
                 self.interner
                     .intern("typedef-".to_string() + &type_name.0.to_string()),
                 Arc::new(constraint_type.clone()),
-            );
+            )];
 
             match param.variance {
                 ast_defs::Variance::Covariant => {
@@ -261,7 +258,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 .get(&(param.name.0.start_offset() as u32))
                 .unwrap();
 
-            template_type_map.insert(*param_name, h);
+            template_type_map.push((*param_name, h));
         }
 
         let mut definition_location = HPos::new(&typedef.span, self.file_source.file_path, None);
@@ -662,7 +659,7 @@ impl<'a> Scanner<'a> {
         let mut template_type_map = if let Some(parent_function_storage) = parent_function_storage {
             parent_function_storage.template_types.clone()
         } else {
-            IndexMap::new()
+            vec![]
         };
 
         if let Some(classlike_name) = &c.classlike_name {
