@@ -424,9 +424,6 @@ impl CodebaseInfo {
         self.classlike_infos.extend(other.classlike_infos);
         self.functionlike_infos.extend(other.functionlike_infos);
         self.symbols.all.extend(other.symbols.all);
-        self.symbols
-            .classlike_files
-            .extend(other.symbols.classlike_files);
         self.type_definitions.extend(other.type_definitions);
         self.constant_infos.extend(other.constant_infos);
         self.closures_in_files.extend(other.closures_in_files);

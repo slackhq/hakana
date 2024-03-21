@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use super::Context;
 use crate::simple_type_inferer;
 use crate::typehint_resolver::get_type_from_hint;
 use crate::typehint_resolver::get_type_from_optional_hint;
@@ -8,7 +7,6 @@ use hakana_reflection_info::attribute_info::AttributeInfo;
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
-use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::FnEffect;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
@@ -39,26 +37,20 @@ use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
 pub(crate) fn scan_method(
-    codebase: &mut CodebaseInfo,
     interner: &mut ThreadedInterner,
     all_custom_issues: &FxHashSet<String>,
     resolved_names: &FxHashMap<u32, StrId>,
     m: &aast::Method_<(), ()>,
-    c: &mut Context,
+    classlike_name: StrId,
+    classlike_storage: &mut ClassLikeInfo,
     comments: &Vec<(Pos, Comment)>,
     file_source: &FileSource,
     user_defined: bool,
 ) -> (StrId, FunctionLikeInfo) {
-    let classlike_name = c.classlike_name.unwrap();
     let method_name = interner.intern(m.name.1.clone());
 
     let mut type_resolution_context = TypeResolutionContext {
-        template_type_map: codebase
-            .classlike_infos
-            .get(&classlike_name)
-            .unwrap()
-            .template_types
-            .clone(),
+        template_type_map: classlike_storage.template_types.clone(),
         template_supers: FxHashMap::default(),
     };
 
@@ -93,8 +85,6 @@ pub(crate) fn scan_method(
     {
         functionlike_info.pure_can_throw = true;
     }
-
-    let classlike_storage = codebase.classlike_infos.get_mut(&classlike_name).unwrap();
 
     let mut method_info = MethodInfo::new();
 

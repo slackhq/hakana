@@ -25,7 +25,10 @@ use oxidized::{
     ast_defs::{self, ClassishKind},
 };
 
-use crate::{functionlike_scanner::adjust_location_from_comments, simple_type_inferer};
+use crate::{
+    functionlike_scanner::{self, adjust_location_from_comments},
+    get_function_hashes, simple_type_inferer,
+};
 use crate::{get_uses_hash, typehint_resolver::get_type_from_hint};
 
 pub(crate) fn scan(
@@ -168,9 +171,7 @@ pub(crate) fn scan(
             storage.is_abstract = matches!(abstraction, ast_defs::Abstraction::Abstract);
             storage.is_final = classlike_node.final_;
 
-            codebase
-                .symbols
-                .add_class_name(class_name, Some(file_source.file_path));
+            codebase.symbols.add_class_name(class_name);
 
             if let Some(parent_class) = classlike_node.extends.first() {
                 if let oxidized::tast::Hint_::Happly(name, params) = &*parent_class.1 {
@@ -264,9 +265,7 @@ pub(crate) fn scan(
 
             storage.kind = SymbolKind::EnumClass;
 
-            codebase
-                .symbols
-                .add_enum_class_name(class_name, Some(file_source.file_path));
+            codebase.symbols.add_enum_class_name(class_name);
 
             if let Some(enum_node) = &classlike_node.enum_ {
                 storage.enum_type = Some(
@@ -306,9 +305,7 @@ pub(crate) fn scan(
         }
         ClassishKind::Cinterface => {
             storage.kind = SymbolKind::Interface;
-            codebase
-                .symbols
-                .add_interface_name(class_name, Some(file_source.file_path));
+            codebase.symbols.add_interface_name(class_name);
 
             handle_reqs(
                 classlike_node,
@@ -359,9 +356,7 @@ pub(crate) fn scan(
         ClassishKind::Ctrait => {
             storage.kind = SymbolKind::Trait;
 
-            codebase
-                .symbols
-                .add_trait_name(class_name, Some(file_source.file_path));
+            codebase.symbols.add_trait_name(class_name);
 
             handle_reqs(
                 classlike_node,
@@ -458,9 +453,7 @@ pub(crate) fn scan(
                 }))],
             );
 
-            codebase
-                .symbols
-                .add_enum_name(class_name, Some(file_source.file_path));
+            codebase.symbols.add_enum_name(class_name);
         }
     }
 
@@ -637,7 +630,74 @@ pub(crate) fn scan(
         );
     }
 
+    for m in &classlike_node.methods {
+        let (method_name, functionlike_storage) = functionlike_scanner::scan_method(
+            interner,
+            all_custom_issues,
+            resolved_names,
+            m,
+            *class_name,
+            &mut storage,
+            file_source.comments,
+            &file_source,
+            user_defined,
+        );
+
+        let (signature_hash, body_hash) = get_function_hashes(
+            &file_source.file_contents,
+            &functionlike_storage.def_location,
+            &m.name,
+            &m.tparams,
+            &m.params,
+            &m.ret,
+            all_uses
+                .symbol_member_uses
+                .get(&(*class_name, method_name))
+                .unwrap_or(&vec![]),
+        );
+        def_signature_node.children.push(DefSignatureNode {
+            name: method_name,
+            start_offset: functionlike_storage.def_location.start_offset,
+            end_offset: functionlike_storage.def_location.end_offset,
+            start_line: functionlike_storage.def_location.start_line,
+            end_line: functionlike_storage.def_location.end_line,
+            signature_hash,
+            body_hash: Some(body_hash),
+            children: vec![],
+            is_function: true,
+            is_constant: false,
+        });
+
+        if !storage.template_readonly.is_empty()
+            && matches!(m.visibility, ast_defs::Visibility::Public)
+            && method_name != StrId::CONSTRUCT
+        {
+            for param in &functionlike_storage.params {
+                if let Some(param_type) = &param.signature_type {
+                    let template_types = param_type.get_template_types();
+
+                    for template_type in template_types {
+                        if let TAtomic::TGenericParam { param_name, .. } = template_type {
+                            storage.template_readonly.remove(param_name);
+                        }
+                    }
+                }
+            }
+        }
+
+        storage.methods.push(method_name);
+
+        codebase
+            .functionlike_infos
+            .insert((*class_name, method_name), functionlike_storage);
+    }
+
+    storage.properties.shrink_to_fit();
+    storage.methods.shrink_to_fit();
+
     codebase.classlike_infos.insert(*class_name, storage);
+
+    def_signature_node.children.shrink_to_fit();
 
     ast_nodes.push(def_signature_node);
 

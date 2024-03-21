@@ -456,75 +456,9 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
     }
 
     fn visit_method_(&mut self, c: &mut Context, m: &aast::Method_<(), ()>) -> Result<(), ()> {
-        let (method_name, functionlike_storage) = functionlike_scanner::scan_method(
-            self.codebase,
-            self.interner,
-            self.all_custom_issues,
-            self.resolved_names,
-            m,
-            c,
-            self.file_source.comments,
-            &self.file_source,
-            self.user_defined,
-        );
+        let method_name = self.interner.intern(m.name.1.clone());
 
         c.member_name = Some(method_name);
-
-        if let Some(last_current_node) = self.ast_nodes.last_mut() {
-            let (signature_hash, body_hash) = get_function_hashes(
-                &self.file_source.file_contents,
-                &functionlike_storage.def_location,
-                &m.name,
-                &m.tparams,
-                &m.params,
-                &m.ret,
-                self.uses
-                    .symbol_member_uses
-                    .get(&(c.classlike_name.unwrap(), c.member_name.unwrap()))
-                    .unwrap_or(&vec![]),
-            );
-            last_current_node.children.push(DefSignatureNode {
-                name: method_name,
-                start_offset: functionlike_storage.def_location.start_offset,
-                end_offset: functionlike_storage.def_location.end_offset,
-                start_line: functionlike_storage.def_location.start_line,
-                end_line: functionlike_storage.def_location.end_line,
-                signature_hash,
-                body_hash: Some(body_hash),
-                children: vec![],
-                is_function: true,
-                is_constant: false,
-            });
-        }
-
-        if let Some(classlike_storage) = self
-            .codebase
-            .classlike_infos
-            .get_mut(&c.classlike_name.unwrap())
-        {
-            if !classlike_storage.template_readonly.is_empty()
-                && matches!(m.visibility, ast_defs::Visibility::Public)
-                && method_name != StrId::CONSTRUCT
-            {
-                for param in &functionlike_storage.params {
-                    if let Some(param_type) = &param.signature_type {
-                        let template_types = param_type.get_template_types();
-
-                        for template_type in template_types {
-                            if let TAtomic::TGenericParam { param_name, .. } = template_type {
-                                classlike_storage.template_readonly.remove(param_name);
-                            }
-                        }
-                    }
-                }
-            }
-
-            classlike_storage.methods.push(method_name);
-
-            self.codebase
-                .functionlike_infos
-                .insert((classlike_storage.name, method_name), functionlike_storage);
-        }
 
         let result = m.recurse(c, self);
 

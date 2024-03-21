@@ -66,9 +66,9 @@ pub fn scan_files(
 
     let codebase_path = cache_dir.map(|cache_dir| format!("{}/codebase", cache_dir));
 
-    let symbols_path = cache_dir.map(|cache_dir| format!("{}/symbols", cache_dir));
+    let symbols_path = cache_dir.map(|cache_dir| format!("{}/interned_names", cache_dir));
 
-    let aast_names_path = cache_dir.map(|cache_dir| format!("{}/aast_names", cache_dir));
+    let aast_names_path = cache_dir.map(|cache_dir| format!("{}/aast_strids", cache_dir));
 
     let mut use_codebase_cache = true;
 
@@ -483,6 +483,7 @@ pub fn scan_files(
         codebase.type_definitions.shrink_to_fit();
         codebase.constant_infos.shrink_to_fit();
         codebase.files.shrink_to_fit();
+        codebase.symbols.all.shrink_to_fit();
     }
 
     Ok(ScanFilesResult {
@@ -622,7 +623,6 @@ fn invalidate_changed_codebase_elements(
                                     .remove(&(ast_node.name, method_name));
                             }
                         }
-                        codebase.symbols.classlike_files.remove(&ast_node.name);
                     }
                 }
                 None => {
