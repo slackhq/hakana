@@ -43,8 +43,8 @@ pub(crate) fn scan(
     ast_nodes: &mut Vec<DefSignatureNode>,
     all_uses: &Uses,
 ) -> bool {
-    let definition_location = HPos::new(&classlike_node.span, file_source.file_path, None);
-    let name_location = HPos::new(classlike_node.name.pos(), file_source.file_path, None);
+    let definition_location = HPos::new(&classlike_node.span, file_source.file_path);
+    let name_location = HPos::new(classlike_node.name.pos(), file_source.file_path);
 
     let mut meta_start = MetaStart {
         start_offset: definition_location.start_offset,
@@ -706,7 +706,7 @@ fn visit_xhp_attribute(
 ) {
     let mut attribute_type_location = None;
     let mut attribute_type = if let Some(hint) = &xhp_attribute.0 .1 {
-        attribute_type_location = Some(HPos::new(&hint.0, file_source.file_path, None));
+        attribute_type_location = Some(HPos::new(&hint.0, file_source.file_path));
         get_type_from_hint(
             &hint.1,
             None,
@@ -733,7 +733,7 @@ fn visit_xhp_attribute(
         attribute_type.types.push(TAtomic::TNull);
     }
 
-    let mut stmt_pos = HPos::new(&xhp_attribute.1.span, file_source.file_path, None);
+    let mut stmt_pos = HPos::new(&xhp_attribute.1.span, file_source.file_path);
 
     if let Some(type_hint) = &xhp_attribute.0 .1 {
         let (line, bol, offset) = type_hint.0.to_start_and_end_lnum_bol_offset().0;
@@ -781,7 +781,7 @@ fn visit_xhp_attribute(
         is_constant: false,
     });
 
-    let name_pos = HPos::new(xhp_attribute.1.id.pos(), file_source.file_path, None);
+    let name_pos = HPos::new(xhp_attribute.1.id.pos(), file_source.file_path);
 
     let property_storage = PropertyInfo {
         is_static: false,
@@ -832,14 +832,10 @@ fn visit_class_const_declaration(
             supplied_type_hint.0.start_offset() as u32,
         );
 
-        supplied_type_location = Some(HPos::new(
-            &supplied_type_hint.0,
-            file_source.file_path,
-            None,
-        ));
+        supplied_type_location = Some(HPos::new(&supplied_type_hint.0, file_source.file_path));
     }
 
-    let def_pos = HPos::new(&const_node.span, file_source.file_path, None);
+    let def_pos = HPos::new(&const_node.span, file_source.file_path);
 
     let name = interner.intern(const_node.id.1.clone());
 
@@ -927,7 +923,7 @@ fn visit_class_typeconst_declaration(
         ),
     };
 
-    let def_pos = HPos::new(&const_node.span, file_source.file_path, None);
+    let def_pos = HPos::new(&const_node.span, file_source.file_path);
 
     let name = interner.intern(const_node.name.1.clone());
 
@@ -982,14 +978,10 @@ fn visit_property_declaration(
             property_type_hint.0.start_offset() as u32,
         );
 
-        property_type_location = Some(HPos::new(
-            &property_type_hint.0,
-            file_source.file_path,
-            None,
-        ));
+        property_type_location = Some(HPos::new(&property_type_hint.0, file_source.file_path));
     }
 
-    let def_pos = HPos::new(&property_node.span, file_source.file_path, None);
+    let def_pos = HPos::new(&property_node.span, file_source.file_path);
 
     let property_ref_id = interner.intern(property_node.id.1.clone());
 
@@ -1040,11 +1032,7 @@ fn visit_property_declaration(
             }
             ast_defs::Visibility::Protected => MemberVisibility::Protected,
         },
-        pos: Some(HPos::new(
-            property_node.id.pos(),
-            file_source.file_path,
-            None,
-        )),
+        pos: Some(HPos::new(property_node.id.pos(), file_source.file_path)),
         kind: PropertyKind::Property,
         stmt_pos: Some(def_pos),
         type_pos: property_type_location,

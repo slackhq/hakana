@@ -89,7 +89,7 @@ impl<'a> StatementsAnalyzer<'a> {
 
     #[inline]
     pub fn get_hpos(&self, pos: &Pos) -> HPos {
-        HPos::new(pos, self.file_analyzer.get_file_source().file_path, None)
+        HPos::new(pos, self.file_analyzer.get_file_source().file_path)
     }
 
     #[inline]

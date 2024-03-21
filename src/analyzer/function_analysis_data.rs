@@ -106,7 +106,7 @@ impl FunctionAnalysisData {
             return;
         }
 
-        issue.pos.insertion_start = if let Some(expr_fixme_position) = self
+        issue.insertion_start = if let Some(expr_fixme_position) = self
             .expr_fixme_positions
             .get(&(issue.pos.start_offset, issue.pos.end_offset))
         {
@@ -129,7 +129,7 @@ impl FunctionAnalysisData {
     }
 
     fn add_issue_fixme(&mut self, issue: &Issue) -> bool {
-        if let Some(insertion_start) = &issue.pos.insertion_start {
+        if let Some(insertion_start) = &issue.insertion_start {
             self.add_replacement(
                 (insertion_start.offset, insertion_start.offset),
                 Replacement::Substitute(

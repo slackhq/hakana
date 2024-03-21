@@ -4,7 +4,6 @@ use crate::{formula_generator::AssertionContext, function_analysis_data::Functio
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_str::StrId;
 use hakana_reflection_info::symbol_references::ReferenceSource;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::{
@@ -14,6 +13,7 @@ use hakana_reflection_info::{
     t_union::populate_union_type,
 };
 use hakana_reflector::typehint_resolver::get_type_from_hint;
+use hakana_str::StrId;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::{self, TypeExpansionOptions};
@@ -291,11 +291,7 @@ fn get_is_assertions(
                             lhs_type.get_id(Some(interner)),
                             is_type.get_id(Some(interner)),
                         ),
-                        HPos::new(
-                            var_expr.pos(),
-                            assertion_context.file_source.file_path,
-                            None,
-                        ),
+                        HPos::new(var_expr.pos(), assertion_context.file_source.file_path),
                         &Some(match assertion_context.reference_source {
                             ReferenceSource::Symbol(_, fn_id) => {
                                 FunctionLikeIdentifier::Function(fn_id)
@@ -325,11 +321,7 @@ fn get_is_assertions(
                             lhs_type.get_id(Some(interner)),
                             is_type.get_id(Some(interner)),
                         ),
-                        HPos::new(
-                            var_expr.pos(),
-                            assertion_context.file_source.file_path,
-                            None,
-                        ),
+                        HPos::new(var_expr.pos(), assertion_context.file_source.file_path),
                         &Some(match assertion_context.reference_source {
                             ReferenceSource::Symbol(_, fn_id) => {
                                 FunctionLikeIdentifier::Function(fn_id)

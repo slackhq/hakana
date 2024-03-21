@@ -47,7 +47,7 @@ pub fn get_aast_for_path_and_contents(
             return Err(match err {
                 aast_parser::Error::ParserFatal(err, pos) => ParserError::SyntaxError {
                     message: err.message.to_string(),
-                    pos: HPos::new(&pos, FilePath(StrId::EMPTY), None),
+                    pos: HPos::new(&pos, FilePath(StrId::EMPTY)),
                 },
                 _ => ParserError::NotAHackFile,
             })
@@ -73,7 +73,6 @@ pub fn get_aast_for_path_and_contents(
                 end_line: line_count as u32,
                 start_column: (column as u16) + 1,
                 end_column: (column as u16) + 1,
-                insertion_start: None,
             },
         });
     }

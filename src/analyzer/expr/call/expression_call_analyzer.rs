@@ -71,8 +71,8 @@ pub(crate) fn analyze(
                 .map(|fn_param| {
                     let mut param = FunctionLikeParameter::new(
                         "".to_string(),
-                        HPos::new(expr.func.pos(), *statements_analyzer.get_file_path(), None),
-                        HPos::new(expr.func.pos(), *statements_analyzer.get_file_path(), None),
+                        HPos::new(expr.func.pos(), *statements_analyzer.get_file_path()),
+                        HPos::new(expr.func.pos(), *statements_analyzer.get_file_path()),
                     );
                     param.signature_type = fn_param.signature_type.as_ref().map(|t| (**t).clone());
                     param.is_inout = fn_param.is_inout;

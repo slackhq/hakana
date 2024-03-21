@@ -36,12 +36,10 @@ pub struct HPos {
     pub end_line: u32,
     pub start_column: u16,
     pub end_column: u16,
-
-    pub insertion_start: Option<StmtStart>,
 }
 
 impl HPos {
-    pub fn new(pos: &Pos, file_path: FilePath, stmt_start: Option<StmtStart>) -> HPos {
+    pub fn new(pos: &Pos, file_path: FilePath) -> HPos {
         let (start, end) = pos.to_start_and_end_lnum_bol_offset();
         let (start_line, line_start_beginning_offset, start_offset) = start;
         let (end_line, line_end_beginning_offset, end_offset) = end;
@@ -57,7 +55,6 @@ impl HPos {
             end_offset: end_offset as u32,
             start_column: start_column as u16,
             end_column: end_column as u16,
-            insertion_start: stmt_start,
         }
     }
 }

@@ -162,7 +162,7 @@ pub(crate) fn get_functionlike(
     file_source: &FileSource,
     user_defined: bool,
 ) -> FunctionLikeInfo {
-    let definition_location = HPos::new(def_pos, file_source.file_path, None);
+    let definition_location = HPos::new(def_pos, file_source.file_path);
 
     let mut suppressed_issues = vec![];
 
@@ -288,10 +288,6 @@ pub(crate) fn get_functionlike(
         }
     }
 
-    type_context
-        .template_type_map
-        .extend(functionlike_info.template_types.clone());
-
     for row in &functionlike_info.template_types {
         let mut matched = false;
         for existing_template_type in type_context.template_type_map.iter_mut() {
@@ -416,12 +412,11 @@ pub(crate) fn get_functionlike(
     }
 
     if let Some(ret) = &ret.1 {
-        functionlike_info.return_type_location =
-            Some(HPos::new(&ret.0, file_source.file_path, None));
+        functionlike_info.return_type_location = Some(HPos::new(&ret.0, file_source.file_path));
     }
 
     if let Some(name_pos) = name_pos {
-        functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path, None));
+        functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path));
     }
 
     if !suppressed_issues.is_empty() {
@@ -593,7 +588,7 @@ pub(crate) fn adjust_location_from_comments(
                         if let Some(Ok(issue_kind)) =
                             get_issue_from_comment(trimmed_text, all_custom_issues)
                         {
-                            let comment_pos = HPos::new(comment_pos, file_source.file_path, None);
+                            let comment_pos = HPos::new(comment_pos, file_source.file_path);
                             suppressed_issues.push((issue_kind, comment_pos));
                         }
 
@@ -617,7 +612,7 @@ fn convert_param_nodes(
     param_nodes
         .iter()
         .map(|param_node| {
-            let mut location = HPos::new(&param_node.pos, file_source.file_path, None);
+            let mut location = HPos::new(&param_node.pos, file_source.file_path);
 
             if let Some(param_type) = &param_node.type_hint.1 {
                 location.start_offset = param_type.0.start_offset() as u32;
@@ -652,7 +647,7 @@ fn convert_param_nodes(
             let mut param = FunctionLikeParameter::new(
                 param_node.name.clone(),
                 location,
-                HPos::new(&param_node.pos, file_source.file_path, None),
+                HPos::new(&param_node.pos, file_source.file_path),
             );
 
             if !suppressed_issues.is_empty() {
@@ -677,7 +672,7 @@ fn convert_param_nodes(
                 .type_hint
                 .1
                 .as_ref()
-                .map(|param_type| HPos::new(&param_type.0, file_source.file_path, None));
+                .map(|param_type| HPos::new(&param_type.0, file_source.file_path));
             for user_attribute in &param_node.user_attributes {
                 let name = resolved_names
                     .get(&(user_attribute.name.0.start_offset() as u32))

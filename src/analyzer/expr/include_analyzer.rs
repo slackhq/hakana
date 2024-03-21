@@ -26,8 +26,8 @@ pub(crate) fn analyze(
 ) -> Result<(), AnalysisError> {
     let echo_param = FunctionLikeParameter::new(
         "var".to_string(),
-        HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
-        HPos::new(call_pos, *statements_analyzer.get_file_path(), None),
+        HPos::new(call_pos, *statements_analyzer.get_file_path()),
+        HPos::new(call_pos, *statements_analyzer.get_file_path()),
     );
 
     expression_analyzer::analyze(statements_analyzer, expr, analysis_data, context, &mut None)?;

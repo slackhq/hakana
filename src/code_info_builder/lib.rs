@@ -137,7 +137,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             .or_default()
             .insert(name);
 
-        let definition_location = HPos::new(&gc.name.0, self.file_source.file_path, None);
+        let definition_location = HPos::new(&gc.name.0, self.file_source.file_path);
 
         let uses_hash = get_uses_hash(self.uses.symbol_uses.get(&name).unwrap_or(&vec![]));
 
@@ -159,7 +159,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             ConstantInfo {
                 pos: definition_location,
                 type_pos: if let Some(t) = &gc.type_ {
-                    Some(HPos::new(&t.0, self.file_source.file_path, None))
+                    Some(HPos::new(&t.0, self.file_source.file_path))
                 } else {
                     None
                 },
@@ -264,7 +264,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             template_type_map.push((*param_name, h));
         }
 
-        let mut definition_location = HPos::new(&typedef.span, self.file_source.file_path, None);
+        let mut definition_location = HPos::new(&typedef.span, self.file_source.file_path);
 
         if let Some(user_attribute) = typedef.user_attributes.first() {
             definition_location.start_line = user_attribute.name.0.line() as u32;
@@ -392,7 +392,6 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                                 HPos::new(
                                     shape_source_attribute.name.pos(),
                                     self.file_source.file_path,
-                                    None,
                                 ),
                                 source_types,
                             ),

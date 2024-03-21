@@ -63,7 +63,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 HPos::new(
                     stmt.name.pos(),
                     self.file_analyzer.get_file_source().file_path,
-                    None,
                 ),
             ));
         };
@@ -87,7 +86,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 HPos::new(
                     stmt.name.pos(),
                     self.file_analyzer.get_file_source().file_path,
-                    None,
                 ),
             ));
         };
@@ -144,11 +142,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 None => {
                     return Err(AnalysisError::InternalError(
                         "Cannot get closure storage".to_string(),
-                        HPos::new(
-                            &stmt.span,
-                            self.file_analyzer.get_file_source().file_path,
-                            None,
-                        ),
+                        HPos::new(&stmt.span, self.file_analyzer.get_file_source().file_path),
                     ));
                 }
                 Some(value) => value,
@@ -218,11 +212,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve method name".to_string(),
-                HPos::new(
-                    &stmt.name.0,
-                    self.file_analyzer.get_file_source().file_path,
-                    None,
-                ),
+                HPos::new(&stmt.name.0, self.file_analyzer.get_file_source().file_path),
             ));
         };
 
@@ -247,7 +237,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 HPos::new(
                     &stmt.name.0,
                     self.file_analyzer.get_file_source().file_path,
-                    None,
+           
                 ),
             ));
         };

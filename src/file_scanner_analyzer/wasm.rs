@@ -289,7 +289,6 @@ pub fn analyze_single_file(
                         end_line: 1,
                         start_column: 1,
                         end_column: 1,
-                        insertion_start: None,
                     },
                     &None,
                 )],

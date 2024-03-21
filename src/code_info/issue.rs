@@ -5,7 +5,11 @@ use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-use crate::{code_location::HPos, function_context::FunctionLikeIdentifier, taint::SinkType};
+use crate::{
+    code_location::{HPos, StmtStart},
+    function_context::FunctionLikeIdentifier,
+    taint::SinkType,
+};
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum IssueKind {
@@ -218,6 +222,7 @@ pub struct Issue {
     pub can_fix: bool,
     pub fixme_added: bool,
     pub symbol: (StrId, StrId),
+    pub insertion_start: Option<StmtStart>,
 }
 
 impl Issue {
@@ -241,6 +246,7 @@ impl Issue {
             pos,
             can_fix: false,
             fixme_added: false,
+            insertion_start: None,
         }
     }
 
