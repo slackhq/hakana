@@ -747,11 +747,6 @@ fn add_dataflow(
                 None
             },
         );
-
-        if !functionlike_storage.return_source_params.is_empty() {
-            // todo dispatch AddRemoveTaintEvent
-            // and also handle simple preg_replace calls
-        }
     } else {
         function_call_node = DataFlowNode::get_for_method_return(
             functionlike_id.to_string(statements_analyzer.get_interner()),

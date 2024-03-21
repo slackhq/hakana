@@ -86,7 +86,7 @@ pub(crate) fn scan(
     if !classlike_node.tparams.is_empty() {
         let mut type_context = TypeResolutionContext {
             template_type_map: vec![],
-            template_supers: FxHashMap::default(),
+            template_supers: vec![],
         };
 
         for type_param_node in classlike_node.tparams.iter() {
@@ -197,7 +197,7 @@ pub(crate) fn scan(
                                         Some(class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
-                                            template_supers: FxHashMap::default(),
+                                            template_supers: vec![],
                                         },
                                         resolved_names,
                                         file_source.file_path,
@@ -244,7 +244,7 @@ pub(crate) fn scan(
                                             Some(class_name),
                                             &TypeResolutionContext {
                                                 template_type_map: storage.template_types.clone(),
-                                                template_supers: FxHashMap::default(),
+                                                template_supers: vec![],
                                             },
                                             resolved_names,
                                             file_source.file_path,
@@ -339,7 +339,7 @@ pub(crate) fn scan(
                                         Some(class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
-                                            template_supers: FxHashMap::default(),
+                                            template_supers: vec![],
                                         },
                                         resolved_names,
                                         file_source.file_path,
@@ -391,7 +391,7 @@ pub(crate) fn scan(
                                         Some(class_name),
                                         &TypeResolutionContext {
                                             template_type_map: storage.template_types.clone(),
-                                            template_supers: FxHashMap::default(),
+                                            template_supers: vec![],
                                         },
                                         resolved_names,
                                         file_source.file_path,
@@ -511,7 +511,7 @@ pub(crate) fn scan(
             None,
             &TypeResolutionContext {
                 template_type_map: storage.template_types.clone(),
-                template_supers: FxHashMap::default(),
+                template_supers: vec![],
             },
             resolved_names,
             file_source.file_path,
@@ -740,7 +740,7 @@ fn handle_reqs(
                                 Some(class_name),
                                 &TypeResolutionContext {
                                     template_type_map: storage.template_types.clone(),
-                                    template_supers: FxHashMap::default(),
+                                    template_supers: vec![],
                                 },
                                 resolved_names,
                                 file_source.file_path,
@@ -772,7 +772,7 @@ fn visit_xhp_attribute(
             None,
             &TypeResolutionContext {
                 template_type_map: vec![],
-                template_supers: FxHashMap::default(),
+                template_supers: vec![],
             },
             resolved_names,
             file_source.file_path,
@@ -885,7 +885,7 @@ fn visit_class_const_declaration(
             Some(&classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
-                template_supers: FxHashMap::default(),
+                template_supers: vec![],
             },
             resolved_names,
             file_source.file_path,
@@ -955,7 +955,7 @@ fn visit_class_typeconst_declaration(
                         Some(&classlike_storage.name),
                         &TypeResolutionContext {
                             template_type_map: classlike_storage.template_types.clone(),
-                            template_supers: FxHashMap::default(),
+                            template_supers: vec![],
                         },
                         resolved_names,
                         file_source.file_path,
@@ -973,7 +973,7 @@ fn visit_class_typeconst_declaration(
                 Some(&classlike_storage.name),
                 &TypeResolutionContext {
                     template_type_map: classlike_storage.template_types.clone(),
-                    template_supers: FxHashMap::default(),
+                    template_supers: vec![],
                 },
                 resolved_names,
                 file_source.file_path,
@@ -1031,7 +1031,7 @@ fn visit_property_declaration(
             Some(&classlike_storage.name),
             &TypeResolutionContext {
                 template_type_map: classlike_storage.template_types.clone(),
-                template_supers: FxHashMap::default(),
+                template_supers: vec![],
             },
             resolved_names,
             file_source.file_path,

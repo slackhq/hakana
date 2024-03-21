@@ -330,7 +330,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     None,
                     &TypeResolutionContext {
                         template_type_map: template_type_map.clone(),
-                        template_supers: FxHashMap::default(),
+                        template_supers: vec![],
                     },
                     self.resolved_names,
                     self.file_source.file_path,
@@ -344,7 +344,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 None,
                 &TypeResolutionContext {
                     template_type_map: template_type_map.clone(),
-                    template_supers: FxHashMap::default(),
+                    template_supers: vec![],
                 },
                 self.resolved_names,
                 self.file_source.file_path,
@@ -611,7 +611,7 @@ impl<'a> Scanner<'a> {
 
         let mut type_resolution_context = TypeResolutionContext {
             template_type_map,
-            template_supers: FxHashMap::default(),
+            template_supers: vec![],
         };
 
         let mut functionlike_storage = functionlike_scanner::get_functionlike(

@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
 use hakana_str::StrId;
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    assertion::Assertion,
     attribute_info::AttributeInfo,
     code_location::HPos,
     function_context::FunctionLikeIdentifier,
@@ -87,12 +85,6 @@ pub struct FunctionLikeInfo {
      */
     pub template_types: Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
 
-    pub assertions: Option<FxHashMap<usize, Assertion>>,
-
-    pub if_true_assertions: Option<FxHashMap<usize, Assertion>>,
-
-    pub if_false_assertions: Option<FxHashMap<usize, Assertion>>,
-
     pub has_visitor_issues: bool,
 
     pub has_yield: bool,
@@ -129,8 +121,6 @@ pub struct FunctionLikeInfo {
     pub added_taints: Vec<SinkType>,
 
     pub removed_taints: Vec<SinkType>,
-
-    pub return_source_params: FxHashMap<u32, StrId>,
 
     pub attributes: Vec<AttributeInfo>,
 
@@ -176,9 +166,6 @@ impl FunctionLikeInfo {
             suppressed_issues: None,
             deprecated: false,
             template_types: vec![],
-            assertions: None,
-            if_true_assertions: None,
-            if_false_assertions: None,
             has_visitor_issues: false,
             has_yield: false,
             mutation_free: false,
@@ -187,7 +174,6 @@ impl FunctionLikeInfo {
             taint_source_types: vec![],
             added_taints: vec![],
             removed_taints: vec![],
-            return_source_params: FxHashMap::default(),
             attributes: Vec::new(),
             method_info: None,
             is_async: false,

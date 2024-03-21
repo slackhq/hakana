@@ -51,7 +51,7 @@ pub(crate) fn scan_method(
 
     let mut type_resolution_context = TypeResolutionContext {
         template_type_map: classlike_storage.template_types.clone(),
-        template_supers: FxHashMap::default(),
+        template_supers: vec![],
     };
 
     let mut functionlike_info = get_functionlike(
@@ -172,7 +172,7 @@ pub(crate) fn get_functionlike(
 
     let mut functionlike_info = FunctionLikeInfo::new(definition_location, meta_start);
 
-    let mut template_supers = FxHashMap::default();
+    let mut template_supers = vec![];
 
     if !tparams.is_empty() {
         for type_param_node in tparams.iter() {
@@ -233,7 +233,7 @@ pub(crate) fn get_functionlike(
                         extra_types: None,
                     });
 
-                    template_supers.insert(*param_name, super_type);
+                    template_supers.push((*param_name, super_type));
                 }
             }
 

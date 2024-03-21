@@ -497,7 +497,11 @@ pub fn get_type_from_hint(
             let applied_type = &id.1;
 
             if let Some(resolved_name) = resolved_names.get(&(id.0.start_offset() as u32)) {
-                if let Some(type_name) = type_context.template_supers.get(resolved_name) {
+                if let Some((_, type_name)) = type_context
+                    .template_supers
+                    .iter()
+                    .find(|(id, _)| id == resolved_name)
+                {
                     return Some(type_name.clone());
                 }
             }

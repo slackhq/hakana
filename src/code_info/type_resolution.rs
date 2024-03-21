@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use hakana_str::StrId;
-use rustc_hash::FxHashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +9,7 @@ use crate::{t_union::TUnion, GenericParent};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TypeResolutionContext {
     pub template_type_map: Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
-    pub template_supers: FxHashMap<StrId, TUnion>,
+    pub template_supers: Vec<(StrId, TUnion)>,
 }
 
 impl Default for TypeResolutionContext {
@@ -23,7 +22,7 @@ impl TypeResolutionContext {
     pub fn new() -> Self {
         Self {
             template_type_map: vec![],
-            template_supers: FxHashMap::default(),
+            template_supers: vec![],
         }
     }
 }
