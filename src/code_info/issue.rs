@@ -15,6 +15,7 @@ use crate::{
 pub enum IssueKind {
     CannotInferGenericParam,
     CustomIssue(String),
+    DuplicateEnumValue,
     EmptyBlock,
     FalsableReturnStatement,
     FalseArgument,

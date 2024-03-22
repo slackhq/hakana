@@ -1,16 +1,19 @@
 use crate::expression_analyzer;
 use crate::file_analyzer::FileAnalyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::functionlike_analyzer::FunctionLikeAnalyzer;
+use crate::functionlike_analyzer::{update_analysis_result_with_tast, FunctionLikeAnalyzer};
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
-use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::data_flow::graph::DataFlowGraph;
-use hakana_reflection_info::function_context::FunctionContext;
+use hakana_reflection_info::function_context::{FunctionContext, FunctionLikeIdentifier};
+use hakana_reflection_info::issue::IssueKind;
+use hakana_reflection_info::{analysis_result::AnalysisResult, issue::Issue};
+use hakana_str::StrId;
 use oxidized::aast;
+use rustc_hash::FxHashMap;
 
 pub(crate) struct ClassLikeAnalyzer<'a> {
     file_analyzer: &'a FileAnalyzer<'a>,
@@ -28,14 +31,15 @@ impl<'a> ClassLikeAnalyzer<'a> {
         analysis_result: &mut AnalysisResult,
     ) -> Result<(), AnalysisError> {
         let resolved_names = self.file_analyzer.resolved_names.clone();
-        let name = if let Some(resolved_name) = resolved_names.get(&(stmt.name.0.start_offset() as u32)) {
-            *resolved_name
-        } else {
-            return Err(AnalysisError::InternalError(
-                format!("Cannot resolve class name {}", &stmt.name.1),
-                statements_analyzer.get_hpos(stmt.name.pos()),
-            ));
-        };
+        let name =
+            if let Some(resolved_name) = resolved_names.get(&(stmt.name.0.start_offset() as u32)) {
+                *resolved_name
+            } else {
+                return Err(AnalysisError::InternalError(
+                    format!("Cannot resolve class name {}", &stmt.name.1),
+                    statements_analyzer.get_hpos(stmt.name.pos()),
+                ));
+            };
 
         let codebase = self.file_analyzer.get_codebase();
 
@@ -88,6 +92,9 @@ impl<'a> ClassLikeAnalyzer<'a> {
             None,
         );
 
+        let mut existing_enum_str_values = FxHashMap::default();
+        let mut existing_enum_int_values = FxHashMap::default();
+
         for constant in &stmt.consts {
             match &constant.kind {
                 aast::ClassConstKind::CCAbstract(Some(expr))
@@ -99,6 +106,46 @@ impl<'a> ClassLikeAnalyzer<'a> {
                         &mut class_context,
                         &mut None,
                     )?;
+
+                    if codebase.enum_exists(&name) {
+                        if let (Some(expr_value), Some(constant_name)) = (
+                            analysis_data.get_expr_type(expr.pos()),
+                            resolved_names.get(&(constant.id.0.start_offset() as u32)),
+                        ) {
+                            if let Some(string_value) = expr_value.get_single_literal_string_value()
+                            {
+                                if let Some(existing_name) =
+                                    existing_enum_str_values.get(&string_value)
+                                {
+                                    emit_dupe_enum_case_issue(
+                                        &mut analysis_data,
+                                        statements_analyzer,
+                                        name,
+                                        existing_name,
+                                        expr,
+                                    );
+                                } else {
+                                    existing_enum_str_values.insert(string_value, *constant_name);
+                                }
+                            } else if let Some(int_value) =
+                                expr_value.get_single_literal_int_value()
+                            {
+                                if let Some(existing_name) =
+                                    existing_enum_int_values.get(&int_value)
+                                {
+                                    emit_dupe_enum_case_issue(
+                                        &mut analysis_data,
+                                        statements_analyzer,
+                                        name,
+                                        existing_name,
+                                        expr,
+                                    );
+                                } else {
+                                    existing_enum_int_values.insert(int_value, *constant_name);
+                                }
+                            }
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -116,9 +163,12 @@ impl<'a> ClassLikeAnalyzer<'a> {
             }
         }
 
-        analysis_result
-            .symbol_references
-            .extend(analysis_data.symbol_references);
+        update_analysis_result_with_tast(
+            analysis_data,
+            analysis_result,
+            statements_analyzer.get_file_path(),
+            false,
+        );
 
         for method in &stmt.methods {
             if method.abstract_ || matches!(classlike_storage.kind, SymbolKind::Interface) {
@@ -131,4 +181,27 @@ impl<'a> ClassLikeAnalyzer<'a> {
 
         Ok(())
     }
+}
+
+fn emit_dupe_enum_case_issue(
+    analysis_data: &mut FunctionAnalysisData,
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    enum_name: StrId,
+    existing_name: &hakana_str::StrId,
+    expr: &aast::Expr<(), ()>,
+) {
+    analysis_data.maybe_add_issue(
+        Issue::new(
+            IssueKind::DuplicateEnumValue,
+            format!(
+                "Duplicate enum value for {}, previously defined by case {}",
+                statements_analyzer.get_interner().lookup(&enum_name),
+                statements_analyzer.get_interner().lookup(existing_name)
+            ),
+            statements_analyzer.get_hpos(expr.pos()),
+            &Some(FunctionLikeIdentifier::Function(enum_name)),
+        ),
+        statements_analyzer.get_config(),
+        statements_analyzer.get_file_path_actual(),
+    );
 }
