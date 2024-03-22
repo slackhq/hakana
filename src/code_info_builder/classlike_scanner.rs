@@ -639,7 +639,7 @@ pub(crate) fn scan(
             *class_name,
             &mut storage,
             file_source.comments,
-            &file_source,
+            file_source,
             user_defined,
         );
 

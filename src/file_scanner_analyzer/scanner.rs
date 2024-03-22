@@ -613,15 +613,13 @@ fn invalidate_changed_codebase_elements(
                 Some(kind) => {
                     if let SymbolKind::TypeDefinition = kind {
                         codebase.type_definitions.remove(&ast_node.name);
-                    } else {
-                        if let Some(classlike_info) =
-                            codebase.classlike_infos.remove(&ast_node.name)
-                        {
-                            for method_name in classlike_info.methods {
-                                codebase
-                                    .functionlike_infos
-                                    .remove(&(ast_node.name, method_name));
-                            }
+                    } else if let Some(classlike_info) =
+                        codebase.classlike_infos.remove(&ast_node.name)
+                    {
+                        for method_name in classlike_info.methods {
+                            codebase
+                                .functionlike_infos
+                                .remove(&(ast_node.name, method_name));
                         }
                     }
                 }

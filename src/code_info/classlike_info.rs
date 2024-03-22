@@ -11,8 +11,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    attribute_info::AttributeInfo, class_constant_info::ConstantInfo, enum_case_info::EnumCaseInfo,
-    property_info::PropertyInfo,
+    attribute_info::AttributeInfo, class_constant_info::ConstantInfo, property_info::PropertyInfo,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -188,8 +187,6 @@ pub struct ClassLikeInfo {
 
     pub attributes: Vec<AttributeInfo>,
 
-    pub enum_cases: Option<FxHashMap<String, EnumCaseInfo>>,
-
     pub enum_type: Option<TAtomic>,
     pub enum_constraint: Option<Box<TAtomic>>,
 
@@ -242,7 +239,6 @@ impl ClassLikeInfo {
             direct_parent_interfaces: vec![],
             required_classlikes: vec![],
             inheritable_method_ids: FxHashMap::default(),
-            enum_cases: None,
             enum_type: None,
             enum_constraint: None,
             hash: None,
