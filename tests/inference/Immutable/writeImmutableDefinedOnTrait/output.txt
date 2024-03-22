@@ -1,0 +1,2 @@
+ERROR: ImmutablePropertyWrite - input.hack:13:16 - Property A::$b is defined on an immutable class
+ERROR: ImmutablePropertyWrite - input.hack:25:9 - Property A::$b is defined on an immutable class

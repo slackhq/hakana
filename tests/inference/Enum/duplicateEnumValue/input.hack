@@ -3,6 +3,8 @@ enum Suit: string {
     Diamonds = "d";
     Clubs = "c";
     Spades = "c";
+    /* HAKANA_FIXME[DuplicateEnumValue] */
+    Aces = "c";
 }
 
 enum Color: int {

@@ -1,2 +1,2 @@
 ERROR: DuplicateEnumValue - input.hack:5:14 - Duplicate enum value for Suit, previously defined by case Clubs
-ERROR: DuplicateEnumValue - input.hack:12:14 - Duplicate enum value for Color, previously defined by case Blue
+ERROR: DuplicateEnumValue - input.hack:14:14 - Duplicate enum value for Color, previously defined by case Blue

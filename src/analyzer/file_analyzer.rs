@@ -66,7 +66,7 @@ impl<'a> FileAnalyzer<'a> {
         let statements_analyzer = StatementsAnalyzer::new(
             &unnamespaced_file_analyzer,
             &type_resolution_context,
-            Vec::new(),
+            Vec::from_iter(self.file_source.comments.iter()),
         );
 
         let mut context = ScopeContext::new(FunctionContext::new());
