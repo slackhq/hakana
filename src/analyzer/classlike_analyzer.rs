@@ -92,6 +92,10 @@ impl<'a> ClassLikeAnalyzer<'a> {
             None,
         );
 
+        if let Some(issue_filter) = &statements_analyzer.get_config().allowed_issues {
+            analysis_data.issue_filter = Some(issue_filter.clone());
+        }
+
         let mut existing_enum_str_values = FxHashMap::default();
         let mut existing_enum_int_values = FxHashMap::default();
 
