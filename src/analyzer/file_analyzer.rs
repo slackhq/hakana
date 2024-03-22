@@ -61,6 +61,10 @@ impl<'a> FileAnalyzer<'a> {
             None,
         );
 
+        if let Some(issue_filter) = &self.get_config().allowed_issues {
+            analysis_data.issue_filter = Some(issue_filter.clone());
+        }
+
         let unnamespaced_file_analyzer = self.clone();
         let type_resolution_context = TypeResolutionContext::new();
         let statements_analyzer = StatementsAnalyzer::new(
