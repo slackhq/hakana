@@ -31,6 +31,7 @@ pub enum StaticClassType<'a, 'b> {
     Object(&'b TAtomic),
 }
 
+#[derive(Debug)]
 pub struct TypeExpansionOptions<'a> {
     pub self_class: Option<&'a StrId>,
     pub static_class_type: StaticClassType<'a, 'a>,
@@ -196,6 +197,20 @@ fn expand_atomic(
             if options.function_is_final {
                 *is_this = false;
             }
+        } else if *is_this {
+            if let StaticClassType::Object(obj) = options.static_class_type {
+                if let TAtomic::TNamedObject {
+                    name: new_this_name,
+                    ..
+                } = obj
+                {
+                    if codebase.class_extends_or_implements(new_this_name, name) {
+                        *skip_key = true;
+                        new_return_type_parts.push(obj.clone().clone());
+                        return;
+                    }
+                }
+            };
         }
 
         if let Some(type_params) = type_params {

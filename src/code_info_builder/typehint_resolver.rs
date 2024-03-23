@@ -710,7 +710,7 @@ pub fn get_type_from_hint(
         Hint_::Haccess(class, type_names) => {
             let mut inner_type = get_type_from_hint(
                 &class.1,
-                None,
+                classlike_name,
                 type_context,
                 resolved_names,
                 file_path,
