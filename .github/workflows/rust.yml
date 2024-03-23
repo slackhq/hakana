@@ -18,5 +18,21 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+
+    # Step to install OCaml compiler and dependencies
+    - name: Install OCaml
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ocaml opam
+        opam init --disable-sandboxing -y
+        eval $(opam env)
+
+    # Step to install any OCaml dependencies your project might need
+    # You can use opam to install dependencies. For example:
+    - name: Install OCaml Dependencies
+      run: |
+        eval $(opam env)
+        opam install <your-dependency> -y
+
     - name: Build & Run tests
       run: ./init.sh && cargo run --release --bin hakana test tests
