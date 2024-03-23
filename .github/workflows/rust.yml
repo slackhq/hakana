@@ -27,12 +27,5 @@ jobs:
         opam init --disable-sandboxing -y
         eval $(opam env)
 
-    # Step to install any OCaml dependencies your project might need
-    # You can use opam to install dependencies. For example:
-    - name: Install OCaml Dependencies
-      run: |
-        eval $(opam env)
-        opam install <your-dependency> -y
-
     - name: Build & Run tests
       run: ./init.sh && cargo run --release --bin hakana test tests
