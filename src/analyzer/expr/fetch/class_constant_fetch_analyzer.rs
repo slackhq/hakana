@@ -5,9 +5,9 @@ use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer
 use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_str::StrId;
 use hakana_reflection_info::{t_atomic::TAtomic, t_union::TUnion};
-use hakana_type::type_expander::TypeExpansionOptions;
+use hakana_str::StrId;
+use hakana_type::type_expander::{StaticClassType, TypeExpansionOptions};
 use hakana_type::{
     add_optional_union_type, get_mixed_any,
     type_expander::{self},
@@ -273,6 +273,13 @@ fn analyse_known_class_constant(
     );
 
     if let Some(ref mut class_constant_type) = class_constant_type {
+        let this_class = TAtomic::TNamedObject {
+            name: *classlike_name,
+            type_params: None,
+            is_this,
+            extra_types: None,
+            remapped_params: false,
+        };
         type_expander::expand_union(
             codebase,
             &Some(statements_analyzer.get_interner()),
@@ -280,6 +287,15 @@ fn analyse_known_class_constant(
             &TypeExpansionOptions {
                 evaluate_conditional_types: true,
                 expand_generic: true,
+                self_class: Some(&classlike_name),
+                static_class_type: StaticClassType::Object(&this_class),
+                parent_class: None,
+                file_path: Some(
+                    &statements_analyzer
+                        .get_file_analyzer()
+                        .get_file_source()
+                        .file_path,
+                ),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
