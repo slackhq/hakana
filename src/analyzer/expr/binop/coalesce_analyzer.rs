@@ -7,6 +7,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
+use hakana_reflection_info::t_union::TUnion;
 use hakana_type::{add_union_type, combine_union_types, get_mixed_any, get_null};
 use oxidized::aast::{self, CallExpr};
 use oxidized::ast_defs::ParamKind;
@@ -30,6 +31,7 @@ pub(crate) fn analyze<'expr>(
             aast::Expr_::ArrayGet(boxed) => {
                 root_expr = &boxed.0;
                 root_not_left = true;
+
                 if let Some(dim) = &boxed.1 {
                     if let aast::Expr_::ArrayGet(..)
                     | aast::Expr_::ClassConst(..)
@@ -55,25 +57,38 @@ pub(crate) fn analyze<'expr>(
         }
     }
 
-    let root_type = if root_not_left {
-        expression_analyzer::analyze(
-            statements_analyzer,
-            root_expr,
-            analysis_data,
-            context,
-            if_body_context,
-        )
-        .ok();
-
-        analysis_data.get_rc_expr_type(root_expr.pos()).cloned()
-    } else {
-        None
-    };
-
     let mut replacement_left = None;
 
-    if has_arrayget_key
-        || matches!(
+    if has_arrayget_key {
+        replacement_left = Some(get_left_expr(
+            context,
+            statements_analyzer,
+            left,
+            analysis_data,
+            if_body_context,
+            left,
+            &None,
+            true,
+        ));
+    } else {
+        let root_type = if root_not_left {
+            let mut isset_context = context.clone();
+            isset_context.inside_isset = true;
+            expression_analyzer::analyze(
+                statements_analyzer,
+                root_expr,
+                analysis_data,
+                &mut isset_context,
+                if_body_context,
+            )
+            .ok();
+
+            analysis_data.get_rc_expr_type(root_expr.pos()).cloned()
+        } else {
+            None
+        };
+
+        if matches!(
             root_expr.2,
             aast::Expr_::Call(..)
                 | aast::Expr_::Cast(..)
@@ -83,28 +98,30 @@ pub(crate) fn analyze<'expr>(
                 | aast::Expr_::ClassConst(..)
                 | aast::Expr_::Pipe(..)
                 | aast::Expr_::Await(..)
-        )
-    {
-        replacement_left = Some(get_left_expr(
-            context,
-            statements_analyzer,
-            left,
-            analysis_data,
-            if_body_context,
-            if has_arrayget_key { left } else { root_expr },
-            has_arrayget_key,
-        ));
-    } else if let Some(root_type) = root_type {
-        if root_type.has_typealias() {
+        ) {
             replacement_left = Some(get_left_expr(
                 context,
                 statements_analyzer,
                 left,
                 analysis_data,
                 if_body_context,
-                left,
-                true,
+                root_expr,
+                &root_type,
+                false,
             ));
+        } else if let Some(root_type) = root_type {
+            if root_type.has_typealias() {
+                replacement_left = Some(get_left_expr(
+                    context,
+                    statements_analyzer,
+                    left,
+                    analysis_data,
+                    if_body_context,
+                    left,
+                    &None,
+                    true,
+                ));
+            }
         }
     }
 
@@ -169,26 +186,31 @@ fn get_left_expr(
     analysis_data: &mut FunctionAnalysisData,
     if_body_context: &mut Option<ScopeContext>,
     root_expr: &aast::Expr<(), ()>,
+    root_type: &Option<Rc<TUnion>>,
     make_nullable: bool,
 ) -> aast::Expr<(), ()> {
     let mut isset_context = context.clone();
     isset_context.inside_isset = true;
-    expression_analyzer::analyze(
-        statements_analyzer,
-        root_expr,
-        analysis_data,
-        &mut isset_context,
-        if_body_context,
-    )
-    .ok();
-    let mut condition_type = analysis_data
-        .get_rc_expr_type(root_expr.pos())
-        .cloned()
-        .unwrap_or(Rc::new(get_mixed_any()));
-    let root_expr_var_id = format!(
-        "$tmp_coalesce_var {}",
-        left.pos().start_offset()
-    );
+
+    let mut condition_type = if let Some(root_type) = root_type {
+        root_type.clone()
+    } else {
+        expression_analyzer::analyze(
+            statements_analyzer,
+            root_expr,
+            analysis_data,
+            &mut isset_context,
+            if_body_context,
+        )
+        .ok();
+
+        analysis_data
+            .get_rc_expr_type(root_expr.pos())
+            .cloned()
+            .unwrap_or(Rc::new(get_mixed_any()))
+    };
+
+    let root_expr_var_id = format!("$tmp_coalesce_var {}", left.pos().start_offset());
 
     if make_nullable && !condition_type.is_nullable_mixed() {
         condition_type = Rc::new(add_union_type(
@@ -200,7 +222,8 @@ fn get_left_expr(
     }
 
     let redefined_vars = isset_context
-        .get_redefined_vars(&context.vars_in_scope, false, &mut FxHashSet::default()).into_keys()
+        .get_redefined_vars(&context.vars_in_scope, false, &mut FxHashSet::default())
+        .into_keys()
         .collect::<FxHashSet<_>>();
 
     //these vars were changed in both branches
