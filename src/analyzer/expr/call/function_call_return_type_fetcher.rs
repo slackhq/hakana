@@ -731,10 +731,9 @@ fn add_dataflow(
 
     // todo conditionally remove taints
 
-    let function_call_node;
 
-    if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        function_call_node = DataFlowNode::get_for_method_return(
+    let function_call_node = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
+        DataFlowNode::get_for_method_return(
             functionlike_id.to_string(statements_analyzer.get_interner()),
             if let Some(return_pos) = &functionlike_storage.return_type_location {
                 Some(*return_pos)
@@ -746,14 +745,14 @@ fn add_dataflow(
             } else {
                 None
             },
-        );
+        )
     } else {
-        function_call_node = DataFlowNode::get_for_method_return(
+        DataFlowNode::get_for_method_return(
             functionlike_id.to_string(statements_analyzer.get_interner()),
             Some(statements_analyzer.get_hpos(pos)),
             Some(statements_analyzer.get_hpos(pos)),
-        );
-    }
+        )
+    };
 
     data_flow_graph.add_node(function_call_node.clone());
 
@@ -912,6 +911,7 @@ fn get_special_argument_nodes(
             | StrId::LIB_STR_LOWERCASE
             | StrId::LIB_STR_UPPERCASE
             | StrId::LIB_STR_CAPITALIZE
+            | StrId::LIB_STR_CAPITALIZE_WORDS
             | StrId::ASIO_JOIN
             | StrId::STRIP_TAGS
             | StrId::STRIPSLASHES
@@ -929,7 +929,6 @@ fn get_special_argument_nodes(
             | StrId::STRPBRK
             | StrId::STRRCHR
             | StrId::STRREV
-            | StrId::SUBSTR
             | StrId::PREG_QUOTE
             | StrId::WORDWRAP
             | StrId::REALPATH
@@ -951,6 +950,7 @@ fn get_special_argument_nodes(
             | StrId::BASE64_ENCODE
             | StrId::BASE64_DECODE
             | StrId::URLENCODE
+            | StrId::URLDECODE
             | StrId::LIB_DICT_FILTER
             | StrId::LIB_DICT_FILTER_ASYNC
             | StrId::LIB_DICT_FILTER_KEYS
@@ -961,7 +961,6 @@ fn get_special_argument_nodes(
             | StrId::LIB_VEC_FILTER_ASYNC
             | StrId::LIB_VEC_FILTER_NULLS
             | StrId::LIB_VEC_FILTER_WITH_KEY
-            | StrId::LIB_VEC_TAKE
             | StrId::LIB_VEC_DROP
             | StrId::LIB_VEC_REVERSE
             | StrId::LIB_VEC_UNIQUE
@@ -970,12 +969,18 @@ fn get_special_argument_nodes(
             | StrId::LIB_KEYSET_FILTER_ASYNC
             | StrId::LIB_KEYSET_FLATTEN
             | StrId::LIB_KEYSET_KEYS
-            | StrId::LIB_STR_SLICE
-            | StrId::LIB_REGEX_FIRST_MATCH
             | StrId::KEYSET
             | StrId::VEC
             | StrId::DICT
-            | StrId::GET_OBJECT_VARS => (vec![(0, PathKind::Default)], None),
+            | StrId::GET_OBJECT_VARS
+            | StrId::RAWURLENCODE
+            | StrId::LIB_DICT_FROM_ASYNC
+            | StrId::LIB_VEC_FROM_ASYNC
+            | StrId::ORD
+            | StrId::LOG
+            | StrId::IP2LONG
+            | StrId::BIN2HEX
+            | StrId::HEX2BIN => (vec![(0, PathKind::Default)], None),
             StrId::LIB_VEC_DIFF
             | StrId::LIB_KEYSET_DIFF
             | StrId::LIB_KEYSET_INTERSECT
@@ -983,10 +988,22 @@ fn get_special_argument_nodes(
             | StrId::LIB_VEC_SLICE
             | StrId::LIB_VEC_RANGE
             | StrId::LIB_VEC_CHUNK
-            | StrId::LIB_STRING_STRIP_PREFIX => {
+            | StrId::LIB_STR_STRIP_PREFIX
+            | StrId::LIB_STR_STRIP_SUFFIX
+            | StrId::LIB_STR_REPEAT
+            | StrId::SUBSTR
+            | StrId::LIB_DICT_ASSOCIATE
+            | StrId::LIB_REGEX_FIRST_MATCH => {
+                (vec![(0, PathKind::Default)], Some(PathKind::Default))
+            }
+            StrId::LIB_DICT_SELECT_KEYS
+            | StrId::LIB_VEC_TAKE
+            | StrId::LIB_DICT_TAKE
+            | StrId::LIB_STR_SLICE
+            | StrId::LIB_STR_FORMAT_NUMBER
+            | StrId::LIB_DICT_DIFF_BY_KEY => {
                 (vec![(0, PathKind::Default)], Some(PathKind::Aggregate))
             }
-            StrId::LIB_DICT_ASSOCIATE => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
             StrId::LIB_C_IS_EMPTY
             | StrId::LIB_C_COUNT
             | StrId::COUNT
@@ -994,8 +1011,6 @@ fn get_special_argument_nodes(
             | StrId::LIB_C_EVERY
             | StrId::LIB_C_SEARCH
             | StrId::LIB_STR_IS_EMPTY
-            | StrId::LIB_STR_COMPARE
-            | StrId::LIB_STR_COMPARE_CI
             | StrId::LIB_STR_LENGTH
             | StrId::LIB_VEC_KEYS
             | StrId::LIB_STR_TO_INT
@@ -1004,7 +1019,6 @@ fn get_special_argument_nodes(
             | StrId::LIB_MATH_SUM_FLOAT
             | StrId::LIB_MATH_MIN
             | StrId::LIB_MATH_MIN_BY
-            | StrId::LIB_MATH_MINVA
             | StrId::LIB_MATH_MAX
             | StrId::LIB_MATH_MEAN
             | StrId::LIB_MATH_MEDIAN
@@ -1017,7 +1031,11 @@ fn get_special_argument_nodes(
             | StrId::LIB_MATH_SQRT
             | StrId::LIB_MATH_TAN
             | StrId::LIB_MATH_ABS
-            | StrId::INTVAL => (vec![(0, PathKind::Aggregate)], None),
+            | StrId::INTVAL
+            | StrId::GET_CLASS
+            | StrId::CTYPE_LOWER
+            | StrId::SHA1
+            | StrId::MD5 => (vec![(0, PathKind::Aggregate)], None),
             StrId::LIB_MATH_ALMOST_EQUALS
             | StrId::LIB_MATH_BASE_CONVERT
             | StrId::LIB_MATH_EXP
@@ -1026,19 +1044,29 @@ fn get_special_argument_nodes(
             | StrId::LIB_MATH_TO_BASE
             | StrId::LIB_MATH_MAX_BY
             | StrId::LIB_MATH_MAXVA
+            | StrId::LIB_MATH_MINVA
             | StrId::LIB_STR_STARTS_WITH
             | StrId::LIB_STR_STARTS_WITH_CI
             | StrId::LIB_STR_ENDS_WITH
             | StrId::LIB_STR_ENDS_WITH_CI
             | StrId::LIB_STR_SEARCH
             | StrId::LIB_STR_CONTAINS
-            | StrId::LIB_STR_CONTAINS_CI => (vec![], Some(PathKind::Aggregate)),
+            | StrId::LIB_STR_CONTAINS_CI
+            | StrId::LIB_STR_COMPARE
+            | StrId::LIB_STR_COMPARE_CI
+            | StrId::HASH_EQUALS
+            | StrId::RANGE
+            | StrId::STRPOS
+            | StrId::SUBSTR_COUNT
+            | StrId::STRCMP
+            | StrId::LIB_KEYSET_EQUAL => (vec![], Some(PathKind::Aggregate)),
             StrId::LIB_C_CONTAINS
             | StrId::LIB_C_CONTAINS_KEY
             | StrId::IN_ARRAY
             | StrId::PREG_MATCH
             | StrId::LIB_REGEX_MATCHES
-            | StrId::PREG_MATCH_WITH_MATCHES => (
+            | StrId::PREG_MATCH_WITH_MATCHES
+            | StrId::PREG_MATCH_ALL_WITH_MATCHES => (
                 vec![(0, PathKind::Aggregate), (1, PathKind::Aggregate)],
                 None,
             ),
@@ -1050,11 +1078,25 @@ fn get_special_argument_nodes(
                 (vec![(0, PathKind::Default), (1, PathKind::Default)], None)
             }
             StrId::STR_REPLACE | StrId::STR_IREPLACE | StrId::PREG_FILTER | StrId::PREG_REPLACE => {
-                (vec![(1, PathKind::Default), (2, PathKind::Default)], None)
+                (
+                    vec![
+                        (0, PathKind::Aggregate),
+                        (1, PathKind::Default),
+                        (2, PathKind::Default),
+                    ],
+                    None,
+                )
             }
             StrId::LIB_STR_REPLACE | StrId::LIB_STR_REPLACE_CI => {
                 (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
             }
+            StrId::LIB_STR_REPLACE_EVERY => (
+                vec![
+                    (0, PathKind::Default),
+                    (1, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
+                ],
+                None,
+            ),
             StrId::LIB_REGEX_REPLACE => (
                 vec![
                     (0, PathKind::Default),
@@ -1128,10 +1170,13 @@ fn get_special_argument_nodes(
             | StrId::LIB_STR_SPLIT
             | StrId::LIB_STR_CHUNK
             | StrId::LIB_REGEX_EVERY_MATCH => (
-                vec![(
-                    0,
-                    PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
-                )],
+                vec![
+                    (
+                        0,
+                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
+                    ),
+                    (1, PathKind::Aggregate),
+                ],
                 None,
             ),
             StrId::LIB_VEC_SORT => (vec![(0, PathKind::Default)], None),
@@ -1175,6 +1220,7 @@ fn get_special_argument_nodes(
                 )],
                 None,
             ),
+            StrId::LIB_DICT_CHUNK => (vec![(0, PathKind::Default), (1, PathKind::Aggregate)], None),
             StrId::LIB_C_FIRST
             | StrId::LIB_C_FIRSTX
             | StrId::LIB_C_LAST
@@ -1208,7 +1254,10 @@ fn get_special_argument_nodes(
                     }
                 }
                 (
-                    vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
+                    vec![
+                        (0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
+                        (1, PathKind::Aggregate),
+                    ],
                     None,
                 )
             }

@@ -179,13 +179,13 @@ pub(crate) fn check_arguments_match(
     for (_, arg_expr) in args.iter() {
         let was_inside_call = context.inside_general_use;
 
-        // if matches!(functionlike_info.effects, FnEffect::Some(_))
-        //     || matches!(functionlike_info.effects, FnEffect::Arg(_))
-        //     || functionlike_info.pure_can_throw
-        //     || functionlike_info.user_defined
-        // {
-        context.inside_general_use = true;
-        // }
+        if matches!(functionlike_info.effects, FnEffect::Some(_))
+            || matches!(functionlike_info.effects, FnEffect::Arg(_))
+            || functionlike_info.pure_can_throw
+            || functionlike_info.user_defined
+        {
+            context.inside_general_use = true;
+        }
 
         // don't analyse closures here
         if !matches!(arg_expr.2, aast::Expr_::Lfun(_) | aast::Expr_::Efun(_)) {
@@ -1047,6 +1047,18 @@ fn handle_possibly_matching_inout_param(
     );
 
     let arg_type = arg_type.unwrap_or(get_mixed_any());
+
+    if functionlike_id == &FunctionLikeIdentifier::Function(StrId::PREG_MATCH_WITH_MATCHES)
+        && argument_offset == 2
+    {
+        let function_call_node = DataFlowNode::get_for_method_return(
+            functionlike_id.to_string(statements_analyzer.get_interner()),
+            Some(statements_analyzer.get_hpos(function_call_pos)),
+            Some(statements_analyzer.get_hpos(function_call_pos)),
+        );
+
+        inout_type.parent_nodes.push(function_call_node);
+    }
 
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let out_node = DataFlowNode::get_for_method_argument_out(
