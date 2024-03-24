@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
+use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::{GenericParent, EFFECT_WRITE_LOCAL};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
@@ -33,8 +34,7 @@ use hakana_type::template::{
 };
 use hakana_type::type_expander::{self, StaticClassType, TypeExpansionOptions};
 use hakana_type::{
-    add_optional_union_type, combine_optional_union_types, extend_dataflow_uniquely, get_arraykey,
-    get_mixed_any, wrap_atomic,
+    add_optional_union_type, combine_optional_union_types, get_arraykey, get_mixed_any, wrap_atomic,
 };
 use indexmap::IndexMap;
 use oxidized::ast_defs::ParamKind;
@@ -391,6 +391,7 @@ pub(crate) fn check_arguments_match(
                     analysis_data,
                     function_param,
                     functionlike_id,
+                    args,
                     argument_offset,
                     arg_expr,
                     class_storage,
@@ -965,6 +966,7 @@ fn handle_possibly_matching_inout_param(
     analysis_data: &mut FunctionAnalysisData,
     functionlike_param: &FunctionLikeParameter,
     functionlike_id: &FunctionLikeIdentifier,
+    all_args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
     argument_offset: usize,
     expr: &aast::Expr<(), ()>,
     classlike_storage: Option<&ClassLikeInfo>,
@@ -1048,32 +1050,49 @@ fn handle_possibly_matching_inout_param(
 
     let arg_type = arg_type.unwrap_or(get_mixed_any());
 
+    let out_node = DataFlowNode::get_for_method_argument_out(
+        functionlike_id.to_string(statements_analyzer.get_interner()),
+        argument_offset,
+        Some(functionlike_param.name_location),
+        Some(statements_analyzer.get_hpos(function_call_pos)),
+    );
+
+    inout_type.parent_nodes = vec![out_node.clone()];
+
+    for arg_node in &arg_type.parent_nodes {
+        analysis_data.data_flow_graph.add_path(
+            arg_node,
+            &out_node,
+            PathKind::Default,
+            vec![],
+            vec![],
+        );
+    }
+
     if functionlike_id == &FunctionLikeIdentifier::Function(StrId::PREG_MATCH_WITH_MATCHES)
         && argument_offset == 2
     {
-        let function_call_node = DataFlowNode::get_for_method_return(
+        let argument_node = DataFlowNode::get_for_method_argument(
             functionlike_id.to_string(statements_analyzer.get_interner()),
-            Some(statements_analyzer.get_hpos(function_call_pos)),
+            1,
+            Some(statements_analyzer.get_hpos(all_args[1].1.pos())),
             Some(statements_analyzer.get_hpos(function_call_pos)),
         );
 
-        inout_type.parent_nodes.push(function_call_node);
-    }
+        analysis_data
+            .data_flow_graph
+            .add_node(argument_node.clone());
 
-    if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-        let out_node = DataFlowNode::get_for_method_argument_out(
-            functionlike_id.to_string(statements_analyzer.get_interner()),
-            argument_offset,
-            Some(functionlike_param.name_location),
-            Some(statements_analyzer.get_hpos(function_call_pos)),
+        analysis_data.data_flow_graph.add_path(
+            &argument_node,
+            &out_node,
+            PathKind::Default,
+            vec![],
+            vec![],
         );
-
-        inout_type.parent_nodes = vec![out_node.clone()];
-
-        analysis_data.data_flow_graph.add_node(out_node);
-    } else {
-        extend_dataflow_uniquely(&mut inout_type.parent_nodes, arg_type.parent_nodes.clone());
     }
+
+    analysis_data.data_flow_graph.add_node(out_node);
 
     assignment_analyzer::analyze_inout_param(
         statements_analyzer,

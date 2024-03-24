@@ -296,7 +296,6 @@ pub(crate) fn analyze(
             assign_var,
             assign_value,
             assign_value_type,
-            existing_var_type,
             var_id.as_ref().unwrap(),
             analysis_data,
             context,
@@ -576,35 +575,26 @@ fn analyze_assignment_to_variable(
     statements_analyzer: &StatementsAnalyzer,
     var_expr: &aast::Expr<(), ()>,
     source_expr: Option<&aast::Expr<(), ()>>,
-    mut assign_value_type: TUnion,
-    existing_var_type: Option<Rc<TUnion>>,
+    assign_value_type: TUnion,
     var_id: &String,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
     is_inout: bool,
 ) {
-    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
-        if !is_inout {
-            analysis_data
-                .data_flow_graph
-                .add_node(DataFlowNode::get_for_variable_source(
-                    var_id.clone(),
-                    statements_analyzer.get_hpos(var_expr.pos()),
-                    !context.inside_awaitall
-                        && if let Some(source_expr) = source_expr {
-                            analysis_data.is_pure(source_expr.pos())
-                        } else {
-                            false
-                        },
-                    assign_value_type.has_awaitable_types(),
-                ));
-        } else if let Some(existing_var_type) = &existing_var_type {
-            if !existing_var_type.parent_nodes.is_empty() {
-                assign_value_type
-                    .parent_nodes
-                    .clone_from(&existing_var_type.parent_nodes);
-            }
-        }
+    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody && !is_inout {
+        analysis_data
+            .data_flow_graph
+            .add_node(DataFlowNode::get_for_variable_source(
+                var_id.clone(),
+                statements_analyzer.get_hpos(var_expr.pos()),
+                !context.inside_awaitall
+                    && if let Some(source_expr) = source_expr {
+                        analysis_data.is_pure(source_expr.pos())
+                    } else {
+                        false
+                    },
+                assign_value_type.has_awaitable_types(),
+            ));
     }
 
     let assign_value_type = check_variable_or_property_assignment(
