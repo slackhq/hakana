@@ -66,6 +66,7 @@ pub(crate) fn analyze(
                     start_line: 0,
                 },
             );
+            lambda_storage.user_defined = true;
             lambda_storage.params = closure_params
                 .iter()
                 .map(|fn_param| {

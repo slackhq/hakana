@@ -1069,9 +1069,32 @@ fn handle_possibly_matching_inout_param(
         );
     }
 
-    if functionlike_id == &FunctionLikeIdentifier::Function(StrId::PREG_MATCH_WITH_MATCHES)
-        && argument_offset == 2
+    if matches!(
+        functionlike_id,
+        FunctionLikeIdentifier::Function(
+            StrId::PREG_MATCH_WITH_MATCHES | StrId::PREG_MATCH_ALL_WITH_MATCHES
+        )
+    ) && argument_offset == 2
     {
+        let argument_node = DataFlowNode::get_for_method_argument(
+            functionlike_id.to_string(statements_analyzer.get_interner()),
+            0,
+            Some(statements_analyzer.get_hpos(all_args[1].1.pos())),
+            Some(statements_analyzer.get_hpos(function_call_pos)),
+        );
+
+        analysis_data
+            .data_flow_graph
+            .add_node(argument_node.clone());
+
+        analysis_data.data_flow_graph.add_path(
+            &argument_node,
+            &out_node,
+            PathKind::Aggregate,
+            vec![],
+            vec![],
+        );
+
         let argument_node = DataFlowNode::get_for_method_argument(
             functionlike_id.to_string(statements_analyzer.get_interner()),
             1,

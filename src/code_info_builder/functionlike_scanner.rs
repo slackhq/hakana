@@ -316,7 +316,7 @@ pub(crate) fn get_functionlike(
         file_source.file_path,
     );
 
-    functionlike_info.user_defined = user_defined && name.is_some();
+    functionlike_info.user_defined = user_defined;
     functionlike_info.is_closure = name.is_none();
 
     if let Some(name_pos) = name_pos {

@@ -731,7 +731,6 @@ fn add_dataflow(
 
     // todo conditionally remove taints
 
-
     let function_call_node = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         DataFlowNode::get_for_method_return(
             functionlike_id.to_string(statements_analyzer.get_interner()),
@@ -951,6 +950,7 @@ fn get_special_argument_nodes(
             | StrId::BASE64_DECODE
             | StrId::URLENCODE
             | StrId::URLDECODE
+            | StrId::GZINFLATE
             | StrId::LIB_DICT_FILTER
             | StrId::LIB_DICT_FILTER_ASYNC
             | StrId::LIB_DICT_FILTER_KEYS
@@ -963,6 +963,7 @@ fn get_special_argument_nodes(
             | StrId::LIB_VEC_FILTER_WITH_KEY
             | StrId::LIB_VEC_DROP
             | StrId::LIB_VEC_REVERSE
+            | StrId::LIB_DICT_REVERSE
             | StrId::LIB_VEC_UNIQUE
             | StrId::LIB_KEYSET_FILTER
             | StrId::LIB_KEYSET_FILTER_NULLS
@@ -980,28 +981,30 @@ fn get_special_argument_nodes(
             | StrId::LOG
             | StrId::IP2LONG
             | StrId::BIN2HEX
-            | StrId::HEX2BIN => (vec![(0, PathKind::Default)], None),
-            StrId::LIB_VEC_DIFF
+            | StrId::HEX2BIN
+            | StrId::ESCAPESHELLARG => (vec![(0, PathKind::Default)], None),
+            StrId::LIB_REGEX_FIRST_MATCH => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
+            StrId::LIB_DICT_SELECT_KEYS
+            | StrId::LIB_VEC_TAKE
+            | StrId::LIB_DICT_TAKE
+            | StrId::LIB_STR_SLICE
+            | StrId::LIB_STR_FORMAT_NUMBER
+            | StrId::LIB_DICT_DIFF_BY_KEY
+            | StrId::NUMBER_FORMAT
+            | StrId::LIB_DICT_CHUNK
+            | StrId::LIB_VEC_DIFF
             | StrId::LIB_KEYSET_DIFF
             | StrId::LIB_KEYSET_INTERSECT
             | StrId::LIB_VEC_INTERSECT
             | StrId::LIB_VEC_SLICE
             | StrId::LIB_VEC_RANGE
             | StrId::LIB_VEC_CHUNK
+            | StrId::LIB_KEYSET_CHUNK
             | StrId::LIB_STR_STRIP_PREFIX
             | StrId::LIB_STR_STRIP_SUFFIX
             | StrId::LIB_STR_REPEAT
             | StrId::SUBSTR
-            | StrId::LIB_DICT_ASSOCIATE
-            | StrId::LIB_REGEX_FIRST_MATCH => {
-                (vec![(0, PathKind::Default)], Some(PathKind::Default))
-            }
-            StrId::LIB_DICT_SELECT_KEYS
-            | StrId::LIB_VEC_TAKE
-            | StrId::LIB_DICT_TAKE
-            | StrId::LIB_STR_SLICE
-            | StrId::LIB_STR_FORMAT_NUMBER
-            | StrId::LIB_DICT_DIFF_BY_KEY => {
+            | StrId::LIB_DICT_ASSOCIATE => {
                 (vec![(0, PathKind::Default)], Some(PathKind::Aggregate))
             }
             StrId::LIB_C_IS_EMPTY
@@ -1035,7 +1038,10 @@ fn get_special_argument_nodes(
             | StrId::GET_CLASS
             | StrId::CTYPE_LOWER
             | StrId::SHA1
-            | StrId::MD5 => (vec![(0, PathKind::Aggregate)], None),
+            | StrId::MD5
+            | StrId::DIRNAME
+            | StrId::CRC32
+            | StrId::FILTER_VAR => (vec![(0, PathKind::Aggregate)], None),
             StrId::LIB_MATH_ALMOST_EQUALS
             | StrId::LIB_MATH_BASE_CONVERT
             | StrId::LIB_MATH_EXP
@@ -1059,6 +1065,7 @@ fn get_special_argument_nodes(
             | StrId::STRPOS
             | StrId::SUBSTR_COUNT
             | StrId::STRCMP
+            | StrId::STRNATCASECMP
             | StrId::LIB_KEYSET_EQUAL => (vec![], Some(PathKind::Aggregate)),
             StrId::LIB_C_CONTAINS
             | StrId::LIB_C_CONTAINS_KEY
@@ -1066,8 +1073,14 @@ fn get_special_argument_nodes(
             | StrId::PREG_MATCH
             | StrId::LIB_REGEX_MATCHES
             | StrId::PREG_MATCH_WITH_MATCHES
-            | StrId::PREG_MATCH_ALL_WITH_MATCHES => (
-                vec![(0, PathKind::Aggregate), (1, PathKind::Aggregate)],
+            | StrId::PREG_MATCH_ALL_WITH_MATCHES
+            | StrId::HASH => (
+                vec![
+                    (0, PathKind::Aggregate),
+                    (1, PathKind::Aggregate),
+                    (3, PathKind::Aggregate),
+                    (4, PathKind::Aggregate),
+                ],
                 None,
             ),
             StrId::JSON_ENCODE | StrId::SERIALIZE => (vec![(0, PathKind::Serialize)], None),
@@ -1087,9 +1100,16 @@ fn get_special_argument_nodes(
                     None,
                 )
             }
-            StrId::LIB_STR_REPLACE | StrId::LIB_STR_REPLACE_CI => {
-                (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
-            }
+            StrId::PREG_REPLACE_WITH_COUNT => (
+                vec![
+                    (0, PathKind::Aggregate),
+                    (1, PathKind::Default),
+                    (2, PathKind::Default),
+                    (0, PathKind::Aggregate),
+                ],
+                None,
+            ),
+            StrId::PREG_GREP => (vec![(0, PathKind::Aggregate), (1, PathKind::Default)], None),
             StrId::LIB_STR_REPLACE_EVERY => (
                 vec![
                     (0, PathKind::Default),
@@ -1097,7 +1117,14 @@ fn get_special_argument_nodes(
                 ],
                 None,
             ),
-            StrId::LIB_REGEX_REPLACE => (
+
+            StrId::STR_PAD
+            | StrId::LIB_STR_PAD_LEFT
+            | StrId::LIB_STR_PAD_RIGHT
+            | StrId::CHUNK_SPLIT
+            | StrId::LIB_REGEX_REPLACE
+            | StrId::LIB_STR_REPLACE
+            | StrId::LIB_STR_REPLACE_CI => (
                 vec![
                     (0, PathKind::Default),
                     (1, PathKind::Aggregate),
@@ -1105,9 +1132,6 @@ fn get_special_argument_nodes(
                 ],
                 None,
             ),
-            StrId::STR_PAD | StrId::CHUNK_SPLIT => {
-                (vec![(0, PathKind::Default), (2, PathKind::Default)], None)
-            }
             StrId::IMPLODE | StrId::JOIN => (
                 vec![
                     (0, PathKind::Default),
@@ -1134,6 +1158,19 @@ fn get_special_argument_nodes(
                     1,
                     PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                 )],
+                None,
+            ),
+            StrId::LIB_VEC_ZIP => (
+                vec![
+                    (
+                        0,
+                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
+                    ),
+                    (
+                        1,
+                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
+                    ),
+                ],
                 None,
             ),
             StrId::PATHINFO => (
@@ -1176,6 +1213,7 @@ fn get_special_argument_nodes(
                         PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
                     ),
                     (1, PathKind::Aggregate),
+                    (2, PathKind::Aggregate),
                 ],
                 None,
             ),
@@ -1220,7 +1258,6 @@ fn get_special_argument_nodes(
                 )],
                 None,
             ),
-            StrId::LIB_DICT_CHUNK => (vec![(0, PathKind::Default), (1, PathKind::Aggregate)], None),
             StrId::LIB_C_FIRST
             | StrId::LIB_C_FIRSTX
             | StrId::LIB_C_LAST
