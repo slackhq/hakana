@@ -2,7 +2,9 @@ use clap::{arg, Command};
 use hakana_analyzer::config::{self};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_logger::{Logger, Verbosity};
-use hakana_reflection_info::analysis_result::{AnalysisResult, CheckPointEntry, Replacement};
+use hakana_reflection_info::analysis_result::{
+    AnalysisResult, CheckPointEntry, FullEntry, HhClientEntry, Replacement,
+};
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::issue::IssueKind;
 use hakana_str::Interner;
@@ -138,7 +140,10 @@ pub fn init(
                         arg!(--"output" <PATH>)
                             .required(false)
                             .help("File to save output to"),
-                    ),
+                    )
+                    .arg(arg!(--"json-format" <FORMAT>).required(false).help(
+                        "Format for JSON output. Options: checkpoint (default), full, hh_client",
+                    )),
             )
             .subcommand(
                 Command::new("migration-candidates")
@@ -645,7 +650,7 @@ pub fn init(
                 random_seed,
             );
         }
-        _ => unreachable!(), // If all subcommands are defined above, anything else is unreachabe!()
+        _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
     }
 
     if had_error {
@@ -1227,6 +1232,7 @@ fn do_security_check(
         if let Some(output_file) = output_file {
             write_output_files(
                 output_file,
+                None,
                 cwd,
                 &analysis_result,
                 &successful_run_data.interner,
@@ -1251,6 +1257,7 @@ fn do_analysis(
     let filter = sub_matches.value_of("filter").map(|f| f.to_string());
 
     let output_file = sub_matches.value_of("output").map(|f| f.to_string());
+    let output_format = sub_matches.value_of("json-format").map(|f| f.to_string());
 
     let ignored = sub_matches
         .values_of("ignore")
@@ -1342,6 +1349,7 @@ fn do_analysis(
         if let Some(output_file) = output_file {
             write_output_files(
                 output_file,
+                output_format,
                 cwd,
                 &analysis_result,
                 &successful_run_data.interner,
@@ -1380,29 +1388,54 @@ fn do_analysis(
 
 fn write_output_files(
     output_file: String,
+    output_format: Option<String>,
     cwd: &String,
     analysis_result: &AnalysisResult,
     interner: &Interner,
 ) {
-    if output_file.ends_with("checkpoint_results.json") {
-        let output_path = if output_file.starts_with('/') {
-            output_file
-        } else {
-            format!("{}/{}", cwd, output_file)
-        };
-        let mut output_path = fs::File::create(Path::new(&output_path)).unwrap();
-        let mut checkpoint_entries = vec![];
+    let output_path = if output_file.starts_with('/') {
+        output_file
+    } else {
+        format!("{}/{}", cwd, output_file)
+    };
+    let mut output_path = fs::File::create(Path::new(&output_path)).unwrap();
 
-        for (file_path, issues) in analysis_result.get_all_issues(interner, cwd, true) {
-            for issue in issues {
-                checkpoint_entries.push(CheckPointEntry::from_issue(issue, &file_path));
+    let json = match output_format {
+        Some(format) if format == "full" => {
+            let mut entries = vec![];
+
+            for (file_path, issues) in analysis_result.get_all_issues(interner, cwd, true) {
+                for issue in issues {
+                    entries.push(FullEntry::from_issue(issue, &file_path));
+                }
             }
+
+            serde_json::to_string_pretty(&entries).unwrap()
         }
+        Some(format) if format == "hh_client" => {
+            let mut entries = vec![];
 
-        let checkpoint_json = serde_json::to_string_pretty(&checkpoint_entries).unwrap();
+            for (file_path, issues) in analysis_result.get_all_issues(interner, cwd, true) {
+                for issue in issues {
+                    entries.push(HhClientEntry::from_issue(issue, &file_path));
+                }
+            }
 
-        write!(output_path, "{}", checkpoint_json).unwrap();
-    }
+            serde_json::to_string_pretty(&entries).unwrap()
+        }
+        _ => {
+            let mut checkpoint_entries = vec![];
+
+            for (file_path, issues) in analysis_result.get_all_issues(interner, cwd, true) {
+                for issue in issues {
+                    checkpoint_entries.push(CheckPointEntry::from_issue(issue, &file_path));
+                }
+            }
+
+            serde_json::to_string_pretty(&checkpoint_entries).unwrap()
+        }
+    };
+    write!(output_path, "{}", json).unwrap();
 }
 
 fn update_files(analysis_result: &mut AnalysisResult, root_dir: &String, interner: &Interner) {
