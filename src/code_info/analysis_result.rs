@@ -128,6 +128,35 @@ impl AnalysisResult {
 }
 
 #[derive(Serialize)]
+pub struct FullEntry {
+    pub kind: String,
+    pub description: String,
+    pub file_path: String,
+    pub start_offset: u32,
+    pub start_line: u32,
+    pub start_column: u16,
+    pub end_offset: u32,
+    pub end_line: u32,
+    pub end_column: u16,
+}
+
+impl FullEntry {
+    pub fn from_issue(issue: &Issue, path: &str) -> Self {
+        Self {
+            kind: issue.kind.to_string(),
+            description: issue.description.clone(),
+            file_path: path.to_string(),
+            start_offset: issue.pos.start_offset,
+            start_line: issue.pos.start_line,
+            start_column: issue.pos.start_column,
+            end_offset: issue.pos.end_offset,
+            end_line: issue.pos.end_line,
+            end_column: issue.pos.end_column,
+        }
+    }
+}
+
+#[derive(Serialize)]
 pub struct CheckPointEntry {
     pub case: String,
     pub level: String,
@@ -144,6 +173,29 @@ impl CheckPointEntry {
             filename: path.to_string(),
             line: issue.pos.start_line,
             case: issue.kind.to_string(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct HhClientEntry {
+    pub descr: String,
+    pub path: String,
+    pub line: u32,
+    pub start: u32,
+    pub end: u32,
+    pub code: String,
+}
+
+impl HhClientEntry {
+    pub fn from_issue(issue: &Issue, path: &str) -> Self {
+        Self {
+            descr: issue.description.clone(),
+            path: path.to_string(),
+            line: issue.pos.start_line,
+            start: issue.pos.start_column as u32,
+            end: (issue.pos.end_offset - issue.pos.start_offset) + (issue.pos.start_column as u32),
+            code: issue.kind.to_string(),
         }
     }
 }
