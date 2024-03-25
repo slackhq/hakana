@@ -258,6 +258,7 @@ impl TestRunner {
         {
             let input_file = format!("{}/input.hack", dir);
             let output_file = format!("{}/output.txt", dir);
+            let actual_file = format!("{}/actual.txt", dir);
             let input_contents = fs::read_to_string(&input_file).unwrap();
             let expected_output_contents = fs::read_to_string(output_file).unwrap();
 
@@ -283,6 +284,8 @@ impl TestRunner {
             } else {
                 input_contents
             };
+
+            fs::write(actual_file, &output_contents).unwrap();
 
             if output_contents == expected_output_contents {
                 (".".to_string(), Some(result.1), Some(result.0))

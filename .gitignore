@@ -21,3 +21,4 @@ Cargo.lock
 */Cargo.lock
 .hakana_cache
 */.hakana_cache
+tests/**/*/actual.txt
