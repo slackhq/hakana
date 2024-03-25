@@ -17,6 +17,9 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
     if_body_context: &mut Option<ScopeContext>,
 ) -> Result<(), AnalysisError> {
+    let was_inside_use = context.inside_general_use;
+    context.inside_general_use = true;
+
     if let aast::Afield::AFkvalue(key_expr, _) = &field {
         expression_analyzer::analyze(
             statements_analyzer,
@@ -38,6 +41,8 @@ pub(crate) fn analyze(
         context,
         if_body_context,
     )?;
+
+    context.inside_general_use = was_inside_use;
 
     if let Some(inferred_type) = analysis_data.expr_types.get(&(
         value_expr.pos().start_offset() as u32,
