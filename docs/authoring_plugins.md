@@ -15,7 +15,29 @@ impl InternalHook for YourPlugin {
 }
 ```
 
-There are currently four hook methods you can use:
+## Hooks
+
+Hakana provides hooks that are called as it analyzes various elements of the codebase:
+
+- `after_expr_analysis` for expressions like `foo()`, `$arr[$key]`, `1 + 2`
+- `after_stmt_analysis` for statements like `return` and `throw`
+- `after_argument_analysis` for each argument to a function or method call
+- `after_def_analysis` for definition like classes, functions, constants, and type aliases
+- `handle_functionlike_param` for the parameters of a function or method
+
+A given line of code can trigger multiple hooks. For this code:
+
+```hack
+return foo($a + $b['x'], $c);
+```
+
+Hakana will call `after_stmt_analysis` for the entire return statement; it will call `after_expr_analysis` for the call to `foo(...)`, the array access `$b['x']`, and the addition operation `$a + $b['x']`; and it will call `after_argument_analysis` for each of the arguments to foo, `$a + $b['x']` and `$c`.
+
+analysis_data.add_replacement((start_offset as u32, end_offset as u32), replacement);
+
+A hook can make changes to the code via `FunctionAnalysisData::add_replacement`. These changes are applied after all analysis is complete. A hook can also modify `FunctionAnalysisData` to provide information for other hooks or `get_candidates` to consume. For example, `after_expr_analysis` could add more information to the data flow graph that helps to determine how to change code in an `after_argument_analysis` call.
+
+There are currently five hook methods you can use:
 
 ## after_stmt_analysis
 
@@ -30,7 +52,7 @@ To add custom statement-handling code, insert this method override:
 ```
 fn after_stmt_analysis(
     &self,
-    analysis_data: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     after_stmt_analysis_data: AfterStmtAnalysisData,
 ) {
     // your code goes here
@@ -43,10 +65,10 @@ This hook is called every time an expression is analyzed. Expressions include me
 
 To add custom expression-handling code, insert this method override:
 
-```
+```rs
 fn after_expr_analysis(
     &self,
-    analysis_data: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     after_expr_analysis_data: AfterExprAnalysisData,
 ) {
     // your code goes here
@@ -59,10 +81,10 @@ This hook is run when analysing a function or method’s parameters, before Haka
 
 You can use this hook to insert type-aware replacements for function parameters.
 
-```
+```rs
 fn handle_functionlike_param(
     &self,
-    analysis_data: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     functionlike_param_data: FunctionLikeParamData,
 ) {
     // your code goes here
@@ -71,17 +93,32 @@ fn handle_functionlike_param(
 
 ## after_argument_analysis
 
-This hook is run after analysing every argument in a given function of method call.
+This hook is run after analysing all the arguments in a given function of method call. It is called once for each argument to the call.
 
 If you want to change the type of a given function or method’s parameters, you normally also want to update its callers.
 
 This hook allows you to do that on a per-call basis.
 
-```
+```rs
 fn after_argument_analysis(
     &self,
-    analysis_data: &mut TastInfo,
+    analysis_data: &mut FunctionAnalysisData,
     after_arg_analysis_data: AfterArgAnalysisData,
+) {
+    // your code goes here
+}
+```
+
+## after_def_analysis
+
+This hook is run for each top-level definition (class, function, type alias, etc.).
+
+```rs
+fn after_def_analysis(
+    &self,
+    analysis_data: &mut FunctionAnalysisData,
+    analysis_result: &mut AnalysisResult,
+    after_def_analysis_data: AfterDefAnalysisData,
 ) {
     // your code goes here
 }
