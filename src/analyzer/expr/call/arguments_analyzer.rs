@@ -41,7 +41,7 @@ use oxidized::ast_defs::ParamKind;
 use oxidized::pos::Pos;
 use oxidized::{aast, ast_defs};
 
-use super::argument_analyzer;
+use super::argument_analyzer::{self, get_removed_taints_in_comments};
 use super::method_call_info::MethodCallInfo;
 
 pub(crate) fn check_arguments_match(
@@ -1077,6 +1077,9 @@ fn handle_possibly_matching_inout_param(
         )
     ) && argument_offset == 2
     {
+        let removed_taints =
+            get_removed_taints_in_comments(statements_analyzer, all_args[0].1.pos());
+
         let argument_node = DataFlowNode::get_for_method_argument(
             functionlike_id.to_string(statements_analyzer.get_interner()),
             0,
@@ -1112,7 +1115,7 @@ fn handle_possibly_matching_inout_param(
             &out_node,
             PathKind::Default,
             vec![],
-            vec![],
+            removed_taints,
         );
     } else if matches!(
         functionlike_id,
