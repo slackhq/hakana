@@ -145,7 +145,7 @@ pub(crate) fn analyze_concat_nodes(
     result_type
 }
 
-fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {
+pub(crate) fn get_concat_nodes(expr: &aast::Expr<(), ()>) -> Vec<&aast::Expr<(), ()>> {
     match &expr.2 {
         aast::Expr_::Binop(x) => {
             let (binop, e1, e2) = (&x.bop, &x.lhs, &x.rhs);

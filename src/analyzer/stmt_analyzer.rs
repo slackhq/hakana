@@ -294,17 +294,13 @@ fn detect_unused_statement_expressions(
             if let Some(functionlike_id) = functionlike_id {
                 match functionlike_id {
                     FunctionLikeIdentifier::Function(function_id) => {
-                        if function_id == StrId::INVARIANT
-                            || function_id == StrId::INVARIANT_VIOLATION
-                            || function_id == StrId::TRIGGER_ERROR
-                            || function_id == StrId::FUNCTION_EXISTS
-                            || function_id == StrId::CLASS_EXISTS
-                            || function_id == StrId::SET_FRAME_METADATA
-                            || function_id == StrId::LIB_C_FIRSTX
-                            || function_id == StrId::LIB_C_LASTX
-                            || function_id == StrId::LIB_C_ONLYX
+                        let codebase = statements_analyzer.get_codebase();
+
+                        if let Some(functionlike_info) = codebase
+                            .functionlike_infos
+                            .get(&(function_id, StrId::EMPTY))
                         {
-                            fn_can_throw = true;
+                            fn_can_throw = functionlike_info.pure_can_throw
                         }
                     }
                     FunctionLikeIdentifier::Method(_, method_name_id) => {
@@ -316,7 +312,7 @@ fn detect_unused_statement_expressions(
                             fn_can_throw = true;
                         }
                     }
-                    _ => {}
+                    _ => (),
                 }
             };
 

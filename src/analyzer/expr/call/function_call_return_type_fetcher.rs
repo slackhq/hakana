@@ -25,7 +25,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::expr::binop::concat_analyzer::analyze_concat_nodes;
+use crate::expr::binop::concat_analyzer::{analyze_concat_nodes, get_concat_nodes};
 use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;
 use crate::expr::variable_fetch_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
@@ -426,73 +426,41 @@ fn handle_special_functions(
                 None
             }
         }
-        &StrId::LIB_STR_FORMAT => {
+        &StrId::LIB_STR_FORMAT | &StrId::SPRINTF => {
             if let Some(first_arg) = args.first() {
-                if let aast::Expr_::String(simple_string) = &first_arg.1 .2 {
-                    let mut escaped = false;
-                    let mut in_format_string = false;
-
-                    let mut literals = vec![];
-
-                    let mut cur_literal = "".to_string();
-
-                    for c in simple_string.iter().copied() {
-                        if in_format_string {
-                            in_format_string = false;
-                            continue;
-                        }
-
-                        if !escaped {
-                            if c as char == '%' {
-                                in_format_string = true;
-                                literals.push(aast::Expr(
-                                    (),
-                                    first_arg.1.pos().clone(),
-                                    aast::Expr_::String(BString::from(cur_literal)),
-                                ));
-                                cur_literal = "".to_string();
-                                continue;
-                            }
-
-                            if c as char == '\\' {
-                                escaped = true;
-                            }
-
-                            in_format_string = false;
-                        } else {
-                            if c as char == '\\' {
-                                cur_literal += "\\";
-                                escaped = false;
-                                continue;
-                            }
-
-                            escaped = false;
-                        }
-
-                        cur_literal += (c as char).to_string().as_str();
+                match &first_arg.1 .2 {
+                    aast::Expr_::String(simple_string) => {
+                        return Some(handle_str_format(
+                            simple_string,
+                            first_arg,
+                            args,
+                            statements_analyzer,
+                            analysis_data,
+                            pos,
+                        ));
                     }
+                    aast::Expr_::Binop(boxed) => {
+                        let mut concat_nodes = get_concat_nodes(&boxed.lhs);
+                        concat_nodes.push(&boxed.rhs);
 
-                    literals.push(aast::Expr(
-                        (),
-                        first_arg.1.pos().clone(),
-                        aast::Expr_::String(BString::from(cur_literal)),
-                    ));
+                        let mut more_complex_string = BString::new(vec![]);
 
-                    let mut concat_args = vec![];
-
-                    for (i, literal) in literals.iter().enumerate() {
-                        concat_args.push(literal);
-                        if let Some(arg) = args.get(i + 1) {
-                            concat_args.push(&arg.1);
-                        } else {
-                            break;
+                        for concat_node in concat_nodes {
+                            if let aast::Expr_::String(simple_string) = &concat_node.2 {
+                                more_complex_string.append(&mut simple_string.clone());
+                            }
                         }
+
+                        return Some(handle_str_format(
+                            &more_complex_string,
+                            first_arg,
+                            args,
+                            statements_analyzer,
+                            analysis_data,
+                            pos,
+                        ));
                     }
-
-                    let result_type =
-                        analyze_concat_nodes(concat_args, statements_analyzer, analysis_data, pos);
-
-                    return Some(result_type);
+                    _ => (),
                 }
             }
 
@@ -631,6 +599,76 @@ fn handle_special_functions(
     }
 }
 
+fn handle_str_format(
+    simple_string: &BString,
+    first_arg: &(ast_defs::ParamKind, aast::Expr<(), ()>),
+    args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    analysis_data: &mut FunctionAnalysisData,
+    pos: &Pos,
+) -> TUnion {
+    let mut escaped = false;
+    let mut in_format_string = false;
+    let mut literals = vec![];
+    let mut cur_literal = "".to_string();
+
+    for c in simple_string.iter().copied() {
+        if in_format_string {
+            in_format_string = false;
+            continue;
+        }
+
+        if !escaped {
+            if c as char == '%' {
+                in_format_string = true;
+                literals.push(aast::Expr(
+                    (),
+                    first_arg.1.pos().clone(),
+                    aast::Expr_::String(BString::from(cur_literal)),
+                ));
+                cur_literal = "".to_string();
+                continue;
+            }
+
+            if c as char == '\\' {
+                escaped = true;
+            }
+
+            in_format_string = false;
+        } else {
+            if c as char == '\\' {
+                cur_literal += "\\";
+                escaped = false;
+                continue;
+            }
+
+            escaped = false;
+        }
+
+        cur_literal += (c as char).to_string().as_str();
+    }
+
+    literals.push(aast::Expr(
+        (),
+        first_arg.1.pos().clone(),
+        aast::Expr_::String(BString::from(cur_literal)),
+    ));
+
+    let mut concat_args = vec![];
+
+    for (i, literal) in literals.iter().enumerate() {
+        concat_args.push(literal);
+        if let Some(arg) = args.get(i + 1) {
+            concat_args.push(&arg.1);
+        } else {
+            break;
+        }
+    }
+
+    let result_type = analyze_concat_nodes(concat_args, statements_analyzer, analysis_data, pos);
+    result_type
+}
+
 fn get_type_structure_type(
     statements_analyzer: &StatementsAnalyzer,
     first_expr_type: &TUnion,
@@ -755,7 +793,17 @@ fn add_dataflow(
 
     data_flow_graph.add_node(function_call_node.clone());
 
-    let (param_offsets, variadic_path) = get_special_argument_nodes(functionlike_id, expr);
+    let (param_offsets, variadic_path) =
+        if !functionlike_storage.user_defined && (!expr.2.is_empty() || expr.3.is_some()) {
+            get_special_argument_nodes(
+                functionlike_id,
+                expr,
+                functionlike_storage,
+                statements_analyzer.get_interner(),
+            )
+        } else {
+            (vec![], None)
+        };
 
     let added_removed_taints = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         get_special_added_removed_taints(functionlike_id, statements_analyzer.get_interner())
@@ -893,6 +941,8 @@ fn get_special_argument_nodes(
         &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
         &Option<aast::Expr<(), ()>>,
     ),
+    _functionlike_info: &FunctionLikeInfo,
+    _interner: &Interner,
 ) -> (Vec<(usize, PathKind)>, Option<PathKind>) {
     match functionlike_id {
         FunctionLikeIdentifier::Function(function_name) => match *function_name {
@@ -904,9 +954,6 @@ fn get_special_argument_nodes(
             | StrId::TRIM
             | StrId::LTRIM
             | StrId::RTRIM
-            | StrId::LIB_STR_TRIM
-            | StrId::LIB_STR_TRIM_LEFT
-            | StrId::LIB_STR_TRIM_RIGHT
             | StrId::LIB_STR_LOWERCASE
             | StrId::LIB_STR_UPPERCASE
             | StrId::LIB_STR_CAPITALIZE
@@ -945,7 +992,6 @@ fn get_special_argument_nodes(
             | StrId::CHOP
             | StrId::CONVERT_UUDECODE
             | StrId::CONVERT_UUENCODE
-            | StrId::JSON_DECODE
             | StrId::BASE64_ENCODE
             | StrId::BASE64_DECODE
             | StrId::URLENCODE
@@ -982,11 +1028,38 @@ fn get_special_argument_nodes(
             | StrId::IP2LONG
             | StrId::BIN2HEX
             | StrId::HEX2BIN
-            | StrId::ESCAPESHELLARG => (vec![(0, PathKind::Default)], None),
-            StrId::LIB_REGEX_FIRST_MATCH => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
+            | StrId::ESCAPESHELLARG
+            | StrId::FIXME_UNSAFE_CAST
+            | StrId::LIB_DICT_COUNT_VALUES
+            | StrId::LIB_DICT_UNIQUE
+            | StrId::LIB_STR_REVERSE
+            | StrId::LIB_VEC_CAST_CLEAR_LEGACY_ARRAY_MARK
+            | StrId::CLASS_METH_GET_CLASS
+            | StrId::CLASS_METH_GET_METHOD
+            | StrId::CHR
+            | StrId::DECBIN
+            | StrId::DECHEX
+            | StrId::FB_SERIALIZE
+            | StrId::HEXDEC
+            | StrId::LZ4_COMPRESS
+            | StrId::LZ4_UNCOMPRESS
+            | StrId::RAWURLDECODE
+            | StrId::UTF8_DECODE
+            | StrId::UTF8_ENCODE
+            | StrId::STREAM_GET_META_DATA
+            | StrId::DIRNAME => (vec![(0, PathKind::Default)], None),
+            StrId::LIB_REGEX_FIRST_MATCH
+            | StrId::LIB_DICT_MERGE
+            | StrId::ARRAY_MERGE
+            | StrId::LIB_VEC_CONCAT
+            | StrId::LIB_KEYSET_UNION
+            | StrId::PACK
+            | StrId::UNPACK
+            | StrId::JSON_DECODE => (vec![(0, PathKind::Default)], Some(PathKind::Default)),
             StrId::LIB_DICT_SELECT_KEYS
             | StrId::LIB_VEC_TAKE
             | StrId::LIB_DICT_TAKE
+            | StrId::LIB_KEYSET_TAKE
             | StrId::LIB_STR_SLICE
             | StrId::LIB_STR_FORMAT_NUMBER
             | StrId::LIB_DICT_DIFF_BY_KEY
@@ -995,6 +1068,8 @@ fn get_special_argument_nodes(
             | StrId::LIB_VEC_DIFF
             | StrId::LIB_KEYSET_DIFF
             | StrId::LIB_KEYSET_INTERSECT
+            | StrId::LIB_DICT_DROP
+            | StrId::LIB_KEYSET_DROP
             | StrId::LIB_VEC_INTERSECT
             | StrId::LIB_VEC_SLICE
             | StrId::LIB_VEC_RANGE
@@ -1004,9 +1079,26 @@ fn get_special_argument_nodes(
             | StrId::LIB_STR_STRIP_SUFFIX
             | StrId::LIB_STR_REPEAT
             | StrId::SUBSTR
-            | StrId::LIB_DICT_ASSOCIATE => {
-                (vec![(0, PathKind::Default)], Some(PathKind::Aggregate))
-            }
+            | StrId::LIB_DICT_ASSOCIATE
+            | StrId::GZCOMPRESS
+            | StrId::GZDECODE
+            | StrId::GZDEFLATE
+            | StrId::GZUNCOMPRESS
+            | StrId::JSON_DECODE_WITH_ERROR
+            | StrId::LIB__PRIVATE_REGEX_MATCH
+            | StrId::LIB_STR_TRIM
+            | StrId::LIB_STR_TRIM_LEFT
+            | StrId::LIB_STR_TRIM_RIGHT
+            | StrId::BASENAME => (vec![(0, PathKind::Default)], Some(PathKind::Aggregate)),
+            StrId::LIB_STR_SLICE_L => (
+                vec![
+                    (0, PathKind::Aggregate),
+                    (1, PathKind::Default),
+                    (1, PathKind::Aggregate),
+                    (2, PathKind::Aggregate),
+                ],
+                None,
+            ),
             StrId::LIB_C_IS_EMPTY
             | StrId::LIB_C_COUNT
             | StrId::COUNT
@@ -1017,7 +1109,6 @@ fn get_special_argument_nodes(
             | StrId::LIB_STR_LENGTH
             | StrId::LIB_VEC_KEYS
             | StrId::LIB_STR_TO_INT
-            | StrId::LIB_MATH_ROUND
             | StrId::LIB_MATH_SUM
             | StrId::LIB_MATH_SUM_FLOAT
             | StrId::LIB_MATH_MIN
@@ -1039,9 +1130,56 @@ fn get_special_argument_nodes(
             | StrId::CTYPE_LOWER
             | StrId::SHA1
             | StrId::MD5
-            | StrId::DIRNAME
+            | StrId::NON_CRYPTO_MD5_LOWER
+            | StrId::NON_CRYPTO_MD5_UPPER
             | StrId::CRC32
-            | StrId::FILTER_VAR => (vec![(0, PathKind::Aggregate)], None),
+            | StrId::FILTER_VAR
+            | StrId::LIB_LOCALE_CREATE
+            | StrId::IS_A
+            | StrId::IS_BOOL
+            | StrId::IS_CALLABLE
+            | StrId::IS_CALLABLE_WITH_NAME
+            | StrId::IS_FINITE
+            | StrId::IS_FLOAT
+            | StrId::IS_INFINITE
+            | StrId::IS_INT
+            | StrId::IS_NAN
+            | StrId::IS_NULL
+            | StrId::IS_NUMERIC
+            | StrId::IS_OBJECT
+            | StrId::IS_RESOURCE
+            | StrId::IS_SCALAR
+            | StrId::IS_STRING
+            | StrId::CTYPE_ALNUM
+            | StrId::CTYPE_ALPHA
+            | StrId::CTYPE_DIGIT
+            | StrId::CTYPE_PUNCT
+            | StrId::CTYPE_SPACE
+            | StrId::CTYPE_UPPER
+            | StrId::CTYPE_XDIGIT
+            | StrId::IS_DICT
+            | StrId::IS_VEC
+            | StrId::IS_ANY_ARRAY
+            | StrId::IS_DICT_OR_DARRAY
+            | StrId::IS_VEC_OR_VARRAY
+            | StrId::ASIN
+            | StrId::ATAN2
+            | StrId::CEIL
+            | StrId::ABS
+            | StrId::DEG2RAD
+            | StrId::FLOOR
+            | StrId::CLASS_EXISTS
+            | StrId::LONG2IP
+            | StrId::RAD2DEG
+            | StrId::ROUND
+            | StrId::GETTYPE
+            | StrId::IS_FUN
+            | StrId::IS_PHP_ARRAY
+            | StrId::FUNCTION_EXISTS
+            | StrId::GET_PARENT_CLASS
+            | StrId::GET_RESOURCE_TYPE
+            | StrId::FLOATVAL
+            | StrId::TYPE_STRUCTURE_FN => (vec![(0, PathKind::Aggregate)], None),
             StrId::LIB_MATH_ALMOST_EQUALS
             | StrId::LIB_MATH_BASE_CONVERT
             | StrId::LIB_MATH_EXP
@@ -1056,6 +1194,10 @@ fn get_special_argument_nodes(
             | StrId::LIB_STR_ENDS_WITH
             | StrId::LIB_STR_ENDS_WITH_CI
             | StrId::LIB_STR_SEARCH
+            | StrId::LIB_STR_SEARCH_L
+            | StrId::LIB_STR_SEARCH_LAST
+            | StrId::LIB_STR_SEARCH_LAST_L
+            | StrId::LIB_STR_SEARCH_CI
             | StrId::LIB_STR_CONTAINS
             | StrId::LIB_STR_CONTAINS_CI
             | StrId::LIB_STR_COMPARE
@@ -1066,7 +1208,29 @@ fn get_special_argument_nodes(
             | StrId::SUBSTR_COUNT
             | StrId::STRCMP
             | StrId::STRNATCASECMP
-            | StrId::LIB_KEYSET_EQUAL => (vec![], Some(PathKind::Aggregate)),
+            | StrId::LIB_KEYSET_EQUAL
+            | StrId::LIB_DICT_EQUAL
+            | StrId::LIB_LEGACY_FIXME_EQ
+            | StrId::LIB_LEGACY_FIXME_LT
+            | StrId::LIB_LEGACY_FIXME_NEQ
+            | StrId::LIB_STR_LENGTH_L
+            | StrId::IS_SUBCLASS_OF
+            | StrId::STRIPOS
+            | StrId::STRLEN
+            | StrId::STRNATCMP
+            | StrId::STRNCMP
+            | StrId::STRRPOS
+            | StrId::STRSPN
+            | StrId::LEVENSHTEIN
+            | StrId::INTDIV
+            | StrId::STRCASECMP
+            | StrId::STRCSPN
+            | StrId::SUBSTR_COMPARE
+            | StrId::VERSION_COMPARE
+            | StrId::FMOD
+            | StrId::POW
+            | StrId::LIB_MATH_ROUND
+            | StrId::MB_DETECT_ENCODING => (vec![], Some(PathKind::Aggregate)),
             StrId::LIB_C_CONTAINS
             | StrId::LIB_C_CONTAINS_KEY
             | StrId::IN_ARRAY
@@ -1080,6 +1244,15 @@ fn get_special_argument_nodes(
                     (1, PathKind::Aggregate),
                     (3, PathKind::Aggregate),
                     (4, PathKind::Aggregate),
+                ],
+                None,
+            ),
+            StrId::PREG_MATCH_WITH_MATCHES_AND_ERROR => (
+                vec![
+                    (0, PathKind::Aggregate),
+                    (1, PathKind::Aggregate),
+                    (4, PathKind::Aggregate),
+                    (5, PathKind::Aggregate),
                 ],
                 None,
             ),
@@ -1110,21 +1283,21 @@ fn get_special_argument_nodes(
                 None,
             ),
             StrId::PREG_GREP => (vec![(0, PathKind::Aggregate), (1, PathKind::Default)], None),
-            StrId::LIB_STR_REPLACE_EVERY => (
+            StrId::LIB_STR_REPLACE_EVERY | StrId::VSPRINTF | StrId::IMPLODE | StrId::JOIN => (
                 vec![
                     (0, PathKind::Default),
                     (1, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
                 ],
                 None,
             ),
-
             StrId::STR_PAD
             | StrId::LIB_STR_PAD_LEFT
             | StrId::LIB_STR_PAD_RIGHT
             | StrId::CHUNK_SPLIT
             | StrId::LIB_REGEX_REPLACE
             | StrId::LIB_STR_REPLACE
-            | StrId::LIB_STR_REPLACE_CI => (
+            | StrId::LIB_STR_REPLACE_CI
+            | StrId::STRTR => (
                 vec![
                     (0, PathKind::Default),
                     (1, PathKind::Aggregate),
@@ -1132,10 +1305,12 @@ fn get_special_argument_nodes(
                 ],
                 None,
             ),
-            StrId::IMPLODE | StrId::JOIN => (
+            StrId::LIB_STR_SPLICE => (
                 vec![
                     (0, PathKind::Default),
-                    (1, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue)),
+                    (1, PathKind::Default),
+                    (2, PathKind::Aggregate),
+                    (3, PathKind::Aggregate),
                 ],
                 None,
             ),
@@ -1149,15 +1324,29 @@ fn get_special_argument_nodes(
                 ],
                 None,
             ),
+            StrId::LIB_VEC_FILL | StrId::EXPLODE | StrId::PREG_SPLIT => (
+                vec![
+                    (0, PathKind::Aggregate),
+                    (
+                        1,
+                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
+                    ),
+                ],
+                None,
+            ),
             StrId::HTTP_BUILD_QUERY => (
                 vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayValue))],
                 None,
             ),
-            StrId::EXPLODE | StrId::PREG_SPLIT => (
-                vec![(
-                    1,
-                    PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
-                )],
+            StrId::LIB_REGEX_SPLIT => (
+                vec![
+                    (
+                        0,
+                        PathKind::UnknownArrayAssignment(ArrayDataKind::ArrayValue),
+                    ),
+                    (1, PathKind::Aggregate),
+                    (2, PathKind::Aggregate),
+                ],
                 None,
             ),
             StrId::LIB_VEC_ZIP => (
@@ -1260,6 +1449,7 @@ fn get_special_argument_nodes(
             ),
             StrId::LIB_C_FIRST
             | StrId::LIB_C_FIRSTX
+            | StrId::LIB_C_NFIRST
             | StrId::LIB_C_LAST
             | StrId::LIB_C_LASTX
             | StrId::LIB_C_ONLYX
@@ -1306,16 +1496,20 @@ fn get_special_argument_nodes(
                 vec![(0, PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey))],
                 None,
             ),
-            StrId::LIB_DICT_MERGE | StrId::LIB_VEC_CONCAT | StrId::LIB_KEYSET_UNION => {
-                (vec![(0, PathKind::Default)], Some(PathKind::Default))
-            }
+            // handled separately
+            StrId::LIB_STR_FORMAT | StrId::SPRINTF => (vec![], None),
             _ => {
-                // if function_name.starts_with("HH\\Lib\\")
-                //     && !function_name.starts_with("HH\\Lib\\Math\\")
+                // if !matches!(functionlike_info.effects, FnEffect::Some(_))
+                //     && !matches!(functionlike_info.effects, FnEffect::Arg(_))
+                //     && !functionlike_info.pure_can_throw
+                //     && !functionlike_info.user_defined
                 // {
-                //     println!("no taints through {}", function_name);
+                //     println!("{}", functionlike_id.to_string(interner));
                 // }
-                (vec![], None)
+
+                // this is a cop-out, but will guarantee false-positives vs false-negatives
+                // in taint analysis
+                (vec![], Some(PathKind::Default))
             }
         },
         _ => panic!(),

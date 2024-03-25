@@ -638,7 +638,20 @@ impl<'a> Scanner<'a> {
 
         functionlike_storage.is_production_code = self.file_source.is_production_code;
 
-        if name == Some(StrId::INVARIANT) {
+        if matches!(
+            name,
+            Some(
+                StrId::INVARIANT
+                    | StrId::INVARIANT_VIOLATION
+                    | StrId::TRIGGER_ERROR
+                    | StrId::FUNCTION_EXISTS
+                    | StrId::CLASS_EXISTS
+                    | StrId::SET_FRAME_METADATA
+                    | StrId::LIB_C_FIRSTX
+                    | StrId::LIB_C_LASTX
+                    | StrId::LIB_C_ONLYX
+            )
+        ) {
             functionlike_storage.pure_can_throw = true;
         }
 

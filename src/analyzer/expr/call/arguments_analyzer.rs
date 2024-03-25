@@ -183,6 +183,7 @@ pub(crate) fn check_arguments_match(
             || matches!(functionlike_info.effects, FnEffect::Arg(_))
             || functionlike_info.pure_can_throw
             || functionlike_info.user_defined
+            || functionlike_info.method_info.is_some()
         {
             context.inside_general_use = true;
         }
@@ -1110,6 +1111,29 @@ fn handle_possibly_matching_inout_param(
             &argument_node,
             &out_node,
             PathKind::Default,
+            vec![],
+            vec![],
+        );
+    } else if matches!(
+        functionlike_id,
+        FunctionLikeIdentifier::Function(StrId::JSON_DECODE_WITH_ERROR)
+    ) && argument_offset == 1
+    {
+        let argument_node = DataFlowNode::get_for_method_argument(
+            functionlike_id.to_string(statements_analyzer.get_interner()),
+            0,
+            Some(statements_analyzer.get_hpos(all_args[1].1.pos())),
+            Some(statements_analyzer.get_hpos(function_call_pos)),
+        );
+
+        analysis_data
+            .data_flow_graph
+            .add_node(argument_node.clone());
+
+        analysis_data.data_flow_graph.add_path(
+            &argument_node,
+            &out_node,
+            PathKind::Aggregate,
             vec![],
             vec![],
         );

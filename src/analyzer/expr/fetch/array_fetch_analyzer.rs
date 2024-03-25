@@ -100,7 +100,7 @@ pub(crate) fn analyze(
     if let Some(stmt_var_type) = stmt_var_type {
         // maybe todo handle access on null
 
-        let stmt_type = Some(get_array_access_type_given_offset(
+        let mut stmt_type_inner = get_array_access_type_given_offset(
             statements_analyzer,
             analysis_data,
             (expr.0, expr.1, pos),
@@ -109,30 +109,28 @@ pub(crate) fn analyze(
             false,
             &extended_var_id,
             context,
-        ));
+        );
 
-        if let Some(mut stmt_type) = stmt_type.clone() {
-            if let Some(keyed_array_var_id) = &keyed_array_var_id {
-                let can_store_result = context.inside_assignment || !stmt_var_type.is_mixed();
+        if let Some(keyed_array_var_id) = &keyed_array_var_id {
+            let can_store_result = context.inside_assignment || !stmt_var_type.is_mixed();
 
-                if !context.inside_isset && can_store_result && keyed_array_var_id.contains("[$") {
-                    context
-                        .vars_in_scope
-                        .insert(keyed_array_var_id.clone(), Rc::new(stmt_type.clone()));
-                }
+            if !context.inside_isset && can_store_result && keyed_array_var_id.contains("[$") {
+                context
+                    .vars_in_scope
+                    .insert(keyed_array_var_id.clone(), Rc::new(stmt_type_inner.clone()));
             }
-
-            add_array_fetch_dataflow(
-                statements_analyzer,
-                expr.0.pos(),
-                analysis_data,
-                keyed_array_var_id.clone(),
-                &mut stmt_type,
-                &mut used_key_type,
-            );
-
-            analysis_data.set_expr_type(pos, stmt_type.clone());
         }
+
+        add_array_fetch_dataflow(
+            statements_analyzer,
+            expr.0.pos(),
+            analysis_data,
+            keyed_array_var_id.clone(),
+            &mut stmt_type_inner,
+            &mut used_key_type,
+        );
+
+        analysis_data.set_expr_type(pos, stmt_type_inner.clone());
     }
 
     if let Some(dim_expr) = expr.1 {

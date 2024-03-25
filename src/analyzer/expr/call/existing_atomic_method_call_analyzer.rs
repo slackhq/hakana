@@ -23,7 +23,9 @@ use oxidized::{
 };
 use rustc_hash::FxHashMap;
 
-use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
+use crate::expr::fetch::array_fetch_analyzer::{
+    add_array_fetch_dataflow, get_array_access_type_given_offset,
+};
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
     expr::{
@@ -468,31 +470,31 @@ fn handle_shapes_static_method(
                     .get_rc_expr_type(call_expr.1[1].1.pos())
                     .cloned();
 
-                let mut expr_type = None;
-
                 if let (Some(dict_type), Some(dim_type)) = (dict_type, dim_type) {
-                    for atomic_type in &dict_type.types {
-                        if let TAtomic::TDict { .. } = atomic_type {
-                            let expr_type_inner = handle_array_access_on_dict(
-                                statements_analyzer,
-                                pos,
-                                analysis_data,
-                                context,
-                                atomic_type,
-                                &dim_type,
-                                false,
-                                &mut false,
-                                true,
-                                &mut false,
-                                &mut false,
-                            );
+                    let mut expr_type_inner = get_array_access_type_given_offset(
+                        statements_analyzer,
+                        analysis_data,
+                        (&call_expr.1[0].1, Some(&call_expr.1[1].1), pos),
+                        &dict_type,
+                        &dim_type,
+                        false,
+                        &None,
+                        context,
+                    );
 
-                            expr_type = Some(expr_type_inner);
-                        }
-                    }
+                    add_array_fetch_dataflow(
+                        statements_analyzer,
+                        call_expr.1[0].1.pos(),
+                        analysis_data,
+                        None,
+                        &mut expr_type_inner,
+                        &mut (*dim_type).clone(),
+                    );
+
+                    return Some(expr_type_inner);
                 }
 
-                return Some(expr_type.unwrap_or(get_mixed_any()));
+                return Some(get_mixed_any());
             }
         }
         StrId::TO_DICT | StrId::TO_ARRAY => {
