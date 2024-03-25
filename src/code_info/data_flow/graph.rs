@@ -92,13 +92,6 @@ impl DataFlowGraph {
         added_taints: Vec<SinkType>,
         removed_taints: Vec<SinkType>,
     ) {
-        if matches!(
-            path_kind,
-            PathKind::UnknownArrayFetch(ArrayDataKind::ArrayKey)
-        ) {
-            return;
-        }
-
         let from_id = from.get_id();
         let to_id = to.get_id();
 
