@@ -25,7 +25,6 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_algebra::Clause;
 use hakana_reflection_info::assertion::Assertion;
-use hakana_reflection_info::data_flow::graph::DataFlowGraph;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
@@ -33,7 +32,6 @@ use hakana_reflection_info::issue::Issue;
 use hakana_reflection_info::issue::IssueKind;
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::taint::SinkType;
 use hakana_type::add_union_type;
 use hakana_type::get_literal_int;
 use hakana_type::get_mixed;
@@ -51,7 +49,7 @@ pub(crate) fn analyze(
     assign_value_type: Option<&TUnion>,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-    is_inout: bool,
+    inout_node: Option<DataFlowNode>,
 ) -> Result<(), AnalysisError> {
     let (binop, assign_var, assign_value) = (expr.0, expr.1, expr.2);
 
@@ -167,7 +165,7 @@ pub(crate) fn analyze(
         context.inside_general_use = false;
     }
 
-    let mut assign_value_type = if let Some(assign_value_type) = assign_value_type {
+    let assign_value_type = if let Some(assign_value_type) = assign_value_type {
         assign_value_type.clone()
     } else if let Some(assign_value) = assign_value {
         if let Some(var_type) = analysis_data.get_expr_type(&assign_value.1) {
@@ -180,60 +178,6 @@ pub(crate) fn analyze(
     } else {
         get_mixed_any()
     };
-
-    if let Some(var_id) = &var_id {
-        let assignment_node = if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
-            && matches!(assign_var.2, aast::Expr_::Lvar(_))
-            && !is_inout
-        {
-            DataFlowNode::get_for_variable_source(
-                var_id.clone(),
-                statements_analyzer.get_hpos(assign_var.pos()),
-                !context.inside_awaitall
-                    && if let Some(source_expr) = assign_value {
-                        analysis_data.is_pure(source_expr.pos())
-                    } else {
-                        false
-                    },
-                !assign_value_type.parent_nodes.is_empty(),
-                assign_value_type.has_awaitable_types(),
-            )
-        } else {
-            DataFlowNode::get_for_lvar(
-                var_id.clone(),
-                statements_analyzer.get_hpos(assign_var.pos()),
-                !assign_value_type.parent_nodes.is_empty(),
-            )
-        };
-
-        analysis_data
-            .data_flow_graph
-            .add_node(assignment_node.clone());
-
-        if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
-            && assign_value_type.parent_nodes.is_empty()
-            && !context.inside_assignment_op
-            && !var_id.starts_with("$_")
-        {
-            let (start_offset, end_offset) = context.for_loop_init_bounds;
-            if start_offset != 0 {
-                let for_node = DataFlowNode {
-                    id: format!("for-init-{}-{}", start_offset, end_offset),
-                    kind: DataFlowNodeKind::ForLoopInit {
-                        start_offset,
-                        end_offset,
-                        var_name: var_id.clone(),
-                    },
-                };
-
-                analysis_data.data_flow_graph.add_node(for_node.clone());
-
-                assign_value_type.parent_nodes.push(for_node);
-            }
-        }
-
-        assign_value_type.parent_nodes.push(assignment_node);
-    }
 
     if let (Some(var_id), Some(existing_var_type), Bop::Eq(None)) =
         (&var_id, &existing_var_type, binop)
@@ -318,7 +262,7 @@ pub(crate) fn analyze(
             var_id.as_ref().unwrap(),
             analysis_data,
             context,
-            is_inout,
+            inout_node,
         ),
         aast::Expr_::ArrayGet(boxed) => {
             array_assignment_analyzer::analyze(
@@ -384,54 +328,6 @@ pub(crate) fn analyze(
     };
 
     Ok(())
-}
-
-fn check_variable_or_property_assignment(
-    statements_analyzer: &StatementsAnalyzer,
-    var_type: TUnion,
-    analysis_data: &mut FunctionAnalysisData,
-    assign_var_pos: &Pos,
-    var_id: &str,
-    context: &ScopeContext,
-    is_inout: bool,
-) -> TUnion {
-    if var_type.is_void() {
-        // todo (maybe) handle void assignment
-    }
-    if var_type.is_nothing() {
-        analysis_data.maybe_add_issue(
-            Issue::new(
-                IssueKind::ImpossibleAssignment,
-                "This assignment is impossible".to_string(),
-                statements_analyzer.get_hpos(assign_var_pos),
-                &context.function_context.calling_functionlike_id,
-            ),
-            statements_analyzer.get_config(),
-            statements_analyzer.get_file_path_actual(),
-        );
-    }
-    let data_flow_graph = &mut analysis_data.data_flow_graph;
-
-    if !var_type.parent_nodes.is_empty()
-        && ((matches!(&data_flow_graph.kind, GraphKind::FunctionBody) && !is_inout)
-            || (matches!(&data_flow_graph.kind, GraphKind::WholeProgram(..))
-                && context.allow_taints))
-    {
-        let removed_taints = get_removed_taints_in_comments(statements_analyzer, assign_var_pos);
-
-        // todo create AddRemoveTaintsEvent
-        return add_dataflow_to_assignment(
-            statements_analyzer,
-            var_type,
-            data_flow_graph,
-            var_id,
-            assign_var_pos,
-            vec![],
-            removed_taints,
-        );
-    }
-
-    var_type
 }
 
 fn analyze_list_assignment(
@@ -547,151 +443,141 @@ fn analyze_list_assignment(
             Some(&value_type),
             analysis_data,
             context,
-            false,
+            None,
         )
         .ok();
     }
-}
-
-pub(crate) fn add_dataflow_to_assignment(
-    statements_analyzer: &StatementsAnalyzer,
-    mut assignment_type: TUnion,
-    data_flow_graph: &mut DataFlowGraph,
-    var_id: &str,
-    var_pos: &Pos,
-    added_taints: Vec<SinkType>,
-    removed_taints: Vec<SinkType>,
-) -> TUnion {
-    if let GraphKind::WholeProgram(WholeProgramKind::Taint) = &data_flow_graph.kind {
-        if !assignment_type.has_taintable_value() {
-            return assignment_type;
-        }
-    }
-
-    let parent_nodes = &assignment_type.parent_nodes;
-
-    let new_parent_node = DataFlowNode::get_for_lvar(
-        var_id.to_string(),
-        statements_analyzer.get_hpos(var_pos),
-        !parent_nodes.is_empty(),
-    );
-    data_flow_graph.add_node(new_parent_node.clone());
-    let new_parent_nodes = vec![new_parent_node.clone()];
-
-    for parent_node in parent_nodes {
-        data_flow_graph.add_path(
-            parent_node,
-            &new_parent_node,
-            PathKind::Default,
-            added_taints.clone(),
-            removed_taints.clone(),
-        );
-    }
-
-    assignment_type.parent_nodes = new_parent_nodes;
-
-    assignment_type
 }
 
 fn analyze_assignment_to_variable(
     statements_analyzer: &StatementsAnalyzer,
     var_expr: &aast::Expr<(), ()>,
     source_expr: Option<&aast::Expr<(), ()>>,
-    assign_value_type: TUnion,
+    mut assign_value_type: TUnion,
     var_id: &String,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
-    is_inout: bool,
+    inout_node: Option<DataFlowNode>,
 ) {
-    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody && !is_inout {
-        // analysis_data
-        //     .data_flow_graph
-        //     .add_node(DataFlowNode::get_for_variable_source(
-        //         var_id.clone(),
-        //         statements_analyzer.get_hpos(var_expr.pos()),
-        //         !context.inside_awaitall
-        //             && if let Some(source_expr) = source_expr {
-        //                 analysis_data.is_pure(source_expr.pos())
-        //             } else {
-        //                 false
-        //             },
-        //         assign_value_type.has_awaitable_types(),
-        //     ));
+    // if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody && !is_inout {
+    //     analysis_data
+    //         .data_flow_graph
+    //         .add_node(DataFlowNode::get_for_variable_source(
+    //             var_id.clone(),
+    //             statements_analyzer.get_hpos(var_expr.pos()),
+    //             !context.inside_awaitall
+    //                 && if let Some(source_expr) = source_expr {
+    //                     analysis_data.is_pure(source_expr.pos())
+    //                 } else {
+    //                     false
+    //                 },
+    //             assign_value_type.has_awaitable_types(),
+    //         ));
+    // }
+
+    let assign_var_pos = var_expr.pos();
+
+    if assign_value_type.is_nothing() {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::ImpossibleAssignment,
+                "This assignment is impossible".to_string(),
+                statements_analyzer.get_hpos(assign_var_pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
     }
 
-    let assign_value_type = check_variable_or_property_assignment(
-        statements_analyzer,
-        assign_value_type,
-        analysis_data,
-        var_expr.pos(),
-        var_id,
-        context,
-        is_inout,
-    );
+    let has_parent_nodes = !assign_value_type.parent_nodes.is_empty();
+
+    let can_taint = has_parent_nodes
+        && match analysis_data.data_flow_graph.kind {
+            GraphKind::FunctionBody => inout_node.is_none(),
+            GraphKind::WholeProgram(kind) => {
+                context.allow_taints
+                    && (kind != WholeProgramKind::Taint || assign_value_type.has_taintable_value())
+            }
+        };
+
+    let assignment_node = if let Some(inout_node) = inout_node {
+        inout_node
+    } else if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
+        && matches!(var_expr.2, aast::Expr_::Lvar(_))
+    {
+        DataFlowNode::get_for_variable_source(
+            var_id.clone(),
+            statements_analyzer.get_hpos(var_expr.pos()),
+            !context.inside_awaitall
+                && if let Some(source_expr) = source_expr {
+                    analysis_data.is_pure(source_expr.pos())
+                } else {
+                    false
+                },
+            has_parent_nodes,
+            assign_value_type.has_awaitable_types(),
+        )
+    } else {
+        DataFlowNode::get_for_lvar(
+            var_id.clone(),
+            statements_analyzer.get_hpos(var_expr.pos()),
+            has_parent_nodes,
+        )
+    };
+
+    analysis_data
+        .data_flow_graph
+        .add_node(assignment_node.clone());
+
+    if can_taint {
+        let removed_taints = get_removed_taints_in_comments(statements_analyzer, assign_var_pos);
+
+        for parent_node in &assign_value_type.parent_nodes {
+            analysis_data.data_flow_graph.add_path(
+                parent_node,
+                &assignment_node,
+                PathKind::Default,
+                vec![],
+                removed_taints.clone(),
+            );
+        }
+    }
+
+    assign_value_type.parent_nodes = vec![assignment_node];
+
+    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
+        && !has_parent_nodes
+        && !context.inside_assignment_op
+        && !var_id.starts_with("$_")
+    {
+        let (start_offset, end_offset) = context.for_loop_init_bounds;
+        if start_offset != 0 {
+            let for_node = DataFlowNode {
+                id: format!("for-init-{}-{}", start_offset, end_offset),
+                kind: DataFlowNodeKind::ForLoopInit {
+                    start_offset,
+                    end_offset,
+                    var_name: var_id.clone(),
+                },
+            };
+
+            analysis_data.data_flow_graph.add_node(for_node.clone());
+            assign_value_type.parent_nodes.push(for_node);
+        }
+    }
 
     if assign_value_type.is_bool() {
         if let Some(source_expr) = source_expr {
             if matches!(source_expr.2, aast::Expr_::Binop(..)) {
-                // todo support $a = !($b || $c)
-                let var_object_id = (
-                    var_expr.pos().start_offset() as u32,
-                    var_expr.pos().end_offset() as u32,
-                );
-                let cond_object_id = (
-                    source_expr.pos().start_offset() as u32,
-                    source_expr.pos().end_offset() as u32,
-                );
-
-                let assertion_context = statements_analyzer.get_assertion_context(
-                    context.function_context.calling_class.as_ref(),
-                    context.function_context.calling_functionlike_id.as_ref(),
-                );
-
-                let right_clauses = formula_generator::get_formula(
-                    cond_object_id,
-                    cond_object_id,
+                handle_assignment_with_boolean_logic(
+                    var_expr,
                     source_expr,
-                    &assertion_context,
+                    statements_analyzer,
+                    context,
                     analysis_data,
-                    true,
-                    false,
+                    var_id,
                 );
-
-                if let Ok(right_clauses) = right_clauses {
-                    let right_clauses = ScopeContext::filter_clauses(
-                        var_id,
-                        right_clauses.into_iter().map(Rc::new).collect(),
-                        None,
-                        None,
-                        analysis_data,
-                    );
-
-                    let mut possibilities = BTreeMap::new();
-                    possibilities.insert(
-                        var_id.clone(),
-                        IndexMap::from([(Assertion::Falsy.to_hash(), Assertion::Falsy)]),
-                    );
-
-                    let assignment_clauses = if let Ok(assignment_clauses) =
-                        hakana_algebra::combine_ored_clauses(
-                            vec![Clause::new(
-                                possibilities,
-                                var_object_id,
-                                var_object_id,
-                                None,
-                                None,
-                                None,
-                            )],
-                            right_clauses.into_iter().map(|v| (*v).clone()).collect(),
-                            cond_object_id,
-                        ) {
-                        assignment_clauses.into_iter().map(Rc::new).collect()
-                    } else {
-                        vec![]
-                    };
-
-                    context.clauses.extend(assignment_clauses);
-                }
             }
         }
     }
@@ -701,11 +587,82 @@ fn analyze_assignment_to_variable(
         .insert(var_id.clone(), Rc::new(assign_value_type));
 }
 
+fn handle_assignment_with_boolean_logic(
+    var_expr: &aast::Expr<(), ()>,
+    source_expr: &aast::Expr<(), ()>,
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    context: &mut ScopeContext,
+    analysis_data: &mut FunctionAnalysisData,
+    var_id: &String,
+) {
+    // todo support $a = !($b || $c)
+    let var_object_id = (
+        var_expr.pos().start_offset() as u32,
+        var_expr.pos().end_offset() as u32,
+    );
+    let cond_object_id = (
+        source_expr.pos().start_offset() as u32,
+        source_expr.pos().end_offset() as u32,
+    );
+
+    let assertion_context = statements_analyzer.get_assertion_context(
+        context.function_context.calling_class.as_ref(),
+        context.function_context.calling_functionlike_id.as_ref(),
+    );
+
+    let right_clauses = formula_generator::get_formula(
+        cond_object_id,
+        cond_object_id,
+        source_expr,
+        &assertion_context,
+        analysis_data,
+        true,
+        false,
+    );
+
+    if let Ok(right_clauses) = right_clauses {
+        let right_clauses = ScopeContext::filter_clauses(
+            var_id,
+            right_clauses.into_iter().map(Rc::new).collect(),
+            None,
+            None,
+            analysis_data,
+        );
+
+        let mut possibilities = BTreeMap::new();
+        possibilities.insert(
+            var_id.clone(),
+            IndexMap::from([(Assertion::Falsy.to_hash(), Assertion::Falsy)]),
+        );
+
+        let assignment_clauses = if let Ok(assignment_clauses) =
+            hakana_algebra::combine_ored_clauses(
+                vec![Clause::new(
+                    possibilities,
+                    var_object_id,
+                    var_object_id,
+                    None,
+                    None,
+                    None,
+                )],
+                right_clauses.into_iter().map(|v| (*v).clone()).collect(),
+                cond_object_id,
+            ) {
+            assignment_clauses.into_iter().map(Rc::new).collect()
+        } else {
+            vec![]
+        };
+
+        context.clauses.extend(assignment_clauses);
+    }
+}
+
 pub(crate) fn analyze_inout_param(
     statements_analyzer: &StatementsAnalyzer,
     expr: &aast::Expr<(), ()>,
     arg_type: TUnion,
     inout_type: &TUnion,
+    assignment_node: DataFlowNode,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
 ) -> Result<(), AnalysisError> {
@@ -716,7 +673,7 @@ pub(crate) fn analyze_inout_param(
         Some(inout_type),
         analysis_data,
         context,
-        true,
+        Some(assignment_node),
     )?;
 
     analysis_data.set_expr_type(expr.pos(), arg_type.clone());

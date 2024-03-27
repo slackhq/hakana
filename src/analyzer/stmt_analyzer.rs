@@ -453,7 +453,7 @@ fn analyze_awaitall(
             assignment_type.as_ref(),
             analysis_data,
             context,
-            false,
+            None,
         )?;
     }
 

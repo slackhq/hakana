@@ -1051,19 +1051,17 @@ fn handle_possibly_matching_inout_param(
 
     let arg_type = arg_type.unwrap_or(get_mixed_any());
 
-    let out_node = DataFlowNode::get_for_method_argument_out(
+    let assignment_node = DataFlowNode::get_for_method_argument_out(
         functionlike_id.to_string(statements_analyzer.get_interner()),
         argument_offset,
         Some(functionlike_param.name_location),
         Some(statements_analyzer.get_hpos(function_call_pos)),
     );
 
-    inout_type.parent_nodes = vec![out_node.clone()];
-
     for arg_node in &arg_type.parent_nodes {
         analysis_data.data_flow_graph.add_path(
             arg_node,
-            &out_node,
+            &assignment_node,
             PathKind::Default,
             vec![],
             vec![],
@@ -1093,7 +1091,7 @@ fn handle_possibly_matching_inout_param(
 
         analysis_data.data_flow_graph.add_path(
             &argument_node,
-            &out_node,
+            &assignment_node,
             PathKind::Aggregate,
             vec![],
             vec![],
@@ -1112,7 +1110,7 @@ fn handle_possibly_matching_inout_param(
 
         analysis_data.data_flow_graph.add_path(
             &argument_node,
-            &out_node,
+            &assignment_node,
             PathKind::Default,
             vec![],
             removed_taints,
@@ -1135,20 +1133,23 @@ fn handle_possibly_matching_inout_param(
 
         analysis_data.data_flow_graph.add_path(
             &argument_node,
-            &out_node,
+            &assignment_node,
             PathKind::Aggregate,
             vec![],
             vec![],
         );
     }
 
-    analysis_data.data_flow_graph.add_node(out_node);
+    analysis_data
+        .data_flow_graph
+        .add_node(assignment_node.clone());
 
     assignment_analyzer::analyze_inout_param(
         statements_analyzer,
         expr,
         arg_type,
         &inout_type,
+        assignment_node,
         analysis_data,
         context,
     )?;

@@ -118,7 +118,7 @@ pub(crate) fn analyze(
                 Some(&key_type),
                 analysis_data,
                 &mut foreach_context,
-                false,
+                None,
             )
             .ok();
         }
@@ -139,7 +139,7 @@ pub(crate) fn analyze(
         Some(&value_type),
         analysis_data,
         &mut foreach_context,
-        false,
+        None,
     )?;
 
     foreach_context.for_loop_init_bounds = (0, 0);

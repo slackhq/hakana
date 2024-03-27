@@ -36,6 +36,8 @@ pub fn find_tainted_data(
     logger.log_sync(&format!(" - initial sources count: {}", sources.len()));
     logger.log_sync(&format!(" - initial sinks count:   {}", graph.sinks.len()));
 
+    // println!("{:#?}", graph);
+
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, path) in to {
     //         println!("{} --{}--> {}", from_id, path.kind, to_id);
