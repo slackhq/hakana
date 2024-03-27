@@ -410,33 +410,35 @@ fn add_property_dataflow(
                 .expr_types
                 .get(&(lhs_pos.start_offset() as u32, lhs_pos.end_offset() as u32));
 
-            let var_node = DataFlowNode::get_for_assignment(
-                lhs_var_id.clone(),
-                statements_analyzer.get_hpos(lhs_pos),
-            );
-            analysis_data.data_flow_graph.add_node(var_node.clone());
-
-            let property_node = DataFlowNode::get_for_assignment(
-                if let Some(expr_id) = expr_id {
-                    expr_id.clone()
-                } else {
-                    format!("{}->$property", lhs_var_id)
-                },
-                statements_analyzer.get_hpos(pos),
-            );
-            analysis_data
-                .data_flow_graph
-                .add_node(property_node.clone());
-
-            analysis_data.data_flow_graph.add_path(
-                &var_node,
-                &property_node,
-                PathKind::PropertyFetch(property_id.0, property_id.1),
-                vec![],
-                vec![],
-            );
-
             if let Some(var_type) = var_type {
+                let var_node = DataFlowNode::get_for_lvar(
+                    lhs_var_id.clone(),
+                    statements_analyzer.get_hpos(lhs_pos),
+                    !var_type.parent_nodes.is_empty(),
+                );
+                analysis_data.data_flow_graph.add_node(var_node.clone());
+
+                let property_node = DataFlowNode::get_for_property_fetch(
+                    if let Some(expr_id) = expr_id {
+                        expr_id.clone()
+                    } else {
+                        format!("{}->$property", lhs_var_id)
+                    },
+                    statements_analyzer.get_hpos(pos),
+                );
+
+                analysis_data
+                    .data_flow_graph
+                    .add_node(property_node.clone());
+
+                analysis_data.data_flow_graph.add_path(
+                    &var_node,
+                    &property_node,
+                    PathKind::PropertyFetch(property_id.0, property_id.1),
+                    vec![],
+                    vec![],
+                );
+
                 for parent_node in var_type.parent_nodes.iter() {
                     analysis_data.data_flow_graph.add_path(
                         parent_node,
@@ -462,7 +464,7 @@ fn add_property_dataflow(
         );
     }
 
-    let localized_property_node = DataFlowNode::get_for_assignment(
+    let localized_property_node = DataFlowNode::get_for_property_fetch(
         format!(
             "{}::${}",
             statements_analyzer
@@ -491,7 +493,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
     stmt_type: TUnion,
     interner: &Interner,
 ) -> TUnion {
-    let localized_property_node = DataFlowNode::get_for_assignment(
+    let localized_property_node = DataFlowNode::get_for_property_fetch(
         if let Some(expr_id) = expr_id {
             expr_id.clone()
         } else {

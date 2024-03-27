@@ -347,9 +347,10 @@ fn add_dataflow(
         if let (Some(lhs_var_id), Some(lhs_var_pos)) = (lhs_var_id, lhs_var_pos) {
             if functionlike_storage.specialize_call {
                 if let Some(context_type) = context.vars_in_scope.get_mut(lhs_var_id) {
-                    let var_node = DataFlowNode::get_for_assignment(
+                    let var_node = DataFlowNode::get_for_lvar(
                         lhs_var_id.to_owned(),
                         statements_analyzer.get_hpos(lhs_var_pos),
+                        !context_type.parent_nodes.is_empty(),
                     );
 
                     let this_before_method_node = DataFlowNode::get_for_this_before_method(

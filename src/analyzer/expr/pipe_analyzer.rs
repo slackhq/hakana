@@ -36,6 +36,7 @@ pub(crate) fn analyze(
             "$$".to_string(),
             statements_analyzer.get_hpos(expr.1.pos()),
             false,
+            true,
             false,
         );
 

@@ -177,9 +177,10 @@ pub(crate) fn analyze(
             analysis_data,
         );
 
-        let new_parent_node = DataFlowNode::get_for_assignment(
+        let new_parent_node = DataFlowNode::get_for_lvar(
             catch_var_id.clone(),
             statements_analyzer.get_hpos(&catch.1 .0),
+            true,
         );
 
         catch_type.parent_nodes.push(new_parent_node);

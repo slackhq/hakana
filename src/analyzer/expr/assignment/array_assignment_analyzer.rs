@@ -115,6 +115,7 @@ pub(crate) fn analyze(
                         statements_analyzer.get_hpos(root_array_expr.pos()),
                         false,
                         false,
+                        false,
                     ));
             }
         }
@@ -393,9 +394,10 @@ fn add_array_assignment_dataflow(
         }
     }
 
-    let parent_node = DataFlowNode::get_for_assignment(
+    let parent_node = DataFlowNode::get_for_lvar(
         var_var_id.unwrap_or("array-assignment".to_string()),
         statements_analyzer.get_hpos(expr_var_pos),
+        !parent_expr_type.parent_nodes.is_empty(),
     );
 
     if inside_general_use && analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
@@ -411,7 +413,7 @@ fn add_array_assignment_dataflow(
             &assignment_node,
             PathKind::Default,
             vec![],
-            vec![]
+            vec![],
         );
 
         analysis_data.data_flow_graph.add_node(assignment_node);

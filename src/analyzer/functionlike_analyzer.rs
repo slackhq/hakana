@@ -234,11 +234,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         } else {
             return Err(AnalysisError::InternalError(
                 "Cannot resolve function storage".to_string(),
-                HPos::new(
-                    &stmt.name.0,
-                    self.file_analyzer.get_file_source().file_path,
-           
-                ),
+                HPos::new(&stmt.name.0, self.file_analyzer.get_file_source().file_path),
             ));
         };
 
@@ -1064,7 +1060,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             let new_parent_node =
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-                    DataFlowNode::get_for_assignment(param.name.clone(), param.name_location)
+                    DataFlowNode::get_for_lvar(param.name.clone(), param.name_location, true)
                 } else {
                     let id = format!(
                         "param-{}-{}:{}-{}",
@@ -1095,6 +1091,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             label: param.name.clone(),
                             pure: false,
                             has_awaitable: param_type.has_awaitable_types(),
+                            has_parent_nodes: true,
                         },
                     }
                 };
@@ -1179,6 +1176,7 @@ fn report_unused_expressions(
                 pos,
                 pure,
                 has_awaitable,
+                ..
             } => {
                 if label.starts_with("$_") {
                     continue;

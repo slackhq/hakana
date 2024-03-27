@@ -1,5 +1,6 @@
 use std::hash::{Hash, Hasher};
 
+use crate::function_context::FunctionLikeIdentifier;
 use crate::method_identifier::MethodIdentifier;
 use crate::{
     code_location::HPos,
@@ -36,6 +37,7 @@ pub enum DataFlowNodeKind {
         kind: VariableSourceKind,
         label: String,
         pure: bool,
+        has_parent_nodes: bool,
         has_awaitable: bool,
     },
     VariableUseSink {
@@ -177,7 +179,31 @@ impl DataFlowNode {
         DataFlowNode::new(label.clone(), label, method_location, specialization_key)
     }
 
-    pub fn get_for_assignment(var_id: String, assignment_location: HPos) -> Self {
+    pub fn get_for_lvar(var_id: String, assignment_location: HPos, has_parent_nodes: bool) -> Self {
+        let id = format!(
+            "{}-{}:{}-{}",
+            var_id,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label: var_id,
+                specialization_key: None,
+            },
+        }
+    }
+
+    pub fn get_for_return_expr(
+        var_id: String,
+        assignment_location: HPos,
+        has_parent_nodes: bool,
+    ) -> Self {
         let id = format!(
             "{}-{}:{}-{}",
             var_id,
@@ -187,6 +213,116 @@ impl DataFlowNode {
         );
 
         Self::new(id, var_id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_array_item(
+        var_id: String,
+        assignment_location: HPos,
+        has_parent_nodes: bool,
+    ) -> Self {
+        let id = format!(
+            "{}-{}:{}-{}",
+            var_id,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        Self::new(id, var_id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_array_fetch(var_id: String, assignment_location: HPos) -> Self {
+        let id = format!(
+            "{}-{}:{}-{}",
+            var_id,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        Self::new(id, var_id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_property_fetch(var_id: String, assignment_location: HPos) -> Self {
+        let id = format!(
+            "{}-{}:{}-{}",
+            var_id,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        Self::new(id, var_id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_narrowing(var_id: String, assignment_location: HPos) -> Self {
+        let id = format!(
+            "{}-{}:{}-{}",
+            var_id,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        Self::new(id, var_id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_instance_property_assignment(
+        lhs_var_id: &String,
+        property_name: StrId,
+        interner: &Interner,
+        assignment_location: HPos,
+        has_parent_nodes: bool,
+    ) -> Self {
+        let var_id = format!("{}->{}", lhs_var_id, interner.lookup(&property_name));
+        let id = format!(
+            "{}-{}:{}-{}",
+            var_id,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        Self::new(id, var_id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_unspecialized_property(
+        property_id: (StrId, StrId),
+        interner: &Interner,
+        assignment_location: HPos,
+    ) -> Self {
+        let property_id = format!(
+            "{}::${}",
+            interner.lookup(&property_id.0),
+            interner.lookup(&property_id.1)
+        );
+
+        let id = format!(
+            "{}-{}:{}-{}",
+            property_id,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        Self::new(id, property_id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_call(
+        functionlike_id: FunctionLikeIdentifier,
+        interner: &Interner,
+        assignment_location: HPos,
+    ) -> Self {
+        let label = format!("call to {}", functionlike_id.to_string(interner));
+        let id = format!(
+            "{}-{}:{}-{}",
+            label,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        Self::new(id, label, Some(assignment_location), None)
     }
 
     pub fn get_for_composition(assignment_location: HPos) -> Self {
@@ -226,6 +362,7 @@ impl DataFlowNode {
         label: String,
         assignment_location: HPos,
         pure: bool,
+        has_parent_nodes: bool,
         has_awaitable: bool,
     ) -> Self {
         let id = format!(
@@ -244,6 +381,7 @@ impl DataFlowNode {
                 label,
                 pure,
                 has_awaitable,
+                has_parent_nodes,
             },
         }
     }

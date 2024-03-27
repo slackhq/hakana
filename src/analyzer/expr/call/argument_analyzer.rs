@@ -617,11 +617,9 @@ fn add_dataflow(
                 },
             }
         } else {
-            DataFlowNode::get_for_assignment(
-                "call to ".to_string()
-                    + functionlike_id
-                        .to_string(statements_analyzer.get_interner())
-                        .as_str(),
+            DataFlowNode::get_for_call(
+                *functionlike_id,
+                statements_analyzer.get_interner(),
                 statements_analyzer.get_hpos(input_expr.pos()),
             )
         };

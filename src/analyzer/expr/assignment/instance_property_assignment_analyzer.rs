@@ -650,14 +650,18 @@ fn add_instance_property_assignment_dataflow(
     context: &mut ScopeContext,
 ) {
     let interner = statements_analyzer.get_interner();
-    let var_node = DataFlowNode::get_for_assignment(
+    let var_node = DataFlowNode::get_for_lvar(
         lhs_var_id.to_owned(),
         statements_analyzer.get_hpos(var_pos),
+        true,
     );
     analysis_data.data_flow_graph.add_node(var_node.clone());
-    let property_node = DataFlowNode::get_for_assignment(
-        format!("{}->{}", lhs_var_id, interner.lookup(&property_id.1)),
+    let property_node = DataFlowNode::get_for_instance_property_assignment(
+        &lhs_var_id,
+        property_id.1,
+        interner,
         statements_analyzer.get_hpos(name_pos),
+        !assignment_value_type.parent_nodes.is_empty(),
     );
     analysis_data
         .data_flow_graph
@@ -705,12 +709,9 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     fq_class_name: &StrId,
     prop_name: StrId,
 ) {
-    let localized_property_node = DataFlowNode::get_for_assignment(
-        format!(
-            "{}::${}",
-            statements_analyzer.get_interner().lookup(&property_id.0),
-            statements_analyzer.get_interner().lookup(&property_id.1)
-        ),
+    let localized_property_node = DataFlowNode::get_for_unspecialized_property(
+        *property_id,
+        statements_analyzer.get_interner(),
         statements_analyzer.get_hpos(stmt_name_pos),
     );
 

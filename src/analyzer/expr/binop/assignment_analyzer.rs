@@ -181,39 +181,58 @@ pub(crate) fn analyze(
         get_mixed_any()
     };
 
-    if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
-        && assign_value_type.parent_nodes.is_empty()
-    {
-        if let Some(var_id) = &var_id {
-            let assignment_node = DataFlowNode::get_for_assignment(
+    if let Some(var_id) = &var_id {
+        let assignment_node = if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
+            && matches!(assign_var.2, aast::Expr_::Lvar(_))
+            && !is_inout
+        {
+            DataFlowNode::get_for_variable_source(
                 var_id.clone(),
                 statements_analyzer.get_hpos(assign_var.pos()),
-            );
-
-            analysis_data
-                .data_flow_graph
-                .add_node(assignment_node.clone());
-
-            assign_value_type.parent_nodes.push(assignment_node);
-
-            if !context.inside_assignment_op && !var_id.starts_with("$_") {
-                let (start_offset, end_offset) = context.for_loop_init_bounds;
-                if start_offset != 0 {
-                    let for_node = DataFlowNode {
-                        id: format!("for-init-{}-{}", start_offset, end_offset),
-                        kind: DataFlowNodeKind::ForLoopInit {
-                            start_offset,
-                            end_offset,
-                            var_name: var_id.clone(),
-                        },
-                    };
-
-                    analysis_data.data_flow_graph.add_node(for_node.clone());
-
-                    assign_value_type.parent_nodes.push(for_node);
-                }
-            }
+                !context.inside_awaitall
+                    && if let Some(source_expr) = assign_value {
+                        analysis_data.is_pure(source_expr.pos())
+                    } else {
+                        false
+                    },
+                !assign_value_type.parent_nodes.is_empty(),
+                assign_value_type.has_awaitable_types(),
+            )
+        } else {
+            DataFlowNode::get_for_lvar(
+                var_id.clone(),
+                statements_analyzer.get_hpos(assign_var.pos()),
+                !assign_value_type.parent_nodes.is_empty(),
+            )
         };
+
+        analysis_data
+            .data_flow_graph
+            .add_node(assignment_node.clone());
+
+        if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
+            && assign_value_type.parent_nodes.is_empty()
+            && !context.inside_assignment_op
+            && !var_id.starts_with("$_")
+        {
+            let (start_offset, end_offset) = context.for_loop_init_bounds;
+            if start_offset != 0 {
+                let for_node = DataFlowNode {
+                    id: format!("for-init-{}-{}", start_offset, end_offset),
+                    kind: DataFlowNodeKind::ForLoopInit {
+                        start_offset,
+                        end_offset,
+                        var_name: var_id.clone(),
+                    },
+                };
+
+                analysis_data.data_flow_graph.add_node(for_node.clone());
+
+                assign_value_type.parent_nodes.push(for_node);
+            }
+        }
+
+        assign_value_type.parent_nodes.push(assignment_node);
     }
 
     if let (Some(var_id), Some(existing_var_type), Bop::Eq(None)) =
@@ -551,8 +570,11 @@ pub(crate) fn add_dataflow_to_assignment(
 
     let parent_nodes = &assignment_type.parent_nodes;
 
-    let new_parent_node =
-        DataFlowNode::get_for_assignment(var_id.to_string(), statements_analyzer.get_hpos(var_pos));
+    let new_parent_node = DataFlowNode::get_for_lvar(
+        var_id.to_string(),
+        statements_analyzer.get_hpos(var_pos),
+        !parent_nodes.is_empty(),
+    );
     data_flow_graph.add_node(new_parent_node.clone());
     let new_parent_nodes = vec![new_parent_node.clone()];
 
@@ -582,19 +604,19 @@ fn analyze_assignment_to_variable(
     is_inout: bool,
 ) {
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody && !is_inout {
-        analysis_data
-            .data_flow_graph
-            .add_node(DataFlowNode::get_for_variable_source(
-                var_id.clone(),
-                statements_analyzer.get_hpos(var_expr.pos()),
-                !context.inside_awaitall
-                    && if let Some(source_expr) = source_expr {
-                        analysis_data.is_pure(source_expr.pos())
-                    } else {
-                        false
-                    },
-                assign_value_type.has_awaitable_types(),
-            ));
+        // analysis_data
+        //     .data_flow_graph
+        //     .add_node(DataFlowNode::get_for_variable_source(
+        //         var_id.clone(),
+        //         statements_analyzer.get_hpos(var_expr.pos()),
+        //         !context.inside_awaitall
+        //             && if let Some(source_expr) = source_expr {
+        //                 analysis_data.is_pure(source_expr.pos())
+        //             } else {
+        //                 false
+        //             },
+        //         assign_value_type.has_awaitable_types(),
+        //     ));
     }
 
     let assign_value_type = check_variable_or_property_assignment(

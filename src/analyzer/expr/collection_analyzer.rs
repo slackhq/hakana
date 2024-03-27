@@ -494,8 +494,11 @@ fn add_array_value_dataflow(
         }
     }
 
-    let new_parent_node =
-        DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(value.pos()));
+    let new_parent_node = DataFlowNode::get_for_array_item(
+        node_name,
+        statements_analyzer.get_hpos(value.pos()),
+        !value_type.parent_nodes.is_empty(),
+    );
     analysis_data
         .data_flow_graph
         .add_node(new_parent_node.clone());
@@ -549,8 +552,11 @@ fn add_array_key_dataflow(
 
     let node_name = "array".to_string();
 
-    let new_parent_node =
-        DataFlowNode::get_for_assignment(node_name, statements_analyzer.get_hpos(item_key_pos));
+    let new_parent_node = DataFlowNode::get_for_array_item(
+        node_name,
+        statements_analyzer.get_hpos(item_key_pos),
+        !key_item_type.parent_nodes.is_empty(),
+    );
     analysis_data
         .data_flow_graph
         .add_node(new_parent_node.clone());
