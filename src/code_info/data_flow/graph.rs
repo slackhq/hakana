@@ -1,6 +1,6 @@
 use super::{
     node::{DataFlowNode, DataFlowNodeKind},
-    path::{ArrayDataKind, DataFlowPath, PathKind},
+    path::{DataFlowPath, PathKind},
 };
 use crate::taint::SinkType;
 use hakana_str::StrId;

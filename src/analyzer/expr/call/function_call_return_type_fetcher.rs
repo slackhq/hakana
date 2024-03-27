@@ -602,7 +602,7 @@ fn handle_special_functions(
 fn handle_str_format(
     simple_string: &BString,
     first_arg: &(ast_defs::ParamKind, aast::Expr<(), ()>),
-    args: &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
+    args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
     statements_analyzer: &StatementsAnalyzer<'_>,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
@@ -665,8 +665,7 @@ fn handle_str_format(
         }
     }
 
-    let result_type = analyze_concat_nodes(concat_args, statements_analyzer, analysis_data, pos);
-    result_type
+    analyze_concat_nodes(concat_args, statements_analyzer, analysis_data, pos)
 }
 
 fn get_type_structure_type(
