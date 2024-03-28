@@ -120,32 +120,26 @@ impl DataFlowNode {
 
         let mut specialization_key = None;
 
+        let mut id = arg_id.clone();
+        let mut unspecialized_id = None;
+
         if let Some(pos) = pos {
             specialization_key = Some((pos.file_path.0, pos.start_offset));
+            unspecialized_id = Some(id.clone());
+            id += "-";
+            id += &pos.file_path.0 .0.to_string();
+            id += ":";
+            id += &pos.start_offset.to_string();
         }
 
-        {
-            let id = arg_id.clone();
-            let mut id = id;
-            let mut unspecialized_id = None;
-
-            if let Some(specialization_key) = &specialization_key {
-                unspecialized_id = Some(id.clone());
-                id += "-";
-                id += &specialization_key.0 .0.to_string();
-                id += ":";
-                id += &specialization_key.1.to_string();
-            }
-
-            DataFlowNode {
-                id,
-                kind: DataFlowNodeKind::Vertex {
-                    pos: arg_location,
-                    unspecialized_id,
-                    label: arg_id,
-                    specialization_key: specialization_key,
-                },
-            }
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: arg_location,
+                unspecialized_id,
+                label: arg_id,
+                specialization_key,
+            },
         }
     }
 
@@ -160,6 +154,36 @@ impl DataFlowNode {
             id: property_id_str.clone(),
             kind: DataFlowNodeKind::Vertex {
                 pos: None,
+                unspecialized_id: None,
+                label: property_id_str,
+                specialization_key: None,
+            },
+        }
+    }
+
+    pub fn get_for_localized_property(
+        property_id: (StrId, StrId),
+        interner: &Interner,
+        assignment_location: HPos,
+    ) -> Self {
+        let property_id_str = format!(
+            "{}::${}",
+            interner.lookup(&property_id.0),
+            interner.lookup(&property_id.1)
+        );
+
+        let id = format!(
+            "{}-{}:{}-{}",
+            property_id_str,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
                 unspecialized_id: None,
                 label: property_id_str,
                 specialization_key: None,
@@ -217,12 +241,27 @@ impl DataFlowNode {
         );
 
         let mut specialization_key = None;
+        let mut id = label.clone();
+        let mut unspecialized_id = None;
 
         if let Some(pos) = pos {
             specialization_key = Some((pos.file_path.0, pos.start_offset));
+            unspecialized_id = Some(id.clone());
+            id += "-";
+            id += &pos.file_path.0 .0.to_string();
+            id += ":";
+            id += &pos.start_offset.to_string();
         }
 
-        DataFlowNode::new(label.clone(), label, method_location, specialization_key)
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: method_location,
+                unspecialized_id,
+                label,
+                specialization_key,
+            },
+        }
     }
 
     pub fn get_for_this_after_method(
@@ -239,11 +278,27 @@ impl DataFlowNode {
 
         let mut specialization_key = None;
 
+        let mut id = label.clone();
+        let mut unspecialized_id = None;
+
         if let Some(pos) = pos {
             specialization_key = Some((pos.file_path.0, pos.start_offset));
+            unspecialized_id = Some(id.clone());
+            id += "-";
+            id += &pos.file_path.0 .0.to_string();
+            id += ":";
+            id += &pos.start_offset.to_string();
         }
 
-        DataFlowNode::new(label.clone(), label, method_location, specialization_key)
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: method_location,
+                unspecialized_id,
+                label,
+                specialization_key,
+            },
+        }
     }
 
     pub fn get_for_lvar(var_id: String, assignment_location: HPos) -> Self {
@@ -354,6 +409,32 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label: var_id,
+                specialization_key: None,
+            },
+        }
+    }
+
+    pub fn get_for_local_property_fetch(
+        lhs_var_id: String,
+        property_name: &StrId,
+        interner: &Interner,
+        assignment_location: HPos,
+    ) -> Self {
+        let var_id = format!("{}->{}", lhs_var_id, interner.lookup(property_name));
+        let id = format!(
+            "{}-{}:{}-{}",
+            var_id,
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
         Self::new(id, var_id, Some(assignment_location), None)
     }
 
@@ -384,16 +465,27 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::new(id, var_id, Some(assignment_location), None)
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label: var_id,
+                specialization_key: None,
+            },
+        }
     }
 
     pub fn get_for_type(type_name: &StrId, interner: &Interner, def_location: HPos) -> Self {
-        Self::new(
-            interner.lookup(type_name).to_string(),
-            interner.lookup(type_name).to_string(),
-            Some(def_location),
-            None,
-        )
+        DataFlowNode {
+            id: interner.lookup(type_name).to_string(),
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(def_location),
+                unspecialized_id: None,
+                label: interner.lookup(type_name).to_string(),
+                specialization_key: None,
+            },
+        }
     }
 
     pub fn get_for_unspecialized_property(
@@ -558,12 +650,16 @@ impl DataFlowNode {
         pos: Option<HPos>,
     ) -> Self {
         let method_id = functionlike_id.to_string(interner);
-        Self::new(
-            format!("fnref-{}", method_id),
-            format!("{}()", method_id),
-            pos,
-            None,
-        )
+
+        DataFlowNode {
+            id: format!("fnref-{}", method_id),
+            kind: DataFlowNodeKind::Vertex {
+                pos,
+                unspecialized_id: None,
+                label: format!("{}()", method_id),
+                specialization_key: None,
+            },
+        }
     }
 
     #[inline]

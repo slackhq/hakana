@@ -298,7 +298,6 @@ fn handle_attribute_spread(
                                 .get_interner()
                                 .lookup(spread_attribute.0),
                             &None,
-                            &None,
                         )?;
 
                         used_attributes.insert(*spread_attribute.0);

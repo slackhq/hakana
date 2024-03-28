@@ -70,7 +70,9 @@ pub(crate) fn analyze(
     );
 
     let var_id = if let Some(stmt_var_id) = stmt_var_id.clone() {
-        prop_name.as_ref().map(|prop_name| stmt_var_id + "->" + prop_name.as_str())
+        prop_name
+            .as_ref()
+            .map(|prop_name| stmt_var_id + "->" + prop_name.as_str())
     } else {
         None
     };
@@ -136,7 +138,6 @@ pub(crate) fn analyze(
                 in_assignment,
                 lhs_type_part.clone(),
                 &prop_name,
-                &var_id,
                 &stmt_var_id,
             )?;
         }

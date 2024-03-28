@@ -7,6 +7,7 @@ use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::ast::get_id_name;
+use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_READ_PROPS;
@@ -103,7 +104,9 @@ pub(crate) fn analyze(
         aast::ClassGetExpr::CGexpr(stmt_name_expr) => {
             if let aast::Expr_::Id(id) = &stmt_name_expr.2 {
                 id.1.clone()
-            } else if let Some(stmt_name_type) = analysis_data.get_rc_expr_type(stmt_name_expr.pos()) {
+            } else if let Some(stmt_name_type) =
+                analysis_data.get_rc_expr_type(stmt_name_expr.pos())
+            {
                 if let TAtomic::TLiteralString { value, .. } = stmt_name_type.get_single() {
                     value.clone()
                 } else {
@@ -168,9 +171,12 @@ pub(crate) fn analyze(
         let mut stmt_type = (**context.vars_in_scope.get(&var_id).unwrap()).clone();
 
         stmt_type = add_unspecialized_property_fetch_dataflow(
-            &None,
+            DataFlowNode::get_for_localized_property(
+                property_id,
+                statements_analyzer.get_interner(),
+                statements_analyzer.get_hpos(pos),
+            ),
             &property_id,
-            statements_analyzer.get_hpos(pos),
             analysis_data,
             false,
             stmt_type,
@@ -241,9 +247,12 @@ pub(crate) fn analyze(
         );
 
         inserted_type = add_unspecialized_property_fetch_dataflow(
-            &None,
+            DataFlowNode::get_for_localized_property(
+                property_id,
+                statements_analyzer.get_interner(),
+                statements_analyzer.get_hpos(pos),
+            ),
             &property_id,
-            statements_analyzer.get_hpos(pos),
             analysis_data,
             false,
             inserted_type,

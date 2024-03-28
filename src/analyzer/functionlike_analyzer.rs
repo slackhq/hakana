@@ -374,11 +374,15 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 );
 
                 if let Some(property_pos) = &property_storage.pos {
+                    let localized_property_node = DataFlowNode::get_for_localized_property(
+                        (classlike_storage.name, *property_name),
+                        interner,
+                        *property_pos,
+                    );
                     property_type =
                         atomic_property_fetch_analyzer::add_unspecialized_property_fetch_dataflow(
-                            &Some(expr_id.clone()),
+                            localized_property_node,
                             &(classlike_storage.name, *property_name),
-                            *property_pos,
                             analysis_data,
                             false,
                             property_type,
