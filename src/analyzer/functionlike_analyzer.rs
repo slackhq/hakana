@@ -1111,7 +1111,8 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 };
 
                 let argument_node = DataFlowNode::get_for_method_argument(
-                    calling_id.to_string(self.get_interner()),
+                    &calling_id,
+                    self.get_interner(),
                     i,
                     Some(param.name_location),
                     None,

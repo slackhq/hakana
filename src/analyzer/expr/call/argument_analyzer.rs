@@ -510,7 +510,8 @@ fn add_dataflow(
     }
 
     let method_node = DataFlowNode::get_for_method_argument(
-        functionlike_id.to_string(statements_analyzer.get_interner()),
+        functionlike_id,
+        statements_analyzer.get_interner(),
         argument_offset,
         Some(function_param.name_location),
         if specialize_taint {
@@ -536,12 +537,11 @@ fn add_dataflow(
                         for dependent_classlike in dependent_classlikes {
                             if codebase.declaring_method_exists(dependent_classlike, method_name) {
                                 let new_sink = DataFlowNode::get_for_method_argument(
-                                    statements_analyzer
-                                        .get_interner()
-                                        .lookup(dependent_classlike)
-                                        .to_string()
-                                        + "::"
-                                        + statements_analyzer.get_interner().lookup(method_name),
+                                    &FunctionLikeIdentifier::Method(
+                                        *dependent_classlike,
+                                        *method_name,
+                                    ),
+                                    statements_analyzer.get_interner(),
                                     argument_offset,
                                     None,
                                     if specialize_taint {
@@ -575,7 +575,11 @@ fn add_dataflow(
             if let Some(method_id) = functionlike_id.as_method_identifier() {
                 if declaring_method_id != &method_id {
                     let new_sink = DataFlowNode::get_for_method_argument(
-                        declaring_method_id.to_string(statements_analyzer.get_interner()),
+                        &FunctionLikeIdentifier::Method(
+                            declaring_method_id.0,
+                            declaring_method_id.1,
+                        ),
+                        statements_analyzer.get_interner(),
                         argument_offset,
                         Some(statements_analyzer.get_hpos(input_expr.pos())),
                         None,

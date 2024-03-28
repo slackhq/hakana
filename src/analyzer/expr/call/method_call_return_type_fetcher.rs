@@ -241,7 +241,8 @@ fn add_dataflow(
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if method_id != declaring_method_id {
             method_call_node = DataFlowNode::get_for_method_return(
-                method_id.to_string(statements_analyzer.get_interner()),
+                &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+                statements_analyzer.get_interner(),
                 None,
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
@@ -251,7 +252,8 @@ fn add_dataflow(
             );
 
             let declaring_method_call_node = DataFlowNode::get_for_method_return(
-                declaring_method_id.to_string(statements_analyzer.get_interner()),
+                &FunctionLikeIdentifier::Method(declaring_method_id.0, declaring_method_id.1),
+                statements_analyzer.get_interner(),
                 functionlike_storage.return_type_location,
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
@@ -270,7 +272,8 @@ fn add_dataflow(
             );
         } else {
             method_call_node = DataFlowNode::get_for_method_return(
-                method_id.to_string(statements_analyzer.get_interner()),
+                &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+                statements_analyzer.get_interner(),
                 functionlike_storage.return_type_location,
                 if functionlike_storage.specialize_call {
                     Some(statements_analyzer.get_hpos(call_pos))
@@ -286,7 +289,8 @@ fn add_dataflow(
                 ));
 
                 let declaring_method_call_node = DataFlowNode::get_for_method_return(
-                    descendant_method_id.to_string(statements_analyzer.get_interner()),
+                    &FunctionLikeIdentifier::Method(descendant_method_id.0, descendant_method_id.1),
+                    statements_analyzer.get_interner(),
                     functionlike_storage.return_type_location,
                     if functionlike_storage.specialize_call {
                         Some(statements_analyzer.get_hpos(call_pos))
@@ -418,7 +422,8 @@ fn add_dataflow(
         }
     } else {
         method_call_node = DataFlowNode::get_for_method_return(
-            method_id.to_string(statements_analyzer.get_interner()),
+            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+            statements_analyzer.get_interner(),
             functionlike_storage.return_type_location,
             if functionlike_storage.specialize_call {
                 Some(statements_analyzer.get_hpos(call_pos))

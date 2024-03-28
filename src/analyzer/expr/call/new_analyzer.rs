@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use hakana_reflection_info::classlike_info::Variance;
+use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{GenericParent, EFFECT_WRITE_GLOBALS};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
@@ -690,7 +691,8 @@ fn add_dataflow<'a>(
         }
     } else {
         let new_call_node = DataFlowNode::get_for_method_return(
-            method_id.to_string(statements_analyzer.get_interner()),
+            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+            statements_analyzer.get_interner(),
             Some(statements_analyzer.get_hpos(call_pos)),
             Some(statements_analyzer.get_hpos(call_pos)),
         );

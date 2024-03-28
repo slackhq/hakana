@@ -9,6 +9,7 @@ use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::data_flow::path::PathKind;
+use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FnParameter;
 use hakana_reflection_info::symbol_references::SymbolReferences;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -92,20 +93,22 @@ pub(crate) fn analyze(
         ),
     });
 
-    let closure_id = format!(
-        "{}:{}",
-        statements_analyzer.get_file_path().0 .0,
-        fun.span.start_offset()
-    );
-
     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
         let application_node = DataFlowNode::get_for_method_reference(
-            closure_id.clone(),
+            &FunctionLikeIdentifier::Closure(
+                *statements_analyzer.get_file_path(),
+                fun.span.start_offset() as u32,
+            ),
+            statements_analyzer.get_interner(),
             Some(statements_analyzer.get_hpos(expr.pos())),
         );
 
         let closure_return_node = DataFlowNode::get_for_method_return(
-            closure_id.clone(),
+            &FunctionLikeIdentifier::Closure(
+                *statements_analyzer.get_file_path(),
+                fun.span.start_offset() as u32,
+            ),
+            statements_analyzer.get_interner(),
             Some(statements_analyzer.get_hpos(expr.pos())),
             None,
         );

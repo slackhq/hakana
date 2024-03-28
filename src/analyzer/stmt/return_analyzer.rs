@@ -594,10 +594,8 @@ fn handle_dataflow(
             }
         }
 
-        let return_expr_node = DataFlowNode::get_for_return_expr(
-            "return".to_string(),
-            statements_analyzer.get_hpos(return_expr.pos()),
-        );
+        let return_expr_node =
+            DataFlowNode::get_for_return_expr(statements_analyzer.get_hpos(return_expr.pos()));
 
         for parent_node in &inferred_type.parent_nodes {
             data_flow_graph.add_path(
@@ -610,7 +608,8 @@ fn handle_dataflow(
         }
 
         let method_node = DataFlowNode::get_for_method_return(
-            functionlike_id.to_string(statements_analyzer.get_interner()),
+            functionlike_id,
+            statements_analyzer.get_interner(),
             functionlike_storage.return_type_location,
             None,
         );
@@ -635,12 +634,8 @@ fn handle_dataflow(
                     for parent_classlike in all_parents {
                         if codebase.declaring_method_exists(parent_classlike, method_name) {
                             let new_sink = DataFlowNode::get_for_method_return(
-                                statements_analyzer
-                                    .get_interner()
-                                    .lookup(parent_classlike)
-                                    .to_string()
-                                    + "::"
-                                    + statements_analyzer.get_interner().lookup(method_name),
+                                &FunctionLikeIdentifier::Method(*parent_classlike, *method_name),
+                                statements_analyzer.get_interner(),
                                 None,
                                 None,
                             );

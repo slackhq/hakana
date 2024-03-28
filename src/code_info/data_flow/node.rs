@@ -18,6 +18,14 @@ pub enum VariableSourceKind {
     ClosureParam,
 }
 
+pub enum DataFlowNodeId {
+    Param(String),
+    Var(String),
+    CallTo(StrId, StrId),
+    Property(StrId, StrId),
+    FunctionLikeOut(StrId, StrId, u8),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DataFlowNode {
     pub id: String,
@@ -101,11 +109,13 @@ impl DataFlowNode {
     }
 
     pub fn get_for_method_argument(
-        method_id: String,
+        functionlike_id: &FunctionLikeIdentifier,
+        interner: &Interner,
         argument_offset: usize,
         arg_location: Option<HPos>,
         pos: Option<HPos>,
     ) -> Self {
+        let method_id = functionlike_id.to_string(interner);
         let arg_id = method_id.clone() + "#" + (argument_offset + 1).to_string().as_str();
 
         let mut specialization_key = None;
@@ -114,7 +124,29 @@ impl DataFlowNode {
             specialization_key = Some((pos.file_path.0, pos.start_offset));
         }
 
-        Self::new(arg_id.clone(), arg_id, arg_location, specialization_key)
+        {
+            let id = arg_id.clone();
+            let mut id = id;
+            let mut unspecialized_id = None;
+
+            if let Some(specialization_key) = &specialization_key {
+                unspecialized_id = Some(id.clone());
+                id += "-";
+                id += &specialization_key.0 .0.to_string();
+                id += ":";
+                id += &specialization_key.1.to_string();
+            }
+
+            DataFlowNode {
+                id,
+                kind: DataFlowNodeKind::Vertex {
+                    pos: arg_location,
+                    unspecialized_id,
+                    label: arg_id,
+                    specialization_key: specialization_key,
+                },
+            }
+        }
     }
 
     pub fn get_for_property(property_id: (StrId, StrId), interner: &Interner) -> Self {
@@ -124,7 +156,15 @@ impl DataFlowNode {
             interner.lookup(&property_id.1)
         );
 
-        Self::new(property_id_str.clone(), property_id_str, None, None)
+        DataFlowNode {
+            id: property_id_str.clone(),
+            kind: DataFlowNodeKind::Vertex {
+                pos: None,
+                unspecialized_id: None,
+                label: property_id_str,
+                specialization_key: None,
+            },
+        }
     }
 
     pub fn get_for_method_argument_out(
@@ -133,18 +173,35 @@ impl DataFlowNode {
         arg_location: Option<HPos>,
         pos: Option<HPos>,
     ) -> Self {
-        let arg_id = "out ".to_string()
+        let mut arg_id = "out ".to_string()
             + method_id.as_str()
             + "#"
             + (argument_offset + 1).to_string().as_str();
 
+        let mut unspecialized_id = None;
+
+        let id = arg_id.clone();
+
         let mut specialization_key = None;
 
         if let Some(pos) = pos {
+            unspecialized_id = Some(id.clone());
             specialization_key = Some((pos.file_path.0, pos.start_offset));
+            arg_id += "-";
+            arg_id += &pos.file_path.0 .0.to_string();
+            arg_id += ":";
+            arg_id += &pos.start_offset.to_string();
         }
 
-        Self::new(arg_id.clone(), arg_id, arg_location, specialization_key)
+        DataFlowNode {
+            id: arg_id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: arg_location,
+                unspecialized_id,
+                label: id,
+                specialization_key,
+            },
+        }
     }
 
     pub fn get_for_this_before_method(
@@ -228,16 +285,23 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_for_return_expr(var_id: String, assignment_location: HPos) -> Self {
+    pub fn get_for_return_expr(assignment_location: HPos) -> Self {
         let id = format!(
-            "{}-{}:{}-{}",
-            var_id,
+            "return-{}:{}-{}",
             assignment_location.file_path.0 .0,
             assignment_location.start_offset,
             assignment_location.end_offset
         );
 
-        Self::new(id, var_id, Some(assignment_location), None)
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label: "return".to_string(),
+                specialization_key: None,
+            },
+        }
     }
 
     pub fn get_for_array_item(key_value: String, assignment_location: HPos) -> Self {
@@ -250,7 +314,15 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::new(id, var_id, Some(assignment_location), None)
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label: var_id,
+                specialization_key: None,
+            },
+        }
     }
 
     pub fn get_for_array_fetch(var_id: String, assignment_location: HPos) -> Self {
@@ -262,7 +334,15 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::new(id, var_id, Some(assignment_location), None)
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label: var_id,
+                specialization_key: None,
+            },
+        }
     }
 
     pub fn get_for_property_fetch(var_id: String, assignment_location: HPos) -> Self {
@@ -335,7 +415,15 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::new(id, property_id, Some(assignment_location), None)
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label: property_id,
+                specialization_key: None,
+            },
+        }
     }
 
     pub fn get_for_call(
@@ -352,7 +440,15 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::new(id, label, Some(assignment_location), None)
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label,
+                specialization_key: None,
+            },
+        }
     }
 
     pub fn get_for_composition(assignment_location: HPos) -> Self {
@@ -363,12 +459,15 @@ impl DataFlowNode {
             assignment_location.end_offset
         );
 
-        Self::new(
-            id.clone(),
-            "composition".to_string(),
-            Some(assignment_location),
-            None,
-        )
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label: "composition".to_string(),
+                specialization_key: None,
+            },
+        }
     }
 
     pub fn get_for_variable_sink(label: String, assignment_location: HPos) -> Self {
@@ -417,28 +516,48 @@ impl DataFlowNode {
     }
 
     pub fn get_for_method_return(
-        method_id: String,
+        functionlike_id: &FunctionLikeIdentifier,
+        interner: &Interner,
         pos: Option<HPos>,
         specialization_location: Option<HPos>,
     ) -> Self {
         let mut specialization_key = None;
 
+        let method_id = functionlike_id.to_string(interner);
+        let mut id = method_id.clone();
+        let label = format!("{}()", method_id);
+        let mut unspecialized_id = None;
+
         if let Some(specialization_location) = specialization_location {
             specialization_key = Some((
-                (specialization_location.file_path).0,
+                specialization_location.file_path.0,
                 specialization_location.start_offset,
             ));
+
+            unspecialized_id = Some(id.clone());
+            id += "-";
+            id += &specialization_location.file_path.0 .0.to_string();
+            id += ":";
+            id += &specialization_location.start_offset.to_string();
         }
 
-        Self::new(
-            method_id.clone(),
-            format!("{}()", method_id),
-            pos,
-            specialization_key,
-        )
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos,
+                unspecialized_id,
+                label,
+                specialization_key,
+            },
+        }
     }
 
-    pub fn get_for_method_reference(method_id: String, pos: Option<HPos>) -> Self {
+    pub fn get_for_method_reference(
+        functionlike_id: &FunctionLikeIdentifier,
+        interner: &Interner,
+        pos: Option<HPos>,
+    ) -> Self {
+        let method_id = functionlike_id.to_string(interner);
         Self::new(
             format!("fnref-{}", method_id),
             format!("{}()", method_id),
