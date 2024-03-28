@@ -273,6 +273,20 @@ fn detect_unused_statement_expressions(
     stmt: &aast::Stmt<(), ()>,
     context: &mut ScopeContext,
 ) {
+    if has_unused_must_use(&boxed, &statements_analyzer, &stmt, context) {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::UnusedFunctionCall,
+                "This function is annotated with MustUse but the returned value is not used"
+                    .to_string(),
+                statements_analyzer.get_hpos(&stmt.0),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+    }
+
     let functionlike_id = if let aast::Expr_::Call(boxed_call) = &boxed.2 {
         get_functionlike_id_from_call(
             boxed_call,
@@ -331,7 +345,6 @@ fn detect_unused_statement_expressions(
             }
         }
     }
-
     if let Some(functionlike_id) = functionlike_id {
         if let FunctionLikeIdentifier::Function(function_id) = functionlike_id {
             let codebase = statements_analyzer.get_codebase();
@@ -339,19 +352,7 @@ fn detect_unused_statement_expressions(
                 .functionlike_infos
                 .get(&(function_id, StrId::EMPTY))
             {
-                if functionlike_info.must_use {
-                    analysis_data.maybe_add_issue(
-                        Issue::new(
-                            IssueKind::UnusedFunctionCall,
-                            "This function is annotated with MustUse but the returned value is not used".to_string(),
-                            statements_analyzer.get_hpos(&stmt.0),
-                            &context.function_context.calling_functionlike_id,
-                        ),
-                        statements_analyzer.get_config(),
-                        statements_analyzer.get_file_path_actual(),
-                    );
-                } else if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned()
-                {
+                if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
                     let function_name = statements_analyzer.get_interner().lookup(&function_id);
 
                     if (function_name.starts_with("HH\\Lib\\Keyset\\")
@@ -400,6 +401,46 @@ fn detect_unused_statement_expressions(
             }
         }
     }
+}
+
+fn has_unused_must_use(
+    boxed: &aast::Expr<(), ()>,
+    statements_analyzer: &StatementsAnalyzer,
+    stmt: &aast::Stmt<(), ()>,
+    context: &mut ScopeContext,
+) -> bool {
+    match &boxed.2 {
+        aast::Expr_::Call(boxed_call) => {
+            let functionlike_id = get_functionlike_id_from_call(
+                boxed_call,
+                Some(statements_analyzer.get_interner()),
+                statements_analyzer.get_file_analyzer().resolved_names,
+            );
+            if let Some(FunctionLikeIdentifier::Function(function_id)) = functionlike_id {
+                // For statements like "Asio\join(some_fn());"
+                // Asio\join does not count as "using" the value
+                if function_id == StrId::ASIO_JOIN {
+                    return boxed_call.args.iter().any(|arg| {
+                        has_unused_must_use(&arg.1, statements_analyzer, stmt, context)
+                    });
+                }
+
+                let codebase = statements_analyzer.get_codebase();
+                if let Some(functionlike_info) = codebase
+                    .functionlike_infos
+                    .get(&(function_id, StrId::EMPTY))
+                {
+                    return functionlike_info.must_use;
+                }
+            }
+        }
+        aast::Expr_::Await(await_expr) => {
+            return has_unused_must_use(await_expr, statements_analyzer, stmt, context)
+        }
+        _ => (),
+    }
+
+    return false;
 }
 
 fn analyze_awaitall(
