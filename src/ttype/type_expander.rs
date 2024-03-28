@@ -383,11 +383,10 @@ fn expand_atomic(
                             if let (Some(shape_field_taints), Some(interner)) =
                                 (&type_definition.shape_field_taints, interner)
                             {
-                                let shape_node = DataFlowNode::new(
-                                    interner.lookup(type_name).to_string(),
-                                    interner.lookup(type_name).to_string(),
-                                    Some(type_definition.location),
-                                    None,
+                                let shape_node = DataFlowNode::get_for_type(
+                                    type_name,
+                                    interner,
+                                    type_definition.location,
                                 );
 
                                 for (field_name, taints) in shape_field_taints {

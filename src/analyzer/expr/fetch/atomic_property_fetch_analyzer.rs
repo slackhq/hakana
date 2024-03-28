@@ -509,13 +509,7 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
         .data_flow_graph
         .add_node(localized_property_node.clone());
 
-    let label = format!(
-        "{}::${}",
-        interner.lookup(&property_id.0),
-        interner.lookup(&property_id.1)
-    );
-
-    let property_node = DataFlowNode::new(label.clone(), label, None, None);
+    let property_node = DataFlowNode::get_for_property(*property_id, interner);
 
     if in_assignment {
         analysis_data.data_flow_graph.add_path(

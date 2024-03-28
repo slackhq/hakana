@@ -117,6 +117,16 @@ impl DataFlowNode {
         Self::new(arg_id.clone(), arg_id, arg_location, specialization_key)
     }
 
+    pub fn get_for_property(property_id: (StrId, StrId), interner: &Interner) -> Self {
+        let property_id_str = format!(
+            "{}::${}",
+            interner.lookup(&property_id.0),
+            interner.lookup(&property_id.1)
+        );
+
+        Self::new(property_id_str.clone(), property_id_str, None, None)
+    }
+
     pub fn get_for_method_argument_out(
         method_id: String,
         argument_offset: usize,
@@ -295,6 +305,15 @@ impl DataFlowNode {
         );
 
         Self::new(id, var_id, Some(assignment_location), None)
+    }
+
+    pub fn get_for_type(type_name: &StrId, interner: &Interner, def_location: HPos) -> Self {
+        Self::new(
+            interner.lookup(type_name).to_string(),
+            interner.lookup(type_name).to_string(),
+            Some(def_location),
+            None,
+        )
     }
 
     pub fn get_for_unspecialized_property(

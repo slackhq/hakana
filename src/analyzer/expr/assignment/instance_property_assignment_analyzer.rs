@@ -715,19 +715,14 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         .data_flow_graph
         .add_node(localized_property_node.clone());
 
-    let property_id_str = format!(
-        "{}::${}",
-        statements_analyzer.get_interner().lookup(&property_id.0),
-        statements_analyzer.get_interner().lookup(&property_id.1)
-    );
-
     let removed_taints = if let Some(var_pos) = var_pos {
         get_removed_taints_in_comments(statements_analyzer, var_pos)
     } else {
         vec![]
     };
 
-    let property_node = DataFlowNode::new(property_id_str.clone(), property_id_str, None, None);
+    let property_node =
+        DataFlowNode::get_for_property(*property_id, statements_analyzer.get_interner());
 
     analysis_data
         .data_flow_graph
@@ -755,20 +750,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
 
     if let Some(declaring_property_class) = declaring_property_class {
         if declaring_property_class != fq_class_name {
-            let declaring_property_id_str = format!(
-                "{}::${}",
-                statements_analyzer
-                    .get_interner()
-                    .lookup(declaring_property_class),
-                statements_analyzer.get_interner().lookup(&property_id.1)
-            );
-
-            let declaring_property_node = DataFlowNode::new(
-                declaring_property_id_str.clone(),
-                declaring_property_id_str,
-                None,
-                None,
-            );
+            let declaring_property_node =
+                DataFlowNode::get_for_property(*property_id, statements_analyzer.get_interner());
 
             analysis_data.data_flow_graph.add_path(
                 &property_node,
