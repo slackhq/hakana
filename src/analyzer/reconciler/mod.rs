@@ -88,7 +88,6 @@ pub(crate) fn reconcile_keyed_types(
                                 let new_parent_node = DataFlowNode::get_for_lvar(
                                     key.clone(),
                                     statements_analyzer.get_hpos(pos),
-                                    !existing_var_type.parent_nodes.is_empty(),
                                 );
 
                                 for old_parent_node in &existing_var_type.parent_nodes {
@@ -244,11 +243,8 @@ pub(crate) fn reconcile_keyed_types(
                 }
 
                 if has_scalar_restriction {
-                    let scalar_check_node = DataFlowNode::get_for_lvar(
-                        key.clone(),
-                        statements_analyzer.get_hpos(pos),
-                        !before_adjustment.parent_nodes.is_empty(),
-                    );
+                    let scalar_check_node =
+                        DataFlowNode::get_for_lvar(key.clone(), statements_analyzer.get_hpos(pos));
 
                     for parent_node in &before_adjustment.parent_nodes {
                         analysis_data.data_flow_graph.add_path(

@@ -197,12 +197,9 @@ fn add_shape_value_dataflow(
         return None;
     }
 
-    let node_name = format!("array[{}]", key_value);
-
     let new_parent_node = DataFlowNode::get_for_array_item(
-        node_name,
+        key_value.to_string(),
         statements_analyzer.get_hpos(value.pos()),
-        !value_type.parent_nodes.is_empty(),
     );
     analysis_data
         .data_flow_graph

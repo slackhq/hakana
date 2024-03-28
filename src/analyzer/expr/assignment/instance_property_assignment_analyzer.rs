@@ -650,18 +650,14 @@ fn add_instance_property_assignment_dataflow(
     context: &mut ScopeContext,
 ) {
     let interner = statements_analyzer.get_interner();
-    let var_node = DataFlowNode::get_for_lvar(
-        lhs_var_id.to_owned(),
-        statements_analyzer.get_hpos(var_pos),
-        true,
-    );
+    let var_node =
+        DataFlowNode::get_for_lvar(lhs_var_id.to_owned(), statements_analyzer.get_hpos(var_pos));
     analysis_data.data_flow_graph.add_node(var_node.clone());
     let property_node = DataFlowNode::get_for_instance_property_assignment(
         &lhs_var_id,
         property_id.1,
         interner,
         statements_analyzer.get_hpos(name_pos),
-        !assignment_value_type.parent_nodes.is_empty(),
     );
     analysis_data
         .data_flow_graph

@@ -350,7 +350,6 @@ fn add_dataflow(
                     let var_node = DataFlowNode::get_for_lvar(
                         lhs_var_id.to_owned(),
                         statements_analyzer.get_hpos(lhs_var_pos),
-                        !context_type.parent_nodes.is_empty(),
                     );
 
                     let this_before_method_node = DataFlowNode::get_for_this_before_method(

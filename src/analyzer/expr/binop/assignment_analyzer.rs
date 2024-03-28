@@ -519,11 +519,7 @@ fn analyze_assignment_to_variable(
             assign_value_type.has_awaitable_types(),
         )
     } else {
-        DataFlowNode::get_for_lvar(
-            var_id.clone(),
-            statements_analyzer.get_hpos(var_expr.pos()),
-            has_parent_nodes,
-        )
+        DataFlowNode::get_for_lvar(var_id.clone(), statements_analyzer.get_hpos(var_expr.pos()))
     };
 
     analysis_data

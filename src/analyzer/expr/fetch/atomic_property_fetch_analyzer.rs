@@ -414,7 +414,6 @@ fn add_property_dataflow(
                 let var_node = DataFlowNode::get_for_lvar(
                     lhs_var_id.clone(),
                     statements_analyzer.get_hpos(lhs_pos),
-                    !var_type.parent_nodes.is_empty(),
                 );
                 analysis_data.data_flow_graph.add_node(var_node.clone());
 

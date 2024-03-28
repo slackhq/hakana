@@ -340,7 +340,6 @@ fn handle_shapes_static_method(
                         let assignment_node = DataFlowNode::get_for_lvar(
                             expr_var_id.clone(),
                             statements_analyzer.get_hpos(call_expr.1[0].1.pos()),
-                            !expr_type.parent_nodes.is_empty()
                         );
 
                         for parent_node in &expr_type.parent_nodes {

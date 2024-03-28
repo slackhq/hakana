@@ -394,11 +394,11 @@ fn add_array_assignment_dataflow(
         }
     }
 
-    let parent_node = DataFlowNode::get_for_lvar(
-        var_var_id.unwrap_or("array-assignment".to_string()),
-        statements_analyzer.get_hpos(expr_var_pos),
-        !parent_expr_type.parent_nodes.is_empty(),
-    );
+    let parent_node = if let Some(var_var_id) = var_var_id {
+        DataFlowNode::get_for_lvar(var_var_id, statements_analyzer.get_hpos(expr_var_pos))
+    } else {
+        DataFlowNode::get_for_array_assignment(statements_analyzer.get_hpos(expr_var_pos))
+    };
 
     if inside_general_use && analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
         let pos = statements_analyzer.get_hpos(expr_var_pos);

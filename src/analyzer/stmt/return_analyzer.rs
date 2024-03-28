@@ -597,7 +597,6 @@ fn handle_dataflow(
         let return_expr_node = DataFlowNode::get_for_return_expr(
             "return".to_string(),
             statements_analyzer.get_hpos(return_expr.pos()),
-            !inferred_type.parent_nodes.is_empty(),
         );
 
         for parent_node in &inferred_type.parent_nodes {

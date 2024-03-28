@@ -478,7 +478,7 @@ fn add_array_value_dataflow(
         return;
     }
 
-    let mut node_name = "array".to_string();
+    let mut key_name = "".to_string();
 
     let key_item_single = if key_item_type.is_single() {
         Some(key_item_type.get_single())
@@ -488,17 +488,14 @@ fn add_array_value_dataflow(
 
     if let Some(key_item_single) = key_item_single {
         if let TAtomic::TLiteralString { value, .. } = key_item_single {
-            node_name = format!("array[{}]", value);
+            key_name.clone_from(value);
         } else if let TAtomic::TLiteralInt { value, .. } = key_item_single {
-            node_name = format!("array[{}]", value);
+            key_name = value.to_string();
         }
     }
 
-    let new_parent_node = DataFlowNode::get_for_array_item(
-        node_name,
-        statements_analyzer.get_hpos(value.pos()),
-        !value_type.parent_nodes.is_empty(),
-    );
+    let new_parent_node =
+        DataFlowNode::get_for_array_item(key_name, statements_analyzer.get_hpos(value.pos()));
     analysis_data
         .data_flow_graph
         .add_node(new_parent_node.clone());
@@ -552,11 +549,8 @@ fn add_array_key_dataflow(
 
     let node_name = "array".to_string();
 
-    let new_parent_node = DataFlowNode::get_for_array_item(
-        node_name,
-        statements_analyzer.get_hpos(item_key_pos),
-        !key_item_type.parent_nodes.is_empty(),
-    );
+    let new_parent_node =
+        DataFlowNode::get_for_array_item(node_name, statements_analyzer.get_hpos(item_key_pos));
     analysis_data
         .data_flow_graph
         .add_node(new_parent_node.clone());

@@ -1060,7 +1060,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             let new_parent_node =
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-                    DataFlowNode::get_for_lvar(param.name.clone(), param.name_location, true)
+                    DataFlowNode::get_for_lvar(param.name.clone(), param.name_location)
                 } else {
                     let id = format!(
                         "param-{}-{}:{}-{}",

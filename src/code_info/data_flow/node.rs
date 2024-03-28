@@ -179,7 +179,7 @@ impl DataFlowNode {
         DataFlowNode::new(label.clone(), label, method_location, specialization_key)
     }
 
-    pub fn get_for_lvar(var_id: String, assignment_location: HPos, has_parent_nodes: bool) -> Self {
+    pub fn get_for_lvar(var_id: String, assignment_location: HPos) -> Self {
         let id = format!(
             "{}-{}:{}-{}",
             var_id,
@@ -199,11 +199,26 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_for_return_expr(
-        var_id: String,
-        assignment_location: HPos,
-        has_parent_nodes: bool,
-    ) -> Self {
+    pub fn get_for_array_assignment(assignment_location: HPos) -> Self {
+        let id = format!(
+            "array-assignment-{}:{}-{}",
+            assignment_location.file_path.0 .0,
+            assignment_location.start_offset,
+            assignment_location.end_offset
+        );
+
+        DataFlowNode {
+            id,
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                unspecialized_id: None,
+                label: "array-assignment".to_string(),
+                specialization_key: None,
+            },
+        }
+    }
+
+    pub fn get_for_return_expr(var_id: String, assignment_location: HPos) -> Self {
         let id = format!(
             "{}-{}:{}-{}",
             var_id,
@@ -215,11 +230,8 @@ impl DataFlowNode {
         Self::new(id, var_id, Some(assignment_location), None)
     }
 
-    pub fn get_for_array_item(
-        var_id: String,
-        assignment_location: HPos,
-        has_parent_nodes: bool,
-    ) -> Self {
+    pub fn get_for_array_item(key_value: String, assignment_location: HPos) -> Self {
+        let var_id = format!("array[{}]", key_value);
         let id = format!(
             "{}-{}:{}-{}",
             var_id,
@@ -272,7 +284,6 @@ impl DataFlowNode {
         property_name: StrId,
         interner: &Interner,
         assignment_location: HPos,
-        has_parent_nodes: bool,
     ) -> Self {
         let var_id = format!("{}->{}", lhs_var_id, interner.lookup(&property_name));
         let id = format!(
