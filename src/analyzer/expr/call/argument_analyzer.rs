@@ -7,7 +7,7 @@ use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
-use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind};
+use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
@@ -511,7 +511,6 @@ fn add_dataflow(
 
     let method_node = DataFlowNode::get_for_method_argument(
         functionlike_id,
-        statements_analyzer.get_interner(),
         argument_offset,
         Some(function_param.name_location),
         if specialize_taint {
@@ -541,7 +540,6 @@ fn add_dataflow(
                                         *dependent_classlike,
                                         *method_name,
                                     ),
-                                    statements_analyzer.get_interner(),
                                     argument_offset,
                                     None,
                                     if specialize_taint {
@@ -579,7 +577,6 @@ fn add_dataflow(
                             declaring_method_id.0,
                             declaring_method_id.1,
                         ),
-                        statements_analyzer.get_interner(),
                         argument_offset,
                         Some(statements_analyzer.get_hpos(input_expr.pos())),
                         None,
@@ -612,10 +609,7 @@ fn add_dataflow(
     let argument_value_node =
         if data_flow_graph.kind == GraphKind::FunctionBody && context.inside_general_use {
             DataFlowNode {
-                id: "call to ".to_string()
-                    + functionlike_id
-                        .to_string(statements_analyzer.get_interner())
-                        .as_str(),
+                id: DataFlowNodeId::CallTo(*functionlike_id),
                 kind: DataFlowNodeKind::VariableUseSink {
                     pos: statements_analyzer.get_hpos(input_expr.pos()),
                 },
@@ -623,7 +617,6 @@ fn add_dataflow(
         } else {
             DataFlowNode::get_for_call(
                 *functionlike_id,
-                statements_analyzer.get_interner(),
                 statements_analyzer.get_hpos(input_expr.pos()),
             )
         };
@@ -659,9 +652,8 @@ fn add_dataflow(
 
         if !taints.is_empty() {
             let method_node_sink = DataFlowNode {
-                id: method_node.get_id().clone(),
+                id: method_node.id.clone(),
                 kind: DataFlowNodeKind::TaintSink {
-                    label: method_node.get_label().clone(),
                     pos: *method_node.get_pos(),
                     types: taints.into_iter().collect(),
                 },

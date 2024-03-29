@@ -1,39 +1,37 @@
 use super::{
-    node::{DataFlowNode, DataFlowNodeKind},
+    node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
     path::PathKind,
 };
 
 use core::panic;
 use std::{collections::BTreeSet, sync::Arc};
 
-use hakana_str::{Interner, StrId};
+use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    code_location::HPos,
+    code_location::{FilePath, HPos},
     taint::{self, SinkType, SourceType},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaintedNode {
-    pub id: String,
-    pub unspecialized_id: Option<String>,
-    pub label: String,
+    pub id: DataFlowNodeId,
     pub pos: Option<Arc<HPos>>,
-    pub specialization_key: Option<(StrId, u32)>,
+    pub specialization_key: Option<(FilePath, u32)>,
     pub taint_sources: Vec<SourceType>,
     pub taint_sinks: Vec<SinkType>,
     pub previous: Option<Arc<TaintedNode>>,
     pub path_types: Vec<PathKind>,
-    pub specialized_calls: FxHashMap<(StrId, u32), FxHashSet<String>>,
+    pub specialized_calls: FxHashMap<(FilePath, u32), FxHashSet<DataFlowNodeId>>,
 }
 
 impl TaintedNode {
     pub fn get_trace(&self, interner: &Interner, root_dir: &str) -> String {
         let mut source_descriptor = format!(
             "{}{}",
-            self.label,
+            self.id.to_label(interner),
             if let Some(pos) = &self.pos {
                 format!(
                     " ({}:{}:{})",
@@ -75,13 +73,10 @@ impl TaintedNode {
         match &node.kind {
             DataFlowNodeKind::Vertex {
                 pos,
-                unspecialized_id,
-                label,
                 specialization_key,
+                ..
             } => TaintedNode {
                 id: node.id.clone(),
-                unspecialized_id: unspecialized_id.clone(),
-                label: label.clone(),
                 pos: pos.as_ref().map(|p| Arc::new(*p)),
                 specialization_key: *specialization_key,
                 taint_sinks: vec![],
@@ -90,7 +85,7 @@ impl TaintedNode {
                 specialized_calls: FxHashMap::default(),
                 taint_sources: vec![],
             },
-            DataFlowNodeKind::TaintSource { pos, label, types } => {
+            DataFlowNodeKind::TaintSource { pos, types, .. } => {
                 let mut sinks = vec![];
 
                 for source_type in types {
@@ -99,8 +94,6 @@ impl TaintedNode {
 
                 TaintedNode {
                     id: node.id.clone(),
-                    unspecialized_id: None,
-                    label: label.clone(),
                     pos: pos.as_ref().map(|p| Arc::new(*p)),
                     specialization_key: None,
                     taint_sinks: sinks,
@@ -110,10 +103,8 @@ impl TaintedNode {
                     taint_sources: types.clone(),
                 }
             }
-            DataFlowNodeKind::TaintSink { pos, label, types } => TaintedNode {
+            DataFlowNodeKind::TaintSink { pos, types, .. } => TaintedNode {
                 id: node.id.clone(),
-                unspecialized_id: None,
-                label: label.clone(),
                 pos: pos.as_ref().map(|p| Arc::new(*p)),
                 specialization_key: None,
                 taint_sinks: types.clone(),
@@ -122,14 +113,8 @@ impl TaintedNode {
                 path_types: Vec::new(),
                 specialized_calls: FxHashMap::default(),
             },
-            DataFlowNodeKind::DataSource {
-                pos,
-                label,
-                target_id,
-            } => TaintedNode {
+            DataFlowNodeKind::DataSource { pos, target_id, .. } => TaintedNode {
                 id: node.id.clone(),
-                unspecialized_id: None,
-                label: label.clone(),
                 pos: Some(Arc::new(*pos)),
                 specialization_key: None,
                 taint_sinks: vec![SinkType::Custom(target_id.clone())],
@@ -144,8 +129,8 @@ impl TaintedNode {
         }
     }
 
-    pub fn get_unique_source_id(&self) -> String {
-        let mut id = self.id.clone()
+    pub fn get_unique_source_id(&self, interner: &Interner) -> String {
+        let mut id = self.id.to_string(interner)
             + "|"
             + self
                 .path_types
@@ -172,7 +157,7 @@ impl TaintedNode {
         for specialization in self
             .specialized_calls
             .iter()
-            .map(|t| format!("{}:{}", t.0 .0 .0, t.0 .1))
+            .map(|t| format!("{}:{}", t.0 .0 .0 .0, t.0 .1))
             .collect::<BTreeSet<_>>()
         {
             id += "-";

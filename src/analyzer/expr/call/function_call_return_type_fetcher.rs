@@ -771,7 +771,6 @@ fn add_dataflow(
     let function_call_node = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         DataFlowNode::get_for_method_return(
             functionlike_id,
-            statements_analyzer.get_interner(),
             if let Some(return_pos) = &functionlike_storage.return_type_location {
                 Some(*return_pos)
             } else {
@@ -786,7 +785,6 @@ fn add_dataflow(
     } else {
         DataFlowNode::get_for_method_return(
             functionlike_id,
-            statements_analyzer.get_interner(),
             Some(statements_analyzer.get_hpos(pos)),
             Some(statements_analyzer.get_hpos(pos)),
         )
@@ -874,10 +872,9 @@ fn add_dataflow(
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if !functionlike_storage.taint_source_types.is_empty() {
             let function_call_node_source = DataFlowNode {
-                id: function_call_node.get_id().clone(),
+                id: function_call_node.id.clone(),
                 kind: DataFlowNodeKind::TaintSource {
                     pos: *function_call_node.get_pos(),
-                    label: function_call_node.get_label().clone(),
                     types: functionlike_storage.taint_source_types.clone(),
                 },
             };
@@ -904,7 +901,6 @@ pub(crate) fn add_special_param_dataflow(
 ) {
     let argument_node = DataFlowNode::get_for_method_argument(
         functionlike_id,
-        statements_analyzer.get_interner(),
         param_offset,
         Some(arg_pos),
         if specialize_call {

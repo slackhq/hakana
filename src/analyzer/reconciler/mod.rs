@@ -275,9 +275,8 @@ pub(crate) fn reconcile_keyed_types(
                     };
                     if let Some(narrowed_symbol) = narrowed_symbol {
                         let narrowing_node = DataFlowNode::get_for_narrowing(
-                            key.clone()
-                                + " narrowed to "
-                                + statements_analyzer.get_interner().lookup(narrowed_symbol),
+                            key.clone(),
+                            narrowed_symbol,
                             statements_analyzer.get_hpos(pos),
                         );
 

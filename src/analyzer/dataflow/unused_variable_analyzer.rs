@@ -1,11 +1,13 @@
 use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::code_location::HPos;
+use hakana_reflection_info::data_flow::node::DataFlowNodeId;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::data_flow::node::VariableSourceKind;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::EFFECT_PURE;
 use hakana_reflection_info::EFFECT_READ_GLOBALS;
 use hakana_reflection_info::EFFECT_READ_PROPS;
+use hakana_str::Interner;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
@@ -31,7 +33,10 @@ enum VariableUsage {
     Used,
 }
 
-pub fn check_variables_used(graph: &DataFlowGraph) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
+pub fn check_variables_used(
+    graph: &DataFlowGraph,
+    _interner: &Interner,
+) -> (Vec<DataFlowNode>, Vec<DataFlowNode>) {
     let vars = graph
         .sources
         .iter()
@@ -52,7 +57,11 @@ pub fn check_variables_used(graph: &DataFlowGraph) -> (Vec<DataFlowNode>, Vec<Da
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, _) in to {
-    //         println!("{} -> {}", from_id, to_id);
+    //         println!(
+    //             "{} -> {}",
+    //             from_id.to_string(interner),
+    //             to_id.to_string(interner)
+    //         );
     //     }
     // }
 
@@ -130,10 +139,10 @@ fn is_variable_used(graph: &DataFlowGraph, source_node: &DataFlowNode) -> Variab
 
 fn get_variable_child_nodes(
     graph: &DataFlowGraph,
-    generated_source_id: &String,
+    generated_source_id: &DataFlowNodeId,
     generated_source: &VariableUseNode,
-    visited_source_ids: &FxHashSet<String>,
-) -> Option<FxHashMap<String, VariableUseNode>> {
+    visited_source_ids: &FxHashSet<DataFlowNodeId>,
+) -> Option<FxHashMap<DataFlowNodeId, VariableUseNode>> {
     let mut new_child_nodes = FxHashMap::default();
 
     if let Some(forward_edges) = graph.forward_edges.get(generated_source_id) {
@@ -394,11 +403,11 @@ pub struct VariableUseNode {
     pub pos: Rc<HPos>,
     pub path_types: Vec<PathKind>,
     pub kind: VariableSourceKind,
-    pub name: String,
+    pub name: DataFlowNodeId,
 }
 
 impl VariableUseNode {
-    pub fn from(node: &DataFlowNode) -> (String, Self) {
+    pub fn from(node: &DataFlowNode) -> (DataFlowNodeId, Self) {
         (
             node.id.clone(),
             match &node.kind {
@@ -406,21 +415,19 @@ impl VariableUseNode {
                     pos: Rc::new((*pos).unwrap()),
                     path_types: Vec::new(),
                     kind: VariableSourceKind::Default,
-                    name: "".to_string(),
+                    name: DataFlowNodeId::String("".to_string()),
                 },
-                DataFlowNodeKind::VariableUseSource {
-                    kind, label, pos, ..
-                } => Self {
+                DataFlowNodeKind::VariableUseSource { kind, pos, .. } => Self {
                     pos: Rc::new(*pos),
                     path_types: Vec::new(),
                     kind: kind.clone(),
-                    name: label.clone(),
+                    name: node.id.clone(),
                 },
                 DataFlowNodeKind::VariableUseSink { pos } => Self {
                     pos: Rc::new(*pos),
                     path_types: Vec::new(),
                     kind: VariableSourceKind::Default,
-                    name: "".to_string(),
+                    name: DataFlowNodeId::String("".to_string()),
                 },
                 _ => {
                     panic!();

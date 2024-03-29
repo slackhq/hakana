@@ -1,7 +1,9 @@
 use hakana_logger::Logger;
 use hakana_logger::Verbosity;
 use hakana_reflection_info::code_location::FilePath;
+use hakana_reflection_info::data_flow::node::DataFlowNodeId;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
+use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_str::Interner;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
@@ -40,7 +42,12 @@ pub fn find_tainted_data(
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, path) in to {
-    //         println!("{} --{}--> {}", from_id, path.kind, to_id);
+    //         println!(
+    //             "{} --{}--> {}",
+    //             from_id.to_string(interner),
+    //             path.kind,
+    //             to_id.to_string(interner)
+    //         );
     //     }
     // }
 
@@ -76,7 +83,11 @@ pub fn find_connections(
 
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, _) in to {
-    //         println!("{} -> {}", from_id, to_id);
+    //         println!(
+    //             "{} -> {}",
+    //             from_id.to_string(interner),
+    //             to_id.to_string(interner)
+    //         );
     //     }
     // }
 
@@ -106,7 +117,7 @@ fn find_paths_to_sinks(
     let mut seen_sources = FxHashSet::default();
 
     for source in &sources {
-        seen_sources.insert(source.get_unique_source_id());
+        seen_sources.insert(source.get_unique_source_id(interner));
     }
 
     if !match_sinks || !graph.sinks.is_empty() {
@@ -160,7 +171,8 @@ fn find_paths_to_sinks(
                         if ielapsed.as_millis() > 100 {
                             logger.log_sync(&format!(
                                 "    - took {:.2?} to generate from {}",
-                                ielapsed, source_id
+                                ielapsed,
+                                source_id.to_string(interner)
                             ));
                         }
                     }
@@ -206,14 +218,12 @@ fn get_specialized_sources(
         generated_sources.push(source.clone());
     }
 
-    if let (Some(specialization_key), Some(unspecialized_id)) =
-        (&source.specialization_key, &source.unspecialized_id)
-    {
-        if graph.forward_edges.contains_key(unspecialized_id) {
+    if let Some(specialization_key) = &source.specialization_key {
+        let unspecialized_id = source.id.unlocalize();
+        if graph.forward_edges.contains_key(&unspecialized_id) {
             let mut new_source = (*source).clone();
 
-            new_source.id.clone_from(unspecialized_id);
-            new_source.unspecialized_id = None;
+            new_source.id = unspecialized_id;
             new_source.specialization_key = None;
 
             new_source
@@ -229,13 +239,13 @@ fn get_specialized_sources(
             if source.specialized_calls.is_empty()
                 || source.specialized_calls.contains_key(specialization)
             {
-                let new_id = format!("{}-{}:{}", source.id, specialization.0 .0, specialization.1);
+                let new_id = source.id.localize(specialization.0, specialization.1);
 
                 if graph.forward_edges.contains_key(&new_id) {
                     let mut new_source = (*source).clone();
                     new_source.id = new_id;
 
-                    new_source.unspecialized_id = Some(source.id.clone());
+                    new_source.specialization_key = None;
                     new_source.specialized_calls.remove(specialization);
 
                     generated_sources.push(Arc::new(new_source));
@@ -245,12 +255,12 @@ fn get_specialized_sources(
     } else {
         for (key, map) in &source.specialized_calls {
             if map.contains(&source.id) {
-                let new_forward_edge_id = format!("{}-{}:{}", source.id, key.0 .0, key.1);
+                let new_forward_edge_id = source.id.localize(key.0, key.1);
 
                 if graph.forward_edges.contains_key(&new_forward_edge_id) {
                     let mut new_source = (*source).clone();
                     new_source.id = new_forward_edge_id;
-                    new_source.unspecialized_id = Some(source.id.clone());
+                    new_source.specialization_key = None;
                     generated_sources.push(Arc::new(new_source));
                 }
             }
@@ -278,7 +288,7 @@ fn get_child_nodes(
         if !match_sinks {
             for t in source_taints {
                 if let SinkType::Custom(target_id) = t {
-                    if &generated_source.id == target_id {
+                    if &generated_source.id.to_string(interner) == target_id {
                         let message = format!(
                             "Data found its way to {} using path {}",
                             target_id,
@@ -301,12 +311,17 @@ fn get_child_nodes(
             } else if let Some(n) = graph.sinks.get(to_id) {
                 n
             } else {
-                println!("nothing found for {}", to_id);
+                println!("nothing found for {}", to_id.to_string(interner));
                 panic!();
             };
 
             // skip Exception::__construct, which looks too noisy
-            if to_id == "Exception::__construct#1" {
+            if to_id
+                == &DataFlowNodeId::FunctionLikeArg(
+                    FunctionLikeIdentifier::Method(StrId::EXCEPTION, StrId::CONSTRUCT),
+                    0,
+                )
+            {
                 continue;
             }
 
@@ -351,7 +366,7 @@ fn get_child_nodes(
             if !match_sinks {
                 for t in source_taints {
                     if let SinkType::Custom(target_id) = t {
-                        if to_id == target_id {
+                        if &to_id.to_string(interner) == target_id {
                             let message = format!(
                                 "Data found its way to {} using path {}",
                                 target_id,
@@ -431,7 +446,7 @@ fn get_child_nodes(
                 }
             }
 
-            let source_id = new_destination.get_unique_source_id();
+            let source_id = new_destination.get_unique_source_id(interner);
 
             if seen_sources.contains(&source_id) {
                 continue;

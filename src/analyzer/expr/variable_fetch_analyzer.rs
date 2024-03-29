@@ -6,7 +6,7 @@ use crate::{
 use hakana_reflection_info::{
     data_flow::{
         graph::GraphKind,
-        node::{DataFlowNode, DataFlowNodeKind},
+        node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
         path::PathKind,
     },
     issue::{Issue, IssueKind},
@@ -101,13 +101,14 @@ pub(crate) fn get_type_for_superglobal(
 
             let taint_pos = statements_analyzer.get_hpos(pos);
             let taint_source = DataFlowNode {
-                id: format!(
-                    "${}:{}:{}",
-                    name, taint_pos.file_path.0 .0, taint_pos.start_offset
+                id: DataFlowNodeId::Var(
+                    format!("${}", name),
+                    taint_pos.file_path,
+                    taint_pos.start_offset,
+                    taint_pos.end_offset,
                 ),
                 kind: DataFlowNodeKind::TaintSource {
                     pos: None,
-                    label: format!("${}", name.clone()),
                     types: if name == "_GET" || name == "_REQUEST" {
                         vec![SourceType::UriRequestHeader]
                     } else {
@@ -146,13 +147,12 @@ fn add_dataflow_to_variable(
         let pos = statements_analyzer.get_hpos(pos);
 
         let assignment_node = DataFlowNode {
-            id: lid.1 .1.to_string()
-                + "-"
-                + &pos.file_path.0 .0.to_string()
-                + ":"
-                + &pos.start_offset.to_string()
-                + "-"
-                + &pos.end_offset.to_string(),
+            id: DataFlowNodeId::Var(
+                lid.1 .1.to_string(),
+                pos.file_path,
+                pos.start_offset,
+                pos.end_offset,
+            ),
             kind: DataFlowNodeKind::VariableUseSink { pos },
         };
 

@@ -7,6 +7,7 @@ use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::node::DataFlowNodeId;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::issue::Issue;
@@ -186,10 +187,9 @@ pub(crate) fn analyze(
                 "Facebook\\XHP\\HTML\\a" | "Facebook\\XHP\\HTML\\p"
             ) {
                 let xml_body_taint = DataFlowNode {
-                    id: element_name.to_string(),
+                    id: DataFlowNodeId::Symbol(*xhp_class_name),
                     kind: DataFlowNodeKind::TaintSink {
                         pos: None,
-                        label: element_name.to_string(),
                         types: vec![SinkType::Output],
                     },
                 };
@@ -213,10 +213,9 @@ pub(crate) fn analyze(
                 "Facebook\\XHP\\HTML\\style" | "Facebook\\XHP\\HTML\\script"
             ) {
                 let xml_body_taint = DataFlowNode {
-                    id: element_name.to_string(),
+                    id: DataFlowNodeId::Symbol(*xhp_class_name),
                     kind: DataFlowNodeKind::TaintSink {
                         pos: None,
-                        label: element_name.to_string(),
                         types: vec![SinkType::HtmlTag, SinkType::Output],
                     },
                 };
@@ -495,11 +494,7 @@ fn add_xml_attribute_dataflow(
             || property_id.1 == StrId::DATA_ATTRIBUTE
             || property_id.1 == StrId::ARIA_ATTRIBUTE
         {
-            let label = format!(
-                "{}::${}",
-                statements_analyzer.get_interner().lookup(&property_id.0),
-                statements_analyzer.get_interner().lookup(&property_id.1),
-            );
+            let label = DataFlowNodeId::Property(property_id.0, property_id.1);
 
             let mut taints = vec![SinkType::Output];
 
@@ -556,7 +551,6 @@ fn add_xml_attribute_dataflow(
                 id: label.clone(),
                 kind: DataFlowNodeKind::TaintSink {
                     pos: None,
-                    label,
                     types: taints,
                 },
             };

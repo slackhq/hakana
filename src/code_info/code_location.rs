@@ -12,7 +12,7 @@ pub struct StmtStart {
     pub add_newline: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, PartialOrd, Ord)]
 pub struct FilePath(pub StrId);
 
 impl FilePath {

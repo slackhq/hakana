@@ -1,4 +1,5 @@
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
+use hakana_reflection_info::data_flow::node::DataFlowNodeId;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::EFFECT_WRITE_LOCAL;
 use hakana_str::StrId;
@@ -550,7 +551,7 @@ fn analyze_assignment_to_variable(
         let (start_offset, end_offset) = context.for_loop_init_bounds;
         if start_offset != 0 {
             let for_node = DataFlowNode {
-                id: format!("for-init-{}-{}", start_offset, end_offset),
+                id: DataFlowNodeId::ForInit(start_offset, end_offset),
                 kind: DataFlowNodeKind::ForLoopInit {
                     start_offset,
                     end_offset,

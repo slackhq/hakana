@@ -1052,7 +1052,7 @@ fn handle_possibly_matching_inout_param(
     let arg_type = arg_type.unwrap_or(get_mixed_any());
 
     let assignment_node = DataFlowNode::get_for_method_argument_out(
-        functionlike_id.to_string(statements_analyzer.get_interner()),
+        functionlike_id,
         argument_offset,
         Some(functionlike_param.name_location),
         Some(statements_analyzer.get_hpos(function_call_pos)),
@@ -1080,7 +1080,6 @@ fn handle_possibly_matching_inout_param(
 
         let argument_node = DataFlowNode::get_for_method_argument(
             functionlike_id,
-            statements_analyzer.get_interner(),
             0,
             Some(statements_analyzer.get_hpos(all_args[1].1.pos())),
             Some(statements_analyzer.get_hpos(function_call_pos)),
@@ -1100,7 +1099,6 @@ fn handle_possibly_matching_inout_param(
 
         let argument_node = DataFlowNode::get_for_method_argument(
             functionlike_id,
-            statements_analyzer.get_interner(),
             1,
             Some(statements_analyzer.get_hpos(all_args[1].1.pos())),
             Some(statements_analyzer.get_hpos(function_call_pos)),
@@ -1124,7 +1122,6 @@ fn handle_possibly_matching_inout_param(
     {
         let argument_node = DataFlowNode::get_for_method_argument(
             functionlike_id,
-            statements_analyzer.get_interner(),
             0,
             Some(statements_analyzer.get_hpos(all_args[1].1.pos())),
             Some(statements_analyzer.get_hpos(function_call_pos)),

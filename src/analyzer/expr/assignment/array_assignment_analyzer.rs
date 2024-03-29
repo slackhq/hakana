@@ -404,7 +404,7 @@ fn add_array_assignment_dataflow(
         let pos = statements_analyzer.get_hpos(expr_var_pos);
 
         let assignment_node = DataFlowNode {
-            id: parent_node.id.clone() + "_sink",
+            id: parent_node.id.clone(),
             kind: DataFlowNodeKind::VariableUseSink { pos },
         };
 

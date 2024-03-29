@@ -1376,7 +1376,13 @@ fn do_analysis(
             let mut mixed_sources = analysis_result
                 .mixed_source_counts
                 .iter()
-                .map(|(k, v)| format!("{}\t{}", k, v.len()))
+                .map(|(k, v)| {
+                    format!(
+                        "{}\t{}",
+                        k.to_string(&successful_run_data.interner),
+                        v.len()
+                    )
+                })
                 .collect::<Vec<_>>();
 
             mixed_sources.sort();

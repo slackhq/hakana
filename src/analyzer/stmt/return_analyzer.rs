@@ -104,13 +104,7 @@ pub(crate) fn analyze(
         return Ok(());
     };
 
-    handle_inout_at_return(
-        functionlike_storage,
-        statements_analyzer,
-        context,
-        analysis_data,
-        Some(&stmt.0),
-    );
+    handle_inout_at_return(functionlike_storage, context, analysis_data, Some(&stmt.0));
 
     // todo maybe check inout params here, though that's covered by Hack's typechecker
     // examineParamTypes in Psalm's source code
@@ -508,7 +502,6 @@ pub(crate) fn analyze(
 
 pub(crate) fn handle_inout_at_return(
     functionlike_storage: &FunctionLikeInfo,
-    statements_analyzer: &StatementsAnalyzer,
     context: &mut ScopeContext,
     analysis_data: &mut FunctionAnalysisData,
     _return_pos: Option<&Pos>,
@@ -520,11 +513,7 @@ pub(crate) fn handle_inout_at_return(
                 let new_parent_node =
                     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                         DataFlowNode::get_for_method_argument_out(
-                            context
-                                .function_context
-                                .calling_functionlike_id
-                                .unwrap()
-                                .to_string(statements_analyzer.get_interner()),
+                            &context.function_context.calling_functionlike_id.unwrap(),
                             i,
                             Some(param.name_location),
                             None,
@@ -609,7 +598,6 @@ fn handle_dataflow(
 
         let method_node = DataFlowNode::get_for_method_return(
             functionlike_id,
-            statements_analyzer.get_interner(),
             functionlike_storage.return_type_location,
             None,
         );
@@ -635,7 +623,6 @@ fn handle_dataflow(
                         if codebase.declaring_method_exists(parent_classlike, method_name) {
                             let new_sink = DataFlowNode::get_for_method_return(
                                 &FunctionLikeIdentifier::Method(*parent_classlike, *method_name),
-                                statements_analyzer.get_interner(),
                                 None,
                                 None,
                             );

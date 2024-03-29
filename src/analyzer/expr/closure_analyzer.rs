@@ -99,7 +99,6 @@ pub(crate) fn analyze(
                 *statements_analyzer.get_file_path(),
                 fun.span.start_offset() as u32,
             ),
-            statements_analyzer.get_interner(),
             Some(statements_analyzer.get_hpos(expr.pos())),
         );
 
@@ -108,7 +107,6 @@ pub(crate) fn analyze(
                 *statements_analyzer.get_file_path(),
                 fun.span.start_offset() as u32,
             ),
-            statements_analyzer.get_interner(),
             Some(statements_analyzer.get_hpos(expr.pos())),
             None,
         );

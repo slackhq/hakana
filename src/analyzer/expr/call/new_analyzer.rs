@@ -658,7 +658,6 @@ fn add_dataflow<'a>(
             } else {
                 None
             },
-            statements_analyzer.get_interner(),
         );
 
         data_flow_graph.add_node(new_call_node.clone());
@@ -681,7 +680,6 @@ fn add_dataflow<'a>(
                     } else {
                         None
                     },
-                    statements_analyzer.get_interner(),
                 );
 
                 data_flow_graph.add_node(new_call_node.clone());
@@ -692,7 +690,6 @@ fn add_dataflow<'a>(
     } else {
         let new_call_node = DataFlowNode::get_for_method_return(
             &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
-            statements_analyzer.get_interner(),
             Some(statements_analyzer.get_hpos(call_pos)),
             Some(statements_analyzer.get_hpos(call_pos)),
         );

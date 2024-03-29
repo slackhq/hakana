@@ -14,7 +14,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_str::{Interner, StrId};
+use hakana_str::StrId;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
     add_optional_union_type, get_mixed_any,
@@ -179,7 +179,7 @@ pub(crate) fn analyze(
         class_property_type = add_property_dataflow(
             statements_analyzer,
             expr.0.pos(),
-            pos,
+            expr.1.pos(),
             analysis_data,
             classlike_storage,
             class_property_type,
@@ -391,7 +391,7 @@ pub(crate) fn localize_property_type(
 fn add_property_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     lhs_pos: &Pos,
-    pos: &Pos,
+    name_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
     classlike_storage: &ClassLikeInfo,
     mut stmt_type: TUnion,
@@ -414,10 +414,9 @@ fn add_property_dataflow(
                 analysis_data.data_flow_graph.add_node(var_node.clone());
 
                 let property_node = DataFlowNode::get_for_local_property_fetch(
-                    lhs_var_id.clone(),
-                    &property_id.1,
-                    statements_analyzer.get_interner(),
-                    statements_analyzer.get_hpos(pos),
+                    lhs_var_id,
+                    property_id.1,
+                    statements_analyzer.get_hpos(name_pos),
                 );
 
                 analysis_data
@@ -448,23 +447,20 @@ fn add_property_dataflow(
     } else if let Some(lhs_var_id) = lhs_var_id {
         stmt_type = add_unspecialized_property_fetch_dataflow(
             DataFlowNode::get_for_local_property_fetch(
-                lhs_var_id.clone(),
-                &property_id.1,
-                statements_analyzer.get_interner(),
-                statements_analyzer.get_hpos(pos),
+                lhs_var_id,
+                property_id.1,
+                statements_analyzer.get_hpos(name_pos),
             ),
             property_id,
             analysis_data,
             in_assignment,
             stmt_type,
-            statements_analyzer.get_interner(),
         );
     }
 
-    let localized_property_node = DataFlowNode::get_for_unspecialized_property(
+    let localized_property_node = DataFlowNode::get_for_localized_property(
         (*declaring_property_class, property_id.1),
-        statements_analyzer.get_interner(),
-        statements_analyzer.get_hpos(pos),
+        statements_analyzer.get_hpos(name_pos),
     );
 
     analysis_data
@@ -482,13 +478,12 @@ pub(crate) fn add_unspecialized_property_fetch_dataflow(
     analysis_data: &mut FunctionAnalysisData,
     in_assignment: bool,
     stmt_type: TUnion,
-    interner: &Interner,
 ) -> TUnion {
     analysis_data
         .data_flow_graph
         .add_node(localized_property_node.clone());
 
-    let property_node = DataFlowNode::get_for_property(*property_id, interner);
+    let property_node = DataFlowNode::get_for_property(*property_id);
 
     if in_assignment {
         analysis_data.data_flow_graph.add_path(

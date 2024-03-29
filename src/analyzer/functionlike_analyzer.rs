@@ -18,7 +18,9 @@ use hakana_reflection_info::classlike_info::ClassLikeInfo;
 use hakana_reflection_info::code_location::{FilePath, HPos, StmtStart};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::data_flow::graph::{DataFlowGraph, GraphKind};
-use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeKind, VariableSourceKind};
+use hakana_reflection_info::data_flow::node::{
+    DataFlowNode, DataFlowNodeId, DataFlowNodeKind, VariableSourceKind,
+};
 use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::function_context::{FunctionContext, FunctionLikeIdentifier};
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo};
@@ -297,7 +299,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         &MethodIdentifier(classlike_storage.name, method_name),
                         functionlike_storage.return_type_location,
                         None,
-                        statements_analyzer.get_interner(),
                     );
 
                     this_type.parent_nodes = vec![new_call_node];
@@ -374,19 +375,16 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 );
 
                 if let Some(property_pos) = &property_storage.pos {
-                    let localized_property_node = DataFlowNode::get_for_localized_property(
-                        (classlike_storage.name, *property_name),
-                        interner,
-                        *property_pos,
-                    );
                     property_type =
                         atomic_property_fetch_analyzer::add_unspecialized_property_fetch_dataflow(
-                            localized_property_node,
+                            DataFlowNode::get_for_localized_property(
+                                (classlike_storage.name, *property_name),
+                                *property_pos,
+                            ),
                             &(classlike_storage.name, *property_name),
                             analysis_data,
                             false,
                             property_type,
-                            interner,
                         );
                 }
 
@@ -535,7 +533,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 if !context.has_returned {
                     handle_inout_at_return(
                         functionlike_storage,
-                        statements_analyzer,
                         &mut context,
                         &mut analysis_data,
                         None,
@@ -560,7 +557,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             ),
                             functionlike_storage.name_location,
                             None,
-                            statements_analyzer.get_interner(),
                         );
 
                         for parent_node in &this_type.parent_nodes {
@@ -1066,16 +1062,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
                     DataFlowNode::get_for_lvar(param.name.clone(), param.name_location)
                 } else {
-                    let id = format!(
-                        "param-{}-{}:{}-{}",
-                        param.name,
-                        &param.name_location.file_path.0 .0,
-                        param.name_location.start_offset,
-                        param.name_location.end_offset
-                    );
-
                     DataFlowNode {
-                        id,
+                        id: DataFlowNodeId::Param(
+                            param.name.clone(),
+                            param.name_location.file_path,
+                            param.name_location.start_offset,
+                            param.name_location.end_offset,
+                        ),
                         kind: DataFlowNodeKind::VariableUseSource {
                             pos: param.name_location,
                             kind: if param.is_inout {
@@ -1092,7 +1085,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             } else {
                                 VariableSourceKind::PrivateParam
                             },
-                            label: param.name.clone(),
                             pure: false,
                             has_awaitable: param_type.has_awaitable_types(),
                             has_parent_nodes: true,
@@ -1116,7 +1108,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
                 let argument_node = DataFlowNode::get_for_method_argument(
                     &calling_id,
-                    self.get_interner(),
                     i,
                     Some(param.name_location),
                     None,
@@ -1168,23 +1159,31 @@ fn report_unused_expressions(
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    let unused_source_nodes = check_variables_used(&analysis_data.data_flow_graph);
+    let unused_source_nodes = check_variables_used(
+        &analysis_data.data_flow_graph,
+        statements_analyzer.get_interner(),
+    );
     analysis_data.current_stmt_offset = None;
 
     let mut unused_variable_nodes = vec![];
+
+    let interner = statements_analyzer.get_interner();
 
     for node in &unused_source_nodes.0 {
         match &node.kind {
             DataFlowNodeKind::VariableUseSource {
                 kind,
-                label,
                 pos,
                 pure,
                 has_awaitable,
                 ..
             } => {
-                if label.starts_with("$_") {
-                    continue;
+                if let DataFlowNodeId::Var(var_id, ..) | DataFlowNodeId::Param(var_id, ..) =
+                    &node.id
+                {
+                    if var_id.starts_with("$_") {
+                        continue;
+                    }
                 }
 
                 if let VariableSourceKind::Default = &kind {
@@ -1195,7 +1194,6 @@ fn report_unused_expressions(
                         &mut unused_variable_nodes,
                         node,
                         analysis_data,
-                        label,
                         calling_functionlike_id,
                         pure,
                         has_awaitable,
@@ -1212,18 +1210,21 @@ fn report_unused_expressions(
         match &node.kind {
             DataFlowNodeKind::VariableUseSource {
                 kind,
-                label,
                 pos,
                 has_awaitable,
                 ..
             } => {
-                if label.starts_with("$_") {
-                    continue;
+                if let DataFlowNodeId::Var(var_id, ..) | DataFlowNodeId::Param(var_id, ..) =
+                    &node.id
+                {
+                    if var_id.starts_with("$_") {
+                        continue;
+                    }
                 }
 
                 match &kind {
                     VariableSourceKind::PrivateParam => {
-                        let pos = get_param_pos(functionlike_storage, label);
+                        let pos = get_param_pos(functionlike_storage, &node.id);
 
                         analysis_data.expr_fixme_positions.insert(
                             (pos.start_offset, pos.end_offset),
@@ -1238,7 +1239,7 @@ fn report_unused_expressions(
                         analysis_data.maybe_add_issue(
                             Issue::new(
                                 IssueKind::UnusedParameter,
-                                "Unused param ".to_string() + label,
+                                "Unused param ".to_string() + &node.id.to_label(interner),
                                 pos,
                                 calling_functionlike_id,
                             ),
@@ -1262,7 +1263,8 @@ fn report_unused_expressions(
                             analysis_data.maybe_add_issue(
                                 Issue::new(
                                     IssueKind::UnusedClosureParameter,
-                                    "Unused closure param ".to_string() + label,
+                                    "Unused closure param ".to_string()
+                                        + &node.id.to_label(interner),
                                     *pos,
                                     calling_functionlike_id,
                                 ),
@@ -1282,7 +1284,6 @@ fn report_unused_expressions(
                             &mut unused_variable_nodes,
                             node,
                             analysis_data,
-                            label,
                             calling_functionlike_id,
                             &false,
                             has_awaitable,
@@ -1309,13 +1310,17 @@ fn report_unused_expressions(
     }
 }
 
-fn get_param_pos(functionlike_storage: &FunctionLikeInfo, label: &String) -> HPos {
-    functionlike_storage
-        .params
-        .iter()
-        .find(|p| &p.name == label)
-        .unwrap()
-        .location
+fn get_param_pos(functionlike_storage: &FunctionLikeInfo, id: &DataFlowNodeId) -> HPos {
+    if let DataFlowNodeId::Param(var_id, ..) = id {
+        functionlike_storage
+            .params
+            .iter()
+            .find(|p| &p.name == var_id)
+            .unwrap()
+            .location
+    } else {
+        panic!()
+    }
 }
 
 fn handle_unused_assignment(
@@ -1325,7 +1330,6 @@ fn handle_unused_assignment(
     unused_variable_nodes: &mut Vec<DataFlowNode>,
     node: &DataFlowNode,
     analysis_data: &mut FunctionAnalysisData,
-    label: &String,
     calling_functionlike_id: &Option<FunctionLikeIdentifier>,
     pure: &bool,
     has_awaitable: &bool,
@@ -1351,8 +1355,9 @@ fn handle_unused_assignment(
         {
             unused_variable_nodes.push(node.clone());
         } else {
+            let interner = statements_analyzer.get_interner();
             analysis_data.maybe_add_issue(
-                if label == "$$" {
+                if node.id.to_label(interner) == "$$" {
                     Issue::new(
                         IssueKind::UnusedPipeVariable,
                         "The pipe data in this expression is not used anywhere".to_string(),
@@ -1362,7 +1367,10 @@ fn handle_unused_assignment(
                 } else if unused_closure_variable {
                     Issue::new(
                         IssueKind::UnusedAssignmentInClosure,
-                        format!("Assignment to {} is unused in this closure ", label),
+                        format!(
+                            "Assignment to {} is unused in this closure ",
+                            node.id.to_label(interner)
+                        ),
                         *pos,
                         calling_functionlike_id,
                     )
@@ -1371,7 +1379,7 @@ fn handle_unused_assignment(
                         IssueKind::UnusedAssignmentStatement,
                         format!(
                             "Assignment to {} is unused, and this expression has no effect",
-                            label
+                            node.id.to_label(interner)
                         ),
                         *pos,
                         calling_functionlike_id,
@@ -1379,14 +1387,17 @@ fn handle_unused_assignment(
                 } else if *has_awaitable {
                     Issue::new(
                         IssueKind::UnusedAwaitable,
-                        format!("Assignment to awaitable {} is unused", label),
+                        format!(
+                            "Assignment to awaitable {} is unused",
+                            node.id.to_label(interner)
+                        ),
                         *pos,
                         calling_functionlike_id,
                     )
                 } else {
                     Issue::new(
                         IssueKind::UnusedAssignment,
-                        format!("Assignment to {} is unused", label),
+                        format!("Assignment to {} is unused", node.id.to_label(interner)),
                         *pos,
                         calling_functionlike_id,
                     )

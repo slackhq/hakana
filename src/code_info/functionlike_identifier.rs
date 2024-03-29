@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{code_location::FilePath, method_identifier::MethodIdentifier};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Copy, PartialOrd, Ord)]
 pub enum FunctionLikeIdentifier {
     Function(StrId),
     Method(StrId, StrId),

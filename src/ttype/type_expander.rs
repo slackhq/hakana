@@ -6,7 +6,7 @@ use hakana_reflection_info::{
     codebase_info::CodebaseInfo,
     data_flow::{
         graph::DataFlowGraph,
-        node::{DataFlowNode, DataFlowNodeKind},
+        node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
         path::{ArrayDataKind, PathKind},
     },
     functionlike_info::FunctionLikeInfo,
@@ -383,23 +383,19 @@ fn expand_atomic(
                             if let (Some(shape_field_taints), Some(interner)) =
                                 (&type_definition.shape_field_taints, interner)
                             {
-                                let shape_node = DataFlowNode::get_for_type(
-                                    type_name,
-                                    interner,
-                                    type_definition.location,
-                                );
+                                let shape_node =
+                                    DataFlowNode::get_for_type(type_name, type_definition.location);
 
                                 for (field_name, taints) in shape_field_taints {
-                                    let label = format!(
-                                        "{}[{}]",
-                                        interner.lookup(type_name),
-                                        field_name.to_string(Some(interner))
-                                    );
+                                    let field_name_str = field_name.to_string(Some(interner));
+
                                     let field_node = DataFlowNode {
-                                        id: label.clone(),
+                                        id: DataFlowNodeId::ShapeFieldAccess(
+                                            *type_name,
+                                            field_name_str,
+                                        ),
                                         kind: DataFlowNodeKind::TaintSource {
                                             pos: Some(taints.0),
-                                            label,
                                             types: taints.1.clone(),
                                         },
                                     };

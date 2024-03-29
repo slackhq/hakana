@@ -1,9 +1,8 @@
 use super::{
-    node::{DataFlowNode, DataFlowNodeKind},
+    node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
     path::{DataFlowPath, PathKind},
 };
-use crate::taint::SinkType;
-use hakana_str::StrId;
+use crate::{code_location::FilePath, taint::SinkType};
 use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -22,14 +21,14 @@ pub enum GraphKind {
 #[derive(Debug, Clone)]
 pub struct DataFlowGraph {
     pub kind: GraphKind,
-    pub vertices: FxHashMap<String, DataFlowNode>,
-    pub forward_edges: FxHashMap<String, FxHashMap<String, DataFlowPath>>,
-    pub backward_edges: FxHashMap<String, FxHashSet<String>>,
-    pub sources: FxHashMap<String, DataFlowNode>,
-    pub sinks: FxHashMap<String, DataFlowNode>,
-    pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
-    pub specializations: FxHashMap<String, FxHashSet<(StrId, u32)>>,
-    specialized_calls: FxHashMap<(StrId, u32), FxHashSet<String>>,
+    pub vertices: FxHashMap<DataFlowNodeId, DataFlowNode>,
+    pub forward_edges: FxHashMap<DataFlowNodeId, FxHashMap<DataFlowNodeId, DataFlowPath>>,
+    pub backward_edges: FxHashMap<DataFlowNodeId, FxHashSet<DataFlowNodeId>>,
+    pub sources: FxHashMap<DataFlowNodeId, DataFlowNode>,
+    pub sinks: FxHashMap<DataFlowNodeId, DataFlowNode>,
+    pub mixed_source_counts: FxHashMap<DataFlowNodeId, FxHashSet<String>>,
+    pub specializations: FxHashMap<DataFlowNodeId, FxHashSet<(FilePath, u32)>>,
+    specialized_calls: FxHashMap<(FilePath, u32), FxHashSet<DataFlowNodeId>>,
 }
 
 impl DataFlowGraph {
@@ -50,14 +49,11 @@ impl DataFlowGraph {
     pub fn add_node(&mut self, node: DataFlowNode) {
         match &node.kind {
             DataFlowNodeKind::Vertex {
-                unspecialized_id,
-                specialization_key,
-                ..
+                specialization_key, ..
             } => {
                 if let GraphKind::WholeProgram(_) = &self.kind {
-                    if let (Some(unspecialized_id), Some(specialization_key)) =
-                        (&unspecialized_id, &specialization_key)
-                    {
+                    if let Some(specialization_key) = &specialization_key {
+                        let unspecialized_id = node.id.unlocalize();
                         self.specializations
                             .entry(unspecialized_id.clone())
                             .or_default()
@@ -92,8 +88,8 @@ impl DataFlowGraph {
         added_taints: Vec<SinkType>,
         removed_taints: Vec<SinkType>,
     ) {
-        let from_id = from.get_id();
-        let to_id = to.get_id();
+        let from_id = &from.id;
+        let to_id = &to.id;
 
         if from_id == to_id {
             return;
@@ -169,19 +165,19 @@ impl DataFlowGraph {
             let mut all_parent_nodes = vec![];
 
             for child_node in child_nodes {
-                if visited_child_ids.contains(child_node.get_id()) {
+                if visited_child_ids.contains(&child_node.id) {
                     continue;
                 }
 
-                visited_child_ids.insert(child_node.get_id().clone());
+                visited_child_ids.insert(child_node.id.clone());
 
                 let mut new_parent_nodes = FxHashSet::default();
                 let mut has_visited_a_parent_already = false;
 
-                if let Some(backward_edges) = self.backward_edges.get(child_node.get_id()) {
+                if let Some(backward_edges) = self.backward_edges.get(&child_node.id) {
                     for from_id in backward_edges {
                         if let Some(forward_flows) = self.forward_edges.get(from_id) {
-                            if let Some(path) = forward_flows.get(child_node.get_id()) {
+                            if let Some(path) = forward_flows.get(&child_node.id) {
                                 if ignore_paths.contains(&path.kind) {
                                     break;
                                 }
@@ -195,7 +191,11 @@ impl DataFlowGraph {
                                 has_visited_a_parent_already = true;
                             }
                         } else if let Some(node) = self.sources.get(from_id) {
-                            origin_nodes.push(node.clone());
+                            if !visited_child_ids.contains(from_id) {
+                                new_parent_nodes.insert(node.clone());
+                            } else {
+                                has_visited_a_parent_already = true;
+                            }
                         }
                     }
                 }
@@ -205,7 +205,7 @@ impl DataFlowGraph {
                         origin_nodes.push(child_node);
                     }
                 } else {
-                    new_parent_nodes.retain(|f| !visited_child_ids.contains(f.get_id()));
+                    new_parent_nodes.retain(|f| !visited_child_ids.contains(&f.id));
                     all_parent_nodes.extend(new_parent_nodes);
                 }
             }
@@ -224,12 +224,13 @@ impl DataFlowGraph {
         let origin_nodes = self.get_origin_nodes(assignment_node, vec![]);
 
         for origin_node in origin_nodes {
-            if origin_node.get_label().contains("()") {
-                if let Some(entry) = self.mixed_source_counts.get_mut(origin_node.get_id()) {
+            if let DataFlowNodeId::CallTo(..) | DataFlowNodeId::LocalizedCallTo(..) = origin_node.id
+            {
+                if let Some(entry) = self.mixed_source_counts.get_mut(&origin_node.id) {
                     entry.insert(pos.to_string());
                 } else {
                     self.mixed_source_counts.insert(
-                        origin_node.get_id().clone(),
+                        origin_node.id.clone(),
                         FxHashSet::from_iter([pos.to_string()]),
                     );
                 }

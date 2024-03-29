@@ -17,6 +17,7 @@ fn main() -> Result<()> {
         "DOMDocument",
         "DateTime",
         "DateTimeImmutable",
+        "Exception",
         "HH\\AnyArray",
         "HH\\Asio\\join",
         "HH\\AsyncIterator",

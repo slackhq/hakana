@@ -6,7 +6,7 @@ use serde::Serialize;
 
 use crate::{
     code_location::FilePath,
-    data_flow::graph::{DataFlowGraph, GraphKind},
+    data_flow::{graph::{DataFlowGraph, GraphKind}, node::DataFlowNodeId},
     function_context::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
@@ -27,7 +27,7 @@ pub struct AnalysisResult {
     pub replacements: FxHashMap<FilePath, BTreeMap<(u32, u32), Replacement>>,
     pub insertions: FxHashMap<FilePath, BTreeMap<u32, Vec<String>>>,
     pub codegen: BTreeMap<String, String>,
-    pub mixed_source_counts: FxHashMap<String, FxHashSet<String>>,
+    pub mixed_source_counts: FxHashMap<DataFlowNodeId, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
     pub issue_counts: FxHashMap<IssueKind, usize>,

@@ -649,14 +649,12 @@ fn add_instance_property_assignment_dataflow(
     assignment_value_type: &TUnion,
     context: &mut ScopeContext,
 ) {
-    let interner = statements_analyzer.get_interner();
     let var_node =
         DataFlowNode::get_for_lvar(lhs_var_id.to_owned(), statements_analyzer.get_hpos(var_pos));
     analysis_data.data_flow_graph.add_node(var_node.clone());
-    let property_node = DataFlowNode::get_for_instance_property_assignment(
+    let property_node = DataFlowNode::get_for_local_property_fetch(
         &lhs_var_id,
         property_id.1,
-        interner,
         statements_analyzer.get_hpos(name_pos),
     );
     analysis_data
@@ -705,9 +703,8 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
     fq_class_name: &StrId,
     prop_name: StrId,
 ) {
-    let localized_property_node = DataFlowNode::get_for_unspecialized_property(
+    let localized_property_node = DataFlowNode::get_for_localized_property(
         *property_id,
-        statements_analyzer.get_interner(),
         statements_analyzer.get_hpos(stmt_name_pos),
     );
 
@@ -721,8 +718,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
         vec![]
     };
 
-    let property_node =
-        DataFlowNode::get_for_property(*property_id, statements_analyzer.get_interner());
+    let property_node = DataFlowNode::get_for_property(*property_id);
 
     analysis_data
         .data_flow_graph
@@ -750,8 +746,7 @@ pub(crate) fn add_unspecialized_property_assignment_dataflow(
 
     if let Some(declaring_property_class) = declaring_property_class {
         if declaring_property_class != fq_class_name {
-            let declaring_property_node =
-                DataFlowNode::get_for_property(*property_id, statements_analyzer.get_interner());
+            let declaring_property_node = DataFlowNode::get_for_property(*property_id);
 
             analysis_data.data_flow_graph.add_path(
                 &property_node,

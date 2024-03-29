@@ -173,14 +173,12 @@ pub(crate) fn analyze(
         stmt_type = add_unspecialized_property_fetch_dataflow(
             DataFlowNode::get_for_localized_property(
                 property_id,
-                statements_analyzer.get_interner(),
                 statements_analyzer.get_hpos(pos),
             ),
             &property_id,
             analysis_data,
             false,
             stmt_type,
-            statements_analyzer.get_interner(),
         );
 
         // we don't need to check anything since this variable is known in this scope
@@ -249,14 +247,12 @@ pub(crate) fn analyze(
         inserted_type = add_unspecialized_property_fetch_dataflow(
             DataFlowNode::get_for_localized_property(
                 property_id,
-                statements_analyzer.get_interner(),
                 statements_analyzer.get_hpos(pos),
             ),
             &property_id,
             analysis_data,
             false,
             inserted_type,
-            statements_analyzer.get_interner(),
         );
 
         let rc = Rc::new(inserted_type.clone());
