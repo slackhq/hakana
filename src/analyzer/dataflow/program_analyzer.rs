@@ -219,7 +219,7 @@ fn get_specialized_sources(
     }
 
     if let Some(specialization_key) = &source.specialization_key {
-        let unspecialized_id = source.id.unlocalize();
+        let unspecialized_id = source.id.unspecialize();
         if graph.forward_edges.contains_key(&unspecialized_id) {
             let mut new_source = (*source).clone();
 
@@ -239,7 +239,7 @@ fn get_specialized_sources(
             if source.specialized_calls.is_empty()
                 || source.specialized_calls.contains_key(specialization)
             {
-                let new_id = source.id.localize(specialization.0, specialization.1);
+                let new_id = source.id.specialize(specialization.0, specialization.1);
 
                 if graph.forward_edges.contains_key(&new_id) {
                     let mut new_source = (*source).clone();
@@ -255,7 +255,7 @@ fn get_specialized_sources(
     } else {
         for (key, map) in &source.specialized_calls {
             if map.contains(&source.id) {
-                let new_forward_edge_id = source.id.localize(key.0, key.1);
+                let new_forward_edge_id = source.id.specialize(key.0, key.1);
 
                 if graph.forward_edges.contains_key(&new_forward_edge_id) {
                     let mut new_source = (*source).clone();

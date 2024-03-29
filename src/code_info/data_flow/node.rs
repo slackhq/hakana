@@ -22,29 +22,29 @@ pub enum VariableSourceKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, PartialOrd, Ord)]
 pub enum DataFlowNodeId {
     String(String),
-    LocalizedString(String, FilePath, u32, u32),
-    LocalizedArrayAssignment(FilePath, u32, u32),
-    LocalizedArrayItem(String, FilePath, u32, u32),
-    LocalizedReturn(FilePath, u32, u32),
+    LocalString(String, FilePath, u32, u32),
+    ArrayAssignment(FilePath, u32, u32),
+    ArrayItem(String, FilePath, u32, u32),
+    Return(FilePath, u32, u32),
     ForInit(u32, u32),
-    LocalizedComposition(FilePath, u32, u32),
+    Composition(FilePath, u32, u32),
     Var(String, FilePath, u32, u32),
     VarNarrowedTo(String, StrId, FilePath, u32),
     Param(String, FilePath, u32, u32),
     ReferenceTo(FunctionLikeIdentifier),
     CallTo(FunctionLikeIdentifier),
-    LocalizedCallTo(FunctionLikeIdentifier, FilePath, u32),
+    SpecializedCallTo(FunctionLikeIdentifier, FilePath, u32),
     FunctionLikeArg(FunctionLikeIdentifier, u8),
-    LocalizedFunctionLikeArg(FunctionLikeIdentifier, u8, FilePath, u32),
+    SpecializedFunctionLikeArg(FunctionLikeIdentifier, u8, FilePath, u32),
     Property(StrId, StrId),
-    LocalizedProperty(StrId, StrId, FilePath, u32, u32),
+    SpecializedProperty(StrId, StrId, FilePath, u32, u32),
     PropertyFetch(String, StrId, FilePath, u32),
     FunctionLikeOut(FunctionLikeIdentifier, u8),
-    LocalizedFunctionLikeOut(FunctionLikeIdentifier, u8, FilePath, u32),
+    SpecializedFunctionLikeOut(FunctionLikeIdentifier, u8, FilePath, u32),
     ThisBeforeMethod(MethodIdentifier),
-    LocalizedThisBeforeMethod(MethodIdentifier, FilePath, u32),
+    SpecializedThisBeforeMethod(MethodIdentifier, FilePath, u32),
     ThisAfterMethod(MethodIdentifier),
-    LocalizedThisAfterMethod(MethodIdentifier, FilePath, u32),
+    SpecializedThisAfterMethod(MethodIdentifier, FilePath, u32),
     Symbol(StrId),
     ShapeFieldAccess(StrId, String),
 }
@@ -53,7 +53,7 @@ impl DataFlowNodeId {
     pub fn to_string(&self, interner: &Interner) -> String {
         match self {
             DataFlowNodeId::String(str) => str.clone(),
-            DataFlowNodeId::LocalizedString(str, file_path, start_offset, end_offset) => {
+            DataFlowNodeId::LocalString(str, file_path, start_offset, end_offset) => {
                 format!("{}-{}:{}-{}", str, file_path.0 .0, start_offset, end_offset)
             }
             DataFlowNodeId::Param(var_id, file_path, start_offset, end_offset) => {
@@ -77,25 +77,25 @@ impl DataFlowNodeId {
                     start_offset
                 )
             }
-            DataFlowNodeId::LocalizedArrayAssignment(file_path, start_offset, end_offset) => {
+            DataFlowNodeId::ArrayAssignment(file_path, start_offset, end_offset) => {
                 format!(
                     "array-assignment-{}:{}-{}",
                     file_path.0 .0, start_offset, end_offset
                 )
             }
-            DataFlowNodeId::LocalizedArrayItem(key_value, file_path, start_offset, end_offset) => {
+            DataFlowNodeId::ArrayItem(key_value, file_path, start_offset, end_offset) => {
                 format!(
                     "array[{}]-{}:{}-{}",
                     key_value, file_path.0 .0, start_offset, end_offset
                 )
             }
-            DataFlowNodeId::LocalizedReturn(file_path, start_offset, end_offset) => {
+            DataFlowNodeId::Return(file_path, start_offset, end_offset) => {
                 format!("return-{}:{}-{}", file_path.0 .0, start_offset, end_offset)
             }
             DataFlowNodeId::CallTo(functionlike_id) => {
                 format!("call to {}", functionlike_id.to_string(interner))
             }
-            DataFlowNodeId::LocalizedCallTo(functionlike_id, file_path, start_offset) => {
+            DataFlowNodeId::SpecializedCallTo(functionlike_id, file_path, start_offset) => {
                 format!(
                     "call to {}-{}:{}",
                     functionlike_id.to_string(interner),
@@ -108,7 +108,7 @@ impl DataFlowNodeId {
                 interner.lookup(classlike_name),
                 interner.lookup(property_name)
             ),
-            DataFlowNodeId::LocalizedProperty(
+            DataFlowNodeId::SpecializedProperty(
                 classlike_name,
                 property_name,
                 file_path,
@@ -125,7 +125,7 @@ impl DataFlowNodeId {
             DataFlowNodeId::FunctionLikeOut(functionlike_id, arg) => {
                 format!("out {}#{}", functionlike_id.to_string(interner), (arg + 1))
             }
-            DataFlowNodeId::LocalizedFunctionLikeOut(
+            DataFlowNodeId::SpecializedFunctionLikeOut(
                 functionlike_id,
                 arg,
                 file_path,
@@ -142,7 +142,7 @@ impl DataFlowNodeId {
             DataFlowNodeId::FunctionLikeArg(functionlike_id, arg) => {
                 format!("{}#{}", functionlike_id.to_string(interner), (arg + 1))
             }
-            DataFlowNodeId::LocalizedFunctionLikeArg(
+            DataFlowNodeId::SpecializedFunctionLikeArg(
                 functionlike_id,
                 arg,
                 file_path,
@@ -170,7 +170,7 @@ impl DataFlowNodeId {
                 interner.lookup(&method_id.0),
                 interner.lookup(&method_id.1)
             ),
-            DataFlowNodeId::LocalizedThisBeforeMethod(method_id, file_path, start_offset) => {
+            DataFlowNodeId::SpecializedThisBeforeMethod(method_id, file_path, start_offset) => {
                 format!(
                     "$this in {} before {}-{}:{}",
                     interner.lookup(&method_id.0),
@@ -184,7 +184,7 @@ impl DataFlowNodeId {
                 interner.lookup(&method_id.0),
                 interner.lookup(&method_id.1)
             ),
-            DataFlowNodeId::LocalizedThisAfterMethod(method_id, file_path, start_offset) => {
+            DataFlowNodeId::SpecializedThisAfterMethod(method_id, file_path, start_offset) => {
                 format!(
                     "$this in {} after {}-{}:{}",
                     interner.lookup(&method_id.0),
@@ -197,7 +197,7 @@ impl DataFlowNodeId {
             DataFlowNodeId::ShapeFieldAccess(type_name, key) => {
                 format!("{}[{}]", interner.lookup(type_name), key)
             }
-            DataFlowNodeId::LocalizedComposition(file_path, start_offset, end_offset) => format!(
+            DataFlowNodeId::Composition(file_path, start_offset, end_offset) => format!(
                 "composition-{}:{}-{}",
                 file_path.0 .0, start_offset, end_offset
             ),
@@ -212,34 +212,34 @@ impl DataFlowNodeId {
 
     pub fn to_label(&self, interner: &Interner) -> String {
         match self {
-            DataFlowNodeId::String(str) | DataFlowNodeId::LocalizedString(str, ..) => str.clone(),
+            DataFlowNodeId::String(str) | DataFlowNodeId::LocalString(str, ..) => str.clone(),
             DataFlowNodeId::Param(var_id, ..) | DataFlowNodeId::Var(var_id, ..) => var_id.clone(),
             DataFlowNodeId::VarNarrowedTo(var_id, symbol, ..) => {
                 format!("{} narrowed to {}", var_id, interner.lookup(symbol),)
             }
-            DataFlowNodeId::LocalizedArrayAssignment(..) => "array-assignment".to_string(),
-            DataFlowNodeId::LocalizedArrayItem(key_value, ..) => {
+            DataFlowNodeId::ArrayAssignment(..) => "array-assignment".to_string(),
+            DataFlowNodeId::ArrayItem(key_value, ..) => {
                 format!("array[{}]", key_value)
             }
-            DataFlowNodeId::LocalizedReturn(..) => "return".to_string(),
+            DataFlowNodeId::Return(..) => "return".to_string(),
             DataFlowNodeId::CallTo(functionlike_id)
-            | DataFlowNodeId::LocalizedCallTo(functionlike_id, ..) => {
+            | DataFlowNodeId::SpecializedCallTo(functionlike_id, ..) => {
                 format!("call to {}", functionlike_id.to_string(interner))
             }
             DataFlowNodeId::Property(classlike_name, property_name)
-            | DataFlowNodeId::LocalizedProperty(classlike_name, property_name, ..) => format!(
+            | DataFlowNodeId::SpecializedProperty(classlike_name, property_name, ..) => format!(
                 "{}::${}",
                 interner.lookup(classlike_name),
                 interner.lookup(property_name)
             ),
 
             DataFlowNodeId::FunctionLikeOut(functionlike_id, arg)
-            | DataFlowNodeId::LocalizedFunctionLikeOut(functionlike_id, arg, ..) => {
+            | DataFlowNodeId::SpecializedFunctionLikeOut(functionlike_id, arg, ..) => {
                 format!("out {}#{}", functionlike_id.to_string(interner), (arg + 1))
             }
 
             DataFlowNodeId::FunctionLikeArg(functionlike_id, arg)
-            | DataFlowNodeId::LocalizedFunctionLikeArg(functionlike_id, arg, ..) => {
+            | DataFlowNodeId::SpecializedFunctionLikeArg(functionlike_id, arg, ..) => {
                 format!("{}#{}", functionlike_id.to_string(interner), (arg + 1))
             }
 
@@ -248,14 +248,14 @@ impl DataFlowNodeId {
             }
 
             DataFlowNodeId::ThisBeforeMethod(method_id)
-            | DataFlowNodeId::LocalizedThisBeforeMethod(method_id, ..) => format!(
+            | DataFlowNodeId::SpecializedThisBeforeMethod(method_id, ..) => format!(
                 "$this in {} before {}",
                 interner.lookup(&method_id.0),
                 interner.lookup(&method_id.1)
             ),
 
             DataFlowNodeId::ThisAfterMethod(method_id)
-            | DataFlowNodeId::LocalizedThisAfterMethod(method_id, ..) => format!(
+            | DataFlowNodeId::SpecializedThisAfterMethod(method_id, ..) => format!(
                 "$this in {} after {}",
                 interner.lookup(&method_id.0),
                 interner.lookup(&method_id.1)
@@ -265,7 +265,7 @@ impl DataFlowNodeId {
             DataFlowNodeId::ShapeFieldAccess(type_name, key) => {
                 format!("{}[{}]", interner.lookup(type_name), key)
             }
-            DataFlowNodeId::LocalizedComposition(..) => "composition".to_string(),
+            DataFlowNodeId::Composition(..) => "composition".to_string(),
             DataFlowNodeId::ReferenceTo(functionlike_id) => {
                 format!("fnref-{}", functionlike_id.to_string(interner))
             }
@@ -275,20 +275,20 @@ impl DataFlowNodeId {
         }
     }
 
-    pub fn localize(&self, file_path: FilePath, offset: u32) -> DataFlowNodeId {
+    pub fn specialize(&self, file_path: FilePath, offset: u32) -> DataFlowNodeId {
         match self {
-            DataFlowNodeId::CallTo(id) => DataFlowNodeId::LocalizedCallTo(*id, file_path, offset),
+            DataFlowNodeId::CallTo(id) => DataFlowNodeId::SpecializedCallTo(*id, file_path, offset),
             DataFlowNodeId::FunctionLikeArg(functionlike_id, arg) => {
-                DataFlowNodeId::LocalizedFunctionLikeArg(*functionlike_id, *arg, file_path, offset)
+                DataFlowNodeId::SpecializedFunctionLikeArg(*functionlike_id, *arg, file_path, offset)
             }
             DataFlowNodeId::FunctionLikeOut(functionlike_id, arg) => {
-                DataFlowNodeId::LocalizedFunctionLikeOut(*functionlike_id, *arg, file_path, offset)
+                DataFlowNodeId::SpecializedFunctionLikeOut(*functionlike_id, *arg, file_path, offset)
             }
             DataFlowNodeId::ThisBeforeMethod(method_id) => {
-                DataFlowNodeId::LocalizedThisBeforeMethod(*method_id, file_path, offset)
+                DataFlowNodeId::SpecializedThisBeforeMethod(*method_id, file_path, offset)
             }
             DataFlowNodeId::ThisAfterMethod(method_id) => {
-                DataFlowNodeId::LocalizedThisAfterMethod(*method_id, file_path, offset)
+                DataFlowNodeId::SpecializedThisAfterMethod(*method_id, file_path, offset)
             }
             _ => {
                 panic!()
@@ -296,19 +296,19 @@ impl DataFlowNodeId {
         }
     }
 
-    pub fn unlocalize(&self) -> DataFlowNodeId {
+    pub fn unspecialize(&self) -> DataFlowNodeId {
         match self {
-            DataFlowNodeId::LocalizedCallTo(id, ..) => DataFlowNodeId::CallTo(*id),
-            DataFlowNodeId::LocalizedFunctionLikeArg(functionlike_id, arg, ..) => {
+            DataFlowNodeId::SpecializedCallTo(id, ..) => DataFlowNodeId::CallTo(*id),
+            DataFlowNodeId::SpecializedFunctionLikeArg(functionlike_id, arg, ..) => {
                 DataFlowNodeId::FunctionLikeArg(*functionlike_id, *arg)
             }
-            DataFlowNodeId::LocalizedFunctionLikeOut(functionlike_id, arg, ..) => {
+            DataFlowNodeId::SpecializedFunctionLikeOut(functionlike_id, arg, ..) => {
                 DataFlowNodeId::FunctionLikeOut(*functionlike_id, *arg)
             }
-            DataFlowNodeId::LocalizedThisBeforeMethod(method_id, ..) => {
+            DataFlowNodeId::SpecializedThisBeforeMethod(method_id, ..) => {
                 DataFlowNodeId::ThisBeforeMethod(*method_id)
             }
-            DataFlowNodeId::LocalizedThisAfterMethod(method_id, ..) => {
+            DataFlowNodeId::SpecializedThisAfterMethod(method_id, ..) => {
                 DataFlowNodeId::ThisAfterMethod(*method_id)
             }
             _ => {
@@ -386,7 +386,7 @@ impl DataFlowNode {
 
         if let Some(pos) = pos {
             specialization_key = Some((pos.file_path, pos.start_offset));
-            id = DataFlowNodeId::LocalizedFunctionLikeArg(
+            id = DataFlowNodeId::SpecializedFunctionLikeArg(
                 *functionlike_id,
                 argument_offset as u8,
                 pos.file_path,
@@ -418,7 +418,7 @@ impl DataFlowNode {
         assignment_location: HPos,
     ) -> Self {
         DataFlowNode {
-            id: DataFlowNodeId::LocalizedProperty(
+            id: DataFlowNodeId::SpecializedProperty(
                 property_id.0,
                 property_id.1,
                 assignment_location.file_path,
@@ -444,7 +444,7 @@ impl DataFlowNode {
 
         if let Some(pos) = pos {
             specialization_key = Some((pos.file_path, pos.start_offset));
-            arg_id = DataFlowNodeId::LocalizedFunctionLikeOut(
+            arg_id = DataFlowNodeId::SpecializedFunctionLikeOut(
                 *functionlike_id,
                 argument_offset as u8,
                 pos.file_path,
@@ -473,7 +473,7 @@ impl DataFlowNode {
 
         if let Some(pos) = pos {
             specialization_key = Some((pos.file_path, pos.start_offset));
-            id = DataFlowNodeId::LocalizedThisBeforeMethod(
+            id = DataFlowNodeId::SpecializedThisBeforeMethod(
                 *method_id,
                 pos.file_path,
                 pos.start_offset,
@@ -501,7 +501,7 @@ impl DataFlowNode {
 
         if let Some(pos) = pos {
             specialization_key = Some((pos.file_path, pos.start_offset));
-            id = DataFlowNodeId::LocalizedThisAfterMethod(
+            id = DataFlowNodeId::SpecializedThisAfterMethod(
                 *method_id,
                 pos.file_path,
                 pos.start_offset,
@@ -534,7 +534,7 @@ impl DataFlowNode {
 
     pub fn get_for_array_assignment(assignment_location: HPos) -> Self {
         DataFlowNode {
-            id: DataFlowNodeId::LocalizedArrayAssignment(
+            id: DataFlowNodeId::ArrayAssignment(
                 assignment_location.file_path,
                 assignment_location.start_offset,
                 assignment_location.end_offset,
@@ -548,7 +548,7 @@ impl DataFlowNode {
 
     pub fn get_for_return_expr(assignment_location: HPos) -> Self {
         DataFlowNode {
-            id: DataFlowNodeId::LocalizedReturn(
+            id: DataFlowNodeId::Return(
                 assignment_location.file_path,
                 assignment_location.start_offset,
                 assignment_location.end_offset,
@@ -562,7 +562,7 @@ impl DataFlowNode {
 
     pub fn get_for_array_item(key_value: String, assignment_location: HPos) -> Self {
         DataFlowNode {
-            id: DataFlowNodeId::LocalizedArrayItem(
+            id: DataFlowNodeId::ArrayItem(
                 key_value.clone(),
                 assignment_location.file_path,
                 assignment_location.start_offset,
@@ -643,7 +643,7 @@ impl DataFlowNode {
         assignment_location: HPos,
     ) -> Self {
         DataFlowNode {
-            id: DataFlowNodeId::LocalizedCallTo(
+            id: DataFlowNodeId::SpecializedCallTo(
                 functionlike_id,
                 assignment_location.file_path,
                 assignment_location.start_offset,
@@ -657,7 +657,7 @@ impl DataFlowNode {
 
     pub fn get_for_composition(assignment_location: HPos) -> Self {
         DataFlowNode {
-            id: DataFlowNodeId::LocalizedComposition(
+            id: DataFlowNodeId::Composition(
                 assignment_location.file_path,
                 assignment_location.start_offset,
                 assignment_location.end_offset,
@@ -722,7 +722,7 @@ impl DataFlowNode {
                 specialization_location.start_offset,
             ));
 
-            id = DataFlowNodeId::LocalizedCallTo(
+            id = DataFlowNodeId::SpecializedCallTo(
                 *functionlike_id,
                 specialization_location.file_path,
                 specialization_location.start_offset,

@@ -53,7 +53,7 @@ impl DataFlowGraph {
             } => {
                 if let GraphKind::WholeProgram(_) = &self.kind {
                     if let Some(specialization_key) = &specialization_key {
-                        let unspecialized_id = node.id.unlocalize();
+                        let unspecialized_id = node.id.unspecialize();
                         self.specializations
                             .entry(unspecialized_id.clone())
                             .or_default()
@@ -224,7 +224,7 @@ impl DataFlowGraph {
         let origin_nodes = self.get_origin_nodes(assignment_node, vec![]);
 
         for origin_node in origin_nodes {
-            if let DataFlowNodeId::CallTo(..) | DataFlowNodeId::LocalizedCallTo(..) = origin_node.id
+            if let DataFlowNodeId::CallTo(..) | DataFlowNodeId::SpecializedCallTo(..) = origin_node.id
             {
                 if let Some(entry) = self.mixed_source_counts.get_mut(&origin_node.id) {
                     entry.insert(pos.to_string());
