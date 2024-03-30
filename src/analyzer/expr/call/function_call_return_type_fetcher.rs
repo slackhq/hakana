@@ -964,7 +964,6 @@ fn get_special_argument_nodes(
             | StrId::HTMLENTITYDECODE
             | StrId::HTMLSPECIALCHARS
             | StrId::HTMLSPECIALCHARS_DECODE
-            | StrId::STR_REPEAT
             | StrId::STR_ROT13
             | StrId::STR_SHUFFLE
             | StrId::STRSTR
@@ -1005,7 +1004,6 @@ fn get_special_argument_nodes(
             | StrId::LIB_VEC_FILTER_ASYNC
             | StrId::LIB_VEC_FILTER_NULLS
             | StrId::LIB_VEC_FILTER_WITH_KEY
-            | StrId::LIB_VEC_DROP
             | StrId::LIB_VEC_REVERSE
             | StrId::LIB_DICT_REVERSE
             | StrId::LIB_VEC_UNIQUE
@@ -1087,6 +1085,8 @@ fn get_special_argument_nodes(
             | StrId::LIB_STR_TRIM
             | StrId::LIB_STR_TRIM_LEFT
             | StrId::LIB_STR_TRIM_RIGHT
+            | StrId::STR_REPEAT
+            | StrId::LIB_VEC_DROP
             | StrId::BASENAME => (vec![(0, PathKind::Default)], Some(PathKind::Aggregate)),
             StrId::LIB_STR_SLICE_L => (
                 vec![
@@ -1161,7 +1161,6 @@ fn get_special_argument_nodes(
             | StrId::IS_DICT_OR_DARRAY
             | StrId::IS_VEC_OR_VARRAY
             | StrId::ASIN
-            | StrId::ATAN2
             | StrId::CEIL
             | StrId::ABS
             | StrId::DEG2RAD
@@ -1228,6 +1227,7 @@ fn get_special_argument_nodes(
             | StrId::FMOD
             | StrId::POW
             | StrId::LIB_MATH_ROUND
+            | StrId::ATAN2
             | StrId::MB_DETECT_ENCODING => (vec![], Some(PathKind::Aggregate)),
             StrId::LIB_C_CONTAINS
             | StrId::LIB_C_CONTAINS_KEY
