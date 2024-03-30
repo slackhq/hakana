@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use crate::code_location::FilePath;
 use crate::function_context::FunctionLikeIdentifier;
 use crate::method_identifier::MethodIdentifier;
+use crate::VarId;
 use crate::{
     code_location::HPos,
     taint::{SinkType, SourceType},
@@ -28,9 +29,10 @@ pub enum DataFlowNodeId {
     Return(FilePath, u32, u32),
     ForInit(u32, u32),
     Composition(FilePath, u32, u32),
-    Var(String, FilePath, u32, u32),
+    Var(VarId, FilePath, u32, u32),
     VarNarrowedTo(String, StrId, FilePath, u32),
-    Param(String, FilePath, u32, u32),
+    Param(VarId, FilePath, u32, u32),
+    UnlabelledSink(FilePath, u32, u32),
     ReferenceTo(FunctionLikeIdentifier),
     CallTo(FunctionLikeIdentifier),
     SpecializedCallTo(FunctionLikeIdentifier, FilePath, u32),
@@ -38,7 +40,7 @@ pub enum DataFlowNodeId {
     SpecializedFunctionLikeArg(FunctionLikeIdentifier, u8, FilePath, u32),
     Property(StrId, StrId),
     SpecializedProperty(StrId, StrId, FilePath, u32, u32),
-    PropertyFetch(String, StrId, FilePath, u32),
+    PropertyFetch(VarId, StrId, FilePath, u32),
     FunctionLikeOut(FunctionLikeIdentifier, u8),
     SpecializedFunctionLikeOut(FunctionLikeIdentifier, u8, FilePath, u32),
     ThisBeforeMethod(MethodIdentifier),
@@ -47,6 +49,7 @@ pub enum DataFlowNodeId {
     SpecializedThisAfterMethod(MethodIdentifier, FilePath, u32),
     Symbol(StrId),
     ShapeFieldAccess(StrId, String),
+    InstanceMethodCall(FilePath, u32, u32),
 }
 
 impl DataFlowNodeId {
@@ -58,14 +61,20 @@ impl DataFlowNodeId {
             }
             DataFlowNodeId::Param(var_id, file_path, start_offset, end_offset) => {
                 format!(
-                    "{}-{}:{}-{}",
-                    var_id, file_path.0 .0, start_offset, end_offset
+                    "param-{}-{}:{}-{}",
+                    interner.lookup(&var_id.0),
+                    file_path.0 .0,
+                    start_offset,
+                    end_offset
                 )
             }
             DataFlowNodeId::Var(var_id, file_path, start_offset, end_offset) => {
                 format!(
                     "{}-{}:{}-{}",
-                    var_id, file_path.0 .0, start_offset, end_offset
+                    interner.lookup(&var_id.0),
+                    file_path.0 .0,
+                    start_offset,
+                    end_offset
                 )
             }
             DataFlowNodeId::VarNarrowedTo(var_id, symbol, file_path, start_offset) => {
@@ -159,7 +168,7 @@ impl DataFlowNodeId {
             DataFlowNodeId::PropertyFetch(lhs_var_id, property_name, file_path, start_offset) => {
                 format!(
                     "{}->{}-{}:{}",
-                    lhs_var_id,
+                    interner.lookup(&lhs_var_id.0),
                     interner.lookup(property_name),
                     file_path.0 .0,
                     start_offset,
@@ -207,13 +216,23 @@ impl DataFlowNodeId {
             DataFlowNodeId::ForInit(start_offset, end_offset) => {
                 format!("for-init-{}-{}", start_offset, end_offset)
             }
+            DataFlowNodeId::UnlabelledSink(file_path, start_offset, end_offset) => format!(
+                "unlabelled-sink-{}:{}-{}",
+                file_path.0 .0, start_offset, end_offset
+            ),
+            DataFlowNodeId::InstanceMethodCall(file_path, start_offset, end_offset) => format!(
+                "instance-method-call-{}:{}-{}",
+                file_path.0 .0, start_offset, end_offset
+            ),
         }
     }
 
     pub fn to_label(&self, interner: &Interner) -> String {
         match self {
             DataFlowNodeId::String(str) | DataFlowNodeId::LocalString(str, ..) => str.clone(),
-            DataFlowNodeId::Param(var_id, ..) | DataFlowNodeId::Var(var_id, ..) => var_id.clone(),
+            DataFlowNodeId::Param(var_id, ..) | DataFlowNodeId::Var(var_id, ..) => {
+                interner.lookup(&var_id.0).to_string()
+            }
             DataFlowNodeId::VarNarrowedTo(var_id, symbol, ..) => {
                 format!("{} narrowed to {}", var_id, interner.lookup(symbol),)
             }
@@ -244,7 +263,11 @@ impl DataFlowNodeId {
             }
 
             DataFlowNodeId::PropertyFetch(lhs_var_id, property_name, ..) => {
-                format!("{}->{}", lhs_var_id, interner.lookup(property_name),)
+                format!(
+                    "{}->{}",
+                    interner.lookup(&lhs_var_id.0),
+                    interner.lookup(property_name),
+                )
             }
 
             DataFlowNodeId::ThisBeforeMethod(method_id)
@@ -272,6 +295,8 @@ impl DataFlowNodeId {
             DataFlowNodeId::ForInit(start_offset, end_offset) => {
                 format!("for-init-{}-{}", start_offset, end_offset)
             }
+            DataFlowNodeId::UnlabelledSink(..) => panic!(),
+            DataFlowNodeId::InstanceMethodCall(..) => "instance method call".to_string(),
         }
     }
 
@@ -279,10 +304,20 @@ impl DataFlowNodeId {
         match self {
             DataFlowNodeId::CallTo(id) => DataFlowNodeId::SpecializedCallTo(*id, file_path, offset),
             DataFlowNodeId::FunctionLikeArg(functionlike_id, arg) => {
-                DataFlowNodeId::SpecializedFunctionLikeArg(*functionlike_id, *arg, file_path, offset)
+                DataFlowNodeId::SpecializedFunctionLikeArg(
+                    *functionlike_id,
+                    *arg,
+                    file_path,
+                    offset,
+                )
             }
             DataFlowNodeId::FunctionLikeOut(functionlike_id, arg) => {
-                DataFlowNodeId::SpecializedFunctionLikeOut(*functionlike_id, *arg, file_path, offset)
+                DataFlowNodeId::SpecializedFunctionLikeOut(
+                    *functionlike_id,
+                    *arg,
+                    file_path,
+                    offset,
+                )
             }
             DataFlowNodeId::ThisBeforeMethod(method_id) => {
                 DataFlowNodeId::SpecializedThisBeforeMethod(*method_id, file_path, offset)
@@ -517,10 +552,10 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_for_lvar(var_id: String, assignment_location: HPos) -> Self {
+    pub fn get_for_lvar(var_id: VarId, assignment_location: HPos) -> Self {
         DataFlowNode {
             id: DataFlowNodeId::Var(
-                var_id.clone(),
+                var_id,
                 assignment_location.file_path,
                 assignment_location.start_offset,
                 assignment_location.end_offset,
@@ -575,9 +610,9 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_for_array_fetch(var_id: String, assignment_location: HPos) -> Self {
+    pub fn get_for_local_string(var_id: String, assignment_location: HPos) -> Self {
         DataFlowNode {
-            id: DataFlowNodeId::Var(
+            id: DataFlowNodeId::LocalString(
                 var_id,
                 assignment_location.file_path,
                 assignment_location.start_offset,
@@ -590,14 +625,28 @@ impl DataFlowNode {
         }
     }
 
+    pub fn get_for_instance_method_call(assignment_location: HPos) -> Self {
+        DataFlowNode {
+            id: DataFlowNodeId::InstanceMethodCall(
+                assignment_location.file_path,
+                assignment_location.start_offset,
+                assignment_location.end_offset,
+            ),
+            kind: DataFlowNodeKind::Vertex {
+                pos: Some(assignment_location),
+                specialization_key: None,
+            },
+        }
+    }
+
     pub fn get_for_local_property_fetch(
-        lhs_var_id: &str,
+        lhs_var_id: VarId,
         property_name: StrId,
         assignment_location: HPos,
     ) -> Self {
         DataFlowNode {
             id: DataFlowNodeId::PropertyFetch(
-                lhs_var_id.to_owned(),
+                lhs_var_id,
                 property_name,
                 assignment_location.file_path,
                 assignment_location.start_offset,
@@ -669,7 +718,20 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_for_variable_sink(label: String, assignment_location: HPos) -> Self {
+    pub fn get_for_unlabelled_sink(assignment_location: HPos) -> Self {
+        Self {
+            id: DataFlowNodeId::UnlabelledSink(
+                assignment_location.file_path,
+                assignment_location.start_offset,
+                assignment_location.end_offset,
+            ),
+            kind: DataFlowNodeKind::VariableUseSink {
+                pos: assignment_location,
+            },
+        }
+    }
+
+    pub fn get_for_variable_sink(label: VarId, assignment_location: HPos) -> Self {
         Self {
             id: DataFlowNodeId::Var(
                 label,
@@ -684,7 +746,7 @@ impl DataFlowNode {
     }
 
     pub fn get_for_variable_source(
-        label: String,
+        label: VarId,
         assignment_location: HPos,
         pure: bool,
         has_parent_nodes: bool,
@@ -692,7 +754,7 @@ impl DataFlowNode {
     ) -> Self {
         Self {
             id: DataFlowNodeId::Var(
-                label.clone(),
+                label,
                 assignment_location.file_path,
                 assignment_location.start_offset,
                 assignment_location.end_offset,

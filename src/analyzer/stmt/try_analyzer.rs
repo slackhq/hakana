@@ -7,6 +7,7 @@ use crate::{
     statements_analyzer::StatementsAnalyzer,
 };
 use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::VarId;
 use hakana_type::{combine_union_types, get_named_object};
 use oxidized::aast;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -178,7 +179,12 @@ pub(crate) fn analyze(
         );
 
         let new_parent_node = DataFlowNode::get_for_variable_source(
-            catch_var_id.clone(),
+            VarId(
+                statements_analyzer
+                    .get_interner()
+                    .get(catch_var_id)
+                    .unwrap(),
+            ),
             statements_analyzer.get_hpos(&catch.1 .0),
             false,
             true,

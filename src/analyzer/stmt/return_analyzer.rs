@@ -14,7 +14,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
-use hakana_str::StrId;
+use hakana_str::{Interner, StrId};
 use hakana_type::{combine_union_types, extend_dataflow_uniquely};
 use hakana_type::{
     get_mixed_any, get_null, get_void,
@@ -23,7 +23,7 @@ use hakana_type::{
     wrap_atomic,
 };
 use hakana_type::{type_comparator::union_type_comparator, type_expander::StaticClassType};
-use oxidized::{aast, aast::Pos};
+use oxidized::aast;
 use rustc_hash::FxHashSet;
 
 use crate::{
@@ -104,7 +104,7 @@ pub(crate) fn analyze(
         return Ok(());
     };
 
-    handle_inout_at_return(functionlike_storage, context, analysis_data, Some(&stmt.0));
+    handle_inout_at_return(functionlike_storage, context, analysis_data, interner);
 
     // todo maybe check inout params here, though that's covered by Hack's typechecker
     // examineParamTypes in Psalm's source code
@@ -504,11 +504,11 @@ pub(crate) fn handle_inout_at_return(
     functionlike_storage: &FunctionLikeInfo,
     context: &mut ScopeContext,
     analysis_data: &mut FunctionAnalysisData,
-    _return_pos: Option<&Pos>,
+    interner: &Interner,
 ) {
     for (i, param) in functionlike_storage.params.iter().enumerate() {
         if param.is_inout {
-            if let Some(context_type) = context.vars_in_scope.get(&param.name) {
+            if let Some(context_type) = context.vars_in_scope.get(interner.lookup(&param.name.0)) {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {}
                 let new_parent_node =
                     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
@@ -519,10 +519,7 @@ pub(crate) fn handle_inout_at_return(
                             None,
                         )
                     } else {
-                        DataFlowNode::get_for_variable_sink(
-                            "out ".to_string() + param.name.as_str(),
-                            param.name_location,
-                        )
+                        DataFlowNode::get_for_unlabelled_sink(param.name_location)
                     };
 
                 analysis_data
@@ -552,16 +549,15 @@ fn handle_dataflow(
     functionlike_id: &FunctionLikeIdentifier,
     functionlike_storage: &FunctionLikeInfo,
 ) {
-    if data_flow_graph.kind == GraphKind::FunctionBody {
-        let return_node = DataFlowNode::get_for_variable_sink(
-            "return".to_string(),
-            statements_analyzer.get_hpos(return_expr.pos()),
-        );
+    let return_node = if data_flow_graph.kind == GraphKind::FunctionBody {
+        let return_node =
+            DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(return_expr.pos()));
 
         for parent_node in &inferred_type.parent_nodes {
             data_flow_graph.add_path(parent_node, &return_node, PathKind::Default, vec![], vec![]);
         }
-        data_flow_graph.add_node(return_node);
+
+        return_node
     } else {
         if !inferred_type.has_taintable_value() {
             return;
@@ -583,13 +579,13 @@ fn handle_dataflow(
             }
         }
 
-        let return_expr_node =
+        let return_node =
             DataFlowNode::get_for_return_expr(statements_analyzer.get_hpos(return_expr.pos()));
 
         for parent_node in &inferred_type.parent_nodes {
             data_flow_graph.add_path(
                 parent_node,
-                &return_expr_node,
+                &return_node,
                 PathKind::Default,
                 functionlike_storage.added_taints.clone(),
                 functionlike_storage.removed_taints.clone(),
@@ -603,7 +599,7 @@ fn handle_dataflow(
         );
 
         data_flow_graph.add_path(
-            &return_expr_node,
+            &return_node,
             &method_node,
             PathKind::Default,
             vec![],
@@ -642,7 +638,9 @@ fn handle_dataflow(
             }
         }
 
-        data_flow_graph.add_node(return_expr_node);
         data_flow_graph.add_node(method_node);
-    }
+        return_node
+    };
+
+    data_flow_graph.add_node(return_node);
 }

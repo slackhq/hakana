@@ -49,10 +49,8 @@ pub(crate) fn analyze(
         value_expr.pos().end_offset() as u32,
     )) {
         if let GraphKind::FunctionBody = analysis_data.data_flow_graph.kind {
-            let return_node = DataFlowNode::get_for_variable_sink(
-                "yield".to_string(),
-                statements_analyzer.get_hpos(pos),
-            );
+            let return_node =
+                DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(pos));
 
             for parent_node in &inferred_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(

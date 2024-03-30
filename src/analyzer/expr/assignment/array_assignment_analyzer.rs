@@ -9,6 +9,7 @@ use hakana_reflection_info::{
     },
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    VarId,
 };
 use hakana_str::StrId;
 use hakana_type::{
@@ -108,10 +109,11 @@ pub(crate) fn analyze(
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
         if let Some(root_var_id) = &root_var_id {
             if let aast::Expr_::Lvar(_) = &root_array_expr.2 {
+                let interner = statements_analyzer.get_interner();
                 analysis_data
                     .data_flow_graph
                     .add_node(DataFlowNode::get_for_variable_source(
-                        root_var_id.clone(),
+                        VarId(interner.get(root_var_id).unwrap()),
                         statements_analyzer.get_hpos(root_array_expr.pos()),
                         false,
                         false,
@@ -395,7 +397,13 @@ fn add_array_assignment_dataflow(
     }
 
     let parent_node = if let Some(var_var_id) = var_var_id {
-        DataFlowNode::get_for_lvar(var_var_id, statements_analyzer.get_hpos(expr_var_pos))
+        if let Some(var_id) = statements_analyzer.get_interner().get(&var_var_id) {
+            DataFlowNode::get_for_lvar(VarId(var_id), statements_analyzer.get_hpos(expr_var_pos))
+        } else {
+            DataFlowNode::get_for_array_assignment(
+                statements_analyzer.get_hpos(expr_var_pos),
+            )
+        }
     } else {
         DataFlowNode::get_for_array_assignment(statements_analyzer.get_hpos(expr_var_pos))
     };

@@ -22,6 +22,7 @@ use hakana_reflection_info::taint::string_to_source_types;
 use hakana_reflection_info::type_resolution::TypeResolutionContext;
 use hakana_reflection_info::FileSource;
 use hakana_reflection_info::GenericParent;
+use hakana_reflection_info::VarId;
 use hakana_reflection_info::EFFECT_IMPURE;
 use hakana_str::{StrId, ThreadedInterner};
 use hakana_type::get_mixed_any;
@@ -415,7 +416,7 @@ pub(crate) fn get_functionlike(
 
     functionlike_info.is_async = fun_kind.is_async();
     functionlike_info.effects = if let Some(contexts) = contexts {
-        get_effect_from_contexts(contexts, &functionlike_info)
+        get_effect_from_contexts(contexts, &functionlike_info, interner)
     } else if name.is_none() {
         FnEffect::Unknown
     } else {
@@ -448,6 +449,7 @@ pub(crate) fn get_functionlike(
 fn get_effect_from_contexts(
     contexts: &tast::Contexts,
     functionlike_info: &FunctionLikeInfo,
+    interner: &mut ThreadedInterner,
 ) -> FnEffect {
     if contexts.1.is_empty() {
         FnEffect::Pure
@@ -458,7 +460,7 @@ fn get_effect_from_contexts(
             let position = functionlike_info
                 .params
                 .iter()
-                .position(|p| &p.name == boxed);
+                .position(|p| interner.lookup(p.name.0) == boxed);
 
             if let Some(position) = position {
                 FnEffect::Arg(position as u8)
@@ -486,7 +488,7 @@ fn get_async_version(
                     let first_join_expr = &call.args[0].1;
 
                     if let aast::Expr_::Call(call) = &first_join_expr.2 {
-                        if !is_async_call_is_same_as_sync(&call.args, params) {
+                        if !is_async_call_is_same_as_sync(&call.args, params, interner) {
                             return None;
                         }
 
@@ -528,11 +530,12 @@ fn get_async_version(
 fn is_async_call_is_same_as_sync(
     call_args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
     params: &[FunctionLikeParameter],
+    interner: &mut ThreadedInterner,
 ) -> bool {
     for (offset, (_, call_arg_expr)) in call_args.iter().enumerate() {
         if let aast::Expr_::Lvar(id) = &call_arg_expr.2 {
             if let Some(param) = params.get(offset) {
-                if param.name != id.1 .1 {
+                if interner.lookup(param.name.0) != id.1 .1 {
                     return false;
                 }
             } else {
@@ -612,6 +615,10 @@ fn convert_param_nodes(
                     as u16;
             }
 
+            let param_id = *resolved_names
+                .get(&(param_node.pos.start_offset() as u32))
+                .unwrap();
+
             let mut suppressed_issues = vec![];
 
             let mut meta_start = MetaStart {
@@ -635,7 +642,7 @@ fn convert_param_nodes(
             comments.retain(|c| c.0.start_offset() > param_node.pos.end_offset());
 
             let mut param = FunctionLikeParameter::new(
-                param_node.name.clone(),
+                VarId(param_id),
                 location,
                 HPos::new(&param_node.pos, file_source.file_path),
             );

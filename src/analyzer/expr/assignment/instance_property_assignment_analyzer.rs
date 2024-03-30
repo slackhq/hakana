@@ -7,7 +7,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    EFFECT_WRITE_PROPS,
+    VarId, EFFECT_WRITE_PROPS,
 };
 use hakana_str::StrId;
 use hakana_type::{
@@ -649,11 +649,13 @@ fn add_instance_property_assignment_dataflow(
     assignment_value_type: &TUnion,
     context: &mut ScopeContext,
 ) {
-    let var_node =
-        DataFlowNode::get_for_lvar(lhs_var_id.to_owned(), statements_analyzer.get_hpos(var_pos));
+    let var_node = DataFlowNode::get_for_lvar(
+        VarId(statements_analyzer.get_interner().get(&lhs_var_id).unwrap()),
+        statements_analyzer.get_hpos(var_pos),
+    );
     analysis_data.data_flow_graph.add_node(var_node.clone());
     let property_node = DataFlowNode::get_for_local_property_fetch(
-        &lhs_var_id,
+        VarId(statements_analyzer.get_interner().get(&lhs_var_id).unwrap()),
         property_id.1,
         statements_analyzer.get_hpos(name_pos),
     );

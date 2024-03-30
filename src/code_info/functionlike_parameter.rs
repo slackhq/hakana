@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     attribute_info::AttributeInfo, code_location::HPos, issue::IssueKind, t_union::TUnion,
-    taint::SinkType,
+    taint::SinkType, VarId,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,7 +16,7 @@ pub enum DefaultType {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionLikeParameter {
-    pub name: String,
+    pub name: VarId,
 
     pub is_inout: bool,
 
@@ -60,7 +60,7 @@ pub struct FunctionLikeParameter {
 }
 
 impl FunctionLikeParameter {
-    pub fn new(name: String, location: HPos, name_location: HPos) -> Self {
+    pub fn new(name: VarId, location: HPos, name_location: HPos) -> Self {
         Self {
             name,
             is_inout: false,

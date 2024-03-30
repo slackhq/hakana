@@ -4,7 +4,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::{
-    data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
+    data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     taint::SinkType,
 };
@@ -50,14 +50,7 @@ pub(crate) fn analyze_concat_nodes(
 ) -> TUnion {
     let mut all_literals = true;
 
-    let decision_node = if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-        DataFlowNode::get_for_composition(statements_analyzer.get_hpos(stmt_pos))
-    } else {
-        DataFlowNode::get_for_variable_sink(
-            "composition".to_string(),
-            statements_analyzer.get_hpos(stmt_pos),
-        )
-    };
+    let decision_node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(stmt_pos));
 
     let mut has_slash = false;
     let mut has_query = false;

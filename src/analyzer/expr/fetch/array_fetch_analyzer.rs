@@ -191,7 +191,7 @@ pub(crate) fn add_array_fetch_dataflow(
             } else {
                 "arrayvalue-fetch".to_string()
             };
-            let new_parent_node = DataFlowNode::get_for_array_fetch(
+            let new_parent_node = DataFlowNode::get_for_local_string(
                 node_name,
                 statements_analyzer.get_hpos(array_expr_pos),
             );
@@ -220,7 +220,7 @@ pub(crate) fn add_array_fetch_dataflow(
             let mut array_key_node = None;
 
             if keyed_array_var_id.is_none() && dim_value.is_none() {
-                let fetch_node = DataFlowNode::get_for_array_fetch(
+                let fetch_node = DataFlowNode::get_for_local_string(
                     "arraykey-fetch".to_string(),
                     statements_analyzer.get_hpos(array_expr_pos),
                 );
@@ -977,7 +977,7 @@ pub(crate) fn handle_array_access_on_mixed(
         .get(&(pos.start_offset() as u32, pos.end_offset() as u32))
     {
         if !stmt_var_type.parent_nodes.is_empty() {
-            let new_parent_node = DataFlowNode::get_for_array_fetch(
+            let new_parent_node = DataFlowNode::get_for_local_string(
                 "mixed-var-array-access".to_string(),
                 statements_analyzer.get_hpos(pos),
             );

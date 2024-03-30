@@ -11,7 +11,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, expression_analyzer};
 use hakana_reflection_info::{
-    data_flow::{graph::GraphKind, node::DataFlowNode, path::PathKind},
+    data_flow::{node::DataFlowNode, path::PathKind},
     t_atomic::TAtomic,
     t_union::TUnion,
     taint::SinkType,
@@ -224,14 +224,7 @@ pub(crate) fn assign_arithmetic_type(
     expr_pos: &Pos,
 ) {
     let mut cond_type = cond_type;
-    let decision_node = if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-        DataFlowNode::get_for_composition(statements_analyzer.get_hpos(expr_pos))
-    } else {
-        DataFlowNode::get_for_variable_sink(
-            "composition".to_string(),
-            statements_analyzer.get_hpos(expr_pos),
-        )
-    };
+    let decision_node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(expr_pos));
 
     analysis_data
         .data_flow_graph

@@ -12,7 +12,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_union::TUnion,
     taint::SourceType,
-    EFFECT_READ_GLOBALS,
+    VarId, EFFECT_READ_GLOBALS,
 };
 use hakana_type::{get_int, get_mixed_any, get_mixed_dict};
 use oxidized::{ast_defs::Pos, tast::Lid};
@@ -102,7 +102,12 @@ pub(crate) fn get_type_for_superglobal(
             let taint_pos = statements_analyzer.get_hpos(pos);
             let taint_source = DataFlowNode {
                 id: DataFlowNodeId::Var(
-                    format!("${}", name),
+                    VarId(
+                        statements_analyzer
+                            .get_interner()
+                            .get(&format!("${}", name))
+                            .unwrap(),
+                    ),
                     taint_pos.file_path,
                     taint_pos.start_offset,
                     taint_pos.end_offset,
@@ -147,12 +152,21 @@ fn add_dataflow_to_variable(
         let pos = statements_analyzer.get_hpos(pos);
 
         let assignment_node = DataFlowNode {
-            id: DataFlowNodeId::Var(
-                lid.1 .1.to_string(),
-                pos.file_path,
-                pos.start_offset,
-                pos.end_offset,
-            ),
+            id: if let Some(var_id) = statements_analyzer.get_interner().get(&lid.1 .1) {
+                DataFlowNodeId::Var(
+                    VarId(var_id),
+                    pos.file_path,
+                    pos.start_offset,
+                    pos.end_offset,
+                )
+            } else {
+                DataFlowNodeId::LocalString(
+                    lid.1 .1.to_string(),
+                    pos.file_path,
+                    pos.start_offset,
+                    pos.end_offset,
+                )
+            },
             kind: DataFlowNodeKind::VariableUseSink { pos },
         };
 

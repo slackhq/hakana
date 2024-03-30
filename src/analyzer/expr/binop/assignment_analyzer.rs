@@ -1,6 +1,7 @@
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::data_flow::node::DataFlowNodeId;
 use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
+use hakana_reflection_info::VarId;
 use hakana_reflection_info::EFFECT_WRITE_LOCAL;
 use hakana_str::StrId;
 use indexmap::IndexMap;
@@ -508,7 +509,7 @@ fn analyze_assignment_to_variable(
         && matches!(var_expr.2, aast::Expr_::Lvar(_))
     {
         DataFlowNode::get_for_variable_source(
-            var_id.clone(),
+            VarId(statements_analyzer.get_interner().get(var_id).unwrap()),
             statements_analyzer.get_hpos(var_expr.pos()),
             !context.inside_awaitall
                 && if let Some(source_expr) = source_expr {
@@ -520,7 +521,10 @@ fn analyze_assignment_to_variable(
             assign_value_type.has_awaitable_types(),
         )
     } else {
-        DataFlowNode::get_for_lvar(var_id.clone(), statements_analyzer.get_hpos(var_expr.pos()))
+        DataFlowNode::get_for_lvar(
+            VarId(statements_analyzer.get_interner().get(var_id).unwrap()),
+            statements_analyzer.get_hpos(var_expr.pos()),
+        )
     };
 
     analysis_data

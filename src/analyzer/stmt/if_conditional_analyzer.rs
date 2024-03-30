@@ -237,7 +237,8 @@ pub(crate) fn analyze(
     }
 
     let newish_var_ids = if_conditional_context
-        .vars_in_scope.into_keys()
+        .vars_in_scope
+        .into_keys()
         .filter(|k| {
             !pre_condition_vars_in_scope.contains_key(k)
                 && !cond_referenced_var_ids.contains(k)
@@ -339,10 +340,8 @@ pub(crate) fn add_branch_dataflow(
 
     if let Some(conditional_type) = conditional_type {
         if !conditional_type.parent_nodes.is_empty() {
-            let branch_node = DataFlowNode::get_for_variable_sink(
-                "branch".to_string(),
-                statements_analyzer.get_hpos(cond.pos()),
-            );
+            let branch_node =
+                DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(cond.pos()));
 
             for parent_node in &conditional_type.parent_nodes {
                 analysis_data.data_flow_graph.add_path(

@@ -10,6 +10,7 @@ use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_reflection_info::VarId;
 use hakana_str::StrId;
 use hakana_type::{get_mixed_any, get_string};
 use oxidized::aast;
@@ -25,7 +26,7 @@ pub(crate) fn analyze(
     context: &mut ScopeContext,
 ) -> Result<(), AnalysisError> {
     let echo_param = FunctionLikeParameter::new(
-        "var".to_string(),
+        VarId(StrId::EMPTY),
         HPos::new(call_pos, *statements_analyzer.get_file_path()),
         HPos::new(call_pos, *statements_analyzer.get_file_path()),
     );

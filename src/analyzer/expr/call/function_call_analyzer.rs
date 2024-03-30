@@ -2,7 +2,7 @@ use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::t_atomic::DictKey;
 use hakana_reflection_info::t_union::TUnion;
-use hakana_reflection_info::{EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{VarId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
 use hakana_str::StrId;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{get_arrayish_params, get_void};
@@ -326,7 +326,12 @@ pub(crate) fn analyze(
                         FxHashMap::from_iter([(
                             "hakana taints".to_string(),
                             vec![Assertion::RemoveTaints(
-                                expr_var_id.clone(),
+                                VarId(
+                                    statements_analyzer
+                                        .get_interner()
+                                        .get(&expr_var_id)
+                                        .unwrap(),
+                                ),
                                 SinkType::user_controllable_taints(),
                             )],
                         )]),
@@ -361,7 +366,12 @@ pub(crate) fn analyze(
                                     FxHashMap::from_iter([(
                                         "hakana taints".to_string(),
                                         vec![Assertion::RemoveTaints(
-                                            expr_var_id.clone(),
+                                            VarId(
+                                                statements_analyzer
+                                                    .get_interner()
+                                                    .get(&expr_var_id)
+                                                    .unwrap(),
+                                            ),
                                             vec![
                                                 SinkType::HtmlAttributeUri,
                                                 SinkType::CurlUri,
@@ -427,7 +437,12 @@ pub(crate) fn analyze(
                                     FxHashMap::from_iter([(
                                         "hakana taints".to_string(),
                                         vec![Assertion::RemoveTaints(
-                                            expr_var_id.clone(),
+                                            VarId(
+                                                statements_analyzer
+                                                    .get_interner()
+                                                    .get(&expr_var_id)
+                                                    .unwrap(),
+                                            ),
                                             hashes_to_remove,
                                         )],
                                     )]),

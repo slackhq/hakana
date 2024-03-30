@@ -18,6 +18,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    VarId,
 };
 use hakana_str::{Interner, StrId};
 use hakana_type::{
@@ -84,9 +85,11 @@ pub(crate) fn reconcile_keyed_types(
                 if key == "hakana taints" {
                     match assertion {
                         Assertion::RemoveTaints(key, taints) => {
-                            if let Some(existing_var_type) = context.vars_in_scope.get_mut(key) {
+                            let key_str = statements_analyzer.get_interner().lookup(&key.0);
+                            if let Some(existing_var_type) = context.vars_in_scope.get_mut(key_str)
+                            {
                                 let new_parent_node = DataFlowNode::get_for_lvar(
-                                    key.clone(),
+                                    *key,
                                     statements_analyzer.get_hpos(pos),
                                 );
 
@@ -243,8 +246,10 @@ pub(crate) fn reconcile_keyed_types(
                 }
 
                 if has_scalar_restriction {
-                    let scalar_check_node =
-                        DataFlowNode::get_for_lvar(key.clone(), statements_analyzer.get_hpos(pos));
+                    let scalar_check_node = DataFlowNode::get_for_lvar(
+                        VarId(statements_analyzer.get_interner().get(key).unwrap()),
+                        statements_analyzer.get_hpos(pos),
+                    );
 
                     for parent_node in &before_adjustment.parent_nodes {
                         analysis_data.data_flow_graph.add_path(

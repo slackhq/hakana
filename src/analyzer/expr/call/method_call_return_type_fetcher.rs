@@ -345,8 +345,7 @@ fn add_dataflow(
         if let (Some(lhs_var_id), Some(lhs_var_pos)) = (lhs_var_id, lhs_var_pos) {
             if functionlike_storage.specialize_call {
                 if let Some(context_type) = context.vars_in_scope.get_mut(lhs_var_id) {
-                    let var_node = DataFlowNode::get_for_lvar(
-                        lhs_var_id.to_owned(),
+                    let var_node = DataFlowNode::get_for_instance_method_call(
                         statements_analyzer.get_hpos(lhs_var_pos),
                     );
 
@@ -360,14 +359,6 @@ fn add_dataflow(
                         data_flow_graph.add_path(
                             parent_node,
                             &this_before_method_node,
-                            PathKind::Default,
-                            vec![],
-                            vec![],
-                        );
-
-                        data_flow_graph.add_path(
-                            parent_node,
-                            &var_node,
                             PathKind::Default,
                             vec![],
                             vec![],

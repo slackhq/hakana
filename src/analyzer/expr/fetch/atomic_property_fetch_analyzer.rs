@@ -6,7 +6,6 @@ use crate::{
 };
 use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::GenericParent;
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
     codebase_info::CodebaseInfo,
@@ -14,6 +13,7 @@ use hakana_reflection_info::{
     t_atomic::TAtomic,
     t_union::TUnion,
 };
+use hakana_reflection_info::{GenericParent, VarId};
 use hakana_str::StrId;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
@@ -407,17 +407,37 @@ fn add_property_dataflow(
                 .get(&(lhs_pos.start_offset() as u32, lhs_pos.end_offset() as u32));
 
             if let Some(var_type) = var_type {
-                let var_node = DataFlowNode::get_for_lvar(
-                    lhs_var_id.clone(),
-                    statements_analyzer.get_hpos(lhs_pos),
-                );
-                analysis_data.data_flow_graph.add_node(var_node.clone());
+                let (var_node, property_node) =
+                    if let Some(var_id) = statements_analyzer.get_interner().get(lhs_var_id) {
+                        (
+                            DataFlowNode::get_for_lvar(
+                                VarId(var_id),
+                                statements_analyzer.get_hpos(lhs_pos),
+                            ),
+                            DataFlowNode::get_for_local_property_fetch(
+                                VarId(var_id),
+                                property_id.1,
+                                statements_analyzer.get_hpos(name_pos),
+                            ),
+                        )
+                    } else {
+                        (
+                            DataFlowNode::get_for_local_string(
+                                lhs_var_id.clone(),
+                                statements_analyzer.get_hpos(lhs_pos),
+                            ),
+                            DataFlowNode::get_for_local_string(
+                                format!(
+                                    "{}->{}",
+                                    lhs_var_id,
+                                    statements_analyzer.get_interner().lookup(&property_id.1)
+                                ),
+                                statements_analyzer.get_hpos(name_pos),
+                            ),
+                        )
+                    };
 
-                let property_node = DataFlowNode::get_for_local_property_fetch(
-                    lhs_var_id,
-                    property_id.1,
-                    statements_analyzer.get_hpos(name_pos),
-                );
+                analysis_data.data_flow_graph.add_node(var_node.clone());
 
                 analysis_data
                     .data_flow_graph
@@ -447,7 +467,7 @@ fn add_property_dataflow(
     } else if let Some(lhs_var_id) = lhs_var_id {
         stmt_type = add_unspecialized_property_fetch_dataflow(
             DataFlowNode::get_for_local_property_fetch(
-                lhs_var_id,
+                VarId(statements_analyzer.get_interner().get(lhs_var_id).unwrap()),
                 property_id.1,
                 statements_analyzer.get_hpos(name_pos),
             ),

@@ -14,6 +14,8 @@ use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo, MetaStart};
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::t_atomic::TAtomic;
+use hakana_reflection_info::VarId;
+use hakana_str::StrId;
 use hakana_type::get_mixed_any;
 use hakana_type::template::TemplateResult;
 use indexmap::IndexMap;
@@ -71,7 +73,7 @@ pub(crate) fn analyze(
                 .iter()
                 .map(|fn_param| {
                     let mut param = FunctionLikeParameter::new(
-                        "".to_string(),
+                        VarId(StrId::EMPTY),
                         HPos::new(expr.func.pos(), *statements_analyzer.get_file_path()),
                         HPos::new(expr.func.pos(), *statements_analyzer.get_file_path()),
                     );

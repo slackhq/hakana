@@ -533,10 +533,7 @@ fn check_iterator_type(
     }
 
     if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
-        let foreach_node = DataFlowNode::get_for_variable_sink(
-            "foreach".to_string(),
-            statements_analyzer.get_hpos(pos),
-        );
+        let foreach_node = DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(pos));
 
         for parent_node in &iterator_type.parent_nodes {
             analysis_data.data_flow_graph.add_path(

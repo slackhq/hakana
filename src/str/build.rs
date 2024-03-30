@@ -10,6 +10,7 @@ fn main() -> Result<()> {
 
     let strings = vec![
         "",
+        "$$",
         "<anonymous function>",
         "<aria attribute>",
         "<data attribute>",
@@ -535,6 +536,10 @@ fn main() -> Result<()> {
 fn format_identifier(input: &str) -> String {
     if input.is_empty() {
         return "EMPTY".to_string();
+    }
+
+    if input == "$$" {
+        return "DOLLAR_DOLLAR".to_string();
     }
 
     if input == "HH\\type_structure" {

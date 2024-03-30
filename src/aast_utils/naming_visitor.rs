@@ -260,6 +260,27 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         p.recurse(nc, self)
     }
 
+    fn visit_lid(&mut self, nc: &mut NameContext<'ast>, p: &'ast aast::Lid) -> Result<(), ()> {
+        let var_id = self.interner.intern_str(&p.1 .1);
+        if nc.in_class_id {
+            self.resolved_names
+                .insert(p.0.start_offset() as u32, var_id);
+        }
+        p.recurse(nc, self)
+    }
+
+    fn visit_fun_param(
+        &mut self,
+        nc: &mut NameContext<'ast>,
+        p: &'ast aast::FunParam<(), ()>,
+    ) -> Result<(), ()> {
+        let var_id = self.interner.intern_str(&p.name);
+        self.resolved_names
+            .insert(p.pos.start_offset() as u32, var_id);
+
+        p.recurse(nc, self)
+    }
+
     fn visit_catch(
         &mut self,
         nc: &mut NameContext<'ast>,

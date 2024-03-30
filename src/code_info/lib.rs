@@ -55,6 +55,9 @@ pub const EFFECT_WRITE_GLOBALS: u8 = 0b0010000;
 pub const EFFECT_IMPURE: u8 =
     EFFECT_READ_PROPS | EFFECT_READ_GLOBALS | EFFECT_WRITE_PROPS | EFFECT_WRITE_GLOBALS;
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+pub struct VarId(pub StrId);
+
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize, PartialOrd, Ord, Debug)]
 pub enum GenericParent {
     ClassLike(StrId),

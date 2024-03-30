@@ -535,7 +535,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         functionlike_storage,
                         &mut context,
                         &mut analysis_data,
-                        None,
+                        self.get_interner(),
                     );
                 }
             }
@@ -1060,11 +1060,11 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
             let new_parent_node =
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
-                    DataFlowNode::get_for_lvar(param.name.clone(), param.name_location)
+                    DataFlowNode::get_for_lvar(param.name, param.name_location)
                 } else {
                     DataFlowNode {
                         id: DataFlowNodeId::Param(
-                            param.name.clone(),
+                            param.name,
                             param.name_location.file_path,
                             param.name_location.start_offset,
                             param.name_location.end_offset,
@@ -1142,9 +1142,13 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 );
             }
 
-            context
-                .vars_in_scope
-                .insert(param.name.clone(), Rc::new(param_type.clone()));
+            context.vars_in_scope.insert(
+                statements_analyzer
+                    .get_interner()
+                    .lookup(&param.name.0)
+                    .to_string(),
+                Rc::new(param_type.clone()),
+            );
         }
 
         Ok(())
@@ -1181,7 +1185,7 @@ fn report_unused_expressions(
                 if let DataFlowNodeId::Var(var_id, ..) | DataFlowNodeId::Param(var_id, ..) =
                     &node.id
                 {
-                    if var_id.starts_with("$_") {
+                    if interner.lookup(&var_id.0).starts_with("$_") {
                         continue;
                     }
                 }
@@ -1217,7 +1221,7 @@ fn report_unused_expressions(
                 if let DataFlowNodeId::Var(var_id, ..) | DataFlowNodeId::Param(var_id, ..) =
                     &node.id
                 {
-                    if var_id.starts_with("$_") {
+                    if interner.lookup(&var_id.0).starts_with("$_") {
                         continue;
                     }
                 }

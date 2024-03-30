@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use hakana_reflection_info::assertion::Assertion;
 use hakana_reflection_info::data_flow::path::PathKind;
-use hakana_reflection_info::{GenericParent, EFFECT_WRITE_LOCAL};
+use hakana_reflection_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
 
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::taint::SinkType;
@@ -461,7 +461,12 @@ pub(crate) fn check_arguments_match(
                         FxHashMap::from_iter([(
                             "hakana taints".to_string(),
                             vec![Assertion::RemoveTaints(
-                                expr_var_id,
+                                VarId(
+                                    statements_analyzer
+                                        .get_interner()
+                                        .get(&expr_var_id)
+                                        .unwrap(),
+                                ),
                                 if removed_taints.is_empty() {
                                     SinkType::user_controllable_taints()
                                 } else {

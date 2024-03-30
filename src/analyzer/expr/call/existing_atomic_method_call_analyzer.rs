@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_reflection_info::{GenericParent, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
 use hakana_str::StrId;
 use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
@@ -338,7 +338,12 @@ fn handle_shapes_static_method(
                         }
 
                         let assignment_node = DataFlowNode::get_for_lvar(
-                            expr_var_id.clone(),
+                            VarId(
+                                statements_analyzer
+                                    .get_interner()
+                                    .get(&expr_var_id)
+                                    .unwrap(),
+                            ),
                             statements_analyzer.get_hpos(call_expr.1[0].1.pos()),
                         );
 

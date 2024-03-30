@@ -8,6 +8,7 @@ use crate::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
     taint::SinkType,
+    VarId,
 };
 use core::hash::Hash;
 
@@ -40,8 +41,8 @@ pub enum Assertion {
     DoesNotHaveExactCount(usize),
     IgnoreTaints,
     DontIgnoreTaints,
-    RemoveTaints(String, #[derivative(Hash = "ignore")] Vec<SinkType>),
-    DontRemoveTaints(String, #[derivative(Hash = "ignore")] Vec<SinkType>),
+    RemoveTaints(VarId, #[derivative(Hash = "ignore")] Vec<SinkType>),
+    DontRemoveTaints(VarId, #[derivative(Hash = "ignore")] Vec<SinkType>),
 }
 
 impl Assertion {
@@ -89,8 +90,20 @@ impl Assertion {
             }
             Assertion::IgnoreTaints => "ignore-taints".to_string(),
             Assertion::DontIgnoreTaints => "dont-ignore-taints".to_string(),
-            Assertion::RemoveTaints(key, _) => "remove-some-taints-".to_string() + key,
-            Assertion::DontRemoveTaints(key, _) => "!remove-some-taints-".to_string() + key,
+            Assertion::RemoveTaints(key, _) => {
+                if let Some(interner) = interner {
+                    format!("remove-some-taints-{}", interner.lookup(&key.0))
+                } else {
+                    format!("remove-some-taints-{}", key.0 .0)
+                }
+            }
+            Assertion::DontRemoveTaints(key, _) => {
+                if let Some(interner) = interner {
+                    format!("!remove-some-taints-{}", interner.lookup(&key.0))
+                } else {
+                    format!("!remove-some-taints-{}", key.0 .0)
+                }
+            }
         }
     }
 
@@ -304,10 +317,10 @@ impl Assertion {
             Assertion::IgnoreTaints => Assertion::DontIgnoreTaints,
             Assertion::DontIgnoreTaints => Assertion::IgnoreTaints,
             Assertion::RemoveTaints(key, taints) => {
-                Assertion::DontRemoveTaints(key.clone(), taints.clone())
+                Assertion::DontRemoveTaints(*key, taints.clone())
             }
             Assertion::DontRemoveTaints(key, taints) => {
-                Assertion::RemoveTaints(key.clone(), taints.clone())
+                Assertion::RemoveTaints(*key, taints.clone())
             }
         }
     }

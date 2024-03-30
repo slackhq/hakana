@@ -884,10 +884,8 @@ pub(crate) fn add_decision_dataflow(
         return;
     }
 
-    let decision_node = DataFlowNode::get_for_variable_sink(
-        "is decision".to_string(),
-        statements_analyzer.get_hpos(expr_pos),
-    );
+    let decision_node =
+        DataFlowNode::get_for_unlabelled_sink(statements_analyzer.get_hpos(expr_pos));
 
     if let Some(lhs_type) = analysis_data.expr_types.get(&(
         lhs_expr.1.start_offset() as u32,
