@@ -31,7 +31,7 @@ pub mod type_resolution;
 
 use std::collections::BTreeMap;
 
-use code_location::FilePath;
+use code_location::{FilePath, HPos};
 use hakana_str::{Interner, StrId};
 use oxidized::{prim_defs::Comment, tast::Pos};
 use serde::{Deserialize, Serialize};
@@ -56,6 +56,14 @@ pub const EFFECT_IMPURE: u8 =
     EFFECT_READ_PROPS | EFFECT_READ_GLOBALS | EFFECT_WRITE_PROPS | EFFECT_WRITE_GLOBALS;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+
+pub enum ExprId {
+    Var(StrId),
+    InstanceProperty(VarId, HPos, StrId),
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+
 pub struct VarId(pub StrId);
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize, PartialOrd, Ord, Debug)]

@@ -47,6 +47,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     mut classlike_name: StrId,
     method_name: &StrId,
+    lhs_expr: Option<&aast::Expr<(), ()>>,
     call_expr: (
         &Vec<aast::Targ<()>>,
         &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
@@ -217,6 +218,7 @@ pub(crate) fn analyze(
         statements_analyzer,
         analysis_data,
         context,
+        lhs_expr,
         call_expr,
         &method_id,
         &declaring_method_id,

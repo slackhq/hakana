@@ -274,6 +274,7 @@ pub(crate) fn handle_method_call_on_named_object(
             statements_analyzer,
             classlike_names[0], // todo intersect multiple return values
             &method_name,
+            Some(expr.0),
             (expr.2, expr.3, expr.4),
             lhs_type_part,
             pos,

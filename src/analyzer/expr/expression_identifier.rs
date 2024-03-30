@@ -1,10 +1,13 @@
 use hakana_reflection_info::{
     ast::get_id_name, codebase_info::CodebaseInfo, functionlike_identifier::FunctionLikeIdentifier,
+    ExprId, VarId,
 };
 use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use oxidized::{aast, ast_defs};
+
+use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
 
 // gets a var id from a simple variable
 pub fn get_var_id(
@@ -206,6 +209,39 @@ pub fn get_functionlike_id_from_call(
                 None
             }
         }
+        _ => None,
+    }
+}
+
+pub fn get_expr_id(
+    conditional: &aast::Expr<(), ()>,
+    statements_analyzer: &StatementsAnalyzer,
+) -> Option<ExprId> {
+    match &conditional.2 {
+        aast::Expr_::Lvar(var_expr) => statements_analyzer
+            .get_interner()
+            .get(&var_expr.1 .1)
+            .map(ExprId::Var),
+        aast::Expr_::ObjGet(boxed) => {
+            if let ast_defs::PropOrMethod::IsProp = boxed.3 {
+                if let Some(ExprId::Var(base_id)) = get_expr_id(&boxed.0, statements_analyzer) {
+                    if let aast::Expr_::Id(boxed) = &boxed.1 .2 {
+                        if let Some(prop_name) =
+                            statements_analyzer.get_interner().get(boxed.name())
+                        {
+                            return Some(ExprId::InstanceProperty(
+                                VarId(base_id),
+                                statements_analyzer.get_hpos(boxed.pos()),
+                                prop_name,
+                            ));
+                        }
+                    }
+                }
+            }
+
+            None
+        }
+
         _ => None,
     }
 }

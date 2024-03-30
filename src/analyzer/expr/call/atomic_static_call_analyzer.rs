@@ -158,6 +158,7 @@ pub(crate) fn analyze(
         statements_analyzer,
         classlike_name,
         &method_name.unwrap(),
+        None,
         (expr.2, expr.3, expr.4),
         lhs_type_part,
         pos,

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::GenericParent;
+use hakana_reflection_info::{ExprId, GenericParent, VarId};
 use hakana_str::{Interner, StrId};
 use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
@@ -19,6 +19,7 @@ use hakana_type::{
 };
 use oxidized::ast_defs::Pos;
 
+use crate::expr::expression_identifier::get_expr_id;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope_context::ScopeContext;
@@ -32,6 +33,7 @@ pub(crate) fn fetch(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     context: &mut ScopeContext,
+    lhs_expr: Option<&aast::Expr<(), ()>>,
     call_expr: (
         &Vec<aast::Targ<()>>,
         &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
@@ -137,6 +139,7 @@ pub(crate) fn fetch(
         statements_analyzer,
         return_type_candidate,
         context,
+        lhs_expr,
         call_expr,
         method_id,
         declaring_method_id,
@@ -208,6 +211,7 @@ fn add_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     mut return_type_candidate: TUnion,
     context: &mut ScopeContext,
+    lhs_expr: Option<&aast::Expr<(), ()>>,
     call_expr: (
         &Vec<aast::Targ<()>>,
         &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
@@ -342,12 +346,32 @@ fn add_dataflow(
             }
         }
 
-        if let (Some(lhs_var_id), Some(lhs_var_pos)) = (lhs_var_id, lhs_var_pos) {
+        if let (Some(lhs_expr), Some(lhs_var_id), Some(lhs_var_pos)) =
+            (lhs_expr, lhs_var_id, lhs_var_pos)
+        {
             if functionlike_storage.specialize_call {
-                if let Some(context_type) = context.vars_in_scope.get_mut(lhs_var_id) {
-                    let var_node = DataFlowNode::get_for_instance_method_call(
-                        statements_analyzer.get_hpos(lhs_var_pos),
-                    );
+                if let Some(context_type) = &analysis_data
+                    .expr_types
+                    .get(&(
+                        lhs_expr.pos().start_offset() as u32,
+                        lhs_expr.pos().end_offset() as u32,
+                    ))
+                    .cloned()
+                {
+                    let lhs_var_expr_id = get_expr_id(lhs_expr, statements_analyzer);
+
+                    let var_node = match lhs_var_expr_id {
+                        Some(ExprId::Var(id)) => DataFlowNode::get_for_lvar(
+                            VarId(id),
+                            statements_analyzer.get_hpos(lhs_var_pos),
+                        ),
+                        Some(ExprId::InstanceProperty(lhs_expr, name_pos, rhs_expr)) => {
+                            DataFlowNode::get_for_local_property_fetch(lhs_expr, rhs_expr, name_pos)
+                        }
+                        None => DataFlowNode::get_for_instance_method_call(
+                            statements_analyzer.get_hpos(lhs_var_pos),
+                        ),
+                    };
 
                     let this_before_method_node = DataFlowNode::get_for_this_before_method(
                         declaring_method_id,
@@ -383,7 +407,9 @@ fn add_dataflow(
 
                     context_type_inner.parent_nodes = vec![var_node.clone()];
 
-                    *context_type = Rc::new(context_type_inner);
+                    context
+                        .vars_in_scope
+                        .insert(lhs_var_id.clone(), Rc::new(context_type_inner));
 
                     data_flow_graph.add_node(var_node);
                     data_flow_graph.add_node(this_before_method_node);

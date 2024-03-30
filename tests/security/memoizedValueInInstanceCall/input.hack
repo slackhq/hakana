@@ -8,6 +8,8 @@ class A {
     }
 }
 
-$a = new A();
-$a->getPrevious($_GET["a"]);
-echo $a->getPrevious("foo");
+function foo(): void {
+    $a = new A();
+    $a->getPrevious($_GET["a"]);
+    echo $a->getPrevious("foo");
+}
