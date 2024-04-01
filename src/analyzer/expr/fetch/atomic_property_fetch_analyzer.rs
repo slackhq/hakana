@@ -407,35 +407,13 @@ fn add_property_dataflow(
                 .get(&(lhs_pos.start_offset() as u32, lhs_pos.end_offset() as u32));
 
             if let Some(var_type) = var_type {
-                let (var_node, property_node) =
-                    if let Some(var_id) = statements_analyzer.get_interner().get(lhs_var_id) {
-                        (
-                            DataFlowNode::get_for_lvar(
-                                VarId(var_id),
-                                statements_analyzer.get_hpos(lhs_pos),
-                            ),
-                            DataFlowNode::get_for_local_property_fetch(
-                                VarId(var_id),
-                                property_id.1,
-                                statements_analyzer.get_hpos(name_pos),
-                            ),
-                        )
-                    } else {
-                        (
-                            DataFlowNode::get_for_local_string(
-                                lhs_var_id.clone(),
-                                statements_analyzer.get_hpos(lhs_pos),
-                            ),
-                            DataFlowNode::get_for_local_string(
-                                format!(
-                                    "{}->{}",
-                                    lhs_var_id,
-                                    statements_analyzer.get_interner().lookup(&property_id.1)
-                                ),
-                                statements_analyzer.get_hpos(name_pos),
-                            ),
-                        )
-                    };
+                let (var_node, property_node) = get_nodes_for_property_fetch(
+                    statements_analyzer,
+                    lhs_var_id,
+                    lhs_pos,
+                    property_id,
+                    name_pos,
+                );
 
                 analysis_data.data_flow_graph.add_node(var_node.clone());
 
@@ -490,6 +468,42 @@ fn add_property_dataflow(
     stmt_type.parent_nodes.push(localized_property_node.clone());
 
     stmt_type
+}
+
+pub(crate) fn get_nodes_for_property_fetch(
+    statements_analyzer: &StatementsAnalyzer<'_>,
+    lhs_var_id: &String,
+    lhs_pos: &Pos,
+    property_id: &(StrId, StrId),
+    name_pos: &Pos,
+) -> (DataFlowNode, DataFlowNode) {
+    let (var_node, property_node) =
+        if let Some(var_id) = statements_analyzer.get_interner().get(lhs_var_id) {
+            (
+                DataFlowNode::get_for_lvar(VarId(var_id), statements_analyzer.get_hpos(lhs_pos)),
+                DataFlowNode::get_for_local_property_fetch(
+                    VarId(var_id),
+                    property_id.1,
+                    statements_analyzer.get_hpos(name_pos),
+                ),
+            )
+        } else {
+            (
+                DataFlowNode::get_for_local_string(
+                    lhs_var_id.clone(),
+                    statements_analyzer.get_hpos(lhs_pos),
+                ),
+                DataFlowNode::get_for_local_string(
+                    format!(
+                        "{}->{}",
+                        lhs_var_id,
+                        statements_analyzer.get_interner().lookup(&property_id.1)
+                    ),
+                    statements_analyzer.get_hpos(name_pos),
+                ),
+            )
+        };
+    (var_node, property_node)
 }
 
 pub(crate) fn add_unspecialized_property_fetch_dataflow(

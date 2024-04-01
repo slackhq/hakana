@@ -321,21 +321,20 @@ pub(crate) fn analyze(
                 );
 
                 if let Some(expr_var_id) = second_arg_var_id {
-                    analysis_data.if_true_assertions.insert(
-                        (pos.start_offset() as u32, pos.end_offset() as u32),
-                        FxHashMap::from_iter([(
-                            "hakana taints".to_string(),
-                            vec![Assertion::RemoveTaints(
-                                VarId(
-                                    statements_analyzer
-                                        .get_interner()
-                                        .get(&expr_var_id)
-                                        .unwrap(),
-                                ),
-                                SinkType::user_controllable_taints(),
-                            )],
-                        )]),
-                    );
+                    if let Some(expr_var_interned_id) =
+                        statements_analyzer.get_interner().get(&expr_var_id)
+                    {
+                        analysis_data.if_true_assertions.insert(
+                            (pos.start_offset() as u32, pos.end_offset() as u32),
+                            FxHashMap::from_iter([(
+                                "hakana taints".to_string(),
+                                vec![Assertion::RemoveTaints(
+                                    VarId(expr_var_interned_id),
+                                    SinkType::user_controllable_taints(),
+                                )],
+                            )]),
+                        );
+                    }
                 }
             }
         }
@@ -361,25 +360,24 @@ pub(crate) fn analyze(
                     {
                         if let Some(str) = second_arg_type.get_single_literal_string_value() {
                             if str.len() > 1 && str != "http://" && str != "https://" {
-                                analysis_data.if_true_assertions.insert(
-                                    (pos.start_offset() as u32, pos.end_offset() as u32),
-                                    FxHashMap::from_iter([(
-                                        "hakana taints".to_string(),
-                                        vec![Assertion::RemoveTaints(
-                                            VarId(
-                                                statements_analyzer
-                                                    .get_interner()
-                                                    .get(&expr_var_id)
-                                                    .unwrap(),
-                                            ),
-                                            vec![
-                                                SinkType::HtmlAttributeUri,
-                                                SinkType::CurlUri,
-                                                SinkType::RedirectUri,
-                                            ],
-                                        )],
-                                    )]),
-                                );
+                                if let Some(id) =
+                                    statements_analyzer.get_interner().get(&expr_var_id)
+                                {
+                                    analysis_data.if_true_assertions.insert(
+                                        (pos.start_offset() as u32, pos.end_offset() as u32),
+                                        FxHashMap::from_iter([(
+                                            "hakana taints".to_string(),
+                                            vec![Assertion::RemoveTaints(
+                                                VarId(id),
+                                                vec![
+                                                    SinkType::HtmlAttributeUri,
+                                                    SinkType::CurlUri,
+                                                    SinkType::RedirectUri,
+                                                ],
+                                            )],
+                                        )]),
+                                    );
+                                }
                             }
                         }
                     }
@@ -432,21 +430,20 @@ pub(crate) fn analyze(
                             }
 
                             if !hashes_to_remove.is_empty() {
-                                analysis_data.if_true_assertions.insert(
-                                    (pos.start_offset() as u32, pos.end_offset() as u32),
-                                    FxHashMap::from_iter([(
-                                        "hakana taints".to_string(),
-                                        vec![Assertion::RemoveTaints(
-                                            VarId(
-                                                statements_analyzer
-                                                    .get_interner()
-                                                    .get(&expr_var_id)
-                                                    .unwrap(),
-                                            ),
-                                            hashes_to_remove,
-                                        )],
-                                    )]),
-                                );
+                                if let Some(id) =
+                                    statements_analyzer.get_interner().get(&expr_var_id)
+                                {
+                                    analysis_data.if_true_assertions.insert(
+                                        (pos.start_offset() as u32, pos.end_offset() as u32),
+                                        FxHashMap::from_iter([(
+                                            "hakana taints".to_string(),
+                                            vec![Assertion::RemoveTaints(
+                                                VarId(id),
+                                                hashes_to_remove,
+                                            )],
+                                        )]),
+                                    );
+                                }
                             }
                         }
                     }

@@ -246,10 +246,16 @@ pub(crate) fn reconcile_keyed_types(
                 }
 
                 if has_scalar_restriction {
-                    let scalar_check_node = DataFlowNode::get_for_lvar(
-                        VarId(statements_analyzer.get_interner().get(key).unwrap()),
-                        statements_analyzer.get_hpos(pos),
-                    );
+                    let scalar_check_node = if let Some(var_id) =
+                        statements_analyzer.get_interner().get(key)
+                    {
+                        DataFlowNode::get_for_lvar(VarId(var_id), statements_analyzer.get_hpos(pos))
+                    } else {
+                        DataFlowNode::get_for_local_string(
+                            key.clone(),
+                            statements_analyzer.get_hpos(pos),
+                        )
+                    };
 
                     for parent_node in &before_adjustment.parent_nodes {
                         analysis_data.data_flow_graph.add_path(

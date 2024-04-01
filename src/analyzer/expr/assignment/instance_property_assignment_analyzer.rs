@@ -7,7 +7,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     t_atomic::TAtomic,
     t_union::TUnion,
-    VarId, EFFECT_WRITE_PROPS,
+    EFFECT_WRITE_PROPS,
 };
 use hakana_str::StrId;
 use hakana_type::{
@@ -23,8 +23,11 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     expr::{
-        call::argument_analyzer::get_removed_taints_in_comments, expression_identifier,
-        fetch::atomic_property_fetch_analyzer::localize_property_type,
+        call::argument_analyzer::get_removed_taints_in_comments,
+        expression_identifier,
+        fetch::atomic_property_fetch_analyzer::{
+            get_nodes_for_property_fetch, localize_property_type,
+        },
     },
     function_analysis_data::FunctionAnalysisData,
     stmt_analyzer::AnalysisError,
@@ -649,16 +652,16 @@ fn add_instance_property_assignment_dataflow(
     assignment_value_type: &TUnion,
     context: &mut ScopeContext,
 ) {
-    let var_node = DataFlowNode::get_for_lvar(
-        VarId(statements_analyzer.get_interner().get(&lhs_var_id).unwrap()),
-        statements_analyzer.get_hpos(var_pos),
+    let (var_node, property_node) = get_nodes_for_property_fetch(
+        statements_analyzer,
+        &lhs_var_id,
+        var_pos,
+        property_id,
+        name_pos,
     );
+
     analysis_data.data_flow_graph.add_node(var_node.clone());
-    let property_node = DataFlowNode::get_for_local_property_fetch(
-        VarId(statements_analyzer.get_interner().get(&lhs_var_id).unwrap()),
-        property_id.1,
-        statements_analyzer.get_hpos(name_pos),
-    );
+
     analysis_data
         .data_flow_graph
         .add_node(property_node.clone());
