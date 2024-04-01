@@ -400,9 +400,7 @@ fn add_array_assignment_dataflow(
         if let Some(var_id) = statements_analyzer.get_interner().get(&var_var_id) {
             DataFlowNode::get_for_lvar(VarId(var_id), statements_analyzer.get_hpos(expr_var_pos))
         } else {
-            DataFlowNode::get_for_array_assignment(
-                statements_analyzer.get_hpos(expr_var_pos),
-            )
+            DataFlowNode::get_for_array_assignment(statements_analyzer.get_hpos(expr_var_pos))
         }
     } else {
         DataFlowNode::get_for_array_assignment(statements_analyzer.get_hpos(expr_var_pos))
@@ -804,7 +802,12 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
                     )),
                 ),
                 &array_expr_offset_atomic_types,
-                context.inside_general_use,
+                context.inside_general_use
+                    || if let Some(root_var_id) = &root_var_id {
+                        root_var_id.starts_with("$_")
+                    } else {
+                        false
+                    },
             );
         } else {
             analysis_data.set_expr_type(array_expr.2, array_expr_type.clone());
