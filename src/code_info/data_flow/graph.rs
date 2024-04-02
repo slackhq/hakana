@@ -150,69 +150,61 @@ impl DataFlowGraph {
     }
 
     /// Returns a set of nodes that are origin nodes for the given assignment
-    pub fn get_origin_nodes(
+    pub fn get_origin_node_ids(
         &self,
-        assignment_node: &DataFlowNode,
+        assignment_node_id: &DataFlowNodeId,
         ignore_paths: Vec<PathKind>,
-    ) -> Vec<DataFlowNode> {
+    ) -> Vec<DataFlowNodeId> {
         let mut visited_child_ids = FxHashSet::default();
 
         let mut origin_nodes = vec![];
 
-        let mut child_nodes = vec![assignment_node.clone()];
+        let mut child_node_ids = vec![assignment_node_id.clone()];
 
         for _ in 0..50 {
             let mut all_parent_nodes = vec![];
 
-            for child_node in child_nodes {
-                if visited_child_ids.contains(&child_node.id) {
+            for child_node_id in child_node_ids {
+                if visited_child_ids.contains(&child_node_id) {
                     continue;
                 }
 
-                visited_child_ids.insert(child_node.id.clone());
+                visited_child_ids.insert(child_node_id.clone());
 
                 let mut new_parent_nodes = FxHashSet::default();
                 let mut has_visited_a_parent_already = false;
 
-                if let Some(backward_edges) = self.backward_edges.get(&child_node.id) {
+                if let Some(backward_edges) = self.backward_edges.get(&child_node_id) {
                     for from_id in backward_edges {
                         if let Some(forward_flows) = self.forward_edges.get(from_id) {
-                            if let Some(path) = forward_flows.get(&child_node.id) {
+                            if let Some(path) = forward_flows.get(&child_node_id) {
                                 if ignore_paths.contains(&path.kind) {
                                     break;
                                 }
                             }
                         }
 
-                        if let Some(node) = self.vertices.get(from_id) {
-                            if !visited_child_ids.contains(from_id) {
-                                new_parent_nodes.insert(node.clone());
-                            } else {
-                                has_visited_a_parent_already = true;
-                            }
-                        } else if let Some(node) = self.sources.get(from_id) {
-                            if !visited_child_ids.contains(from_id) {
-                                new_parent_nodes.insert(node.clone());
-                            } else {
-                                has_visited_a_parent_already = true;
-                            }
+                        if !visited_child_ids.contains(from_id) {
+                            new_parent_nodes.insert(from_id.clone());
+                        } else {
+                            has_visited_a_parent_already = true;
                         }
                     }
                 }
 
                 if new_parent_nodes.is_empty() {
                     if !has_visited_a_parent_already {
-                        origin_nodes.push(child_node);
+                        origin_nodes.push(child_node_id);
                     }
                 } else {
-                    new_parent_nodes.retain(|f| !visited_child_ids.contains(&f.id));
+                    new_parent_nodes.retain(|f| !visited_child_ids.contains(f));
                     all_parent_nodes.extend(new_parent_nodes);
                 }
             }
 
-            child_nodes = all_parent_nodes;
+            child_node_ids = all_parent_nodes;
 
-            if child_nodes.is_empty() {
+            if child_node_ids.is_empty() {
                 break;
             }
         }
@@ -220,17 +212,30 @@ impl DataFlowGraph {
         origin_nodes
     }
 
-    pub fn add_mixed_data(&mut self, assignment_node: &DataFlowNode, pos: &Pos) {
-        let origin_nodes = self.get_origin_nodes(assignment_node, vec![]);
+    pub fn get_node(&self, id: &DataFlowNodeId) -> Option<&DataFlowNode> {
+        if let Some(node) = self.vertices.get(id) {
+            Some(node)
+        } else if let Some(node) = self.sources.get(id) {
+            Some(node)
+        } else if let Some(node) = self.sinks.get(id) {
+            Some(node)
+        } else {
+            None
+        }
+    }
 
-        for origin_node in origin_nodes {
-            if let DataFlowNodeId::CallTo(..) | DataFlowNodeId::SpecializedCallTo(..) = origin_node.id
+    pub fn add_mixed_data(&mut self, assignment_node: &DataFlowNode, pos: &Pos) {
+        let origin_node_ids = self.get_origin_node_ids(&assignment_node.id, vec![]);
+
+        for origin_node_id in origin_node_ids {
+            if let DataFlowNodeId::CallTo(..) | DataFlowNodeId::SpecializedCallTo(..) =
+                origin_node_id
             {
-                if let Some(entry) = self.mixed_source_counts.get_mut(&origin_node.id) {
+                if let Some(entry) = self.mixed_source_counts.get_mut(&origin_node_id) {
                     entry.insert(pos.to_string());
                 } else {
                     self.mixed_source_counts.insert(
-                        origin_node.id.clone(),
+                        origin_node_id.clone(),
                         FxHashSet::from_iter([pos.to_string()]),
                     );
                 }

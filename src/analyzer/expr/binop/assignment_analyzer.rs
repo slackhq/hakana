@@ -189,30 +189,34 @@ pub(crate) fn analyze(
             && context.for_loop_init_bounds.0 > 0
             && var_id != "$_"
         {
-            let mut origin_nodes = vec![];
+            let mut origin_node_ids = vec![];
 
             for parent_node in &existing_var_type.parent_nodes {
-                origin_nodes.extend(
+                origin_node_ids.extend(
                     analysis_data
                         .data_flow_graph
-                        .get_origin_nodes(parent_node, vec![]),
+                        .get_origin_node_ids(&parent_node.id, vec![]),
                 );
             }
 
-            origin_nodes.retain(|n| match &n.kind {
-                DataFlowNodeKind::ForLoopInit {
-                    var_name,
-                    start_offset,
-                    end_offset,
-                } => {
-                    var_name == var_id
-                        && (pos.start_offset() as u32) > *start_offset
-                        && (pos.end_offset() as u32) < *end_offset
+            origin_node_ids.retain(|id| {
+                let node = &analysis_data.data_flow_graph.get_node(id).unwrap();
+
+                match &node.kind {
+                    DataFlowNodeKind::ForLoopInit {
+                        var_name,
+                        start_offset,
+                        end_offset,
+                    } => {
+                        var_name == var_id
+                            && (pos.start_offset() as u32) > *start_offset
+                            && (pos.end_offset() as u32) < *end_offset
+                    }
+                    _ => false,
                 }
-                _ => false,
             });
 
-            if !origin_nodes.is_empty() {
+            if !origin_node_ids.is_empty() {
                 analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::ForLoopInvalidation,
