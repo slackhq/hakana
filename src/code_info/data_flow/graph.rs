@@ -49,18 +49,18 @@ impl DataFlowGraph {
     pub fn add_node(&mut self, node: DataFlowNode) {
         match &node.kind {
             DataFlowNodeKind::Vertex {
-                specialization_key, ..
+                is_specialized, ..
             } => {
                 if let GraphKind::WholeProgram(_) = &self.kind {
-                    if let Some(specialization_key) = &specialization_key {
-                        let unspecialized_id = node.id.unspecialize();
+                    if *is_specialized {
+                        let (unspecialized_id, specialization_key) = node.id.unspecialize();
                         self.specializations
                             .entry(unspecialized_id.clone())
                             .or_default()
-                            .insert(*specialization_key);
+                            .insert(specialization_key);
 
                         self.specialized_calls
-                            .entry(*specialization_key)
+                            .entry(specialization_key)
                             .or_default()
                             .insert(unspecialized_id.clone());
                     }

@@ -8,7 +8,7 @@ use hakana_str::Interner;
 use hakana_str::StrId;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use std::sync::Arc;
+use std::rc::Rc;
 use std::time::Instant;
 
 use crate::config::Config;
@@ -31,7 +31,7 @@ pub fn find_tainted_data(
     let sources = graph
         .sources
         .values()
-        .map(|v| Arc::new(TaintedNode::from(v)))
+        .map(|v| Rc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
     logger.log_sync("Security analysis: detecting paths");
@@ -76,7 +76,7 @@ pub fn find_connections(
         .sources
         .iter()
         .filter(|(_, v)| matches!(v.kind, DataFlowNodeKind::DataSource { .. }))
-        .map(|(_, v)| Arc::new(TaintedNode::from(v)))
+        .map(|(_, v)| Rc::new(TaintedNode::from(v)))
         .collect::<Vec<_>>();
 
     logger.log_sync(&format!(" - initial sources count: {}", sources.len()));
@@ -106,7 +106,7 @@ pub fn find_connections(
 
 #[inline]
 fn find_paths_to_sinks(
-    mut sources: Vec<Arc<TaintedNode>>,
+    mut sources: Vec<Rc<TaintedNode>>,
     graph: &DataFlowGraph,
     config: &Config,
     logger: &Logger,
@@ -208,31 +208,28 @@ fn find_paths_to_sinks(
     }
 }
 
-fn get_specialized_sources(
-    graph: &DataFlowGraph,
-    source: Arc<TaintedNode>,
-) -> Vec<Arc<TaintedNode>> {
+fn get_specialized_sources(graph: &DataFlowGraph, source: Rc<TaintedNode>) -> Vec<Rc<TaintedNode>> {
     let mut generated_sources = vec![];
 
     if graph.forward_edges.contains_key(&source.id) {
         generated_sources.push(source.clone());
     }
 
-    if let Some(specialization_key) = &source.specialization_key {
-        let unspecialized_id = source.id.unspecialize();
+    if source.is_specialized {
+        let (unspecialized_id, specialization_key) = source.id.unspecialize();
         if graph.forward_edges.contains_key(&unspecialized_id) {
             let mut new_source = (*source).clone();
 
             new_source.id = unspecialized_id;
-            new_source.specialization_key = None;
+            new_source.is_specialized = false;
 
             new_source
                 .specialized_calls
-                .entry(*specialization_key)
+                .entry(specialization_key)
                 .or_default()
                 .insert(new_source.id.clone());
 
-            generated_sources.push(Arc::new(new_source));
+            generated_sources.push(Rc::new(new_source));
         }
     } else if let Some(specializations) = graph.specializations.get(&source.id) {
         for specialization in specializations {
@@ -245,10 +242,10 @@ fn get_specialized_sources(
                     let mut new_source = (*source).clone();
                     new_source.id = new_id;
 
-                    new_source.specialization_key = None;
+                    new_source.is_specialized = false;
                     new_source.specialized_calls.remove(specialization);
 
-                    generated_sources.push(Arc::new(new_source));
+                    generated_sources.push(Rc::new(new_source));
                 }
             }
         }
@@ -260,8 +257,8 @@ fn get_specialized_sources(
                 if graph.forward_edges.contains_key(&new_forward_edge_id) {
                     let mut new_source = (*source).clone();
                     new_source.id = new_forward_edge_id;
-                    new_source.specialization_key = None;
-                    generated_sources.push(Arc::new(new_source));
+                    new_source.is_specialized = false;
+                    generated_sources.push(Rc::new(new_source));
                 }
             }
         }
@@ -273,7 +270,7 @@ fn get_specialized_sources(
 fn get_child_nodes(
     graph: &DataFlowGraph,
     config: &Config,
-    generated_source: &Arc<TaintedNode>,
+    generated_source: &Rc<TaintedNode>,
     source_taints: &Vec<SinkType>,
     seen_sources: &mut FxHashSet<String>,
     file_nodes: &mut FxHashMap<FilePath, usize>,
@@ -281,7 +278,7 @@ fn get_child_nodes(
     is_last: bool,
     match_sinks: bool,
     interner: &Interner,
-) -> Vec<Arc<TaintedNode>> {
+) -> Vec<Rc<TaintedNode>> {
     let mut new_child_nodes = Vec::new();
 
     if let Some(forward_edges) = graph.forward_edges.get(&generated_source.id) {
@@ -460,7 +457,7 @@ fn get_child_nodes(
             seen_sources.insert(source_id);
 
             if !is_last {
-                new_child_nodes.push(Arc::new(new_destination));
+                new_child_nodes.push(Rc::new(new_destination));
             }
         }
     }

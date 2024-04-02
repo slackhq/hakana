@@ -331,21 +331,31 @@ impl DataFlowNodeId {
         }
     }
 
-    pub fn unspecialize(&self) -> DataFlowNodeId {
+    pub fn unspecialize(&self) -> (DataFlowNodeId, (FilePath, u32)) {
         match self {
-            DataFlowNodeId::SpecializedCallTo(id, ..) => DataFlowNodeId::CallTo(*id),
-            DataFlowNodeId::SpecializedFunctionLikeArg(functionlike_id, arg, ..) => {
-                DataFlowNodeId::FunctionLikeArg(*functionlike_id, *arg)
+            DataFlowNodeId::SpecializedCallTo(id, file_path, offset) => {
+                (DataFlowNodeId::CallTo(*id), (*file_path, *offset))
             }
-            DataFlowNodeId::SpecializedFunctionLikeOut(functionlike_id, arg, ..) => {
-                DataFlowNodeId::FunctionLikeOut(*functionlike_id, *arg)
+            DataFlowNodeId::SpecializedFunctionLikeArg(functionlike_id, arg, file_path, offset) => {
+                (
+                    DataFlowNodeId::FunctionLikeArg(*functionlike_id, *arg),
+                    (*file_path, *offset),
+                )
             }
-            DataFlowNodeId::SpecializedThisBeforeMethod(method_id, ..) => {
-                DataFlowNodeId::ThisBeforeMethod(*method_id)
+            DataFlowNodeId::SpecializedFunctionLikeOut(functionlike_id, arg, file_path, offset) => {
+                (
+                    DataFlowNodeId::FunctionLikeOut(*functionlike_id, *arg),
+                    (*file_path, *offset),
+                )
             }
-            DataFlowNodeId::SpecializedThisAfterMethod(method_id, ..) => {
-                DataFlowNodeId::ThisAfterMethod(*method_id)
-            }
+            DataFlowNodeId::SpecializedThisBeforeMethod(method_id, file_path, offset) => (
+                DataFlowNodeId::ThisBeforeMethod(*method_id),
+                (*file_path, *offset),
+            ),
+            DataFlowNodeId::SpecializedThisAfterMethod(method_id, file_path, offset) => (
+                DataFlowNodeId::ThisAfterMethod(*method_id),
+                (*file_path, *offset),
+            ),
             _ => {
                 panic!()
             }
@@ -369,7 +379,7 @@ impl PartialEq for DataFlowNode {
 pub enum DataFlowNodeKind {
     Vertex {
         pos: Option<HPos>,
-        specialization_key: Option<(FilePath, u32)>,
+        is_specialized: bool,
     },
     VariableUseSource {
         pos: HPos,
@@ -415,12 +425,12 @@ impl DataFlowNode {
     ) -> Self {
         let arg_id = DataFlowNodeId::FunctionLikeArg(*functionlike_id, argument_offset as u8);
 
-        let mut specialization_key = None;
+        let mut is_specialized = false;
 
         let mut id = arg_id.clone();
 
         if let Some(pos) = pos {
-            specialization_key = Some((pos.file_path, pos.start_offset));
+            is_specialized = true;
             id = DataFlowNodeId::SpecializedFunctionLikeArg(
                 *functionlike_id,
                 argument_offset as u8,
@@ -433,7 +443,7 @@ impl DataFlowNode {
             id,
             kind: DataFlowNodeKind::Vertex {
                 pos: arg_location,
-                specialization_key,
+                is_specialized,
             },
         }
     }
@@ -443,7 +453,7 @@ impl DataFlowNode {
             id: DataFlowNodeId::Property(property_id.0, property_id.1),
             kind: DataFlowNodeKind::Vertex {
                 pos: None,
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -462,7 +472,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -475,10 +485,10 @@ impl DataFlowNode {
     ) -> Self {
         let mut arg_id = DataFlowNodeId::FunctionLikeOut(*functionlike_id, argument_offset as u8);
 
-        let mut specialization_key = None;
+        let mut is_specialized = false;
 
         if let Some(pos) = pos {
-            specialization_key = Some((pos.file_path, pos.start_offset));
+            is_specialized = true;
             arg_id = DataFlowNodeId::SpecializedFunctionLikeOut(
                 *functionlike_id,
                 argument_offset as u8,
@@ -491,7 +501,7 @@ impl DataFlowNode {
             id: arg_id,
             kind: DataFlowNodeKind::Vertex {
                 pos: arg_location,
-                specialization_key,
+                is_specialized,
             },
         }
     }
@@ -503,11 +513,11 @@ impl DataFlowNode {
     ) -> Self {
         let label = DataFlowNodeId::ThisBeforeMethod(*method_id);
 
-        let mut specialization_key = None;
+        let mut is_specialized = false;
         let mut id = label.clone();
 
         if let Some(pos) = pos {
-            specialization_key = Some((pos.file_path, pos.start_offset));
+            is_specialized = true;
             id = DataFlowNodeId::SpecializedThisBeforeMethod(
                 *method_id,
                 pos.file_path,
@@ -519,7 +529,7 @@ impl DataFlowNode {
             id,
             kind: DataFlowNodeKind::Vertex {
                 pos: method_location,
-                specialization_key,
+                is_specialized,
             },
         }
     }
@@ -531,11 +541,11 @@ impl DataFlowNode {
     ) -> Self {
         let label = DataFlowNodeId::ThisAfterMethod(*method_id);
 
-        let mut specialization_key = None;
+        let mut is_specialized = false;
         let mut id = label.clone();
 
         if let Some(pos) = pos {
-            specialization_key = Some((pos.file_path, pos.start_offset));
+            is_specialized = true;
             id = DataFlowNodeId::SpecializedThisAfterMethod(
                 *method_id,
                 pos.file_path,
@@ -547,7 +557,7 @@ impl DataFlowNode {
             id,
             kind: DataFlowNodeKind::Vertex {
                 pos: method_location,
-                specialization_key,
+                is_specialized,
             },
         }
     }
@@ -562,7 +572,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -576,7 +586,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -590,7 +600,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -605,7 +615,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -620,7 +630,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -634,7 +644,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -653,7 +663,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -672,7 +682,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -682,7 +692,7 @@ impl DataFlowNode {
             id: DataFlowNodeId::Symbol(*type_name),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(def_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -699,7 +709,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -713,7 +723,7 @@ impl DataFlowNode {
             ),
             kind: DataFlowNodeKind::Vertex {
                 pos: Some(assignment_location),
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }
@@ -774,15 +784,12 @@ impl DataFlowNode {
         pos: Option<HPos>,
         specialization_location: Option<HPos>,
     ) -> Self {
-        let mut specialization_key = None;
+        let mut is_specialized = false;
 
         let mut id = DataFlowNodeId::CallTo(*functionlike_id);
 
         if let Some(specialization_location) = specialization_location {
-            specialization_key = Some((
-                specialization_location.file_path,
-                specialization_location.start_offset,
-            ));
+            is_specialized = true;
 
             id = DataFlowNodeId::SpecializedCallTo(
                 *functionlike_id,
@@ -795,7 +802,7 @@ impl DataFlowNode {
             id,
             kind: DataFlowNodeKind::Vertex {
                 pos,
-                specialization_key,
+                is_specialized,
             },
         }
     }
@@ -808,7 +815,7 @@ impl DataFlowNode {
             id: DataFlowNodeId::ReferenceTo(*functionlike_id),
             kind: DataFlowNodeKind::Vertex {
                 pos,
-                specialization_key: None,
+                is_specialized: false,
             },
         }
     }

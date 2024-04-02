@@ -4,7 +4,7 @@ use super::{
 };
 
 use core::panic;
-use std::{collections::BTreeSet, sync::Arc};
+use std::{collections::BTreeSet, rc::Rc};
 
 use hakana_str::Interner;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -18,11 +18,11 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaintedNode {
     pub id: DataFlowNodeId,
-    pub pos: Option<Arc<HPos>>,
-    pub specialization_key: Option<(FilePath, u32)>,
+    pub pos: Option<Rc<HPos>>,
+    pub is_specialized: bool,
     pub taint_sources: Vec<SourceType>,
     pub taint_sinks: Vec<SinkType>,
-    pub previous: Option<Arc<TaintedNode>>,
+    pub previous: Option<Rc<TaintedNode>>,
     pub path_types: Vec<PathKind>,
     pub specialized_calls: FxHashMap<(FilePath, u32), FxHashSet<DataFlowNodeId>>,
 }
@@ -73,12 +73,12 @@ impl TaintedNode {
         match &node.kind {
             DataFlowNodeKind::Vertex {
                 pos,
-                specialization_key,
+                is_specialized,
                 ..
             } => TaintedNode {
                 id: node.id.clone(),
-                pos: pos.as_ref().map(|p| Arc::new(*p)),
-                specialization_key: *specialization_key,
+                pos: pos.as_ref().map(|p| Rc::new(*p)),
+                is_specialized: *is_specialized,
                 taint_sinks: vec![],
                 previous: None,
                 path_types: Vec::new(),
@@ -94,8 +94,8 @@ impl TaintedNode {
 
                 TaintedNode {
                     id: node.id.clone(),
-                    pos: pos.as_ref().map(|p| Arc::new(*p)),
-                    specialization_key: None,
+                    pos: pos.as_ref().map(|p| Rc::new(*p)),
+                    is_specialized: false,
                     taint_sinks: sinks,
                     previous: None,
                     path_types: Vec::new(),
@@ -105,8 +105,8 @@ impl TaintedNode {
             }
             DataFlowNodeKind::TaintSink { pos, types, .. } => TaintedNode {
                 id: node.id.clone(),
-                pos: pos.as_ref().map(|p| Arc::new(*p)),
-                specialization_key: None,
+                pos: pos.as_ref().map(|p| Rc::new(*p)),
+                is_specialized: false,
                 taint_sinks: types.clone(),
                 taint_sources: vec![],
                 previous: None,
@@ -115,8 +115,8 @@ impl TaintedNode {
             },
             DataFlowNodeKind::DataSource { pos, target_id, .. } => TaintedNode {
                 id: node.id.clone(),
-                pos: Some(Arc::new(*pos)),
-                specialization_key: None,
+                pos: Some(Rc::new(*pos)),
+                is_specialized: false,
                 taint_sinks: vec![SinkType::Custom(target_id.clone())],
                 previous: None,
                 path_types: Vec::new(),
