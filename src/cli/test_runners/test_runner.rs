@@ -181,6 +181,8 @@ impl TestRunner {
         } else if dir.contains("/remove-unused-fixmes/") {
             analysis_config.remove_fixmes = true;
             analysis_config.find_unused_expressions = true;
+        } else if dir.contains("/migration-candidates/") {
+            analysis_config.in_migration = true;
         }
         analysis_config
     }
