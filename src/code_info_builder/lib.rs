@@ -37,6 +37,7 @@ struct Context {
     function_name: Option<StrId>,
     member_name: Option<StrId>,
     has_yield: bool,
+    has_static_field_access: bool,
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
 }
@@ -473,6 +474,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c.has_yield = false;
         }
 
+        if !c.has_static_field_access && m.static_ {
+            self.codebase
+                .functionlike_infos
+                .get_mut(&(*c.classlike_name.as_ref().unwrap(), method_name))
+                .unwrap()
+                .specialize_call = true;
+            c.has_static_field_access = false;
+        }
+
         result
     }
 
@@ -523,6 +533,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         let result = f.recurse(c, self);
 
         c.has_yield = false;
+        c.has_static_field_access = false;
 
         c.function_name = None;
 
@@ -542,6 +553,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             }
             aast::Expr_::Efun(f) => {
                 fun = Some(&f.fun);
+            }
+            aast::Expr_::ClassGet(boxed) => {
+                if let ast_defs::PropOrMethod::IsProp = &boxed.2 {
+                    c.has_static_field_access = true;
+                }
             }
             _ => (),
         }
@@ -809,6 +825,7 @@ pub fn collect_info_for_aast(
         function_name: None,
         member_name: None,
         has_yield: false,
+        has_static_field_access: false,
         uses_position: None,
         namespace_position: None,
     };

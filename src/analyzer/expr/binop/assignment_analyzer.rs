@@ -200,19 +200,21 @@ pub(crate) fn analyze(
             }
 
             origin_node_ids.retain(|id| {
-                let node = &analysis_data.data_flow_graph.get_node(id).unwrap();
-
-                match &node.kind {
-                    DataFlowNodeKind::ForLoopInit {
-                        var_name,
-                        start_offset,
-                        end_offset,
-                    } => {
-                        var_name == var_id
-                            && (pos.start_offset() as u32) > *start_offset
-                            && (pos.end_offset() as u32) < *end_offset
+                if let Some(node) = analysis_data.data_flow_graph.get_node(id) {
+                    match &node.kind {
+                        DataFlowNodeKind::ForLoopInit {
+                            var_name,
+                            start_offset,
+                            end_offset,
+                        } => {
+                            var_name == var_id
+                                && (pos.start_offset() as u32) > *start_offset
+                                && (pos.end_offset() as u32) < *end_offset
+                        }
+                        _ => false,
                     }
-                    _ => false,
+                } else {
+                    false
                 }
             });
 
