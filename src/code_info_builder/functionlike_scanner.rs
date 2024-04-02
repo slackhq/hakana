@@ -77,7 +77,7 @@ pub(crate) fn scan_method(
         user_defined,
     );
 
-    functionlike_info.is_production_code = file_source.is_production_code;
+    functionlike_info.is_production_code &= file_source.is_production_code;
 
     if classlike_name == StrId::BUILTIN_ENUM
         && (method_name == StrId::COERCE
@@ -362,6 +362,9 @@ pub(crate) fn get_functionlike(
             StrId::HAKANA_SECURITY_ANALYSIS_IGNORE_PATH => {
                 functionlike_info.ignore_taint_path = true;
             }
+            StrId::HAKANA_TEST_ONLY => {
+                functionlike_info.is_production_code = false;
+            }
             StrId::HAKANA_SECURITY_ANALYSIS_IGNORE_PATH_IF_TRUE => {
                 functionlike_info.ignore_taints_if_true = true;
             }
@@ -410,9 +413,7 @@ pub(crate) fn get_functionlike(
         functionlike_info.name_location = Some(HPos::new(name_pos, file_source.file_path));
     }
 
-    if !suppressed_issues.is_empty() {
-        functionlike_info.suppressed_issues = Some(suppressed_issues);
-    }
+    functionlike_info.suppressed_issues = suppressed_issues;
 
     functionlike_info.is_async = fun_kind.is_async();
     functionlike_info.effects = if let Some(contexts) = contexts {

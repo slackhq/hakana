@@ -734,9 +734,11 @@ pub fn is_contained_by(
                             if let Some(input_class_name) = input_class_name {
                                 return input_class_name == container_enum_name;
                             } else {
-                                let classlike_info =
-                                    codebase.classlike_infos.get(container_enum_name).unwrap();
-                                return classlike_info.constants.contains_key(input_member_name);
+                                if let Some(classlike_info) =
+                                    codebase.classlike_infos.get(container_enum_name)
+                                {
+                                    return classlike_info.constants.contains_key(input_member_name);
+                                }
                             }
                         } else {
                             return false;

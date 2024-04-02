@@ -277,11 +277,18 @@ pub fn scan_files(
             group_size = 1;
         }
 
-        let test_patterns = config
-            .test_files
-            .iter()
-            .map(|ignore_file| glob::Pattern::new(ignore_file).unwrap())
-            .collect::<Vec<_>>();
+        let mut test_patterns = vec![];
+
+        for ignore_file in &config.test_files {
+            match glob::Pattern::new(ignore_file) {
+                Ok(glob) => {
+                    test_patterns.push(glob);
+                }
+                Err(error) => {
+                    panic!("Parsing {} resulted in error {}", ignore_file, error);
+                }
+            }
+        }
 
         for (i, str_path) in files_to_scan.into_iter().enumerate() {
             let group = i % group_size;

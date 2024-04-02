@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     code_location::HPos, codebase_info::symbols::SymbolKind, functionlike_info::MetaStart,
-    t_atomic::TAtomic, t_union::TUnion, GenericParent,
+    issue::IssueKind, t_atomic::TAtomic, t_union::TUnion, GenericParent,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -202,6 +202,8 @@ pub struct ClassLikeInfo {
     pub namespace_position: Option<(usize, usize)>,
 
     pub is_production_code: bool,
+
+    pub suppressed_issues: Vec<(IssueKind, HPos)>,
 }
 
 impl ClassLikeInfo {
@@ -270,6 +272,7 @@ impl ClassLikeInfo {
             namespace_position: None,
             is_production_code: true,
             template_readonly: FxHashSet::default(),
+            suppressed_issues: vec![],
         }
     }
 }

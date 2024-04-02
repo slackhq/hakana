@@ -70,7 +70,7 @@ pub struct FunctionLikeInfo {
 
     pub is_populated: bool,
 
-    pub suppressed_issues: Option<Vec<(IssueKind, HPos)>>,
+    pub suppressed_issues: Vec<(IssueKind, HPos)>,
 
     pub deprecated: bool,
 
@@ -163,7 +163,7 @@ impl FunctionLikeInfo {
             return_type_location: None,
             is_populated: false,
             user_defined: false,
-            suppressed_issues: None,
+            suppressed_issues: vec![],
             deprecated: false,
             template_types: vec![],
             has_visitor_issues: false,

@@ -55,11 +55,13 @@ pub(crate) fn scan(
         start_column: definition_location.start_column,
     };
 
+    let mut suppressed_issues = vec![];
+
     adjust_location_from_comments(
         comments,
         &mut meta_start,
         file_source,
-        &mut vec![],
+        &mut suppressed_issues,
         all_custom_issues,
     );
 
@@ -81,7 +83,9 @@ pub(crate) fn scan(
     storage.uses_position = uses_position;
     storage.namespace_position = namespace_position;
 
-    storage.is_production_code = file_source.is_production_code;
+    storage.is_production_code &= file_source.is_production_code;
+
+    storage.suppressed_issues = suppressed_issues;
 
     if !classlike_node.tparams.is_empty() {
         let mut type_context = TypeResolutionContext {
@@ -580,6 +584,10 @@ pub(crate) fn scan(
 
         if name == StrId::HAKANA_IMMUTABLE {
             storage.immutable = true;
+        }
+
+        if name == StrId::HAKANA_TEST_ONLY {
+            storage.is_production_code = false;
         }
 
         storage.attributes.push(AttributeInfo { name });

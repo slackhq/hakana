@@ -336,7 +336,7 @@ impl SymbolReferences {
         referenced_symbols_and_members
     }
 
-    pub fn back_references(&self) -> FxHashMap<(StrId, StrId), FxHashSet<&(StrId, StrId)>> {
+    pub fn back_references(&self) -> FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>> {
         let mut referenced_symbols_and_members = FxHashMap::default();
 
         for (reference, symbol_references_to_symbols) in &self.symbol_references_to_symbols {
@@ -344,7 +344,7 @@ impl SymbolReferences {
                 let v = referenced_symbols_and_members
                     .entry(*r)
                     .or_insert_with(FxHashSet::default);
-                v.insert(reference);
+                v.insert(*reference);
             }
         }
 
@@ -355,7 +355,7 @@ impl SymbolReferences {
                 let v = referenced_symbols_and_members
                     .entry(*r)
                     .or_insert_with(FxHashSet::default);
-                v.insert(reference);
+                v.insert(*reference);
             }
         }
 
@@ -404,13 +404,18 @@ impl SymbolReferences {
         referenced_symbols_and_members
     }
 
-    pub fn get_referenced_overridden_class_members(&self) -> FxHashSet<&(StrId, StrId)> {
-        let mut referenced_class_members = FxHashSet::default();
+    pub fn get_referenced_overridden_class_members(
+        &self,
+    ) -> FxHashMap<(StrId, StrId), FxHashSet<(StrId, StrId)>> {
+        let mut referenced_class_members = FxHashMap::default();
 
-        for symbol_references_to_class_members in
-            self.symbol_references_to_overridden_members.values()
-        {
-            referenced_class_members.extend(symbol_references_to_class_members);
+        for (k, refs) in &self.symbol_references_to_overridden_members {
+            for r in refs {
+                let v = referenced_class_members
+                    .entry(*r)
+                    .or_insert_with(FxHashSet::default);
+                v.insert(*k);
+            }
         }
 
         referenced_class_members

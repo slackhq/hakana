@@ -249,6 +249,7 @@ fn main() -> Result<()> {
         "Hakana\\SecurityAnalysis\\Source",
         "Hakana\\SecurityAnalysis\\SpecializeCall",
         "Hakana\\SpecialTypes\\LiteralString",
+        "Hakana\\TestOnly",
         "NumberFormatter",
         "SimpleXMLElement",
         "XHPChild",

@@ -292,7 +292,7 @@ fn get_child_nodes(
                             generated_source.get_trace(interner, &config.root_dir)
                         );
                         new_issues.push(Issue::new(
-                            IssueKind::TaintedData(t.clone()),
+                            IssueKind::TaintedData(Box::new(t.clone())),
                             message,
                             **generated_source.pos.as_ref().unwrap(),
                             &None,
@@ -370,7 +370,7 @@ fn get_child_nodes(
                                 generated_source.get_trace(interner, &config.root_dir)
                             );
                             new_issues.push(Issue::new(
-                                IssueKind::TaintedData(t.clone()),
+                                IssueKind::TaintedData(Box::new(t.clone())),
                                 message,
                                 **generated_source.pos.as_ref().unwrap(),
                                 &None,
@@ -430,7 +430,7 @@ fn get_child_nodes(
                                             new_destination.get_trace(interner, &config.root_dir)
                                         );
                                         new_issues.push(Issue::new(
-                                            IssueKind::TaintedData(matching_sink.clone()),
+                                            IssueKind::TaintedData(Box::new(matching_sink.clone())),
                                             message,
                                             **issue_pos,
                                             &None,

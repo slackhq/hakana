@@ -14,7 +14,7 @@ use crate::{
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum IssueKind {
     CannotInferGenericParam,
-    CustomIssue(String),
+    CustomIssue(Box<String>),
     DuplicateEnumValue,
     EmptyBlock,
     FalsableReturnStatement,
@@ -85,6 +85,7 @@ pub enum IssueKind {
     NullablePropertyAssignment,
     NullableReturnStatement,
     NullableReturnValue,
+    OnlyUsedInTests,
     ParadoxicalCondition,
     PossibleMethodCallOnNull,
     PossiblyFalseArgument,
@@ -104,7 +105,8 @@ pub enum IssueKind {
     RedundantNonnullTypeComparison,
     RedundantTruthinessCheck,
     RedundantTypeComparison,
-    TaintedData(SinkType),
+    TaintedData(Box<SinkType>),
+    TestOnlyCall,
     UndefinedIntArrayOffset,
     UndefinedStringArrayOffset,
     UndefinedVariable,
@@ -147,7 +149,7 @@ impl IssueKind {
         }
 
         if all_custom_issues.contains(str) {
-            Ok(IssueKind::CustomIssue(str.to_string()))
+            Ok(IssueKind::CustomIssue(Box::new(str.to_string())))
         } else {
             Err(format!("Unknown issue {}", str))
         }
@@ -156,7 +158,7 @@ impl IssueKind {
     #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         match self {
-            Self::CustomIssue(str) => str.clone(),
+            Self::CustomIssue(str) => (**str).clone(),
             //Self::TaintedData(sink_type) => format!("TaintedData({})", sink_type),
             _ => format!("{}", self),
         }

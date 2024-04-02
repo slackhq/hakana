@@ -24,12 +24,50 @@ pub(crate) fn find_unused_definitions(
         return;
     }
 
-    let referenced_symbols_and_members = analysis_result
-        .symbol_references
-        .get_referenced_symbols_and_members();
+    let referenced_symbols_and_members = analysis_result.symbol_references.back_references();
+    let mut test_symbols = codebase
+        .classlike_infos
+        .iter()
+        .filter(|(_, c)| c.user_defined && !c.is_production_code)
+        .map(|(k, _)| (*k, StrId::EMPTY))
+        .collect::<FxHashSet<_>>();
+    test_symbols.extend(
+        codebase
+            .functionlike_infos
+            .iter()
+            .filter(|(_, c)| c.user_defined && !c.is_production_code)
+            .map(|(k, _)| *k),
+    );
+
+    let mut referenced_symbols_and_members_in_production = FxHashSet::default();
+
+    for (k, v) in referenced_symbols_and_members.clone().into_iter() {
+        if !v.is_subset(&test_symbols) {
+            referenced_symbols_and_members_in_production.insert(k);
+        }
+    }
+
+    let referenced_symbols_and_members = referenced_symbols_and_members
+        .into_iter()
+        .map(|(k, _)| k)
+        .collect::<FxHashSet<_>>();
+
     let referenced_overridden_class_members = analysis_result
         .symbol_references
         .get_referenced_overridden_class_members();
+
+    let mut referenced_overridden_class_members_in_production = FxHashSet::default();
+
+    for (k, v) in referenced_overridden_class_members.clone().into_iter() {
+        if !v.is_subset(&test_symbols) {
+            referenced_overridden_class_members_in_production.insert(k);
+        }
+    }
+
+    let referenced_overridden_class_members = referenced_overridden_class_members
+        .into_iter()
+        .map(|(k, _)| k)
+        .collect::<FxHashSet<_>>();
 
     'outer1: for (functionlike_name, functionlike_info) in &codebase.functionlike_infos {
         if functionlike_name.1 == StrId::EMPTY
@@ -49,13 +87,12 @@ pub(crate) fn find_unused_definitions(
             }
 
             if !referenced_symbols_and_members.contains(&functionlike_name) {
-                if let Some(suppressed_issues) = &functionlike_info.suppressed_issues {
-                    if suppressed_issues
-                        .iter()
-                        .any(|(i, _)| i == &IssueKind::UnusedFunction)
-                    {
-                        continue;
-                    }
+                if functionlike_info
+                    .suppressed_issues
+                    .iter()
+                    .any(|(i, _)| i == &IssueKind::UnusedFunction)
+                {
+                    continue;
                 }
 
                 if !config.allow_issue_kind_in_file(&IssueKind::UnusedFunction, file_path) {
@@ -83,6 +120,31 @@ pub(crate) fn find_unused_definitions(
                 let issue = Issue::new(
                     IssueKind::UnusedFunction,
                     format!("Unused function {}", interner.lookup(&functionlike_name.0)),
+                    *pos,
+                    &Some(FunctionLikeIdentifier::Function(functionlike_name.0)),
+                );
+
+                if config.can_add_issue(&issue) {
+                    *analysis_result
+                        .issue_counts
+                        .entry(issue.kind.clone())
+                        .or_insert(0) += 1;
+                    analysis_result
+                        .emitted_definition_issues
+                        .entry(pos.file_path)
+                        .or_default()
+                        .push(issue);
+                }
+            } else if functionlike_info.is_production_code
+                && !referenced_symbols_and_members_in_production.contains(&functionlike_name)
+                && config.allow_issue_kind_in_file(&IssueKind::OnlyUsedInTests, file_path)
+            {
+                let issue = Issue::new(
+                    IssueKind::OnlyUsedInTests,
+                    format!(
+                        "Production-code function {} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> attribute",
+                        interner.lookup(&functionlike_name.0)
+                    ),
                     *pos,
                     &Some(FunctionLikeIdentifier::Function(functionlike_name.0)),
                 );
@@ -168,7 +230,40 @@ pub(crate) fn find_unused_definitions(
                         .push(issue);
                 }
             } else {
-                'inner: for method_name_ptr in &classlike_info.methods {
+                let mut classlike_only_used_in_tests = false;
+
+                if classlike_info.is_production_code
+                    && !referenced_symbols_and_members_in_production
+                        .contains(&(*classlike_name, StrId::EMPTY))
+                {
+                    classlike_only_used_in_tests = true;
+
+                    if config.allow_issue_kind_in_file(&IssueKind::OnlyUsedInTests, file_path) {
+                        let issue = Issue::new(
+                            IssueKind::OnlyUsedInTests,
+                            format!(
+                                "Production-code class {} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> attribute",
+                                interner.lookup(&classlike_name)
+                            ),
+                            *pos,
+                            &Some(FunctionLikeIdentifier::Function(*classlike_name)),
+                        );
+
+                        if config.can_add_issue(&issue) {
+                            *analysis_result
+                                .issue_counts
+                                .entry(issue.kind.clone())
+                                .or_insert(0) += 1;
+                            analysis_result
+                                .emitted_definition_issues
+                                .entry(pos.file_path)
+                                .or_default()
+                                .push(issue);
+                        }
+                    }
+                }
+
+                for method_name_ptr in &classlike_info.methods {
                     if *method_name_ptr != StrId::EMPTY {
                         let method_name = interner.lookup(method_name_ptr);
 
@@ -182,45 +277,14 @@ pub(crate) fn find_unused_definitions(
                     if !referenced_symbols_and_members.contains(&pair)
                         && !referenced_overridden_class_members.contains(&pair)
                     {
-                        if has_upstream_method_call(
-                            classlike_info,
+                        if is_method_referenced_somewhere_else(
+                            classlike_name,
                             method_name_ptr,
+                            codebase,
+                            classlike_info,
                             &referenced_symbols_and_members,
                         ) {
                             continue;
-                        }
-
-                        for descendant_classlike in codebase.get_all_descendants(classlike_name) {
-                            if let Some(descendant_classlike_storage) =
-                                codebase.classlike_infos.get(&descendant_classlike)
-                            {
-                                for parent_interface in
-                                    &descendant_classlike_storage.all_class_interfaces
-                                {
-                                    if referenced_symbols_and_members
-                                        .contains(&(*parent_interface, *method_name_ptr))
-                                    {
-                                        continue 'inner;
-                                    }
-                                }
-                            }
-                        }
-
-                        for trait_user in get_trait_users(
-                            classlike_name,
-                            &codebase.symbols,
-                            &codebase.all_classlike_descendants,
-                        ) {
-                            if let Some(classlike_info) = codebase.classlike_infos.get(&trait_user)
-                            {
-                                if has_upstream_method_call(
-                                    classlike_info,
-                                    method_name_ptr,
-                                    &referenced_symbols_and_members,
-                                ) {
-                                    continue 'inner;
-                                }
-                            }
                         }
 
                         let functionlike_storage = codebase
@@ -230,13 +294,12 @@ pub(crate) fn find_unused_definitions(
 
                         let method_storage = functionlike_storage.method_info.as_ref().unwrap();
 
-                        if let Some(suppressed_issues) = &functionlike_storage.suppressed_issues {
-                            if suppressed_issues
-                                .iter()
-                                .any(|(i, _)| i == &IssueKind::UnusedPrivateMethod)
-                            {
-                                continue;
-                            }
+                        if functionlike_storage
+                            .suppressed_issues
+                            .iter()
+                            .any(|(i, _)| i == &IssueKind::UnusedFunction)
+                        {
+                            continue;
                         }
 
                         // allow one-liner private construct statements that prevent instantiation
@@ -298,6 +361,49 @@ pub(crate) fn find_unused_definitions(
                                 .entry(pos.file_path)
                                 .or_default()
                                 .push(issue);
+                        }
+                    } else {
+                        if !classlike_only_used_in_tests
+                            && classlike_info.is_production_code
+                            && config
+                                .allow_issue_kind_in_file(&IssueKind::OnlyUsedInTests, file_path)
+                            && !classlike_info
+                                .suppressed_issues
+                                .iter()
+                                .any(|(issue, _)| matches!(issue, IssueKind::OnlyUsedInTests))
+                            && !referenced_symbols_and_members_in_production
+                                .contains(&(*classlike_name, *method_name_ptr))
+                            && !referenced_overridden_class_members_in_production.contains(&pair)
+                            && !is_method_referenced_somewhere_else(
+                                classlike_name,
+                                method_name_ptr,
+                                codebase,
+                                classlike_info,
+                                &referenced_symbols_and_members_in_production,
+                            )
+                        {
+                            let issue = Issue::new(
+                                IssueKind::OnlyUsedInTests,
+                                format!(
+                                    "Production-code method {}::{} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> attribute",
+                                    interner.lookup(&classlike_name),
+                                    interner.lookup(&method_name_ptr)
+                                ),
+                                *pos,
+                                &Some(FunctionLikeIdentifier::Method(*classlike_name, *method_name_ptr)),
+                            );
+
+                            if config.can_add_issue(&issue) {
+                                *analysis_result
+                                    .issue_counts
+                                    .entry(issue.kind.clone())
+                                    .or_insert(0) += 1;
+                                analysis_result
+                                    .emitted_definition_issues
+                                    .entry(pos.file_path)
+                                    .or_default()
+                                    .push(issue);
+                            }
                         }
                     }
                 }
@@ -453,10 +559,55 @@ pub(crate) fn find_unused_definitions(
     }
 }
 
+fn is_method_referenced_somewhere_else(
+    classlike_name: &StrId,
+    method_name_ptr: &StrId,
+    codebase: &CodebaseInfo,
+    classlike_info: &ClassLikeInfo,
+    referenced_symbols_and_members: &FxHashSet<(StrId, StrId)>,
+) -> bool {
+    if has_upstream_method_call(
+        classlike_info,
+        method_name_ptr,
+        referenced_symbols_and_members,
+    ) {
+        return true;
+    }
+    for descendant_classlike in codebase.get_all_descendants(classlike_name) {
+        if let Some(descendant_classlike_storage) =
+            codebase.classlike_infos.get(&descendant_classlike)
+        {
+            for parent_interface in &descendant_classlike_storage.all_class_interfaces {
+                if referenced_symbols_and_members.contains(&(*parent_interface, *method_name_ptr)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    for trait_user in get_trait_users(
+        classlike_name,
+        &codebase.symbols,
+        &codebase.all_classlike_descendants,
+    ) {
+        if let Some(classlike_info) = codebase.classlike_infos.get(&trait_user) {
+            if has_upstream_method_call(
+                classlike_info,
+                method_name_ptr,
+                referenced_symbols_and_members,
+            ) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 fn has_upstream_method_call(
     classlike_info: &ClassLikeInfo,
     method_name_ptr: &StrId,
-    referenced_class_members: &FxHashSet<&(StrId, StrId)>,
+    referenced_class_members: &FxHashSet<(StrId, StrId)>,
 ) -> bool {
     if let Some(parent_elements) = classlike_info.overridden_method_ids.get(method_name_ptr) {
         for parent_element in parent_elements {
