@@ -297,7 +297,7 @@ pub(crate) fn find_unused_definitions(
                         if functionlike_storage
                             .suppressed_issues
                             .iter()
-                            .any(|(i, _)| i == &IssueKind::UnusedFunction)
+                            .any(|(i, _)| i == &IssueKind::UnusedPrivateMethod)
                         {
                             continue;
                         }
