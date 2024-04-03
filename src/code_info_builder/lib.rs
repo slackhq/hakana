@@ -16,8 +16,9 @@ use hakana_reflection_info::{
 use hakana_reflection_info::{FileSource, GenericParent};
 use hakana_str::{StrId, ThreadedInterner};
 use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
+use naming_special_names_rust::user_attributes;
 use no_pos_hash::{position_insensitive_hash, Hasher};
-use oxidized::ast::{FunParam, Tparam, TypeHint};
+use oxidized::ast::{FunParam, Tparam, TypeHint, UserAttribute};
 use oxidized::ast_defs::Id;
 use oxidized::{
     aast,
@@ -507,6 +508,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             &f.name,
             &f.tparams,
             &f.fun.params,
+            &functionlike_storage.attributes,
             &f.fun.ret,
             self.uses.symbol_uses.get(&name).unwrap_or(&vec![]),
         );
@@ -652,7 +654,7 @@ impl<'a> Scanner<'a> {
             self.user_defined,
         );
 
-        functionlike_storage.is_production_code = self.file_source.is_production_code;
+        functionlike_storage.is_production_code &= self.file_source.is_production_code;
 
         if matches!(
             name,
@@ -756,6 +758,7 @@ fn get_function_hashes(
     name: &Id,
     tparams: &[Tparam],
     params: &[FunParam],
+    user_attributes: &[AttributeInfo],
     ret: &TypeHint,
     uses: &Vec<(StrId, StrId)>,
 ) -> (u64, u64) {
@@ -783,9 +786,14 @@ fn get_function_hashes(
         signature_end = ret_hint.0.end_offset();
     }
 
-    let signature_hash = xxhash_rust::xxh3::xxh3_64(
+    let mut signature_hash = xxhash_rust::xxh3::xxh3_64(
         file_contents[def_location.start_offset as usize..signature_end].as_bytes(),
     );
+
+    for attribute in user_attributes {
+        signature_hash = signature_hash
+            .wrapping_add(xxhash_rust::xxh3::xxh3_64(&attribute.name.0.to_le_bytes()));
+    }
 
     (
         signature_hash,

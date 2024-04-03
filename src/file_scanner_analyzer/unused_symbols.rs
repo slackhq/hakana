@@ -231,6 +231,7 @@ pub(crate) fn find_unused_definitions(
                 let mut classlike_only_used_in_tests = false;
 
                 if classlike_info.is_production_code
+                    && classlike_name != &StrId::HAKANA_TEST_ONLY
                     && !referenced_symbols_and_members_in_production
                         .contains(&(*classlike_name, StrId::EMPTY))
                 {

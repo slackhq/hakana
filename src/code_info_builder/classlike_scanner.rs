@@ -578,6 +578,9 @@ pub(crate) fn scan(
             .get(&(user_attribute.name.0.start_offset() as u32))
             .unwrap();
 
+        signature_hash =
+            signature_hash.wrapping_add(xxhash_rust::xxh3::xxh3_64(&name.0.to_le_bytes()));
+
         if name == StrId::CODEGEN {
             storage.generated = true;
         }
@@ -657,6 +660,7 @@ pub(crate) fn scan(
             &m.name,
             &m.tparams,
             &m.params,
+            &functionlike_storage.attributes,
             &m.ret,
             all_uses
                 .symbol_member_uses

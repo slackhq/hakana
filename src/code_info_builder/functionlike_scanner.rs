@@ -331,13 +331,15 @@ pub(crate) fn get_functionlike(
     }
 
     for user_attribute in user_attributes {
-        let name = *resolved_names
+        let attribute_name = *resolved_names
             .get(&(user_attribute.name.0.start_offset() as u32))
             .unwrap();
 
-        functionlike_info.attributes.push(AttributeInfo { name });
+        functionlike_info.attributes.push(AttributeInfo {
+            name: attribute_name,
+        });
 
-        match name {
+        match attribute_name {
             StrId::HAKANA_SECURITY_ANALYSIS_SOURCE => {
                 let mut source_types = vec![];
 
@@ -558,37 +560,35 @@ pub(crate) fn adjust_location_from_comments(
     suppressed_issues: &mut Vec<(IssueKind, HPos)>,
     all_custom_issues: &FxHashSet<String>,
 ) {
-    if !comments.is_empty() {
-        for (comment_pos, comment) in comments.iter().rev() {
-            let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
-            let (start_line, _, start_offset) = start;
-            let (end_line, _, _) = end;
+    for (comment_pos, comment) in comments.iter().rev() {
+        let (start, end) = comment_pos.to_start_and_end_lnum_bol_offset();
+        let (start_line, _, start_offset) = start;
+        let (end_line, _, _) = end;
 
-            if meta_start.start_line as usize == (end_line + 1)
-                || meta_start.start_line as usize == (end_line + 2)
-            {
-                match comment {
-                    Comment::CmtLine(_) => {
-                        meta_start.start_line = start_line as u32;
-                        meta_start.start_offset = start_offset as u32;
+        if meta_start.start_line as usize == (end_line + 1)
+            || meta_start.start_line as usize == (end_line + 2)
+        {
+            match comment {
+                Comment::CmtLine(_) => {
+                    meta_start.start_line = start_line as u32;
+                    meta_start.start_offset = start_offset as u32;
+                }
+                Comment::CmtBlock(text) => {
+                    let trimmed_text = if let Some(trimmed_text) = text.strip_prefix('*') {
+                        trimmed_text.trim()
+                    } else {
+                        text.trim()
+                    };
+
+                    if let Some(Ok(issue_kind)) =
+                        get_issue_from_comment(trimmed_text, all_custom_issues)
+                    {
+                        let comment_pos = HPos::new(comment_pos, file_source.file_path);
+                        suppressed_issues.push((issue_kind, comment_pos));
                     }
-                    Comment::CmtBlock(text) => {
-                        let trimmed_text = if let Some(trimmed_text) = text.strip_prefix('*') {
-                            trimmed_text.trim()
-                        } else {
-                            text.trim()
-                        };
 
-                        if let Some(Ok(issue_kind)) =
-                            get_issue_from_comment(trimmed_text, all_custom_issues)
-                        {
-                            let comment_pos = HPos::new(comment_pos, file_source.file_path);
-                            suppressed_issues.push((issue_kind, comment_pos));
-                        }
-
-                        meta_start.start_line = start_line as u32;
-                        meta_start.start_offset = start_offset as u32;
-                    }
+                    meta_start.start_line = start_line as u32;
+                    meta_start.start_offset = start_offset as u32;
                 }
             }
         }
