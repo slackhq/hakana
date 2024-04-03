@@ -191,6 +191,8 @@ pub(crate) fn analyze(
             false,
         );
 
+        analysis_data.data_flow_graph.add_node(new_parent_node.clone());
+
         catch_type.parent_nodes.push(new_parent_node);
 
         catch_context

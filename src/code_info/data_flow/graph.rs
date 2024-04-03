@@ -182,7 +182,8 @@ impl DataFlowGraph {
                             }
                         }
 
-                        if self.get_node(from_id).is_some() {
+                        if self.vertices.contains_key(from_id) || self.sources.contains_key(from_id)
+                        {
                             if !visited_child_ids.contains(from_id) {
                                 new_parent_nodes.insert(from_id.clone());
                             } else {
