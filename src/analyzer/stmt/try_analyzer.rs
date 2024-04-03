@@ -6,7 +6,9 @@ use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
 };
-use hakana_reflection_info::data_flow::node::DataFlowNode;
+use hakana_reflection_info::data_flow::graph::GraphKind;
+use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
+use hakana_reflection_info::data_flow::path::PathKind;
 use hakana_reflection_info::VarId;
 use hakana_type::{combine_union_types, get_named_object};
 use oxidized::aast;
@@ -178,20 +180,53 @@ pub(crate) fn analyze(
             analysis_data,
         );
 
-        let new_parent_node = DataFlowNode::get_for_variable_source(
-            VarId(
-                statements_analyzer
-                    .get_interner()
-                    .get(catch_var_id)
-                    .unwrap(),
-            ),
-            statements_analyzer.get_hpos(&catch.1 .0),
-            false,
-            true,
-            false,
-        );
+        let new_parent_node = if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+            DataFlowNode::get_for_variable_source(
+                VarId(
+                    statements_analyzer
+                        .get_interner()
+                        .get(catch_var_id)
+                        .unwrap(),
+                ),
+                statements_analyzer.get_hpos(&catch.1 .0),
+                false,
+                true,
+                false,
+            )
+        } else {
+            DataFlowNode::get_for_lvar(
+                VarId(
+                    statements_analyzer
+                        .get_interner()
+                        .get(catch_var_id)
+                        .unwrap(),
+                ),
+                statements_analyzer.get_hpos(&catch.1 .0),
+            )
+        };
 
-        analysis_data.data_flow_graph.add_node(new_parent_node.clone());
+        analysis_data
+            .data_flow_graph
+            .add_node(new_parent_node.clone());
+
+        if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
+            let pos = statements_analyzer.get_hpos(&catch.1 .0);
+
+            let assignment_node = DataFlowNode {
+                id: DataFlowNodeId::UnlabelledSink(pos.file_path, pos.start_offset, pos.end_offset),
+                kind: DataFlowNodeKind::VariableUseSink { pos },
+            };
+
+            analysis_data.data_flow_graph.add_path(
+                &new_parent_node,
+                &assignment_node,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
+
+            analysis_data.data_flow_graph.add_node(assignment_node);
+        }
 
         catch_type.parent_nodes.push(new_parent_node);
 
