@@ -926,4 +926,6 @@ pub(crate) fn add_decision_dataflow(
         (expr_pos.start_offset() as u32, expr_pos.end_offset() as u32),
         Rc::new(cond_type),
     );
+
+    analysis_data.data_flow_graph.add_node(decision_node);
 }

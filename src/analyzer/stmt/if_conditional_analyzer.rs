@@ -353,9 +353,7 @@ pub(crate) fn add_branch_dataflow(
                 );
             }
 
-            if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody {
-                analysis_data.data_flow_graph.add_node(branch_node);
-            }
+            analysis_data.data_flow_graph.add_node(branch_node);
         }
     }
 }

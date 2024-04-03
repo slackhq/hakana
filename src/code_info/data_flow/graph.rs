@@ -157,7 +157,13 @@ impl DataFlowGraph {
 
         let mut origin_nodes = vec![];
 
-        let mut child_node_ids = vec![assignment_node_id.clone()];
+        let mut child_node_ids = vec![];
+
+        if self.vertices.contains_key(assignment_node_id)
+            || self.sources.contains_key(assignment_node_id)
+        {
+            child_node_ids.push(assignment_node_id.clone());
+        }
 
         for _ in 0..50 {
             let mut all_parent_nodes = vec![];
