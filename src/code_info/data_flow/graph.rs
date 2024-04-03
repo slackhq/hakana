@@ -48,9 +48,7 @@ impl DataFlowGraph {
 
     pub fn add_node(&mut self, node: DataFlowNode) {
         match &node.kind {
-            DataFlowNodeKind::Vertex {
-                is_specialized, ..
-            } => {
+            DataFlowNodeKind::Vertex { is_specialized, .. } => {
                 if let GraphKind::WholeProgram(_) = &self.kind {
                     if *is_specialized {
                         let (unspecialized_id, specialization_key) = node.id.unspecialize();
@@ -184,10 +182,12 @@ impl DataFlowGraph {
                             }
                         }
 
-                        if !visited_child_ids.contains(from_id) {
-                            new_parent_nodes.insert(from_id.clone());
-                        } else {
-                            has_visited_a_parent_already = true;
+                        if self.get_node(from_id).is_some() {
+                            if !visited_child_ids.contains(from_id) {
+                                new_parent_nodes.insert(from_id.clone());
+                            } else {
+                                has_visited_a_parent_already = true;
+                            }
                         }
                     }
                 }
@@ -212,6 +212,7 @@ impl DataFlowGraph {
         origin_nodes
     }
 
+    #[inline]
     pub fn get_node(&self, id: &DataFlowNodeId) -> Option<&DataFlowNode> {
         if let Some(node) = self.vertices.get(id) {
             Some(node)

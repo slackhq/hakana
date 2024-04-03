@@ -48,8 +48,7 @@ pub(crate) fn find_unused_definitions(
     }
 
     let referenced_symbols_and_members = referenced_symbols_and_members
-        .into_iter()
-        .map(|(k, _)| k)
+        .into_keys()
         .collect::<FxHashSet<_>>();
 
     let referenced_overridden_class_members = analysis_result
@@ -65,8 +64,7 @@ pub(crate) fn find_unused_definitions(
     }
 
     let referenced_overridden_class_members = referenced_overridden_class_members
-        .into_iter()
-        .map(|(k, _)| k)
+        .into_keys()
         .collect::<FxHashSet<_>>();
 
     'outer1: for (functionlike_name, functionlike_info) in &codebase.functionlike_infos {
@@ -86,7 +84,7 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            if !referenced_symbols_and_members.contains(&functionlike_name) {
+            if !referenced_symbols_and_members.contains(functionlike_name) {
                 if functionlike_info
                     .suppressed_issues
                     .iter()
@@ -136,7 +134,7 @@ pub(crate) fn find_unused_definitions(
                         .push(issue);
                 }
             } else if functionlike_info.is_production_code
-                && !referenced_symbols_and_members_in_production.contains(&functionlike_name)
+                && !referenced_symbols_and_members_in_production.contains(functionlike_name)
                 && config.allow_issue_kind_in_file(&IssueKind::OnlyUsedInTests, file_path)
             {
                 let issue = Issue::new(
@@ -243,7 +241,7 @@ pub(crate) fn find_unused_definitions(
                             IssueKind::OnlyUsedInTests,
                             format!(
                                 "Production-code class {} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> attribute",
-                                interner.lookup(&classlike_name)
+                                interner.lookup(classlike_name)
                             ),
                             *pos,
                             &Some(FunctionLikeIdentifier::Function(*classlike_name)),
@@ -362,48 +360,45 @@ pub(crate) fn find_unused_definitions(
                                 .or_default()
                                 .push(issue);
                         }
-                    } else {
-                        if !classlike_only_used_in_tests
-                            && classlike_info.is_production_code
-                            && config
-                                .allow_issue_kind_in_file(&IssueKind::OnlyUsedInTests, file_path)
-                            && !classlike_info
-                                .suppressed_issues
-                                .iter()
-                                .any(|(issue, _)| matches!(issue, IssueKind::OnlyUsedInTests))
-                            && !referenced_symbols_and_members_in_production
-                                .contains(&(*classlike_name, *method_name_ptr))
-                            && !referenced_overridden_class_members_in_production.contains(&pair)
-                            && !is_method_referenced_somewhere_else(
-                                classlike_name,
-                                method_name_ptr,
-                                codebase,
-                                classlike_info,
-                                &referenced_symbols_and_members_in_production,
-                            )
-                        {
-                            let issue = Issue::new(
+                    } else if !classlike_only_used_in_tests
+                        && classlike_info.is_production_code
+                        && config.allow_issue_kind_in_file(&IssueKind::OnlyUsedInTests, file_path)
+                        && !classlike_info
+                            .suppressed_issues
+                            .iter()
+                            .any(|(issue, _)| matches!(issue, IssueKind::OnlyUsedInTests))
+                        && !referenced_symbols_and_members_in_production
+                            .contains(&(*classlike_name, *method_name_ptr))
+                        && !referenced_overridden_class_members_in_production.contains(&pair)
+                        && !is_method_referenced_somewhere_else(
+                            classlike_name,
+                            method_name_ptr,
+                            codebase,
+                            classlike_info,
+                            &referenced_symbols_and_members_in_production,
+                        )
+                    {
+                        let issue = Issue::new(
                                 IssueKind::OnlyUsedInTests,
                                 format!(
                                     "Production-code method {}::{} is only used in tests — if this is deliberate add the <<Hakana\\TestOnly>> attribute",
-                                    interner.lookup(&classlike_name),
-                                    interner.lookup(&method_name_ptr)
+                                    interner.lookup(classlike_name),
+                                    interner.lookup(method_name_ptr)
                                 ),
                                 *pos,
                                 &Some(FunctionLikeIdentifier::Method(*classlike_name, *method_name_ptr)),
                             );
 
-                            if config.can_add_issue(&issue) {
-                                *analysis_result
-                                    .issue_counts
-                                    .entry(issue.kind.clone())
-                                    .or_insert(0) += 1;
-                                analysis_result
-                                    .emitted_definition_issues
-                                    .entry(pos.file_path)
-                                    .or_default()
-                                    .push(issue);
-                            }
+                        if config.can_add_issue(&issue) {
+                            *analysis_result
+                                .issue_counts
+                                .entry(issue.kind.clone())
+                                .or_insert(0) += 1;
+                            analysis_result
+                                .emitted_definition_issues
+                                .entry(pos.file_path)
+                                .or_default()
+                                .push(issue);
                         }
                     }
                 }
