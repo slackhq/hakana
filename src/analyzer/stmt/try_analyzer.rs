@@ -192,6 +192,7 @@ pub(crate) fn analyze(
                 false,
                 true,
                 false,
+                false,
             )
         } else {
             DataFlowNode::get_for_lvar(

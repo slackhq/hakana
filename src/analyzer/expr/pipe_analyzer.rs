@@ -39,6 +39,7 @@ pub(crate) fn analyze(
             false,
             true,
             false,
+            false,
         );
 
         pipe_expr_type.parent_nodes.push(parent_node.clone());

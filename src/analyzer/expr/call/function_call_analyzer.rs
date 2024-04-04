@@ -199,7 +199,7 @@ pub(crate) fn analyze(
         &functionlike_id,
     );
 
-    if !function_storage.is_production_code {
+    if !function_storage.is_production_code && function_storage.user_defined {
         if let Some(calling_context) = context.function_context.calling_functionlike_id {
             let is_caller_production = match calling_context {
                 FunctionLikeIdentifier::Function(function_id) => {

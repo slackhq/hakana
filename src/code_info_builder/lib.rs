@@ -16,9 +16,8 @@ use hakana_reflection_info::{
 use hakana_reflection_info::{FileSource, GenericParent};
 use hakana_str::{StrId, ThreadedInterner};
 use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
-use naming_special_names_rust::user_attributes;
 use no_pos_hash::{position_insensitive_hash, Hasher};
-use oxidized::ast::{FunParam, Tparam, TypeHint, UserAttribute};
+use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;
 use oxidized::{
     aast,

@@ -414,7 +414,7 @@ pub(crate) fn check_method_args(
         check_template_result(statements_analyzer, template_result, pos, &functionlike_id);
     }
 
-    if !functionlike_storage.is_production_code {
+    if !functionlike_storage.is_production_code && functionlike_storage.user_defined {
         if let Some(calling_context) = context.function_context.calling_functionlike_id {
             let is_caller_production = match calling_context {
                 FunctionLikeIdentifier::Function(function_id) => {

@@ -104,6 +104,8 @@ pub(crate) fn analyze(
 
     let mut foreach_context = context.clone();
 
+    foreach_context.inside_loop_exprs = true;
+
     foreach_context.inside_loop = true;
     foreach_context.break_types.push(BreakContext::Loop);
 
@@ -143,6 +145,7 @@ pub(crate) fn analyze(
     )?;
 
     foreach_context.for_loop_init_bounds = (0, 0);
+    foreach_context.inside_loop_exprs = false;
 
     loop_analyzer::analyze(
         statements_analyzer,

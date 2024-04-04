@@ -4,6 +4,7 @@ use crate::{
     stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
+    code_location::HPos,
     data_flow::{
         graph::GraphKind,
         node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
@@ -64,6 +65,62 @@ pub(crate) fn analyze(
             EFFECT_READ_GLOBALS,
         );
     } else if let Some(var_type) = context.vars_in_scope.get(&lid.1 .1) {
+        if var_type.parent_nodes.len() > 1
+            && !context.inside_loop_exprs
+            && context.for_loop_init_bounds.0 == 0
+            && !context.inside_assignment_op
+            && !lid.1 .1.contains(' ') // eliminate temp vars
+            && analysis_data.data_flow_graph.kind == GraphKind::FunctionBody
+        {
+            let mut loop_init_pos: Option<HPos> = None;
+
+            for parent_node in &var_type.parent_nodes {
+                if let DataFlowNodeKind::VariableUseSource {
+                    pos: for_loop_init_pos,
+                    from_loop_init: true,
+                    ..
+                } = parent_node.kind
+                {
+                    if let Some(loop_init_pos_inner) = loop_init_pos {
+                        if for_loop_init_pos.start_offset < loop_init_pos_inner.start_offset {
+                            loop_init_pos = Some(for_loop_init_pos);
+                        }
+                    } else {
+                        loop_init_pos = Some(for_loop_init_pos);
+                    }
+                }
+            }
+
+            if let Some(loop_init_pos) = loop_init_pos {
+                for parent_node in &var_type.parent_nodes {
+                    if let DataFlowNodeKind::VariableUseSource {
+                        has_parent_nodes: true,
+                        from_loop_init: false,
+                        pos: parent_node_pos,
+                        ..
+                    } = parent_node.kind
+                    {
+                        if parent_node_pos.start_offset < loop_init_pos.start_offset {
+                            analysis_data.maybe_add_issue(
+                                Issue::new(
+                                    IssueKind::ShadowedLoopVar,
+                                    format!(
+                                        "Assignment to {} overwrites a variable defined above and referenced below",
+                                        lid.1 .1
+                                    ),
+                                    loop_init_pos,
+                                    &context.function_context.calling_functionlike_id,
+                                ),
+                                statements_analyzer.get_config(),
+                                statements_analyzer.get_file_path_actual(),
+                            );
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         let mut var_type = (**var_type).clone();
 
         var_type = add_dataflow_to_variable(

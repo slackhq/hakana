@@ -1,0 +1,1 @@
+ERROR: ShadowedLoopVar - input.hack:2:23 - Assignment to $str overwrites a variable defined above and referenced below

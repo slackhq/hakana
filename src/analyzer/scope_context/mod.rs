@@ -142,6 +142,8 @@ pub struct ScopeContext {
 
     pub inside_loop: bool,
 
+    pub inside_loop_exprs: bool,
+
     /// The current case scope, if we're in a switch
     pub case_scope: Option<CaseScope>,
 
@@ -190,6 +192,7 @@ impl ScopeContext {
             inside_assignment_op: false,
             inside_try: false,
             inside_awaitall: false,
+            inside_loop_exprs: false,
 
             inside_negation: false,
             has_returned: false,

@@ -1088,6 +1088,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             pure: false,
                             has_awaitable: param_type.has_awaitable_types(),
                             has_parent_nodes: true,
+                            from_loop_init: false,
                         },
                     }
                 };

@@ -105,6 +105,7 @@ pub enum IssueKind {
     RedundantNonnullTypeComparison,
     RedundantTruthinessCheck,
     RedundantTypeComparison,
+    ShadowedLoopVar,
     TaintedData(Box<SinkType>),
     TestOnlyCall,
     UndefinedIntArrayOffset,
@@ -217,7 +218,7 @@ impl IssueKind {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, Serialize, Deserialize)]
 pub struct Issue {
     pub kind: IssueKind,
     pub description: String,
@@ -226,6 +227,12 @@ pub struct Issue {
     pub fixme_added: bool,
     pub symbol: (StrId, StrId),
     pub insertion_start: Option<StmtStart>,
+}
+
+impl PartialEq for Issue {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind && self.pos == other.pos && self.description == other.description
+    }
 }
 
 impl Issue {

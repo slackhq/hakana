@@ -132,6 +132,7 @@ pub(crate) fn analyze<'a>(
             statements_analyzer,
         );
 
+        loop_context.inside_loop_exprs = true;
         for post_expression in post_expressions {
             expression_analyzer::analyze(
                 statements_analyzer,
@@ -141,6 +142,7 @@ pub(crate) fn analyze<'a>(
                 &mut None,
             )?;
         }
+        loop_context.inside_loop_exprs = true;
     } else {
         let original_parent_context = loop_parent_context.clone();
 
@@ -199,6 +201,7 @@ pub(crate) fn analyze<'a>(
             }
         }
 
+        continue_context.inside_loop_exprs = true;
         for post_expression in &post_expressions {
             expression_analyzer::analyze(
                 statements_analyzer,
@@ -208,6 +211,7 @@ pub(crate) fn analyze<'a>(
                 &mut None,
             )?;
         }
+        continue_context.inside_loop_exprs = false;
 
         let mut recorded_issues = analysis_data.clear_currently_recorded_issues();
         analysis_data.stop_recording_issues();
@@ -406,6 +410,7 @@ pub(crate) fn analyze<'a>(
                 }
             }
 
+            continue_context.inside_loop_exprs = true;
             for post_expression in &post_expressions {
                 expression_analyzer::analyze(
                     statements_analyzer,
@@ -415,6 +420,7 @@ pub(crate) fn analyze<'a>(
                     &mut None,
                 )?;
             }
+            continue_context.inside_loop_exprs = false;
 
             recorded_issues = analysis_data.clear_currently_recorded_issues();
             analysis_data.stop_recording_issues();
@@ -704,6 +710,8 @@ fn apply_pre_condition_to_loop_context(
 
     loop_context.inside_conditional = true;
 
+    loop_context.inside_loop_exprs = true;
+
     expression_analyzer::analyze(
         statements_analyzer,
         pre_condition,
@@ -714,6 +722,7 @@ fn apply_pre_condition_to_loop_context(
 
     add_branch_dataflow(statements_analyzer, pre_condition, analysis_data);
 
+    loop_context.inside_loop_exprs = false;
     loop_context.inside_conditional = false;
 
     let mut new_referenced_var_ids = loop_context.cond_referenced_var_ids.clone();

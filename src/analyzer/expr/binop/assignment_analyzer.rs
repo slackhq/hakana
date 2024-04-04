@@ -201,13 +201,16 @@ pub(crate) fn analyze(
 
             origin_node_ids.retain(|id| {
                 if let Some(node) = analysis_data.data_flow_graph.get_node(id) {
-                    match &node.kind {
-                        DataFlowNodeKind::ForLoopInit {
-                            var_name,
-                            start_offset,
-                            end_offset,
-                        } => {
-                            var_name == var_id
+                    match (&id, &node.kind) {
+                        (
+                            DataFlowNodeId::ForInit(start_offset, end_offset),
+                            DataFlowNodeKind::ForLoopInit {
+                                var_id: for_loop_var_id,
+                                ..
+                            },
+                        ) => {
+                            for_loop_var_id.0
+                                == statements_analyzer.get_interner().get(var_id).unwrap()
                                 && (pos.start_offset() as u32) > *start_offset
                                 && (pos.end_offset() as u32) < *end_offset
                         }
@@ -525,6 +528,9 @@ fn analyze_assignment_to_variable(
                 },
             has_parent_nodes,
             assign_value_type.has_awaitable_types(),
+            context.inside_loop
+                && !context.inside_assignment_op
+                && context.for_loop_init_bounds.0 > 0,
         )
     } else {
         DataFlowNode::get_for_lvar(
@@ -563,9 +569,7 @@ fn analyze_assignment_to_variable(
             let for_node = DataFlowNode {
                 id: DataFlowNodeId::ForInit(start_offset, end_offset),
                 kind: DataFlowNodeKind::ForLoopInit {
-                    start_offset,
-                    end_offset,
-                    var_name: var_id.clone(),
+                    var_id: VarId(statements_analyzer.get_interner().get(var_id).unwrap()),
                 },
             };
 

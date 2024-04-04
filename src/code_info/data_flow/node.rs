@@ -387,14 +387,13 @@ pub enum DataFlowNodeKind {
         pure: bool,
         has_parent_nodes: bool,
         has_awaitable: bool,
+        from_loop_init: bool,
     },
     VariableUseSink {
         pos: HPos,
     },
     ForLoopInit {
-        var_name: String,
-        start_offset: u32,
-        end_offset: u32,
+        var_id: VarId,
     },
     DataSource {
         pos: HPos,
@@ -761,6 +760,7 @@ impl DataFlowNode {
         pure: bool,
         has_parent_nodes: bool,
         has_awaitable: bool,
+        from_loop_init: bool,
     ) -> Self {
         Self {
             id: DataFlowNodeId::Var(
@@ -775,6 +775,7 @@ impl DataFlowNode {
                 pure,
                 has_awaitable,
                 has_parent_nodes,
+                from_loop_init,
             },
         }
     }
