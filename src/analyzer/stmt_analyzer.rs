@@ -348,7 +348,7 @@ fn detect_unused_statement_expressions(
     if let Some(functionlike_id) = functionlike_id {
         if let FunctionLikeIdentifier::Function(function_id) = functionlike_id {
             let codebase = statements_analyzer.get_codebase();
-            if let Some(functionlike_info) = codebase
+            if let Some(_functionlike_info) = codebase
                 .functionlike_infos
                 .get(&(function_id, StrId::EMPTY))
             {
