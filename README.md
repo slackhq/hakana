@@ -33,6 +33,6 @@ That will create a binary at `./target/release/hakana-default`
 
 ## Running tests
 
-You can run all tests with: `cargo run --release test tests`
+You can run all tests with: `cargo run --bin hakana --release test tests`
 
-You can run an individual test with `cargo run test <path-to-test-dir>`
+You can run an individual test with `cargo run --bin hakana test <path-to-test-dir>`
