@@ -154,7 +154,8 @@ pub(crate) fn analyze(
             statements_analyzer.get_config(),
             statements_analyzer.get_file_path_actual(),
         );
-    }
+        return Ok(());
+    };
 
     let element_name = statements_analyzer.get_interner().lookup(xhp_class_name);
 
@@ -189,7 +190,7 @@ pub(crate) fn analyze(
                 let xml_body_taint = DataFlowNode {
                     id: DataFlowNodeId::Symbol(*xhp_class_name),
                     kind: DataFlowNodeKind::TaintSink {
-                        pos: None,
+                        pos: statements_analyzer.get_hpos(pos),
                         types: vec![SinkType::Output],
                     },
                 };
@@ -215,7 +216,7 @@ pub(crate) fn analyze(
                 let xml_body_taint = DataFlowNode {
                     id: DataFlowNodeId::Symbol(*xhp_class_name),
                     kind: DataFlowNodeKind::TaintSink {
-                        pos: None,
+                        pos: statements_analyzer.get_hpos(pos),
                         types: vec![SinkType::HtmlTag, SinkType::Output],
                     },
                 };
@@ -436,6 +437,7 @@ fn add_all_dataflow(
         add_xml_attribute_dataflow(
             statements_analyzer,
             codebase,
+            attribute_value_pos,
             &property_id.0,
             property_id,
             attribute_name,
@@ -483,6 +485,7 @@ fn get_attribute_name(
 fn add_xml_attribute_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     codebase: &CodebaseInfo,
+    attribute_value_pos: &Pos,
     element_name: &StrId,
     property_id: (StrId, StrId),
     name: &str,
@@ -550,7 +553,7 @@ fn add_xml_attribute_dataflow(
             let xml_attribute_taint = DataFlowNode {
                 id: label.clone(),
                 kind: DataFlowNodeKind::TaintSink {
-                    pos: None,
+                    pos: statements_analyzer.get_hpos(attribute_value_pos),
                     types: taints,
                 },
             };

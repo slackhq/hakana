@@ -422,7 +422,7 @@ fn add_dataflow(
             let method_call_node_source = DataFlowNode {
                 id: method_call_node.id.clone(),
                 kind: DataFlowNodeKind::TaintSource {
-                    pos: *method_call_node.get_pos(),
+                    pos: method_call_node.get_pos(),
                     types: functionlike_storage.taint_source_types.clone(),
                 },
             };

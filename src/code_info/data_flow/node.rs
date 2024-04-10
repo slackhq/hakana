@@ -404,7 +404,7 @@ pub enum DataFlowNodeKind {
         types: Vec<SourceType>,
     },
     TaintSink {
-        pos: Option<HPos>,
+        pos: HPos,
         types: Vec<SinkType>,
     },
 }
@@ -822,11 +822,10 @@ impl DataFlowNode {
     }
 
     #[inline]
-    pub fn get_pos(&self) -> &Option<HPos> {
+    pub fn get_pos(&self) -> Option<HPos> {
         match &self.kind {
-            DataFlowNodeKind::Vertex { pos, .. }
-            | DataFlowNodeKind::TaintSource { pos, .. }
-            | DataFlowNodeKind::TaintSink { pos, .. } => pos,
+            DataFlowNodeKind::Vertex { pos, .. } | DataFlowNodeKind::TaintSource { pos, .. } => *pos,
+            DataFlowNodeKind::TaintSink { pos, .. } => Some(*pos),
             DataFlowNodeKind::VariableUseSource { .. }
             | DataFlowNodeKind::ForLoopInit { .. }
             | DataFlowNodeKind::VariableUseSink { .. }

@@ -40,6 +40,10 @@ pub fn find_tainted_data(
 
     // println!("{:#?}", graph);
 
+    // for (sink_id, _) in &graph.sinks {
+    //     println!("sink: {}", sink_id.to_string(interner));
+    // }
+
     // for (from_id, to) in &graph.forward_edges {
     //     for (to_id, path) in to {
     //         println!(
@@ -403,39 +407,42 @@ fn get_child_nodes(
 
             if match_sinks {
                 if let Some(sink) = graph.sinks.get(to_id) {
-                    if let DataFlowNodeKind::TaintSink { types, .. } = &sink.kind {
+                    if let DataFlowNodeKind::TaintSink {
+                        types,
+                        pos: sink_pos,
+                        ..
+                    } = &sink.kind
+                    {
                         let mut matching_sinks = types.clone();
                         matching_sinks.retain(|t| new_taints.contains(t));
 
                         if !matching_sinks.is_empty() {
-                            if let Some(issue_pos) = &generated_source.pos {
-                                let taint_sources = generated_source.get_taint_sources();
-                                for taint_source in taint_sources {
-                                    for matching_sink in &matching_sinks {
-                                        if !config.allow_data_from_source_in_file(
-                                            taint_source,
-                                            matching_sink,
-                                            &new_destination,
-                                            interner,
-                                        ) {
-                                            continue;
-                                        }
-
-                                        new_destination.taint_sinks.retain(|s| s != matching_sink);
-
-                                        let message = format!(
-                                            "Data from {} found its way to {} using path {}",
-                                            taint_source.get_error_message(),
-                                            matching_sink.get_error_message(),
-                                            new_destination.get_trace(interner, &config.root_dir)
-                                        );
-                                        new_issues.push(Issue::new(
-                                            IssueKind::TaintedData(Box::new(matching_sink.clone())),
-                                            message,
-                                            **issue_pos,
-                                            &None,
-                                        ));
+                            let taint_sources = generated_source.get_taint_sources();
+                            for taint_source in taint_sources {
+                                for matching_sink in &matching_sinks {
+                                    if !config.allow_data_from_source_in_file(
+                                        taint_source,
+                                        matching_sink,
+                                        &new_destination,
+                                        interner,
+                                    ) {
+                                        continue;
                                     }
+
+                                    new_destination.taint_sinks.retain(|s| s != matching_sink);
+
+                                    let message = format!(
+                                        "Data from {} found its way to {} using path {}",
+                                        taint_source.get_error_message(),
+                                        matching_sink.get_error_message(),
+                                        new_destination.get_trace(interner, &config.root_dir)
+                                    );
+                                    new_issues.push(Issue::new(
+                                        IssueKind::TaintedData(Box::new(matching_sink.clone())),
+                                        message,
+                                        *sink_pos,
+                                        &None,
+                                    ));
                                 }
                             }
                         }

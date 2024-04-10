@@ -1063,14 +1063,16 @@ fn handle_possibly_matching_inout_param(
         Some(statements_analyzer.get_hpos(function_call_pos)),
     );
 
-    for arg_node in &arg_type.parent_nodes {
-        analysis_data.data_flow_graph.add_path(
-            arg_node,
-            &assignment_node,
-            PathKind::Default,
-            vec![],
-            vec![],
-        );
+    if let GraphKind::FunctionBody = &analysis_data.data_flow_graph.kind {
+        for arg_node in &arg_type.parent_nodes {
+            analysis_data.data_flow_graph.add_path(
+                arg_node,
+                &assignment_node,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
+        }
     }
 
     if matches!(

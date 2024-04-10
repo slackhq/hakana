@@ -105,7 +105,7 @@ impl TaintedNode {
             }
             DataFlowNodeKind::TaintSink { pos, types, .. } => TaintedNode {
                 id: node.id.clone(),
-                pos: pos.as_ref().map(|p| Rc::new(*p)),
+                pos: Some(Rc::new(*pos)),
                 is_specialized: false,
                 taint_sinks: types.clone(),
                 taint_sources: vec![],

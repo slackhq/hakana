@@ -509,16 +509,65 @@ fn add_dataflow(
         }
     }
 
-    let method_node = DataFlowNode::get_for_method_argument(
-        functionlike_id,
-        argument_offset,
-        Some(function_param.name_location),
+    let taints = if matches!(data_flow_graph.kind, GraphKind::WholeProgram(_)) {
+        let mut taints = get_argument_taints(
+            functionlike_id,
+            argument_offset,
+            statements_analyzer.get_interner(),
+        );
+
+        if let Some(sinks) = &function_param.taint_sinks {
+            taints.extend(sinks.clone());
+        }
+
+        taints
+    } else {
+        vec![]
+    };
+
+    let function_call_hpos = statements_analyzer.get_hpos(function_call_pos);
+
+    let method_node = {
+        let arg_location = function_param.name_location;
+        let mut is_specialized = false;
+
+        let arg_id = DataFlowNodeId::FunctionLikeArg(*functionlike_id, argument_offset as u8);
+
+        let mut id = arg_id.clone();
+
         if specialize_taint {
-            Some(statements_analyzer.get_hpos(function_call_pos))
-        } else {
-            None
-        },
-    );
+            is_specialized = true;
+            id = DataFlowNodeId::SpecializedFunctionLikeArg(
+                *functionlike_id,
+                argument_offset as u8,
+                function_call_hpos.file_path,
+                function_call_hpos.start_offset,
+            );
+        }
+
+        DataFlowNode {
+            id,
+            kind: if data_flow_graph.kind == GraphKind::FunctionBody && context.inside_general_use {
+                DataFlowNodeKind::VariableUseSink {
+                    pos: function_param.name_location,
+                }
+            } else if taints.is_empty() {
+                DataFlowNodeKind::Vertex {
+                    pos: Some(arg_location),
+                    is_specialized,
+                }
+            } else {
+                DataFlowNodeKind::TaintSink {
+                    pos: if is_specialized {
+                        statements_analyzer.get_hpos(input_expr.pos())
+                    } else {
+                        arg_location
+                    },
+                    types: taints,
+                }
+            },
+        }
+    };
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
         if let FunctionLikeIdentifier::Method(_, method_name) = functionlike_id {
@@ -543,7 +592,7 @@ fn add_dataflow(
                                     argument_offset,
                                     None,
                                     if specialize_taint {
-                                        Some(statements_analyzer.get_hpos(function_call_pos))
+                                        Some(function_call_hpos)
                                     } else {
                                         None
                                     },
@@ -606,69 +655,17 @@ fn add_dataflow(
     };
     // TODO add plugin hooks for adding/removing taints
 
-    let argument_value_node =
-        if data_flow_graph.kind == GraphKind::FunctionBody && context.inside_general_use {
-            let hpos = statements_analyzer.get_hpos(input_expr.pos());
-            DataFlowNode {
-                id: DataFlowNodeId::SpecializedCallTo(
-                    *functionlike_id,
-                    hpos.file_path,
-                    hpos.start_offset,
-                ),
-                kind: DataFlowNodeKind::VariableUseSink { pos: hpos },
-            }
-        } else {
-            DataFlowNode::get_for_call(
-                *functionlike_id,
-                statements_analyzer.get_hpos(input_expr.pos()),
-            )
-        };
-
     for parent_node in &input_type.parent_nodes {
         data_flow_graph.add_path(
             parent_node,
-            &argument_value_node,
+            &method_node,
             PathKind::Default,
             vec![],
             removed_taints.clone(),
         );
     }
 
-    data_flow_graph.add_path(
-        &argument_value_node,
-        &method_node,
-        PathKind::Default,
-        vec![],
-        vec![],
-    );
-
-    if matches!(data_flow_graph.kind, GraphKind::WholeProgram(_)) {
-        let mut taints = get_argument_taints(
-            functionlike_id,
-            argument_offset,
-            statements_analyzer.get_interner(),
-        );
-
-        if let Some(sinks) = &function_param.taint_sinks {
-            taints.extend(sinks.clone());
-        }
-
-        if !taints.is_empty() {
-            let method_node_sink = DataFlowNode {
-                id: method_node.id.clone(),
-                kind: DataFlowNodeKind::TaintSink {
-                    pos: *method_node.get_pos(),
-                    types: taints.into_iter().collect(),
-                },
-            };
-
-            data_flow_graph.add_node(method_node_sink);
-        }
-
-        data_flow_graph.add_node(method_node);
-    }
-
-    data_flow_graph.add_node(argument_value_node);
+    data_flow_graph.add_node(method_node);
 }
 
 pub(crate) fn get_removed_taints_in_comments(
