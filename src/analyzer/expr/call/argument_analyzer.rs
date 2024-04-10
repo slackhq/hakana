@@ -608,11 +608,14 @@ fn add_dataflow(
 
     let argument_value_node =
         if data_flow_graph.kind == GraphKind::FunctionBody && context.inside_general_use {
+            let hpos = statements_analyzer.get_hpos(input_expr.pos());
             DataFlowNode {
-                id: DataFlowNodeId::CallTo(*functionlike_id),
-                kind: DataFlowNodeKind::VariableUseSink {
-                    pos: statements_analyzer.get_hpos(input_expr.pos()),
-                },
+                id: DataFlowNodeId::SpecializedCallTo(
+                    *functionlike_id,
+                    hpos.file_path,
+                    hpos.start_offset,
+                ),
+                kind: DataFlowNodeKind::VariableUseSink { pos: hpos },
             }
         } else {
             DataFlowNode::get_for_call(
