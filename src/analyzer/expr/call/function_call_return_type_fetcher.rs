@@ -768,27 +768,19 @@ fn add_dataflow(
 
     // todo conditionally remove taints
 
-    let function_call_node = if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
-        DataFlowNode::get_for_method_return(
-            functionlike_id,
-            if let Some(return_pos) = &functionlike_storage.return_type_location {
-                Some(*return_pos)
-            } else {
-                functionlike_storage.name_location
-            },
-            if functionlike_storage.specialize_call {
-                Some(statements_analyzer.get_hpos(pos))
-            } else {
-                None
-            },
-        )
-    } else {
-        DataFlowNode::get_for_method_return(
-            functionlike_id,
-            Some(statements_analyzer.get_hpos(pos)),
-            Some(statements_analyzer.get_hpos(pos)),
-        )
-    };
+    let function_call_node = DataFlowNode::get_for_method_return(
+        functionlike_id,
+        if let Some(return_pos) = &functionlike_storage.return_type_location {
+            Some(*return_pos)
+        } else {
+            functionlike_storage.name_location
+        },
+        if functionlike_storage.specialize_call {
+            Some(statements_analyzer.get_hpos(pos))
+        } else {
+            None
+        },
+    );
 
     data_flow_graph.add_node(function_call_node.clone());
 
