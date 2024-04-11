@@ -1,4 +1,5 @@
-use std::str::FromStr;
+use std::{hash::Hasher, str::FromStr};
+use core::hash::Hash;
 
 use hakana_str::StrId;
 use rustc_hash::FxHashSet;
@@ -218,7 +219,7 @@ impl IssueKind {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct Issue {
     pub kind: IssueKind,
     pub description: String,
@@ -232,6 +233,14 @@ pub struct Issue {
 impl PartialEq for Issue {
     fn eq(&self, other: &Self) -> bool {
         self.kind == other.kind && self.pos == other.pos && self.description == other.description
+    }
+}
+
+impl Hash for Issue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.kind.hash(state);
+        self.pos.hash(state);
+        self.description.hash(state);
     }
 }
 

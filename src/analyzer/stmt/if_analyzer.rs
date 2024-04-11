@@ -46,26 +46,23 @@ pub(crate) fn analyze(
         .iter()
         .any(|clause| !clause.possibilities.is_empty())
     {
-        let mut omit_keys =
+        let omit_keys =
             outer_context
                 .clauses
                 .iter()
                 .fold(FxHashSet::default(), |mut acc, clause| {
-                    acc.extend(clause.possibilities.keys().collect::<FxHashSet<_>>());
+                    acc.extend(clause.possibilities.keys());
                     acc
                 });
 
-        let (dont_omit_keys, _) = hakana_algebra::get_truths_from_formula(
+        let (outer_context_truths, _) = hakana_algebra::get_truths_from_formula(
             outer_context.clauses.iter().map(|v| &**v).collect(),
             None,
             &mut FxHashSet::default(),
         );
 
-        let dont_omit_keys = dont_omit_keys.keys().collect::<FxHashSet<_>>();
-
-        omit_keys.retain(|k| !dont_omit_keys.contains(k));
-
-        cond_referenced_var_ids.retain(|k| !omit_keys.contains(k));
+        cond_referenced_var_ids
+            .retain(|k| !omit_keys.contains(k) || outer_context_truths.contains_key(k));
     }
 
     // if the if has an || in the conditional, we cannot easily reason about it

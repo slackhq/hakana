@@ -273,7 +273,7 @@ fn detect_unused_statement_expressions(
     stmt: &aast::Stmt<(), ()>,
     context: &mut ScopeContext,
 ) {
-    if has_unused_must_use(&boxed, &statements_analyzer, &stmt, context) {
+    if has_unused_must_use(boxed, statements_analyzer) {
         analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::UnusedFunctionCall,
@@ -406,8 +406,6 @@ fn detect_unused_statement_expressions(
 fn has_unused_must_use(
     boxed: &aast::Expr<(), ()>,
     statements_analyzer: &StatementsAnalyzer,
-    stmt: &aast::Stmt<(), ()>,
-    context: &mut ScopeContext,
 ) -> bool {
     match &boxed.2 {
         aast::Expr_::Call(boxed_call) => {
@@ -420,9 +418,10 @@ fn has_unused_must_use(
                 // For statements like "Asio\join(some_fn());"
                 // Asio\join does not count as "using" the value
                 if function_id == StrId::ASIO_JOIN {
-                    return boxed_call.args.iter().any(|arg| {
-                        has_unused_must_use(&arg.1, statements_analyzer, stmt, context)
-                    });
+                    return boxed_call
+                        .args
+                        .iter()
+                        .any(|arg| has_unused_must_use(&arg.1, statements_analyzer));
                 }
 
                 let codebase = statements_analyzer.get_codebase();
@@ -435,12 +434,12 @@ fn has_unused_must_use(
             }
         }
         aast::Expr_::Await(await_expr) => {
-            return has_unused_must_use(await_expr, statements_analyzer, stmt, context)
+            return has_unused_must_use(await_expr, statements_analyzer)
         }
         _ => (),
     }
 
-    return false;
+    false
 }
 
 fn analyze_awaitall(
