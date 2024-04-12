@@ -6,6 +6,7 @@ use hakana_reflection_info::data_flow::node::DataFlowNodeKind;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_str::Interner;
 use hakana_str::StrId;
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::rc::Rc;
@@ -194,14 +195,15 @@ fn find_paths_to_sinks(
                     }
                 ));
 
-                let top_file = file_nodes.iter().max_by(|a, b| a.1.cmp(b.1));
+                let top_files = file_nodes.iter().sorted_by(|a, b| b.1.cmp(a.1)).take(5);
 
-                if let Some(top_file) = top_file {
+                for top_file in top_files {
                     if *top_file.1 > 10000 {
                         logger.log_sync(&format!(
-                            "   - {} in {}",
+                            "   - {} in {}:{}",
                             top_file.1,
-                            top_file.0.get_relative_path(interner, &config.root_dir),
+                            top_file.0 .0.get_relative_path(interner, &config.root_dir),
+                            top_file.0 .1,
                         ));
                     }
                 }
@@ -277,7 +279,7 @@ fn get_child_nodes(
     generated_source: &Rc<TaintedNode>,
     source_taints: &Vec<SinkType>,
     seen_sources: &mut FxHashSet<String>,
-    file_nodes: &mut FxHashMap<FilePath, usize>,
+    file_nodes: &mut FxHashMap<(FilePath, u32), usize>,
     new_issues: &mut Vec<Issue>,
     is_last: bool,
     match_sinks: bool,
@@ -457,7 +459,9 @@ fn get_child_nodes(
             }
 
             if let Some(pos) = &new_destination.pos {
-                let entry = file_nodes.entry(pos.file_path).or_insert(0);
+                let entry = file_nodes
+                    .entry((pos.file_path, pos.start_line))
+                    .or_insert(0);
                 *entry += 1;
             }
 
