@@ -770,7 +770,9 @@ fn add_dataflow(
 
     let function_call_node = DataFlowNode::get_for_method_return(
         functionlike_id,
-        if let Some(return_pos) = &functionlike_storage.return_type_location {
+        if data_flow_graph.kind == GraphKind::FunctionBody {
+            Some(statements_analyzer.get_hpos(pos))
+        } else if let Some(return_pos) = &functionlike_storage.return_type_location {
             Some(*return_pos)
         } else {
             functionlike_storage.name_location
