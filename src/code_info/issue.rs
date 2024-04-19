@@ -200,6 +200,8 @@ impl IssueKind {
                 | Self::UnusedFunction
                 | Self::UnusedInterface
                 | Self::UnusedPrivateProperty
+                | Self::UnusedPrivateMethod
+                | Self::UnusedInheritedMethod
                 | Self::UnusedPublicOrProtectedProperty
                 | Self::UnusedPublicOrProtectedMethod
                 | Self::UnusedXhpAttribute
