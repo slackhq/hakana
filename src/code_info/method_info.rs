@@ -1,6 +1,3 @@
-use hakana_str::StrId;
-use rustc_hash::FxHashSet;
-
 use serde::{Deserialize, Serialize};
 
 use crate::member_visibility::MemberVisibility;
@@ -14,20 +11,6 @@ pub struct MethodInfo {
     pub is_final: bool,
 
     pub is_abstract: bool,
-
-    pub defining_fqcln: Option<StrId>,
-
-    pub external_mutation_free: bool,
-
-    pub immutable: bool,
-
-    pub mutation_free_inferred: bool,
-
-    pub this_property_mutations: Option<FxHashSet<String>>,
-
-    pub stubbed: bool,
-
-    pub probably_fluent: bool,
 }
 
 impl Default for MethodInfo {
@@ -43,13 +26,6 @@ impl MethodInfo {
             visibility: MemberVisibility::Public,
             is_final: false,
             is_abstract: false,
-            defining_fqcln: None,
-            external_mutation_free: false,
-            immutable: false,
-            mutation_free_inferred: false,
-            this_property_mutations: None,
-            stubbed: false,
-            probably_fluent: false,
         }
     }
 }

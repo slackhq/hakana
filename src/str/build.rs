@@ -258,6 +258,7 @@ fn main() -> Result<()> {
         "__EntryPoint",
         "__FILE__",
         "__FUNCTION__",
+        "__Override",
         "__PHP_Incomplete_Class",
         "__Sealed",
         "__construct",

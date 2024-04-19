@@ -127,6 +127,7 @@ pub enum IssueKind {
     UnusedClosureParameter,
     UnusedFunction,
     UnusedFunctionCall,
+    UnusedInheritedMethod,
     UnusedInterface,
     UnusedParameter,
     UnusedPipeVariable,

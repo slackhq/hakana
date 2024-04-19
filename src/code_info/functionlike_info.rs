@@ -47,7 +47,7 @@ impl FnEffect {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct MetaStart {
     pub start_offset: u32,
     pub start_line: u32,
@@ -150,6 +150,8 @@ pub struct FunctionLikeInfo {
     pub is_production_code: bool,
 
     pub is_closure: bool,
+
+    pub overriding: bool,
 }
 
 impl FunctionLikeInfo {
@@ -188,6 +190,7 @@ impl FunctionLikeInfo {
             is_production_code: true,
             pure_can_throw: false,
             is_closure: false,
+            overriding: false,
         }
     }
 

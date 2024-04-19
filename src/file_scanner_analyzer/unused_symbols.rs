@@ -97,10 +97,14 @@ pub(crate) fn find_unused_definitions(
                     continue;
                 }
 
-                if config
-                    .migration_symbols
-                    .contains_key(interner.lookup(&functionlike_name.0))
-                {
+                let issue = Issue::new(
+                    IssueKind::UnusedFunction,
+                    format!("Unused function {}", interner.lookup(&functionlike_name.0)),
+                    *pos,
+                    &Some(FunctionLikeIdentifier::Function(functionlike_name.0)),
+                );
+
+                if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
                     let meta_start = &functionlike_info.meta_start;
                     let def_pos = &functionlike_info.def_location;
                     analysis_result
@@ -114,13 +118,6 @@ pub(crate) fn find_unused_definitions(
                             ),
                         );
                 }
-
-                let issue = Issue::new(
-                    IssueKind::UnusedFunction,
-                    format!("Unused function {}", interner.lookup(&functionlike_name.0)),
-                    *pos,
-                    &Some(FunctionLikeIdentifier::Function(functionlike_name.0)),
-                );
 
                 if config.can_add_issue(&issue) {
                     *analysis_result
@@ -198,10 +195,7 @@ pub(crate) fn find_unused_definitions(
                     &Some(FunctionLikeIdentifier::Function(*classlike_name)),
                 );
 
-                if config
-                    .migration_symbols
-                    .contains_key(interner.lookup(classlike_name))
-                {
+                if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
                     let meta_start = &classlike_info.meta_start;
                     let def_pos = &classlike_info.def_location;
                     analysis_result
@@ -314,7 +308,13 @@ pub(crate) fn find_unused_definitions(
                         }
 
                         let issue =
-                            if matches!(method_storage.visibility, MemberVisibility::Private) {
+                            if matches!(method_storage.visibility, MemberVisibility::Private)
+                                || (matches!(
+                                    method_storage.visibility,
+                                    MemberVisibility::Protected
+                                ) && method_storage.is_final
+                                    && !functionlike_storage.overriding)
+                            {
                                 Issue::new(
                                     IssueKind::UnusedPrivateMethod,
                                     format!(
@@ -328,11 +328,25 @@ pub(crate) fn find_unused_definitions(
                                         *method_name_ptr,
                                     )),
                                 )
+                            } else if functionlike_storage.overriding {
+                                Issue::new(
+                                    IssueKind::UnusedInheritedMethod,
+                                    format!(
+                                        "Unused inherited method {}::{}",
+                                        interner.lookup(classlike_name),
+                                        interner.lookup(method_name_ptr)
+                                    ),
+                                    functionlike_storage.name_location.unwrap(),
+                                    &Some(FunctionLikeIdentifier::Method(
+                                        *classlike_name,
+                                        *method_name_ptr,
+                                    )),
+                                )
                             } else {
                                 Issue::new(
                                     IssueKind::UnusedPublicOrProtectedMethod,
                                     format!(
-                                        "Possibly-unused method {}::{}",
+                                        "Unused public or protected method {}::{}",
                                         interner.lookup(classlike_name),
                                         interner.lookup(method_name_ptr)
                                     ),
@@ -350,7 +364,21 @@ pub(crate) fn find_unused_definitions(
                             continue;
                         }
 
-                        if config.can_add_issue(&issue) {
+                        if config.issues_to_fix.contains(&issue.kind) && !config.add_fixmes {
+                            let meta_start = functionlike_storage.meta_start;
+                            let def_pos = functionlike_storage.def_location;
+                            analysis_result
+                                .replacements
+                                .entry(pos.file_path)
+                                .or_default()
+                                .insert(
+                                    (meta_start.start_offset, def_pos.end_offset),
+                                    Replacement::TrimPrecedingWhitespace(
+                                        meta_start.start_offset + 1
+                                            - meta_start.start_column as u32,
+                                    ),
+                                );
+                        } else if config.can_add_issue(&issue) {
                             *analysis_result
                                 .issue_counts
                                 .entry(issue.kind.clone())

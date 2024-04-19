@@ -90,7 +90,6 @@ pub(crate) fn scan_method(
 
     let mut method_info = MethodInfo::new();
 
-    method_info.defining_fqcln = Some(classlike_name);
     method_info.is_static = m.static_;
     method_info.is_final = m.final_ || classlike_storage.is_final;
     method_info.is_abstract = m.abstract_;
@@ -403,6 +402,9 @@ pub(crate) fn get_functionlike(
             }
             StrId::CODEGEN => {
                 functionlike_info.generated = true;
+            }
+            StrId::OVERRIDE => {
+                functionlike_info.overriding = true;
             }
             _ => {}
         }

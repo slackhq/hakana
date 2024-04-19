@@ -436,19 +436,6 @@ fn populate_classlike_storage(
     // todo add file references for cache invalidation
 
     if storage.immutable {
-        for method_name in &storage.methods {
-            let functionlike_storage = codebase
-                .functionlike_infos
-                .get_mut(&(storage.name, *method_name))
-                .unwrap();
-
-            if let Some(method_storage) = functionlike_storage.method_info.as_mut() {
-                if !method_storage.is_static {
-                    method_storage.immutable = true;
-                }
-            }
-        }
-
         for (_, property_storage) in storage.properties.iter_mut() {
             if !property_storage.is_static {
                 property_storage.soft_readonly = true;

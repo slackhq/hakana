@@ -140,6 +140,13 @@ impl LanguageServer for Backend {
             }
         }
 
+        self.client
+                .log_message(
+                    MessageType::INFO,
+                    format!("receiving changes {:?}", new_file_statuses),
+                )
+                .await;
+
         if let Some(ref mut existing_file_changes) = self.file_changes {
             existing_file_changes.extend(new_file_statuses);
         } else {
