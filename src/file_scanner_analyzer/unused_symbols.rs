@@ -287,14 +287,6 @@ pub(crate) fn find_unused_definitions(
 
                         let method_storage = functionlike_storage.method_info.as_ref().unwrap();
 
-                        if functionlike_storage
-                            .suppressed_issues
-                            .iter()
-                            .any(|(i, _)| i == &IssueKind::UnusedPrivateMethod)
-                        {
-                            continue;
-                        }
-
                         // allow one-liner private construct statements that prevent instantiation
                         if *method_name_ptr == StrId::CONSTRUCT
                             && matches!(method_storage.visibility, MemberVisibility::Private)
@@ -357,6 +349,14 @@ pub(crate) fn find_unused_definitions(
                                     )),
                                 )
                             };
+
+                        if functionlike_storage
+                            .suppressed_issues
+                            .iter()
+                            .any(|(i, _)| i == &issue.kind)
+                        {
+                            continue;
+                        }
 
                         let file_path = interner.lookup(&pos.file_path.0);
 
