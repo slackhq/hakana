@@ -594,6 +594,7 @@ fn is_method_referenced_somewhere_else(
         classlike_info,
         method_name_ptr,
         referenced_symbols_and_members,
+        codebase,
     ) {
         return true;
     }
@@ -619,6 +620,7 @@ fn is_method_referenced_somewhere_else(
                 classlike_info,
                 method_name_ptr,
                 referenced_symbols_and_members,
+                codebase,
             ) {
                 return true;
             }
@@ -632,9 +634,18 @@ fn has_upstream_method_call(
     classlike_info: &ClassLikeInfo,
     method_name_ptr: &StrId,
     referenced_class_members: &FxHashSet<(StrId, StrId)>,
+    codebase: &CodebaseInfo,
 ) -> bool {
     if let Some(parent_elements) = classlike_info.overridden_method_ids.get(method_name_ptr) {
         for parent_element in parent_elements {
+            if let Some(ClassLikeInfo {
+                user_defined: false,
+                ..
+            }) = codebase.classlike_infos.get(parent_element)
+            {
+                return true;
+            }
+
             if referenced_class_members.contains(&(*parent_element, *method_name_ptr)) {
                 return true;
             }
