@@ -615,9 +615,9 @@ fn is_method_referenced_somewhere_else(
         &codebase.symbols,
         &codebase.all_classlike_descendants,
     ) {
-        if let Some(classlike_info) = codebase.classlike_infos.get(&trait_user) {
+        if let Some(trait_user_classlike_info) = codebase.classlike_infos.get(&trait_user) {
             if has_upstream_method_call(
-                classlike_info,
+                trait_user_classlike_info,
                 method_name_ptr,
                 referenced_symbols_and_members,
                 codebase,
@@ -663,9 +663,9 @@ fn get_trait_users(
     let mut base_set = FxHashSet::default();
 
     if let Some(SymbolKind::Trait) = symbols.all.get(classlike_name) {
-        if let Some(classlike_descendants) = all_classlike_descendants.get(classlike_name) {
-            base_set.extend(classlike_descendants);
-            for classlike_descendant in classlike_descendants {
+        if let Some(trait_users) = all_classlike_descendants.get(classlike_name) {
+            base_set.extend(trait_users);
+            for classlike_descendant in trait_users {
                 base_set.extend(get_trait_users(
                     classlike_descendant,
                     symbols,

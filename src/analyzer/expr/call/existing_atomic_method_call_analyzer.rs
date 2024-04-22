@@ -38,10 +38,7 @@ use crate::{
     statements_analyzer::StatementsAnalyzer,
 };
 
-use super::{
-    atomic_method_call_analyzer::AtomicMethodCallAnalysisResult, class_template_param_collector,
-    method_call_return_type_fetcher,
-};
+use super::{class_template_param_collector, method_call_return_type_fetcher};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -61,7 +58,6 @@ pub(crate) fn analyze(
     if_body_context: &mut Option<ScopeContext>,
     lhs_var_id: Option<&String>,
     lhs_var_pos: Option<&Pos>,
-    result: &mut AtomicMethodCallAnalysisResult,
 ) -> Result<TUnion, AnalysisError> {
     analysis_data.symbol_references.add_reference_to_symbol(
         &context.function_context,
@@ -76,10 +72,6 @@ pub(crate) fn analyze(
     }
 
     let method_id = MethodIdentifier(classlike_name, *method_name);
-
-    result
-        .existent_method_ids
-        .insert(method_id.to_string(statements_analyzer.get_interner()));
 
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 

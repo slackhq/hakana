@@ -1,5 +1,4 @@
 use hakana_str::StrId;
-use rustc_hash::FxHashSet;
 
 use hakana_reflection_info::{
     issue::{Issue, IssueKind},
@@ -24,7 +23,6 @@ use super::{arguments_analyzer::evaluate_arbitrary_param, existing_atomic_method
 pub(crate) struct AtomicMethodCallAnalysisResult {
     pub return_type: Option<TUnion>,
     pub has_valid_method_call_type: bool,
-    pub existent_method_ids: FxHashSet<String>,
 }
 
 impl AtomicMethodCallAnalysisResult {
@@ -32,7 +30,6 @@ impl AtomicMethodCallAnalysisResult {
         Self {
             return_type: None,
             has_valid_method_call_type: false,
-            existent_method_ids: FxHashSet::default(),
         }
     }
 }
@@ -284,7 +281,6 @@ pub(crate) fn handle_method_call_on_named_object(
             if_body_context,
             lhs_var_id.as_ref(),
             Some(expr.0.pos()),
-            result,
         )?;
 
         result.return_type = Some(hakana_type::add_optional_union_type(

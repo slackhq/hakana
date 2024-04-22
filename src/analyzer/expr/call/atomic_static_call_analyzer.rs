@@ -168,7 +168,6 @@ pub(crate) fn analyze(
         if_body_context,
         None,
         None,
-        result,
     )?);
 
     Ok(())

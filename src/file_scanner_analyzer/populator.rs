@@ -21,8 +21,6 @@ pub fn populate_codebase(
     safe_symbols: FxHashSet<StrId>,
     safe_symbol_members: FxHashSet<(StrId, StrId)>,
 ) {
-    let mut all_classlike_descendants = FxHashMap::default();
-
     let new_classlike_names = codebase
         .classlike_infos
         .iter()
@@ -43,13 +41,7 @@ pub fn populate_codebase(
     }
 
     for k in &new_classlike_names {
-        populate_classlike_storage(
-            k,
-            &mut all_classlike_descendants,
-            codebase,
-            symbol_references,
-            &safe_symbols,
-        );
+        populate_classlike_storage(k, codebase, symbol_references, &safe_symbols);
     }
 
     for (name, v) in codebase.functionlike_infos.iter_mut() {
@@ -193,6 +185,8 @@ pub fn populate_codebase(
 
     let mut direct_classlike_descendants = FxHashMap::default();
 
+    let mut all_classlike_descendants = FxHashMap::default();
+
     for (classlike_name, classlike_storage) in &codebase.classlike_infos {
         for parent_interface in &classlike_storage.all_parent_interfaces {
             all_classlike_descendants
@@ -226,6 +220,13 @@ pub fn populate_codebase(
             all_classlike_descendants
                 .entry(*parent_class)
                 .or_insert_with(FxHashSet::default)
+                .insert(*classlike_name);
+        }
+
+        for used_trait in &classlike_storage.used_traits {
+            all_classlike_descendants
+                .entry(*used_trait)
+                .or_default()
                 .insert(*classlike_name);
         }
 
@@ -331,7 +332,6 @@ fn populate_functionlike_storage(
 
 fn populate_classlike_storage(
     classlike_name: &StrId,
-    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     symbol_references: &mut SymbolReferences,
     safe_symbols: &FxHashSet<StrId>,
@@ -345,14 +345,6 @@ fn populate_classlike_storage(
     if storage.is_populated {
         codebase.classlike_infos.insert(*classlike_name, storage);
         return;
-    }
-
-    if let Some(classlike_descendants) = all_classlike_descendants.get(classlike_name) {
-        if classlike_descendants.contains(classlike_name) {
-            codebase.classlike_infos.insert(*classlike_name, storage);
-            // todo complain about circular reference
-            return;
-        }
     }
 
     for attribute_info in &storage.attributes {
@@ -392,7 +384,6 @@ fn populate_classlike_storage(
     for trait_name in &storage.used_traits.clone() {
         populate_data_from_trait(
             &mut storage,
-            all_classlike_descendants,
             codebase,
             trait_name,
             symbol_references,
@@ -403,7 +394,6 @@ fn populate_classlike_storage(
     if let Some(parent_classname) = &storage.direct_parent_class.clone() {
         populate_data_from_parent_classlike(
             &mut storage,
-            all_classlike_descendants,
             codebase,
             parent_classname,
             symbol_references,
@@ -414,7 +404,6 @@ fn populate_classlike_storage(
     for direct_parent_interface in &storage.direct_parent_interfaces.clone() {
         populate_interface_data_from_parent_interface(
             &mut storage,
-            all_classlike_descendants,
             codebase,
             direct_parent_interface,
             symbol_references,
@@ -425,7 +414,6 @@ fn populate_classlike_storage(
     for direct_class_interface in &storage.direct_class_interfaces.clone() {
         populate_data_from_implemented_interface(
             &mut storage,
-            all_classlike_descendants,
             codebase,
             direct_class_interface,
             symbol_references,
@@ -497,7 +485,6 @@ fn populate_interface_data_from_parent_or_implemented_interface(
 
 fn populate_interface_data_from_parent_interface(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     parent_storage_interface: &StrId,
     symbol_references: &mut SymbolReferences,
@@ -505,7 +492,6 @@ fn populate_interface_data_from_parent_interface(
 ) {
     populate_classlike_storage(
         parent_storage_interface,
-        all_classlike_descendants,
         codebase,
         symbol_references,
         safe_symbols,
@@ -533,7 +519,6 @@ fn populate_interface_data_from_parent_interface(
 
 fn populate_data_from_implemented_interface(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     parent_storage_interface: &StrId,
     symbol_references: &mut SymbolReferences,
@@ -541,7 +526,6 @@ fn populate_data_from_implemented_interface(
 ) {
     populate_classlike_storage(
         parent_storage_interface,
-        all_classlike_descendants,
         codebase,
         symbol_references,
         safe_symbols,
@@ -572,7 +556,6 @@ fn populate_data_from_implemented_interface(
 
 fn populate_data_from_parent_classlike(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     parent_storage_class: &StrId,
     symbol_references: &mut SymbolReferences,
@@ -580,7 +563,6 @@ fn populate_data_from_parent_classlike(
 ) {
     populate_classlike_storage(
         parent_storage_class,
-        all_classlike_descendants,
         codebase,
         symbol_references,
         safe_symbols,
@@ -645,7 +627,6 @@ fn populate_data_from_parent_classlike(
 
 fn populate_data_from_trait(
     storage: &mut ClassLikeInfo,
-    all_classlike_descendants: &mut FxHashMap<StrId, FxHashSet<StrId>>,
     codebase: &mut CodebaseInfo,
     trait_name: &StrId,
     symbol_references: &mut SymbolReferences,
@@ -653,7 +634,6 @@ fn populate_data_from_trait(
 ) {
     populate_classlike_storage(
         trait_name,
-        all_classlike_descendants,
         codebase,
         symbol_references,
         safe_symbols,
@@ -669,11 +649,6 @@ fn populate_data_from_trait(
         storage.invalid_dependencies.push(*trait_name);
         return;
     };
-
-    all_classlike_descendants
-        .entry(*trait_name)
-        .or_default()
-        .insert(storage.name);
 
     storage
         .all_class_interfaces
