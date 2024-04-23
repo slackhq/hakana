@@ -502,6 +502,8 @@ pub(crate) fn scan(
         end_offset: storage.def_location.end_offset,
         start_line: storage.meta_start.start_line,
         end_line: storage.def_location.end_line,
+        start_colum: storage.def_location.start_column,
+        end_column: storage.def_location.end_column,
         children: Vec::new(),
         signature_hash,
         body_hash: None,
@@ -673,6 +675,8 @@ pub(crate) fn scan(
             end_offset: functionlike_storage.def_location.end_offset,
             start_line: functionlike_storage.def_location.start_line,
             end_line: functionlike_storage.def_location.end_line,
+            start_colum: functionlike_storage.def_location.start_column,
+            end_column: functionlike_storage.def_location.end_column,
             signature_hash,
             body_hash: Some(body_hash),
             children: vec![],
@@ -842,6 +846,8 @@ fn visit_xhp_attribute(
         end_offset: stmt_pos.end_offset,
         start_line: stmt_pos.start_line,
         end_line: stmt_pos.end_line,
+        start_colum: stmt_pos.start_column,
+        end_column: stmt_pos.end_column,
         signature_hash: xxhash_rust::xxh3::xxh3_64(
             file_source.file_contents[stmt_pos.start_offset as usize..stmt_pos.end_offset as usize]
                 .as_bytes(),
@@ -924,6 +930,8 @@ fn visit_class_const_declaration(
         end_offset: def_pos.end_offset,
         start_line: def_pos.start_line,
         end_line: def_pos.end_line,
+        start_colum: def_pos.start_column,
+        end_column: def_pos.end_column,
         signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
@@ -1012,6 +1020,8 @@ fn visit_class_typeconst_declaration(
         end_offset: def_pos.end_offset,
         start_line: def_pos.start_line,
         end_line: def_pos.end_line,
+        start_colum: def_pos.start_column,
+        end_column: def_pos.end_column,
         signature_hash: position_insensitive_hash(const_node).wrapping_add(uses_hash),
         body_hash: None,
         children: vec![],
@@ -1070,6 +1080,8 @@ fn visit_property_declaration(
         end_offset: def_pos.end_offset,
         start_line: def_pos.start_line,
         end_line: def_pos.end_line,
+        start_colum: def_pos.start_column,
+        end_column: def_pos.end_column,
         signature_hash: xxhash_rust::xxh3::xxh3_64(
             file_source.file_contents[def_pos.start_offset as usize..def_pos.end_offset as usize]
                 .as_bytes(),

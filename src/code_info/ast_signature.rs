@@ -13,6 +13,8 @@ pub struct DefSignatureNode {
     pub end_offset: u32,
     pub start_line: u32,
     pub end_line: u32,
+    pub start_colum: u16,
+    pub end_column: u16,
 
     pub children: Vec<DefSignatureNode>,
 

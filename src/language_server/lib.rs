@@ -6,6 +6,8 @@ use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_reflection_info::code_location::FilePath;
+use hakana_str::StrId;
 use hakana_workhorse::file::FileStatus;
 use hakana_workhorse::{scan_and_analyze_async, SuccessfulScanData};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -52,6 +54,12 @@ impl LanguageServer for Backend {
                         will_save: Some(false),
                         will_save_wait_until: Some(false),
                         save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                    },
+                )),
+                code_action_provider: Some(CodeActionProviderCapability::Options(
+                    CodeActionOptions {
+                        code_action_kinds: Some(vec![CodeActionKind::REFACTOR_REWRITE]),
+                        ..CodeActionOptions::default()
                     },
                 )),
                 ..ServerCapabilities::default()
@@ -141,11 +149,11 @@ impl LanguageServer for Backend {
         }
 
         self.client
-                .log_message(
-                    MessageType::INFO,
-                    format!("receiving changes {:?}", new_file_statuses),
-                )
-                .await;
+            .log_message(
+                MessageType::INFO,
+                format!("receiving changes {:?}", new_file_statuses),
+            )
+            .await;
 
         if let Some(ref mut existing_file_changes) = self.file_changes {
             existing_file_changes.extend(new_file_statuses);
@@ -168,6 +176,47 @@ impl LanguageServer for Backend {
             self.file_changes = None;
             self.emit_issues().await;
         }
+    }
+
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        if let Some(previous_scan_data) = &*self.previous_scan_data {
+            if let Some(strid) = previous_scan_data
+                .interner
+                .get(params.text_document.uri.path())
+            {
+                let file_path = FilePath(strid);
+                if let (Some(_), Some(file_info)) = (
+                    previous_scan_data
+                        .file_system
+                        .file_hashes_and_times
+                        .get(&file_path),
+                    previous_scan_data.codebase.files.get(&file_path),
+                ) {
+                    let mut node_ref = (StrId::EMPTY, StrId::EMPTY);
+
+                    for ast_node in &file_info.ast_nodes {
+                        if (params.range.start.line + 1 >= ast_node.start_line)
+                            && (params.range.end.line + 1 < ast_node.end_line)
+                        {
+                            node_ref.0 = ast_node.name;
+
+                            for child_node in &ast_node.children {
+                                if (params.range.start.line + 1 >= child_node.start_line)
+                                    && (params.range.end.line + 1 < child_node.end_line)
+                                {
+                                    node_ref.1 = child_node.name;
+                                    break;
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        Err(tower_lsp::jsonrpc::Error::method_not_found())
     }
 
     async fn shutdown(&mut self) -> Result<()> {

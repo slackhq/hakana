@@ -7,6 +7,7 @@ edition = "2021"
 hakana-workhorse = { path = "../file_scanner_analyzer" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
+hakana-str = { path = "../str" }
 hakana-reflection-info = { path = "../code_info" }
 tower-lsp = { git = "https://github.com/ebkalderon/tower-lsp", branch = "support-mutable-methods" }
 tokio = { version = "1.26.0", features = ["full"] }
