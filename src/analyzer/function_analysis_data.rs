@@ -193,6 +193,10 @@ impl FunctionAnalysisData {
             return false;
         }
 
+        self.can_output_issue(issue)
+    }
+
+    fn can_output_issue(&mut self, issue: &Issue) -> bool {
         *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;
 
         if let Some(issue_filter) = &self.issue_filter {
@@ -200,7 +204,6 @@ impl FunctionAnalysisData {
                 return false;
             }
         }
-
         true
     }
 
@@ -387,12 +390,8 @@ impl FunctionAnalysisData {
                 self.add_issue_fixme(&issue);
             }
 
-            *self.issue_counts.entry(issue.kind.clone()).or_insert(0) += 1;
-
-            if let Some(issue_filter) = &self.issue_filter {
-                if !issue_filter.contains(&issue.kind) {
-                    return;
-                }
+            if !self.can_output_issue(&issue) {
+                return;
             }
 
             self.add_issue(issue);

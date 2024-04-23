@@ -563,20 +563,21 @@ pub(crate) fn analyze(
         aast::Expr_::Package(_) => todo!(),
     }
 
-    if analysis_data.after_expr_hook_called.insert((
+    let newly_called = analysis_data.after_expr_hook_called.insert((
         expr.pos().start_offset() as u32,
         expr.pos().end_offset() as u32,
-    )) {
-        for hook in &statements_analyzer.get_config().hooks {
-            hook.after_expr_analysis(
-                analysis_data,
-                AfterExprAnalysisData {
-                    statements_analyzer,
-                    expr,
-                    context,
-                },
-            );
-        }
+    ));
+
+    for hook in &statements_analyzer.get_config().hooks {
+        hook.after_expr_analysis(
+            analysis_data,
+            AfterExprAnalysisData {
+                statements_analyzer,
+                expr,
+                context,
+                already_called: !newly_called,
+            },
+        );
     }
 
     analysis_data.applicable_fixme_start = expr.pos().end_offset() as u32;

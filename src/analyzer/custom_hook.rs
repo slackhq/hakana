@@ -19,6 +19,7 @@ pub struct AfterExprAnalysisData<'a> {
     pub context: &'a ScopeContext,
     pub expr: &'a aast::Expr<(), ()>,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
+    pub already_called: bool,
 }
 
 pub struct AfterStmtAnalysisData<'a> {
@@ -52,6 +53,7 @@ pub struct AfterArgAnalysisData<'a> {
     pub functionlike_id: &'a FunctionLikeIdentifier,
     pub param_type: &'a TUnion,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
+    pub already_called: bool,
 }
 
 pub trait InternalHook {

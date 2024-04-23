@@ -55,26 +55,27 @@ pub(crate) fn check_argument_matches(
 
     let config = statements_analyzer.get_config();
 
-    if analysis_data.after_arg_hook_called.insert((
+    let newly_called = analysis_data.after_arg_hook_called.insert((
         arg.1.pos().start_offset() as u32,
         arg.1.pos().end_offset() as u32,
-    )) {
-        for hook in &config.hooks {
-            hook.after_argument_analysis(
-                analysis_data,
-                AfterArgAnalysisData {
-                    functionlike_id,
-                    statements_analyzer,
-                    context,
-                    arg_value_type: &arg_value_type,
-                    arg,
-                    param_type: &param_type,
-                    argument_offset,
-                    function_call_pos,
-                    function_name_pos,
-                },
-            );
-        }
+    ));
+
+    for hook in &config.hooks {
+        hook.after_argument_analysis(
+            analysis_data,
+            AfterArgAnalysisData {
+                functionlike_id,
+                statements_analyzer,
+                context,
+                arg_value_type: &arg_value_type,
+                arg,
+                param_type: &param_type,
+                argument_offset,
+                function_call_pos,
+                function_name_pos,
+                already_called: !newly_called,
+            },
+        );
     }
 
     self::verify_type(
