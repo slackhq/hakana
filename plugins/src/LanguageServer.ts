@@ -49,6 +49,7 @@ export class LanguageServer {
             'Hakana Language Server',
             this.spawnServer.bind(this),
             {
+                documentSelector: [{ pattern: '**/*.{php,hack}', scheme: 'file' }, { pattern: '**/*.{php,hack}', scheme: 'vfs' }],
                 outputChannel: this.loggingService,
                 traceOutputChannel: this.loggingService,
                 revealOutputChannelOn: RevealOutputChannelOn.Never,
