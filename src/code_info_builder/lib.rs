@@ -37,6 +37,7 @@ struct Context {
     function_name: Option<StrId>,
     member_name: Option<StrId>,
     has_yield: bool,
+    has_asio_join: bool,
     has_static_field_access: bool,
     uses_position: Option<(usize, usize)>,
     namespace_position: Option<(usize, usize)>,
@@ -478,6 +479,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             c.has_yield = false;
         }
 
+        if c.has_asio_join {
+            self.codebase
+                .functionlike_infos
+                .get_mut(&(*c.classlike_name.as_ref().unwrap(), method_name))
+                .unwrap()
+                .has_asio_join = true;
+            c.has_asio_join = false;
+        }
+
         if !c.has_static_field_access && m.static_ {
             self.codebase
                 .functionlike_infos
@@ -564,6 +574,15 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             aast::Expr_::ClassGet(boxed) => {
                 if let ast_defs::PropOrMethod::IsProp = &boxed.2 {
                     c.has_static_field_access = true;
+                }
+            }
+            aast::Expr_::Call(boxed) => {
+                if let aast::Expr_::Id(boxed_id) = &boxed.func.2 {
+                    if let Some(&StrId::ASIO_JOIN) =
+                        self.resolved_names.get(&(boxed_id.0.start_offset() as u32))
+                    {
+                        c.has_asio_join = true;
+                    }
                 }
             }
             _ => (),
@@ -838,6 +857,7 @@ pub fn collect_info_for_aast(
         function_name: None,
         member_name: None,
         has_yield: false,
+        has_asio_join: false,
         has_static_field_access: false,
         uses_position: None,
         namespace_position: None,
