@@ -6,11 +6,10 @@ use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::AnalysisResult;
-use hakana_reflection_info::code_location::FilePath;
-use hakana_str::StrId;
 use hakana_workhorse::file::FileStatus;
 use hakana_workhorse::{scan_and_analyze_async, SuccessfulScanData};
 use rustc_hash::{FxHashMap, FxHashSet};
+use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
@@ -19,11 +18,11 @@ use tower_lsp::{Client, LanguageServer};
 pub struct Backend {
     client: Client,
     analysis_config: Arc<Config>,
-    previous_scan_data: Arc<Option<SuccessfulScanData>>,
-    previous_analysis_result: Arc<Option<AnalysisResult>>,
-    all_diagnostics: Option<FxHashMap<Url, Vec<Diagnostic>>>,
-    file_changes: Option<FxHashMap<String, FileStatus>>,
-    files_with_errors: FxHashSet<Url>,
+    previous_scan_data: RwLock<Option<SuccessfulScanData>>,
+    previous_analysis_result: RwLock<Option<AnalysisResult>>,
+    all_diagnostics: RwLock<Option<FxHashMap<Url, Vec<Diagnostic>>>>,
+    file_changes: RwLock<Option<FxHashMap<String, FileStatus>>>,
+    files_with_errors: RwLock<FxHashSet<Url>>,
 }
 
 impl Backend {
@@ -31,18 +30,18 @@ impl Backend {
         Self {
             client,
             analysis_config,
-            previous_scan_data: Arc::new(None),
-            previous_analysis_result: Arc::new(None),
-            all_diagnostics: None,
-            file_changes: None,
-            files_with_errors: FxHashSet::default(),
+            previous_scan_data: RwLock::new(None),
+            previous_analysis_result: RwLock::new(None),
+            all_diagnostics: RwLock::new(None),
+            file_changes: RwLock::new(None),
+            files_with_errors: RwLock::new(FxHashSet::default()),
         }
     }
 }
 
-#[tower_lsp::async_trait(?Send)]
+#[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&mut self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         self.do_analysis().await;
 
         Ok(InitializeResult {
@@ -56,19 +55,13 @@ impl LanguageServer for Backend {
                         save: Some(TextDocumentSyncSaveOptions::Supported(true)),
                     },
                 )),
-                code_action_provider: Some(CodeActionProviderCapability::Options(
-                    CodeActionOptions {
-                        code_action_kinds: Some(vec![CodeActionKind::REFACTOR_REWRITE]),
-                        ..CodeActionOptions::default()
-                    },
-                )),
                 ..ServerCapabilities::default()
             },
             ..InitializeResult::default()
         })
     }
 
-    async fn initialized(&mut self, _: InitializedParams) {
+    async fn initialized(&self, _: InitializedParams) {
         let registration = Registration {
             id: "watch-hack-files".to_string(),
             method: "workspace/didChangeWatchedFiles".to_string(),
@@ -94,7 +87,6 @@ impl LanguageServer for Backend {
         };
 
         let registrations = vec![registration];
-
         self.client
             .register_capability(registrations)
             .await
@@ -102,14 +94,15 @@ impl LanguageServer for Backend {
 
         self.emit_issues().await;
 
-        self.all_diagnostics = None;
+        let mut all_diagnostics = self.all_diagnostics.write().await;
+        *all_diagnostics = None;
 
         self.client
             .log_message(MessageType::INFO, "server initialized!")
             .await;
     }
 
-    async fn did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
+    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         let mut new_file_statuses = FxHashMap::default();
 
         // self.client
@@ -148,17 +141,12 @@ impl LanguageServer for Backend {
             }
         }
 
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!("receiving changes {:?}", new_file_statuses),
-            )
-            .await;
+        let mut existing_file_changes = self.file_changes.write().await;
 
-        if let Some(ref mut existing_file_changes) = self.file_changes {
+        if let Some(existing_file_changes) = existing_file_changes.as_mut() {
             existing_file_changes.extend(new_file_statuses);
         } else {
-            self.file_changes = Some(new_file_statuses);
+            *existing_file_changes = Some(new_file_statuses);
         }
 
         if Path::new(".git/index.lock").exists() {
@@ -173,75 +161,34 @@ impl LanguageServer for Backend {
                 )
                 .await;
             self.do_analysis().await;
-            self.file_changes = None;
+            let mut file_changes = self.file_changes.write().await;
+            *file_changes = None;
             self.emit_issues().await;
         }
     }
 
-    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
-        if let Some(previous_scan_data) = &*self.previous_scan_data {
-            if let Some(strid) = previous_scan_data
-                .interner
-                .get(params.text_document.uri.path())
-            {
-                let file_path = FilePath(strid);
-                if let (Some(_), Some(file_info)) = (
-                    previous_scan_data
-                        .file_system
-                        .file_hashes_and_times
-                        .get(&file_path),
-                    previous_scan_data.codebase.files.get(&file_path),
-                ) {
-                    let mut node_ref = (StrId::EMPTY, StrId::EMPTY);
-
-                    for ast_node in &file_info.ast_nodes {
-                        if (params.range.start.line + 1 >= ast_node.start_line)
-                            && (params.range.end.line + 1 < ast_node.end_line)
-                        {
-                            node_ref.0 = ast_node.name;
-
-                            for child_node in &ast_node.children {
-                                if (params.range.start.line + 1 >= child_node.start_line)
-                                    && (params.range.end.line + 1 < child_node.end_line)
-                                {
-                                    node_ref.1 = child_node.name;
-                                    break;
-                                }
-                            }
-
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        Err(tower_lsp::jsonrpc::Error::method_not_found())
+    async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
+        Ok(None)
     }
 
-    async fn shutdown(&mut self) -> Result<()> {
+    async fn shutdown(&self) -> Result<()> {
         Ok(())
     }
 }
 
 impl Backend {
-    async fn do_analysis(&mut self) {
-        let previous_scan_data = self.previous_scan_data.clone();
-        let previous_analysis_result = self.previous_analysis_result.clone();
+    async fn do_analysis(&self) {
+        let mut previous_scan_data_guard = self.previous_scan_data.write().await;
+        let mut previous_analysis_result_guard = self.previous_analysis_result.write().await;
+        let mut all_diagnostics_guard = self.all_diagnostics.write().await;
 
-        self.previous_scan_data = Arc::new(None);
-        self.previous_analysis_result = Arc::new(None);
+        let successful_scan_data = previous_scan_data_guard.take();
 
-        let successful_scan_data = Arc::try_unwrap(previous_scan_data).unwrap();
+        let analysis_result = previous_analysis_result_guard.take();
 
-        let analysis_result = Arc::try_unwrap(previous_analysis_result).unwrap();
+        let mut file_changes_guard = self.file_changes.write().await;
 
-        let file_changes = if let Some(ref mut file_changes) = self.file_changes {
-            let file_changes = std::mem::take(file_changes);
-            Some(file_changes)
-        } else {
-            None
-        };
+        let file_changes = file_changes_guard.take();
 
         let result = scan_and_analyze_async(
             Vec::new(),
@@ -260,18 +207,11 @@ impl Backend {
         )
         .await;
 
-        self.file_changes = None;
+        *file_changes_guard = None;
 
         match result {
             Ok((analysis_result, successful_scan_data)) => {
                 let mut all_diagnostics = FxHashMap::default();
-
-                self.client
-                    .log_message(
-                        MessageType::INFO,
-                        "Analysis succeeded, computing diagnostics",
-                    )
-                    .await;
 
                 for (file, emitted_issues) in analysis_result.get_all_issues(
                     &successful_scan_data.interner,
@@ -303,12 +243,6 @@ impl Backend {
                     match Url::from_file_path(&file) {
                         Ok(url) => {
                             all_diagnostics.insert(url, diagnostics);
-                            self.client
-                                .log_message(
-                                    MessageType::INFO,
-                                    format!("Got url from file {}", file),
-                                )
-                                .await;
                         }
                         Err(_) => {
                             self.client
@@ -321,11 +255,15 @@ impl Backend {
                     }
                 }
 
-                self.all_diagnostics = Some(all_diagnostics);
-                self.previous_scan_data = Arc::new(Some(successful_scan_data));
-                self.previous_analysis_result = Arc::new(Some(analysis_result));
+                *all_diagnostics_guard = Some(all_diagnostics);
+                *previous_scan_data_guard = Some(successful_scan_data);
+                *previous_analysis_result_guard = Some(analysis_result);
             }
             Err(error) => {
+                *previous_scan_data_guard = None;
+                *previous_analysis_result_guard = None;
+                *all_diagnostics_guard = None;
+
                 self.client
                     .log_message(
                         MessageType::ERROR,
@@ -336,15 +274,9 @@ impl Backend {
         }
     }
 
-    async fn emit_issues(&mut self) {
-        if let Some(ref mut all_diagnostics) = self.all_diagnostics {
+    async fn emit_issues(&self) {
+        if let Some(all_diagnostics) = self.all_diagnostics.write().await.as_mut() {
             let mut new_files_with_errors = FxHashSet::default();
-            self.client
-                .log_message(
-                    MessageType::INFO,
-                    format!("Sending diagnostics for {} files", all_diagnostics.len()),
-                )
-                .await;
 
             for (uri, diagnostics) in all_diagnostics.drain() {
                 self.client
@@ -353,7 +285,9 @@ impl Backend {
                 new_files_with_errors.insert(uri);
             }
 
-            for old_uri in &self.files_with_errors {
+            let mut files_with_errors = self.files_with_errors.write().await;
+
+            for old_uri in files_with_errors.iter() {
                 if !new_files_with_errors.contains(old_uri) {
                     self.client
                         .publish_diagnostics(old_uri.clone(), vec![], None)
@@ -361,7 +295,7 @@ impl Backend {
                 }
             }
 
-            self.files_with_errors = new_files_with_errors;
+            *files_with_errors = new_files_with_errors;
 
             self.client
                 .log_message(MessageType::INFO, "Diagnostics sent")

@@ -9,7 +9,7 @@ hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
 hakana-str = { path = "../str" }
 hakana-reflection-info = { path = "../code_info" }
-tower-lsp = { git = "https://github.com/ebkalderon/tower-lsp", branch = "support-mutable-methods" }
+tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 tokio = { version = "1.26.0", features = ["full"] }
 serde_json = "1.0"
 rustc-hash = "1.1.0"

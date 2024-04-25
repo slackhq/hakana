@@ -20,8 +20,6 @@ impl Logger {
             Logger::LanguageServer(client, _) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 client.log_message(MessageType::INFO, message).await;
-                #[cfg(not(target_arch = "wasm32"))]
-                client.log_message(MessageType::INFO, "").await;
             }
         }
     }
@@ -48,8 +46,6 @@ impl Logger {
                 if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
                     #[cfg(not(target_arch = "wasm32"))]
                     client.log_message(MessageType::INFO, message).await;
-                    #[cfg(not(target_arch = "wasm32"))]
-                    client.log_message(MessageType::INFO, "").await;
                 }
             }
         }

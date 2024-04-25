@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tower-lsp = { git = "https://github.com/ebkalderon/tower-lsp", branch = "support-mutable-methods" }
+tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 tokio = { version = "1.26.0", features = ["full"] }
 
 [lib]
