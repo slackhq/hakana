@@ -1,5 +1,5 @@
-use std::{hash::Hasher, str::FromStr};
 use core::hash::Hash;
+use std::{hash::Hasher, str::FromStr};
 
 use hakana_str::StrId;
 use rustc_hash::FxHashSet;
@@ -107,6 +107,7 @@ pub enum IssueKind {
     RedundantTruthinessCheck,
     RedundantTypeComparison,
     ShadowedLoopVar,
+    StrictObjectEquality,
     TaintedData(Box<SinkType>),
     TestOnlyCall,
     UndefinedIntArrayOffset,

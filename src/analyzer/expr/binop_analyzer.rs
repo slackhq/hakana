@@ -6,6 +6,7 @@ use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
 use hakana_reflection_info::issue::{Issue, IssueKind};
+use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::{get_bool, get_int};
 use oxidized::pos::Pos;
@@ -135,6 +136,26 @@ pub(crate) fn analyze(
                                 "Type {} cannot be compared to {}",
                                 lhs_type.get_id(Some(interner)),
                                 rhs_type.get_id(Some(interner)),
+                            ),
+                            statements_analyzer.get_hpos(pos),
+                            &context.function_context.calling_functionlike_id,
+                        ),
+                        statements_analyzer.get_config(),
+                        statements_analyzer.get_file_path_actual(),
+                    );
+                } else if matches!(
+                    expr.0,
+                    oxidized::ast_defs::Bop::Eqeqeq | oxidized::ast_defs::Bop::Diff2
+                ) && lhs_type.types.len() == 1
+                    && lhs_type.types[0] == rhs_type.types[0]
+                    && matches!(lhs_type.types[0], TAtomic::TNamedObject { .. })
+                {
+                    analysis_data.maybe_add_issue(
+                        Issue::new(
+                            IssueKind::StrictObjectEquality,
+                            format!(
+                                "Strict equality compares {} objects by reference rather than value",
+                                lhs_type.get_id(Some(interner)),
                             ),
                             statements_analyzer.get_hpos(pos),
                             &context.function_context.calling_functionlike_id,
