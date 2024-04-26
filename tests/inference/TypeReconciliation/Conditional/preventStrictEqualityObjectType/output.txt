@@ -1,0 +1,2 @@
+ERROR: StrictObjectEquality - input.hack:3:12 - Strict equality compares A objects by reference rather than value
+ERROR: StrictObjectEquality - input.hack:6:12 - Strict equality compares A objects by reference rather than value
