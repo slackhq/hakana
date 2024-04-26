@@ -1,5 +1,5 @@
 use super::expression_identifier::{get_dim_id, get_var_id};
-use crate::expr::expression_identifier::get_functionlike_id_from_call;
+use crate::expr::expression_identifier::get_static_functionlike_id_from_call;
 use crate::{formula_generator::AssertionContext, function_analysis_data::FunctionAnalysisData};
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
@@ -58,7 +58,7 @@ pub(crate) fn scrape_assertions(
             );
         }
         aast::Expr_::Call(call) => {
-            let functionlike_id = get_functionlike_id_from_call(
+            let functionlike_id = get_static_functionlike_id_from_call(
                 call,
                 if let Some((_, interner)) = assertion_context.codebase {
                     Some(interner)
@@ -348,7 +348,7 @@ fn scrape_shapes_isset(
     negated: bool,
 ) {
     if let aast::Expr_::Call(call) = &var_expr.2 {
-        let functionlike_id = get_functionlike_id_from_call(
+        let functionlike_id = get_static_functionlike_id_from_call(
             call,
             if let Some((_, interner)) = assertion_context.codebase {
                 Some(interner)

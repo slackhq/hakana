@@ -8,7 +8,7 @@ use rustc_hash::FxHashSet;
 use crate::custom_hook::AfterStmtAnalysisData;
 use crate::expr::binop::assignment_analyzer;
 
-use crate::expr::expression_identifier::{get_functionlike_id_from_call, get_id_from_call};
+use crate::expr::expression_identifier::get_functionlike_id_from_call;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -289,8 +289,9 @@ fn detect_unused_statement_expressions(
     let functionlike_id = if let aast::Expr_::Call(boxed_call) = &boxed.2 {
         get_functionlike_id_from_call(
             boxed_call,
-            Some(statements_analyzer.get_interner()),
+            statements_analyzer.get_interner(),
             statements_analyzer.get_file_analyzer().resolved_names,
+            &analysis_data.expr_types,
         )
     } else {
         None
@@ -409,7 +410,7 @@ fn has_unused_must_use(
 ) -> Option<IssueKind> {
     match &boxed.2 {
         aast::Expr_::Call(boxed_call) => {
-            let functionlike_id_from_call = get_id_from_call(
+            let functionlike_id_from_call = get_functionlike_id_from_call(
                 boxed_call,
                 statements_analyzer.get_interner(),
                 statements_analyzer.get_file_analyzer().resolved_names,
