@@ -1,5 +1,5 @@
-use std::{hash::Hasher, str::FromStr};
 use core::hash::Hash;
+use std::{hash::Hasher, str::FromStr};
 
 use hakana_str::StrId;
 use rustc_hash::FxHashSet;
@@ -127,6 +127,7 @@ pub enum IssueKind {
     UnusedClosureParameter,
     UnusedFunction,
     UnusedFunctionCall,
+    UnusedMethodCall,
     UnusedInheritedMethod,
     UnusedInterface,
     UnusedParameter,

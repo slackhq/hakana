@@ -8,7 +8,7 @@ use rustc_hash::FxHashSet;
 use crate::custom_hook::AfterStmtAnalysisData;
 use crate::expr::binop::assignment_analyzer;
 
-use crate::expr::expression_identifier::get_functionlike_id_from_call;
+use crate::expr::expression_identifier::{get_functionlike_id_from_call, get_id_from_call};
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -273,12 +273,11 @@ fn detect_unused_statement_expressions(
     stmt: &aast::Stmt<(), ()>,
     context: &mut ScopeContext,
 ) {
-    if has_unused_must_use(boxed, statements_analyzer) {
+    if let Some(issue_kind) = has_unused_must_use(boxed, statements_analyzer, analysis_data) {
         analysis_data.maybe_add_issue(
             Issue::new(
-                IssueKind::UnusedFunctionCall,
-                "This function is annotated with MustUse but the returned value is not used"
-                    .to_string(),
+                issue_kind,
+                "This is annotated with MustUse but the returned value is not used".to_string(),
                 statements_analyzer.get_hpos(&stmt.0),
                 &context.function_context.calling_functionlike_id,
             ),
@@ -406,40 +405,66 @@ fn detect_unused_statement_expressions(
 fn has_unused_must_use(
     boxed: &aast::Expr<(), ()>,
     statements_analyzer: &StatementsAnalyzer,
-) -> bool {
+    analysis_data: &mut FunctionAnalysisData,
+) -> Option<IssueKind> {
     match &boxed.2 {
         aast::Expr_::Call(boxed_call) => {
-            let functionlike_id = get_functionlike_id_from_call(
+            let functionlike_id_from_call = get_id_from_call(
                 boxed_call,
-                Some(statements_analyzer.get_interner()),
+                statements_analyzer.get_interner(),
                 statements_analyzer.get_file_analyzer().resolved_names,
+                &analysis_data.expr_types,
             );
-            if let Some(FunctionLikeIdentifier::Function(function_id)) = functionlike_id {
-                // For statements like "Asio\join(some_fn());"
-                // Asio\join does not count as "using" the value
-                if function_id == StrId::ASIO_JOIN {
-                    return boxed_call
-                        .args
-                        .iter()
-                        .any(|arg| has_unused_must_use(&arg.1, statements_analyzer));
-                }
-
+            if let Some(functionlike_id) = functionlike_id_from_call {
                 let codebase = statements_analyzer.get_codebase();
-                if let Some(functionlike_info) = codebase
-                    .functionlike_infos
-                    .get(&(function_id, StrId::EMPTY))
-                {
-                    return functionlike_info.must_use;
+                match functionlike_id {
+                    FunctionLikeIdentifier::Function(function_id) => {
+                        // For statements like "Asio\join(some_fn());"
+                        // Asio\join does not count as "using" the value
+                        if function_id == StrId::ASIO_JOIN {
+                            for arg in boxed_call.args.iter() {
+                                let has_unused =
+                                    has_unused_must_use(&arg.1, statements_analyzer, analysis_data);
+                                if has_unused.is_some() {
+                                    return has_unused;
+                                }
+                            }
+                        }
+
+                        if let Some(functionlike_info) = codebase
+                            .functionlike_infos
+                            .get(&(function_id, StrId::EMPTY))
+                        {
+                            return if functionlike_info.must_use {
+                                Some(IssueKind::UnusedFunctionCall)
+                            } else {
+                                None
+                            };
+                        }
+                    }
+                    FunctionLikeIdentifier::Method(method_class, method_name) => {
+                        if let Some(functionlike_info) = codebase
+                            .functionlike_infos
+                            .get(&(method_class, method_name))
+                        {
+                            return if functionlike_info.must_use {
+                                Some(IssueKind::UnusedMethodCall)
+                            } else {
+                                None
+                            };
+                        }
+                    }
+                    FunctionLikeIdentifier::Closure(_, _) => (),
                 }
             }
         }
         aast::Expr_::Await(await_expr) => {
-            return has_unused_must_use(await_expr, statements_analyzer)
+            return has_unused_must_use(await_expr, statements_analyzer, analysis_data)
         }
         _ => (),
     }
 
-    false
+    None
 }
 
 fn analyze_awaitall(

@@ -1,11 +1,17 @@
+use std::{boxed, rc::Rc};
+
 use hakana_reflection_info::{
     ast::get_id_name, codebase_info::CodebaseInfo, functionlike_identifier::FunctionLikeIdentifier,
-    ExprId, VarId,
+    t_atomic::TAtomic, t_union::TUnion, ExprId, VarId,
 };
 use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use oxidized::{aast, ast_defs};
+use oxidized::{
+    aast,
+    ast::{Id_, PropOrMethod},
+    ast_defs,
+};
 
 use crate::{scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer};
 
@@ -210,6 +216,62 @@ pub fn get_functionlike_id_from_call(
             }
         }
         _ => None,
+    }
+}
+
+pub fn get_id_from_call(
+    call_expr: &oxidized::ast::CallExpr,
+    interner: &Interner,
+    resolved_names: &FxHashMap<u32, StrId>,
+    expr_types: &FxHashMap<(u32, u32), Rc<TUnion>>,
+) -> Option<FunctionLikeIdentifier> {
+    get_functionlike_id_from_call(call_expr, Some(interner), resolved_names)
+        .or_else(|| get_methodlike_id_from_call(call_expr, interner, expr_types))
+}
+
+pub fn get_methodlike_id_from_call(
+    call_expr: &oxidized::ast::CallExpr,
+    interner: &Interner,
+    expr_types: &FxHashMap<(u32, u32), Rc<TUnion>>,
+) -> Option<FunctionLikeIdentifier> {
+    // Instance method call
+    match &call_expr.func.2 {
+        aast::Expr_::ObjGet(boxed) => {
+            let (lhs_expr, rhs_expr, _nullfetch, prop_or_method) =
+                (&boxed.0, &boxed.1, &boxed.2, &boxed.3);
+
+            if *prop_or_method == PropOrMethod::IsProp {
+                return None;
+            }
+
+            let class_id = if let Some(lhs_expr_type) = expr_types.get(&(
+                lhs_expr.1.start_offset() as u32,
+                lhs_expr.1.end_offset() as u32,
+            )) {
+                let t = lhs_expr_type.types.first().unwrap();
+                if let TAtomic::TNamedObject { name, .. } = t {
+                    Some(name)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            if let aast::Expr_::Id(method_name_node) = &rhs_expr.2 {
+                if let Some(method_id) = interner.get(&method_name_node.1) {
+                    return Some(FunctionLikeIdentifier::Method(
+                        *class_id.unwrap_or(&StrId::EMPTY),
+                        method_id,
+                    ));
+                } else {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+        }
+        _ => return None,
     }
 }
 
