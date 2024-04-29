@@ -1,0 +1,2 @@
+ERROR: NonExistentClass - input.hack:7:5 - Cannot call new on undefined class FooBr
+ERROR: NonExistentFunction - input.hack:8:5 - Function bz is not defined

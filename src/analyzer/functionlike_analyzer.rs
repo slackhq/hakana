@@ -577,7 +577,30 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         let config = statements_analyzer.get_config();
 
-        if completed_analysis && config.find_unused_expressions && parent_analysis_data.is_none() {
+        if completed_analysis
+            && config.find_unused_expressions
+            && parent_analysis_data.is_none()
+            && analysis_data
+                .issue_counts
+                .get(&IssueKind::UndefinedVariable)
+                .unwrap_or(&0)
+                == &0
+            && analysis_data
+                .issue_counts
+                .get(&IssueKind::NonExistentClass)
+                .unwrap_or(&0)
+                == &0
+            && analysis_data
+                .issue_counts
+                .get(&IssueKind::NonExistentMethod)
+                .unwrap_or(&0)
+                == &0
+            && analysis_data
+                .issue_counts
+                .get(&IssueKind::NonExistentFunction)
+                .unwrap_or(&0)
+                == &0
+        {
             report_unused_expressions(
                 &mut analysis_data,
                 config,

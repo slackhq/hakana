@@ -24,6 +24,22 @@ pub(crate) fn find_unused_definitions(
         return;
     }
 
+    let has_undefined_symbols = analysis_result
+        .issue_counts
+        .get(&IssueKind::NonExistentClass)
+        .unwrap_or(&0)
+        > &0
+        || analysis_result
+            .issue_counts
+            .get(&IssueKind::NonExistentFunction)
+            .unwrap_or(&0)
+            > &0;
+
+    // don’t show unused definitions if there are undefined symbols
+    if has_undefined_symbols {
+        return;
+    }
+
     let referenced_symbols_and_members = analysis_result.symbol_references.back_references();
     let mut test_symbols = codebase
         .classlike_infos

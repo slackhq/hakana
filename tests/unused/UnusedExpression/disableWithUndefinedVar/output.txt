@@ -1,0 +1,3 @@
+ERROR: UndefinedVariable - input.hack:3:10 - Cannot find referenced variable $aab
+ERROR: MixedAnyArgument - input.hack:3:10 - Argument 1 of echo expects ?scalar, any provided
+ERROR: NonExistentFunction - input.hack:8:5 - Function baz is not defined
