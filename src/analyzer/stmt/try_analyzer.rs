@@ -170,7 +170,7 @@ pub(crate) fn analyze(
 
         let catch_var_id = &catch.1 .1 .1;
 
-        let mut catch_type = get_named_object(*catch_classlike_name);
+        let mut catch_type = get_named_object(*catch_classlike_name, &None);
 
         catch_context.remove_descendants(
             catch_var_id,

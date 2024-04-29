@@ -46,4 +46,16 @@ impl FunctionLikeIdentifier {
             }
         }
     }
+
+    pub fn to_ref(&self) -> (StrId, StrId) {
+        match self {
+            FunctionLikeIdentifier::Function(fn_name) => (*fn_name, StrId::EMPTY),
+            FunctionLikeIdentifier::Method(fq_classlike_name, method_name) => {
+                (*fq_classlike_name, *method_name)
+            }
+            FunctionLikeIdentifier::Closure(file_name, offset) => {
+                (file_name .0, StrId(*offset))
+            }
+        }
+    }
 }

@@ -239,7 +239,7 @@ pub(crate) fn analyze(
 
     analysis_data.expr_types.insert(
         (pos.start_offset() as u32, pos.end_offset() as u32),
-        Rc::new(get_named_object(*xhp_class_name)),
+        Rc::new(get_named_object(*xhp_class_name, &None)),
     );
 
     Ok(())

@@ -111,25 +111,28 @@ pub(crate) fn analyze(
         if let Some(function_storage) = codebase.functionlike_infos.get(&(name, StrId::EMPTY)) {
             function_storage
         } else {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::NonExistentFunction,
-                    format!(
-                        "Function {} is not defined",
-                        statements_analyzer.get_interner().lookup(&name)
-                    ),
-                    statements_analyzer.get_hpos(expr.0 .0),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            );
+            let interned_name = statements_analyzer.get_interner().lookup(&name);
 
-            analysis_data.symbol_references.add_reference_to_symbol(
-                &context.function_context,
-                name,
-                false,
-            );
+            // ignore non-existent functions that are in HH\
+            // as these can differ between Hakana and hh_server
+            if !interned_name.starts_with("HH\\") && !interned_name.starts_with("xhprof_") {
+                analysis_data.maybe_add_issue(
+                    Issue::new(
+                        IssueKind::NonExistentFunction,
+                        format!("Function {} is not defined", interned_name),
+                        statements_analyzer.get_hpos(expr.0 .0),
+                        &context.function_context.calling_functionlike_id,
+                    ),
+                    statements_analyzer.get_config(),
+                    statements_analyzer.get_file_path_actual(),
+                );
+
+                analysis_data.symbol_references.add_reference_to_symbol(
+                    &context.function_context,
+                    name,
+                    false,
+                );
+            }
 
             return Ok(());
         };

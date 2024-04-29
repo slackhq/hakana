@@ -118,7 +118,9 @@ pub(crate) fn fetch(
                 TAtomic::TNamedObject { .. } | TAtomic::TGenericParam { .. } => {
                     type_expander::StaticClassType::Object(lhs_type_part)
                 }
-                TAtomic::TClassname { as_type } => type_expander::StaticClassType::Object(as_type),
+                TAtomic::TGenericClassname { as_type, .. } | TAtomic::TClassname { as_type } => {
+                    type_expander::StaticClassType::Object(as_type)
+                }
                 _ => type_expander::StaticClassType::None,
             },
             parent_class: classlike_storage.direct_parent_class.as_ref(),

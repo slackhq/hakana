@@ -56,7 +56,7 @@ pub(crate) fn analyze(
 
                         classlike_name = Some(*self_name);
 
-                        get_named_object(*self_name)
+                        get_named_object(*self_name, &None)
                     }
                     StrId::PARENT => {
                         let self_name =
@@ -109,7 +109,19 @@ pub(crate) fn analyze(
                     _ => {
                         classlike_name = Some(*name);
 
-                        get_named_object(*name)
+                        let type_resolution_context = if let Some(id) =
+                            context.function_context.calling_functionlike_id
+                        {
+                            if let Some(storage) = codebase.functionlike_infos.get(&id.to_ref()) {
+                                &storage.type_resolution_context
+                            } else {
+                                &None
+                            }
+                        } else {
+                            &None
+                        };
+
+                        get_named_object(*name, type_resolution_context)
                     }
                 }
             } else {

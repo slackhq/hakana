@@ -234,7 +234,7 @@ pub(crate) fn scan(
                     {
                         storage.template_extended_offsets.insert(
                             interface_name,
-                            vec![Arc::new(get_named_object(*class_name))],
+                            vec![Arc::new(get_named_object(*class_name, &None))],
                         );
                     } else {
                         storage.template_extended_offsets.insert(

@@ -6,6 +6,7 @@ use hakana_reflection_info::{
     data_flow::node::DataFlowNode,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    type_resolution::TypeResolutionContext,
 };
 use itertools::Itertools;
 use type_combiner::combine;
@@ -115,7 +116,23 @@ pub fn get_object() -> TUnion {
 }
 
 #[inline]
-pub fn get_named_object(name: StrId) -> TUnion {
+pub fn get_named_object(
+    name: StrId,
+    type_resolution_context: &Option<TypeResolutionContext>,
+) -> TUnion {
+    if let Some(type_resolution_context) = type_resolution_context {
+        if let Some(t) = type_resolution_context
+            .template_type_map
+            .iter()
+            .find(|v| v.0 == name)
+        {
+            return wrap_atomic(TAtomic::TGenericClassname {
+                param_name: name,
+                defining_entity: t.1[0].0,
+                as_type: Box::new((*(t.1[0].1.get_single())).clone()),
+            });
+        }
+    }
     wrap_atomic(TAtomic::TNamedObject {
         name,
         type_params: None,
