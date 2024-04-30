@@ -98,20 +98,10 @@ pub(crate) fn analyze(
         EFFECT_READ_PROPS,
     );
 
-    let type_resolution_context = if let Some(id) = context.function_context.calling_functionlike_id
-    {
-        if let Some(storage) = codebase.functionlike_infos.get(&id.to_ref()) {
-            &storage.type_resolution_context
-        } else {
-            &None
-        }
-    } else {
-        &None
-    };
-
+    let type_resolution_context = statements_analyzer.get_type_resolution_context();
     analysis_data.set_expr_type(
         &stmt_class.1,
-        get_named_object(classlike_name, type_resolution_context),
+        get_named_object(classlike_name, Some(type_resolution_context)),
     );
 
     let prop_name = match &stmt_name {

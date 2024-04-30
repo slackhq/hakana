@@ -61,14 +61,14 @@ pub(crate) fn analyze(
                     "self" => {
                         let self_name = &context.function_context.calling_class.unwrap();
 
-                        get_named_object(*self_name, &None)
+                        get_named_object(*self_name, None)
                     }
                     "parent" => {
                         let self_name = &context.function_context.calling_class.unwrap();
 
                         let classlike_storage = codebase.classlike_infos.get(self_name).unwrap();
 
-                        get_named_object(classlike_storage.direct_parent_class.unwrap(), &None)
+                        get_named_object(classlike_storage.direct_parent_class.unwrap(), None)
                     }
                     "static" => {
                         let self_name = &context.function_context.calling_class.unwrap();
@@ -101,19 +101,10 @@ pub(crate) fn analyze(
                             ));
                         };
 
-                        let type_resolution_context = if let Some(id) =
-                            context.function_context.calling_functionlike_id
-                        {
-                            if let Some(storage) = codebase.functionlike_infos.get(&id.to_ref()) {
-                                &storage.type_resolution_context
-                            } else {
-                                &None
-                            }
-                        } else {
-                            &None
-                        };
+                        let type_resolution_context =
+                            statements_analyzer.get_type_resolution_context();
 
-                        get_named_object(name_string, type_resolution_context)
+                        get_named_object(name_string, Some(type_resolution_context))
                     }
                 }
             } else {

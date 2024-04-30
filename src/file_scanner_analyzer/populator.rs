@@ -319,6 +319,22 @@ fn populate_functionlike_storage(
         }
     }
 
+    if let Some(ref mut type_resolution_context) = storage.type_resolution_context {
+        for (_, type_param_map) in type_resolution_context.template_type_map.iter_mut() {
+            for (_, v) in type_param_map {
+                if force_type_population || v.needs_population() {
+                    populate_union_type(
+                        Arc::make_mut(v),
+                        codebase_symbols,
+                        reference_source,
+                        symbol_references,
+                        force_type_population,
+                    );
+                }
+            }
+        }
+    }
+
     for (_, where_type) in storage.where_constraints.iter_mut() {
         populate_union_type(
             where_type,
@@ -632,12 +648,7 @@ fn populate_data_from_trait(
     symbol_references: &mut SymbolReferences,
     safe_symbols: &FxHashSet<StrId>,
 ) {
-    populate_classlike_storage(
-        trait_name,
-        codebase,
-        symbol_references,
-        safe_symbols,
-    );
+    populate_classlike_storage(trait_name, codebase, symbol_references, safe_symbols);
 
     symbol_references.add_symbol_reference_to_symbol(storage.name, *trait_name, true);
 

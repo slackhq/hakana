@@ -118,7 +118,7 @@ pub fn get_object() -> TUnion {
 #[inline]
 pub fn get_named_object(
     name: StrId,
-    type_resolution_context: &Option<TypeResolutionContext>,
+    type_resolution_context: Option<&TypeResolutionContext>,
 ) -> TUnion {
     if let Some(type_resolution_context) = type_resolution_context {
         if let Some(t) = type_resolution_context
