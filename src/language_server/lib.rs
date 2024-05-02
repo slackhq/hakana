@@ -105,6 +105,10 @@ impl LanguageServer for Backend {
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         let mut new_file_statuses = FxHashMap::default();
 
+        self.client
+            .log_message(MessageType::INFO, format!("watched files changed"))
+            .await;
+
         // self.client
         //     .log_message(
         //         MessageType::INFO,
@@ -141,12 +145,14 @@ impl LanguageServer for Backend {
             }
         }
 
-        let mut existing_file_changes = self.file_changes.write().await;
+        {
+            let mut existing_file_changes = self.file_changes.write().await;
 
-        if let Some(existing_file_changes) = existing_file_changes.as_mut() {
-            existing_file_changes.extend(new_file_statuses);
-        } else {
-            *existing_file_changes = Some(new_file_statuses);
+            if let Some(existing_file_changes) = existing_file_changes.as_mut() {
+                existing_file_changes.extend(new_file_statuses);
+            } else {
+                *existing_file_changes = Some(new_file_statuses);
+            }
         }
 
         if Path::new(".git/index.lock").exists() {
@@ -154,15 +160,7 @@ impl LanguageServer for Backend {
                 .log_message(MessageType::INFO, "Waiting a sec while git is doing stuff")
                 .await;
         } else {
-            self.client
-                .log_message(
-                    MessageType::INFO,
-                    format!("analyzing changes {:?}", self.file_changes),
-                )
-                .await;
             self.do_analysis().await;
-            let mut file_changes = self.file_changes.write().await;
-            *file_changes = None;
             self.emit_issues().await;
         }
     }
@@ -189,6 +187,13 @@ impl Backend {
         let mut file_changes_guard = self.file_changes.write().await;
 
         let file_changes = file_changes_guard.take();
+
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!("scan & analyze changes — {:?}", file_changes),
+            )
+            .await;
 
         let result = scan_and_analyze_async(
             Vec::new(),
