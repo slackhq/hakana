@@ -145,13 +145,22 @@ impl LanguageServer for Backend {
             }
         }
 
-        {
+        if !new_file_statuses.is_empty() {
             let mut existing_file_changes = self.file_changes.write().await;
 
             if let Some(existing_file_changes) = existing_file_changes.as_mut() {
                 existing_file_changes.extend(new_file_statuses);
             } else {
                 *existing_file_changes = Some(new_file_statuses);
+            }
+        } else {
+            let file_changes_guard = self.file_changes.read().await;
+
+            if file_changes_guard.is_none() {
+                self.client
+                    .log_message(MessageType::INFO, "No files updated")
+                    .await;
+                return;
             }
         }
 
