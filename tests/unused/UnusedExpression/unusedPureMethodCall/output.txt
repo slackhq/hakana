@@ -1,0 +1,1 @@
+ERROR: UnusedStatement - input.hack:13:5 - This statement has no effect and can be removed

@@ -345,6 +345,7 @@ fn detect_unused_statement_expressions(
             }
         }
     }
+
     if let Some(functionlike_id) = functionlike_id {
         if let FunctionLikeIdentifier::Function(function_id) = functionlike_id {
             let codebase = statements_analyzer.get_codebase();

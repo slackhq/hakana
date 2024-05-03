@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use hakana_reflection_info::code_location::HPos;
 use hakana_reflection_info::issue::{Issue, IssueKind};
-use hakana_reflection_info::{GenericParent, EFFECT_IMPURE, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{GenericParent, EFFECT_IMPURE, EFFECT_PURE, EFFECT_WRITE_PROPS};
 use hakana_str::StrId;
 use hakana_type::template::standin_type_replacer::get_relevant_bounds;
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
@@ -504,7 +504,10 @@ pub(crate) fn apply_effects(
             }
         }
         FnEffect::Pure => {
-            // do nothing, it's a pure function
+            analysis_data.expr_effects.insert(
+                (pos.start_offset() as u32, pos.end_offset() as u32),
+                EFFECT_PURE,
+            );
         }
         FnEffect::Unknown => {
             // yet to be computed
