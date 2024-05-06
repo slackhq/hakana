@@ -167,58 +167,50 @@ pub fn get_functionlike_id_from_call(
     resolved_names: &FxHashMap<u32, StrId>,
     expr_types: &FxHashMap<(u32, u32), Rc<TUnion>>,
 ) -> Option<FunctionLikeIdentifier> {
-    get_static_functionlike_id_from_call(call_expr, Some(interner), resolved_names)
+    get_static_functionlike_id_from_call(call_expr, interner, resolved_names)
         .or_else(|| get_method_id_from_call(call_expr, interner, expr_types))
 }
 
 pub fn get_static_functionlike_id_from_call(
     call: &oxidized::ast::CallExpr,
-    interner: Option<&Interner>,
+    interner: &Interner,
     resolved_names: &FxHashMap<u32, StrId>,
 ) -> Option<FunctionLikeIdentifier> {
     match &call.func.2 {
         aast::Expr_::Id(boxed_id) => {
-            if let Some(interner) = interner {
-                let name = if boxed_id.1 == "isset" {
-                    StrId::ISSET
-                } else if boxed_id.1 == "\\in_array" {
-                    interner.get("in_array").unwrap()
-                } else if let Some(resolved_name) =
-                    resolved_names.get(&(boxed_id.0.start_offset() as u32))
-                {
-                    *resolved_name
-                } else {
-                    return None;
-                };
-
-                Some(FunctionLikeIdentifier::Function(name))
+            let name = if boxed_id.1 == "isset" {
+                StrId::ISSET
+            } else if boxed_id.1 == "\\in_array" {
+                interner.get("in_array").unwrap()
+            } else if let Some(resolved_name) =
+                resolved_names.get(&(boxed_id.0.start_offset() as u32))
+            {
+                *resolved_name
             } else {
-                None
-            }
+                return None;
+            };
+
+            Some(FunctionLikeIdentifier::Function(name))
         }
         aast::Expr_::ClassConst(boxed) => {
-            if let Some(interner) = interner {
-                let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
+            let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
 
-                match &class_id.2 {
-                    aast::ClassId_::CIexpr(lhs_expr) => {
-                        if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                            if let (Some(class_name), Some(method_name)) = (
-                                resolved_names.get(&(id.0.start_offset() as u32)),
-                                interner.get(&rhs_expr.1),
-                            ) {
-                                Some(FunctionLikeIdentifier::Method(*class_name, method_name))
-                            } else {
-                                None
-                            }
+            match &class_id.2 {
+                aast::ClassId_::CIexpr(lhs_expr) => {
+                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                        if let (Some(class_name), Some(method_name)) = (
+                            resolved_names.get(&(id.0.start_offset() as u32)),
+                            interner.get(&rhs_expr.1),
+                        ) {
+                            Some(FunctionLikeIdentifier::Method(*class_name, method_name))
                         } else {
                             None
                         }
+                    } else {
+                        None
                     }
-                    _ => None,
                 }
-            } else {
-                None
+                _ => None,
             }
         }
         _ => None,

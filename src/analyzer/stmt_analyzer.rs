@@ -1,5 +1,6 @@
 use hakana_reflection_info::code_location::{HPos, StmtStart};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
+use hakana_reflection_info::functionlike_info::FnEffect;
 use hakana_reflection_info::EFFECT_PURE;
 use hakana_str::StrId;
 use hakana_type::get_arrayish_params;
@@ -8,7 +9,9 @@ use rustc_hash::FxHashSet;
 use crate::custom_hook::AfterStmtAnalysisData;
 use crate::expr::binop::assignment_analyzer;
 
-use crate::expr::expression_identifier::get_functionlike_id_from_call;
+use crate::expr::expression_identifier::{
+    get_functionlike_id_from_call, get_static_functionlike_id_from_call,
+};
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
@@ -286,51 +289,12 @@ fn detect_unused_statement_expressions(
         );
     }
 
-    let functionlike_id = if let aast::Expr_::Call(boxed_call) = &boxed.2 {
-        get_functionlike_id_from_call(
-            boxed_call,
-            statements_analyzer.get_interner(),
-            statements_analyzer.get_file_analyzer().resolved_names,
-            &analysis_data.expr_types,
-        )
-    } else {
-        None
-    };
-
     if let Some(effect) = analysis_data.expr_effects.get(&(
         boxed.pos().start_offset() as u32,
         boxed.pos().end_offset() as u32,
     )) {
         if effect == &EFFECT_PURE {
-            let mut is_constructor_call = false;
-            let mut fn_can_throw = false;
-
-            if let Some(functionlike_id) = functionlike_id {
-                match functionlike_id {
-                    FunctionLikeIdentifier::Function(function_id) => {
-                        let codebase = statements_analyzer.get_codebase();
-
-                        if let Some(functionlike_info) = codebase
-                            .functionlike_infos
-                            .get(&(function_id, StrId::EMPTY))
-                        {
-                            fn_can_throw = functionlike_info.pure_can_throw
-                        }
-                    }
-                    FunctionLikeIdentifier::Method(_, method_name_id) => {
-                        if method_name_id == StrId::CONSTRUCT {
-                            is_constructor_call = true;
-                        }
-
-                        if method_name_id == StrId::ASSERT {
-                            fn_can_throw = true;
-                        }
-                    }
-                    _ => (),
-                }
-            };
-
-            if !is_constructor_call && !fn_can_throw {
+            if !matches!(boxed.2, aast::Expr_::New(..)) {
                 analysis_data.maybe_add_issue(
                     Issue::new(
                         IssueKind::UnusedStatement,
@@ -346,19 +310,24 @@ fn detect_unused_statement_expressions(
         }
     }
 
-    if let Some(functionlike_id) = functionlike_id {
-        if let FunctionLikeIdentifier::Function(function_id) = functionlike_id {
+    if let aast::Expr_::Call(boxed_call) = &boxed.2 {
+        let functionlike_id = get_static_functionlike_id_from_call(
+            boxed_call,
+            statements_analyzer.get_interner(),
+            statements_analyzer.get_file_analyzer().resolved_names,
+        );
+
+        if let Some(FunctionLikeIdentifier::Function(function_id)) = functionlike_id {
             let codebase = statements_analyzer.get_codebase();
-            if let Some(_functionlike_info) = codebase
+            if let Some(functionlike_info) = codebase
                 .functionlike_infos
                 .get(&(function_id, StrId::EMPTY))
             {
                 if let Some(expr_type) = analysis_data.get_rc_expr_type(boxed.pos()).cloned() {
                     let function_name = statements_analyzer.get_interner().lookup(&function_id);
 
-                    if (function_name.starts_with("HH\\Lib\\Keyset\\")
-                        || function_name.starts_with("HH\\Lib\\Vec\\")
-                        || function_name.starts_with("HH\\Lib\\Dict\\"))
+                    if !functionlike_info.user_defined
+                        && matches!(functionlike_info.effects, FnEffect::Arg(..))
                         && expr_type.is_single()
                     {
                         let array_types = get_arrayish_params(expr_type.get_single(), codebase);

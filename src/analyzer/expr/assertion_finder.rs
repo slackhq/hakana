@@ -58,15 +58,15 @@ pub(crate) fn scrape_assertions(
             );
         }
         aast::Expr_::Call(call) => {
-            let functionlike_id = get_static_functionlike_id_from_call(
-                call,
-                if let Some((_, interner)) = assertion_context.codebase {
-                    Some(interner)
-                } else {
-                    None
-                },
-                assertion_context.resolved_names,
-            );
+            let functionlike_id = if let Some((_, interner)) = assertion_context.codebase {
+                get_static_functionlike_id_from_call(
+                    call,
+                    interner,
+                    assertion_context.resolved_names,
+                )
+            } else {
+                None
+            };
 
             if let Some(FunctionLikeIdentifier::Function(name)) = functionlike_id {
                 return scrape_function_assertions(
@@ -348,15 +348,11 @@ fn scrape_shapes_isset(
     negated: bool,
 ) {
     if let aast::Expr_::Call(call) = &var_expr.2 {
-        let functionlike_id = get_static_functionlike_id_from_call(
-            call,
-            if let Some((_, interner)) = assertion_context.codebase {
-                Some(interner)
-            } else {
-                None
-            },
-            assertion_context.resolved_names,
-        );
+        let functionlike_id = if let Some((_, interner)) = assertion_context.codebase {
+            get_static_functionlike_id_from_call(call, interner, assertion_context.resolved_names)
+        } else {
+            None
+        };
 
         if let Some(FunctionLikeIdentifier::Method(class_name, member_name)) = functionlike_id {
             if let Some((codebase, interner)) = assertion_context.codebase {

@@ -85,7 +85,7 @@ pub(crate) fn scan_method(
             || method_name == StrId::ASSERT
             || method_name == StrId::ASSERT_ALL)
     {
-        functionlike_info.pure_can_throw = true;
+        functionlike_info.has_throw = true;
     }
 
     let mut method_info = MethodInfo::new();

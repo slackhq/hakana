@@ -68,7 +68,16 @@ pub(crate) fn analyze(
                     start_line: 0,
                 },
             );
-            lambda_storage.user_defined = true;
+            let existing_storage = codebase
+                .functionlike_infos
+                .get(&(closure_id.0 .0, StrId(closure_id.1)));
+
+            if let Some(existing_storage) = existing_storage {
+                lambda_storage.has_throw = existing_storage.has_throw;
+            }
+
+            lambda_storage.effects = FnEffect::from_u8(effects);
+
             lambda_storage.params = closure_params
                 .iter()
                 .map(|fn_param| {
@@ -84,7 +93,8 @@ pub(crate) fn analyze(
                 })
                 .collect();
             lambda_storage.return_type = closure_return_type.clone().map(|t| (*t).clone());
-            lambda_storage.effects = FnEffect::from_u8(effects);
+
+            lambda_storage.user_defined = true;
 
             let functionlike_id = FunctionLikeIdentifier::Closure(closure_id.0, closure_id.1);
 

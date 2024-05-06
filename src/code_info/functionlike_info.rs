@@ -99,7 +99,7 @@ pub struct FunctionLikeInfo {
 
     pub effects: FnEffect,
 
-    pub pure_can_throw: bool,
+    pub has_throw: bool,
 
     /**
      * Whether or not the function output is dependent solely on input - a function can be
@@ -191,7 +191,7 @@ impl FunctionLikeInfo {
             where_constraints: vec![],
             async_version: None,
             is_production_code: true,
-            pure_can_throw: false,
+            has_throw: false,
             is_closure: false,
             overriding: false,
         }

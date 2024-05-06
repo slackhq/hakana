@@ -227,8 +227,8 @@ fn analyze_atomic(
         }
     };
 
-    match statements_analyzer.get_interner().lookup(&classlike_name) {
-        "ReflectionClass" | "ReflectionTypeAlias" => {
+    match classlike_name {
+        StrId::REFLECTION_CLASS | StrId::REFLECTION_FUNCTION | StrId::REFLECTION_TYPE_ALIAS => {
             analysis_data.expr_effects.insert(
                 (pos.start_offset() as u32, pos.end_offset() as u32),
                 EFFECT_WRITE_GLOBALS,
@@ -317,10 +317,7 @@ fn analyze_named_constructor(
 
     let mut generic_type_params = None;
 
-    let method_name = statements_analyzer
-        .get_interner()
-        .get("__construct")
-        .unwrap();
+    let method_name = StrId::CONSTRUCT;
     let method_id = MethodIdentifier(classlike_name, method_name);
     let declaring_method_id = codebase.get_declaring_method_id(&method_id);
 

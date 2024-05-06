@@ -9,7 +9,7 @@ use hakana_reflection_info::{
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
-use hakana_reflection_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL, EFFECT_WRITE_PROPS};
+use hakana_reflection_info::{GenericParent, VarId, EFFECT_WRITE_LOCAL};
 use hakana_str::StrId;
 use hakana_type::get_null;
 use hakana_type::template::standin_type_replacer;
@@ -164,14 +164,6 @@ pub(crate) fn analyze(
         }
     }
 
-    // .hhi for NumberFormatter was incorrect
-    if classlike_name == StrId::NUMBER_FORMATTER {
-        analysis_data.expr_effects.insert(
-            (pos.start_offset() as u32, pos.end_offset() as u32),
-            EFFECT_WRITE_PROPS,
-        );
-    }
-
     check_method_args(
         statements_analyzer,
         analysis_data,
@@ -184,6 +176,17 @@ pub(crate) fn analyze(
         pos,
         method_name_pos,
     )?;
+
+    // .hhi for NumberFormatter was incorrect
+    // or if we're calling parent::__construct, make sure we set correct write props effect
+    if method_id.0 == StrId::NUMBER_FORMATTER || method_id.1 == StrId::CONSTRUCT {
+        if let Some(effects) = analysis_data
+            .expr_effects
+            .get_mut(&(pos.start_offset() as u32, pos.end_offset() as u32))
+        {
+            *effects |= EFFECT_WRITE_LOCAL;
+        }
+    }
 
     if functionlike_storage.ignore_taints_if_true {
         analysis_data.if_true_assertions.insert(

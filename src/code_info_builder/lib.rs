@@ -37,6 +37,7 @@ struct Context {
     function_name: Option<StrId>,
     member_name: Option<StrId>,
     has_yield: bool,
+    has_throw: bool,
     has_asio_join: bool,
     has_static_field_access: bool,
     uses_position: Option<(usize, usize)>,
@@ -470,30 +471,36 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
 
         c.member_name = None;
 
+        let classlike_name = *c.classlike_name.as_ref().unwrap();
+
+        let functionlike_storage = self
+            .codebase
+            .functionlike_infos
+            .get_mut(&(classlike_name, method_name))
+            .unwrap();
+
+        if classlike_name == StrId::REFLECTION_CLASS || classlike_name == StrId::REFLECTION_FUNCTION
+        {
+            functionlike_storage.has_throw = true;
+        }
+
         if c.has_yield {
-            self.codebase
-                .functionlike_infos
-                .get_mut(&(*c.classlike_name.as_ref().unwrap(), method_name))
-                .unwrap()
-                .has_yield = true;
+            functionlike_storage.has_yield = true;
             c.has_yield = false;
         }
 
+        if c.has_throw {
+            functionlike_storage.has_throw = true;
+            c.has_throw = false;
+        }
+
         if c.has_asio_join {
-            self.codebase
-                .functionlike_infos
-                .get_mut(&(*c.classlike_name.as_ref().unwrap(), method_name))
-                .unwrap()
-                .has_asio_join = true;
+            functionlike_storage.has_asio_join = true;
             c.has_asio_join = false;
         }
 
         if !c.has_static_field_access && m.static_ {
-            self.codebase
-                .functionlike_infos
-                .get_mut(&(*c.classlike_name.as_ref().unwrap(), method_name))
-                .unwrap()
-                .specialize_call = true;
+            functionlike_storage.specialize_call = true;
             c.has_static_field_access = false;
         }
 
@@ -553,6 +560,16 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
         c.has_static_field_access = false;
 
         c.function_name = None;
+
+        result
+    }
+
+    fn visit_stmt_(&mut self, c: &mut Context, p: &aast::Stmt_<(), ()>) -> Result<(), ()> {
+        let result = p.recurse(c, self);
+
+        if let aast::Stmt_::Throw(..) = &p {
+            c.has_throw = true;
+        }
 
         result
     }
@@ -694,7 +711,7 @@ impl<'a> Scanner<'a> {
                     | StrId::LIB_C_ONLYX
             )
         ) {
-            functionlike_storage.pure_can_throw = true;
+            functionlike_storage.has_throw = true;
         }
 
         functionlike_storage.type_resolution_context = Some(type_resolution_context);
@@ -704,6 +721,22 @@ impl<'a> Scanner<'a> {
                 fix_function_return_type(name, &mut functionlike_storage);
             }
         }
+
+        if c.has_yield {
+            functionlike_storage.has_yield = true;
+            c.has_yield = false;
+        }
+
+        if c.has_throw {
+            functionlike_storage.has_throw = true;
+            c.has_throw = false;
+        }
+
+        if c.has_asio_join {
+            functionlike_storage.has_asio_join = true;
+            c.has_asio_join = false;
+        }
+
         functionlike_storage
     }
 }
@@ -857,6 +890,7 @@ pub fn collect_info_for_aast(
         function_name: None,
         member_name: None,
         has_yield: false,
+        has_throw: false,
         has_asio_join: false,
         has_static_field_access: false,
         uses_position: None,

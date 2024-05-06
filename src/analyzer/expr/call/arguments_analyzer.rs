@@ -181,7 +181,7 @@ pub(crate) fn check_arguments_match(
 
         if matches!(functionlike_info.effects, FnEffect::Some(_))
             || matches!(functionlike_info.effects, FnEffect::Arg(_))
-            || functionlike_info.pure_can_throw
+            || functionlike_info.has_throw
             || functionlike_info.user_defined
             || functionlike_info.method_info.is_some()
         {
