@@ -593,6 +593,11 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                     c.has_static_field_access = true;
                 }
             }
+            aast::Expr_::ObjGet(boxed) => {
+                if let aast::Expr_::Id(id) = &boxed.1 .2 {
+                    self.interner.intern(id.1.clone());
+                }
+            }
             aast::Expr_::Call(boxed) => {
                 if let aast::Expr_::Id(boxed_id) = &boxed.func.2 {
                     if let Some(&StrId::ASIO_JOIN) =
