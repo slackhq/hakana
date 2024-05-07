@@ -14,7 +14,7 @@ use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::functionlike_info::{FnEffect, FunctionLikeInfo, MetaStart};
 use hakana_reflection_info::functionlike_parameter::FunctionLikeParameter;
 use hakana_reflection_info::t_atomic::TAtomic;
-use hakana_reflection_info::VarId;
+use hakana_reflection_info::{VarId, EFFECT_CAN_THROW};
 use hakana_str::StrId;
 use hakana_type::get_mixed_any;
 use hakana_type::template::TemplateResult;
@@ -54,7 +54,7 @@ pub(crate) fn analyze(
         if let TAtomic::TClosure {
             params: closure_params,
             return_type: closure_return_type,
-            effects,
+            mut effects,
             closure_id,
         } = &lhs_type_part
         {
@@ -73,10 +73,14 @@ pub(crate) fn analyze(
                 .get(&(closure_id.0 .0, StrId(closure_id.1)));
 
             if let Some(existing_storage) = existing_storage {
-                lambda_storage.has_throw = existing_storage.has_throw;
+                if existing_storage.has_throw {
+                    if let Some(ref mut effects) = effects {
+                        *effects |= EFFECT_CAN_THROW;
+                    }
+                }
             }
 
-            lambda_storage.effects = FnEffect::from_u8(effects);
+            lambda_storage.effects = FnEffect::from_u8(&effects);
 
             lambda_storage.params = closure_params
                 .iter()
