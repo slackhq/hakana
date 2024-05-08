@@ -1,13 +1,6 @@
-#[cfg(not(target_arch = "wasm32"))]
-use tower_lsp::lsp_types::MessageType;
-
 pub enum Logger {
     DevNull,
     CommandLine(Verbosity),
-    #[cfg(not(target_arch = "wasm32"))]
-    LanguageServer(tower_lsp::Client, Verbosity),
-    #[cfg(target_arch = "wasm32")]
-    LanguageServer((), Verbosity),
 }
 
 impl Logger {
@@ -16,10 +9,6 @@ impl Logger {
             Logger::DevNull => {}
             Logger::CommandLine(_) => {
                 println!("{}", message);
-            }
-            Logger::LanguageServer(client, _) => {
-                #[cfg(not(target_arch = "wasm32"))]
-                client.log_message(MessageType::INFO, message).await;
             }
         }
     }
@@ -30,7 +19,6 @@ impl Logger {
             Logger::CommandLine(_) => {
                 println!("{}", message);
             }
-            Logger::LanguageServer(_, _) => {}
         }
     }
 
@@ -40,12 +28,6 @@ impl Logger {
             Logger::CommandLine(verbosity) => {
                 if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
                     println!("{}", message);
-                }
-            }
-            Logger::LanguageServer(client, verbosity) => {
-                if matches!(verbosity, Verbosity::Debugging | Verbosity::DebuggingByLine) {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    client.log_message(MessageType::INFO, message).await;
                 }
             }
         }
@@ -62,7 +44,7 @@ impl Logger {
     pub fn can_log_timing(&self) -> bool {
         match self {
             Logger::DevNull => false,
-            Logger::CommandLine(verbosity) | Logger::LanguageServer(_, verbosity) => {
+            Logger::CommandLine(verbosity) => {
                 matches!(verbosity, Verbosity::Debugging | Verbosity::Timing)
             }
         }
@@ -71,7 +53,7 @@ impl Logger {
     pub fn get_verbosity(&self) -> Verbosity {
         match self {
             Logger::DevNull => Verbosity::Simple,
-            Logger::CommandLine(verbosity) | Logger::LanguageServer(_, verbosity) => *verbosity,
+            Logger::CommandLine(verbosity) => *verbosity,
         }
     }
 

@@ -1,15 +1,16 @@
 use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
-use hakana_logger::{Logger, Verbosity};
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_workhorse::file::FileStatus;
 use hakana_workhorse::{scan_and_analyze_async, SuccessfulScanData};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::sync::RwLock;
+use tokio::time::sleep;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
@@ -204,16 +205,15 @@ impl Backend {
             )
             .await;
 
+        sleep(Duration::from_millis(10)).await;
+
         let result = scan_and_analyze_async(
             Vec::new(),
             None,
             None,
             self.analysis_config.clone(),
             8,
-            Arc::new(Logger::LanguageServer(
-                self.client.clone(),
-                Verbosity::Simple,
-            )),
+            &self.client,
             "",
             successful_scan_data,
             analysis_result,

@@ -26,6 +26,8 @@ use std::fs;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use tower_lsp::lsp_types::MessageType;
+use tower_lsp::Client;
 use unused_symbols::find_unused_definitions;
 
 mod analyzer;
@@ -78,7 +80,7 @@ pub async fn scan_and_analyze_async(
     ignored_paths: Option<FxHashSet<String>>,
     config: Arc<Config>,
     threads: u8,
-    logger: Arc<Logger>,
+    lsp_client: &Client,
     header: &str,
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
@@ -87,7 +89,11 @@ pub async fn scan_and_analyze_async(
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
 
-    logger.log("Scanning files").await;
+    lsp_client
+        .log_message(MessageType::INFO, "Scanning files")
+        .await;
+
+    tokio::time::sleep(Duration::from_millis(10)).await;
 
     let ScanFilesResult {
         mut codebase,
@@ -102,7 +108,7 @@ pub async fn scan_and_analyze_async(
         None,
         &config,
         threads,
-        logger.clone(),
+        Arc::new(Logger::DevNull),
         header,
         previous_scan_data,
         language_server_changes,
@@ -110,7 +116,7 @@ pub async fn scan_and_analyze_async(
 
     let mut cached_analysis = if config.ast_diff {
         mark_safe_symbols_from_diff(
-            &logger,
+            &Arc::new(Logger::DevNull),
             codebase_diff,
             &codebase,
             &mut interner,
@@ -124,7 +130,11 @@ pub async fn scan_and_analyze_async(
         CachedAnalysis::default()
     };
 
-    logger.log("Calculating symbol inheritance").await;
+    lsp_client
+        .log_message(MessageType::INFO, "Calculating symbol inheritance")
+        .await;
+
+    tokio::time::sleep(Duration::from_millis(10)).await;
 
     populate_codebase(
         &mut codebase,
@@ -144,9 +154,14 @@ pub async fn scan_and_analyze_async(
         cached_analysis.existing_issues,
     );
 
-    logger
-        .log(&format!("Analyzing {} files", files_to_analyze.len()))
+    lsp_client
+        .log_message(
+            MessageType::INFO,
+            &format!("Analyzing {} files", files_to_analyze.len()),
+        )
         .await;
+
+    tokio::time::sleep(Duration::from_millis(10)).await;
 
     analyze_files(
         files_to_analyze,
@@ -156,7 +171,7 @@ pub async fn scan_and_analyze_async(
         filter,
         &ignored_paths,
         threads,
-        logger.clone(),
+        Arc::new(Logger::DevNull),
         &mut Duration::default(),
     )?;
 
