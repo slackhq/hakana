@@ -310,7 +310,7 @@ pub(crate) fn analyze(
 
     if let Some(loop_scope) = loop_scope {
         if !try_leaves_loop && !loop_scope.final_actions.contains(&ControlAction::None) {
-            loop_scope.final_actions.push(ControlAction::None);
+            loop_scope.final_actions.insert(ControlAction::None);
         }
     }
 

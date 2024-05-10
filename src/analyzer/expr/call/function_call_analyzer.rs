@@ -202,22 +202,23 @@ pub(crate) fn analyze(
         &functionlike_id,
     );
 
-    if !function_storage.is_production_code && function_storage.user_defined {
-        if context.function_context.is_production(codebase) {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::TestOnlyCall,
-                    format!(
-                        "Cannot call test-only function {} from non-test context",
-                        statements_analyzer.get_interner().lookup(&name)
-                    ),
-                    statements_analyzer.get_hpos(pos),
-                    &context.function_context.calling_functionlike_id,
+    if !function_storage.is_production_code
+        && function_storage.user_defined
+        && context.function_context.is_production(codebase)
+    {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::TestOnlyCall,
+                format!(
+                    "Cannot call test-only function {} from non-test context",
+                    statements_analyzer.get_interner().lookup(&name)
                 ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            )
-        }
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        )
     }
 
     let stmt_type = function_call_return_type_fetcher::fetch(

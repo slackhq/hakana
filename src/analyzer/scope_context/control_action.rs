@@ -2,6 +2,7 @@
 pub enum ControlAction {
     End,
     Break,
+    BreakImmediateLoop,
     Continue,
     LeaveSwitch,
     None,

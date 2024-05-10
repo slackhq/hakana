@@ -52,10 +52,15 @@ pub(crate) fn get_control_actions(
                 }
             }
             aast::Stmt_::Break => {
-                if !break_context.is_empty() {
-                    if let &BreakContext::Switch = break_context.last().unwrap() {
-                        if !control_actions.contains(&ControlAction::LeaveSwitch) {
-                            control_actions.insert(ControlAction::LeaveSwitch);
+                if let Some(last_context) = break_context.last() {
+                    match last_context {
+                        &BreakContext::Switch => {
+                            if !control_actions.contains(&ControlAction::LeaveSwitch) {
+                                control_actions.insert(ControlAction::LeaveSwitch);
+                            }
+                        }
+                        BreakContext::Loop => {
+                            control_actions.insert(ControlAction::BreakImmediateLoop);
                         }
                     }
 
@@ -160,12 +165,40 @@ pub(crate) fn get_control_actions(
 
                 // check for infinite loop behaviour
                 if let Some(types) = analysis_data {
-                    if stmt.1.is_while() {
-                        let stmt = stmt.1.as_while().unwrap();
+                    match &stmt.1 {
+                        aast::Stmt_::While(boxed) => {
+                            if let Some(expr_type) = types.get_expr_type(&boxed.0 .1) {
+                                if expr_type.is_always_truthy() {
+                                    //infinite while loop that only return don't have an exit path
+                                    let loop_only_ends = control_actions
+                                        .iter()
+                                        .filter(|action| {
+                                            *action != &ControlAction::End
+                                                && *action != &ControlAction::Return
+                                        })
+                                        .count()
+                                        == 0;
 
-                        if let Some(expr_type) = types.get_expr_type(&stmt.0 .1) {
-                            if expr_type.is_always_truthy() {
-                                //infinite while loop that only return don't have an exit path
+                                    if loop_only_ends {
+                                        return control_actions;
+                                    }
+                                }
+                            }
+                        }
+                        aast::Stmt_::For(boxed) => {
+                            let mut is_infinite_loop = true;
+
+                            if let Some(for_cond) = &boxed.1 {
+                                if let Some(expr_type) = types.get_expr_type(&for_cond.1) {
+                                    if !expr_type.is_always_truthy() {
+                                        is_infinite_loop = false
+                                    }
+                                } else {
+                                    is_infinite_loop = false;
+                                }
+                            }
+
+                            if is_infinite_loop {
                                 let loop_only_ends = control_actions
                                     .iter()
                                     .filter(|action| {
@@ -180,38 +213,11 @@ pub(crate) fn get_control_actions(
                                 }
                             }
                         }
-                    }
-
-                    if stmt.1.is_for() {
-                        let stmt = stmt.1.as_for().unwrap();
-                        let mut is_infinite_loop = true;
-
-                        if let Some(for_cond) = stmt.1 {
-                            if let Some(expr_type) = types.get_expr_type(&for_cond.1) {
-                                if !expr_type.is_always_truthy() {
-                                    is_infinite_loop = false
-                                }
-                            } else {
-                                is_infinite_loop = false;
-                            }
-                        }
-
-                        if is_infinite_loop {
-                            let loop_only_ends = control_actions
-                                .iter()
-                                .filter(|action| {
-                                    *action != &ControlAction::End
-                                        && *action != &ControlAction::Return
-                                })
-                                .count()
-                                == 0;
-
-                            if loop_only_ends {
-                                return control_actions;
-                            }
-                        }
+                        _ => {}
                     }
                 }
+
+                control_actions.retain(|action| action != &ControlAction::BreakImmediateLoop);
             }
             aast::Stmt_::Switch(_) => {
                 let mut has_ended = false;

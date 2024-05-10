@@ -53,35 +53,39 @@ pub(crate) fn analyze(
 
     let can_leave_loop = !while_true || loop_scope.final_actions.contains(&ControlAction::Break);
 
-    if always_enters_loop && can_leave_loop {
-        let has_break_or_continue = loop_scope.final_actions.contains(&ControlAction::Break)
-            || loop_scope.final_actions.contains(&ControlAction::Continue);
+    if always_enters_loop {
+        if can_leave_loop {
+            let has_break_or_continue = loop_scope.final_actions.contains(&ControlAction::Break)
+                || loop_scope.final_actions.contains(&ControlAction::Continue);
 
-        for (var_id, var_type) in inner_loop_context.vars_in_scope {
-            // if there are break statements in the loop it's not certain
-            // that the loop has finished executing, so the assertions at the end
-            // the loop in the while conditional may not hold
-            if has_break_or_continue {
-                if let Some(possibly_defined_type) = loop_scope
-                    .clone()
-                    .possibly_defined_loop_parent_vars
-                    .get(&var_id)
-                {
-                    context.vars_in_scope.insert(
-                        var_id,
-                        Rc::new(hakana_type::combine_union_types(
-                            &var_type,
-                            possibly_defined_type,
-                            codebase,
-                            false,
-                        )),
-                    );
+            for (var_id, var_type) in inner_loop_context.vars_in_scope {
+                // if there are break statements in the loop it's not certain
+                // that the loop has finished executing, so the assertions at the end
+                // the loop in the while conditional may not hold
+                if has_break_or_continue {
+                    if let Some(possibly_defined_type) = loop_scope
+                        .clone()
+                        .possibly_defined_loop_parent_vars
+                        .get(&var_id)
+                    {
+                        context.vars_in_scope.insert(
+                            var_id,
+                            Rc::new(hakana_type::combine_union_types(
+                                &var_type,
+                                possibly_defined_type,
+                                codebase,
+                                false,
+                            )),
+                        );
+                    }
+                } else {
+                    context
+                        .vars_in_scope
+                        .insert(var_id.clone(), var_type.clone());
                 }
-            } else {
-                context
-                    .vars_in_scope
-                    .insert(var_id.clone(), var_type.clone());
             }
+        } else {
+            context.has_returned = true;
         }
     }
 

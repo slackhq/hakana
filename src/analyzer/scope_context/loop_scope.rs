@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc};
 
 use hakana_reflection_info::t_union::TUnion;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::control_action::ControlAction;
 
@@ -19,7 +19,7 @@ pub struct LoopScope {
 
     pub possibly_defined_loop_parent_vars: FxHashMap<String, TUnion>,
 
-    pub final_actions: Vec<ControlAction>,
+    pub final_actions: FxHashSet<ControlAction>,
 }
 
 impl LoopScope {
@@ -31,7 +31,7 @@ impl LoopScope {
             possibly_redefined_loop_vars: FxHashMap::default(),
             possibly_redefined_loop_parent_vars: FxHashMap::default(),
             possibly_defined_loop_parent_vars: FxHashMap::default(),
-            final_actions: Vec::new(),
+            final_actions: FxHashSet::default(),
         }
     }
 }

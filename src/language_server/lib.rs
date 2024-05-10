@@ -107,7 +107,7 @@ impl LanguageServer for Backend {
         let mut new_file_statuses = FxHashMap::default();
 
         self.client
-            .log_message(MessageType::INFO, format!("watched files changed"))
+            .log_message(MessageType::INFO, "watched files changed")
             .await;
 
         // self.client

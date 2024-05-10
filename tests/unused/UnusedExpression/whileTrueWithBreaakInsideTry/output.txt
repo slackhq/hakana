@@ -1,0 +1,2 @@
+ERROR: UnevaluatedCode - input.hack:28:9 - Unused code after return/throw/continue
+ERROR: UnevaluatedCode - input.hack:32:5 - Unused code after return/throw/continue

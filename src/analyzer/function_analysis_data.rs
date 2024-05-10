@@ -362,10 +362,11 @@ impl FunctionAnalysisData {
                         }
                         _ => {}
                     },
-                    4107 => match &issue_kind {
-                        IssueKind::NonExistentFunction => return true,
-                        _ => {}
-                    },
+                    4107 => {
+                        if let IssueKind::NonExistentFunction = &issue_kind {
+                            return true;
+                        }
+                    }
                     _ => {}
                 }
             }

@@ -247,16 +247,14 @@ pub fn get_method_id_from_call(
             };
 
             if let aast::Expr_::Id(method_name_node) = &rhs_expr.2 {
-                if let Some(method_id) = interner.get(&method_name_node.1) {
-                    return Some(FunctionLikeIdentifier::Method(*class_id, method_id));
-                } else {
-                    return None;
-                }
+                interner
+                    .get(&method_name_node.1)
+                    .map(|method_id| FunctionLikeIdentifier::Method(*class_id, method_id))
             } else {
-                return None;
+                None
             }
         }
-        _ => return None,
+        _ => None,
     }
 }
 

@@ -27,10 +27,10 @@ pub(crate) fn analyze(
         } else {
             false
         } {
-            loop_scope.final_actions.push(ControlAction::LeaveSwitch);
+            loop_scope.final_actions.insert(ControlAction::LeaveSwitch);
         } else {
             leaving_switch = false;
-            loop_scope.final_actions.push(ControlAction::Break);
+            loop_scope.final_actions.insert(ControlAction::Break);
         }
 
         for (var_id, var_type) in &context.vars_in_scope {
@@ -70,12 +70,8 @@ pub(crate) fn analyze(
             let mut finally_scope = (*finally_scope).borrow_mut();
             for (var_id, var_type) in &context.vars_in_scope {
                 if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
-                    *finally_type = Rc::new(combine_union_types(
-                        finally_type,
-                        var_type,
-                        codebase,
-                        false,
-                    ));
+                    *finally_type =
+                        Rc::new(combine_union_types(finally_type, var_type, codebase, false));
                 } else {
                     finally_scope
                         .vars_in_scope

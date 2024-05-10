@@ -293,20 +293,18 @@ fn detect_unused_statement_expressions(
         boxed.pos().start_offset() as u32,
         boxed.pos().end_offset() as u32,
     )) {
-        if effect == &EFFECT_PURE {
-            if !matches!(boxed.2, aast::Expr_::New(..)) {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::UnusedStatement,
-                        "This statement has no effect and can be removed".to_string(),
-                        statements_analyzer.get_hpos(&stmt.0),
-                        &context.function_context.calling_functionlike_id,
-                    ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                );
-                return;
-            }
+        if effect == &EFFECT_PURE && !matches!(boxed.2, aast::Expr_::New(..)) {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::UnusedStatement,
+                    "This statement has no effect and can be removed".to_string(),
+                    statements_analyzer.get_hpos(&stmt.0),
+                    &context.function_context.calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+            return;
         }
     }
 

@@ -20,7 +20,7 @@ pub(crate) fn analyze(
 ) {
     let codebase = statements_analyzer.get_codebase();
     if let Some(loop_scope) = loop_scope {
-        loop_scope.final_actions.push(ControlAction::Continue);
+        loop_scope.final_actions.insert(ControlAction::Continue);
 
         let mut removed_var_ids = FxHashSet::default();
 
