@@ -142,6 +142,7 @@ pub enum IssueKind {
     UnusedTypeDefinition,
     UnusedXhpAttribute,
     UpcastAwaitable,
+    UselessControlFlow,
 }
 
 impl IssueKind {

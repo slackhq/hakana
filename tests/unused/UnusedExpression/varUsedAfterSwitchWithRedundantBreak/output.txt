@@ -1,1 +1,1 @@
-ERROR: UnevaluatedCode - input.hack:11:13 - Unused code after return/throw/continue
+ERROR: UselessControlFlow - input.hack:11:13 - This control flow is unnecessary

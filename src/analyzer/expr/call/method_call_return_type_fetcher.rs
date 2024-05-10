@@ -3,6 +3,7 @@ use std::rc::Rc;
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
 use hakana_reflection_info::{ExprId, GenericParent, VarId};
 use hakana_str::{Interner, StrId};
+use hakana_type::get_mixed;
 use oxidized::{aast, ast_defs};
 use rustc_hash::FxHashMap;
 
@@ -136,6 +137,10 @@ pub(crate) fn fetch(
         },
         &mut analysis_data.data_flow_graph,
     );
+
+    if return_type_candidate.is_nothing() && !context.function_context.is_production(codebase) {
+        return_type_candidate = get_mixed();
+    }
 
     add_dataflow(
         statements_analyzer,

@@ -47,23 +47,40 @@ impl<'a> StatementsAnalyzer<'a> {
         loop_scope: &mut Option<LoopScope>,
     ) -> Result<(), AnalysisError> {
         for stmt in stmts {
-            if context.has_returned
-                && self.get_config().allow_issue_kind_in_file(
-                    &IssueKind::UnevaluatedCode,
-                    self.get_file_path_actual(),
-                )
-            {
+            if context.has_returned {
                 if self.get_config().find_unused_expressions {
-                    analysis_data.maybe_add_issue(
-                        Issue::new(
-                            IssueKind::UnevaluatedCode,
-                            "Unused code after return/throw/continue".to_string(),
-                            self.get_hpos(&stmt.0),
-                            &context.function_context.calling_functionlike_id,
-                        ),
-                        self.get_config(),
-                        self.get_file_path_actual(),
-                    );
+                    let is_harmless = match &stmt.1 {
+                        aast::Stmt_::Break => true,
+                        aast::Stmt_::Continue => true,
+                        aast::Stmt_::Return(boxed) => boxed.is_none(),
+                        _ => false,
+                    };
+
+                    if stmt.0.line() > 0 {
+                        if is_harmless {
+                            analysis_data.maybe_add_issue(
+                                Issue::new(
+                                    IssueKind::UselessControlFlow,
+                                    "This control flow is unnecessary".to_string(),
+                                    self.get_hpos(&stmt.0),
+                                    &context.function_context.calling_functionlike_id,
+                                ),
+                                self.get_config(),
+                                self.get_file_path_actual(),
+                            );
+                        } else {
+                            analysis_data.maybe_add_issue(
+                                Issue::new(
+                                    IssueKind::UnevaluatedCode,
+                                    "Unused code after return/throw/continue".to_string(),
+                                    self.get_hpos(&stmt.0),
+                                    &context.function_context.calling_functionlike_id,
+                                ),
+                                self.get_config(),
+                                self.get_file_path_actual(),
+                            );
+                        }
+                    }
                 }
             } else {
                 stmt_analyzer::analyze(self, stmt, analysis_data, context, loop_scope)?;

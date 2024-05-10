@@ -273,7 +273,7 @@ pub fn scan_files(
 
         let mut path_groups = FxHashMap::default();
 
-        if (files_to_scan.len() / group_size) < 4 {
+        if files_to_scan.len() < 4 * group_size {
             group_size = 1;
         }
 

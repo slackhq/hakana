@@ -203,40 +203,20 @@ pub(crate) fn analyze(
     );
 
     if !function_storage.is_production_code && function_storage.user_defined {
-        if let Some(calling_context) = context.function_context.calling_functionlike_id {
-            let is_caller_production = match calling_context {
-                FunctionLikeIdentifier::Function(function_id) => {
-                    codebase
-                        .functionlike_infos
-                        .get(&(function_id, StrId::EMPTY))
-                        .unwrap()
-                        .is_production_code
-                }
-                FunctionLikeIdentifier::Method(classlike_name, method_name) => {
-                    codebase
-                        .functionlike_infos
-                        .get(&(classlike_name, method_name))
-                        .unwrap()
-                        .is_production_code
-                }
-                _ => false,
-            };
-
-            if is_caller_production {
-                analysis_data.maybe_add_issue(
-                    Issue::new(
-                        IssueKind::TestOnlyCall,
-                        format!(
-                            "Cannot call test-only function {} from non-test context",
-                            statements_analyzer.get_interner().lookup(&name)
-                        ),
-                        statements_analyzer.get_hpos(pos),
-                        &context.function_context.calling_functionlike_id,
+        if context.function_context.is_production(codebase) {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::TestOnlyCall,
+                    format!(
+                        "Cannot call test-only function {} from non-test context",
+                        statements_analyzer.get_interner().lookup(&name)
                     ),
-                    statements_analyzer.get_config(),
-                    statements_analyzer.get_file_path_actual(),
-                )
-            }
+                    statements_analyzer.get_hpos(pos),
+                    &context.function_context.calling_functionlike_id,
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            )
         }
     }
 
@@ -253,7 +233,10 @@ pub(crate) fn analyze(
 
     analysis_data.set_expr_type(pos, stmt_type.clone());
 
-    if stmt_type.is_nothing() && !context.inside_loop {
+    if stmt_type.is_nothing()
+        && !context.inside_loop
+        && context.function_context.is_production(codebase)
+    {
         context.has_returned = true;
     }
 

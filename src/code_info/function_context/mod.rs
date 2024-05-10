@@ -1,7 +1,7 @@
 use hakana_str::StrId;
 
 pub use crate::functionlike_identifier::FunctionLikeIdentifier;
-use crate::symbol_references::ReferenceSource;
+use crate::{codebase_info::CodebaseInfo, symbol_references::ReferenceSource};
 
 #[derive(Clone, Debug, Copy)]
 pub struct FunctionContext {
@@ -43,6 +43,26 @@ impl FunctionContext {
             }
         } else {
             ReferenceSource::Symbol(false, *file_path)
+        }
+    }
+
+    pub fn is_production(&self, codebase: &CodebaseInfo) -> bool {
+        match self.calling_functionlike_id {
+            Some(FunctionLikeIdentifier::Function(function_id)) => {
+                codebase
+                    .functionlike_infos
+                    .get(&(function_id, StrId::EMPTY))
+                    .unwrap()
+                    .is_production_code
+            }
+            Some(FunctionLikeIdentifier::Method(classlike_name, method_name)) => {
+                codebase
+                    .functionlike_infos
+                    .get(&(classlike_name, method_name))
+                    .unwrap()
+                    .is_production_code
+            }
+            _ => false,
         }
     }
 }

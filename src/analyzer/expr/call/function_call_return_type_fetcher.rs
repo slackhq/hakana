@@ -137,6 +137,10 @@ pub(crate) fn fetch(
             &mut analysis_data.data_flow_graph,
         );
 
+        if function_return_type.is_nothing() && !context.function_context.is_production(codebase) {
+            function_return_type = get_mixed();
+        }
+
         // todo dispatch AfterFunctionCallAnalysisEvent
 
         function_return_type
