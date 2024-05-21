@@ -634,7 +634,6 @@ pub fn get_type_from_hint(
                         ) {
                             TAtomic::TAwaitable {
                                 value: Box::new(inner_type),
-                                effects: None,
                             }
                         } else {
                             TAtomic::TMixedWithFlags(true, false, false, false)
@@ -642,7 +641,6 @@ pub fn get_type_from_hint(
                     } else {
                         TAtomic::TAwaitable {
                             value: Box::new(get_mixed_any()),
-                            effects: None,
                         }
                     }
                 }

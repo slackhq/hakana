@@ -44,7 +44,6 @@ pub enum TAtomic {
     },
     TAwaitable {
         value: Box<TUnion>,
-        effects: Option<u8>,
     },
     TBool,
     TClassname {

@@ -45,7 +45,6 @@ pub struct TypeExpansionOptions<'a> {
     pub expand_templates: bool,
     pub expand_hakana_types: bool,
     pub expand_all_type_aliases: bool,
-    pub effects: Option<u8>,
 }
 
 impl Default for TypeExpansionOptions<'_> {
@@ -62,7 +61,6 @@ impl Default for TypeExpansionOptions<'_> {
             expand_templates: true,
             expand_hakana_types: true,
             expand_all_type_aliases: false,
-            effects: None,
         }
     }
 }
@@ -178,14 +176,7 @@ fn expand_atomic(
         expand_union(codebase, interner, type_param, options, data_flow_graph);
 
         return;
-    } else if let TAtomic::TAwaitable {
-        ref mut value,
-        effects,
-    } = return_type_part
-    {
-        if let Some(inserted_effects) = options.effects {
-            *effects = Some(inserted_effects);
-        }
+    } else if let TAtomic::TAwaitable { ref mut value } = return_type_part {
         expand_union(codebase, interner, value, options, data_flow_graph);
 
         return;

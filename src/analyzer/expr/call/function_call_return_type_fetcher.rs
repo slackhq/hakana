@@ -132,7 +132,6 @@ pub(crate) fn fetch(
                         .get_file_source()
                         .file_path,
                 ),
-                effects: Some(function_storage.effects.to_u8().unwrap_or(EFFECT_IMPURE)),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -612,7 +611,7 @@ fn handle_special_functions(
                 let mut new_types = vec![];
 
                 for atomic_type in awaited_types {
-                    if let TAtomic::TAwaitable { value, effects } = atomic_type {
+                    if let TAtomic::TAwaitable { value } = atomic_type {
                         let inside_type = (*value).clone();
                         extend_dataflow_uniquely(
                             &mut awaited_type.parent_nodes,
@@ -622,7 +621,7 @@ fn handle_special_functions(
 
                         analysis_data.expr_effects.insert(
                             (pos.start_offset() as u32, pos.end_offset() as u32),
-                            effects.unwrap_or(EFFECT_IMPURE),
+                            EFFECT_IMPURE,
                         );
                     } else {
                         new_types.push(atomic_type);

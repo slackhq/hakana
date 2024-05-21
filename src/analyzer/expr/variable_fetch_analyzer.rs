@@ -11,10 +11,9 @@ use hakana_reflection_info::{
         path::PathKind,
     },
     issue::{Issue, IssueKind},
-    t_atomic::TAtomic,
     t_union::TUnion,
     taint::SourceType,
-    VarId, EFFECT_IMPURE, EFFECT_PURE, EFFECT_READ_GLOBALS,
+    VarId, EFFECT_READ_GLOBALS,
 };
 use hakana_type::{get_int, get_mixed_any, get_mixed_dict};
 use oxidized::{ast_defs::Pos, tast::Lid};
@@ -214,26 +213,6 @@ fn add_dataflow_to_variable(
             data_flow_graph,
             &mut stmt_type,
         );
-    } else if data_flow_graph.kind == GraphKind::FunctionBody && context.inside_asio_join {
-        if let TAtomic::TAwaitable { effects, .. } = stmt_type.get_single() {
-            if effects.unwrap_or(EFFECT_IMPURE) != EFFECT_PURE {
-                add_dataflow_to_used_var(
-                    statements_analyzer,
-                    pos,
-                    lid,
-                    data_flow_graph,
-                    &mut stmt_type,
-                );
-            }
-        } else {
-            add_dataflow_to_used_var(
-                statements_analyzer,
-                pos,
-                lid,
-                data_flow_graph,
-                &mut stmt_type,
-            );
-        }
     }
 
     stmt_type

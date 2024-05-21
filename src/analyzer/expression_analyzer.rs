@@ -416,7 +416,7 @@ pub(crate) fn analyze(
             let mut new_types = vec![];
 
             for atomic_type in awaited_types {
-                if let TAtomic::TAwaitable { value, effects } = atomic_type {
+                if let TAtomic::TAwaitable { value } = atomic_type {
                     let inside_type = (*value).clone();
                     extend_dataflow_uniquely(
                         &mut awaited_stmt_type.parent_nodes,
@@ -425,7 +425,7 @@ pub(crate) fn analyze(
                     new_types.extend(inside_type.types);
                     analysis_data.expr_effects.insert(
                         (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
-                        effects.unwrap_or(EFFECT_IMPURE),
+                        EFFECT_IMPURE,
                     );
                 } else {
                     new_types.push(atomic_type);

@@ -705,7 +705,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     inferred_return_type = Some(if functionlike_storage.is_async {
                         wrap_atomic(TAtomic::TAwaitable {
                             value: Box::new(fn_return_value),
-                            effects: functionlike_storage.effects.to_u8(),
                         })
                     } else {
                         fn_return_value
@@ -739,7 +738,6 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     inferred_return_type = Some(if functionlike_storage.is_async {
                         wrap_atomic(TAtomic::TAwaitable {
                             value: Box::new(get_void()),
-                            effects: functionlike_storage.effects.to_u8(),
                         })
                     } else {
                         get_void()

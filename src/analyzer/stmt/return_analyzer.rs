@@ -135,7 +135,6 @@ pub(crate) fn analyze(
         let parent_nodes = inferred_return_type.parent_nodes.clone();
         inferred_return_type = wrap_atomic(TAtomic::TAwaitable {
             value: Box::new(inferred_return_type),
-            effects: None,
         });
         extend_dataflow_uniquely(&mut inferred_return_type.parent_nodes, parent_nodes);
     }

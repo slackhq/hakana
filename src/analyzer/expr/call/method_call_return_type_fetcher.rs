@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
-use hakana_reflection_info::{ExprId, GenericParent, VarId, EFFECT_IMPURE};
+use hakana_reflection_info::{ExprId, GenericParent, VarId};
 use hakana_str::{Interner, StrId};
 use hakana_type::get_mixed;
 use oxidized::{aast, ast_defs};
@@ -132,12 +132,6 @@ pub(crate) fn fetch(
                     .get_file_analyzer()
                     .get_file_source()
                     .file_path,
-            ),
-            effects: Some(
-                functionlike_storage
-                    .effects
-                    .to_u8()
-                    .unwrap_or(EFFECT_IMPURE),
             ),
             ..Default::default()
         },
