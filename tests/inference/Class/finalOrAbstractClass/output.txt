@@ -1,1 +1,1 @@
-ERROR: FinalOrAbstractClass - input.hack:12:7
+ERROR: MissingFinalOrAbstract - input.hack:12:7

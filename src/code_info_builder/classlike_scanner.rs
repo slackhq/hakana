@@ -464,8 +464,7 @@ pub(crate) fn scan(
     let uses_hash = get_uses_hash(all_uses.symbol_uses.get(class_name).unwrap_or(&vec![]));
 
     let mut signature_hash = xxhash_rust::xxh3::xxh3_64(
-        file_source.file_contents
-            [storage.def_location.start_offset as usize..signature_end as usize]
+        file_source.file_contents[storage.meta_start.start_offset as usize..signature_end as usize]
             .as_bytes(),
     )
     .wrapping_add(uses_hash);
