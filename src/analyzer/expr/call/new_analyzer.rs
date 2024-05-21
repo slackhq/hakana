@@ -301,8 +301,20 @@ fn analyze_named_constructor(
         // todo check for unsafe instantiation
     }
 
-    if storage.is_abstract && !can_extend {
-        // todo complain about abstract instantiation
+    if storage.is_abstract && !can_extend && !from_classname {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::AbstractInstantiation,
+                format!(
+                    "Cannot call new on abstract class {}",
+                    statements_analyzer.get_interner().lookup(&classlike_name)
+                ),
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
     }
 
     if storage.is_deprecated

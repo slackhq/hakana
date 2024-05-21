@@ -62,7 +62,17 @@ impl FunctionContext {
                     .unwrap()
                     .is_production_code
             }
-            _ => false,
+            _ => {
+                if let Some(calling_class) = self.calling_class {
+                    codebase
+                        .classlike_infos
+                        .get(&calling_class)
+                        .unwrap()
+                        .is_production_code
+                } else {
+                    false
+                }
+            }
         }
     }
 }

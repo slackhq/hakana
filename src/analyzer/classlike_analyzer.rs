@@ -96,6 +96,53 @@ impl<'a> ClassLikeAnalyzer<'a> {
             analysis_data.issue_filter = Some(issue_filter.clone());
         }
 
+        if stmt.kind.is_cclass()
+            && classlike_storage
+                .direct_parent_class
+                .map(|parent_class_name| {
+                    codebase
+                        .classlike_infos
+                        .get(&parent_class_name)
+                        .map(|parent_classlike_storage| parent_classlike_storage.is_final)
+                        .unwrap_or(false)
+                })
+                .unwrap_or(false)
+        {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::ExtendFinalClass,
+                    "Cannot extend final class".to_string(),
+                    classlike_storage.name_location,
+                    &Some(FunctionLikeIdentifier::Function(name)),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+
+        if stmt.kind.is_cclass()
+            && !stmt.is_xhp
+            && !classlike_storage.is_abstract
+            && !classlike_storage.is_final
+            && classlike_storage.child_classlikes.is_none()
+            && function_context.is_production(codebase)
+            && !classlike_storage
+                .all_parent_classes
+                .iter()
+                .any(|c| c == &StrId::EXCEPTION)
+        {
+            analysis_data.maybe_add_issue(
+                Issue::new(
+                    IssueKind::MissingFinalOrAbstract,
+                    "Class should always be declared abstract, final, or <<__Sealed>>".to_string(),
+                    classlike_storage.name_location,
+                    &Some(FunctionLikeIdentifier::Function(name)),
+                ),
+                statements_analyzer.get_config(),
+                statements_analyzer.get_file_path_actual(),
+            );
+        }
+
         let mut existing_enum_str_values = FxHashMap::default();
         let mut existing_enum_int_values = FxHashMap::default();
 

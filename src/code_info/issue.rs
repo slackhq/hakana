@@ -14,12 +14,15 @@ use crate::{
 
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum IssueKind {
+    AbstractInstantiation,
+    ExtendFinalClass,
     CannotInferGenericParam,
     CustomIssue(Box<String>),
     DuplicateEnumValue,
     EmptyBlock,
     FalsableReturnStatement,
     FalseArgument,
+    MissingFinalOrAbstract,
     ForLoopInvalidation,
     ImmutablePropertyWrite,
     ImpossibleArrayAssignment,
@@ -311,6 +314,8 @@ pub fn get_issue_from_comment(
         return Some(Ok(IssueKind::UnusedAssignment));
     } else if trimmed_text.starts_with("HHAST_FIXME[NoJoinInAsyncFunction]") {
         return Some(Ok(IssueKind::NoJoinInAsyncFunction));
+    } else if trimmed_text.starts_with("HHAST_FIXME[FinalOrAbstractClass]") {
+        return Some(Ok(IssueKind::MissingFinalOrAbstract));
     }
 
     None
