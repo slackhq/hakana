@@ -42,6 +42,10 @@ pub enum TAtomic {
     TArraykey {
         from_any: bool,
     },
+    TAwaitable {
+        value: Box<TUnion>,
+        effects: Option<u8>,
+    },
     TBool,
     TClassname {
         as_type: Box<self::TAtomic>,
@@ -173,6 +177,15 @@ impl TAtomic {
     ) -> String {
         match self {
             TAtomic::TArraykey { .. } => "arraykey".to_string(),
+            TAtomic::TAwaitable { value, .. } => {
+                let mut str = String::new();
+                str += "Awaitable<";
+                str += value
+                    .get_id_with_refs(interner, &mut vec![], indent)
+                    .as_str();
+                str += ">";
+                str
+            }
             TAtomic::TBool { .. } => "bool".to_string(),
             TAtomic::TClassname { as_type, .. } => {
                 let mut str = String::new();
@@ -673,6 +686,7 @@ impl TAtomic {
                 str += ">";
                 str
             }
+            TAtomic::TAwaitable { .. } => "Awaitable".to_string(),
             TAtomic::TFalse { .. }
             | TAtomic::TFloat { .. }
             | TAtomic::TClosure { .. }
@@ -827,6 +841,7 @@ impl TAtomic {
         match self {
             TAtomic::TObject { .. } => true,
             TAtomic::TClosure { .. } => true,
+            TAtomic::TAwaitable { .. } => true,
             TAtomic::TNamedObject { .. } => true,
             TAtomic::TGenericParam {
                 as_type,
@@ -835,10 +850,6 @@ impl TAtomic {
             } => as_type.is_objecty(),
             _ => false,
         }
-    }
-
-    pub fn is_named_object(&self) -> bool {
-        matches!(self, TAtomic::TNamedObject { .. })
     }
 
     pub fn is_templated_as_object(&self) -> bool {
@@ -1062,7 +1073,8 @@ impl TAtomic {
             | &TAtomic::TClosure { .. }
             | &TAtomic::TLiteralClassname { .. }
             | &TAtomic::TClassname { .. }
-            | &TAtomic::TTypename { .. } => true,
+            | &TAtomic::TTypename { .. }
+            | &TAtomic::TAwaitable { .. } => true,
             &TAtomic::TNamedObject { name, .. } => !matches!(
                 name,
                 &StrId::CONTAINER
@@ -1210,6 +1222,7 @@ impl TAtomic {
                 | TAtomic::TClosure { .. }
                 | TAtomic::TKeyset { .. }
                 | TAtomic::TNamedObject { .. }
+                | TAtomic::TAwaitable { .. }
                 | TAtomic::TVec { .. }
                 | TAtomic::TReference { .. }
                 | TAtomic::TClassTypeConstant { .. }
@@ -1527,6 +1540,9 @@ impl HasTypeNodes for TAtomic {
             TAtomic::TKeyset { type_param, .. } => {
                 vec![TypeNode::Union(type_param)]
             }
+            TAtomic::TAwaitable { value, .. } => {
+                vec![TypeNode::Union(value)]
+            }
             TAtomic::TNamedObject {
                 type_params: Some(type_params),
                 ..
@@ -1709,6 +1725,15 @@ pub fn populate_atomic_type(
                     );
                 }
             }
+        }
+        TAtomic::TAwaitable { ref mut value, .. } => {
+            populate_union_type(
+                value,
+                codebase_symbols,
+                reference_source,
+                symbol_references,
+                force,
+            );
         }
         TAtomic::TNamedObject {
             name,

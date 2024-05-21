@@ -10,15 +10,15 @@ use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_reflection_info::t_atomic::{DictKey, TAtomic};
 use hakana_reflection_info::t_union::TUnion;
 use hakana_reflection_info::taint::SinkType;
-use hakana_reflection_info::GenericParent;
+use hakana_reflection_info::{GenericParent, EFFECT_IMPURE};
 use hakana_str::{Interner, StrId};
 use hakana_type::type_comparator::type_comparison_result::TypeComparisonResult;
 use hakana_type::type_comparator::union_type_comparator;
 use hakana_type::type_expander::TypeExpansionOptions;
 use hakana_type::{
-    add_union_type, get_arrayish_params, get_float, get_int, get_literal_string, get_mixed,
-    get_mixed_any, get_mixed_vec, get_nothing, get_null, get_object, get_string, get_vec, template,
-    type_expander, wrap_atomic,
+    add_union_type, extend_dataflow_uniquely, get_arrayish_params, get_float, get_int,
+    get_literal_string, get_mixed, get_mixed_any, get_mixed_vec, get_nothing, get_null, get_object,
+    get_string, get_vec, template, type_expander, wrap_atomic,
 };
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
@@ -132,6 +132,7 @@ pub(crate) fn fetch(
                         .get_file_source()
                         .file_path,
                 ),
+                effects: Some(function_storage.effects.to_u8().unwrap_or(EFFECT_IMPURE)),
                 ..Default::default()
             },
             &mut analysis_data.data_flow_graph,
@@ -599,6 +600,42 @@ fn handle_special_functions(
 
             None
         }
+        &StrId::ASIO_JOIN => {
+            if args.len() == 1 {
+                let mut awaited_type = analysis_data
+                    .get_expr_type(args[0].1.pos())
+                    .cloned()
+                    .unwrap_or(get_mixed_any());
+
+                let awaited_types = awaited_type.types.drain(..).collect::<Vec<_>>();
+
+                let mut new_types = vec![];
+
+                for atomic_type in awaited_types {
+                    if let TAtomic::TAwaitable { value, effects } = atomic_type {
+                        let inside_type = (*value).clone();
+                        extend_dataflow_uniquely(
+                            &mut awaited_type.parent_nodes,
+                            inside_type.parent_nodes,
+                        );
+                        new_types.extend(inside_type.types);
+
+                        analysis_data.expr_effects.insert(
+                            (pos.start_offset() as u32, pos.end_offset() as u32),
+                            effects.unwrap_or(EFFECT_IMPURE),
+                        );
+                    } else {
+                        new_types.push(atomic_type);
+                    }
+                }
+
+                awaited_type.types = new_types;
+
+                Some(awaited_type)
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }
@@ -942,6 +979,7 @@ fn get_special_argument_nodes(
 ) -> (Vec<(usize, PathKind)>, Option<PathKind>) {
     match functionlike_id {
         FunctionLikeIdentifier::Function(function_name) => match *function_name {
+            StrId::ASIO_JOIN => (vec![], None),
             StrId::VAR_EXPORT
             | StrId::PRINT_R
             | StrId::HIGHLIGHT_STRING
@@ -954,7 +992,6 @@ fn get_special_argument_nodes(
             | StrId::LIB_STR_UPPERCASE
             | StrId::LIB_STR_CAPITALIZE
             | StrId::LIB_STR_CAPITALIZE_WORDS
-            | StrId::ASIO_JOIN
             | StrId::STRIP_TAGS
             | StrId::STRIPSLASHES
             | StrId::STRIPCSLASHES

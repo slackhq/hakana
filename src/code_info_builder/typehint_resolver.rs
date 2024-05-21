@@ -622,6 +622,30 @@ pub fn get_type_from_hint(
                         shape_name: None,
                     }
                 }
+                "Awaitable" | "HH\\Awaitable" => {
+                    if let Some(param) = extra_info.first() {
+                        if let Some(inner_type) = get_type_from_hint(
+                            &param.1,
+                            classlike_name,
+                            type_context,
+                            resolved_names,
+                            file_path,
+                            param.0.start_offset() as u32,
+                        ) {
+                            TAtomic::TAwaitable {
+                                value: Box::new(inner_type),
+                                effects: None,
+                            }
+                        } else {
+                            TAtomic::TMixedWithFlags(true, false, false, false)
+                        }
+                    } else {
+                        TAtomic::TAwaitable {
+                            value: Box::new(get_mixed_any()),
+                            effects: None,
+                        }
+                    }
+                }
                 "resource" => TAtomic::TResource,
                 "_" => TAtomic::TPlaceholder,
                 "HH\\FIXME\\MISSING_RETURN_TYPE" | "\\HH\\FIXME\\MISSING_RETURN_TYPE" => {

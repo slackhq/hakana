@@ -313,15 +313,9 @@ impl TUnion {
     }
 
     pub fn has_awaitable_types(&self) -> bool {
-        self.get_all_child_nodes().iter().any(|a| {
-            matches!(
-                a,
-                TypeNode::Atomic(TAtomic::TNamedObject {
-                    name: StrId::AWAITABLE,
-                    ..
-                })
-            )
-        })
+        self.get_all_child_nodes()
+            .iter()
+            .any(|a| matches!(a, TypeNode::Atomic(TAtomic::TAwaitable { .. })))
     }
 
     pub fn get_template_types(&self) -> Vec<&TAtomic> {
@@ -347,6 +341,7 @@ impl TUnion {
         for atomic in &self.types {
             if let &TAtomic::TObject { .. }
             | TAtomic::TNamedObject { .. }
+            | TAtomic::TAwaitable { .. }
             | TAtomic::TClosure { .. } = atomic
             {
                 continue;
@@ -522,7 +517,7 @@ impl TUnion {
 
     #[inline]
     pub fn get_single(&self) -> &TAtomic {
-        self.types.first().unwrap()
+        &self.types[0]
     }
 
     #[inline]

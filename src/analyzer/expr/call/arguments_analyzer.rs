@@ -178,6 +178,7 @@ pub(crate) fn check_arguments_match(
 
     for (_, arg_expr) in args.iter() {
         let was_inside_call = context.inside_general_use;
+        let was_inside_asio_join = context.inside_asio_join;
 
         if matches!(functionlike_info.effects, FnEffect::Some(_))
             || matches!(functionlike_info.effects, FnEffect::Arg(_))
@@ -186,6 +187,11 @@ pub(crate) fn check_arguments_match(
             || functionlike_info.method_info.is_some()
         {
             context.inside_general_use = true;
+        } else if matches!(
+            functionlike_id,
+            FunctionLikeIdentifier::Function(StrId::ASIO_JOIN)
+        ) {
+            context.inside_asio_join = true;
         }
 
         // don't analyse closures here
@@ -201,6 +207,10 @@ pub(crate) fn check_arguments_match(
 
         if !was_inside_call {
             context.inside_general_use = false;
+        }
+
+        if !was_inside_asio_join {
+            context.inside_asio_join = false;
         }
     }
 

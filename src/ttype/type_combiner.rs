@@ -5,6 +5,7 @@ use hakana_reflection_info::{
     codebase_info::{symbols::SymbolKind, CodebaseInfo},
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
+    EFFECT_IMPURE,
 };
 use hakana_str::StrId;
 use itertools::Itertools;
@@ -113,6 +114,13 @@ pub fn combine(
     if let Some(keyset_type_param) = combination.keyset_type_param {
         new_types.push(TAtomic::TKeyset {
             type_param: Box::new(keyset_type_param),
+        });
+    }
+
+    if let Some((type_param, effects)) = combination.awaitable_info {
+        new_types.push(TAtomic::TAwaitable {
+            value: Box::new(type_param),
+            effects: Some(effects),
         });
     }
 
@@ -662,6 +670,25 @@ fn scrape_type_properties(
                 ),
             )),
         };
+
+        return;
+    }
+
+    if let TAtomic::TAwaitable {
+        ref value,
+        ref effects,
+    } = atomic
+    {
+        combination.awaitable_info = Some(
+            if let Some(ref existing_info) = combination.awaitable_info {
+                (
+                    combine_union_types(&existing_info.0, value, codebase, overwrite_empty_array),
+                    effects.unwrap_or(EFFECT_IMPURE) & existing_info.1,
+                )
+            } else {
+                ((**value).clone(), effects.unwrap_or(EFFECT_IMPURE))
+            },
+        );
 
         return;
     }

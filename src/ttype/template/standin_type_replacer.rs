@@ -217,22 +217,22 @@ fn handle_atomic_standin(
         }
     }
 
-    let mut matching_atomic_types = Vec::new();
+    let mut matching_input_types = Vec::new();
 
     if let Some(input_type) = input_type {
         if !input_type.is_mixed() {
-            matching_atomic_types = find_matching_atomic_types_for_template(
+            matching_input_types = find_matching_atomic_types_for_template(
                 atomic_type,
                 &normalized_key,
                 codebase,
                 input_type,
             );
         } else {
-            matching_atomic_types.push(input_type.get_single().clone());
+            matching_input_types.push(input_type.get_single().clone());
         }
     }
 
-    if matching_atomic_types.is_empty() {
+    if matching_input_types.is_empty() {
         let atomic_type = replace_atomic(
             atomic_type,
             template_result,
@@ -252,13 +252,13 @@ fn handle_atomic_standin(
 
     let mut atomic_types = Vec::new();
 
-    for matching_atomic_type in matching_atomic_types {
+    for matching_input_type in matching_input_types {
         atomic_types.push(replace_atomic(
             atomic_type,
             template_result,
             codebase,
             interner,
-            Some(matching_atomic_type),
+            Some(matching_input_type),
             input_arg_offset,
             calling_class,
             calling_function,
@@ -450,6 +450,31 @@ fn replace_atomic(
                 interner,
                 &if let Some(TAtomic::TKeyset {
                     type_param: input_param,
+                }) = &input_type
+                {
+                    Some(input_param)
+                } else {
+                    None
+                },
+                input_arg_offset,
+                calling_class,
+                calling_function,
+                replace,
+                add_lower_bound,
+                None,
+                depth,
+            ));
+
+            return atomic_type;
+        }
+        TAtomic::TAwaitable { ref mut value, .. } => {
+            *value = Box::new(self::replace(
+                value,
+                template_result,
+                codebase,
+                interner,
+                &if let Some(TAtomic::TAwaitable {
+                    value: input_param, ..
                 }) = &input_type
                 {
                     Some(input_param)

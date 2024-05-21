@@ -411,34 +411,28 @@ pub(crate) fn analyze(
                 .cloned()
                 .unwrap_or(get_mixed_any());
 
-            analysis_data.expr_effects.insert(
-                (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
-                EFFECT_IMPURE,
-            );
-
             let awaited_types = awaited_stmt_type.types.drain(..).collect::<Vec<_>>();
 
             let mut new_types = vec![];
 
             for atomic_type in awaited_types {
-                if let TAtomic::TNamedObject {
-                    name: StrId::AWAITABLE,
-                    type_params: Some(ref type_params),
-                    ..
-                } = atomic_type
-                {
-                    if type_params.len() == 1 {
-                        let inside_type = type_params.first().unwrap().clone();
-                        extend_dataflow_uniquely(
-                            &mut awaited_stmt_type.parent_nodes,
-                            inside_type.parent_nodes,
-                        );
-                        new_types.extend(inside_type.types);
-                    } else {
-                        new_types.push(atomic_type);
-                    }
+                if let TAtomic::TAwaitable { value, effects } = atomic_type {
+                    let inside_type = (*value).clone();
+                    extend_dataflow_uniquely(
+                        &mut awaited_stmt_type.parent_nodes,
+                        inside_type.parent_nodes,
+                    );
+                    new_types.extend(inside_type.types);
+                    analysis_data.expr_effects.insert(
+                        (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
+                        effects.unwrap_or(EFFECT_IMPURE),
+                    );
                 } else {
                     new_types.push(atomic_type);
+                    analysis_data.expr_effects.insert(
+                        (expr.1.start_offset() as u32, expr.1.end_offset() as u32),
+                        EFFECT_IMPURE,
+                    );
                 }
             }
 

@@ -458,13 +458,12 @@ fn analyze_awaitall(
             let parent_nodes = t.parent_nodes.clone();
             if t.is_single() {
                 let inner = t.get_single();
-                if let TAtomic::TNamedObject {
-                    name: StrId::AWAITABLE,
-                    type_params: Some(type_params),
+                if let TAtomic::TAwaitable {
+                    value,
                     ..
                 } = inner
                 {
-                    let mut new = type_params.first().unwrap().clone();
+                    let mut new = (**value).clone();
 
                     new.parent_nodes = parent_nodes;
                     assignment_type = Some(new)

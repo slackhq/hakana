@@ -115,6 +115,11 @@ pub struct ScopeContext {
 
     pub inside_awaitall: bool,
 
+    /**
+     * Whether or not we're inside an HH\Asio\join
+     */
+    pub inside_asio_join: bool,
+
     pub include_location: Option<Pos>,
 
     /**
@@ -193,6 +198,7 @@ impl ScopeContext {
             inside_try: false,
             inside_awaitall: false,
             inside_loop_exprs: false,
+            inside_asio_join: false,
 
             inside_negation: false,
             has_returned: false,

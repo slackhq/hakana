@@ -303,6 +303,9 @@ fn replace_atomic(
                 *type_param = replace(type_param, template_result, codebase);
             }
         }
+        TAtomic::TAwaitable { ref mut value, .. } => {
+            *value = Box::new(replace(value, template_result, codebase));
+        }
         TAtomic::TClosure {
             ref mut params,
             ref mut return_type,

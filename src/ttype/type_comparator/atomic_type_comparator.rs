@@ -62,13 +62,7 @@ pub fn is_contained_by(
             return false;
         }
 
-        if matches!(
-            input_type_part,
-            &TAtomic::TNamedObject {
-                name: StrId::AWAITABLE,
-                ..
-            }
-        ) && container_type_part.is_mixed()
+        if matches!(input_type_part, &TAtomic::TAwaitable { .. }) && container_type_part.is_mixed()
         {
             atomic_comparison_result.upcasted_awaitable = true;
         }
@@ -336,6 +330,32 @@ pub fn is_contained_by(
             atomic_comparison_result.type_coerced = Some(true);
             return false;
         }
+    }
+
+    if let (
+        TAtomic::TAwaitable {
+            value: input_value, ..
+        },
+        TAtomic::TAwaitable {
+            value: container_value,
+            ..
+        },
+    ) = (input_type_part, container_type_part)
+    {
+        // this is a hack to match behaviour in the official typechecker
+        if input_value.is_null() && container_value.is_void() {
+            return true;
+        }
+
+        return union_type_comparator::is_contained_by(
+            codebase,
+            input_value,
+            container_value,
+            false,
+            input_value.ignore_falsable_issues,
+            inside_assertion,
+            atomic_comparison_result,
+        );
     }
 
     // TODO handle TEnumCase for enum classes

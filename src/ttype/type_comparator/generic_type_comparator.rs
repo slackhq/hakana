@@ -129,19 +129,6 @@ pub(crate) fn is_contained_by(
         _ => panic!(),
     };
 
-    let awaitable_id = StrId::AWAITABLE;
-
-    if input_name == &awaitable_id && container_name == &awaitable_id {
-        if let (Some(input_param), Some(container_param)) =
-            (input_type_params.first(), container_type_params.first())
-        {
-            // this is a hack to match behaviour in the official typechecker
-            if input_param.1.is_null() && container_param.is_void() {
-                return true;
-            }
-        }
-    }
-
     for (i, input_param) in input_type_params.iter().enumerate() {
         if let Some(container_param) = container_type_params.get(i) {
             compare_generic_params(

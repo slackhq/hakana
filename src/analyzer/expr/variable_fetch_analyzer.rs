@@ -6,14 +6,15 @@ use crate::{
 use hakana_reflection_info::{
     code_location::HPos,
     data_flow::{
-        graph::GraphKind,
+        graph::{DataFlowGraph, GraphKind},
         node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
         path::PathKind,
     },
     issue::{Issue, IssueKind},
+    t_atomic::TAtomic,
     t_union::TUnion,
     taint::SourceType,
-    VarId, EFFECT_READ_GLOBALS,
+    VarId, EFFECT_IMPURE, EFFECT_PURE, EFFECT_READ_GLOBALS,
 };
 use hakana_type::{get_int, get_mixed_any, get_mixed_dict};
 use oxidized::{ast_defs::Pos, tast::Lid};
@@ -206,47 +207,83 @@ fn add_dataflow_to_variable(
     if data_flow_graph.kind == GraphKind::FunctionBody
         && (context.inside_general_use || context.inside_throw || context.inside_isset)
     {
-        let pos = statements_analyzer.get_hpos(pos);
-
-        let assignment_node = DataFlowNode {
-            id: if let Some(var_id) = statements_analyzer.get_interner().get(&lid.1 .1) {
-                DataFlowNodeId::Var(
-                    VarId(var_id),
-                    pos.file_path,
-                    pos.start_offset,
-                    pos.end_offset,
-                )
-            } else {
-                DataFlowNodeId::LocalString(
-                    lid.1 .1.to_string(),
-                    pos.file_path,
-                    pos.start_offset,
-                    pos.end_offset,
-                )
-            },
-            kind: DataFlowNodeKind::VariableUseSink { pos },
-        };
-
-        data_flow_graph.add_node(assignment_node.clone());
-
-        let mut parent_nodes = stmt_type.parent_nodes.clone();
-
-        if parent_nodes.is_empty() {
-            parent_nodes.push(assignment_node);
-        } else {
-            for parent_node in &parent_nodes {
-                data_flow_graph.add_path(
-                    parent_node,
-                    &assignment_node,
-                    PathKind::Default,
-                    vec![],
-                    vec![],
+        add_dataflow_to_used_var(
+            statements_analyzer,
+            pos,
+            lid,
+            data_flow_graph,
+            &mut stmt_type,
+        );
+    } else if data_flow_graph.kind == GraphKind::FunctionBody && context.inside_asio_join {
+        if let TAtomic::TAwaitable { effects, .. } = stmt_type.get_single() {
+            if effects.unwrap_or(EFFECT_IMPURE) != EFFECT_PURE {
+                add_dataflow_to_used_var(
+                    statements_analyzer,
+                    pos,
+                    lid,
+                    data_flow_graph,
+                    &mut stmt_type,
                 );
             }
+        } else {
+            add_dataflow_to_used_var(
+                statements_analyzer,
+                pos,
+                lid,
+                data_flow_graph,
+                &mut stmt_type,
+            );
         }
-
-        stmt_type.parent_nodes = parent_nodes;
     }
 
     stmt_type
+}
+
+fn add_dataflow_to_used_var(
+    statements_analyzer: &StatementsAnalyzer,
+    pos: &Pos,
+    lid: &Lid,
+    data_flow_graph: &mut DataFlowGraph,
+    stmt_type: &mut TUnion,
+) {
+    let pos = statements_analyzer.get_hpos(pos);
+
+    let assignment_node = DataFlowNode {
+        id: if let Some(var_id) = statements_analyzer.get_interner().get(&lid.1 .1) {
+            DataFlowNodeId::Var(
+                VarId(var_id),
+                pos.file_path,
+                pos.start_offset,
+                pos.end_offset,
+            )
+        } else {
+            DataFlowNodeId::LocalString(
+                lid.1 .1.to_string(),
+                pos.file_path,
+                pos.start_offset,
+                pos.end_offset,
+            )
+        },
+        kind: DataFlowNodeKind::VariableUseSink { pos },
+    };
+
+    data_flow_graph.add_node(assignment_node.clone());
+
+    let mut parent_nodes = stmt_type.parent_nodes.clone();
+
+    if parent_nodes.is_empty() {
+        parent_nodes.push(assignment_node);
+    } else {
+        for parent_node in &parent_nodes {
+            data_flow_graph.add_path(
+                parent_node,
+                &assignment_node,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
+        }
+    }
+
+    stmt_type.parent_nodes = parent_nodes;
 }

@@ -13,7 +13,7 @@ use crate::{
     t_union::TUnion,
     taint::{SinkType, SourceType},
     type_resolution::TypeResolutionContext,
-    GenericParent,
+    GenericParent, EFFECT_PURE,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ impl FnEffect {
     pub fn to_u8(&self) -> Option<u8> {
         match self {
             FnEffect::Unknown => None,
-            FnEffect::Pure => Some(0),
+            FnEffect::Pure => Some(EFFECT_PURE),
             FnEffect::Arg(_) => None,
             FnEffect::Some(effects) => Some(*effects),
         }

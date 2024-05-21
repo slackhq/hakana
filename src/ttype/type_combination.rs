@@ -35,6 +35,7 @@ pub(crate) struct TypeCombination {
     pub dict_type_params: Option<(TUnion, TUnion)>,
     pub vec_type_param: Option<TUnion>,
     pub keyset_type_param: Option<TUnion>,
+    pub awaitable_info: Option<(TUnion, u8)>,
 
     pub dict_alias_name: Option<Option<(StrId, Option<StrId>)>>,
 
@@ -71,6 +72,7 @@ impl TypeCombination {
             dict_type_params: None,
             vec_type_param: None,
             keyset_type_param: None,
+            awaitable_info: None,
             dict_alias_name: None,
             falsy_mixed: None,
             truthy_mixed: None,
@@ -90,10 +92,11 @@ impl TypeCombination {
     #[inline]
     pub(crate) fn is_simple(&self) -> bool {
         if self.value_types.len() == 1 && !self.has_dict {
-            if let (None, None, None) = (
+            if let (None, None, None, None) = (
                 &self.dict_type_params,
                 &self.vec_type_param,
                 &self.keyset_type_param,
+                &self.awaitable_info,
             ) {
                 return self.dict_entries.is_empty()
                     && self.vec_entries.is_empty()

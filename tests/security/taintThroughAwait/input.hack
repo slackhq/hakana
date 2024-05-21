@@ -5,3 +5,7 @@ async function foo(): Awaitable<string> {
 function bar(): void {
     echo HH\Asio\join(foo());
 }
+
+async function baz(): Awaitable<void> {
+    echo await foo();
+}

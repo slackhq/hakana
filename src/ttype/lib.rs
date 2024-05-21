@@ -556,6 +556,14 @@ pub fn get_atomic_syntax_type(
             str += ">";
             str
         }
+        TAtomic::TAwaitable { value, .. } => {
+            let value_string = get_union_syntax_type(value, codebase, interner, is_valid);
+            let mut str = String::new();
+            str += "Awaitable<";
+            str += value_string.as_str();
+            str += ">";
+            str
+        }
         TAtomic::TDict {
             params,
             known_items,
