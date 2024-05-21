@@ -1,4 +1,4 @@
-class Bar {
+final class Bar {
     public function __toString() {
         return "foo";
     }

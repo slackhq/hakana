@@ -1,4 +1,4 @@
-class InputFilter {
+final class InputFilter {
     public string $name;
 
     public function __construct(string $name) {

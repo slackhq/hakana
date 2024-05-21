@@ -3,7 +3,7 @@ trait T {
     }
 }
 
-class B {
+final class B {
     use T;
 
     public function doFoo(): void {

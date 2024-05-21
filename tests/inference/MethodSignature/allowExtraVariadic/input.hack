@@ -2,7 +2,7 @@ interface I {
     public function f(string $a, int $b): void;
 }
 
-class C implements I {
+final class C implements I {
     public function f(string $a = "a", int $b = 1, float ...$rest): void {}
 }
 

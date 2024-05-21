@@ -4,7 +4,7 @@ function maybeGetA(): ?A {
 
 abstract class A {}
 
-class B extends A {
+final class B extends A {
     public function bar(): void {
         $a = maybeGetA();
         if ($a is this) {
@@ -14,4 +14,4 @@ class B extends A {
     }
 }
 
-class C extends A {}
+final class C extends A {}

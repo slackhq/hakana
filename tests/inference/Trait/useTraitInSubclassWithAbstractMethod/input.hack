@@ -6,6 +6,6 @@ abstract class A {
   public function foo(): void {}
 }
 
-class B extends A {
+final class B extends A {
   use T;
 }

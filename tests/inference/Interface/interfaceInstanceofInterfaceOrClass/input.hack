@@ -1,5 +1,5 @@
 interface A {}
-class B extends Exception {}
+final class B extends Exception {}
 
 function foo(Throwable $e): void {
     if ($e is A || $e is B) {
@@ -9,7 +9,7 @@ function foo(Throwable $e): void {
     return;
 }
 
-class C extends Exception {}
+final class C extends Exception {}
 interface D {}
 
 function bar(Throwable $e): void {

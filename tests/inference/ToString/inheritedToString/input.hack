@@ -1,14 +1,14 @@
-class A {
+final class A {
     public function __toString() {
         return "hello";
     }
 }
-class B {
+abstract class B {
     public function __toString() {
         return "goodbye";
     }
 }
-class C extends B {}
+final class C extends B {}
 
 $c = new C();
 echo (string) $c;

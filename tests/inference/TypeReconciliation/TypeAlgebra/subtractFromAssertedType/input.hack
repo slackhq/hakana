@@ -1,5 +1,5 @@
-class A {}
-class B {}
+final class A {}
+final class B {}
 
 function foo(?A $foo, B $other): ?A {
   if (rand(0, 1)) {

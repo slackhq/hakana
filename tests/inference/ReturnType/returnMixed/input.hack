@@ -1,6 +1,6 @@
 namespace Foo;
 
-class A {
+final class A {
     public function getThis() : mixed {
         return $this;
     }

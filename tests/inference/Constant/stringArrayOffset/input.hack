@@ -1,4 +1,4 @@
-class A {
+final class A {
     const C = dict[
         "a" => 1,
         "b" => 2,

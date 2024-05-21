@@ -49,7 +49,7 @@ type my_args_t = shape('a' => string);
 
 abstract class BHandler extends InputHandler<my_args_t> {}
 
-class MyHandler extends BHandler {
+final class MyHandler extends BHandler {
     public async function getResult(my_args_t $args): Awaitable<Result<string>> {
         return new ResultSuccess($args['a']);
     }

@@ -1,4 +1,4 @@
-class A {
+final class A {
     const ARR = vec[0, 1, 2];
 
     public function test() : int

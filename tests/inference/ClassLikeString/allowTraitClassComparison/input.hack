@@ -5,10 +5,10 @@ trait T {
     }
 }
 
-class A {
+final class A {
     use T;
 }
 
-class B {
+final class B {
     use T;
 }

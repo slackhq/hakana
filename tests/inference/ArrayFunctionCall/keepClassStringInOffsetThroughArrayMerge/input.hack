@@ -1,5 +1,5 @@
 
-class A {
+final class A {
     private dict<classname<A>, string> $a;
 
     public function __construct() {

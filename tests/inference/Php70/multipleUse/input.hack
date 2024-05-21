@@ -1,9 +1,9 @@
 namespace Name\Space {
-    class A {
+    final class A {
 
     }
 
-    class B {
+    final class B {
 
     }
 }

@@ -1,5 +1,5 @@
 <<\Hakana\Immutable>>
-class User {
+final class User {
     public string $id;
 
     public function __construct(string $userId) {
@@ -7,7 +7,7 @@ class User {
     }
 }
 
-class UserUpdater {
+final class UserUpdater {
     public static function doDelete(AsyncMysqlConnection $conn, User $user) : void {
         self::deleteUser($conn, $user->id);
     }

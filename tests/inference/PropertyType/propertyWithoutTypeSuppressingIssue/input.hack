@@ -1,4 +1,4 @@
-class A {
+final class A {
     public $foo = "hello";
 }
 

@@ -1,4 +1,4 @@
-class UnusedMethodClass {
+final class UnusedMethodClass {
     <<Hakana\MustUse>>
 	public async function getEncodedId(): Awaitable<string> {
 		return '';

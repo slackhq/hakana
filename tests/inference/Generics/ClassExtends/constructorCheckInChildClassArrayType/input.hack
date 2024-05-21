@@ -17,6 +17,6 @@ abstract class C<T>
     }
 }
 
-class Impl implements I {}
+final class Impl implements I {}
 
-class Test extends C<Impl> {}
+final class Test extends C<Impl> {}

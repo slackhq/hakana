@@ -1,6 +1,6 @@
 abstract class A {}
 
-class B {}
+final class B {}
 
 function foo(): void {}
 

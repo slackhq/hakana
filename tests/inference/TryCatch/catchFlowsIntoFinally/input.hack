@@ -1,4 +1,4 @@
-class MyException extends Exception {}
+final class MyException extends Exception {}
 
 function foo(): void {
     try {

@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function fooFoo(): bool {
         try {
             // do a thing

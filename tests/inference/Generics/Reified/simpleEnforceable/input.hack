@@ -1,5 +1,5 @@
 interface ConfigSection {}
-class WhoIsCoolConfig extends ConfigSection {
+final class WhoIsCoolConfig extends ConfigSection {
     public function __construct(private string $name = "Matt") {}
 
     public function getName(): string {
@@ -7,7 +7,7 @@ class WhoIsCoolConfig extends ConfigSection {
     }
 }
 
-class Config {
+final class Config {
     private static dict<string, ConfigSection> $config_sections = dict[];
 
     private static function initConfig(): void {

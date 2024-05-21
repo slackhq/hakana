@@ -1,4 +1,4 @@
-class C {
+final class C {
     public string $a = "";
     public string $b = "";
 }

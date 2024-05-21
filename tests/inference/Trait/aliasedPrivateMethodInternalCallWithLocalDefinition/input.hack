@@ -12,7 +12,7 @@ trait T2 {
     }
 }
 
-class A {
+final class A {
     use T1;
 
     private function baz() : int {

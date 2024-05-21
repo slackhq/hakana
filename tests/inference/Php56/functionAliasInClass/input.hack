@@ -5,7 +5,7 @@ namespace Name\Space {
 namespace Noom\Spice {
     use function Name\Space\f;
 
-    class A {
+    final class A {
         public function fooFoo(): void {
             f();
             \Name\Space\f();

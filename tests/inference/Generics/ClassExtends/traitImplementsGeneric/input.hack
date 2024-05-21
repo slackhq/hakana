@@ -6,7 +6,7 @@ interface I<T> {
 trait MyTrait<T> implements I<T> {
 }
 
-class C {}
+final class C {}
 
 abstract class Base {
     public function getVec(): vec<string> {
@@ -14,7 +14,7 @@ abstract class Base {
     }
 }
 
-class Concrete extends Base {
+final class Concrete extends Base {
     use MyTrait<string>;
 
     public function takesVec(vec<string> $v): void {}

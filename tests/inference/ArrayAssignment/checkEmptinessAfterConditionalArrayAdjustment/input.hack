@@ -1,4 +1,4 @@
-class A {
+final class A {
     public dict<arraykey, mixed> $arr = dict[];
 
     public function foo() : void {

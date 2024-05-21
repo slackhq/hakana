@@ -1,7 +1,7 @@
 interface I {}
-class C implements I {}
+final class C implements I {}
 
-class Props {
+final class Props {
     public vec<classname<I>> $arr = vec[];
 }
 

@@ -3,7 +3,7 @@ namespace A {
 
     }
 
-    class Bar {
+    final class Bar {
 
     }
 }

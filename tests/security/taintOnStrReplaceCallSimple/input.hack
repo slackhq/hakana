@@ -1,12 +1,12 @@
-class U {
+final class U {
     public static function shorten(string $s)[]: string {
         return str_replace("foo", "bar", $s);
     }
 }
 
-class V {}
+final class V {}
 
-class O1 {
+final class O1 {
     public string $s;
 
     public function __construct() {
@@ -14,7 +14,7 @@ class O1 {
     }
 }
 
-class V1 extends V {
+final class V1 extends V {
     public function foo(O1 $o) : void {
         echo U::shorten($o->s);
     }

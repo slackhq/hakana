@@ -1,6 +1,6 @@
 type CoolType = ?A;
 
-class A {}
+final class A {}
 
 function foo(): CoolType {
     if (rand(0, 1)) {

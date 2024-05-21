@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function __construct(dict<string, string> $options) {
         $this->setOptions($options);
     }

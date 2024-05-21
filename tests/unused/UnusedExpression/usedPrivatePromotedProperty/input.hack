@@ -1,4 +1,4 @@
-class A {
+final class A {
     private function __construct(private int $i) {}
 
     public static function gen(): A {

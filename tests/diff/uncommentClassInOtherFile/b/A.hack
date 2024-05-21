@@ -1,1 +1,1 @@
-class A extends Exception {}
+final class A extends Exception {}

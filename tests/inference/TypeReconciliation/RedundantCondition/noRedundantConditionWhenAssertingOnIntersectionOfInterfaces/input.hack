@@ -1,6 +1,6 @@
 interface A {}
 interface I {}
-class AChild implements I, A {}
+final class AChild implements I, A {}
 
 function isAChild(A $value): ?AChild {
     if (!$value is I) {

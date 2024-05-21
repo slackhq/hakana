@@ -1,4 +1,4 @@
-class A {
+final class A {
     private static string $foo = "";
 
     public static function setFoo(string $s): void {

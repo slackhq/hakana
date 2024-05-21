@@ -1,8 +1,8 @@
-class A {
+abstract class A {
     public function __construct(string $a) {}
 }
 
-class B extends A {
+final class B extends A {
     public function __construct(string $a) {
         echo $a;
     }

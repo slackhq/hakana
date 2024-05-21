@@ -1,4 +1,4 @@
-class FooBar {}
+final class FooBar {}
 
 function baz(): void {}
 

@@ -36,4 +36,4 @@ function bat(string $i) : void {
     if ($a === $i) {}
 }
 
-class A {}
+final class A {}

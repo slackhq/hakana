@@ -1,4 +1,4 @@
-class Test {
+final class Test {
     private int $retryAttempts = 10;
 
     private function getResult(): string

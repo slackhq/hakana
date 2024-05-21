@@ -4,7 +4,7 @@ interface I {
     public static function foo(): void;
 }
 
-class AChild extends A implements I {
+final class AChild extends A implements I {
     public static function foo(): void {}
 }
 

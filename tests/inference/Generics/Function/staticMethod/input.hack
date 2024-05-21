@@ -1,9 +1,9 @@
-class A {}
-class B extends A {
+abstract class A {}
+final class B extends A {
   public function bar(): void {}
 }
 
-class Config {
+final class Config {
   public static function get<reify T as A>(): T {
     throw new \Exception("bad");
   }

@@ -1,4 +1,4 @@
-class A {
+final class A {
 }
 
 (new A())->foo = "cool";

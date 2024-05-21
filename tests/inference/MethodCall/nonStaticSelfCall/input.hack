@@ -1,4 +1,4 @@
-class A11 {
+final class A11 {
     public function call() : A11 {
         $result = self::method();
         return $result;

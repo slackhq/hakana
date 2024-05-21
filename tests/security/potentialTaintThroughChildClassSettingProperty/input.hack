@@ -1,4 +1,4 @@
-class A {
+abstract class A {
     public string $taint = "";
 
     public function getTaint() : string {
@@ -6,7 +6,7 @@ class A {
     }
 }
 
-class B extends A {
+final class B extends A {
     public function __construct(string $taint) {
         $this->taint = $taint;
     }

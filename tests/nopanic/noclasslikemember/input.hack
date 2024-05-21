@@ -1,4 +1,4 @@
-class Foo {}
+final class Foo {}
 
 function a(): void {
     new Foo();

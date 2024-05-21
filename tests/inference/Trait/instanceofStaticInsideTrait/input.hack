@@ -4,6 +4,6 @@ trait T {
     }
 }
 
-class A {
+final class A {
     use T;
 }

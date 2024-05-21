@@ -1,7 +1,7 @@
 interface A {}
 interface B {}
 
-class C implements A, B {}
+final class C implements A, B {}
 
 function takesB(B $b): void {}
 

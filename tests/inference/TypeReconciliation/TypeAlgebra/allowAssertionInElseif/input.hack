@@ -1,4 +1,4 @@
-class X {
+final class X {
     public bool $a = false;
     public bool $b = false;
     public bool $c = false;

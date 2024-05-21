@@ -1,4 +1,4 @@
-class A {}
+final class A {}
 $a = rand(0, 1) ? new A() : null;
 
 if (rand(0, 1)) {

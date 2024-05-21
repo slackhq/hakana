@@ -2,7 +2,7 @@ interface Foo<T> {}
 
 type MyString = string;
 
-class MyFoo implements Foo<MyString> {}
+final class MyFoo implements Foo<MyString> {}
 
 function takesFoo(Foo<MyString> $foo): void {}
 

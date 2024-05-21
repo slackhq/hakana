@@ -1,4 +1,4 @@
-class A {
+final class A {
     public readonly string $bar;
 
     public function __construct() {

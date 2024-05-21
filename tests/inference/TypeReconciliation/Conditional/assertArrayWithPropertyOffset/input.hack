@@ -1,7 +1,7 @@
-class A {
+final class A {
     public int $id = 0;
 }
-class B {
+final class B {
     public function foo() : void {}
 }
 

@@ -8,4 +8,4 @@ final class GlassMaker extends Maker {
 
 abstract class MakerEvent<T as Maker> {}
 
-class GlassMakerEvent extends MakerEvent<GlassMaker> {}
+final class GlassMakerEvent extends MakerEvent<GlassMaker> {}

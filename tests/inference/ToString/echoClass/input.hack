@@ -1,2 +1,2 @@
-class A {}
+final class A {}
 echo (new A());

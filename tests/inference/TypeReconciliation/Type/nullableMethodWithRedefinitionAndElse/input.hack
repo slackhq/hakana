@@ -1,11 +1,11 @@
-class One {
+final class One {
     /** @var int|null */
     public $two;
 
     public function fooFoo(): void {}
 }
 
-class B {
+final class B {
     public function barBar(?One $one = null) : void {
         if (!$one) {
             $one = new One();

@@ -1,6 +1,6 @@
 function bar(string $s): void { }
 
-class A {
+final class A {
     public static dict<string, string> $a = dict[];
 }
 

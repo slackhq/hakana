@@ -1,4 +1,4 @@
-class A2 {
+final class A2 {
     public static string $title = "foo";
     public static string $label = "bar";
 }

@@ -1,4 +1,4 @@
-class U {
+final class U {
     public function takes(U $u) : bool {
         return true;
     }

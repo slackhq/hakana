@@ -2,11 +2,11 @@ trait T {
     private function bar() : void {}
 }
 
-class A {
+abstract class A {
     use T;
 }
 
-class AChild extends A {
+final class AChild extends A {
     public function foo() : void {
         $this->bar();
     }

@@ -1,4 +1,4 @@
-class C {
+final class C {
     public static function foo() : array {
         $a = vec[];
         $a[] = (string) $_GET["bad"];

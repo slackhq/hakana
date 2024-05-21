@@ -1,4 +1,4 @@
-class A {
+final class A {
     private string $a = 'c';
     public int $b = 1;
     public function __construct(
@@ -7,7 +7,7 @@ class A {
     ) {}
 }
 
-class B {
+final class B {
     private string $a = 'c';
     public int $b = 1;
     public function __construct(

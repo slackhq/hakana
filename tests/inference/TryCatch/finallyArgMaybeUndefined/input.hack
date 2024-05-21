@@ -1,4 +1,4 @@
-class TestMe {
+final class TestMe {
     private function startTransaction(): void {
     }
 

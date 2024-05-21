@@ -1,4 +1,4 @@
-class A {
+final class A {
     public bool $foo = false;
 
     public function bar() : void {

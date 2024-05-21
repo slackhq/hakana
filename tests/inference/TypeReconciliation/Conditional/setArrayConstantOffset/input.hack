@@ -1,4 +1,4 @@
-class S {
+final class S {
     const A = 0;
     const B = 1;
     const C = 2;

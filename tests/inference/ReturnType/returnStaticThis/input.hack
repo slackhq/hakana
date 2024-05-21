@@ -1,12 +1,12 @@
 namespace Foo;
 
-class A {
+abstract class A {
     public function getThis() : this {
         return $this;
     }
 }
 
-class B extends A {
+final class B extends A {
     public function foo() : void {}
 }
 

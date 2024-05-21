@@ -1,4 +1,4 @@
-class B {
+final class B {
   public function bar(): ?string {
     return "a";
   }

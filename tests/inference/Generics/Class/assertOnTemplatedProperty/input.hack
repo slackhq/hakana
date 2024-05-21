@@ -1,4 +1,4 @@
-class A<T as arraykey> {
+final class A<T as arraykey> {
     public function __construct(private T $t) {}
 
     public function foo() {

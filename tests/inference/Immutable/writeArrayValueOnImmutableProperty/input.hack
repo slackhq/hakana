@@ -4,7 +4,7 @@ type foo_t = shape(
 );
 
 <<Hakana\Immutable>>
-class A {
+final class A {
     public function __construct(
         public dict<int, int> $arr,
         protected foo_t $foo,

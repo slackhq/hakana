@@ -1,4 +1,4 @@
-class A {
+final class A {
     /* HAKANA_FIXME[UnusedPublicOrProtectedMethod] */
     public function foo(): void {
     }

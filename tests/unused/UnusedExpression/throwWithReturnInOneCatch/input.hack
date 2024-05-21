@@ -1,4 +1,4 @@
-class E1 extends Exception {}
+final class E1 extends Exception {}
 
 function dangerous(): void {
     if (rand(0, 1)) {

@@ -8,7 +8,7 @@ interface HasFooNode {
     public static function foo(): void;
 }
 
-class FooNode extends Node implements HasFooNode {
+final class FooNode extends Node implements HasFooNode {
     public static function foo(): void {}
 }
 

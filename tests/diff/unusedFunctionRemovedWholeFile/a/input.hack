@@ -3,4 +3,4 @@ function main(): void {
     new B();
 }
 
-class B {}
+final class B {}

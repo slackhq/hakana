@@ -1,6 +1,6 @@
 
 
-class B {}
+final class B {}
 
 <<__EntryPoint>>
 function foo(): void {

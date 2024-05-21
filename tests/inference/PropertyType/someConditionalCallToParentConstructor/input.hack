@@ -1,8 +1,8 @@
-class GrandParentClassDoesNotDefine {
+abstract class GrandParentClassDoesNotDefine {
     public function __construct() {}
 }
 
-class ParentClassDefinesVar extends GrandParentClassDoesNotDefine {
+abstract class ParentClassDefinesVar extends GrandParentClassDoesNotDefine {
     protected string $val;
 
     public function __construct() {
@@ -13,7 +13,7 @@ class ParentClassDefinesVar extends GrandParentClassDoesNotDefine {
     }
 }
 
-class ChildClass extends ParentClassDefinesVar {
+final class ChildClass extends ParentClassDefinesVar {
     public function __construct() {
         parent::__construct();
     }

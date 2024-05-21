@@ -1,3 +1,3 @@
-class A { const B = 42;}
+final class A { const B = 42;}
 $a = A::B;
-class C {}
+final class C {}

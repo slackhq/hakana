@@ -1,4 +1,4 @@
-class A {
+abstract class A {
     private string $taint;
 
     public function __construct($taint) {
@@ -10,9 +10,9 @@ class A {
     }
 }
 
-class B extends A {}
+final class B extends A {}
 
-class C extends B {}
+final class C extends B {}
 
 function foo(A $a) {
     echo $a->getTaint();

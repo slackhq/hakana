@@ -1,19 +1,22 @@
-class A {}
-class B extends A {}
-class C extends A {}
+abstract class A {}
+final class B extends A {}
+final class C extends A {}
 
-$b = null;
 
-foreach (vec[new A(), new A()] as $a) {
-    if ($a is B) {
+function foo(A $first, A $second): void {
+    $b = null;
 
-    } else if (!$a is C) {
-        return "goodbye";
+    foreach (vec[$first, $second] as $a) {
+        if ($a is B) {
+
+        } else if (!$a is C) {
+            return;
+        }
+
+        if ($b is C) {
+            return;
+        }
+
+        $b = $a;
     }
-
-    if ($b is C) {
-        return "hello";
-    }
-
-    $b = $a;
 }

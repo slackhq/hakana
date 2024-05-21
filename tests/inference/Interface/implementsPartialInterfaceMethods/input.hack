@@ -9,7 +9,7 @@ abstract class A implements I {
     return "hello";
   }
 }
-class B extends A {
+final class B extends A {
   public function bar() {
     return "goodbye";
   }

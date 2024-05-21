@@ -3,7 +3,7 @@ function main(): void {
     A::takes_bar(shape('a' => Foo::A));
 }
 
-class A {
+final class A {
     public static function takes_bar(bar_t $b) {
         if ($b['a'] == Foo::A) {}
     }

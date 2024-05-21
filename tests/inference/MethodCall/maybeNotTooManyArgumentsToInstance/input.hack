@@ -1,8 +1,8 @@
-class A {
+final class A {
     public function fooFoo(int $a): void {}
 }
 
-class B {
+final class B {
     public function fooFoo(int $a, string $s): void {}
 }
 

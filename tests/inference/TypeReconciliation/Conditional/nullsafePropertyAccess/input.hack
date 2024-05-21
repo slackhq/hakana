@@ -1,4 +1,4 @@
-class IntLinkedList {
+final class IntLinkedList {
     public function __construct(
         public int $value,
         public ?IntLinkedList $next

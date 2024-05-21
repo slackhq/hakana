@@ -1,4 +1,4 @@
-class Event {}
+final class Event {}
 
 function fetchEvent(): ?Event {
     return rand(0, 1) ? new Event() : null;

@@ -1,4 +1,4 @@
-class A {
+abstract class A {
 	const type TResult = string;
 
 	public static function foo(): this::TResult {
@@ -6,7 +6,7 @@ class A {
 	}
 }
 
-class B extends A {}
+final class B extends A {}
 
 function bar(): string {
 	return B::foo();

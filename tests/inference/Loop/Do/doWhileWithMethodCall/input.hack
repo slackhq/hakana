@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function getParent(): ?A {
         return rand(0, 1) ? new A() : null;
     }

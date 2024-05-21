@@ -10,7 +10,7 @@ switch (rand(0,1)) {
         break;
 }
 
-class A {
+final class A {
     public function maybeReturnsDT(): ?\DateTimeInterface {
         return rand(0,1) ? new \DateTime("now") : null;
     }

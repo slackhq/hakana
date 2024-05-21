@@ -6,7 +6,7 @@ namespace Aye\Bee {
         echo \Aye\Bee\HELLO;
     }
 
-    class Bar {
+    final class Bar {
         public function foo(): void {
             echo \Aye\Bee\HELLO;
         }

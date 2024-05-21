@@ -1,4 +1,4 @@
-class C {}
+final class C {}
 
 function foo() : C {
     return (int $i) ==> "";

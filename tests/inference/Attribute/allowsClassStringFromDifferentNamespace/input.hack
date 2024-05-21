@@ -2,7 +2,7 @@
 namespace NamespaceOne {
     use Attribute;
 
-    class FooAttribute implements HH\ClassAttribute
+    final class FooAttribute implements HH\ClassAttribute
     {
         public function __construct(private classname<FoobarInterface> $className)
         {}
@@ -10,7 +10,7 @@ namespace NamespaceOne {
 
     interface FoobarInterface {}
 
-    class Bar implements FoobarInterface {}
+    final class Bar implements FoobarInterface {}
 }
 
 namespace NamespaceTwo {
@@ -18,6 +18,6 @@ namespace NamespaceTwo {
     use NamespaceOne\Bar as ZZ;
 
     <<FooAttribute(ZZ::class)>>
-    class Baz {}
+    final class Baz {}
 }
                 

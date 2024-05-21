@@ -1,7 +1,7 @@
 interface A {}
 interface B {}
 
-class C implements A, B {}
+final class C implements A, B {}
 
 function foo(A $i): B {
     if ($i is B) {

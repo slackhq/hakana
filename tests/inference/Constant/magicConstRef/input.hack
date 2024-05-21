@@ -1,6 +1,6 @@
 use namespace HH\Lib\{Dict, Vec};
 
-class Codegen {
+final class Codegen {
     const string FOO = 'foo';
     public static function forPath(string $foo): this {}
     public function bar(): void {}

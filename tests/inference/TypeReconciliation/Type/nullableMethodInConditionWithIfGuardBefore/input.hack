@@ -1,14 +1,14 @@
-class One {
+final class One {
     public string $a = "";
 
     public function fooFoo(): void {}
 }
 
-class Two {
+final class Two {
     public function fooFoo(): void {}
 }
 
-class B {
+final class B {
     public function barBar(?One $one = null, ?Two $two = null): void {
         if ($one === null) {
             return;

@@ -1,4 +1,4 @@
-class A {
+final class A {
     public int $x = 0;
 }
 

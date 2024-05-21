@@ -1,8 +1,8 @@
-class One {
+final class One {
     public function fooFoo(): void {}
 }
 
-class B {
+final class B {
     public function barBar(?One $one = null) : void {
         if ($one) {
             // do nothing

@@ -2,4 +2,4 @@
 function main(): void {
 }
 
-class B {}
+final class B {}

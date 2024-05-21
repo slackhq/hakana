@@ -1,6 +1,6 @@
 StringUtility::foo($_GET["c"]);
 
-class StringUtility {
+final class StringUtility {
     <<\Hakana\SecurityAnalysis\SpecializeCall()>>
     public static function foo(string $str) : string
     {

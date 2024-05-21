@@ -1,4 +1,4 @@
-class Foo {
+final class Foo {
     public vec<mixed> $a = dict[];
     public vec<mixed> $b = dict[];
     public vec<mixed> $c = dict[];

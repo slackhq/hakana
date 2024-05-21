@@ -1,4 +1,4 @@
-class A {
+final class A {
     private static string $prev = "";
 
     public static function getPrevious(string $current): string {

@@ -1,3 +1,3 @@
-class B extends C {
+final class B extends C {
     public function fooA() { }
 }

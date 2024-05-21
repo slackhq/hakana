@@ -1,4 +1,4 @@
-class SomeClass {
+final class SomeClass {
     private ?int $int;
 
     public function __construct() {

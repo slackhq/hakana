@@ -1,4 +1,4 @@
-class B extends A {
+final class B extends A {
     public function bar(): void {
         $this->foo();
     }

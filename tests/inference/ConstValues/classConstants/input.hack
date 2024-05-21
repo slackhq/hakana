@@ -1,11 +1,11 @@
 namespace NS {
     use OtherNS\C as E;
 
-    class A {}
+    abstract class A {}
 
-    class C extends A {}
+    final class C extends A {}
 
-    class D extends A {};
+    final class D extends A {};
 
     function foo(classname<A> $s) : void {}
 
@@ -19,5 +19,5 @@ namespace NS {
 }
 
 namespace OtherNS {
-    class C extends \NS\A {}
+    final class C extends \NS\A {}
 }

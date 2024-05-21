@@ -1,8 +1,8 @@
 // fails in PHP, whatcha gonna do
 $c = new C();
 
-class A { }
+abstract class A { }
 
 interface B { }
 
-class C extends A implements B { }
+final class C extends A implements B { }

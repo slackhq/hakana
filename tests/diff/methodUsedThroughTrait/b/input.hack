@@ -7,7 +7,7 @@ trait ParentTrait {
 	public function doThing(): void {}
 }
 
-class ConcreteClass extends ParentClass {
+final class ConcreteClass extends ParentClass {
 	use ParentTrait;
 }
 

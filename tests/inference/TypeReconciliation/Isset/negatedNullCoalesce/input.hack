@@ -1,4 +1,4 @@
-class Bar {}
+final class Bar {}
 
 type foo_t = shape(
   ?'a' => Bar,

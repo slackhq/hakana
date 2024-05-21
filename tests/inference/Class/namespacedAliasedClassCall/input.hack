@@ -1,5 +1,5 @@
 namespace Aye {
-    class Foo {}
+    final class Foo {}
 }
 namespace Bee {
     use Aye as A;

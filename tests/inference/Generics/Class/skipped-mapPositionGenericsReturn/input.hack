@@ -1,4 +1,4 @@
-class A<T> {
+final class A<T> {
 	public function __construct(private (function(T): string) $fn) {}
 }
 

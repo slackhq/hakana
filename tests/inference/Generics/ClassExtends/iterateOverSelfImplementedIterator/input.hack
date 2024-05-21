@@ -1,7 +1,7 @@
-class O {}
-class Foo extends O {}
+abstract class O {}
+final class Foo extends O {}
 
-class FooCollection extends Iterator<int, Foo> {
+final class FooCollection extends Iterator<int, Foo> {
     private function iterate() : void {
         foreach ($this as $foo) {}
     }

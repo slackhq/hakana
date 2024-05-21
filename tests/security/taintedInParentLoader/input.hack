@@ -10,15 +10,15 @@ function getPdo() : AsyncMysqlConnection {
     return new AsyncMysqlConnection("connectionstring");
 }
 
-class AChild extends A {
+final class AChild extends A {
     public static function loadPartial(string $sink) : void {
         getPdo()->query("select * from foo where bar = " . $sink);
     }
 }
 
-class AGrandChild extends AChild {}
+final class AGrandChild extends AChild {}
 
-class C {
+final class C {
     public function foo(string $user_id) : void {
         AGrandChild::loadFull($user_id);
     }

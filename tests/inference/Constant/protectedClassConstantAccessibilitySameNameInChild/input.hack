@@ -1,4 +1,4 @@
-class A {
+abstract class A {
     const A = 1;
 
     public static function test(): void {
@@ -6,7 +6,7 @@ class A {
     }
 }
 
-class B extends A {
+final class B extends A {
     const A = 2;
 }
 

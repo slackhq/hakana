@@ -1,4 +1,4 @@
-class Foo {
+final class Foo {
   const type TConstructorShape = shape(
     ?'a' => ?string,
     ?'b' => ?int,

@@ -1,4 +1,4 @@
-class StringHolder {
+final class StringHolder {
     public string $x;
 
     public function __construct(string $x) {

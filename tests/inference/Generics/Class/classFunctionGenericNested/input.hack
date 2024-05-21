@@ -1,6 +1,6 @@
 abstract class A {}
 
-class B {
+final class B {
 	public static function coerce<reify T as A>(
 		vec<A> $items,
 	): vec<T> {

@@ -1,4 +1,4 @@
-class A {}
+final class A {}
 
 function example(A $a, A $b): bool {
     /* HAKANA_IGNORE[StrictObjectEquality] */

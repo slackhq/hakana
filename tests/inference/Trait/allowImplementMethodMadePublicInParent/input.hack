@@ -6,8 +6,8 @@ trait T {
     private function boo() : void {}
 }
 
-class B {
+abstract class B {
     use T;
 }
 
-class BChild extends B implements I {}
+final class BChild extends B implements I {}

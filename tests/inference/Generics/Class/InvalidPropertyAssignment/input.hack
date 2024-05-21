@@ -1,5 +1,5 @@
 <?hh // strict
-class Inv<T> {
+final class Inv<T> {
   public function __construct(public T $item) { }
 }
 

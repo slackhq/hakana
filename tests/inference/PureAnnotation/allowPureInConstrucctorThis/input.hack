@@ -1,4 +1,4 @@
-class Port {
+final class Port {
    private int $portNumber;
 
    public function __construct(int $portNumber) {

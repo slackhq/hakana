@@ -1,4 +1,4 @@
-class A {
+abstract class A {
     const CLASSES = dict["foobar" =>  B::class];
 
     public function foo(): bool {
@@ -6,4 +6,4 @@ class A {
     }
 }
 
-class B extends A {}
+final class B extends A {}

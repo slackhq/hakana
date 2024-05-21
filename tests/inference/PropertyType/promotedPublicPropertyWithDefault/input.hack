@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function __construct(public int $foo = 5) {}
 }
 

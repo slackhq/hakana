@@ -1,5 +1,5 @@
-class A {}
-class B {}
+final class A {}
+final class B {}
 
 $foo = vec[
     A::class,

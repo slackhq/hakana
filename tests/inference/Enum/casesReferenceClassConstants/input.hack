@@ -1,4 +1,4 @@
-class SomeClass {
+final class SomeClass {
   const string A = 'a';
   const string B = 'b';
   const string C = 'c';

@@ -1,4 +1,4 @@
-class A {
+abstract class A {
     protected string $s;
 
     public function __construct() {
@@ -6,9 +6,9 @@ class A {
     }
 }
 
-class B extends A {}
+abstract class B extends A {}
 
-class C extends B {
+final class C extends B {
     public function __construct()
     {
         parent::__construct();

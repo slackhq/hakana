@@ -1,7 +1,7 @@
 function matches_type_structure<T>(TypeStructure<T> $ts, mixed $value): T {
 }
 
-class A {
+final class A {
     const type T_B = shape('c' => string);
 }
 

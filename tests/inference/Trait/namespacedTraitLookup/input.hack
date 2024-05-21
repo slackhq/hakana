@@ -1,9 +1,9 @@
 namespace Classes {
   use Traits\T;
 
-  class A {}
+  final class A {}
 
-  class B {
+  final class B {
     use T;
   }
 }

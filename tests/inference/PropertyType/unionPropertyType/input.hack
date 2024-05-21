@@ -1,4 +1,4 @@
-class A {
+final class A {
     public arraykey $i;
 
     public function __construct() {

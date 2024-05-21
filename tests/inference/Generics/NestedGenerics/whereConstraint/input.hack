@@ -1,4 +1,4 @@
-class A<T> {
+final class A<T> {
   public function __construct(public T $t) {}
   public function getNonnull<Tu>(): Tu where T = ?Tu {
     if ($this->t is null) {

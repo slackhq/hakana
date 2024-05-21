@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function fooFoo(): void { }
 }
 function bar (vec<mixed> $a): void {

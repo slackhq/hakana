@@ -1,4 +1,4 @@
-class A {
+final class A {
     const STRING = "x";
 
     public static function bar(string $s) : bool {

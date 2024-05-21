@@ -1,4 +1,4 @@
-class Bar {
+final class Bar {
     public ?string $a = null;
 }
 

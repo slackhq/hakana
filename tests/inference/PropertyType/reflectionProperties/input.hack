@@ -1,4 +1,4 @@
-class Foo {
+final class Foo {
 }
 
 $a = new \ReflectionMethod(Foo::class, "__construct");

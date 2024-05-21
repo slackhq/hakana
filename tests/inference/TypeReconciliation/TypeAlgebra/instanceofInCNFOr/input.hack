@@ -1,6 +1,6 @@
-class A {}
-class B extends A {}
-class C extends A {}
+abstract class A {}
+final class B extends A {}
+final class C extends A {}
 
 function takesA(A $a): void {}
 

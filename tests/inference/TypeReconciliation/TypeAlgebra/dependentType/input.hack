@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function isValid() : bool {
         return (bool) rand(0, 1);
     }

@@ -1,6 +1,6 @@
 interface EmptyInterface {}
 
-class StringCastable implements EmptyInterface
+final class StringCastable implements EmptyInterface
 {
     public function __toString()
     {

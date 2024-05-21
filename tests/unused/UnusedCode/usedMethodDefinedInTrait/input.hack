@@ -12,7 +12,7 @@ trait T1 {
 
 abstract class Base implements I {}
 
-class Concrete extends Base {
+final class Concrete extends Base {
     use T1;
 }
 

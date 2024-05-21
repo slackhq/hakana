@@ -10,6 +10,6 @@ function logic(Foo $a, Foo $b) : void {
     }
 }
 
-class Foo {}
-class Bar extends Foo {}
-class Bat extends Foo {}
+abstract class Foo {}
+final class Bar extends Foo {}
+final class Bat extends Foo {}

@@ -1,10 +1,10 @@
-class A {
+final class A {
   public async function bar(): Awaitable<string> {
     return "a";
   }
 }
 
-class Boo {
+final class Boo {
     public static async function getA(): Awaitable<?A> {
         return new A();
     }

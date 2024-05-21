@@ -1,4 +1,4 @@
-class A {
+final class A {
     private string $taint = "";
 
     public function __construct(string $taint) {

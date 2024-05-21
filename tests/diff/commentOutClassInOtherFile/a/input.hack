@@ -12,7 +12,7 @@ function bar(): void {
     echo A::class;
 }
 
-class B {
+final class B {
     public function baz(): void {
         echo A::class;
     }

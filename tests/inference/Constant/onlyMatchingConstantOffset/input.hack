@@ -1,4 +1,4 @@
-class A {
+final class A {
     const KEYS = vec["one", "two", "three"];
     const ARR = dict[
         "one" => 1,

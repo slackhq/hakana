@@ -1,5 +1,5 @@
 <<aas()>>
-class StringHolder {
+final class StringHolder {
     public $x;
 
     public function __construct(string $x) {

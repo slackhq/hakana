@@ -1,4 +1,4 @@
-class A {}
+final class A {}
 
 function foo(shape('a' => string) $s): void {
     if ($s is A) {}

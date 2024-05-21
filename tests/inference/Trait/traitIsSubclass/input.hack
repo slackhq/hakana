@@ -10,9 +10,9 @@ trait MyTrait {
     }
 }
 
-class AChild extends A {
+abstract class AChild extends A {
     use MyTrait;
     public function bar(): void {}
 }
 
-class AGrandChild extends AChild {}
+final class AGrandChild extends AChild {}

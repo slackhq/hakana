@@ -1,8 +1,8 @@
 abstract class A {}
-class B extends A {}
+final class B extends A {}
 
 abstract class C {}
-class D extends C {}
+final class D extends C {}
 
 function makeA(): A {
   return new B();

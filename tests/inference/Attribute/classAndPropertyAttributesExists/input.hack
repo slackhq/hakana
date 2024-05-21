@@ -1,15 +1,15 @@
 namespace Foo;
 
-class Table implements HH\ClassAttribute {
+final class Table implements HH\ClassAttribute {
     public function __construct(public string $name) {}
 }
 
-class Column implements HH\PropertyAttribute {
+final class Column implements HH\PropertyAttribute {
     public function __construct(public string $name) {}
 }
 
 <<Table("videos")>>
-class Video {
+final class Video {
     <<Column("id")>>
     public string $id = "";
 
@@ -18,7 +18,7 @@ class Video {
 }
 
 <<Table("users")>>
-class User {
+final class User {
     public function __construct(
         <<Column("id")>>
         public string $id,

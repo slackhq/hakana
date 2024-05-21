@@ -3,7 +3,7 @@ namespace FunctionNamespace {
 }
 
 namespace ClassNamespace {
-    class Foo {}
+    final class Foo {}
 }
 
 namespace {

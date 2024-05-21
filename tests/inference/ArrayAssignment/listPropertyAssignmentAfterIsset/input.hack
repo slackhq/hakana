@@ -1,4 +1,4 @@
-class Collection {
+final class Collection {
     private vec<string> $list = dict[];
 
     public function override(int $offset): void {

@@ -11,7 +11,7 @@ trait HasDefault implements IHasDefault {
     }
 }
 
-class FooNode extends Node {
+final class FooNode extends Node {
     use HasDefault;
     
     public static function getDefault(): mixed {

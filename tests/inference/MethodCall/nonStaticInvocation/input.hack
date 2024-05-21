@@ -1,4 +1,4 @@
-class Foo {
+final class Foo {
     public static function barBar(): void {}
 }
 

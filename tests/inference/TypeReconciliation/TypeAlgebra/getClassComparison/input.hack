@@ -1,11 +1,11 @@
-class Foo {
+abstract class Foo {
     public function bar() : void {}
 }
-class Bar extends Foo{
+final class Bar extends Foo{
     public function bar() : void {}
 }
 
-class Baz {
+final class Baz {
     public function test(Foo $foo) : void {
         if (get_class($foo) !== Foo::class) {
             // do nothing

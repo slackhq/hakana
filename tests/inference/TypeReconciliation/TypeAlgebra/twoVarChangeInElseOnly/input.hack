@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function takesA(A $a) : void {}
 
     public function foo() : void {}

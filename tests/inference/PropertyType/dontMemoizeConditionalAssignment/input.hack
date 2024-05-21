@@ -1,8 +1,8 @@
 namespace Foo;
 
-class A {}
+final class A {}
 
-class B {
+final class B {
     protected ?A $a = null;
 
     public function test(): void {

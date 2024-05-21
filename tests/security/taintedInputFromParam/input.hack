@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function getUserId() : string {
         $user_id = (string) $_GET["user_id"];
         return $user_id;

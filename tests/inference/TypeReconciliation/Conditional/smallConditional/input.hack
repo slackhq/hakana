@@ -1,8 +1,8 @@
-class A {
+final class A {
     public vec<mixed> $parts = vec[];
 }
 
-class FuncCall {
+final class FuncCall {
     public ?A $name;
     public dict<arraykey, string> $args = dict[];
 }

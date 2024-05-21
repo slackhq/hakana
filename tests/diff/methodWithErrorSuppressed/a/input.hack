@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function foo(vec<string> $vecs): void {
         echo "a";
         if ($vecs is nonnull) {}

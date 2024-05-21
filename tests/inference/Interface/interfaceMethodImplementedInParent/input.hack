@@ -2,10 +2,10 @@ interface MyInterface {
     public function fooFoo(int $a): void;
 }
 
-class B {
+abstract class B {
     public function fooFoo(int $a): void {
 
     }
 }
 
-class C extends B implements MyInterface { }
+final class C extends B implements MyInterface { }

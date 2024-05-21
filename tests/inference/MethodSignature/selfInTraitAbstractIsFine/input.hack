@@ -2,7 +2,7 @@ trait SomeTrait {
     abstract public function a(SomeClass $b): SomeClass;
 }
 
-class SomeClass {
+final class SomeClass {
     use SomeTrait;
 
     public function a(SomeClass $b): SomeClass {

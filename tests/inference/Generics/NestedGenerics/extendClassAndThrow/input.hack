@@ -1,4 +1,4 @@
-class ExpectObj<T> extends Assert {
+abstract class ExpectObj<T> extends Assert {
   public function __construct(private T $var) {}
 
   public function toThrow<TException as Throwable>(

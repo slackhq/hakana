@@ -7,6 +7,6 @@ trait T {
     }
 }
 
-class B implements A {
+final class B implements A {
     use T;
 }

@@ -1,6 +1,6 @@
 interface I {}
 
-class A implements I {}
+final class A implements I {}
 
 function takesI(KeyedContainer<string, mixed> $i): void {}
 

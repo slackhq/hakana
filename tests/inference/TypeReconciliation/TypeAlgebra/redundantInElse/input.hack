@@ -1,5 +1,5 @@
-class A {}
-class AChild extends A {}
+abstract class A {}
+final class AChild extends A {}
 
 function foo(A $a, A $b): void {
     if ($a is AChild) {

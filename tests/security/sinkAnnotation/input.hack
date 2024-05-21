@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function getUserId() : string {
         return (string) $_GET['user_id'];
     }
@@ -13,7 +13,7 @@ class A {
     }
 }
 
-class MySqlHandler {
+final class MySqlHandler {
     public function exec(
         <<\Hakana\SecurityAnalysis\Sink('Sql')>> string $sql
     ) : void {}

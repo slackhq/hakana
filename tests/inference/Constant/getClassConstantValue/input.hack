@@ -1,4 +1,4 @@
-class A {
+final class A {
     const B = vec[0, 1, 2];
 }
 

@@ -1,8 +1,8 @@
-class A {
+final class A {
     public function fooFoo(): void {}
 }
 
-class B {
+final class B {
     public ?A $a = null;
 
     public function barBar(?A $a = null) : void {

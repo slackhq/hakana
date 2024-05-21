@@ -3,14 +3,14 @@ interface IHasName {
   public function name(): string;
 }
 
-class HasName implements IHasName {
+final class HasName implements IHasName {
   public function __construct(private string $name)[] {}
   public function name(): string {
     return $this->name;
   }
 }
 
-class ConstName implements IHasName {
+final class ConstName implements IHasName {
   public function name(): string {
     return "bar";
   }

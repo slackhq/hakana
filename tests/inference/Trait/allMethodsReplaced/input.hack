@@ -6,7 +6,7 @@ trait T {
     }
 }
 
-class C {
+final class C {
     use T;
 
     protected function foo(string $s) : void {}

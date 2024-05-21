@@ -1,7 +1,7 @@
 abstract class Base {}
-class A extends Base {}
-class AChild extends A {}
-class B extends Base {
+abstract class A extends Base {}
+final class AChild extends A {}
+final class B extends Base {
     public string $s = "";
 }
 

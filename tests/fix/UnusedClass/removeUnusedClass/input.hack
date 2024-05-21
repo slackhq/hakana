@@ -1,10 +1,10 @@
 // This is my class
 // it is not used
-class A {
+final class A {
     // some stuff
 }
 
-class B {}
+final class B {}
 
 <<__EntryPoint>>
 function foo(): void {

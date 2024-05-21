@@ -6,7 +6,7 @@ abstract class Foobar {
     abstract protected function inner(): void;
 }
 
-class MyFooBar extends Foobar {
+final class MyFooBar extends Foobar {
     protected function inner(): void {
         // Do nothing
     }

@@ -1,8 +1,8 @@
-class Assessment {
+final class Assessment {
     public ?string $root = null;
 }
 
-class Project {
+final class Project {
     public ?Assessment $assessment = null;
 }
 

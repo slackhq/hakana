@@ -4,7 +4,7 @@ final class Reesource<T> {
 	) {}
 }
 
-class A {}
+final class A {}
 
 function expectsResourceA(Reesource<A> $_res): void {}
 

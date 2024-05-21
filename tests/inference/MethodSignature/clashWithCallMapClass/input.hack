@@ -1,5 +1,5 @@
-class HaruDestination {}
-class AClass
+final class HaruDestination {}
+final class AClass
 {
     public function get(): HaruDestination
     {

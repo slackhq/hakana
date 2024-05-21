@@ -1,4 +1,4 @@
-class A {
+final class A {
     public function getRows() : vec<?A> {
         return vec[new A(), null];
     }

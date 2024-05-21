@@ -1,4 +1,4 @@
-class A {
+final class A {
     private string $taint = "";
     private static string $stub = "";
 

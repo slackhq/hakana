@@ -5,6 +5,6 @@ trait Foo {
     }
 }
 
-class A {
+final class A {
     use Foo;
 }

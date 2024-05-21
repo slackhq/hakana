@@ -1,4 +1,4 @@
-class A {
+final class A {
     public static function bar(): int {
         return 5;
     }

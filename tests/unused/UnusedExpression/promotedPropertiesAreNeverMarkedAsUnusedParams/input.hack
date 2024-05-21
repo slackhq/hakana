@@ -1,4 +1,4 @@
-class MyContainer {
+final class MyContainer {
     private function __construct(
         public float $value
     ) {}

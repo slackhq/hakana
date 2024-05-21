@@ -1,4 +1,4 @@
-class A {}
+final class A {}
 function foo(A $a) : A {
     return clone $a;
 }

@@ -1,8 +1,8 @@
-class One {
+final class One {
     public function fooFoo(): void {}
 }
 
-class Two {
+final class Two {
     public function barBar(): void {}
 }
 

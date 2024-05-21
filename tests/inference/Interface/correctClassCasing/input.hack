@@ -4,7 +4,7 @@ interface F {
 
 abstract class G implements F {}
 
-class H extends G {
+final class H extends G {
     public function m(): F {
         return $this;
     }

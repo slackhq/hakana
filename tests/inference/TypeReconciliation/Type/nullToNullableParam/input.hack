@@ -1,6 +1,6 @@
-class A {}
+final class A {}
 
-class B {
+final class B {
     public function barBar(?A $a = null) : void {}
 }
 

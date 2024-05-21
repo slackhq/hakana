@@ -6,6 +6,6 @@ trait T {
     private function boo() : void {}
 }
 
-class A implements I {
+final class A implements I {
     use T;
 }

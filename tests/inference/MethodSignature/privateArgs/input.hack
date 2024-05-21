@@ -1,6 +1,6 @@
-class A {
+abstract class A {
     private function foo(): void {}
 }
-class B extends A {
+final class B extends A {
     private function foo(int $arg): void {}
 }

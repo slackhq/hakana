@@ -2,6 +2,6 @@ trait T {
   abstract public function foo(): void;
 }
 
-class A {
+final class A {
   public function foo(): void {}
 }

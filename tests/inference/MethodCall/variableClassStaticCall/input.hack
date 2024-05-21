@@ -1,4 +1,4 @@
-class C {
+final class C {
     public static function f(int $u):void {}
 }
 

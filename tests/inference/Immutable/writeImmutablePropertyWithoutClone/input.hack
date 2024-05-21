@@ -1,5 +1,5 @@
 <<Hakana\Immutable>>
-class A {
+final class A {
     public function __construct(public int $b) {}
 
     public function mutate() {

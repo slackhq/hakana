@@ -3,7 +3,7 @@ interface Stringable {
 }
 function foo(Stringable $s): void {}
 
-class Bar {
+final class Bar {
     public function __toString() {
         return "foo";
     }

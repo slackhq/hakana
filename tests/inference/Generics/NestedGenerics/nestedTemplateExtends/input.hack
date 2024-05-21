@@ -6,11 +6,11 @@ abstract class BaseModel<TViewData> {}
 
 abstract class BaseRepository<TViewData as IBaseViewData, TModel as BaseModel<TViewData>> {}
 
-class StudentViewData implements IBaseViewData {}
-class TeacherViewData implements IBaseViewData {}
+final class StudentViewData implements IBaseViewData {}
+final class TeacherViewData implements IBaseViewData {}
 
-class StudentModel extends BaseModel<StudentViewData> {}
-class TeacherModel extends BaseModel<TeacherViewData> {}
+final class StudentModel extends BaseModel<StudentViewData> {}
+final class TeacherModel extends BaseModel<TeacherViewData> {}
 
-class StudentRepository extends BaseRepository<StudentViewData, StudentModel> {}
-class TeacherRepository extends BaseRepository<TeacherViewData, TeacherModel>{}
+final class StudentRepository extends BaseRepository<StudentViewData, StudentModel> {}
+final class TeacherRepository extends BaseRepository<TeacherViewData, TeacherModel>{}

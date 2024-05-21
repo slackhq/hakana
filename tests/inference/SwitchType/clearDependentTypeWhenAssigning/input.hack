@@ -1,10 +1,10 @@
-class A {}
+abstract class A {}
 
-class AChild extends A {
+final class AChild extends A {
     public function bar() : void {}
 }
 
-class B {}
+final class B {}
 
 function foo(A $a) : void {
     $a_class = get_class($a);

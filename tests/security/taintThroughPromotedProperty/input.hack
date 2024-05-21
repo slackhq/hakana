@@ -1,4 +1,4 @@
-class User {
+final class User {
     public function __construct(public string $userId) {}
 }
 

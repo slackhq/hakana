@@ -1,3 +1,3 @@
-class ME extends Exception {
+final class ME extends Exception {
     protected $message = "hello";
 }

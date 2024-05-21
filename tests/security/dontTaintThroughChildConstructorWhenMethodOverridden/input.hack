@@ -1,4 +1,4 @@
-class A {
+abstract class A {
     private $taint;
 
     public function __construct($taint) {
@@ -10,7 +10,7 @@ class A {
     }
 }
 
-class B extends A {
+final class B extends A {
     public function __construct($taint) {}
 }
 

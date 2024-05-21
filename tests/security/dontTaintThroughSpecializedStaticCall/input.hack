@@ -7,7 +7,7 @@ function foo(mixed $c) {
     echo $d;
 }
 
-class A {
+final class A {
     <<Hakana\SecurityAnalysis\SpecializeCall()>>
     public static function reflect(string $s): string {
         return $s;

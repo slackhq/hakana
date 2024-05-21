@@ -1,10 +1,10 @@
 <<__ConsistentConstruct>>
-class A {
+abstract class A {
     public function getInstance() : A {
         return new static();
     }
 }
 
-class AChild extends A {
+final class AChild extends A {
     public function __construct() {}
 }

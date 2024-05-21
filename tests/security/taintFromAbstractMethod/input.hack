@@ -29,13 +29,13 @@ abstract class AHandler extends InputHandler<my_args_t> {}
 abstract class BHandler extends InputHandler<my_args_t> {}
 abstract class CHandler extends InputHandler<my_args_t> {}
 
-class MyHandler extends BHandler {
+final class MyHandler extends BHandler {
     public function getResult(my_args_t $args) {
         B::handle($args);
     }
 }
 
-class B {
+final class B {
     public static function handle(my_args_t $args) {
         $ch = curl_init($args['a']);
     }

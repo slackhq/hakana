@@ -3,11 +3,11 @@ trait T {
     }
 }
 
-class B {
+abstract class B {
     use T;
 }
 
-class C extends B {
+final class C extends B {
     public function doFoo(): void {
         $this->fooFoo();
     }

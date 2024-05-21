@@ -1,4 +1,4 @@
-class Foo {
+final class Foo {
     /** cool doc */
     private function bar(): void {}
 }

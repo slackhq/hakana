@@ -1,4 +1,4 @@
-class A {
+abstract class A {
     public function b(B $b): void {
 
     }
@@ -8,7 +8,7 @@ class A {
     }
 }
 
-class B extends A {
+final class B extends A {
     public function d(): void {
         $this->c();
     }

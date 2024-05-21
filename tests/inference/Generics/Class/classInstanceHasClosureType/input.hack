@@ -1,5 +1,5 @@
-class A {}
-class AChild extends A {
+abstract class A {}
+final class AChild extends A {
     public function foo(): string {
         return "cool";
     }

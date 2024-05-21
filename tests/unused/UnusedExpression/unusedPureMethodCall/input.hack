@@ -1,4 +1,4 @@
-class UnusedMethodClass {
+final class UnusedMethodClass {
     public function getId()[]: int {
 		return 5;
 	}

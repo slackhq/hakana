@@ -6,7 +6,7 @@ interface B extends A {
     public function foo(string $a = "") : void;
 }
 
-class C implements B {
+final class C implements B {
     public function foo(string $a = "") : void {}
 }
 

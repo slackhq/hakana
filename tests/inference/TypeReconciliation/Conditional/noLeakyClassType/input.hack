@@ -1,4 +1,4 @@
-class A {
+final class A {
     public dict<arraykey, mixed> $foo = dict[];
     public dict<arraykey, mixed> $bar = dict[];
 

@@ -1,6 +1,6 @@
-class User {}
+final class User {}
 
-class Users extends ArrayIterator<arraykey, User>
+final class Users extends ArrayIterator<arraykey, User>
 {
     public function __construct(User ...$users) {
         parent::__construct($users);

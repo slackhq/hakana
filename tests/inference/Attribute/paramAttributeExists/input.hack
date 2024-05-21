@@ -1,5 +1,5 @@
 namespace {
-    class Deprecated implements HH\ClassAttribute {}
+    final class Deprecated implements HH\ClassAttribute {}
 }
 
 namespace Foo\Bar {
