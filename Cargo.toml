@@ -18,8 +18,8 @@ hakana-analyzer = { path = "src/analyzer" }
 hakana-language-server = { path = "src/language_server" }
 hakana-workhorse = { path = "src/file_scanner_analyzer" }
 mimalloc = { version = "*", default-features = false }
-tokio = "1.26.0"
-tower-lsp = { git = "https://github.com/ebkalderon/tower-lsp", branch = "support-mutable-methods" }
+tower-lsp = { version = "=0.20.0", features = ["proposed"] }
+tokio = { version = "1.26.0", features = ["full"] }
 
 [workspace]
 members = [
