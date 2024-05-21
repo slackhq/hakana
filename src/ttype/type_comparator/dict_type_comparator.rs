@@ -53,7 +53,14 @@ pub(crate) fn is_contained_by(
 
                     if all_types_contain {
                         match (input_params, container_params) {
-                            (None, None) => {}
+                            (None, None) => {
+                                if !input_known_items
+                                    .keys()
+                                    .all(|k| container_known_items.contains_key(k))
+                                {
+                                    all_types_contain = false;
+                                }
+                            }
                             (None, Some(_)) => {}
                             (Some(_), None) => {
                                 all_types_contain = false;
