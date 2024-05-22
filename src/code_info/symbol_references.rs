@@ -85,7 +85,7 @@ impl SymbolReferences {
         class_member: (StrId, StrId),
         in_signature: bool,
     ) {
-        self.add_symbol_reference_to_symbol(referencing_symbol, class_member.0, in_signature);
+        self.add_symbol_reference_to_symbol(referencing_symbol, class_member.0, false);
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
@@ -142,17 +142,9 @@ impl SymbolReferences {
             return;
         }
 
-        self.add_symbol_reference_to_symbol(
-            referencing_class_member.0,
-            class_member.0,
-            in_signature,
-        );
+        self.add_symbol_reference_to_symbol(referencing_class_member.0, class_member.0, false);
 
-        self.add_class_member_reference_to_symbol(
-            referencing_class_member,
-            class_member.0,
-            in_signature,
-        );
+        self.add_class_member_reference_to_symbol(referencing_class_member, class_member.0, false);
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
@@ -177,7 +169,7 @@ impl SymbolReferences {
             return;
         }
 
-        self.add_symbol_reference_to_symbol(referencing_class_member.0, symbol, in_signature);
+        self.add_symbol_reference_to_symbol(referencing_class_member.0, symbol, false);
 
         if in_signature {
             self.symbol_references_to_symbols_in_signature
@@ -448,14 +440,16 @@ impl SymbolReferences {
         let mut expense = 0;
 
         while !new_invalid_symbols.is_empty() {
-            if expense > 5000 {
-                return None;
-            }
-
             let new_invalid_symbol = new_invalid_symbols.pop().unwrap();
 
             if seen_symbols.contains(&new_invalid_symbol) {
                 continue;
+            }
+
+            expense += 1;
+
+            if expense > 5000 {
+                return None;
             }
 
             invalid_symbols.insert(new_invalid_symbol);
@@ -465,7 +459,9 @@ impl SymbolReferences {
             for (referencing_member, referenced_members) in
                 &self.symbol_references_to_symbols_in_signature
             {
-                if referenced_members.contains(&new_invalid_symbol) {
+                if referenced_members.contains(&new_invalid_symbol)
+                    && !seen_symbols.contains(referencing_member)
+                {
                     new_invalid_symbols.push(*referencing_member);
                     if !referencing_member.1.is_empty() {
                         invalid_symbol_members.insert(*referencing_member);
@@ -474,9 +470,11 @@ impl SymbolReferences {
                     }
                     expense += 1;
                 }
-            }
 
-            expense += 1;
+                if expense > 5000 {
+                    return None;
+                }
+            }
 
             if !new_invalid_symbol.1.is_empty() {
                 invalid_symbol_members.insert(new_invalid_symbol);

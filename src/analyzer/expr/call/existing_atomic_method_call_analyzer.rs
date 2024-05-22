@@ -85,6 +85,46 @@ pub(crate) fn analyze(
             false,
         );
 
+    if method_id != declaring_method_id {
+        if codebase.class_or_trait_extends(&method_id.0, &declaring_method_id.0) {
+            let mut child_storage = classlike_storage;
+            let mut child_class_name = classlike_name;
+            loop {
+                analysis_data
+                    .symbol_references
+                    .add_reference_to_class_member(
+                        &context.function_context,
+                        (child_class_name, method_id.1),
+                        false,
+                    );
+
+                for used_trait in &child_storage.used_traits {
+                    analysis_data
+                        .symbol_references
+                        .add_reference_to_class_member(
+                            &context.function_context,
+                            (*used_trait, method_id.1),
+                            false,
+                        );
+                }
+
+                if let Some(parent_class) = child_storage.direct_parent_class {
+                    if parent_class == declaring_method_id.0 {
+                        break;
+                    }
+
+                    if let Some(parent_class_storage) = codebase.classlike_infos.get(&parent_class)
+                    {
+                        child_storage = parent_class_storage;
+                        child_class_name = parent_class;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     if let Some(overridden_classlikes) = classlike_storage
         .overridden_method_ids
         .get(&declaring_method_id.1)
