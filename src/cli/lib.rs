@@ -1063,25 +1063,42 @@ fn do_codegen(
                     continue;
                 }
             } else {
-                let existing_contents = fs::read_to_string(path).unwrap();
-                if existing_contents.trim() != info.trim() {
-                    if check_codegen || !overwrite_codegen {
-                        errors.push(format!("File {} differs from codegen", name));
+                match info {
+                    Ok(info) => {
+                        let existing_contents = fs::read_to_string(path).unwrap();
+                        if existing_contents.trim() != info.trim() {
+                            if check_codegen || !overwrite_codegen {
+                                errors.push(format!("File {} differs from codegen", name));
+                                continue;
+                            }
+                        } else {
+                            verified_count += 1;
+                            continue;
+                        }
+                    }
+                    Err(err) => {
+                        errors.push(format!("File {} has codegen error {}", name, err));
                         continue;
                     }
-                } else {
-                    verified_count += 1;
-                    continue;
                 }
             }
 
             if let Some(dir) = path.parent() {
                 fs::create_dir_all(dir).unwrap();
             }
+
             let mut output_path = fs::File::create(path).unwrap();
-            write!(output_path, "{}", &info).unwrap();
-            println!("Saved {}", name);
-            updated_count += 1;
+            match info {
+                Ok(info) => {
+                    write!(output_path, "{}", &info).unwrap();
+                    println!("Saved {}", name);
+                    updated_count += 1;
+                }
+                Err(err) => {
+                    errors.push(format!("File {} has codegen error {}", name, err));
+                    continue;
+                }
+            }
         }
 
         if !errors.is_empty() {

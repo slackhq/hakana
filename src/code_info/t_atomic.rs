@@ -179,7 +179,7 @@ impl TAtomic {
             TAtomic::TAwaitable { value, .. } => {
                 refs.push(StrId::AWAITABLE);
                 let mut str = String::new();
-                str += "HH\\Awaitable<";
+                str += "Awaitable<";
                 str += value
                     .get_id_with_refs(interner, refs, indent)
                     .as_str();

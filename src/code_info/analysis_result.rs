@@ -26,7 +26,7 @@ pub struct AnalysisResult {
     pub emitted_definition_issues: FxHashMap<FilePath, Vec<Issue>>,
     pub replacements: FxHashMap<FilePath, BTreeMap<(u32, u32), Replacement>>,
     pub insertions: FxHashMap<FilePath, BTreeMap<u32, Vec<String>>>,
-    pub codegen: BTreeMap<String, String>,
+    pub codegen: BTreeMap<String, Result<String, String>>,
     pub mixed_source_counts: FxHashMap<DataFlowNodeId, FxHashSet<String>>,
     pub program_dataflow_graph: DataFlowGraph,
     pub symbol_references: SymbolReferences,
