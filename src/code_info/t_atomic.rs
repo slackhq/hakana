@@ -177,10 +177,11 @@ impl TAtomic {
         match self {
             TAtomic::TArraykey { .. } => "arraykey".to_string(),
             TAtomic::TAwaitable { value, .. } => {
+                refs.push(StrId::AWAITABLE);
                 let mut str = String::new();
-                str += "Awaitable<";
+                str += "HH\\Awaitable<";
                 str += value
-                    .get_id_with_refs(interner, &mut vec![], indent)
+                    .get_id_with_refs(interner, refs, indent)
                     .as_str();
                 str += ">";
                 str
