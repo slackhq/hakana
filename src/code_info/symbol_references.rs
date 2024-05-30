@@ -459,9 +459,7 @@ impl SymbolReferences {
             for (referencing_member, referenced_members) in
                 &self.symbol_references_to_symbols_in_signature
             {
-                if referenced_members.contains(&new_invalid_symbol)
-                    && !seen_symbols.contains(referencing_member)
-                {
+                if referenced_members.contains(&new_invalid_symbol) {
                     new_invalid_symbols.push(*referencing_member);
                     if !referencing_member.1.is_empty() {
                         invalid_symbol_members.insert(*referencing_member);
