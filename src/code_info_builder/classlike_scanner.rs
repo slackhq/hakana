@@ -582,16 +582,20 @@ pub(crate) fn scan(
         signature_hash =
             signature_hash.wrapping_add(xxhash_rust::xxh3::xxh3_64(&name.0.to_le_bytes()));
 
-        if name == StrId::CODEGEN {
-            storage.generated = true;
-        }
-
-        if name == StrId::HAKANA_IMMUTABLE {
-            storage.immutable = true;
-        }
-
-        if name == StrId::HAKANA_TEST_ONLY {
-            storage.is_production_code = false;
+        match name {
+            StrId::CODEGEN => {
+                storage.generated = true;
+            }
+            StrId::HAKANA_IMMUTABLE => {
+                storage.immutable = true;
+            }
+            StrId::HAKANA_TEST_ONLY => {
+                storage.is_production_code = false;
+            }
+            StrId::HAKANA_NOT_TEST_ONLY => {
+                storage.is_production_code = true;
+            }
+            _ => {}
         }
 
         storage.attributes.push(AttributeInfo { name });

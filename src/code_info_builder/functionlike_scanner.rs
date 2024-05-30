@@ -77,8 +77,7 @@ pub(crate) fn scan_method(
         user_defined,
     );
 
-    functionlike_info.is_production_code &=
-        file_source.is_production_code && classlike_storage.is_production_code;
+    functionlike_info.is_production_code &= classlike_storage.is_production_code;
 
     if classlike_name == StrId::BUILTIN_ENUM
         && (method_name == StrId::COERCE

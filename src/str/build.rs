@@ -239,6 +239,7 @@ fn main() -> Result<()> {
         "HH\\varray",
         "HH\\vec",
         "Hakana\\FindPaths\\Sanitize",
+        "Hakana\\NotTestOnly",
         "Hakana\\Immutable",
         "Hakana\\MustUse",
         "Hakana\\SecurityAnalysis\\IgnorePath",
