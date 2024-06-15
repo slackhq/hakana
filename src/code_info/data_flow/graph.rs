@@ -152,6 +152,7 @@ impl DataFlowGraph {
         &self,
         assignment_node_id: &DataFlowNodeId,
         ignore_paths: Vec<PathKind>,
+        var_ids_only: bool,
     ) -> Vec<DataFlowNodeId> {
         let mut visited_child_ids = FxHashSet::default();
 
@@ -174,6 +175,13 @@ impl DataFlowGraph {
                 }
 
                 visited_child_ids.insert(child_node_id.clone());
+
+                if var_ids_only {
+                    if let DataFlowNodeId::Var(..) | DataFlowNodeId::Param(..) = child_node_id {
+                        origin_nodes.push(child_node_id);
+                        continue;
+                    }
+                }
 
                 let mut new_parent_nodes = FxHashSet::default();
                 let mut has_visited_a_parent_already = false;
@@ -233,7 +241,7 @@ impl DataFlowGraph {
     }
 
     pub fn add_mixed_data(&mut self, assignment_node: &DataFlowNode, pos: &Pos) {
-        let origin_node_ids = self.get_origin_node_ids(&assignment_node.id, vec![]);
+        let origin_node_ids = self.get_origin_node_ids(&assignment_node.id, vec![], false);
 
         for origin_node_id in origin_node_ids {
             if let DataFlowNodeId::CallTo(..) | DataFlowNodeId::SpecializedCallTo(..) =

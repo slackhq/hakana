@@ -174,7 +174,23 @@ pub(crate) fn analyze(
         shape_name: None,
     });
 
-    new_dict.parent_nodes = parent_nodes;
+    if !parent_nodes.is_empty() {
+        let dict_node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(pos));
+
+        for child_node in parent_nodes {
+            analysis_data.data_flow_graph.add_path(
+                &child_node,
+                &dict_node,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
+        }
+
+        analysis_data.data_flow_graph.add_node(dict_node.clone());
+
+        new_dict.parent_nodes = vec![dict_node];
+    }
 
     analysis_data.set_expr_type(pos, new_dict);
 

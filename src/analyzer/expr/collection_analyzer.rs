@@ -171,7 +171,23 @@ pub(crate) fn analyze_vals(
                 }
             });
 
-            new_vec.parent_nodes = array_creation_info.parent_nodes;
+            if !array_creation_info.parent_nodes.is_empty() {
+                let vec_node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(pos));
+
+                for child_node in array_creation_info.parent_nodes {
+                    analysis_data.data_flow_graph.add_path(
+                        &child_node,
+                        &vec_node,
+                        PathKind::Default,
+                        vec![],
+                        vec![],
+                    );
+                }
+
+                analysis_data.data_flow_graph.add_node(vec_node.clone());
+
+                new_vec.parent_nodes = vec![vec_node];
+            }
 
             analysis_data.set_expr_type(pos, new_vec);
         }
@@ -184,7 +200,24 @@ pub(crate) fn analyze_vals(
 
             let mut keyset = get_keyset(item_value_type);
 
-            keyset.parent_nodes = array_creation_info.parent_nodes;
+            if !array_creation_info.parent_nodes.is_empty() {
+                let keyset_node =
+                    DataFlowNode::get_for_composition(statements_analyzer.get_hpos(pos));
+
+                for child_node in array_creation_info.parent_nodes {
+                    analysis_data.data_flow_graph.add_path(
+                        &child_node,
+                        &keyset_node,
+                        PathKind::Default,
+                        vec![],
+                        vec![],
+                    );
+                }
+
+                analysis_data.data_flow_graph.add_node(keyset_node.clone());
+
+                keyset.parent_nodes = vec![keyset_node];
+            }
 
             analysis_data.set_expr_type(pos, keyset);
         }
@@ -296,7 +329,23 @@ pub(crate) fn analyze_keyvals(
         shape_name: None,
     });
 
-    new_dict.parent_nodes = array_creation_info.parent_nodes;
+    if !array_creation_info.parent_nodes.is_empty() {
+        let dict_node = DataFlowNode::get_for_composition(statements_analyzer.get_hpos(pos));
+
+        for child_node in array_creation_info.parent_nodes {
+            analysis_data.data_flow_graph.add_path(
+                &child_node,
+                &dict_node,
+                PathKind::Default,
+                vec![],
+                vec![],
+            );
+        }
+
+        analysis_data.data_flow_graph.add_node(dict_node.clone());
+
+        new_dict.parent_nodes = vec![dict_node];
+    }
 
     analysis_data.set_expr_type(pos, new_dict);
 
