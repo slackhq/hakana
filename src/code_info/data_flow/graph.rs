@@ -2,7 +2,10 @@ use super::{
     node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind},
     path::{DataFlowPath, PathKind},
 };
-use crate::{code_location::FilePath, taint::SinkType};
+use crate::{
+    code_location::FilePath, function_context::FunctionLikeIdentifier, t_union::TUnion,
+    taint::SinkType,
+};
 use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -257,5 +260,31 @@ impl DataFlowGraph {
                 }
             }
         }
+    }
+
+    pub fn get_source_functions(&self, expr_type: &TUnion) -> Vec<FunctionLikeIdentifier> {
+        let mut origin_node_ids = vec![];
+
+        for parent_node in &expr_type.parent_nodes {
+            origin_node_ids.extend(self.get_origin_node_ids(&parent_node.id, vec![], false));
+        }
+
+        let mut source_functions = vec![];
+
+        for origin_node_id in origin_node_ids {
+            match &origin_node_id {
+                DataFlowNodeId::CallTo(functionlike_id)
+                | DataFlowNodeId::SpecializedCallTo(functionlike_id, ..) => {
+                    let origin_node = self.get_node(&origin_node_id).unwrap();
+
+                    if let DataFlowNodeKind::Vertex { .. } = origin_node.kind {
+                        source_functions.push(*functionlike_id);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        source_functions
     }
 }
