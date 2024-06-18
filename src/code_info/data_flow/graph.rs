@@ -3,8 +3,8 @@ use super::{
     path::{DataFlowPath, PathKind},
 };
 use crate::{
-    code_location::FilePath, function_context::FunctionLikeIdentifier, t_union::TUnion,
-    taint::SinkType,
+    code_location::FilePath, data_flow::node::VariableSourceKind,
+    function_context::FunctionLikeIdentifier, t_union::TUnion, taint::SinkType,
 };
 use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -154,7 +154,7 @@ impl DataFlowGraph {
     pub fn get_origin_node_ids(
         &self,
         assignment_node_id: &DataFlowNodeId,
-        ignore_paths: Vec<PathKind>,
+        ignore_paths: &Vec<PathKind>,
         var_ids_only: bool,
     ) -> Vec<DataFlowNodeId> {
         let mut visited_child_ids = FxHashSet::default();
@@ -244,7 +244,7 @@ impl DataFlowGraph {
     }
 
     pub fn add_mixed_data(&mut self, assignment_node: &DataFlowNode, pos: &Pos) {
-        let origin_node_ids = self.get_origin_node_ids(&assignment_node.id, vec![], false);
+        let origin_node_ids = self.get_origin_node_ids(&assignment_node.id, &vec![], false);
 
         for origin_node_id in origin_node_ids {
             if let DataFlowNodeId::CallTo(..) | DataFlowNodeId::SpecializedCallTo(..) =
@@ -262,11 +262,15 @@ impl DataFlowGraph {
         }
     }
 
-    pub fn get_source_functions(&self, expr_type: &TUnion) -> Vec<FunctionLikeIdentifier> {
+    pub fn get_source_functions(
+        &self,
+        expr_type: &TUnion,
+        ignore_paths: &Vec<PathKind>,
+    ) -> Vec<FunctionLikeIdentifier> {
         let mut origin_node_ids = vec![];
 
         for parent_node in &expr_type.parent_nodes {
-            origin_node_ids.extend(self.get_origin_node_ids(&parent_node.id, vec![], false));
+            origin_node_ids.extend(self.get_origin_node_ids(&parent_node.id, ignore_paths, false));
         }
 
         let mut source_functions = vec![];
@@ -286,5 +290,25 @@ impl DataFlowGraph {
         }
 
         source_functions
+    }
+
+    pub fn is_from_param(&self, stmt_var_type: &TUnion) -> bool {
+        let mut origin_node_ids = vec![];
+        for parent_node in &stmt_var_type.parent_nodes {
+            origin_node_ids.extend(self.get_origin_node_ids(&parent_node.id, &vec![], false));
+        }
+        let has_param_source = origin_node_ids.iter().any(|id| {
+            let node = &self.get_node(id).unwrap();
+            match &node.kind {
+                DataFlowNodeKind::VariableUseSource { kind, .. } => {
+                    matches!(
+                        kind,
+                        VariableSourceKind::PrivateParam | VariableSourceKind::NonPrivateParam
+                    )
+                }
+                _ => false,
+            }
+        });
+        has_param_source
     }
 }
