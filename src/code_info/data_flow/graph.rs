@@ -6,6 +6,7 @@ use crate::{
     code_location::FilePath, data_flow::node::VariableSourceKind,
     function_context::FunctionLikeIdentifier, t_union::TUnion, taint::SinkType,
 };
+use hakana_str::StrId;
 use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -290,6 +291,27 @@ impl DataFlowGraph {
         }
 
         source_functions
+    }
+
+    pub fn get_source_properties(&self, expr_type: &TUnion) -> Vec<(StrId, StrId)> {
+        let mut origin_node_ids = vec![];
+
+        for parent_node in &expr_type.parent_nodes {
+            origin_node_ids.extend(self.get_origin_node_ids(&parent_node.id, &vec![], false));
+        }
+
+        let mut source_properties = vec![];
+
+        for origin_node_id in origin_node_ids {
+            match &origin_node_id {
+                DataFlowNodeId::Property(a, b) | DataFlowNodeId::SpecializedProperty(a, b, ..) => {
+                    source_properties.push((*a, *b));
+                }
+                _ => {}
+            }
+        }
+
+        source_properties
     }
 
     pub fn is_from_param(&self, stmt_var_type: &TUnion) -> bool {
