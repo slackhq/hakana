@@ -796,6 +796,10 @@ fn add_dataflow(
     //let added_taints = Vec::new();
     //let removed_taints = Vec::new();
 
+    if let FunctionLikeIdentifier::Function(StrId::ASIO_JOIN) = functionlike_id {
+        return stmt_type;
+    }
+
     let data_flow_graph = &mut analysis_data.data_flow_graph;
 
     if let GraphKind::WholeProgram(_) = &data_flow_graph.kind {
