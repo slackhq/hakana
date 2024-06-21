@@ -1530,10 +1530,6 @@ fn replace_contents(
                         }
                     }
 
-                    if &file_contents[end as usize..end as usize + 1] == "," {
-                        end += 1;
-                    }
-
                     file_contents = file_contents[..start as usize].to_string()
                         + &*file_contents[end as usize..].to_string();
                 }

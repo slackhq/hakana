@@ -397,6 +397,7 @@ pub(crate) fn analyze(
         aast::Expr_::Await(boxed) => {
             let was_inside_use = context.inside_general_use;
             context.inside_general_use = true;
+            analysis_data.inside_await = true;
             expression_analyzer::analyze(
                 statements_analyzer,
                 boxed,
@@ -405,6 +406,7 @@ pub(crate) fn analyze(
                 if_body_context,
             )?;
             context.inside_general_use = was_inside_use;
+            analysis_data.inside_await = false;
 
             let mut awaited_stmt_type = analysis_data
                 .get_expr_type(boxed.pos())

@@ -212,6 +212,7 @@ impl IssueKind {
                 | Self::UnusedPublicOrProtectedMethod
                 | Self::UnusedXhpAttribute
                 | Self::UnusedTrait
+                | Self::OnlyUsedInTests
         )
     }
 

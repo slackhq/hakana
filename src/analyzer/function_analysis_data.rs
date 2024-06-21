@@ -44,6 +44,7 @@ pub struct FunctionAnalysisData {
     pub migrate_function: Option<bool>,
     pub after_expr_hook_called: FxHashSet<(u32, u32)>,
     pub after_arg_hook_called: FxHashSet<(u32, u32)>,
+    pub inside_await: bool,
 }
 
 impl FunctionAnalysisData {
@@ -88,6 +89,7 @@ impl FunctionAnalysisData {
             migrate_function: None,
             after_arg_hook_called: FxHashSet::default(),
             after_expr_hook_called: FxHashSet::default(),
+            inside_await: false,
         }
     }
 
