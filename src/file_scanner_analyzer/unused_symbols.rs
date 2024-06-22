@@ -520,7 +520,7 @@ pub(crate) fn find_unused_definitions(
                                     .or_default()
                                     .insert(
                                         (stmt_pos.start_offset, stmt_pos.end_offset),
-                                        Replacement::TrimPrecedingWhitespace(
+                                        Replacement::TrimPrecedingWhitespaceAndTrailingComma(
                                             stmt_pos.start_offset - stmt_pos.start_column as u32,
                                         ),
                                     );

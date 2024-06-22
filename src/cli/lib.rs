@@ -1533,6 +1533,28 @@ fn replace_contents(
                     file_contents = file_contents[..start as usize].to_string()
                         + &*file_contents[end as usize..].to_string();
                 }
+                Replacement::TrimPrecedingWhitespaceAndTrailingComma(beg_of_line) => {
+                    let potential_whitespace =
+                        file_contents[(*beg_of_line as usize)..start as usize].to_string();
+                    if potential_whitespace.trim() == "" {
+                        start = *beg_of_line;
+
+                        if beg_of_line > &0
+                            && &file_contents[((*beg_of_line as usize) - 1)..start as usize] == "\n"
+                        {
+                            start -= 1;
+                        }
+                    }
+
+                    if end as usize + 1 < (file_contents.len() + 1)
+                        && &file_contents[end as usize..end as usize + 1] == ","
+                    {
+                        end += 1;
+                    }
+
+                    file_contents = file_contents[..start as usize].to_string()
+                        + &*file_contents[end as usize..].to_string();
+                }
                 Replacement::TrimTrailingWhitespace(end_of_line) => {
                     let potential_whitespace =
                         file_contents[end as usize..(*end_of_line as usize)].to_string();
