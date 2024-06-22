@@ -7,6 +7,10 @@ final class IntLinkedList {
     public function getNext() : ?IntLinkedList {
         return $this->next;
     }
+
+    public function bar(): string {
+        return 'a';
+    }
 }
 
 function skipOne(IntLinkedList $l) : ?int {
@@ -15,4 +19,8 @@ function skipOne(IntLinkedList $l) : ?int {
 
 function skipTwo(IntLinkedList $l) : ?int {
     return $l->getNext()?->getNext()?->value;
+}
+
+function bar(IntLinkedList $l) : string {
+    return $l?->bar();
 }

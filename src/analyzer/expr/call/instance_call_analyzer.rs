@@ -70,7 +70,12 @@ pub(crate) fn analyze(
 
     let mut analysis_result = AtomicMethodCallAnalysisResult::new();
 
+    let mut has_nullsafe_null = false;
+
     if class_type.is_null() || class_type.is_void() {
+        if nullsafe {
+            has_nullsafe_null = true;
+        }
         analysis_data.maybe_add_issue(
             Issue::new(
                 IssueKind::MethodCallOnNull,
@@ -82,19 +87,6 @@ pub(crate) fn analyze(
             statements_analyzer.get_file_path_actual(),
         );
     } else {
-        if class_type.is_nullable() && !nullsafe {
-            analysis_data.maybe_add_issue(
-                Issue::new(
-                    IssueKind::PossibleMethodCallOnNull,
-                    "Cannot call method on null value".to_string(),
-                    statements_analyzer.get_hpos(expr.1.pos()),
-                    &context.function_context.calling_functionlike_id,
-                ),
-                statements_analyzer.get_config(),
-                statements_analyzer.get_file_path_actual(),
-            )
-        }
-
         if class_type.is_mixed() {
             for origin in &class_type.parent_nodes {
                 analysis_data.data_flow_graph.add_mixed_data(origin, pos);
@@ -108,7 +100,22 @@ pub(crate) fn analyze(
         while let Some(lhs_atomic_type) = class_types.pop() {
             match lhs_atomic_type {
                 TAtomic::TNull => {
-                    continue; // handled above
+                    if nullsafe {
+                        has_nullsafe_null = true;
+                    } else {
+                        analysis_data.maybe_add_issue(
+                            Issue::new(
+                                IssueKind::PossibleMethodCallOnNull,
+                                "Cannot call method on null value".to_string(),
+                                statements_analyzer.get_hpos(expr.1.pos()),
+                                &context.function_context.calling_functionlike_id,
+                            ),
+                            statements_analyzer.get_config(),
+                            statements_analyzer.get_file_path_actual(),
+                        )
+                    }
+
+                    continue;
                 }
                 TAtomic::TFalse => {
                     if class_type.ignore_falsable_issues {
@@ -161,7 +168,7 @@ pub(crate) fn analyze(
     }
 
     if let Some(mut stmt_type) = analysis_result.return_type {
-        if nullsafe && !stmt_type.is_mixed() {
+        if has_nullsafe_null && !stmt_type.is_mixed() {
             stmt_type = add_union_type(
                 stmt_type,
                 &get_null(),
