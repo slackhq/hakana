@@ -433,6 +433,22 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     ) -> Result<(Option<TUnion>, u8), AnalysisError> {
         context.inside_async = functionlike_storage.is_async;
 
+        statements_analyzer.in_migratable_function =
+            if !self.file_analyzer.get_config().migration_symbols.is_empty() {
+                let calling_functionlike_id_str = context
+                    .function_context
+                    .calling_functionlike_id
+                    .unwrap()
+                    .to_string(&self.file_analyzer.interner);
+
+                self.file_analyzer
+                    .get_config()
+                    .migration_symbols
+                    .contains_key(&calling_functionlike_id_str)
+            } else {
+                false
+            };
+
         let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),
             statements_analyzer.get_file_analyzer().get_file_source(),
@@ -1154,6 +1170,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         param_node,
                         codebase: statements_analyzer.get_codebase(),
                         interner: statements_analyzer.get_interner(),
+                        in_migratable_function: statements_analyzer.in_migratable_function,
                     },
                 );
             }

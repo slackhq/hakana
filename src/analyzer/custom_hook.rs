@@ -41,6 +41,7 @@ pub struct FunctionLikeParamData<'a> {
     pub param_node: &'a aast::FunParam<(), ()>,
     pub codebase: &'a CodebaseInfo,
     pub interner: &'a Interner,
+    pub in_migratable_function: bool,
 }
 
 pub struct AfterArgAnalysisData<'a> {

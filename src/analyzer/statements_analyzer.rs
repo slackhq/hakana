@@ -23,6 +23,7 @@ pub struct StatementsAnalyzer<'a> {
     function_info: Option<&'a FunctionLikeInfo>,
     pub comments: Vec<&'a (Pos, Comment)>,
     type_resolution_context: &'a TypeResolutionContext,
+    pub in_migratable_function: bool,
 }
 
 impl<'a> StatementsAnalyzer<'a> {
@@ -36,6 +37,7 @@ impl<'a> StatementsAnalyzer<'a> {
             function_info: None,
             comments,
             type_resolution_context,
+            in_migratable_function: false,
         }
     }
 
