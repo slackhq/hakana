@@ -14,7 +14,7 @@ use oxidized::pos_span_raw::PosSpanRaw;
 use relative_path::RelativePath;
 
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::CaseScope;
+use crate::scope::CaseScope;
 use crate::stmt_analyzer::AnalysisError;
 
 use rustc_hash::FxHashMap;
@@ -39,15 +39,15 @@ use hakana_type::get_mixed_any;
 
 use crate::expression_analyzer;
 
-use crate::scope_context::loop_scope::LoopScope;
+use crate::scope::loop_scope::LoopScope;
 
-use crate::scope_context::switch_scope::SwitchScope;
+use crate::scope::switch_scope::SwitchScope;
 
 use rustc_hash::FxHashSet;
 
-use crate::scope_context::control_action::ControlAction;
+use crate::scope::control_action::ControlAction;
 
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 
@@ -70,8 +70,8 @@ pub(crate) fn analyze_case(
     case_stmts: Vec<aast::Stmt<(), ()>>,
     previous_empty_cases: &Vec<&aast::Case<(), ()>>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    original_context: &ScopeContext,
+    context: &mut BlockContext,
+    original_context: &BlockContext,
     case_exit_type: &ControlAction,
     case_actions: &FxHashSet<ControlAction>,
     is_last: bool,
@@ -103,7 +103,7 @@ pub(crate) fn analyze_case(
         if condition_is_fake {
             analysis_data.set_expr_type(
                 switch_condition.pos(),
-                if let Some(t) = context.vars_in_scope.get(switch_var_id) {
+                if let Some(t) = context.locals.get(switch_var_id) {
                     (**t).clone()
                 } else {
                     get_mixed_any()
@@ -376,7 +376,7 @@ pub(crate) fn analyze_case(
         );
 
         if !changed_var_ids.is_empty() {
-            case_context.clauses = ScopeContext::remove_reconciled_clause_refs(
+            case_context.clauses = BlockContext::remove_reconciled_clause_refs(
                 &case_context.clauses,
                 &changed_var_ids,
             )
@@ -465,17 +465,17 @@ pub(crate) fn analyze_case(
             switch_scope.possibly_redefined_vars = Some(
                 break_vars
                     .iter()
-                    .filter(|(var_id, _)| context.vars_in_scope.contains_key(*var_id))
+                    .filter(|(var_id, _)| context.locals.contains_key(*var_id))
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect(),
             );
         }
 
-        if let Some(ref mut new_vars_in_scope) = switch_scope.new_vars_in_scope {
-            for (var_id, var_type) in new_vars_in_scope.clone() {
+        if let Some(ref mut new_locals) = switch_scope.new_locals {
+            for (var_id, var_type) in new_locals.clone() {
                 if let Some(break_var_type) = break_vars.get(&var_id) {
-                    if case_context.vars_in_scope.contains_key(&var_id) {
-                        new_vars_in_scope.insert(
+                    if case_context.locals.contains_key(&var_id) {
+                        new_locals.insert(
                             var_id.clone(),
                             Rc::new(combine_union_types(
                                 break_var_type,
@@ -485,10 +485,10 @@ pub(crate) fn analyze_case(
                             )),
                         );
                     } else {
-                        new_vars_in_scope.remove(&var_id);
+                        new_locals.remove(&var_id);
                     }
                 } else {
-                    new_vars_in_scope.remove(&var_id);
+                    new_locals.remove(&var_id);
                 }
             }
         }
@@ -521,14 +521,14 @@ pub(crate) fn handle_non_returning_case(
     is_default_case: bool,
     case_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    case_context: &ScopeContext,
-    original_context: &ScopeContext,
+    context: &mut BlockContext,
+    case_context: &BlockContext,
+    original_context: &BlockContext,
     case_exit_type: &ControlAction,
     switch_scope: &mut SwitchScope,
 ) -> Result<(), AnalysisError> {
     if is_default_case {
-        if let Some(switch_type) = case_context.vars_in_scope.get(switch_var_id) {
+        if let Some(switch_type) = case_context.locals.get(switch_var_id) {
             if switch_type.is_nothing() {
                 analysis_data.maybe_add_issue(
                     Issue::new(
@@ -551,8 +551,8 @@ pub(crate) fn handle_non_returning_case(
 
     if !matches!(case_exit_type, ControlAction::Continue) {
         let mut removed_var_ids = FxHashSet::default();
-        let case_redefined_vars = case_context.get_redefined_vars(
-            &original_context.vars_in_scope,
+        let case_redefined_vars = case_context.get_redefined_locals(
+            &original_context.locals,
             false,
             &mut removed_var_ids,
         );
@@ -573,7 +573,7 @@ pub(crate) fn handle_non_returning_case(
                 case_redefined_vars
                     .clone()
                     .into_iter()
-                    .filter(|(var_id, _)| context.vars_in_scope.contains_key(var_id))
+                    .filter(|(var_id, _)| context.locals.contains_key(var_id))
                     .collect(),
             );
         }
@@ -603,29 +603,29 @@ pub(crate) fn handle_non_returning_case(
             );
         }
 
-        if let Some(ref mut new_vars_in_scope) = switch_scope.new_vars_in_scope {
-            for (var_id, var_type) in new_vars_in_scope.clone() {
-                if case_context.vars_in_scope.contains_key(&var_id) {
-                    new_vars_in_scope.insert(
+        if let Some(ref mut new_locals) = switch_scope.new_locals {
+            for (var_id, var_type) in new_locals.clone() {
+                if case_context.locals.contains_key(&var_id) {
+                    new_locals.insert(
                         var_id.clone(),
                         Rc::new(combine_union_types(
-                            case_context.vars_in_scope.get(&var_id).unwrap(),
+                            case_context.locals.get(&var_id).unwrap(),
                             &var_type,
                             codebase,
                             false,
                         )),
                     );
                 } else {
-                    new_vars_in_scope.remove(&var_id);
+                    new_locals.remove(&var_id);
                 }
             }
         } else {
-            switch_scope.new_vars_in_scope = Some(
+            switch_scope.new_locals = Some(
                 case_context
-                    .vars_in_scope
+                    .locals
                     .clone()
                     .into_iter()
-                    .filter(|(k, _)| !context.vars_in_scope.contains_key(k))
+                    .filter(|(k, _)| !context.locals.contains_key(k))
                     .collect(),
             );
         }

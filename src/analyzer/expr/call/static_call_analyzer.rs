@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::t_atomic::TAtomic;
@@ -25,8 +25,8 @@ pub(crate) fn analyze(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 

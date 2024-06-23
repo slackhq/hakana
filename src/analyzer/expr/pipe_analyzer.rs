@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::{VarId, EFFECT_IMPURE, EFFECT_PURE};
@@ -16,8 +16,8 @@ pub(crate) fn analyze(
     expr: (&aast_defs::Lid, &aast::Expr<(), ()>, &aast::Expr<(), ()>),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(
         statements_analyzer,
@@ -47,7 +47,7 @@ pub(crate) fn analyze(
     }
 
     context
-        .vars_in_scope
+        .locals
         .insert("$$".to_string(), Rc::new(pipe_expr_type));
 
     context.pipe_var_effects = *analysis_data
@@ -66,7 +66,7 @@ pub(crate) fn analyze(
         if_body_context,
     );
 
-    context.vars_in_scope.remove("$$");
+    context.locals.remove("$$");
     context.pipe_var_effects = EFFECT_PURE;
 
     analysis_data.set_rc_expr_type(

@@ -18,7 +18,7 @@ use oxidized::{
 
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
 use super::instance_property_assignment_analyzer::add_unspecialized_property_assignment_dataflow;
 
@@ -29,7 +29,7 @@ pub(crate) fn analyze(
     assign_value_type: &TUnion,
     var_id: &Option<String>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
     let stmt_class = expr.0;
@@ -215,7 +215,7 @@ pub(crate) fn analyze(
             if type_match_found && union_comparison_result.replacement_union_type.is_some() {
                 if let Some(union_type) = union_comparison_result.replacement_union_type {
                     if let Some(var_id) = var_id.clone() {
-                        context.vars_in_scope.insert(var_id, Rc::new(union_type));
+                        context.locals.insert(var_id, Rc::new(union_type));
                     }
                 }
             }
@@ -284,7 +284,7 @@ pub(crate) fn analyze(
 
             if let Some(var_id) = var_id.clone() {
                 context
-                    .vars_in_scope
+                    .locals
                     .insert(var_id, Rc::new(assign_value_type.clone()));
             }
         }

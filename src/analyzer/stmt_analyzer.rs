@@ -15,8 +15,8 @@ use crate::expr::expression_identifier::{
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::loop_scope::LoopScope;
-use crate::scope_context::ScopeContext;
+use crate::scope::loop_scope::LoopScope;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::{
     break_analyzer, continue_analyzer, do_analyzer, for_analyzer, foreach_analyzer,
@@ -35,7 +35,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: &aast::Stmt<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
     if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
@@ -274,7 +274,7 @@ fn detect_unused_statement_expressions(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     stmt: &aast::Stmt<(), ()>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) {
     if let Some(issue_kind) = has_unused_must_use(boxed, statements_analyzer, analysis_data) {
         analysis_data.maybe_add_issue(
@@ -464,7 +464,7 @@ fn analyze_awaitall(
     ),
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     stmt: &aast::Stmt<(), ()>,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {

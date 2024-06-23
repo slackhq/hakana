@@ -14,7 +14,7 @@ use crate::expr::call_analyzer::{check_method_args, get_generic_param_for_offset
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -44,8 +44,8 @@ pub(crate) fn analyze(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     //let method_id = None;
 
@@ -163,8 +163,8 @@ fn analyze_atomic(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
     lhs_type_part: &TAtomic,
     can_extend: bool,
     result: &mut AtomicMethodCallAnalysisResult,
@@ -262,8 +262,8 @@ fn analyze_named_constructor(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
     classlike_name: StrId,
     from_static: bool,
     from_classname: bool,
@@ -639,7 +639,7 @@ fn analyze_named_constructor(
 fn add_dataflow<'a>(
     statements_analyzer: &'a StatementsAnalyzer,
     mut return_type_candidate: TUnion,
-    context: &ScopeContext,
+    context: &BlockContext,
     method_id: &MethodIdentifier,
     functionlike_storage: Option<&'a FunctionLikeInfo>,
     specialize_instance: bool,

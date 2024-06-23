@@ -7,7 +7,7 @@ use crate::{
     expression_analyzer,
     function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
-    scope_context::{loop_scope::LoopScope, ScopeContext},
+    scope::{loop_scope::LoopScope, BlockContext},
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -33,7 +33,7 @@ pub(crate) fn analyze(
     ),
     pos: &ast_defs::Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let mut value_is_async = false;
 
@@ -78,7 +78,7 @@ pub(crate) fn analyze(
         Some(stmt_expr_type.clone())
     } else if let Some(var_id) = &var_id {
         if context.has_variable(var_id) {
-            context.vars_in_scope.get(var_id).map(|t| (**t).clone())
+            context.locals.get(var_id).map(|t| (**t).clone())
         } else {
             None
         }
@@ -152,7 +152,7 @@ pub(crate) fn analyze(
         &stmt.2 .0,
         vec![],
         vec![],
-        &mut LoopScope::new(context.vars_in_scope.clone()),
+        &mut LoopScope::new(context.locals.clone()),
         &mut foreach_context,
         context,
         analysis_data,
@@ -172,7 +172,7 @@ fn check_iterator_type(
     pos: &ast_defs::Pos,
     iterator_type: &TUnion,
     is_async: bool,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> (Option<TUnion>, Option<TUnion>, bool) {
     let mut always_non_empty_array = true;
 

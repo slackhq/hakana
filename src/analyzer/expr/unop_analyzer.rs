@@ -1,6 +1,6 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_type::{get_bool, get_literal_int};
@@ -14,8 +14,8 @@ pub(crate) fn analyze(
     expr: (&ast::Uop, &aast::Expr<(), ()>),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     if let oxidized::ast_defs::Uop::Unot = expr.0 {
         context.inside_negation = !context.inside_negation;

@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, rc::Rc};
 
 pub(crate) struct SwitchScope {
-    pub new_vars_in_scope: Option<BTreeMap<String, Rc<TUnion>>>,
+    pub new_locals: Option<BTreeMap<String, Rc<TUnion>>>,
 
     pub redefined_vars: Option<FxHashMap<String, Rc<TUnion>>>,
 
@@ -23,7 +23,7 @@ pub(crate) struct SwitchScope {
 impl SwitchScope {
     pub(crate) fn new() -> Self {
         Self {
-            new_vars_in_scope: None,
+            new_locals: None,
             redefined_vars: None,
             possibly_redefined_vars: None,
             leftover_statements: vec![],

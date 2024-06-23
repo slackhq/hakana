@@ -6,7 +6,7 @@ use crate::{
 };
 use crate::{
     scope_analyzer::ScopeAnalyzer,
-    scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
+    scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
 };
 use hakana_type::{combine_optional_union_types, combine_union_types};
 use rustc_hash::FxHashMap;
@@ -14,7 +14,7 @@ use rustc_hash::FxHashMap;
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) {
     let mut leaving_switch = true;
@@ -33,7 +33,7 @@ pub(crate) fn analyze(
             loop_scope.final_actions.insert(ControlAction::Break);
         }
 
-        for (var_id, var_type) in &context.vars_in_scope {
+        for (var_id, var_type) in &context.locals {
             loop_scope.possibly_redefined_loop_parent_vars.insert(
                 var_id.clone(),
                 if let Some(existing_redefined_loop_parent_var) =
@@ -52,7 +52,7 @@ pub(crate) fn analyze(
         }
 
         if loop_scope.iteration_count == 0 {
-            for (var_id, var_type) in &context.vars_in_scope {
+            for (var_id, var_type) in &context.locals {
                 if !loop_scope.parent_context_vars.contains_key(var_id) {
                     loop_scope.possibly_defined_loop_parent_vars.insert(
                         var_id.clone(),
@@ -68,13 +68,13 @@ pub(crate) fn analyze(
 
         if let Some(finally_scope) = context.finally_scope.clone() {
             let mut finally_scope = (*finally_scope).borrow_mut();
-            for (var_id, var_type) in &context.vars_in_scope {
-                if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
+            for (var_id, var_type) in &context.locals {
+                if let Some(finally_type) = finally_scope.locals.get_mut(var_id) {
                     *finally_type =
                         Rc::new(combine_union_types(finally_type, var_type, codebase, false));
                 } else {
                     finally_scope
-                        .vars_in_scope
+                        .locals
                         .insert(var_id.clone(), var_type.clone());
                 }
             }
@@ -90,7 +90,7 @@ pub(crate) fn analyze(
                 .clone()
                 .unwrap_or(FxHashMap::default());
 
-            for (var_id, var_type) in &context.vars_in_scope {
+            for (var_id, var_type) in &context.locals {
                 new_break_vars.insert(
                     var_id.clone(),
                     combine_optional_union_types(

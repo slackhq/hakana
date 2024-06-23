@@ -5,7 +5,6 @@ use hakana_algebra::Clause;
 use hakana_reflection_info::function_context::FunctionContext;
 use hakana_reflection_info::EFFECT_PURE;
 use hakana_reflection_info::{assertion::Assertion, t_union::TUnion};
-use oxidized::ast_defs::Pos;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
@@ -20,7 +19,7 @@ pub mod switch_scope;
 
 #[derive(Clone, Debug)]
 pub struct FinallyScope {
-    pub vars_in_scope: BTreeMap<String, Rc<TUnion>>,
+    pub locals: BTreeMap<String, Rc<TUnion>>,
 }
 
 #[derive(Clone, Debug)]
@@ -41,8 +40,8 @@ impl CaseScope {
 }
 
 #[derive(Clone, Debug)]
-pub struct ScopeContext {
-    pub vars_in_scope: BTreeMap<String, Rc<TUnion>>,
+pub struct BlockContext {
+    pub locals: BTreeMap<String, Rc<TUnion>>,
 
     /**
      * A list of variables that have been referenced
@@ -115,8 +114,6 @@ pub struct ScopeContext {
 
     pub inside_awaitall: bool,
 
-    pub include_location: Option<Pos>,
-
     /**
      * A list of clauses in Conjunctive Normal Form
      */
@@ -173,10 +170,10 @@ pub struct ScopeContext {
     pub pipe_var_effects: u8,
 }
 
-impl ScopeContext {
+impl BlockContext {
     pub fn new(function_context: FunctionContext) -> Self {
         Self {
-            vars_in_scope: BTreeMap::new(),
+            locals: BTreeMap::new(),
             cond_referenced_var_ids: FxHashSet::default(),
             assigned_var_ids: FxHashMap::default(),
             possibly_assigned_var_ids: FxHashSet::default(),
@@ -196,7 +193,6 @@ impl ScopeContext {
 
             inside_negation: false,
             has_returned: false,
-            include_location: None,
             clauses: Vec::new(),
             reconciled_expression_clauses: Vec::new(),
 
@@ -216,20 +212,20 @@ impl ScopeContext {
         }
     }
 
-    pub fn get_redefined_vars(
+    pub fn get_redefined_locals(
         &self,
-        new_vars_in_scope: &BTreeMap<String, Rc<TUnion>>,
+        new_locals: &BTreeMap<String, Rc<TUnion>>,
         include_new_vars: bool, // default false
         removed_vars: &mut FxHashSet<String>,
     ) -> FxHashMap<String, TUnion> {
         let mut redefined_vars = FxHashMap::default();
 
-        let mut var_ids = self.vars_in_scope.keys().collect::<Vec<_>>();
-        var_ids.extend(new_vars_in_scope.keys());
+        let mut var_ids = self.locals.keys().collect::<Vec<_>>();
+        var_ids.extend(new_locals.keys());
 
         for var_id in var_ids {
-            if let Some(this_type) = self.vars_in_scope.get(var_id) {
-                if let Some(new_type) = new_vars_in_scope.get(var_id) {
+            if let Some(this_type) = self.locals.get(var_id) {
+                if let Some(new_type) = new_locals.get(var_id) {
                     if new_type != this_type {
                         redefined_vars.insert(var_id.clone(), (**this_type).clone());
                     }
@@ -244,14 +240,14 @@ impl ScopeContext {
         redefined_vars
     }
 
-    pub fn get_new_or_updated_var_ids(
+    pub fn get_new_or_updated_locals(
         original_context: &Self,
         new_context: &Self,
     ) -> FxHashSet<String> {
         let mut redefined_var_ids = FxHashSet::default();
 
-        for (var_id, new_type) in &new_context.vars_in_scope {
-            if let Some(original_type) = original_context.vars_in_scope.get(var_id) {
+        for (var_id, new_type) in &new_context.locals {
+            if let Some(original_type) = original_context.locals.get(var_id) {
                 if original_context.assigned_var_ids.get(var_id).unwrap_or(&0)
                     != new_context.assigned_var_ids.get(var_id).unwrap_or(&0)
                     || original_type != new_type
@@ -401,7 +397,7 @@ impl ScopeContext {
         statements_analyzer: Option<&StatementsAnalyzer>,
         analysis_data: &mut FunctionAnalysisData,
     ) {
-        self.clauses = ScopeContext::filter_clauses(
+        self.clauses = BlockContext::filter_clauses(
             remove_var_id,
             self.clauses.clone(),
             new_type,
@@ -433,11 +429,11 @@ impl ScopeContext {
             analysis_data,
         );
 
-        let keys = self.vars_in_scope.keys().cloned().collect::<Vec<_>>();
+        let keys = self.locals.keys().cloned().collect::<Vec<_>>();
 
         for var_id in keys {
             if var_has_root(&var_id, remove_var_id) {
-                self.vars_in_scope.remove(&var_id);
+                self.locals.remove(&var_id);
             }
         }
     }
@@ -445,7 +441,7 @@ impl ScopeContext {
     pub(crate) fn remove_mutable_object_vars(&mut self) {
         let mut removed_var_ids = vec![];
 
-        self.vars_in_scope.retain(|var_id, _| {
+        self.locals.retain(|var_id, _| {
             let retain = !var_id.contains("->") && !var_id.contains("::");
             if !retain {
                 removed_var_ids.push(var_id.clone());
@@ -473,7 +469,7 @@ impl ScopeContext {
     pub(crate) fn has_variable(&mut self, var_name: &String) -> bool {
         self.cond_referenced_var_ids.insert(var_name.clone());
 
-        self.vars_in_scope.contains_key(var_name)
+        self.locals.contains_key(var_name)
     }
 }
 

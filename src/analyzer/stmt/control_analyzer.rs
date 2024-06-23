@@ -1,5 +1,5 @@
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_context::control_action::ControlAction;
+use crate::scope::control_action::ControlAction;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_str::{Interner, StrId};
 use oxidized::{aast, ast::CallExpr};

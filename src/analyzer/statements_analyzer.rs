@@ -3,8 +3,8 @@ use crate::file_analyzer::FileAnalyzer;
 use crate::formula_generator::AssertionContext;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::loop_scope::LoopScope;
-use crate::scope_context::ScopeContext;
+use crate::scope::loop_scope::LoopScope;
+use crate::scope::BlockContext;
 use crate::stmt_analyzer::{self, AnalysisError};
 use hakana_reflection_info::code_location::{FilePath, HPos};
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -45,7 +45,7 @@ impl<'a> StatementsAnalyzer<'a> {
         &self,
         stmts: &Vec<aast::Stmt<(), ()>>,
         analysis_data: &mut FunctionAnalysisData,
-        context: &mut ScopeContext,
+        context: &mut BlockContext,
         loop_scope: &mut Option<LoopScope>,
     ) -> Result<(), AnalysisError> {
         for stmt in stmts {

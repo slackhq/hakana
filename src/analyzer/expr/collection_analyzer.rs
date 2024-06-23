@@ -21,7 +21,7 @@ use oxidized::{
 
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
 use crate::{function_analysis_data::FunctionAnalysisData, stmt_analyzer::AnalysisError};
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
 #[derive(Debug)]
 pub(crate) struct ArrayCreationInfo {
@@ -72,7 +72,7 @@ pub(crate) fn analyze_vals(
     items: &[oxidized::ast::Expr],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
@@ -254,7 +254,7 @@ pub(crate) fn analyze_keyvals(
     items: &Vec<oxidized::tast::Field<(), ()>>,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     // if the array is empty, this special type allows us to match any other array type against it
     if items.is_empty() {
@@ -359,7 +359,7 @@ pub(crate) fn analyze_keyvals(
 
 fn analyze_vals_item(
     statements_analyzer: &StatementsAnalyzer,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     array_creation_info: &mut ArrayCreationInfo,
     item_value: &Expr,
     container_type: &VcKind,
@@ -421,7 +421,7 @@ fn analyze_vals_item(
 
 fn analyze_keyvals_item(
     statements_analyzer: &StatementsAnalyzer,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     array_creation_info: &mut ArrayCreationInfo,
     item: &oxidized::tast::Field<(), ()>,
     container_type: &KvcKind,

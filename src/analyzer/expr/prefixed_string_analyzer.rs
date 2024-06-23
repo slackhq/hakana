@@ -16,7 +16,7 @@ use hakana_type::get_string;
 
 use crate::expression_analyzer;
 
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
@@ -29,8 +29,8 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     boxed: &(String, aast::Expr<(), ()>),
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
     expr: &aast::Expr<(), ()>,
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(

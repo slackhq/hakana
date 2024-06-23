@@ -1,7 +1,7 @@
 use crate::{
-    scope_context::{
+    scope::{
         control_action::ControlAction, if_scope::IfScope, loop_scope::LoopScope, var_has_root,
-        ScopeContext,
+        BlockContext,
     },
     stmt_analyzer::AnalysisError,
 };
@@ -55,7 +55,7 @@ pub(crate) fn analyze(
     ),
     stmt_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_file_analyzer().codebase;
@@ -85,8 +85,8 @@ pub(crate) fn analyze(
 
     let mut mixed_var_ids = Vec::new();
 
-    for (var_id, var_type) in &if_body_context.vars_in_scope {
-        if var_type.is_mixed() && context.vars_in_scope.contains_key(var_id) {
+    for (var_id, var_type) in &if_body_context.locals {
+        if var_type.is_mixed() && context.locals.contains_key(var_id) {
             mixed_var_ids.push(var_id);
         }
     }
@@ -241,7 +241,7 @@ pub(crate) fn analyze(
     let mut removed_var_ids = FxHashSet::default();
 
     let temp_else_redefined_vars =
-        temp_else_context.get_redefined_vars(&context.vars_in_scope, true, &mut removed_var_ids);
+        temp_else_context.get_redefined_locals(&context.locals, true, &mut removed_var_ids);
 
     for (var_id, redefined_type) in temp_else_redefined_vars {
         if changed_var_ids.contains(&var_id) {
@@ -276,8 +276,8 @@ pub(crate) fn analyze(
 
     if !if_scope.if_actions.is_empty() && !if_scope.if_actions.contains(&ControlAction::None) {
         context.clauses = else_context.clauses;
-        for (var_id, var_type) in else_context.vars_in_scope {
-            context.vars_in_scope.insert(var_id, var_type);
+        for (var_id, var_type) in else_context.locals {
+            context.locals.insert(var_id, var_type);
         }
         context.allow_taints = else_context.allow_taints;
 
@@ -285,7 +285,7 @@ pub(crate) fn analyze(
     }
 
     context
-        .vars_in_scope
+        .locals
         .retain(|var_id, _| !if_scope.removed_var_ids.contains(var_id));
 
     if !if_scope.final_actions.contains(&ControlAction::None) {
@@ -307,7 +307,7 @@ pub(crate) fn analyze(
 
     if let Some(new_vars) = if_scope.new_vars {
         for (var_id, var_type) in new_vars {
-            context.vars_in_scope.insert(var_id, Rc::new(var_type));
+            context.locals.insert(var_id, Rc::new(var_type));
         }
     }
 
@@ -315,7 +315,7 @@ pub(crate) fn analyze(
 
     if let Some(redefined_vars) = if_scope.redefined_vars {
         for (var_id, var_type) in redefined_vars {
-            reasonable_clauses = ScopeContext::filter_clauses(
+            reasonable_clauses = BlockContext::filter_clauses(
                 &var_id,
                 reasonable_clauses,
                 Some(&var_type),
@@ -325,7 +325,7 @@ pub(crate) fn analyze(
 
             if_scope.updated_vars.insert(var_id.clone());
             context
-                .vars_in_scope
+                .locals
                 .insert(var_id.clone(), Rc::new(var_type));
         }
     }
@@ -350,7 +350,7 @@ pub(crate) fn analyze(
     }
 
     for (var_id, var_type) in if_scope.possibly_redefined_vars {
-        if let Some(existing_var_type) = context.vars_in_scope.get(&var_id) {
+        if let Some(existing_var_type) = context.locals.get(&var_id) {
             if !if_scope.updated_vars.contains(&var_id) {
                 let combined_type =
                     combine_union_types(existing_var_type, &var_type, codebase, false);
@@ -359,7 +359,7 @@ pub(crate) fn analyze(
                     context.remove_descendants(&var_id, &combined_type, None, None, analysis_data);
                 }
 
-                context.vars_in_scope.insert(var_id, Rc::new(combined_type));
+                context.locals.insert(var_id, Rc::new(combined_type));
             } else {
                 let mut existing_var_type = (**existing_var_type).clone();
                 extend_dataflow_uniquely(
@@ -367,7 +367,7 @@ pub(crate) fn analyze(
                     var_type.parent_nodes,
                 );
                 context
-                    .vars_in_scope
+                    .locals
                     .insert(var_id, Rc::new(existing_var_type));
             }
         }

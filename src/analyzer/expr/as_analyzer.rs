@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
@@ -26,8 +26,8 @@ pub(crate) fn analyze<'expr>(
     hint: &'expr aast::Hint,
     null_if_false: bool,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let mut root_expr = left.clone();
     let mut has_arrayget_key = false;
@@ -206,8 +206,8 @@ fn get_fake_as_var(
     left: &aast::Expr<(), ()>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Option<aast::Expr<(), ()>> {
     let left_var_id = format!("$<tmp coalesce var>{}", left.pos().start_offset());
 
@@ -226,7 +226,7 @@ fn get_fake_as_var(
         .unwrap_or(Rc::new(get_mixed_any()));
 
     context
-        .vars_in_scope
+        .locals
         .insert(left_var_id.clone(), condition_type);
 
     return Some(aast::Expr(

@@ -1,10 +1,10 @@
 use super::control_analyzer;
 use crate::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::control_action::ControlAction;
-use crate::scope_context::loop_scope::LoopScope;
-use crate::scope_context::var_has_root;
-use crate::scope_context::{if_scope::IfScope, ScopeContext};
+use crate::scope::control_action::ControlAction;
+use crate::scope::loop_scope::LoopScope;
+use crate::scope::var_has_root;
+use crate::scope::{if_scope::IfScope, BlockContext};
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
@@ -24,8 +24,8 @@ pub(crate) fn analyze(
     analysis_data: &mut FunctionAnalysisData,
     if_scope: &mut IfScope,
     mut cond_referenced_var_ids: FxHashSet<String>,
-    if_context: &mut ScopeContext,
-    outer_context: &mut ScopeContext,
+    if_context: &mut BlockContext,
+    outer_context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
@@ -85,16 +85,16 @@ pub(crate) fn analyze(
 
         if !changed_var_ids.is_empty() {
             if_context.clauses =
-                ScopeContext::remove_reconciled_clause_refs(&if_context.clauses, &changed_var_ids)
+                BlockContext::remove_reconciled_clause_refs(&if_context.clauses, &changed_var_ids)
                     .0;
 
             for changed_var_id in &changed_var_ids {
-                for (var_id, _) in if_context.vars_in_scope.clone() {
+                for (var_id, _) in if_context.locals.clone() {
                     if var_has_root(&var_id, changed_var_id)
                         && !changed_var_ids.contains(&var_id)
                         && !cond_referenced_var_ids.contains(&var_id)
                     {
-                        if_context.vars_in_scope.remove(&var_id);
+                        if_context.locals.remove(&var_id);
                     }
                 }
             }
@@ -157,10 +157,10 @@ pub(crate) fn analyze(
 
         if !reasonable_clauses.is_empty() {
             for (var_id, _) in new_assigned_var_ids {
-                reasonable_clauses = ScopeContext::filter_clauses(
+                reasonable_clauses = BlockContext::filter_clauses(
                     &var_id,
                     reasonable_clauses,
-                    if let Some(t) = if_context.vars_in_scope.get(&var_id) {
+                    if let Some(t) = if_context.locals.get(&var_id) {
                         Some(t)
                     } else {
                         None
@@ -182,22 +182,22 @@ pub(crate) fn analyze(
 pub(crate) fn update_if_scope(
     codebase: &CodebaseInfo,
     if_scope: &mut IfScope,
-    if_context: &ScopeContext,
-    outer_context: &ScopeContext,
+    if_context: &BlockContext,
+    outer_context: &BlockContext,
     assigned_var_ids: &FxHashMap<String, usize>,
     possibly_assigned_var_ids: &FxHashSet<String>,
     newly_reconciled_var_ids: FxHashSet<String>,
     update_new_vars: bool,
 ) {
-    let redefined_vars = if_context.get_redefined_vars(
-        &outer_context.vars_in_scope,
+    let redefined_vars = if_context.get_redefined_locals(
+        &outer_context.locals,
         false,
         &mut if_scope.removed_var_ids,
     );
 
     if let Some(ref mut new_vars) = if_scope.new_vars {
         for (new_var_id, new_type) in new_vars.clone() {
-            if let Some(if_var_type) = if_context.vars_in_scope.get(&new_var_id) {
+            if let Some(if_var_type) = if_context.locals.get(&new_var_id) {
                 new_vars.insert(
                     new_var_id,
                     hakana_type::add_union_type(new_type, if_var_type, codebase, false),
@@ -209,9 +209,9 @@ pub(crate) fn update_if_scope(
     } else if update_new_vars {
         if_scope.new_vars = Some(
             if_context
-                .vars_in_scope
+                .locals
                 .iter()
-                .filter(|(k, _)| !outer_context.vars_in_scope.contains_key(*k))
+                .filter(|(k, _)| !outer_context.locals.contains_key(*k))
                 .map(|(k, v)| (k.clone(), (**v).clone()))
                 .collect(),
         );
@@ -254,7 +254,7 @@ pub(crate) fn update_if_scope(
                     ),
                 );
 
-                if let Some(outer_context_type) = outer_context.vars_in_scope.get(&redefined_var_id)
+                if let Some(outer_context_type) = outer_context.locals.get(&redefined_var_id)
                 {
                     if scope_redefined_type == **outer_context_type {
                         scope_redefined_vars.remove(&redefined_var_id);

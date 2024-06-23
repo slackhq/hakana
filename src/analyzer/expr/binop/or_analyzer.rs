@@ -3,13 +3,13 @@ use std::rc::Rc;
 
 use crate::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
-use crate::{function_analysis_data::FunctionAnalysisData, scope_context::if_scope::IfScope};
+use crate::{function_analysis_data::FunctionAnalysisData, scope::if_scope::IfScope};
 use hakana_type::combine_union_types;
 use oxidized::ast::{Binop, Uop};
 use oxidized::{aast, ast};
@@ -19,8 +19,8 @@ pub(crate) fn analyze<'expr>(
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
@@ -75,10 +75,10 @@ pub(crate) fn analyze<'expr>(
             );
         }
 
-        let cloned_vars = context.vars_in_scope.clone();
-        for (var_id, left_type) in &left_context.vars_in_scope {
+        let cloned_vars = context.locals.clone();
+        for (var_id, left_type) in &left_context.locals {
             if let Some(context_type) = cloned_vars.get(var_id) {
-                context.vars_in_scope.insert(
+                context.locals.insert(
                     var_id.clone(),
                     Rc::new(combine_union_types(
                         context_type,
@@ -89,7 +89,7 @@ pub(crate) fn analyze<'expr>(
                 );
             } else if left_context.assigned_var_ids.contains_key(var_id) {
                 context
-                    .vars_in_scope
+                    .locals
                     .insert(var_id.clone(), left_type.clone());
             }
         }
@@ -210,14 +210,14 @@ pub(crate) fn analyze<'expr>(
 
     if !changed_var_ids.is_empty() {
         let partiioned_clauses =
-            ScopeContext::remove_reconciled_clause_refs(&right_context.clauses, &changed_var_ids);
+            BlockContext::remove_reconciled_clause_refs(&right_context.clauses, &changed_var_ids);
         right_context.clauses = partiioned_clauses.0;
         right_context
             .reconciled_expression_clauses
             .extend(partiioned_clauses.1);
 
         let partiioned_clauses =
-            ScopeContext::remove_reconciled_clause_refs(&context.clauses, &changed_var_ids);
+            BlockContext::remove_reconciled_clause_refs(&context.clauses, &changed_var_ids);
         context.clauses = partiioned_clauses.0;
         context
             .reconciled_expression_clauses
@@ -275,7 +275,7 @@ pub(crate) fn analyze<'expr>(
         return Err(AnalysisError::UserError);
     }
 
-    let mut clauses_for_right_analysis = ScopeContext::remove_reconciled_clauses(
+    let mut clauses_for_right_analysis = BlockContext::remove_reconciled_clauses(
         &clauses_for_right_analysis,
         &right_assigned_var_ids.into_keys().collect::<FxHashSet<_>>(),
     )
@@ -323,16 +323,16 @@ pub(crate) fn analyze<'expr>(
         .extend(right_context.assigned_var_ids);
 
     if let Some(ref mut if_body_context) = if_body_context {
-        let left_vars = left_context.vars_in_scope.clone();
-        let if_vars = if_body_context.vars_in_scope.clone();
-        for (var_id, right_type) in right_context.vars_in_scope.clone() {
+        let left_vars = left_context.locals.clone();
+        let if_vars = if_body_context.locals.clone();
+        for (var_id, right_type) in right_context.locals.clone() {
             if let Some(if_type) = if_vars.get(&var_id) {
-                if_body_context.vars_in_scope.insert(
+                if_body_context.locals.insert(
                     var_id,
                     Rc::new(combine_union_types(&right_type, if_type, codebase, false)),
                 );
             } else if let Some(left_type) = left_vars.get(&var_id) {
-                if_body_context.vars_in_scope.insert(
+                if_body_context.locals.insert(
                     var_id,
                     Rc::new(combine_union_types(&right_type, left_type, codebase, false)),
                 );

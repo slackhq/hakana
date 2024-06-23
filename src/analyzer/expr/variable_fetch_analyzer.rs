@@ -1,6 +1,6 @@
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
+    scope::BlockContext, statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
@@ -24,7 +24,7 @@ pub(crate) fn analyze(
     lid: &Lid,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     if !context.has_variable(&lid.1 .1) {
         let superglobal_type = match lid.1 .1.as_str() {
@@ -37,7 +37,7 @@ pub(crate) fn analyze(
                 ));
 
                 context
-                    .vars_in_scope
+                    .locals
                     .insert(lid.1 .1.clone(), superglobal_type.clone());
 
                 superglobal_type
@@ -64,7 +64,7 @@ pub(crate) fn analyze(
             (pos.start_offset() as u32, pos.end_offset() as u32),
             EFFECT_READ_GLOBALS,
         );
-    } else if let Some(var_type) = context.vars_in_scope.get(&lid.1 .1) {
+    } else if let Some(var_type) = context.locals.get(&lid.1 .1) {
         if var_type.parent_nodes.len() > 1
             && !context.inside_loop_exprs
             && context.for_loop_init_bounds.0 == 0
@@ -197,7 +197,7 @@ fn add_dataflow_to_variable(
     pos: &Pos,
     stmt_type: TUnion,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> TUnion {
     let mut stmt_type = stmt_type;
 

@@ -1,6 +1,6 @@
 use crate::{
     expression_analyzer, function_analysis_data::FunctionAnalysisData,
-    scope_analyzer::ScopeAnalyzer, scope_context::ScopeContext,
+    scope_analyzer::ScopeAnalyzer, scope::BlockContext,
     statements_analyzer::StatementsAnalyzer, stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
@@ -26,7 +26,7 @@ pub(crate) fn analyze(
     shape_fields: &Vec<(ShapeFieldName, aast::Expr<(), ()>)>,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 

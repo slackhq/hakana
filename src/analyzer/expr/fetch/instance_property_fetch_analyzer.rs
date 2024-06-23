@@ -2,7 +2,7 @@ use super::atomic_property_fetch_analyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, function_analysis_data::FunctionAnalysisData};
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_READ_PROPS;
@@ -18,7 +18,7 @@ pub(crate) fn analyze(
     expr: (&Expr<(), ()>, &Expr<(), ()>),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     in_assignment: bool,
     nullsafe: bool,
 ) -> Result<(), AnalysisError> {
@@ -88,7 +88,7 @@ pub(crate) fn analyze(
 
     let stmt_var_type = if let Some(stmt_var_id) = &stmt_var_id {
         if context.has_variable(stmt_var_id) {
-            Some(context.vars_in_scope.get(stmt_var_id).unwrap().clone())
+            Some(context.locals.get(stmt_var_id).unwrap().clone())
         } else {
             analysis_data.get_rc_expr_type(expr.0.pos()).cloned()
         }
@@ -170,7 +170,7 @@ pub(crate) fn analyze(
     // TODO  if ($invalid_fetch_types) {
 
     if let Some(var_id) = &var_id {
-        context.vars_in_scope.insert(
+        context.locals.insert(
             var_id.to_owned(),
             stmt_type.unwrap_or(Rc::new(get_mixed_any())),
         );
@@ -184,12 +184,12 @@ pub(crate) fn analyze(
  * infered in the same scope as the current expression
  */
 pub(crate) fn handle_scoped_property(
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     var_id: &String,
 ) {
-    let stmt_type = context.vars_in_scope.get(var_id);
+    let stmt_type = context.locals.get(var_id);
 
     // we don't need to check anything since this variable is known in this scope
     analysis_data.set_rc_expr_type(

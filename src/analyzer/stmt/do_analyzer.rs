@@ -8,7 +8,7 @@ use crate::{
     formula_generator,
     function_analysis_data::FunctionAnalysisData,
     reconciler,
-    scope_context::{loop_scope::LoopScope, ScopeContext},
+    scope::{loop_scope::LoopScope, BlockContext},
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -22,13 +22,13 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: (&aast::Block<(), ()>, &aast::Expr<(), ()>),
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let mut do_context = context.clone();
     do_context.break_types.push(BreakContext::Loop);
     do_context.inside_loop = true;
 
-    let mut loop_scope = LoopScope::new(context.vars_in_scope.clone());
+    let mut loop_scope = LoopScope::new(context.locals.clone());
 
     let mut mixed_var_ids = vec![];
 
@@ -119,9 +119,9 @@ pub(crate) fn analyze(
         );
     }
 
-    for (var_id, var_type) in inner_loop_context.vars_in_scope {
+    for (var_id, var_type) in inner_loop_context.locals {
         context
-            .vars_in_scope
+            .locals
             .insert(var_id.clone(), var_type.clone());
     }
 

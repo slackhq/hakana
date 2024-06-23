@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::{
     data_flow::{
@@ -22,7 +22,7 @@ pub(crate) fn analyze(
     tuple_fields: &[aast::Expr<(), ()>],
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let mut parent_nodes = vec![];
 

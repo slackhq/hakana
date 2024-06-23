@@ -12,7 +12,7 @@ use crate::{
     function_analysis_data::FunctionAnalysisData,
     reconciler,
     scope_analyzer::ScopeAnalyzer,
-    scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
+    scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -29,12 +29,12 @@ pub(crate) fn analyze<'a>(
     pre_conditions: Vec<&aast::Expr<(), ()>>,
     post_expressions: Vec<&aast::Expr<(), ()>>,
     loop_scope: &'a mut LoopScope,
-    loop_context: &'a mut ScopeContext,
-    loop_parent_context: &'a mut ScopeContext,
+    loop_context: &'a mut BlockContext,
+    loop_parent_context: &'a mut BlockContext,
     analysis_data: &'a mut FunctionAnalysisData,
     is_do: bool,
     always_enters_loop: bool,
-) -> Result<ScopeContext, AnalysisError> {
+) -> Result<BlockContext, AnalysisError> {
     let (assignment_map, first_var_id) =
         get_assignment_map(&pre_conditions, &post_expressions, stmts);
 
@@ -80,7 +80,7 @@ pub(crate) fn analyze<'a>(
         }
     } else {
         always_assigned_before_loop_body_vars =
-            ScopeContext::get_new_or_updated_var_ids(loop_parent_context, loop_context);
+            BlockContext::get_new_or_updated_locals(loop_parent_context, loop_context);
     }
 
     let final_actions = control_analyzer::get_control_actions(
@@ -229,19 +229,19 @@ pub(crate) fn analyze<'a>(
             // but union the types with what's in the loop scope
 
             if pre_loop_context
-                .vars_in_scope
+                .locals
                 .iter()
-                .any(|(var_id, _)| !continue_context.vars_in_scope.contains_key(var_id))
+                .any(|(var_id, _)| !continue_context.locals.contains_key(var_id))
             {
                 has_changes = true;
             }
 
             let mut different_from_pre_loop_types = FxHashSet::default();
 
-            for (var_id, continue_context_type) in continue_context.vars_in_scope.clone() {
+            for (var_id, continue_context_type) in continue_context.locals.clone() {
                 if always_assigned_before_loop_body_vars.contains(&var_id) {
                     // set the vars to whatever the while/foreach loop expects them to be
-                    if let Some(pre_loop_context_type) = pre_loop_context.vars_in_scope.get(&var_id)
+                    if let Some(pre_loop_context_type) = pre_loop_context.locals.get(&var_id)
                     {
                         if continue_context_type != *pre_loop_context_type {
                             different_from_pre_loop_types.insert(var_id.clone());
@@ -251,13 +251,13 @@ pub(crate) fn analyze<'a>(
                         has_changes = true;
                     }
                 } else if let Some(parent_context_type) =
-                    original_parent_context.vars_in_scope.get(&var_id)
+                    original_parent_context.locals.get(&var_id)
                 {
                     if continue_context_type != *parent_context_type {
                         has_changes = true;
 
                         // widen the foreach context type with the initial context type
-                        continue_context.vars_in_scope.insert(
+                        continue_context.locals.insert(
                             var_id.clone(),
                             Rc::new(combine_union_types(
                                 &continue_context_type,
@@ -280,13 +280,13 @@ pub(crate) fn analyze<'a>(
                             .insert(var_id.clone());
                     }
 
-                    if let Some(loop_context_type) = loop_context.vars_in_scope.get(&var_id) {
+                    if let Some(loop_context_type) = loop_context.locals.get(&var_id) {
                         if continue_context_type != *loop_context_type {
                             has_changes = true;
                         }
 
                         // widen the foreach context type with the initial context type
-                        continue_context.vars_in_scope.insert(
+                        continue_context.locals.insert(
                             var_id.clone(),
                             Rc::new(combine_union_types(
                                 &continue_context_type,
@@ -326,7 +326,7 @@ pub(crate) fn analyze<'a>(
             }
 
             for var_id in vars_to_remove {
-                continue_context.vars_in_scope.remove(&var_id);
+                continue_context.locals.remove(&var_id);
             }
 
             continue_context
@@ -350,21 +350,21 @@ pub(crate) fn analyze<'a>(
             }
 
             for var_id in &always_assigned_before_loop_body_vars {
-                let pre_loop_context_type = pre_loop_context.vars_in_scope.get(var_id);
+                let pre_loop_context_type = pre_loop_context.locals.get(var_id);
 
                 if if different_from_pre_loop_types.contains(var_id) {
                     true
-                } else if continue_context.vars_in_scope.contains_key(var_id) {
+                } else if continue_context.locals.contains_key(var_id) {
                     pre_loop_context_type.is_none()
                 } else {
                     true
                 } {
                     if let Some(pre_loop_context_type) = pre_loop_context_type {
                         continue_context
-                            .vars_in_scope
+                            .locals
                             .insert(var_id.clone(), pre_loop_context_type.clone());
                     } else {
-                        continue_context.vars_in_scope.remove(var_id);
+                        continue_context.locals.remove(var_id);
                     }
                 }
             }
@@ -446,7 +446,7 @@ pub(crate) fn analyze<'a>(
             for (var_id, possibly_redefined_var_type) in
                 &cloned_loop_scope.possibly_redefined_loop_parent_vars
             {
-                if let Some(do_context_type) = inner_do_context_inner.vars_in_scope.get_mut(var_id)
+                if let Some(do_context_type) = inner_do_context_inner.locals.get_mut(var_id)
                 {
                     *do_context_type = if do_context_type == possibly_redefined_var_type {
                         possibly_redefined_var_type.clone()
@@ -469,7 +469,7 @@ pub(crate) fn analyze<'a>(
         } else {
             for (var_id, var_type) in &cloned_loop_scope.possibly_redefined_loop_parent_vars {
                 if let Some(loop_parent_context_type) =
-                    loop_parent_context.vars_in_scope.get_mut(var_id)
+                    loop_parent_context.locals.get_mut(var_id)
                 {
                     *loop_parent_context_type = Rc::new(combine_union_types(
                         var_type,
@@ -486,10 +486,10 @@ pub(crate) fn analyze<'a>(
         }
     }
 
-    for (var_id, var_type) in &loop_parent_context.vars_in_scope.clone() {
-        if let Some(loop_context_type) = loop_context.vars_in_scope.get(var_id) {
+    for (var_id, var_type) in &loop_parent_context.locals.clone() {
+        if let Some(loop_context_type) = loop_context.locals.get(var_id) {
             if loop_context_type != var_type {
-                loop_parent_context.vars_in_scope.insert(
+                loop_parent_context.locals.insert(
                     var_id.clone(),
                     Rc::new(combine_union_types(
                         var_type,
@@ -506,7 +506,7 @@ pub(crate) fn analyze<'a>(
                     analysis_data,
                 );
             } else if let Some(loop_parent_context_type) =
-                loop_parent_context.vars_in_scope.get_mut(var_id)
+                loop_parent_context.locals.get_mut(var_id)
             {
                 if loop_parent_context_type != loop_context_type {
                     *loop_parent_context_type = Rc::new({
@@ -523,8 +523,8 @@ pub(crate) fn analyze<'a>(
     }
 
     if !does_always_break {
-        for (var_id, var_type) in loop_parent_context.vars_in_scope.clone() {
-            if let Some(continue_context_type) = continue_context.vars_in_scope.get_mut(&var_id) {
+        for (var_id, var_type) in loop_parent_context.locals.clone() {
+            if let Some(continue_context_type) = continue_context.locals.get_mut(&var_id) {
                 if continue_context_type.is_mixed() {
                     *continue_context_type = Rc::new({
                         let second: &TUnion = &var_type;
@@ -537,7 +537,7 @@ pub(crate) fn analyze<'a>(
                     });
 
                     loop_parent_context
-                        .vars_in_scope
+                        .locals
                         .insert(var_id.clone(), continue_context_type.clone());
                     loop_parent_context.remove_var_from_conflicting_clauses(
                         &var_id,
@@ -546,7 +546,7 @@ pub(crate) fn analyze<'a>(
                         analysis_data,
                     );
                 } else if continue_context_type != &var_type {
-                    loop_parent_context.vars_in_scope.insert(
+                    loop_parent_context.locals.insert(
                         var_id.clone(),
                         Rc::new(combine_union_types(
                             &var_type,
@@ -562,7 +562,7 @@ pub(crate) fn analyze<'a>(
                         analysis_data,
                     );
                 } else if let Some(loop_parent_context_type) =
-                    loop_parent_context.vars_in_scope.get_mut(&var_id)
+                    loop_parent_context.locals.get_mut(&var_id)
                 {
                     *loop_parent_context_type = Rc::new({
                         let mut first = (**continue_context_type).clone();
@@ -574,7 +574,7 @@ pub(crate) fn analyze<'a>(
                     });
                 }
             } else {
-                loop_parent_context.vars_in_scope.remove(&var_id);
+                loop_parent_context.locals.remove(&var_id);
             }
         }
     }
@@ -615,10 +615,10 @@ pub(crate) fn analyze<'a>(
             );
 
             for var_id in changed_var_ids {
-                if let Some(reconciled_type) = continue_context.vars_in_scope.get(&var_id) {
-                    if loop_parent_context.vars_in_scope.contains_key(&var_id) {
+                if let Some(reconciled_type) = continue_context.locals.get(&var_id) {
+                    if loop_parent_context.locals.contains_key(&var_id) {
                         loop_parent_context
-                            .vars_in_scope
+                            .locals
                             .insert(var_id.clone(), reconciled_type.clone());
                     }
 
@@ -639,7 +639,7 @@ pub(crate) fn analyze<'a>(
             .final_actions
             .contains(&ControlAction::Continue);
 
-        for (var_id, var_type) in &continue_context.vars_in_scope {
+        for (var_id, var_type) in &continue_context.locals {
             // if there are break statements in the loop it's not certain
             // that the loop has finished executing, so the assertions at the end
             // the loop in the while conditional may not hold
@@ -648,7 +648,7 @@ pub(crate) fn analyze<'a>(
                     .possibly_defined_loop_parent_vars
                     .get(var_id)
                 {
-                    loop_parent_context.vars_in_scope.insert(
+                    loop_parent_context.locals.insert(
                         var_id.clone(),
                         Rc::new(combine_union_types(
                             var_type,
@@ -660,7 +660,7 @@ pub(crate) fn analyze<'a>(
                 }
             } else {
                 loop_parent_context
-                    .vars_in_scope
+                    .locals
                     .insert(var_id.clone(), var_type.clone());
             }
         }
@@ -700,8 +700,8 @@ fn apply_pre_condition_to_loop_context(
     statements_analyzer: &StatementsAnalyzer,
     pre_condition: &aast::Expr<(), ()>,
     pre_condition_clauses: &[Clause],
-    loop_context: &mut ScopeContext,
-    loop_parent_context: &mut ScopeContext,
+    loop_context: &mut BlockContext,
+    loop_parent_context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     is_do: bool,
 ) -> Result<FxHashSet<String>, AnalysisError> {
@@ -731,7 +731,7 @@ fn apply_pre_condition_to_loop_context(
         .extend(pre_referenced_var_ids);
 
     let always_assigned_before_loop_body_vars =
-        ScopeContext::get_new_or_updated_var_ids(loop_context, loop_parent_context);
+        BlockContext::get_new_or_updated_locals(loop_context, loop_parent_context);
 
     loop_context.clauses = hakana_algebra::simplify_cnf({
         let mut clauses = loop_parent_context
@@ -779,7 +779,7 @@ fn apply_pre_condition_to_loop_context(
         let mut loop_context_clauses = loop_context.clauses.clone();
 
         for var_id in &always_assigned_before_loop_body_vars {
-            loop_context_clauses = ScopeContext::filter_clauses(
+            loop_context_clauses = BlockContext::filter_clauses(
                 var_id,
                 loop_context_clauses,
                 None,
@@ -796,27 +796,27 @@ fn apply_pre_condition_to_loop_context(
 
 fn update_loop_scope_contexts(
     loop_scope: &mut LoopScope,
-    loop_context: &mut ScopeContext,
-    continue_context: &mut ScopeContext,
-    pre_outer_context: &ScopeContext,
+    loop_context: &mut BlockContext,
+    continue_context: &mut BlockContext,
+    pre_outer_context: &BlockContext,
     statements_analyzer: &StatementsAnalyzer,
 ) {
     if !loop_scope.final_actions.contains(&ControlAction::Continue) {
-        loop_context.vars_in_scope = pre_outer_context.vars_in_scope.clone();
+        loop_context.locals = pre_outer_context.locals.clone();
     } else {
         // $updated_loop_vars = [];
 
         // foreach ($loop_scope->redefined_loop_vars as $var => $type) {
-        //     $continue_context->vars_in_scope[$var] = $type;
+        //     $continue_context->locals[$var] = $type;
         //     $updated_loop_vars[$var] = true;
         // }
 
         for (var_id, var_type) in &loop_scope.possibly_redefined_loop_vars {
             if continue_context.has_variable(var_id) {
-                continue_context.vars_in_scope.insert(
+                continue_context.locals.insert(
                     var_id.clone(),
                     Rc::new(combine_union_types(
-                        continue_context.vars_in_scope.get(var_id).unwrap(),
+                        continue_context.locals.get(var_id).unwrap(),
                         var_type,
                         statements_analyzer.get_codebase(),
                         false,

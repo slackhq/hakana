@@ -22,7 +22,7 @@ use crate::expression_analyzer::find_expr_logic_issues;
 use crate::formula_generator;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_algebra::Clause;
@@ -50,7 +50,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     assign_value_type: Option<&TUnion>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     inout_node: Option<DataFlowNode>,
 ) -> Result<(), AnalysisError> {
     let (binop, assign_var, assign_value) = (expr.0, expr.1, expr.2);
@@ -92,7 +92,7 @@ pub(crate) fn analyze(
             .insert(var_id.clone(), assign_var.pos().start_offset());
         context.possibly_assigned_var_ids.insert(var_id.clone());
 
-        existing_var_type = context.vars_in_scope.get(var_id).cloned();
+        existing_var_type = context.locals.get(var_id).cloned();
     }
 
     if let Some(assign_value) = assign_value {
@@ -248,7 +248,7 @@ pub(crate) fn analyze(
         let root_var_id = get_root_var_id(assign_var);
 
         if let Some(root_var_id) = root_var_id {
-            if let Some(existing_root_type) = context.vars_in_scope.get(&root_var_id).cloned() {
+            if let Some(existing_root_type) = context.locals.get(&root_var_id).cloned() {
                 context.remove_var_from_conflicting_clauses(
                     &root_var_id,
                     Some(&existing_root_type),
@@ -347,7 +347,7 @@ fn analyze_list_assignment(
     source_expr: Option<&aast::Expr<(), ()>>,
     assign_value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) {
     let codebase = statements_analyzer.get_codebase();
 
@@ -467,7 +467,7 @@ fn analyze_assignment_to_variable(
     mut assign_value_type: TUnion,
     var_id: &String,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     inout_node: Option<DataFlowNode>,
 ) {
     // if analysis_data.data_flow_graph.kind == GraphKind::FunctionBody && !is_inout {
@@ -594,7 +594,7 @@ fn analyze_assignment_to_variable(
     }
 
     context
-        .vars_in_scope
+        .locals
         .insert(var_id.clone(), Rc::new(assign_value_type));
 }
 
@@ -602,7 +602,7 @@ fn handle_assignment_with_boolean_logic(
     var_expr: &aast::Expr<(), ()>,
     source_expr: &aast::Expr<(), ()>,
     statements_analyzer: &StatementsAnalyzer<'_>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     var_id: &String,
 ) {
@@ -632,7 +632,7 @@ fn handle_assignment_with_boolean_logic(
     );
 
     if let Ok(right_clauses) = right_clauses {
-        let right_clauses = ScopeContext::filter_clauses(
+        let right_clauses = BlockContext::filter_clauses(
             var_id,
             right_clauses.into_iter().map(Rc::new).collect(),
             None,
@@ -675,7 +675,7 @@ pub(crate) fn analyze_inout_param(
     inout_type: &TUnion,
     assignment_node: DataFlowNode,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     analyze(
         statements_analyzer,

@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::handle_paradoxical_condition;
 use crate::stmt_analyzer::AnalysisError;
@@ -17,8 +17,8 @@ pub(crate) fn analyze<'expr>(
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let mut left_context = context.clone();
 
@@ -71,10 +71,10 @@ pub(crate) fn analyze<'expr>(
     )
     .unwrap();
 
-    for (var_id, var_type) in &left_context.vars_in_scope {
+    for (var_id, var_type) in &left_context.locals {
         if left_context.assigned_var_ids.contains_key(var_id) {
             context
-                .vars_in_scope
+                .locals
                 .insert(var_id.clone(), var_type.clone());
         }
     }
@@ -145,7 +145,7 @@ pub(crate) fn analyze<'expr>(
         right_context = left_context.clone()
     }
 
-    let partitioned_clauses = ScopeContext::remove_reconciled_clause_refs(
+    let partitioned_clauses = BlockContext::remove_reconciled_clause_refs(
         &{
             let mut c = left_context.clauses.clone();
             c.extend(left_clauses.into_iter().map(Rc::new));
@@ -187,11 +187,11 @@ pub(crate) fn analyze<'expr>(
 
     if let Some(ref mut if_body_context) = if_body_context {
         if !context.inside_negation {
-            context.vars_in_scope = right_context.vars_in_scope;
+            context.locals = right_context.locals;
 
             if_body_context
-                .vars_in_scope
-                .extend(context.vars_in_scope.clone());
+                .locals
+                .extend(context.locals.clone());
 
             if_body_context
                 .cond_referenced_var_ids
@@ -206,10 +206,10 @@ pub(crate) fn analyze<'expr>(
 
             if_body_context.allow_taints = right_context.allow_taints;
         } else {
-            context.vars_in_scope = left_context.vars_in_scope;
+            context.locals = left_context.locals;
         }
     } else {
-        context.vars_in_scope = left_context.vars_in_scope;
+        context.locals = left_context.locals;
     }
 
     Ok(())

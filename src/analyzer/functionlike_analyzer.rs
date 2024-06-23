@@ -8,7 +8,7 @@ use crate::expr::fetch::atomic_property_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::file_analyzer::InternalError;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::stmt_analyzer::AnalysisError;
@@ -118,7 +118,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             &mut statements_analyzer,
             functionlike_id,
             function_storage,
-            ScopeContext::new(function_context),
+            BlockContext::new(function_context),
             &stmt.fun.params,
             &stmt.fun.body.fb_ast.0,
             analysis_result,
@@ -130,7 +130,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
     pub fn analyze_lambda(
         &mut self,
         stmt: &aast::Fun_<(), ()>,
-        mut context: ScopeContext,
+        mut context: BlockContext,
         analysis_data: &mut FunctionAnalysisData,
         analysis_result: &mut AnalysisResult,
         expr_pos: &Pos,
@@ -263,7 +263,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         function_context.calling_class = Some(classlike_storage.name);
         function_context.calling_class_final = classlike_storage.is_final;
 
-        let mut context = ScopeContext::new(function_context);
+        let mut context = BlockContext::new(function_context);
 
         if !stmt.static_ {
             let mut this_type = wrap_atomic(TAtomic::TNamedObject {
@@ -306,7 +306,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
             }
 
             context
-                .vars_in_scope
+                .locals
                 .insert("$this".to_string(), Rc::new(this_type));
         }
 
@@ -331,7 +331,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         classlike_storage: &ClassLikeInfo,
         analysis_data: &mut FunctionAnalysisData,
         function_storage: &FunctionLikeInfo,
-        context: &mut ScopeContext,
+        context: &mut BlockContext,
     ) -> Result<(), InternalError> {
         let interner = &self.get_interner();
         for (property_name, declaring_class) in &classlike_storage.declaring_property_ids {
@@ -412,7 +412,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 );
 
                 context
-                    .vars_in_scope
+                    .locals
                     .insert(expr_id, Rc::new(property_type));
             }
         }
@@ -425,7 +425,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         statements_analyzer: &mut StatementsAnalyzer,
         functionlike_id: FunctionLikeIdentifier,
         functionlike_storage: &FunctionLikeInfo,
-        mut context: ScopeContext,
+        mut context: BlockContext,
         params: &[aast::FunParam<(), ()>],
         fb_ast: &Vec<aast::Stmt<(), ()>>,
         analysis_result: &mut AnalysisResult,
@@ -560,7 +560,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
             if let Some(method_storage) = &functionlike_storage.method_info {
                 if !method_storage.is_static {
-                    if let Some(this_type) = context.vars_in_scope.get("$this") {
+                    if let Some(this_type) = context.locals.get("$this") {
                         let new_call_node = DataFlowNode::get_for_this_after_method(
                             &MethodIdentifier(
                                 context.function_context.calling_class.unwrap(),
@@ -890,7 +890,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
         params: &[aast::FunParam<(), ()>],
         functionlike_storage: &FunctionLikeInfo,
         analysis_data: &mut FunctionAnalysisData,
-        context: &mut ScopeContext,
+        context: &mut BlockContext,
         statements_analyzer: &mut StatementsAnalyzer,
     ) -> Result<(), AnalysisError> {
         for (i, param) in functionlike_storage.params.iter().enumerate() {
@@ -1175,7 +1175,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 );
             }
 
-            context.vars_in_scope.insert(
+            context.locals.insert(
                 statements_analyzer
                     .get_interner()
                     .lookup(&param.name.0)

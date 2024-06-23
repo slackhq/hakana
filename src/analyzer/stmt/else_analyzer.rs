@@ -1,9 +1,9 @@
 use super::{control_analyzer, if_analyzer};
 use crate::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::control_action::ControlAction;
-use crate::scope_context::loop_scope::LoopScope;
-use crate::scope_context::{if_scope::IfScope, ScopeContext};
+use crate::scope::control_action::ControlAction;
+use crate::scope::loop_scope::LoopScope;
+use crate::scope::{if_scope::IfScope, BlockContext};
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
     function_analysis_data::FunctionAnalysisData, statements_analyzer::StatementsAnalyzer,
@@ -20,8 +20,8 @@ pub(crate) fn analyze(
     stmts: &aast::Block<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
     if_scope: &mut IfScope,
-    else_context: &mut ScopeContext,
-    outer_context: &mut ScopeContext,
+    else_context: &mut BlockContext,
+    outer_context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
     if stmts.is_empty() && if_scope.negated_clauses.is_empty() && else_context.clauses.is_empty() {
@@ -70,7 +70,7 @@ pub(crate) fn analyze(
         );
 
         else_context.clauses =
-            ScopeContext::remove_reconciled_clause_refs(&else_context.clauses, &changed_var_ids).0;
+            BlockContext::remove_reconciled_clause_refs(&else_context.clauses, &changed_var_ids).0;
     }
 
     let pre_stmts_assigned_var_ids = else_context.assigned_var_ids.clone();

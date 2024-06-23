@@ -1,7 +1,7 @@
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
@@ -32,7 +32,7 @@ use super::assignment::instance_property_assignment_analyzer::add_unspecialized_
 use super::fetch::atomic_property_fetch_analyzer;
 
 pub(crate) fn analyze(
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     boxed: &Box<(
         ast_defs::Id,
         Vec<aast::XhpAttribute<(), ()>>,
@@ -41,7 +41,7 @@ pub(crate) fn analyze(
     pos: &Pos,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    if_body_context: &mut Option<ScopeContext>,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let resolved_names = statements_analyzer.get_file_analyzer().resolved_names;
     let xhp_class_name =
@@ -250,8 +250,8 @@ fn handle_attribute_spread(
     xhp_expr: &aast::Expr<(), ()>,
     element_name: &StrId,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
     codebase: &CodebaseInfo,
 ) -> Result<FxHashSet<StrId>, AnalysisError> {
     expression_analyzer::analyze(
@@ -345,8 +345,8 @@ fn analyze_xhp_attribute_assignment(
     element_name: &StrId,
     attribute_info: &aast::XhpSimple<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(
         statements_analyzer,
@@ -451,7 +451,7 @@ fn get_attribute_name(
     attribute_info: &oxidized::tast::XhpSimple<(), ()>,
     resolved_names: &FxHashMap<u32, StrId>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &ScopeContext,
+    context: &BlockContext,
     element_name: &StrId,
 ) -> Result<StrId, AnalysisError> {
     if attribute_info.name.1.starts_with("data-") {

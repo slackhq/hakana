@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, expression_analyzer};
@@ -26,7 +26,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &'tast mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     expression_analyzer::analyze(statements_analyzer, left, analysis_data, context, &mut None)?;
     expression_analyzer::analyze(

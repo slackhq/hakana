@@ -4,7 +4,7 @@ use crate::expr::fetch::array_fetch_analyzer::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_reflection_info::data_flow::graph::{GraphKind, WholeProgramKind};
 use hakana_reflection_info::data_flow::node::{DataFlowNode, DataFlowNodeId, DataFlowNodeKind};
@@ -34,7 +34,7 @@ pub(crate) fn check_argument_matches(
     arg: (&ast_defs::ParamKind, &aast::Expr<(), ()>),
     arg_unpacked: bool,
     arg_value_type: TUnion,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     ignore_taints: bool,
     specialize_taint: bool,
@@ -100,7 +100,7 @@ fn get_unpacked_type(
     mut arg_value_type: TUnion,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> TUnion {
     let mut has_valid_expected_offset = false;
     let inner_types = arg_value_type.types.drain(..).collect::<Vec<_>>();
@@ -226,7 +226,7 @@ pub(crate) fn verify_type(
     functionlike_id: &FunctionLikeIdentifier,
     argument_offset: usize,
     input_expr: &aast::Expr<(), ()>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     function_param: &FunctionLikeParameter,
     method_call_info: &Option<MethodCallInfo>,
@@ -478,7 +478,7 @@ fn add_dataflow(
     input_expr: &aast::Expr<(), ()>,
     input_type: &TUnion,
     param_type: &TUnion,
-    context: &ScopeContext,
+    context: &BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     function_param: &FunctionLikeParameter,
     method_call_info: &Option<MethodCallInfo>,

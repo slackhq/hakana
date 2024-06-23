@@ -3,7 +3,7 @@ use crate::file_analyzer::FileAnalyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::{update_analysis_result_with_tast, FunctionLikeAnalyzer};
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
@@ -80,7 +80,7 @@ impl<'a> ClassLikeAnalyzer<'a> {
         function_context.calling_class = Some(name);
         function_context.calling_class_final = stmt.final_;
 
-        let mut class_context = ScopeContext::new(function_context);
+        let mut class_context = BlockContext::new(function_context);
 
         let mut analysis_data = FunctionAnalysisData::new(
             DataFlowGraph::new(statements_analyzer.get_config().graph_kind),

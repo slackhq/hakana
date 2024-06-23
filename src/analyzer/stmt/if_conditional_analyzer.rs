@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::{
     expression_analyzer,
     scope_analyzer::ScopeAnalyzer,
-    scope_context::{if_scope::IfScope, ScopeContext},
+    scope::{if_scope::IfScope, BlockContext},
     stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
@@ -26,7 +26,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     cond: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    outer_context: &ScopeContext,
+    outer_context: &BlockContext,
     if_scope: &mut IfScope,
 ) -> Result<IfConditionalScope, AnalysisError> {
     let mut outer_context = outer_context.clone();
@@ -82,12 +82,12 @@ pub(crate) fn analyze(
         );
     }
 
-    let pre_condition_vars_in_scope = if has_outer_context_changes {
+    let pre_condition_locals = if has_outer_context_changes {
         &outer_context
     } else {
         &old_outer_context
     }
-    .vars_in_scope
+    .locals
     .clone();
 
     let pre_referenced_var_ids = if has_outer_context_changes {
@@ -237,10 +237,10 @@ pub(crate) fn analyze(
     }
 
     let newish_var_ids = if_conditional_context
-        .vars_in_scope
+        .locals
         .into_keys()
         .filter(|k| {
-            !pre_condition_vars_in_scope.contains_key(k)
+            !pre_condition_locals.contains_key(k)
                 && !cond_referenced_var_ids.contains(k)
                 && !assigned_in_conditional_var_ids.contains_key(k)
         })

@@ -16,7 +16,7 @@ use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, functionlike_analyzer};
@@ -53,8 +53,8 @@ pub(crate) fn check_arguments_match(
     functionlike_info: &FunctionLikeInfo,
     calling_classlike_storage: Option<&ClassLikeInfo>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
     template_result: &mut TemplateResult,
     function_call_pos: &Pos,
     function_name_pos: Option<&Pos>,
@@ -536,7 +536,7 @@ fn adjust_param_type(
     codebase: &CodebaseInfo,
     mut arg_value_type: TUnion,
     argument_offset: usize,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     template_result: &mut TemplateResult,
     statements_analyzer: &StatementsAnalyzer,
     functionlike_id: &FunctionLikeIdentifier,
@@ -696,7 +696,7 @@ fn get_param_type(
 fn handle_closure_arg(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     functionlike_id: &FunctionLikeIdentifier,
     template_result: &mut TemplateResult,
     args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
@@ -850,7 +850,7 @@ fn map_class_generic_params(
     interner: &Interner,
     arg_value_type: &mut TUnion,
     argument_offset: usize,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     template_result: &mut TemplateResult,
 ) {
     let arg_has_template_types = arg_value_type.has_template_types();
@@ -910,8 +910,8 @@ pub(crate) fn evaluate_arbitrary_param(
     expr: &aast::Expr<(), ()>,
     is_inout: bool,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let was_inside_call = context.inside_general_use;
     context.inside_general_use = true;
@@ -940,7 +940,7 @@ pub(crate) fn evaluate_arbitrary_param(
         );
 
         if let Some(var_id) = var_id {
-            if let Some(t) = context.vars_in_scope.get(&var_id) {
+            if let Some(t) = context.locals.get(&var_id) {
                 let t = (**t).clone();
 
                 context.remove_var_from_conflicting_clauses(
@@ -981,7 +981,7 @@ fn handle_possibly_matching_inout_param(
     expr: &aast::Expr<(), ()>,
     classlike_storage: Option<&ClassLikeInfo>,
     calling_classlike_storage: Option<&ClassLikeInfo>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     template_result: &mut TemplateResult,
     function_call_pos: &Pos,
 ) -> Result<(), AnalysisError> {

@@ -3,7 +3,7 @@ use oxidized::{aast, tast::Pos};
 use crate::{
     expression_analyzer,
     function_analysis_data::FunctionAnalysisData,
-    scope_context::{loop_scope::LoopScope, ScopeContext},
+    scope::{loop_scope::LoopScope, BlockContext},
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -20,7 +20,7 @@ pub(crate) fn analyze(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let pre_assigned_var_ids = context.assigned_var_ids.clone();
     context.assigned_var_ids.clear();
@@ -58,7 +58,7 @@ pub(crate) fn analyze(
             vec![]
         },
         stmt.2.iter().collect::<Vec<_>>(),
-        &mut LoopScope::new(context.vars_in_scope.clone()),
+        &mut LoopScope::new(context.locals.clone()),
         &mut for_context,
         context,
         analysis_data,

@@ -23,14 +23,14 @@ use crate::{
     stmt_analyzer::AnalysisError,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: (&aast::Expr<(), ()>, Option<&aast::Expr<(), ()>>),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     keyed_array_var_id: Option<String>,
 ) -> Result<(), AnalysisError> {
     let extended_var_id = expression_identifier::get_var_id(
@@ -74,7 +74,7 @@ pub(crate) fn analyze(
 
     if let Some(keyed_array_var_id) = &keyed_array_var_id {
         if context.has_variable(keyed_array_var_id) {
-            let mut stmt_type = context.vars_in_scope.remove(keyed_array_var_id).unwrap();
+            let mut stmt_type = context.locals.remove(keyed_array_var_id).unwrap();
 
             add_array_fetch_dataflow_rc(
                 statements_analyzer,
@@ -88,7 +88,7 @@ pub(crate) fn analyze(
             analysis_data.set_rc_expr_type(pos, stmt_type.clone());
 
             context
-                .vars_in_scope
+                .locals
                 .insert(keyed_array_var_id.clone(), stmt_type.clone());
 
             return Ok(());
@@ -116,7 +116,7 @@ pub(crate) fn analyze(
 
             if !context.inside_isset && can_store_result && keyed_array_var_id.contains("[$") {
                 context
-                    .vars_in_scope
+                    .locals
                     .insert(keyed_array_var_id.clone(), Rc::new(stmt_type_inner.clone()));
             }
         }
@@ -276,7 +276,7 @@ pub(crate) fn get_array_access_type_given_offset(
     offset_type: &TUnion,
     in_assignment: bool,
     extended_var_id: &Option<String>,
-    context: &ScopeContext,
+    context: &BlockContext,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
 
@@ -556,7 +556,7 @@ pub(crate) fn handle_array_access_on_vec(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &ScopeContext,
+    context: &BlockContext,
     vec: TAtomic,
     dim_type: TUnion,
     in_assignment: bool,
@@ -661,7 +661,7 @@ pub(crate) fn handle_array_access_on_dict(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &ScopeContext,
+    context: &BlockContext,
     dict: &TAtomic,
     dim_type: &TUnion,
     in_assignment: bool,
@@ -919,7 +919,7 @@ pub(crate) fn handle_array_access_on_mixed(
     statements_analyzer: &StatementsAnalyzer,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &ScopeContext,
+    context: &BlockContext,
     mixed: &TAtomic,
     mixed_union: &TUnion,
     stmt_type: Option<TUnion>,

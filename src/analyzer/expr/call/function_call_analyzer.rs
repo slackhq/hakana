@@ -15,7 +15,7 @@ use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_ana
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
@@ -41,8 +41,8 @@ pub(crate) fn analyze(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let name = expr.0 .1;
 
@@ -515,7 +515,7 @@ pub(crate) fn analyze(
 
 fn process_invariant(
     first_arg: &aast::Expr<(), ()>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
 ) {
@@ -570,7 +570,7 @@ fn process_invariant(
         }
 
         context.clauses = if !changed_var_ids.is_empty() {
-            ScopeContext::remove_reconciled_clauses(&simplified_clauses, &changed_var_ids).0
+            BlockContext::remove_reconciled_clauses(&simplified_clauses, &changed_var_ids).0
         } else {
             simplified_clauses
         }

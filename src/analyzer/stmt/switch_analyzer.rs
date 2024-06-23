@@ -11,9 +11,9 @@ use crate::{
     expression_analyzer,
     function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
-    scope_context::{
+    scope::{
         control_action::ControlAction, loop_scope::LoopScope, switch_scope::SwitchScope,
-        ScopeContext,
+        BlockContext,
     },
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
@@ -34,7 +34,7 @@ pub(crate) fn analyze(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
@@ -66,7 +66,7 @@ pub(crate) fn analyze(
     } else {
         let switch_var_id = format!("$-tmp_switch-{}", stmt.0 .1.start_offset());
 
-        context.vars_in_scope.insert(
+        context.locals.insert(
             switch_var_id.clone(),
             analysis_data
                 .get_rc_expr_type(&stmt.0 .1)
@@ -212,19 +212,19 @@ pub(crate) fn analyze(
     }
 
     let mut possibly_redefined_vars = switch_scope.possibly_redefined_vars.unwrap_or_default();
-    if let Some(new_vars_in_scope) = switch_scope.new_vars_in_scope {
-        possibly_redefined_vars.retain(|k, _| !new_vars_in_scope.contains_key(k));
-        context.vars_in_scope.extend(new_vars_in_scope);
+    if let Some(new_locals) = switch_scope.new_locals {
+        possibly_redefined_vars.retain(|k, _| !new_locals.contains_key(k));
+        context.locals.extend(new_locals);
     }
 
     if let Some(redefined_vars) = &switch_scope.redefined_vars {
         possibly_redefined_vars.retain(|k, _| !redefined_vars.contains_key(k));
-        context.vars_in_scope.extend(redefined_vars.clone());
+        context.locals.extend(redefined_vars.clone());
     }
 
     for (var_id, var_type) in possibly_redefined_vars {
-        if let Some(context_type) = context.vars_in_scope.get(&var_id).cloned() {
-            context.vars_in_scope.insert(
+        if let Some(context_type) = context.locals.get(&var_id).cloned() {
+            context.locals.insert(
                 var_id.clone(),
                 Rc::new(combine_union_types(
                     &var_type,

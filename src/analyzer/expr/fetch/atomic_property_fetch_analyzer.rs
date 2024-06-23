@@ -4,7 +4,7 @@ use crate::{
     expr::call::arguments_analyzer::get_template_types_for_call,
     function_analysis_data::FunctionAnalysisData,
 };
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::{
     classlike_info::ClassLikeInfo,
@@ -30,7 +30,7 @@ pub(crate) fn analyze(
     expr: (&Expr<(), ()>, &Expr<(), ()>),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     in_assignment: bool,
     lhs_type_part: TAtomic,
     prop_name: &str,

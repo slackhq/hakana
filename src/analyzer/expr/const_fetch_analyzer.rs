@@ -12,7 +12,7 @@ use hakana_type::type_expander::TypeExpansionOptions;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::stmt_analyzer::AnalysisError;
 
 use oxidized::ast_defs;
@@ -23,7 +23,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     boxed: &ast_defs::Id,
     analysis_data: &mut FunctionAnalysisData,
-    context: &ScopeContext,
+    context: &BlockContext,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 

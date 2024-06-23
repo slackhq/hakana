@@ -27,7 +27,7 @@ use crate::{
     stmt_analyzer::AnalysisError,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
 use super::instance_property_assignment_analyzer;
 
@@ -37,7 +37,7 @@ pub(crate) fn analyze(
     assign_value_type: TUnion,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let mut root_array_expr = (expr.0, expr.1, pos);
     let mut array_exprs = Vec::new();
@@ -185,7 +185,7 @@ pub(crate) fn analyze(
 
     if let Some(root_var_id) = &root_var_id {
         context
-            .vars_in_scope
+            .locals
             .insert(root_var_id.clone(), Rc::new(root_type.clone()));
     }
 
@@ -503,7 +503,7 @@ fn update_array_assignment_child_type(
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
     key_type: Option<Rc<TUnion>>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     value_type: TUnion,
     root_type: TUnion,
 ) -> TUnion {
@@ -662,7 +662,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
     mut array_exprs: Vec<(&'a Expr<(), ()>, Option<&'a Expr<(), ()>>, &aast::Pos)>,
     assign_value_type: TUnion,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     root_var_id: Option<String>,
     root_type: &mut TUnion,
     last_array_expr_type: &mut TUnion,
@@ -754,8 +754,8 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
             analysis_data.set_rc_expr_type(array_expr.0.pos(), array_expr_var_type.clone());
         } else if let Some(parent_var_id) = parent_var_id.to_owned() {
-            if context.vars_in_scope.contains_key(&parent_var_id) {
-                let scoped_type = context.vars_in_scope.get(&parent_var_id).unwrap();
+            if context.locals.contains_key(&parent_var_id) {
+                let scoped_type = context.locals.get(&parent_var_id).unwrap();
                 analysis_data.set_rc_expr_type(array_expr.0.pos(), scoped_type.clone());
 
                 array_expr_var_type = scoped_type.clone();
@@ -821,7 +821,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
             if let Some(parent_var_id) = &parent_var_id {
                 if full_var_id && parent_var_id.contains("[$") {
-                    context.vars_in_scope.insert(
+                    context.locals.insert(
                         parent_var_id.clone(),
                         Rc::new(array_expr_var_type_inner.clone()),
                     );
@@ -832,7 +832,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
             } else {
                 *root_type = array_expr_var_type_inner.clone();
 
-                context.vars_in_scope.insert(
+                context.locals.insert(
                     root_var_id.clone(),
                     Rc::new(array_expr_var_type_inner.clone()),
                 );
@@ -858,7 +858,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
 
             if full_var_id && extended_var_id.contains("[$") {
                 context
-                    .vars_in_scope
+                    .locals
                     .insert(extended_var_id.clone(), Rc::new(assign_value_type.clone()));
                 context.possibly_assigned_var_ids.insert(extended_var_id);
             }
@@ -917,7 +917,7 @@ pub(crate) fn analyze_nested_array_assignment<'a>(
         if let Some(array_expr_id) = &array_expr_id {
             if array_expr_id.contains("[$") {
                 context
-                    .vars_in_scope
+                    .locals
                     .insert(array_expr_id.clone(), Rc::new(array_expr_type.clone()));
                 context
                     .possibly_assigned_var_ids

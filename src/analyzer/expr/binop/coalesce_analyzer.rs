@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use crate::expression_analyzer;
@@ -19,8 +19,8 @@ pub(crate) fn analyze<'expr>(
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let mut root_expr = left;
     let mut root_not_left = false;
@@ -180,11 +180,11 @@ pub(crate) fn analyze<'expr>(
 }
 
 fn get_left_expr(
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     statements_analyzer: &StatementsAnalyzer,
     left: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    if_body_context: &mut Option<ScopeContext>,
+    if_body_context: &mut Option<BlockContext>,
     root_expr: &aast::Expr<(), ()>,
     root_type: &Option<Rc<TUnion>>,
     make_nullable: bool,
@@ -222,17 +222,17 @@ fn get_left_expr(
     }
 
     let redefined_vars = isset_context
-        .get_redefined_vars(&context.vars_in_scope, false, &mut FxHashSet::default())
+        .get_redefined_locals(&context.locals, false, &mut FxHashSet::default())
         .into_keys()
         .collect::<FxHashSet<_>>();
 
     //these vars were changed in both branches
     for redef_var_id in &redefined_vars {
-        context.vars_in_scope.insert(
+        context.locals.insert(
             redef_var_id.clone(),
             Rc::new(combine_union_types(
-                &isset_context.vars_in_scope[redef_var_id],
-                &context.vars_in_scope[redef_var_id],
+                &isset_context.locals[redef_var_id],
+                &context.locals[redef_var_id],
                 statements_analyzer.get_codebase(),
                 false,
             )),
@@ -240,7 +240,7 @@ fn get_left_expr(
     }
 
     context
-        .vars_in_scope
+        .locals
         .insert(root_expr_var_id.clone(), condition_type);
 
     if root_expr != left {

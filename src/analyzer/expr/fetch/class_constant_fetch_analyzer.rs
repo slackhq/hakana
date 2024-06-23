@@ -1,7 +1,7 @@
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::codebase_info::CodebaseInfo;
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -24,8 +24,8 @@ pub(crate) fn analyze(
     expr: (&ClassId<(), ()>, (&Pos, &String)),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
@@ -141,7 +141,7 @@ pub(crate) fn analyze(
 fn analyse_known_class_constant(
     codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     classlike_name: &StrId,
     const_name: &String,
     is_this: bool,

@@ -3,7 +3,7 @@ use crate::def_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::update_analysis_result_with_tast;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_reflection_info::analysis_result::AnalysisResult;
 use hakana_reflection_info::code_location::HPos;
@@ -73,7 +73,7 @@ impl<'a> FileAnalyzer<'a> {
             Vec::from_iter(self.file_source.comments.iter()),
         );
 
-        let mut context = ScopeContext::new(FunctionContext::new());
+        let mut context = BlockContext::new(FunctionContext::new());
 
         for declaration in program {
             if declaration.is_namespace() {

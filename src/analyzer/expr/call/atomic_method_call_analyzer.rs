@@ -13,7 +13,7 @@ use oxidized::{
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
+    scope::BlockContext, statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
 
@@ -52,8 +52,8 @@ pub(crate) fn analyze(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
     lhs_type_part: &TAtomic,
     lhs_var_id: &Option<String>,
     result: &mut AtomicMethodCallAnalysisResult,
@@ -185,8 +185,8 @@ pub(crate) fn handle_method_call_on_named_object(
         &Option<aast::Expr<(), ()>>,
     ),
     lhs_type_part: &TAtomic,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
@@ -312,9 +312,9 @@ fn handle_nonexistent_method(
     id: &ast_defs::Id,
     classlike_name: &StrId,
     pos: &Pos,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     expr_args: &Vec<(ParamKind, aast::Expr<(), ()>)>,
-    if_body_context: &mut Option<ScopeContext>,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     analysis_data.maybe_add_issue(
         Issue::new(

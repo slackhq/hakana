@@ -6,8 +6,8 @@ pub mod simple_negated_assertion_reconciler;
 
 use crate::{
     function_analysis_data::FunctionAnalysisData,
+    scope::{var_has_root, BlockContext},
     scope_analyzer::ScopeAnalyzer,
-    scope_context::{var_has_root, ScopeContext},
     statements_analyzer::StatementsAnalyzer,
 };
 use hakana_reflection_info::{
@@ -36,7 +36,7 @@ pub(crate) fn reconcile_keyed_types(
     new_types: &BTreeMap<String, Vec<Vec<Assertion>>>,
     // types we can complain about
     mut active_new_types: BTreeMap<String, FxHashSet<usize>>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     changed_var_ids: &mut FxHashSet<String>,
     referenced_var_ids: &FxHashSet<String>,
     statements_analyzer: &StatementsAnalyzer,
@@ -86,8 +86,7 @@ pub(crate) fn reconcile_keyed_types(
                     match assertion {
                         Assertion::RemoveTaints(key, taints) => {
                             let key_str = statements_analyzer.get_interner().lookup(&key.0);
-                            if let Some(existing_var_type) = context.vars_in_scope.get_mut(key_str)
-                            {
+                            if let Some(existing_var_type) = context.locals.get_mut(key_str) {
                                 let new_parent_node = DataFlowNode::get_for_lvar(
                                     *key,
                                     statements_analyzer.get_hpos(pos),
@@ -143,11 +142,11 @@ pub(crate) fn reconcile_keyed_types(
             }
         }
 
-        let did_type_exist = context.vars_in_scope.contains_key(key);
+        let did_type_exist = context.locals.contains_key(key);
 
         let mut possibly_undefined = false;
 
-        let mut result_type = if let Some(existing_type) = context.vars_in_scope.get(key) {
+        let mut result_type = if let Some(existing_type) = context.locals.get(key) {
             Some((**existing_type).clone())
         } else {
             get_value_for_key(
@@ -332,7 +331,7 @@ pub(crate) fn reconcile_keyed_types(
 
             if key != "$this" && !key.ends_with(']') {
                 let mut removable_keys = Vec::new();
-                for (new_key, _) in context.vars_in_scope.iter() {
+                for (new_key, _) in context.locals.iter() {
                     if new_key.eq(key) {
                         continue;
                     }
@@ -343,26 +342,24 @@ pub(crate) fn reconcile_keyed_types(
                 }
 
                 for new_key in removable_keys {
-                    context.vars_in_scope.remove(&new_key);
+                    context.locals.remove(&new_key);
                 }
             }
         } else if !has_negation && !has_falsyish && !has_isset {
             changed_var_ids.insert(key.clone());
         }
 
-        context
-            .vars_in_scope
-            .insert(key.clone(), Rc::new(result_type));
+        context.locals.insert(key.clone(), Rc::new(result_type));
     }
 
     context
-        .vars_in_scope
+        .locals
         .retain(|var_id, _| !added_var_ids.contains(var_id));
 }
 
 fn adjust_array_type(
     mut key_parts: Vec<String>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     changed_var_ids: &mut FxHashSet<String>,
     result_type: &TUnion,
 ) {
@@ -385,7 +382,7 @@ fn adjust_array_type(
 
     let base_key = key_parts.join("");
 
-    let mut existing_type = if let Some(existing_type) = context.vars_in_scope.get(&base_key) {
+    let mut existing_type = if let Some(existing_type) = context.locals.get(&base_key) {
         (**existing_type).clone()
     } else {
         return;
@@ -457,15 +454,13 @@ fn adjust_array_type(
         }
     }
 
-    context
-        .vars_in_scope
-        .insert(base_key, Rc::new(existing_type));
+    context.locals.insert(base_key, Rc::new(existing_type));
 }
 
 fn add_nested_assertions(
     new_types: &mut BTreeMap<String, Vec<Vec<Assertion>>>,
     active_new_types: &mut BTreeMap<String, FxHashSet<usize>>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) {
     lazy_static! {
         static ref INTEGER_REGEX: Regex = Regex::new("^[0-9]+$").unwrap();
@@ -492,7 +487,7 @@ fn add_nested_assertions(
                 base_key += key_parts.pop().unwrap().as_str();
             }
 
-            let base_key_set = if let Some(base_key_type) = context.vars_in_scope.get(&base_key) {
+            let base_key_set = if let Some(base_key_type) = context.locals.get(&base_key) {
                 !base_key_type.is_nullable()
             } else {
                 false
@@ -691,7 +686,7 @@ fn get_value_for_key(
     codebase: &CodebaseInfo,
     interner: &Interner,
     key: String,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     added_var_ids: &mut FxHashSet<String>,
     new_assertions: &BTreeMap<String, Vec<Vec<Assertion>>>,
     has_isset: bool,
@@ -707,7 +702,7 @@ fn get_value_for_key(
     let mut key_parts = break_up_path_into_parts(&key);
 
     if key_parts.len() == 1 {
-        if let Some(t) = context.vars_in_scope.get(&key) {
+        if let Some(t) = context.locals.get(&key) {
             return Some((**t).clone());
         }
 
@@ -726,7 +721,7 @@ fn get_value_for_key(
         base_key += key_parts.pop().unwrap().as_str();
     }
 
-    if !context.vars_in_scope.contains_key(&base_key) {
+    if !context.locals.contains_key(&base_key) {
         if base_key.contains("::") {
             let base_key_parts = &base_key.split("::").collect::<Vec<&str>>();
             let fq_class_name = base_key_parts[0].to_string();
@@ -751,7 +746,7 @@ fn get_value_for_key(
 
             if let Some(class_constant) = class_constant {
                 context
-                    .vars_in_scope
+                    .locals
                     .insert(base_key.clone(), Rc::new(class_constant));
             } else {
                 return None;
@@ -768,10 +763,10 @@ fn get_value_for_key(
 
             let new_base_key = base_key.clone() + "[" + array_key.as_str() + "]";
 
-            if !context.vars_in_scope.contains_key(&new_base_key) {
+            if !context.locals.contains_key(&new_base_key) {
                 let mut new_base_type: Option<TUnion> = None;
 
-                let mut atomic_types = context.vars_in_scope.get(&base_key).unwrap().types.clone();
+                let mut atomic_types = context.locals.get(&base_key).unwrap().types.clone();
 
                 atomic_types.reverse();
 
@@ -938,7 +933,7 @@ fn get_value_for_key(
                         added_var_ids.insert(new_base_key.clone());
                     }
 
-                    context.vars_in_scope.insert(
+                    context.locals.insert(
                         new_base_key.clone(),
                         Rc::new(new_base_type.clone().unwrap()),
                     );
@@ -951,10 +946,10 @@ fn get_value_for_key(
 
             let new_base_key = base_key.clone() + "->" + property_name.as_str();
 
-            if !context.vars_in_scope.contains_key(&new_base_key) {
+            if !context.locals.contains_key(&new_base_key) {
                 let mut new_base_type: Option<TUnion> = None;
 
-                let base_type = context.vars_in_scope.get(&base_key).unwrap();
+                let base_type = context.locals.get(&base_key).unwrap();
 
                 let mut atomic_types = base_type.types.clone();
 
@@ -1016,7 +1011,7 @@ fn get_value_for_key(
                         Some(class_property_type)
                     };
 
-                    context.vars_in_scope.insert(
+                    context.locals.insert(
                         new_base_key.clone(),
                         Rc::new(new_base_type.clone().unwrap()),
                     );
@@ -1029,7 +1024,7 @@ fn get_value_for_key(
         }
     }
 
-    context.vars_in_scope.get(&base_key).map(|t| (**t).clone())
+    context.locals.get(&base_key).map(|t| (**t).clone())
 }
 
 fn get_property_type(

@@ -34,7 +34,7 @@ use crate::{
     },
     function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
-    scope_context::ScopeContext,
+    scope::BlockContext,
     statements_analyzer::StatementsAnalyzer,
 };
 
@@ -54,8 +54,8 @@ pub(crate) fn analyze(
     pos: &Pos,
     method_name_pos: Option<&Pos>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
     lhs_var_id: Option<&String>,
     lhs_var_pos: Option<&Pos>,
 ) -> Result<TUnion, AnalysisError> {
@@ -286,7 +286,7 @@ fn handle_shapes_static_method(
         &Vec<(oxidized::ast_defs::ParamKind, oxidized::aast::Expr<(), ()>)>,
         &Option<oxidized::aast::Expr<(), ()>>,
     ),
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,
@@ -359,7 +359,7 @@ fn handle_shapes_static_method(
                 );
 
                 if let (Some(expr_var_id), Some(dim_var_id)) = (expr_var_id, dim_var_id) {
-                    if let Some(expr_type) = context.vars_in_scope.get(&expr_var_id) {
+                    if let Some(expr_type) = context.locals.get(&expr_var_id) {
                         let mut new_type = (**expr_type).clone();
 
                         let dim_var_id = dim_var_id[1..dim_var_id.len() - 1].to_string();
@@ -398,7 +398,7 @@ fn handle_shapes_static_method(
 
                         analysis_data.data_flow_graph.add_node(assignment_node);
 
-                        context.vars_in_scope.insert(expr_var_id, Rc::new(new_type));
+                        context.locals.insert(expr_var_id, Rc::new(new_type));
                     }
                 }
             }
@@ -564,7 +564,7 @@ fn handle_defined_shape_idx(
         &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
         &Option<aast::Expr<(), ()>>,
     ),
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
     pos: &Pos,

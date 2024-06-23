@@ -4,8 +4,8 @@ use crate::file_analyzer::InternalError;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::functionlike_analyzer::FunctionLikeAnalyzer;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::loop_scope::LoopScope;
-use crate::scope_context::ScopeContext;
+use crate::scope::loop_scope::LoopScope;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, stmt_analyzer};
@@ -18,7 +18,7 @@ pub(crate) fn analyze(
     scope_analyzer: &mut dyn ScopeAnalyzer,
     statements_analyzer: &StatementsAnalyzer,
     def: &aast::Def<(), ()>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
     analysis_data: &mut FunctionAnalysisData,
     analysis_result: &mut AnalysisResult,
@@ -86,7 +86,7 @@ pub(crate) fn analyze(
                 },
             );
 
-            let mut context = ScopeContext::new(function_context);
+            let mut context = BlockContext::new(function_context);
 
             if let Err(AnalysisError::InternalError(error, pos)) = expression_analyzer::analyze(
                 statements_analyzer,

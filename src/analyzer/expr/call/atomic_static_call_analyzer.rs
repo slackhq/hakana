@@ -11,7 +11,7 @@ use oxidized::{
 
 use crate::{
     function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer,
+    scope::BlockContext, statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
 
@@ -40,8 +40,8 @@ pub(crate) fn analyze(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
     lhs_type_part: &TAtomic,
     classlike_name: Option<StrId>,
     result: &mut AtomicMethodCallAnalysisResult,

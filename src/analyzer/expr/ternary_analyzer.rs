@@ -4,8 +4,8 @@ use std::rc::Rc;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler::{self, assertion_reconciler};
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::if_scope::IfScope;
-use crate::scope_context::{var_has_root, ScopeContext};
+use crate::scope::if_scope::IfScope;
+use crate::scope::{var_has_root, BlockContext};
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::{self, add_branch_dataflow};
 use crate::stmt_analyzer::AnalysisError;
@@ -27,8 +27,8 @@ pub(crate) fn analyze(
     ),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
 
@@ -83,8 +83,8 @@ pub(crate) fn analyze(
 
     let mut mixed_var_ids = Vec::new();
 
-    for (var_id, var_type) in &if_context.vars_in_scope {
-        if var_type.is_mixed() && context.vars_in_scope.contains_key(var_id) {
+    for (var_id, var_type) in &if_context.locals {
+        if var_type.is_mixed() && context.locals.contains_key(var_id) {
             mixed_var_ids.push(var_id);
         }
     }
@@ -289,7 +289,7 @@ pub(crate) fn analyze(
             &FxHashMap::default(),
         );
 
-        temp_else_context.clauses = ScopeContext::remove_reconciled_clause_refs(
+        temp_else_context.clauses = BlockContext::remove_reconciled_clause_refs(
             &temp_else_context.clauses,
             &changed_var_ids,
         )
@@ -320,14 +320,14 @@ pub(crate) fn analyze(
 
     //if the same var was assigned in both branches
     for var_id in assign_all.iter() {
-        if if_context.vars_in_scope.contains_key(var_id.0)
-            && temp_else_context.vars_in_scope.contains_key(var_id.0)
+        if if_context.locals.contains_key(var_id.0)
+            && temp_else_context.locals.contains_key(var_id.0)
         {
-            context.vars_in_scope.insert(
+            context.locals.insert(
                 var_id.0.clone(),
                 Rc::new(combine_union_types(
-                    &if_context.vars_in_scope[var_id.0],
-                    &temp_else_context.vars_in_scope[var_id.0],
+                    &if_context.locals[var_id.0],
+                    &temp_else_context.locals[var_id.0],
                     codebase,
                     false,
                 )),
@@ -338,11 +338,11 @@ pub(crate) fn analyze(
     let mut removed_vars = FxHashSet::default();
 
     let redef_var_ifs = if_context
-        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars)
+        .get_redefined_locals(&context.locals, false, &mut removed_vars)
         .into_keys()
         .collect::<FxHashSet<_>>();
     let redef_var_else = temp_else_context
-        .get_redefined_vars(&context.vars_in_scope, false, &mut removed_vars)
+        .get_redefined_locals(&context.locals, false, &mut removed_vars)
         .into_keys()
         .collect::<FxHashSet<_>>();
 
@@ -353,11 +353,11 @@ pub(crate) fn analyze(
 
     //these vars were changed in both branches
     for redef_var_id in redef_all {
-        context.vars_in_scope.insert(
+        context.locals.insert(
             redef_var_id.clone(),
             Rc::new(combine_union_types(
-                &if_context.vars_in_scope[redef_var_id],
-                &temp_else_context.vars_in_scope[redef_var_id],
+                &if_context.locals[redef_var_id],
+                &temp_else_context.locals[redef_var_id],
                 codebase,
                 false,
             )),
@@ -366,34 +366,34 @@ pub(crate) fn analyze(
 
     //these vars were changed in the if and existed before
     for redef_var_ifs_id in &redef_var_ifs {
-        if context.vars_in_scope.contains_key(redef_var_ifs_id) {
+        if context.locals.contains_key(redef_var_ifs_id) {
             if temp_else_context
-                .vars_in_scope
+                .locals
                 .contains_key(redef_var_ifs_id)
             {
-                context.vars_in_scope.insert(
+                context.locals.insert(
                     redef_var_ifs_id.clone(),
                     Rc::new(combine_union_types(
-                        &context.vars_in_scope[redef_var_ifs_id],
-                        &temp_else_context.vars_in_scope[redef_var_ifs_id],
+                        &context.locals[redef_var_ifs_id],
+                        &temp_else_context.locals[redef_var_ifs_id],
                         codebase,
                         false,
                     )),
                 );
             } else {
-                context.vars_in_scope.remove(redef_var_ifs_id);
+                context.locals.remove(redef_var_ifs_id);
             }
         }
     }
 
     //these vars were changed in the else and existed before
     for redef_var_else_id in &redef_var_else {
-        if context.vars_in_scope.contains_key(redef_var_else_id) {
-            context.vars_in_scope.insert(
+        if context.locals.contains_key(redef_var_else_id) {
+            context.locals.insert(
                 redef_var_else_id.clone(),
                 Rc::new(combine_union_types(
-                    &context.vars_in_scope[redef_var_else_id],
-                    &temp_else_context.vars_in_scope[redef_var_else_id],
+                    &context.locals[redef_var_else_id],
+                    &temp_else_context.locals[redef_var_else_id],
                     codebase,
                     false,
                 )),

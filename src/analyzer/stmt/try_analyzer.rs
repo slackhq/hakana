@@ -1,5 +1,5 @@
-use crate::scope_context::{
-    control_action::ControlAction, loop_scope::LoopScope, FinallyScope, ScopeContext,
+use crate::scope::{
+    control_action::ControlAction, loop_scope::LoopScope, FinallyScope, BlockContext,
 };
 use crate::stmt_analyzer::AnalysisError;
 use crate::{
@@ -26,7 +26,7 @@ pub(crate) fn analyze(
         &aast::FinallyBlock<(), ()>,
     ),
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     loop_scope: &mut Option<LoopScope>,
 ) -> Result<(), AnalysisError> {
     let mut all_catches_leave = true;
@@ -53,7 +53,7 @@ pub(crate) fn analyze(
 
     if !stmt.2.is_empty() {
         try_context.finally_scope = Some(Rc::new(RefCell::new(FinallyScope {
-            vars_in_scope: BTreeMap::new(),
+            locals: BTreeMap::new(),
         })));
     }
 
@@ -84,9 +84,9 @@ pub(crate) fn analyze(
 
     context.assigned_var_ids.extend(assigned_var_ids);
 
-    for (var_id, context_type) in context.vars_in_scope.iter_mut() {
-        if let Some(try_type) = try_context.vars_in_scope.get(var_id).cloned() {
-            try_context.vars_in_scope.insert(
+    for (var_id, context_type) in context.locals.iter_mut() {
+        if let Some(try_type) = try_context.locals.get(var_id).cloned() {
+            try_context.locals.insert(
                 var_id.clone(),
                 Rc::new(combine_union_types(
                     &try_type,
@@ -97,7 +97,7 @@ pub(crate) fn analyze(
             );
         } else {
             try_context
-                .vars_in_scope
+                .locals
                 .insert(var_id.clone(), context_type.clone());
 
             let mut context_type_inner = (**context_type).clone();
@@ -135,9 +135,9 @@ pub(crate) fn analyze(
         let mut catch_context = original_context.clone();
         catch_context.has_returned = false;
 
-        for (var_id, after_try_type) in catch_context.vars_in_scope.clone() {
-            if let Some(before_try_type) = old_context.vars_in_scope.get(&var_id) {
-                catch_context.vars_in_scope.insert(
+        for (var_id, after_try_type) in catch_context.locals.clone() {
+            if let Some(before_try_type) = old_context.locals.get(&var_id) {
+                catch_context.locals.insert(
                     var_id.clone(),
                     Rc::new(combine_union_types(
                         &after_try_type,
@@ -150,7 +150,7 @@ pub(crate) fn analyze(
                 let mut better_type = (*after_try_type).clone();
                 better_type.possibly_undefined_from_try = true;
                 catch_context
-                    .vars_in_scope
+                    .locals
                     .insert(var_id, Rc::new(better_type));
             }
         }
@@ -232,7 +232,7 @@ pub(crate) fn analyze(
         catch_type.parent_nodes.push(new_parent_node);
 
         catch_context
-            .vars_in_scope
+            .locals
             .insert(catch_var_id.clone(), Rc::new(catch_type));
 
         let old_catch_assigned_var_ids = catch_context.assigned_var_ids.clone();
@@ -266,7 +266,7 @@ pub(crate) fn analyze(
             definitely_newly_assigned_var_ids
                 .retain(|var_id, _| new_catch_assigned_var_ids.contains_key(var_id));
 
-            for (var_id, var_type) in &catch_context.vars_in_scope {
+            for (var_id, var_type) in &catch_context.locals {
                 if try_block_control_actions.len() == 1
                     && matches!(
                         try_block_control_actions.iter().next().unwrap(),
@@ -274,10 +274,10 @@ pub(crate) fn analyze(
                     )
                 {
                     context
-                        .vars_in_scope
+                        .locals
                         .insert(var_id.clone(), var_type.clone());
-                } else if let Some(context_type) = context.vars_in_scope.get(var_id).cloned() {
-                    context.vars_in_scope.insert(
+                } else if let Some(context_type) = context.locals.get(var_id).cloned() {
+                    context.locals.insert(
                         var_id.clone(),
                         Rc::new(combine_union_types(
                             &context_type,
@@ -291,13 +291,13 @@ pub(crate) fn analyze(
 
             if let Some(finally_scope) = try_context.finally_scope.clone() {
                 let mut finally_scope = (*finally_scope).borrow_mut();
-                for (var_id, var_type) in &catch_context.vars_in_scope {
-                    if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
+                for (var_id, var_type) in &catch_context.locals {
+                    if let Some(finally_type) = finally_scope.locals.get_mut(var_id) {
                         *finally_type =
                             Rc::new(combine_union_types(finally_type, var_type, codebase, false));
                     } else {
                         finally_scope
-                            .vars_in_scope
+                            .locals
                             .insert(var_id.clone(), var_type.clone());
                     }
                 }
@@ -324,15 +324,15 @@ pub(crate) fn analyze(
             finally_context.assigned_var_ids = FxHashMap::default();
             finally_context.possibly_assigned_var_ids = FxHashSet::default();
 
-            finally_context.vars_in_scope = finally_scope.vars_in_scope.clone();
+            finally_context.locals = finally_scope.locals.clone();
 
-            for (var_id, var_type) in &try_context.vars_in_scope {
-                if let Some(finally_type) = finally_context.vars_in_scope.get_mut(var_id) {
+            for (var_id, var_type) in &try_context.locals {
+                if let Some(finally_type) = finally_context.locals.get_mut(var_id) {
                     *finally_type =
                         Rc::new(combine_union_types(finally_type, var_type, codebase, false));
                 } else {
                     finally_context
-                        .vars_in_scope
+                        .locals
                         .insert(var_id.clone(), var_type.clone());
                 }
             }
@@ -362,8 +362,8 @@ pub(crate) fn analyze(
                     ControlAction::End | ControlAction::Continue | ControlAction::Break
                 )
             {
-                for (var_id, finally_type) in &finally_context.vars_in_scope {
-                    if let Some(context_type) = context.vars_in_scope.get_mut(var_id) {
+                for (var_id, finally_type) in &finally_context.locals {
+                    if let Some(context_type) = context.locals.get_mut(var_id) {
                         if context_type.possibly_undefined_from_try {
                             let mut context_type_inner = (**context_type).clone();
                             context_type_inner.possibly_undefined_from_try = false;
@@ -378,7 +378,7 @@ pub(crate) fn analyze(
                         ));
                     } else {
                         context
-                            .vars_in_scope
+                            .locals
                             .insert(var_id.clone(), finally_type.clone());
                     }
                 }
@@ -387,7 +387,7 @@ pub(crate) fn analyze(
     }
 
     for var_id in definitely_newly_assigned_var_ids.keys() {
-        if let Some(context_type) = context.vars_in_scope.get_mut(var_id) {
+        if let Some(context_type) = context.locals.get_mut(var_id) {
             if context_type.possibly_undefined_from_try {
                 let mut context_type_inner = (**context_type).clone();
                 context_type_inner.possibly_undefined_from_try = false;

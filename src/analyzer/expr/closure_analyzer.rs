@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{functionlike_analyzer::FunctionLikeAnalyzer, scope_analyzer::ScopeAnalyzer};
@@ -20,7 +20,7 @@ use oxidized::aast;
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     fun: &aast::Fun_<(), ()>,
     expr: &aast::Expr<(), ()>,

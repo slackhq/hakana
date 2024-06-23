@@ -1,5 +1,5 @@
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use hakana_reflection_info::t_union::TUnion;
@@ -17,7 +17,7 @@ pub(crate) fn analyze<'expr>(
     left: &'expr aast::Expr<(), ()>,
     right: &'expr aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let mut concat_nodes = get_concat_nodes(left);
     concat_nodes.push(right);

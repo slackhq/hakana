@@ -1,7 +1,7 @@
 use crate::expression_analyzer::{self, add_decision_dataflow};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
@@ -17,8 +17,8 @@ pub(crate) fn analyze(
     expr: (&ast::Bop, &aast::Expr<(), ()>, &aast::Expr<(), ()>),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     match &expr.0 {
         oxidized::ast_defs::Bop::Plus

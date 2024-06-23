@@ -15,7 +15,7 @@ use rustc_hash::FxHashMap;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
@@ -39,8 +39,8 @@ pub(crate) fn analyze(
     expr: &CallExpr,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     let function_name_expr = &expr.func;
 
@@ -377,8 +377,8 @@ pub(crate) fn check_method_args(
         &Option<aast::Expr<(), ()>>,
     ),
     template_result: &mut TemplateResult,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
     pos: &Pos,
     method_name_pos: Option<&Pos>,
 ) -> Result<(), AnalysisError> {

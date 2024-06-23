@@ -1,5 +1,5 @@
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::{expression_analyzer, stmt_analyzer::AnalysisError};
 use hakana_type::get_bool;
@@ -10,8 +10,8 @@ pub(crate) fn analyze(
     expr: &aast::Expr<(), ()>,
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     context.inside_isset = true;
     expression_analyzer::analyze(

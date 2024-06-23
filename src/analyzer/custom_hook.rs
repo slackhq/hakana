@@ -11,31 +11,31 @@ use oxidized::{
 use rustc_hash::FxHashMap;
 
 use crate::{
-    config, function_analysis_data::FunctionAnalysisData, scope_context::ScopeContext,
+    config, function_analysis_data::FunctionAnalysisData, scope::BlockContext,
     statements_analyzer::StatementsAnalyzer,
 };
 
 pub struct AfterExprAnalysisData<'a> {
-    pub context: &'a ScopeContext,
+    pub context: &'a BlockContext,
     pub expr: &'a aast::Expr<(), ()>,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
     pub already_called: bool,
 }
 
 pub struct AfterStmtAnalysisData<'a> {
-    pub context: &'a ScopeContext,
+    pub context: &'a BlockContext,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
     pub stmt: &'a aast::Stmt<(), ()>,
 }
 
 pub struct AfterDefAnalysisData<'a> {
-    pub context: &'a ScopeContext,
+    pub context: &'a BlockContext,
     pub statements_analyzer: &'a StatementsAnalyzer<'a>,
     pub def: &'a aast::Def<(), ()>,
 }
 
 pub struct FunctionLikeParamData<'a> {
-    pub context: &'a ScopeContext,
+    pub context: &'a BlockContext,
     pub config: &'a config::Config,
     pub param_type: &'a TUnion,
     pub param_node: &'a aast::FunParam<(), ()>,
@@ -48,7 +48,7 @@ pub struct AfterArgAnalysisData<'a> {
     pub arg: (&'a ast_defs::ParamKind, &'a aast::Expr<(), ()>),
     pub arg_value_type: &'a TUnion,
     pub argument_offset: usize,
-    pub context: &'a ScopeContext,
+    pub context: &'a BlockContext,
     pub function_name_pos: Option<&'a Pos>,
     pub function_call_pos: &'a Pos,
     pub functionlike_id: &'a FunctionLikeIdentifier,
@@ -116,7 +116,7 @@ pub trait InternalHook {
     #[allow(unused_variables)]
     fn after_functionlike_analysis(
         &self,
-        context: &mut ScopeContext,
+        context: &mut BlockContext,
         functionlike_storage: &FunctionLikeInfo,
         completed_analysis: bool,
         analysis_data: &mut FunctionAnalysisData,

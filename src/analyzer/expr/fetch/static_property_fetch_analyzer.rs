@@ -5,7 +5,7 @@ use super::{
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 use hakana_reflection_info::ast::get_id_name;
 use hakana_reflection_info::data_flow::node::DataFlowNode;
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -28,7 +28,7 @@ pub(crate) fn analyze(
     expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
     let stmt_class = expr.0;
@@ -172,7 +172,7 @@ pub(crate) fn analyze(
 
     // Handle scoped property fetches
     if context.has_variable(&var_id) {
-        let mut stmt_type = (**context.vars_in_scope.get(&var_id).unwrap()).clone();
+        let mut stmt_type = (**context.locals.get(&var_id).unwrap()).clone();
 
         stmt_type = add_unspecialized_property_fetch_dataflow(
             DataFlowNode::get_for_localized_property(
@@ -261,7 +261,7 @@ pub(crate) fn analyze(
 
         let rc = Rc::new(inserted_type.clone());
 
-        context.vars_in_scope.insert(var_id.to_owned(), rc.clone());
+        context.locals.insert(var_id.to_owned(), rc.clone());
 
         analysis_data.set_rc_expr_type(pos, rc)
     }
@@ -278,7 +278,7 @@ fn analyze_variable_static_property_fetch(
     expr: (&ClassId<(), ()>, &ClassGetExpr<(), ()>),
     pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let stmt_class_type = if let aast::ClassId_::CIexpr(stmt_class_expr) = &expr.0 .2 {
         let was_inside_general_use = context.inside_general_use;
@@ -301,7 +301,7 @@ fn analyze_variable_static_property_fetch(
     if let Some(stmt_class_type) = stmt_class_type {
         let fake_var_name = "__fake_var_".to_string() + &pos.line().to_string();
         context
-            .vars_in_scope
+            .locals
             .insert(fake_var_name.to_owned(), Rc::new(stmt_class_type));
 
         let lhs = &aast::Expr(

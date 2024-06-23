@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::code_location::HPos;
@@ -23,7 +23,7 @@ pub(crate) fn analyze(
     args: &[(ast_defs::ParamKind, aast::Expr<(), ()>)],
     call_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let echo_param = FunctionLikeParameter::new(
         VarId(StrId::EMPTY),

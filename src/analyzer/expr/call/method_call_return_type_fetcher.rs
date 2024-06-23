@@ -23,7 +23,7 @@ use oxidized::ast_defs::Pos;
 use crate::expr::expression_identifier::get_expr_id;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_type::template::{TemplateBound, TemplateResult};
@@ -33,7 +33,7 @@ use super::function_call_return_type_fetcher::add_special_param_dataflow;
 pub(crate) fn fetch(
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     lhs_expr: Option<&aast::Expr<(), ()>>,
     call_expr: (
         &Vec<aast::Targ<()>>,
@@ -217,7 +217,7 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
 fn add_dataflow(
     statements_analyzer: &StatementsAnalyzer,
     mut return_type_candidate: TUnion,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     lhs_expr: Option<&aast::Expr<(), ()>>,
     call_expr: (
         &Vec<aast::Targ<()>>,
@@ -318,7 +318,7 @@ fn add_dataflow(
         }
 
         if method_id.1 == StrId::CONSTRUCT {
-            if let Some(var_type) = context.vars_in_scope.get_mut("$this") {
+            if let Some(var_type) = context.locals.get_mut("$this") {
                 let before_construct_node = DataFlowNode::get_for_this_before_method(
                     method_id,
                     functionlike_storage.return_type_location,
@@ -415,7 +415,7 @@ fn add_dataflow(
                     context_type_inner.parent_nodes = vec![var_node.clone()];
 
                     context
-                        .vars_in_scope
+                        .locals
                         .insert(lhs_var_id.clone(), Rc::new(context_type_inner));
 
                     data_flow_graph.add_node(var_node);

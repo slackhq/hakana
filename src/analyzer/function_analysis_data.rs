@@ -1,4 +1,4 @@
-use crate::{config::Config, scope_context::CaseScope};
+use crate::{config::Config, scope::CaseScope};
 use hakana_reflection_info::analysis_result::Replacement;
 use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::FileSource;

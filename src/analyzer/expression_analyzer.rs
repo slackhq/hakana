@@ -17,7 +17,7 @@ use crate::expr::{
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::{var_has_root, ScopeContext};
+use crate::scope::{var_has_root, BlockContext};
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};
@@ -48,8 +48,8 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     expr: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
-    if_body_context: &mut Option<ScopeContext>,
+    context: &mut BlockContext,
+    if_body_context: &mut Option<BlockContext>,
 ) -> Result<(), AnalysisError> {
     if statements_analyzer.get_config().add_fixmes {
         if let Some(ref mut current_stmt_offset) = analysis_data.current_stmt_offset {
@@ -600,7 +600,7 @@ pub(crate) fn expr_has_logic(expr: &aast::Expr<(), ()>) -> bool {
 
 pub(crate) fn find_expr_logic_issues(
     statements_analyzer: &StatementsAnalyzer,
-    context: &ScopeContext,
+    context: &BlockContext,
     expr: &aast::Expr<(), ()>,
     analysis_data: &mut FunctionAnalysisData,
 ) {
@@ -639,8 +639,8 @@ pub(crate) fn find_expr_logic_issues(
 
     let mut mixed_var_ids = Vec::new();
 
-    for (var_id, var_type) in &context.vars_in_scope {
-        if var_type.is_mixed() && context.vars_in_scope.contains_key(var_id) {
+    for (var_id, var_type) in &context.locals {
+        if var_type.is_mixed() && context.locals.contains_key(var_id) {
             mixed_var_ids.push(var_id);
         }
     }
@@ -719,7 +719,7 @@ pub(crate) fn find_expr_logic_issues(
 fn analyze_function_pointer(
     statements_analyzer: &StatementsAnalyzer,
     boxed: &Box<(aast::FunctionPtrId<(), ()>, Vec<aast::Targ<()>>)>,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     expr: &aast::Expr<(), ()>,
 ) -> Result<(), AnalysisError> {

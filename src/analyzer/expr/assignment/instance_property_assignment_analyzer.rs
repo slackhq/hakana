@@ -33,7 +33,7 @@ use crate::{
     stmt_analyzer::AnalysisError,
 };
 use crate::{expression_analyzer, scope_analyzer::ScopeAnalyzer};
-use crate::{scope_context::ScopeContext, statements_analyzer::StatementsAnalyzer};
+use crate::{scope::BlockContext, statements_analyzer::StatementsAnalyzer};
 
 pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
@@ -42,7 +42,7 @@ pub(crate) fn analyze(
     var_id: Option<String>,
     assign_value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let codebase = statements_analyzer.get_codebase();
     let stmt_var = expr.0;
@@ -87,7 +87,7 @@ pub(crate) fn analyze(
         if type_match_found {
             if let Some(union_type) = union_comparison_result.replacement_union_type {
                 if let Some(var_id) = var_id.clone() {
-                    context.vars_in_scope.insert(var_id, Rc::new(union_type));
+                    context.locals.insert(var_id, Rc::new(union_type));
                 }
             }
 
@@ -216,7 +216,7 @@ pub(crate) fn analyze_regular_assignment(
     var_id: Option<String>,
     assign_value_type: &TUnion,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<Vec<(TUnion, (StrId, StrId), TUnion)>, AnalysisError> {
     let stmt_var = expr.0;
 
@@ -361,7 +361,7 @@ pub(crate) fn analyze_regular_assignment(
         let context_type = Rc::new(context_type.unwrap_or(get_mixed_any()).clone());
 
         context
-            .vars_in_scope
+            .locals
             .insert(var_id.to_owned(), context_type);
     }
 
@@ -374,7 +374,7 @@ pub(crate) fn analyze_atomic_assignment(
     assign_value_type: &TUnion,
     lhs_type_part: &TAtomic,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     is_lhs_reference_free: bool,
 ) -> Option<(TUnion, (StrId, StrId), TUnion)> {
     let codebase = statements_analyzer.get_codebase();
@@ -604,7 +604,7 @@ fn add_instance_property_dataflow(
     var_pos: &Pos,
     name_pos: &Pos,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     assignment_value_type: &TUnion,
     prop_name: &StrId,
     fq_class_name: &StrId,
@@ -650,7 +650,7 @@ fn add_instance_property_assignment_dataflow(
     name_pos: &Pos,
     property_id: &(StrId, StrId),
     assignment_value_type: &TUnion,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) {
     let (var_node, property_node) = get_nodes_for_property_fetch(
         statements_analyzer,
@@ -681,7 +681,7 @@ fn add_instance_property_assignment_dataflow(
             vec![],
         );
     }
-    let stmt_var_type = context.vars_in_scope.get_mut(&lhs_var_id);
+    let stmt_var_type = context.locals.get_mut(&lhs_var_id);
     if let Some(stmt_var_type) = stmt_var_type {
         let mut stmt_type_inner = (**stmt_var_type).clone();
 

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::function_context::FunctionLikeIdentifier;
 use hakana_reflection_info::{
@@ -35,7 +35,7 @@ pub(crate) fn analyze(
     stmt: &aast::Stmt<(), ()>,
     statements_analyzer: &StatementsAnalyzer,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let return_expr = stmt.1.as_return().unwrap();
 
@@ -83,13 +83,13 @@ pub(crate) fn analyze(
 
     if let Some(finally_scope) = context.finally_scope.clone() {
         let mut finally_scope = (*finally_scope).borrow_mut();
-        for (var_id, var_type) in &context.vars_in_scope {
-            if let Some(finally_type) = finally_scope.vars_in_scope.get_mut(var_id) {
+        for (var_id, var_type) in &context.locals {
+            if let Some(finally_type) = finally_scope.locals.get_mut(var_id) {
                 *finally_type =
                     Rc::new(combine_union_types(finally_type, var_type, codebase, false));
             } else {
                 finally_scope
-                    .vars_in_scope
+                    .locals
                     .insert(var_id.clone(), var_type.clone());
             }
         }
@@ -498,13 +498,13 @@ pub(crate) fn analyze(
 
 pub(crate) fn handle_inout_at_return(
     functionlike_storage: &FunctionLikeInfo,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
     analysis_data: &mut FunctionAnalysisData,
     interner: &Interner,
 ) {
     for (i, param) in functionlike_storage.params.iter().enumerate() {
         if param.is_inout {
-            if let Some(context_type) = context.vars_in_scope.get(interner.lookup(&param.name.0)) {
+            if let Some(context_type) = context.locals.get(interner.lookup(&param.name.0)) {
                 if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {}
                 let new_parent_node =
                     if let GraphKind::WholeProgram(_) = &analysis_data.data_flow_graph.kind {
@@ -538,7 +538,7 @@ pub(crate) fn handle_inout_at_return(
 
 fn handle_dataflow(
     statements_analyzer: &StatementsAnalyzer,
-    context: &ScopeContext,
+    context: &BlockContext,
     return_expr: &aast::Expr<(), ()>,
     inferred_type: &TUnion,
     data_flow_graph: &mut DataFlowGraph,

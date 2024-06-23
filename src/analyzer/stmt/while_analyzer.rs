@@ -2,7 +2,7 @@ use super::{control_analyzer::BreakContext, loop_analyzer};
 use crate::{
     function_analysis_data::FunctionAnalysisData,
     scope_analyzer::ScopeAnalyzer,
-    scope_context::{control_action::ControlAction, loop_scope::LoopScope, ScopeContext},
+    scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -13,7 +13,7 @@ pub(crate) fn analyze(
     statements_analyzer: &StatementsAnalyzer,
     stmt: (&aast::Expr<(), ()>, &aast::Block<(), ()>),
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Result<(), AnalysisError> {
     let while_true = match &stmt.0 .2 {
         aast::Expr_::True => true,
@@ -28,7 +28,7 @@ pub(crate) fn analyze(
 
     let codebase = statements_analyzer.get_codebase();
 
-    let mut loop_scope = LoopScope::new(context.vars_in_scope.clone());
+    let mut loop_scope = LoopScope::new(context.locals.clone());
 
     let inner_loop_context = loop_analyzer::analyze(
         statements_analyzer,
@@ -58,7 +58,7 @@ pub(crate) fn analyze(
             let has_break_or_continue = loop_scope.final_actions.contains(&ControlAction::Break)
                 || loop_scope.final_actions.contains(&ControlAction::Continue);
 
-            for (var_id, var_type) in inner_loop_context.vars_in_scope {
+            for (var_id, var_type) in inner_loop_context.locals {
                 // if there are break statements in the loop it's not certain
                 // that the loop has finished executing, so the assertions at the end
                 // the loop in the while conditional may not hold
@@ -68,7 +68,7 @@ pub(crate) fn analyze(
                         .possibly_defined_loop_parent_vars
                         .get(&var_id)
                     {
-                        context.vars_in_scope.insert(
+                        context.locals.insert(
                             var_id,
                             Rc::new(hakana_type::combine_union_types(
                                 &var_type,
@@ -80,7 +80,7 @@ pub(crate) fn analyze(
                     }
                 } else {
                     context
-                        .vars_in_scope
+                        .locals
                         .insert(var_id.clone(), var_type.clone());
                 }
             }

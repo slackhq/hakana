@@ -30,7 +30,7 @@ use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;
 use crate::expr::variable_fetch_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::scope_analyzer::ScopeAnalyzer;
-use crate::scope_context::ScopeContext;
+use crate::scope::BlockContext;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use hakana_type::template::{TemplateBound, TemplateResult};
@@ -50,7 +50,7 @@ pub(crate) fn fetch(
     function_storage: &FunctionLikeInfo,
     mut template_result: TemplateResult,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> TUnion {
     let codebase = statements_analyzer.get_codebase();
     let mut stmt_type = None;
@@ -168,7 +168,7 @@ fn handle_special_functions(
     pos: &Pos,
     codebase: &CodebaseInfo,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> Option<TUnion> {
     match name {
         &StrId::TYPE_STRUCTURE_FN => {
@@ -789,7 +789,7 @@ fn add_dataflow(
     stmt_type: TUnion,
     _template_result: &TemplateResult,
     analysis_data: &mut FunctionAnalysisData,
-    context: &mut ScopeContext,
+    context: &mut BlockContext,
 ) -> TUnion {
     // todo dispatch AddRemoveTaintsEvent
 
