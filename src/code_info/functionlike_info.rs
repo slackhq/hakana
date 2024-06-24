@@ -56,33 +56,43 @@ pub struct MetaStart {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionLikeInfo {
+    /// HPos for the whole definition
     pub def_location: HPos,
 
+    /**
+    The start of the function's docblock(s)
+    This allows us to remove that data when removing the function itself.
+    */
     pub meta_start: MetaStart,
 
+    /// The location of the function name. This is None for Closures
     pub name_location: Option<HPos>,
 
     pub params: Vec<FunctionLikeParameter>,
 
     pub return_type: Option<TUnion>,
 
+    /// The location of the return type (which can be empty)
     pub return_type_location: Option<HPos>,
 
+    /// Whether or not the populator has calculated inheritance for this function.
     pub is_populated: bool,
 
+    /// All the issues we're suppressing at the function level
     pub suppressed_issues: Vec<(IssueKind, HPos)>,
 
+    /// Whether this function is deprecated
     pub deprecated: bool,
 
     /**
-     * An array holding the class template "as" types.
-     *
-     * It's the de-facto list of all templates on a given class.
-     *
-     * The name of the template is the first key. The nested array is keyed by a unique
-     * function identifier. This allows operations with the same-named template defined
-     * across multiple classes and/or functions to not run into trouble.
-     */
+    An array holding the class template "as" types.
+
+    It's the de-facto list of all templates on a given class.
+
+    The name of the template is the first key. The nested array is keyed by a unique
+    function identifier. This allows operations with the same-named template defined
+    across multiple classes and/or functions to not run into trouble.
+    */
     pub template_types: Vec<(StrId, Vec<(GenericParent, Arc<TUnion>)>)>,
 
     pub has_visitor_issues: bool,
@@ -102,20 +112,20 @@ pub struct FunctionLikeInfo {
     pub has_throw: bool,
 
     /**
-     * Whether or not the function output is dependent solely on input - a function can be
-     * impure but still have this property (e.g. var_export). Useful for taint analysis.
-     */
+    Whether or not the function output is dependent solely on input - a function can be
+    impure but still have this property (e.g. var_export). Useful for taint analysis.
+    */
     pub specialize_call: bool,
 
     /**
-     * If this is given we don't allow anything to be tainted via this function/method.
-     * Useful for things that are only executed in tests
-     */
+    If this is given we don't allow anything to be tainted via this function/method.
+    Useful for things that are only executed in tests
+    */
     pub ignore_taint_path: bool,
 
     /**
-     * If this function returns true, block taints while this holds
-     */
+    If this function returns true, block taints while this holds
+    */
     pub ignore_taints_if_true: bool,
 
     pub taint_source_types: Vec<SourceType>,
@@ -128,13 +138,13 @@ pub struct FunctionLikeInfo {
 
     pub method_info: Option<Box<MethodInfo>>,
 
-    // used for dead-code analysis
+    /// used for dead-code analysis
     pub user_defined: bool,
 
-    // used for dead-code analysis — this is true for all __EntryPoint and __DynamicallyCallable functions
+    /// used for dead-code analysis — this is true for all __EntryPoint and __DynamicallyCallable functions
     pub dynamically_callable: bool,
 
-    // generated functions also get a pass
+    /// generated functions also get a pass
     pub generated: bool,
 
     pub type_resolution_context: Option<TypeResolutionContext>,
@@ -142,11 +152,11 @@ pub struct FunctionLikeInfo {
     pub where_constraints: Vec<(StrId, TUnion)>,
 
     /*
-     * Stores a reference to the Asynchronous version of this function.
-     * If a function body is just a one-line
-     *   return HH\Asio\join(some_other_function(...));
-     * then the id for the other function is stored here
-     */
+    Stores a reference to the Asynchronous version of this function.
+    If a function body is just a one-line
+    return HH\Asio\join(some_other_function(...));
+    then the id for the other function is stored here
+    */
     pub async_version: Option<FunctionLikeIdentifier>,
 
     pub is_production_code: bool,
