@@ -39,16 +39,21 @@ impl DictKey {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Derivative)]
 #[derivative(Hash)]
 pub enum TAtomic {
+    /// Corresponds to the arraykey type in Hack
     TArraykey {
         from_any: bool,
     },
+    /// Corresponds to the Awaitable class, and contains exactly one boxed value
     TAwaitable {
         value: Box<TUnion>,
     },
+    /// bool type in Hack
     TBool,
+    /// classname<Foo> in Hack, where Foo is non-generic
     TClassname {
         as_type: Box<self::TAtomic>,
     },
+    /// Corresponds to the `dict` type and also the `shape` type.
     TDict {
         known_items: Option<BTreeMap<DictKey, (bool, Arc<TUnion>)>>,
         params: Option<(Box<TUnion>, Box<TUnion>)>,
