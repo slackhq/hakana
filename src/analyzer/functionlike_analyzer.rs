@@ -7,8 +7,8 @@ use crate::expr::call_analyzer::reconcile_lower_bounds_with_upper_bounds;
 use crate::expr::fetch::atomic_property_fetch_analyzer;
 use crate::expression_analyzer;
 use crate::file_analyzer::InternalError;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::return_analyzer::handle_inout_at_return;
 use crate::stmt_analyzer::AnalysisError;
@@ -411,9 +411,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                     &mut analysis_data.data_flow_graph,
                 );
 
-                context
-                    .locals
-                    .insert(expr_id, Rc::new(property_type));
+                context.locals.insert(expr_id, Rc::new(property_type));
             }
         }
 
@@ -435,16 +433,18 @@ impl<'a> FunctionLikeAnalyzer<'a> {
 
         statements_analyzer.in_migratable_function =
             if !self.file_analyzer.get_config().migration_symbols.is_empty() {
-                let calling_functionlike_id_str = context
-                    .function_context
-                    .calling_functionlike_id
-                    .unwrap()
-                    .to_string(&self.file_analyzer.interner);
-
-                self.file_analyzer
-                    .get_config()
-                    .migration_symbols
-                    .contains_key(&calling_functionlike_id_str)
+                if let Some(calling_functionlike_id) =
+                    context.function_context.calling_functionlike_id
+                {
+                    self.file_analyzer
+                        .get_config()
+                        .migration_symbols
+                        .contains_key(
+                            &calling_functionlike_id.to_string(&self.file_analyzer.interner),
+                        )
+                } else {
+                    false
+                }
             } else {
                 false
             };
