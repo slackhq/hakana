@@ -282,6 +282,10 @@ pub fn scan_and_analyze(
         cached_analysis.safe_symbol_members,
     );
 
+    for hook in &config.hooks {
+        hook.after_populate(&codebase, &interner);
+    }
+
     let populating_elapsed = populating_now.elapsed();
 
     if logger.can_log_timing() {

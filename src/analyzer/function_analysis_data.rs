@@ -583,27 +583,34 @@ fn get_hakana_fixmes_and_ignores(
 ) -> BTreeMap<u32, Vec<(IssueKind, (u32, u32, u32, u32, bool))>> {
     let mut hakana_fixme_or_ignores = BTreeMap::new();
     for (pos, comment) in comments {
-        if let Comment::CmtBlock(text) = comment {
-            let trimmed_text = if let Some(trimmed_text) = text.strip_prefix('*') {
-                trimmed_text.trim()
-            } else {
-                text.trim()
-            };
+        match comment {
+            Comment::CmtBlock(text) => {
+                let trimmed_text = if let Some(trimmed_text) = text.strip_prefix('*') {
+                    trimmed_text.trim()
+                } else {
+                    text.trim()
+                };
 
-            if let Some(Ok(issue_kind)) = get_issue_from_comment(trimmed_text, all_custom_issues) {
-                hakana_fixme_or_ignores
-                    .entry(pos.line() as u32)
-                    .or_insert_with(Vec::new)
-                    .push((
-                        issue_kind,
-                        (
-                            pos.start_offset() as u32,
-                            pos.end_offset() as u32,
-                            pos.to_raw_span().start.beg_of_line() as u32,
-                            pos.end_offset() as u32,
-                            false,
-                        ),
-                    ));
+                if let Some(Ok(issue_kind)) =
+                    get_issue_from_comment(trimmed_text, all_custom_issues)
+                {
+                    hakana_fixme_or_ignores
+                        .entry(pos.line() as u32)
+                        .or_insert_with(Vec::new)
+                        .push((
+                            issue_kind,
+                            (
+                                pos.start_offset() as u32,
+                                pos.end_offset() as u32,
+                                pos.to_raw_span().start.beg_of_line() as u32,
+                                pos.end_offset() as u32,
+                                false,
+                            ),
+                        ));
+                }
+            }
+            Comment::CmtLine(_) => {
+                // do nothing — if we handle issues here things are much slower
             }
         }
     }

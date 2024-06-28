@@ -152,6 +152,9 @@ pub trait InternalHook {
     ) -> bool {
         false
     }
+
+    #[allow(unused_variables)]
+    fn after_populate(&self, codebase: &CodebaseInfo, interner: &Interner) {}
 }
 
 pub trait CustomHook: InternalHook + Send + Sync + core::fmt::Debug {}

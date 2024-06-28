@@ -15,6 +15,7 @@ use crate::{
 #[derive(Clone, PartialEq, Eq, Hash, Display, Debug, Serialize, Deserialize, EnumString)]
 pub enum IssueKind {
     AbstractInstantiation,
+    BannedFunction,
     ExtendFinalClass,
     CannotInferGenericParam,
     CustomIssue(Box<String>),
@@ -317,6 +318,10 @@ pub fn get_issue_from_comment(
         return Some(Ok(IssueKind::NoJoinInAsyncFunction));
     } else if trimmed_text.starts_with("HHAST_FIXME[FinalOrAbstractClass]") {
         return Some(Ok(IssueKind::MissingFinalOrAbstract));
+    } else if trimmed_text.starts_with("HHAST_FIXME[BannedFunctions]")
+        || trimmed_text.starts_with("HHAST_IGNORE_ERROR[BannedFunctions]")
+    {
+        return Some(Ok(IssueKind::BannedFunction));
     }
 
     None
