@@ -144,6 +144,10 @@ pub async fn scan_and_analyze_async(
         cached_analysis.safe_symbol_members,
     );
 
+    for hook in &config.hooks {
+        hook.after_populate(&codebase, &interner);
+    }
+
     let (analysis_result, arc_scan_data) = get_analysis_ready(
         &config,
         codebase,
