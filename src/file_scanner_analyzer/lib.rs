@@ -82,6 +82,7 @@ pub async fn scan_and_analyze_async(
     threads: u8,
     lsp_client: &Client,
     header: &str,
+    interner: Arc<Interner>,
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
@@ -110,6 +111,7 @@ pub async fn scan_and_analyze_async(
         threads,
         Arc::new(Logger::DevNull),
         header,
+        &interner,
         previous_scan_data,
         language_server_changes,
     )?;
@@ -142,10 +144,11 @@ pub async fn scan_and_analyze_async(
         &mut cached_analysis.symbol_references,
         cached_analysis.safe_symbols,
         cached_analysis.safe_symbol_members,
+        &config,
     );
 
     for hook in &config.hooks {
-        hook.after_populate(&codebase, &interner);
+        hook.after_populate(&codebase, &interner, &config);
     }
 
     let (analysis_result, arc_scan_data) = get_analysis_ready(
@@ -207,6 +210,7 @@ pub fn scan_and_analyze(
     threads: u8,
     logger: Arc<Logger>,
     header: &str,
+    interner: Interner,
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
@@ -233,6 +237,7 @@ pub fn scan_and_analyze(
         threads,
         logger.clone(),
         header,
+        &Arc::new(interner),
         previous_scan_data,
         language_server_changes,
     )?;
@@ -284,10 +289,11 @@ pub fn scan_and_analyze(
         &mut cached_analysis.symbol_references,
         cached_analysis.safe_symbols,
         cached_analysis.safe_symbol_members,
+        &config,
     );
 
     for hook in &config.hooks {
-        hook.after_populate(&codebase, &interner);
+        hook.after_populate(&codebase, &interner, &config);
     }
 
     let populating_elapsed = populating_now.elapsed();

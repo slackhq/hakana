@@ -10,6 +10,7 @@ use oxidized::{
 };
 use rustc_hash::FxHashMap;
 
+use crate::config::Config;
 use crate::{
     config, function_analysis_data::FunctionAnalysisData, scope::BlockContext,
     statements_analyzer::StatementsAnalyzer,
@@ -154,7 +155,7 @@ pub trait InternalHook {
     }
 
     #[allow(unused_variables)]
-    fn after_populate(&self, codebase: &CodebaseInfo, interner: &Interner) {}
+    fn after_populate(&self, codebase: &CodebaseInfo, interner: &Interner, config: &Config) {}
 }
 
 pub trait CustomHook: InternalHook + Send + Sync + core::fmt::Debug {}

@@ -55,6 +55,7 @@ pub fn scan_files(
     threads: u8,
     logger: Arc<Logger>,
     build_checksum: &str,
+    starter_interner: &Arc<Interner>,
     starter_data: Option<SuccessfulScanData>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
 ) -> io::Result<ScanFilesResult> {
@@ -107,7 +108,7 @@ pub fn scan_files(
         codebase = starter_data.codebase;
         resolved_names = starter_data.resolved_names;
     } else {
-        interner = Interner::default();
+        interner = (**starter_interner).clone();
         codebase = CodebaseInfo::new();
         resolved_names = FxHashMap::default();
     }

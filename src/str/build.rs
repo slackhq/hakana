@@ -238,6 +238,7 @@ fn main() -> Result<()> {
         "HH\\type_structure_for_alias",
         "HH\\varray",
         "HH\\vec",
+        "Hakana\\BannedFunction",
         "Hakana\\FindPaths\\Sanitize",
         "Hakana\\NotTestOnly",
         "Hakana\\Immutable",

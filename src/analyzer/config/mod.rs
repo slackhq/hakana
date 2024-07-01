@@ -5,7 +5,7 @@ use hakana_reflection_info::{
     issue::{Issue, IssueKind},
     taint::{SinkType, SourceType},
 };
-use hakana_str::Interner;
+use hakana_str::{Interner, StrId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::custom_hook::CustomHook;
@@ -26,6 +26,7 @@ pub struct Config {
     pub test_files: Vec<String>,
     pub ignore_issue_files: FxHashMap<IssueKind, Vec<String>>,
     pub ignore_all_issues_in_files: Vec<String>,
+    pub banned_builtin_functions: FxHashMap<StrId, StrId>,
     pub security_config: SecurityConfig,
     pub root_dir: String,
     pub hooks: Vec<Box<dyn CustomHook>>,
@@ -82,6 +83,7 @@ impl Config {
             ast_diff: false,
             in_migration: false,
             in_codegen: false,
+            banned_builtin_functions: FxHashMap::default(),
         }
     }
 
@@ -89,6 +91,7 @@ impl Config {
         &mut self,
         cwd: &String,
         config_path: &Path,
+        interner: &mut Interner,
     ) -> Result<(), Box<dyn Error>> {
         let json_config = json_config::read_from_file(config_path)?;
 
@@ -133,6 +136,12 @@ impl Config {
                     .collect::<FxHashSet<_>>(),
             )
         };
+
+        self.banned_builtin_functions = json_config
+            .banned_builtin_functions
+            .into_iter()
+            .map(|(k, v)| (interner.intern(k), interner.intern(v)))
+            .collect();
 
         self.security_config.ignore_files = json_config
             .security_analysis

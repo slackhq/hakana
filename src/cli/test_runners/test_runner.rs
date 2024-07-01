@@ -6,6 +6,7 @@ use hakana_reflection_info::code_location::FilePath;
 use hakana_reflection_info::data_flow::graph::GraphKind;
 use hakana_reflection_info::data_flow::graph::WholeProgramKind;
 use hakana_reflection_info::issue::IssueKind;
+use hakana_str::Interner;
 use hakana_workhorse::wasm::get_single_file_codebase;
 use hakana_workhorse::SuccessfulScanData;
 use rand::seq::SliceRandom;
@@ -232,6 +233,8 @@ impl TestRunner {
 
         let config = Arc::new(analysis_config);
 
+        let interner = Interner::default();
+
         let result = hakana_workhorse::scan_and_analyze(
             stub_dirs,
             None,
@@ -248,6 +251,7 @@ impl TestRunner {
             1,
             logger,
             build_checksum,
+            interner,
             previous_scan_data,
             previous_analysis_result,
             None,
@@ -457,6 +461,7 @@ impl TestRunner {
         let mut config = self.get_config_for_test(&workdir_base);
         config.ast_diff = true;
         config.find_unused_definitions = true;
+        let interner = Interner::default();
         let config = Arc::new(config);
         let mut stub_dirs = vec![cwd.clone() + "/tests/stubs"];
 
@@ -479,6 +484,7 @@ impl TestRunner {
                 1,
                 logger.clone(),
                 build_checksum,
+                interner.clone(),
                 previous_scan_data,
                 previous_analysis_result,
                 None,

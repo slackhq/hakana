@@ -14,8 +14,8 @@ use crate::expr::call_analyzer::{apply_effects, check_template_result};
 use crate::expr::{echo_analyzer, exit_analyzer, expression_identifier, isset_analyzer};
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, formula_generator};
@@ -201,6 +201,22 @@ pub(crate) fn analyze(
         pos,
         &functionlike_id,
     );
+
+    if let Some(banned_message) = function_storage.banned_function_message {
+        analysis_data.maybe_add_issue(
+            Issue::new(
+                IssueKind::BannedFunction,
+                statements_analyzer
+                    .get_interner()
+                    .lookup(&banned_message)
+                    .to_string(),
+                statements_analyzer.get_hpos(pos),
+                &context.function_context.calling_functionlike_id,
+            ),
+            statements_analyzer.get_config(),
+            statements_analyzer.get_file_path_actual(),
+        );
+    }
 
     if !function_storage.is_production_code
         && function_storage.user_defined

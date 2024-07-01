@@ -366,6 +366,14 @@ pub(crate) fn get_functionlike(
             StrId::HAKANA_TEST_ONLY => {
                 functionlike_info.is_production_code = false;
             }
+            StrId::HAKANA_BANNED_FUNCTION => {
+                if let Some(attribute_param_expr) = user_attribute.params.first() {
+                    if let aast::Expr_::String(str) = &attribute_param_expr.2 {
+                        functionlike_info.banned_function_message =
+                            Some(interner.intern(str.to_string()));
+                    }
+                }
+            }
             StrId::HAKANA_SECURITY_ANALYSIS_IGNORE_PATH_IF_TRUE => {
                 functionlike_info.ignore_taints_if_true = true;
             }

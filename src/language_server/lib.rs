@@ -6,6 +6,7 @@ use std::time::Duration;
 use hakana_analyzer::config::{self, Config};
 use hakana_analyzer::custom_hook::CustomHook;
 use hakana_reflection_info::analysis_result::AnalysisResult;
+use hakana_str::Interner;
 use hakana_workhorse::file::FileStatus;
 use hakana_workhorse::{scan_and_analyze_async, SuccessfulScanData};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -19,6 +20,7 @@ use tower_lsp::{Client, LanguageServer};
 pub struct Backend {
     client: Client,
     analysis_config: Arc<Config>,
+    starter_interner: Arc<Interner>,
     previous_scan_data: RwLock<Option<SuccessfulScanData>>,
     previous_analysis_result: RwLock<Option<AnalysisResult>>,
     all_diagnostics: RwLock<Option<FxHashMap<Url, Vec<Diagnostic>>>>,
@@ -27,10 +29,11 @@ pub struct Backend {
 }
 
 impl Backend {
-    pub fn new(client: Client, analysis_config: Arc<Config>) -> Self {
+    pub fn new(client: Client, analysis_config: Config, starter_interner: Interner) -> Self {
         Self {
             client,
-            analysis_config,
+            analysis_config: Arc::new(analysis_config),
+            starter_interner: Arc::new(starter_interner),
             previous_scan_data: RwLock::new(None),
             previous_analysis_result: RwLock::new(None),
             all_diagnostics: RwLock::new(None),
@@ -215,6 +218,7 @@ impl Backend {
             8,
             &self.client,
             "",
+            self.starter_interner.clone(),
             successful_scan_data,
             analysis_result,
             file_changes,
@@ -321,6 +325,7 @@ impl Backend {
 pub fn get_config(
     plugins: Vec<Box<dyn CustomHook>>,
     cwd: &String,
+    interner: &mut Interner,
 ) -> std::result::Result<Config, Box<dyn Error>> {
     let mut all_custom_issues = vec![];
 
@@ -348,7 +353,7 @@ pub fn get_config(
     let config_path = Path::new(&config_path_str);
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path)?;
+        config.update_from_file(cwd, config_path, interner)?;
     }
 
     Ok(config)

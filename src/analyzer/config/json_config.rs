@@ -11,6 +11,8 @@ pub struct JsonConfig {
     #[serde(default)]
     pub ignore_issue_files: FxHashMap<String, Vec<String>>,
     #[serde(default)]
+    pub banned_builtin_functions: FxHashMap<String, String>,
+    #[serde(default)]
     pub security_analysis: JsonSecurityConfig,
     #[serde(default)]
     pub allowed_issues: Vec<String>,

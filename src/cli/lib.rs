@@ -683,8 +683,10 @@ fn do_fix(
 
     let config_path = config_path.unwrap();
 
+    let mut interner = Interner::default();
+
     if config_path.exists() {
-        config.update_from_file(&cwd, config_path).ok();
+        config.update_from_file(&cwd, config_path, &mut interner).ok();
     }
 
     config.allowed_issues = None;
@@ -698,6 +700,7 @@ fn do_fix(
         threads,
         Arc::new(logger),
         header,
+        interner,
         None,
         None,
         None,
@@ -731,8 +734,10 @@ fn do_remove_unused_fixmes(
 
     let config_path = config_path.unwrap();
 
+    let mut interner = Interner::default();
+
     if config_path.exists() {
-        config.update_from_file(cwd, config_path).ok();
+        config.update_from_file(cwd, config_path, &mut interner).ok();
     }
     config.allowed_issues = None;
 
@@ -750,6 +755,7 @@ fn do_remove_unused_fixmes(
         threads,
         Arc::new(logger),
         header,
+        interner,
         None,
         None,
         None,
@@ -805,8 +811,10 @@ fn do_add_fixmes(
 
     let config_path = config_path.unwrap();
 
+    let mut interner = Interner::default();
+
     if config_path.exists() {
-        config.update_from_file(cwd, config_path).ok();
+        config.update_from_file(cwd, config_path, &mut interner).ok();
     }
     config.allowed_issues = None;
 
@@ -821,6 +829,7 @@ fn do_add_fixmes(
         threads,
         Arc::new(logger),
         header,
+        interner,
         None,
         None,
         None,
@@ -868,8 +877,10 @@ fn do_migrate(
 
     let config_path = config_path.unwrap();
 
+    let mut interner = Interner::default();
+
     if config_path.exists() {
-        config.update_from_file(cwd, config_path).ok();
+        config.update_from_file(cwd, config_path, &mut interner).ok();
     }
     config.allowed_issues = None;
 
@@ -906,6 +917,7 @@ fn do_migrate(
         threads,
         Arc::new(logger),
         header,
+        interner,
         None,
         None,
         None,
@@ -954,8 +966,10 @@ fn do_migration_candidates(
 
     let config_path = config_path.unwrap();
 
+    let mut interner = Interner::default();
+
     if config_path.exists() {
-        config.update_from_file(cwd, config_path).ok();
+        config.update_from_file(cwd, config_path, &mut interner).ok();
     }
     config.allowed_issues = None;
 
@@ -972,6 +986,7 @@ fn do_migration_candidates(
         threads,
         Arc::new(logger),
         header,
+        interner,
         None,
         None,
         None,
@@ -1029,8 +1044,10 @@ fn do_codegen(
 
     let config_path = config_path.unwrap();
 
+    let mut interner = Interner::default();
+
     if config_path.exists() {
-        config.update_from_file(cwd, config_path).ok();
+        config.update_from_file(cwd, config_path, &mut interner).ok();
     }
     config.allowed_issues = None;
 
@@ -1045,6 +1062,7 @@ fn do_codegen(
         threads,
         Arc::new(logger),
         header,
+        interner,
         None,
         None,
         None,
@@ -1138,8 +1156,10 @@ fn do_find_paths(
 
     let config_path = config_path.unwrap();
 
+    let mut interner = Interner::default();
+
     if config_path.exists() {
-        config.update_from_file(cwd, config_path).ok();
+        config.update_from_file(cwd, config_path, &mut interner).ok();
     }
     config.allowed_issues = None;
 
@@ -1163,6 +1183,7 @@ fn do_find_paths(
         threads,
         Arc::new(logger),
         header,
+        interner,
         None,
         None,
         None,
@@ -1200,8 +1221,10 @@ fn do_security_check(
 
     let config_path = config_path.unwrap();
 
+    let mut interner = Interner::default();
+
     if config_path.exists() {
-        config.update_from_file(cwd, config_path).ok();
+        config.update_from_file(cwd, config_path, &mut interner).ok();
     }
     config.allowed_issues = None;
 
@@ -1227,6 +1250,7 @@ fn do_security_check(
         threads,
         Arc::new(logger),
         header,
+        interner,
         None,
         None,
         None,
@@ -1318,8 +1342,10 @@ fn do_analysis(
 
     let config_path = config_path.unwrap();
 
+    let mut interner = Interner::default();
+
     if config_path.exists() {
-        config.update_from_file(cwd, config_path).ok();
+        config.update_from_file(cwd, config_path, &mut interner).ok();
     }
 
     // do this after we've loaded from file, as they can be overridden
@@ -1344,6 +1370,7 @@ fn do_analysis(
         threads,
         Arc::new(logger),
         header,
+        interner,
         None,
         None,
         None,

@@ -64,6 +64,7 @@ pub fn scan_and_analyze_single_file(
         &mut symbol_references,
         FxHashSet::default(),
         FxHashSet::default(),
+        &analysis_config,
     );
 
     let mut analysis_result = analyze_single_file(
@@ -182,6 +183,7 @@ pub fn get_single_file_codebase(
         &mut symbol_references,
         FxHashSet::default(),
         FxHashSet::default(),
+        &Config::new("".to_string(), FxHashSet::default()),
     );
 
     (codebase, interner, file_system)

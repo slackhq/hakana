@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hakana_analyzer::config::Config;
 use hakana_reflection_info::classlike_info::{ClassConstantType, ClassLikeInfo};
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
@@ -20,6 +21,7 @@ pub fn populate_codebase(
     symbol_references: &mut SymbolReferences,
     safe_symbols: FxHashSet<StrId>,
     safe_symbol_members: FxHashSet<(StrId, StrId)>,
+    config: &Config,
 ) {
     let new_classlike_names = codebase
         .classlike_infos
@@ -55,6 +57,7 @@ pub fn populate_codebase(
             },
             symbol_references,
             v.user_defined && !safe_symbols.contains(&name.0),
+            config,
         );
     }
 
@@ -253,12 +256,21 @@ fn populate_functionlike_storage(
     reference_source: &ReferenceSource,
     symbol_references: &mut SymbolReferences,
     force_type_population: bool,
+    config: &Config,
 ) {
     if storage.is_populated && !force_type_population {
         return;
     }
 
     storage.is_populated = true;
+
+    if !storage.user_defined && !storage.is_closure {
+        if let ReferenceSource::Symbol(true, function_id) = reference_source {
+            if let Some(banned_message) = config.banned_builtin_functions.get(function_id) {
+                storage.banned_function_message = Some(*banned_message);
+            }
+        }
+    }
 
     for attribute_info in &storage.attributes {
         match reference_source {
