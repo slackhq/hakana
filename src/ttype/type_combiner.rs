@@ -675,7 +675,7 @@ fn scrape_type_properties(
     if let TAtomic::TAwaitable { ref value } = atomic {
         combination.awaitable_param = Some(
             if let Some(ref existing_info) = combination.awaitable_param {
-                combine_union_types(&existing_info, value, codebase, overwrite_empty_array)
+                combine_union_types(existing_info, value, codebase, overwrite_empty_array)
             } else {
                 (**value).clone()
             },

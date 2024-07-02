@@ -23,9 +23,9 @@ pub struct Config {
     pub issues_to_fix: FxHashSet<IssueKind>,
     pub graph_kind: GraphKind,
     pub ignore_files: Vec<String>,
-    pub test_files: Vec<String>,
-    pub ignore_issue_files: FxHashMap<IssueKind, Vec<String>>,
-    pub ignore_all_issues_in_files: Vec<String>,
+    pub test_files: Vec<glob::Pattern>,
+    pub ignore_issue_patterns: FxHashMap<IssueKind, Vec<glob::Pattern>>,
+    pub ignore_all_issues_in_patterns: Vec<glob::Pattern>,
     pub banned_builtin_functions: FxHashMap<StrId, StrId>,
     pub security_config: SecurityConfig,
     pub root_dir: String,
@@ -39,8 +39,8 @@ pub struct Config {
 
 #[derive(Clone, Debug)]
 pub struct SecurityConfig {
-    ignore_files: Vec<String>,
-    ignore_sink_files: FxHashMap<String, Vec<String>>,
+    ignore_patterns: Vec<glob::Pattern>,
+    ignore_sink_files: FxHashMap<String, Vec<glob::Pattern>>,
     pub max_depth: u8,
 }
 
@@ -53,7 +53,7 @@ impl Default for SecurityConfig {
 impl SecurityConfig {
     pub fn new() -> Self {
         Self {
-            ignore_files: Vec::new(),
+            ignore_patterns: Vec::new(),
             ignore_sink_files: FxHashMap::default(),
             max_depth: 40,
         }
@@ -72,8 +72,8 @@ impl Config {
             graph_kind: GraphKind::FunctionBody,
             ignore_files: Vec::new(),
             test_files: Vec::new(),
-            ignore_issue_files: FxHashMap::default(),
-            ignore_all_issues_in_files: vec![],
+            ignore_issue_patterns: FxHashMap::default(),
+            ignore_all_issues_in_patterns: vec![],
             security_config: SecurityConfig::new(),
             issues_to_fix: FxHashSet::default(),
             hooks: vec![],
@@ -104,23 +104,28 @@ impl Config {
         self.test_files = json_config
             .test_files
             .into_iter()
-            .map(|v| format!("{}/{}", cwd, v))
+            .map(|v| glob::Pattern::new(&format!("{}/{}", cwd, v)).unwrap())
             .collect();
 
-        self.ignore_issue_files = json_config
+        self.ignore_issue_patterns = json_config
             .ignore_issue_files
             .iter()
             .filter(|(k, _)| *k != "*")
             .map(|(k, v)| {
                 (
                     IssueKind::from_str_custom(k.as_str(), &self.all_custom_issues).unwrap(),
-                    v.iter().map(|v| format!("{}/{}", cwd, v)).collect(),
+                    v.iter()
+                        .map(|v| glob::Pattern::new(&format!("{}/{}", cwd, v)).unwrap())
+                        .collect(),
                 )
             })
             .collect();
 
         if let Some(v) = json_config.ignore_issue_files.get("*") {
-            self.ignore_all_issues_in_files = v.iter().map(|v| format!("{}/{}", cwd, v)).collect();
+            self.ignore_all_issues_in_patterns = v
+                .iter()
+                .map(|v| glob::Pattern::new(&format!("{}/{}", cwd, v)).unwrap())
+                .collect();
         }
 
         self.allowed_issues = if json_config.allowed_issues.is_empty() {
@@ -143,17 +148,24 @@ impl Config {
             .map(|(k, v)| (interner.intern(k), interner.intern(v)))
             .collect();
 
-        self.security_config.ignore_files = json_config
+        self.security_config.ignore_patterns = json_config
             .security_analysis
             .ignore_files
             .into_iter()
-            .map(|v| format!("{}/{}", cwd, v))
+            .map(|v| glob::Pattern::new(&format!("{}/{}", cwd, v)).unwrap())
             .collect();
         self.security_config.ignore_sink_files = json_config
             .security_analysis
             .ignore_sink_files
             .into_iter()
-            .map(|(k, v)| (k, v.into_iter().map(|v| format!("{}/{}", cwd, v)).collect()))
+            .map(|(k, v)| {
+                (
+                    k,
+                    v.into_iter()
+                        .map(|v| glob::Pattern::new(&format!("{}/{}", cwd, v)).unwrap())
+                        .collect(),
+                )
+            })
             .collect();
 
         Ok(())
@@ -170,8 +182,8 @@ impl Config {
     }
 
     pub fn allow_issues_in_file(&self, file: &str) -> bool {
-        for ignore_file_path in &self.ignore_all_issues_in_files {
-            if glob::Pattern::new(ignore_file_path).unwrap().matches(file) {
+        for ignore_pattern in &self.ignore_all_issues_in_patterns {
+            if ignore_pattern.matches(file) {
                 return false;
             }
         }
@@ -180,9 +192,9 @@ impl Config {
     }
 
     pub fn allow_issue_kind_in_file(&self, issue_kind: &IssueKind, file: &str) -> bool {
-        if let Some(issue_entries) = self.ignore_issue_files.get(issue_kind) {
-            for ignore_file_path in issue_entries {
-                if glob::Pattern::new(ignore_file_path).unwrap().matches(file) {
+        if let Some(issue_entries) = self.ignore_issue_patterns.get(issue_kind) {
+            for ignore_file_pattern in issue_entries {
+                if ignore_file_pattern.matches(file) {
                     return false;
                 }
             }
@@ -192,8 +204,8 @@ impl Config {
     }
 
     pub fn allow_taints_in_file(&self, file: &str) -> bool {
-        for ignore_file_path in &self.security_config.ignore_files {
-            if glob::Pattern::new(ignore_file_path).unwrap().matches(file) {
+        for ignore_file_pattern in &self.security_config.ignore_patterns {
+            if ignore_file_pattern.matches(file) {
                 return false;
             }
         }
@@ -210,17 +222,12 @@ impl Config {
     ) -> bool {
         let str_type = source_type.to_string() + " -> " + &sink_type.to_string();
 
-        if let Some(issue_entries) = self.security_config.ignore_sink_files.get(&str_type) {
-            let ignore_patterns = issue_entries
-                .iter()
-                .map(|ignore_file_path| glob::Pattern::new(ignore_file_path).unwrap())
-                .collect::<Vec<_>>();
-
+        if let Some(ignore_patterns) = self.security_config.ignore_sink_files.get(&str_type) {
             let mut previous = node;
 
             loop {
                 if let Some(pos) = &previous.pos {
-                    for ignore_pattern in &ignore_patterns {
+                    for ignore_pattern in ignore_patterns {
                         if ignore_pattern.matches(interner.lookup(&pos.file_path.0)) {
                             return false;
                         }

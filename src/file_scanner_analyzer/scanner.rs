@@ -278,19 +278,6 @@ pub fn scan_files(
             group_size = 1;
         }
 
-        let mut test_patterns = vec![];
-
-        for ignore_file in &config.test_files {
-            match glob::Pattern::new(ignore_file) {
-                Ok(glob) => {
-                    test_patterns.push(glob);
-                }
-                Err(error) => {
-                    panic!("Parsing {} resulted in error {}", ignore_file, error);
-                }
-            }
-        }
-
         for (i, str_path) in files_to_scan.into_iter().enumerate() {
             let group = i % group_size;
             path_groups
@@ -322,7 +309,7 @@ pub fn scan_files(
                     &mut new_interner,
                     empty_name_context.clone(),
                     analyze_map.contains(&str_path),
-                    !test_patterns.iter().any(|p| p.matches(&str_path)),
+                    !config.test_files.iter().any(|p| p.matches(&str_path)),
                     &logger,
                 ) {
                     Ok(scanner_result) => {
@@ -375,7 +362,6 @@ pub fn scan_files(
                 let resolved_names = resolved_names.clone();
 
                 let config = config.clone();
-                let test_patterns = test_patterns.clone();
                 let logger = logger.clone();
                 let invalid_files = invalid_files.clone();
 
@@ -401,7 +387,7 @@ pub fn scan_files(
                             &mut new_interner,
                             empty_name_context.clone(),
                             analyze_map.contains(&str_path),
-                            !test_patterns.iter().any(|p| p.matches(&str_path)),
+                            !config.test_files.iter().any(|p| p.matches(&str_path)),
                             &logger.clone(),
                         ) {
                             local_resolved_names.insert(*file_path, scanner_result);

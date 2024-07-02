@@ -21,8 +21,8 @@ use crate::expression_analyzer::expr_has_logic;
 use crate::expression_analyzer::find_expr_logic_issues;
 use crate::formula_generator;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_algebra::Clause;
@@ -194,7 +194,7 @@ pub(crate) fn analyze(
             for parent_node in &existing_var_type.parent_nodes {
                 origin_node_ids.extend(analysis_data.data_flow_graph.get_origin_node_ids(
                     &parent_node.id,
-                    &vec![],
+                    &[],
                     false,
                 ));
             }

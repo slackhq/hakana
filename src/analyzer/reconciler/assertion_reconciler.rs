@@ -906,11 +906,7 @@ fn intersect_enum_with_literal(
     type_1_name: &StrId,
     type_2_atomic: &TAtomic,
 ) -> Option<TAtomic> {
-    let enum_storage = if let Some(c) = codebase.classlike_infos.get(type_1_name) {
-        c
-    } else {
-        return None;
-    };
+    let enum_storage = codebase.classlike_infos.get(type_1_name)?;
 
     let mut all_inferred = true;
 

@@ -15,6 +15,7 @@ path = "src/main.rs"
 [dependencies]
 hakana-cli = { path = "src/cli" }
 hakana-analyzer = { path = "src/analyzer" }
+hakana-str = { path = "src/str" }
 hakana-language-server = { path = "src/language_server" }
 hakana-workhorse = { path = "src/file_scanner_analyzer" }
 mimalloc = { version = "*", default-features = false }

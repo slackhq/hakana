@@ -1,6 +1,7 @@
-use std::{env, io::Cursor, sync::Arc};
+use std::{env, io::Cursor};
 
 use hakana_language_server::{get_config, Backend};
+use hakana_str::Interner;
 use mimalloc::MiMalloc;
 
 use tokio::io::AsyncWriteExt;
@@ -36,8 +37,10 @@ async fn main() {
         return;
     };
 
-    let config = match get_config(vec![], &cwd) {
-        Ok(config) => Arc::new(config),
+    let mut interner = Interner::default();
+
+    let config = match get_config(vec![], &cwd, &mut interner) {
+        Ok(config) => config,
         Err(error) => {
             stderr
                 .write_all_buf(&mut Cursor::new(format!("Config error: {error}")))
@@ -47,6 +50,6 @@ async fn main() {
         }
     };
 
-    let (service, socket) = LspService::new(|client| Backend::new(client, config));
+    let (service, socket) = LspService::new(|client| Backend::new(client, config, interner));
     Server::new(stdin, stdout, socket).serve(service).await;
 }

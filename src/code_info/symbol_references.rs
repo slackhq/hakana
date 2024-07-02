@@ -439,9 +439,7 @@ impl SymbolReferences {
 
         let mut expense = 0;
 
-        while !new_invalid_symbols.is_empty() {
-            let new_invalid_symbol = new_invalid_symbols.pop().unwrap();
-
+        while let Some(new_invalid_symbol) = new_invalid_symbols.pop() {
             if seen_symbols.contains(&new_invalid_symbol) {
                 continue;
             }

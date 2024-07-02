@@ -440,7 +440,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                         .get_config()
                         .migration_symbols
                         .contains_key(
-                            &calling_functionlike_id.to_string(&self.file_analyzer.interner),
+                            &calling_functionlike_id.to_string(self.file_analyzer.interner),
                         )
                 } else {
                     false
