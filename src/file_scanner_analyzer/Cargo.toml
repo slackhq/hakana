@@ -31,6 +31,7 @@ rustc-hash = "1.1.0"
 glob = "0.3.0"
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 tokio = { version = "1.26.0", features = ["full"] }
+chrono = "0.4"
 
 [lib]
 path = "lib.rs"

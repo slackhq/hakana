@@ -1,6 +1,8 @@
+use chrono::Utc;
 use hakana_analyzer::config::Config;
 use hakana_reflection_info::analysis_result::{AnalysisResult, Replacement};
 use hakana_reflection_info::classlike_info::ClassLikeInfo;
+use hakana_reflection_info::code_location::StmtStart;
 use hakana_reflection_info::codebase_info::symbols::SymbolKind;
 use hakana_reflection_info::codebase_info::{CodebaseInfo, Symbols};
 use hakana_reflection_info::functionlike_identifier::FunctionLikeIdentifier;
@@ -188,20 +190,17 @@ pub(crate) fn find_unused_definitions(
                 }
             }
 
-            for parent_class in &classlike_info.all_parent_classes {
-                if let Some(parent_classlike_info) = codebase.classlike_infos.get(parent_class) {
-                    if !parent_classlike_info.user_defined {
-                        continue 'outer2;
-                    }
-                }
-            }
-
             if !referenced_symbols_and_members.contains(&(*classlike_name, StrId::EMPTY)) {
-                if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, file_path) {
+                if !config.allow_issue_kind_in_file(&IssueKind::UnusedClass, file_path)
+                    || classlike_info
+                        .suppressed_issues
+                        .iter()
+                        .any(|(i, _)| i == &IssueKind::UnusedClass)
+                {
                     continue;
                 }
 
-                let issue = Issue::new(
+                let mut issue = Issue::new(
                     IssueKind::UnusedClass,
                     format!(
                         "Unused class, interface or enum {}",
@@ -226,16 +225,41 @@ pub(crate) fn find_unused_definitions(
                         );
                 }
 
+                issue.insertion_start = Some(StmtStart {
+                    offset: classlike_info.def_location.start_offset,
+                    line: classlike_info.def_location.start_line,
+                    column: classlike_info.def_location.start_column,
+                    add_newline: true,
+                });
+
                 if config.can_add_issue(&issue) {
-                    *analysis_result
-                        .issue_counts
-                        .entry(issue.kind.clone())
-                        .or_insert(0) += 1;
-                    analysis_result
-                        .emitted_definition_issues
-                        .entry(pos.file_path)
-                        .or_default()
-                        .push(issue);
+                    if config.add_fixmes {
+                        analysis_result
+                            .replacements
+                            .entry(pos.file_path)
+                            .or_default()
+                            .insert(
+                                (
+                                    classlike_info.def_location.start_offset,
+                                    classlike_info.def_location.start_offset,
+                                ),
+                                Replacement::Substitute(format!(
+                                    "/* HAKANA_FIXME[{}] gen:{} */\n",
+                                    issue.kind.to_string(),
+                                    Utc::now().format("%y%m%d")
+                                )),
+                            );
+                    } else {
+                        *analysis_result
+                            .issue_counts
+                            .entry(issue.kind.clone())
+                            .or_insert(0) += 1;
+                        analysis_result
+                            .emitted_definition_issues
+                            .entry(pos.file_path)
+                            .or_default()
+                            .push(issue);
+                    }
                 }
             } else {
                 let mut classlike_only_used_in_tests = false;
