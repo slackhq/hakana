@@ -487,6 +487,7 @@ fn expand_atomic(
     } else if let TAtomic::TClassTypeConstant {
         class_type,
         member_name,
+        as_type,
     } = return_type_part
     {
         let mut atomic_return_type_parts = vec![];
@@ -507,7 +508,9 @@ fn expand_atomic(
 
         match class_type.as_ref() {
             TAtomic::TNamedObject {
-                name: class_name, ..
+                name: class_name,
+                is_this,
+                ..
             } => {
                 let classlike_storage = if let Some(c) = codebase.classlike_infos.get(class_name) {
                     c
@@ -527,9 +530,27 @@ fn expand_atomic(
                     return;
                 };
 
-                match type_constant {
-                    ClassConstantType::Abstract(Some(mut type_))
-                    | ClassConstantType::Concrete(mut type_) => {
+                let mut is_this = *is_this;
+
+                if is_this {
+                    if let StaticClassType::Object(obj) = options.static_class_type {
+                        if let TAtomic::TNamedObject {
+                            name: new_this_name,
+                            ..
+                        } = obj
+                        {
+                            if !codebase.class_extends_or_implements(new_this_name, class_name) {
+                                is_this = false
+                            }
+                        }
+                    } else {
+                        is_this = false;
+                    }
+                }
+
+                match (is_this, type_constant) {
+                    (_, ClassConstantType::Concrete(mut type_))
+                    | (false, ClassConstantType::Abstract(Some(mut type_))) => {
                         expand_union(codebase, interner, &mut type_, options, data_flow_graph);
 
                         *skip_key = true;
@@ -544,6 +565,11 @@ fn expand_atomic(
                             };
                             v
                         }));
+                    }
+                    (true, ClassConstantType::Abstract(Some(mut type_))) => {
+                        expand_union(codebase, interner, &mut type_, options, data_flow_graph);
+
+                        *as_type = Box::new(type_);
                     }
                     _ => {}
                 };

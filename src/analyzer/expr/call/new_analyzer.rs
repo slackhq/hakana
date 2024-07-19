@@ -13,8 +13,8 @@ use rustc_hash::FxHashMap;
 use crate::expr::call_analyzer::{check_method_args, get_generic_param_for_offset};
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::data_flow::graph::GraphKind;
@@ -200,7 +200,7 @@ fn analyze_atomic(
             }
         }
         TAtomic::TLiteralClassname { name } => *name,
-        TAtomic::TGenericParam { as_type, .. } => {
+        TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. } => {
             let generic_param_type = &as_type.types[0];
             if let TAtomic::TNamedObject { name, .. } = generic_param_type {
                 *name

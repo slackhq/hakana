@@ -10,8 +10,8 @@ use oxidized::{
 };
 
 use crate::{
-    function_analysis_data::FunctionAnalysisData, scope_analyzer::ScopeAnalyzer,
-    scope::BlockContext, statements_analyzer::StatementsAnalyzer,
+    function_analysis_data::FunctionAnalysisData, scope::BlockContext,
+    scope_analyzer::ScopeAnalyzer, statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
 
@@ -97,7 +97,8 @@ pub(crate) fn analyze(
                 }
             }
             TAtomic::TLiteralClassname { name } => *name,
-            TAtomic::TGenericParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. } => {
                 let classlike_name =
                     if let TAtomic::TNamedObject { name, .. } = &as_type.types.first().unwrap() {
                         name

@@ -3,8 +3,8 @@ use std::rc::Rc;
 use crate::expr::expression_identifier;
 use crate::expression_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use hakana_reflection_info::issue::{Issue, IssueKind};
@@ -122,7 +122,8 @@ pub(crate) fn analyze(
                         continue;
                     }
                 }
-                TAtomic::TGenericParam { as_type, .. } => {
+                TAtomic::TGenericParam { as_type, .. }
+                | TAtomic::TClassTypeConstant { as_type, .. } => {
                     class_types.extend(&as_type.types);
                     continue;
                 }

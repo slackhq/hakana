@@ -160,6 +160,7 @@ pub enum TAtomic {
     TClassTypeConstant {
         class_type: Box<TAtomic>,
         member_name: StrId,
+        as_type: Box<TUnion>,
     },
     TEnumClassLabel {
         class_name: Option<StrId>,
@@ -185,9 +186,7 @@ impl TAtomic {
                 refs.push(StrId::AWAITABLE);
                 let mut str = String::new();
                 str += "Awaitable<";
-                str += value
-                    .get_id_with_refs(interner, refs, indent)
-                    .as_str();
+                str += value.get_id_with_refs(interner, refs, indent).as_str();
                 str += ">";
                 str
             }
@@ -1020,22 +1019,33 @@ impl TAtomic {
     }
 
     pub fn replace_template_extends(&self, new_as_type: TUnion) -> TAtomic {
-        if let TAtomic::TGenericParam {
-            param_name,
-            defining_entity,
-            extra_types,
-            ..
-        } = self
-        {
-            return TAtomic::TGenericParam {
-                as_type: Box::new(new_as_type),
-                param_name: *param_name,
-                defining_entity: *defining_entity,
-                extra_types: extra_types.clone(),
-            };
+        match self {
+            TAtomic::TGenericParam {
+                param_name,
+                defining_entity,
+                extra_types,
+                ..
+            } => {
+                return TAtomic::TGenericParam {
+                    as_type: Box::new(new_as_type),
+                    param_name: *param_name,
+                    defining_entity: *defining_entity,
+                    extra_types: extra_types.clone(),
+                };
+            }
+            TAtomic::TClassTypeConstant {
+                class_type,
+                member_name,
+                ..
+            } => {
+                return TAtomic::TClassTypeConstant {
+                    as_type: Box::new(new_as_type),
+                    class_type: class_type.clone(),
+                    member_name: *member_name,
+                };
+            }
+            _ => panic!(),
         }
-
-        panic!()
     }
 
     pub fn get_non_empty_vec(&self, known_count: Option<usize>) -> TAtomic {
@@ -1494,7 +1504,7 @@ impl TAtomic {
                 as_type: Some(as_type),
                 ..
             } => as_type.is_json_compatible(banned_type_aliases),
-            TAtomic::TGenericParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. } => {
                 as_type.is_json_compatible(banned_type_aliases)
             }
             _ => false,

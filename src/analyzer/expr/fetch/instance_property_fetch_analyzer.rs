@@ -7,6 +7,7 @@ use hakana_reflection_info::issue::{Issue, IssueKind};
 use hakana_reflection_info::t_atomic::TAtomic;
 use hakana_reflection_info::EFFECT_READ_PROPS;
 use hakana_type::{add_union_type, get_mixed_any, get_null};
+use itertools::Itertools;
 use oxidized::{
     aast::{self, Expr},
     ast_defs::Pos,
@@ -106,9 +107,24 @@ pub(crate) fn analyze(
     let mut has_nullsafe_null = false;
 
     if let Some(prop_name) = prop_name {
-        let var_atomic_types = &stmt_var_type.types;
-        for lhs_type_part in var_atomic_types {
-            if let TAtomic::TNull = lhs_type_part {
+        let mut var_atomic_types = stmt_var_type.types.iter().collect_vec();
+        while let Some(mut var_atomic_type) = var_atomic_types.pop() {
+            if let TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. } = var_atomic_type
+            {
+                var_atomic_types.extend(&as_type.types);
+                continue;
+            }
+
+            if let TAtomic::TTypeAlias {
+                as_type: Some(as_type),
+                ..
+            } = var_atomic_type
+            {
+                var_atomic_type = as_type.get_single();
+            }
+
+            if let TAtomic::TNull = var_atomic_type {
                 if nullsafe {
                     has_nullsafe_null = true;
                     continue;
@@ -136,7 +152,7 @@ pub(crate) fn analyze(
                 analysis_data,
                 context,
                 in_assignment,
-                lhs_type_part.clone(),
+                var_atomic_type.clone(),
                 &prop_name,
                 &stmt_var_id,
             )?;

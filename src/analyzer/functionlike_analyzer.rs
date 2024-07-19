@@ -960,6 +960,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                             TAtomic::TClassTypeConstant {
                                 class_type,
                                 member_name,
+                                ..
                             } => match class_type.as_ref() {
                                 TAtomic::TNamedObject { name, .. }
                                 | TAtomic::TReference { name, .. } => {

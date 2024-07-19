@@ -179,6 +179,12 @@ pub fn get_mixed_dict() -> TUnion {
     get_dict(get_arraykey(true), get_mixed_any())
 }
 
+pub fn get_mixed_keyset() -> TUnion {
+    wrap_atomic(TAtomic::TKeyset {
+        type_param: Box::new(get_arraykey(true)),
+    })
+}
+
 #[inline]
 pub fn add_optional_union_type(
     base_type: TUnion,
@@ -757,6 +763,7 @@ pub fn get_atomic_syntax_type(
         TAtomic::TClassTypeConstant {
             class_type,
             member_name,
+            ..
         } => {
             let lhs = get_atomic_syntax_type(class_type, codebase, interner, is_valid);
             format!("{}::{}", lhs, interner.lookup(member_name))

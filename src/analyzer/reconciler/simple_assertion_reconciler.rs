@@ -15,8 +15,8 @@ use hakana_reflection_info::{
 use hakana_str::StrId;
 use hakana_type::{
     get_arraykey, get_bool, get_false, get_float, get_int, get_keyset, get_mixed_any,
-    get_mixed_dict, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing, get_null, get_num,
-    get_object, get_scalar, get_string, get_true, intersect_union_types,
+    get_mixed_dict, get_mixed_keyset, get_mixed_maybe_from_loop, get_mixed_vec, get_nothing,
+    get_null, get_num, get_object, get_scalar, get_string, get_true, intersect_union_types,
     template::TemplateBound,
     type_comparator::{
         atomic_type_comparator, type_comparison_result::TypeComparisonResult, union_type_comparator,
@@ -466,13 +466,12 @@ pub(crate) fn intersect_null(
             TAtomic::TNull => {
                 acceptable_types.push(TAtomic::TNull);
             }
-            TAtomic::TMixed
-            | TAtomic::TMixedWithFlags(_, false, _, false)
-            | TAtomic::TClassTypeConstant { .. } => {
+            TAtomic::TMixed | TAtomic::TMixedWithFlags(_, false, _, false) => {
                 acceptable_types.push(TAtomic::TNull);
                 did_remove_type = true;
             }
-            TAtomic::TGenericParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. } => {
                 if as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(get_null());
 
@@ -659,7 +658,8 @@ fn intersect_vec(
             TAtomic::TVec { .. } => {
                 acceptable_types.push(atomic.clone());
             }
-            TAtomic::TGenericParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. } => {
                 if as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(get_mixed_vec());
 
@@ -682,21 +682,12 @@ fn intersect_vec(
 
                 did_remove_type = true;
             }
-            TAtomic::TClassTypeConstant { .. } => {
-                acceptable_types.push(TAtomic::TVec {
-                    known_items: None,
-                    type_param: Box::new(get_mixed_any()),
-                    non_empty: false,
-                    known_count: None,
-                });
-                did_remove_type = true;
-            }
             TAtomic::TTypeVariable { name } => {
                 if let Some(pos) = pos {
                     if let Some((lower_bounds, _)) =
                         analysis_data.type_variable_bounds.get_mut(name)
                     {
-                        let mut bound = TemplateBound::new(get_mixed_dict(), 0, None, None);
+                        let mut bound = TemplateBound::new(get_mixed_vec(), 0, None, None);
                         bound.pos = Some(statements_analyzer.get_hpos(pos));
                         lower_bounds.push(bound);
                     }
@@ -795,8 +786,28 @@ fn intersect_keyset(
             TAtomic::TKeyset { .. } => {
                 acceptable_types.push(atomic.clone());
             }
-            TAtomic::TClassTypeConstant { .. } => {
-                acceptable_types.push(atomic.clone());
+            TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. } => {
+                if as_type.is_mixed() {
+                    let atomic = atomic.replace_template_extends(get_mixed_keyset());
+
+                    acceptable_types.push(atomic);
+                } else {
+                    let atomic = atomic.replace_template_extends(intersect_keyset(
+                        assertion,
+                        as_type,
+                        None,
+                        false,
+                        analysis_data,
+                        statements_analyzer,
+                        pos,
+                        calling_functionlike_id,
+                        is_equality,
+                        suppressed_issues,
+                    ));
+                    acceptable_types.push(atomic);
+                }
+
                 did_remove_type = true;
             }
             TAtomic::TNamedObject {
@@ -881,7 +892,8 @@ fn intersect_dict(
             TAtomic::TDict { .. } => {
                 acceptable_types.push(atomic.clone());
             }
-            TAtomic::TGenericParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. } => {
                 if as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(get_mixed_dict());
 
@@ -902,15 +914,6 @@ fn intersect_dict(
                     acceptable_types.push(atomic);
                 }
 
-                did_remove_type = true;
-            }
-            TAtomic::TClassTypeConstant { .. } => {
-                acceptable_types.push(TAtomic::TDict {
-                    known_items: None,
-                    params: Some((Box::new(get_arraykey(true)), Box::new(get_mixed_any()))),
-                    non_empty: false,
-                    shape_name: None,
-                });
                 did_remove_type = true;
             }
             TAtomic::TTypeVariable { name } => {
@@ -1153,10 +1156,6 @@ fn intersect_string(
             | TAtomic::TArraykey { .. } => {
                 return get_string();
             }
-            TAtomic::TClassTypeConstant { .. } => {
-                acceptable_types.push(TAtomic::TString);
-                did_remove_type = true;
-            }
             TAtomic::TEnumLiteralCase {
                 constraint_type, ..
             } => {
@@ -1176,7 +1175,8 @@ fn intersect_string(
                     return get_string();
                 }
             }
-            TAtomic::TGenericParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. } => {
                 if as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(get_string());
 
@@ -1303,7 +1303,8 @@ fn intersect_int(
             | TAtomic::TMixedFromLoopIsset => {
                 return get_int();
             }
-            TAtomic::TGenericParam { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. } => {
                 if as_type.is_mixed() {
                     let atomic = atomic.replace_template_extends(get_int());
 
@@ -1325,10 +1326,6 @@ fn intersect_int(
                     acceptable_types.push(atomic);
                 }
 
-                did_remove_type = true;
-            }
-            TAtomic::TClassTypeConstant { .. } => {
-                acceptable_types.push(TAtomic::TInt);
                 did_remove_type = true;
             }
             TAtomic::TTypeVariable { name } => {
@@ -2005,7 +2002,8 @@ fn reconcile_has_array_key(
                     did_remove_type = true;
                 }
             }
-            TAtomic::TGenericParam { ref as_type, .. } => {
+            TAtomic::TGenericParam { ref as_type, .. }
+            | TAtomic::TClassTypeConstant { ref as_type, .. } => {
                 if as_type.is_mixed() {
                     acceptable_types.push(atomic);
                 } else {
@@ -2034,8 +2032,7 @@ fn reconcile_has_array_key(
             TAtomic::TMixed
             | TAtomic::TMixedWithFlags(..)
             | TAtomic::TMixedFromLoopIsset
-            | TAtomic::TTypeAlias { .. }
-            | TAtomic::TClassTypeConstant { .. } => {
+            | TAtomic::TTypeAlias { .. } => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }
@@ -2260,7 +2257,8 @@ fn reconcile_has_nonnull_entry_for_key(
                     did_remove_type = true;
                 }
             }
-            TAtomic::TGenericParam { ref as_type, .. } => {
+            TAtomic::TGenericParam { ref as_type, .. }
+            | TAtomic::TClassTypeConstant { ref as_type, .. } => {
                 if as_type.is_mixed() {
                     acceptable_types.push(atomic);
                 } else {
@@ -2290,8 +2288,7 @@ fn reconcile_has_nonnull_entry_for_key(
             TAtomic::TMixed
             | TAtomic::TMixedWithFlags(..)
             | TAtomic::TMixedFromLoopIsset
-            | TAtomic::TTypeAlias { .. }
-            | TAtomic::TClassTypeConstant { .. } => {
+            | TAtomic::TTypeAlias { .. } => {
                 did_remove_type = true;
                 acceptable_types.push(atomic);
             }

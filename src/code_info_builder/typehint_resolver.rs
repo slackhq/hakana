@@ -751,6 +751,7 @@ pub fn get_type_from_hint(
                     } else {
                         return None;
                     },
+                    as_type: Box::new(get_mixed_any()),
                 };
             }
 

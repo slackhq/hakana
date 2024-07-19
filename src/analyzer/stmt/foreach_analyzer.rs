@@ -6,8 +6,8 @@ use crate::{
     },
     expression_analyzer,
     function_analysis_data::FunctionAnalysisData,
-    scope_analyzer::ScopeAnalyzer,
     scope::{loop_scope::LoopScope, BlockContext},
+    scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -22,6 +22,7 @@ use hakana_type::{
     add_optional_union_type, add_union_type, combine_optional_union_types, get_arraykey, get_int,
     get_literal_int, get_literal_string, get_mixed_any, get_nothing,
 };
+use itertools::Itertools;
 use oxidized::{aast, ast_defs};
 
 pub(crate) fn analyze(
@@ -210,7 +211,7 @@ fn check_iterator_type(
     //let mut invalid_iterator_types = vec![];
     //let mut raw_object_types = vec![];
 
-    let mut iterator_atomic_types = iterator_type.types.clone();
+    let mut iterator_atomic_types = iterator_type.types.iter().collect_vec();
 
     let mut key_type = None;
     let mut value_type = None;
@@ -218,8 +219,10 @@ fn check_iterator_type(
     let codebase = statements_analyzer.get_codebase();
 
     while let Some(mut iterator_atomic_type) = iterator_atomic_types.pop() {
-        if let TAtomic::TGenericParam { as_type, .. } = iterator_atomic_type {
-            iterator_atomic_types.extend(as_type.types);
+        if let TAtomic::TGenericParam { as_type, .. }
+        | TAtomic::TClassTypeConstant { as_type, .. } = iterator_atomic_type
+        {
+            iterator_atomic_types.extend(&as_type.types);
             continue;
         }
 
@@ -228,7 +231,7 @@ fn check_iterator_type(
             ..
         } = iterator_atomic_type
         {
-            iterator_atomic_type = as_type.get_single().clone();
+            iterator_atomic_type = as_type.get_single();
         }
 
         match &iterator_atomic_type {
@@ -315,7 +318,7 @@ fn check_iterator_type(
                                     DictKey::Int(var_id) => {
                                         key_param = add_union_type(
                                             key_param,
-                                            &get_literal_int(var_id as i64),
+                                            &get_literal_int(*var_id as i64),
                                             codebase,
                                             false,
                                         );
@@ -329,7 +332,7 @@ fn check_iterator_type(
                                     DictKey::String(var_id) => {
                                         key_param = add_union_type(
                                             key_param,
-                                            &get_literal_string(var_id),
+                                            &get_literal_string(var_id.clone()),
                                             codebase,
                                             false,
                                         );
@@ -398,13 +401,13 @@ fn check_iterator_type(
                         } else {
                             get_int()
                         };
-                        let mut value_param = *type_param;
+                        let mut value_param = (**type_param).clone();
 
                         if let Some(known_items) = known_items {
                             for (offset, (_, known_item)) in known_items {
                                 key_param = add_union_type(
                                     key_param,
-                                    &get_literal_int(offset as i64),
+                                    &get_literal_int(*offset as i64),
                                     codebase,
                                     false,
                                 );
@@ -415,7 +418,9 @@ fn check_iterator_type(
 
                         (key_param, value_param)
                     }
-                    TAtomic::TKeyset { type_param, .. } => ((*type_param).clone(), *type_param),
+                    TAtomic::TKeyset { type_param, .. } => {
+                        ((**type_param).clone(), (**type_param).clone())
+                    }
                     _ => panic!(),
                 };
 
@@ -458,7 +463,7 @@ fn check_iterator_type(
             ..
         } = iterator_atomic_type
         {
-            match name {
+            match *name {
                 StrId::KEYED_CONTAINER | StrId::KEYED_ITERATOR | StrId::KEYED_TRAVERSABLE => {
                     has_valid_iterator = true;
                     key_type = Some(combine_optional_union_types(
