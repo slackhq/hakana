@@ -11,8 +11,8 @@ use crate::{
     expression_analyzer, formula_generator,
     function_analysis_data::FunctionAnalysisData,
     reconciler,
-    scope_analyzer::ScopeAnalyzer,
     scope::{control_action::ControlAction, loop_scope::LoopScope, BlockContext},
+    scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -241,8 +241,7 @@ pub(crate) fn analyze<'a>(
             for (var_id, continue_context_type) in continue_context.locals.clone() {
                 if always_assigned_before_loop_body_vars.contains(&var_id) {
                     // set the vars to whatever the while/foreach loop expects them to be
-                    if let Some(pre_loop_context_type) = pre_loop_context.locals.get(&var_id)
-                    {
+                    if let Some(pre_loop_context_type) = pre_loop_context.locals.get(&var_id) {
                         if continue_context_type != *pre_loop_context_type {
                             different_from_pre_loop_types.insert(var_id.clone());
                             has_changes = true;
@@ -446,8 +445,7 @@ pub(crate) fn analyze<'a>(
             for (var_id, possibly_redefined_var_type) in
                 &cloned_loop_scope.possibly_redefined_loop_parent_vars
             {
-                if let Some(do_context_type) = inner_do_context_inner.locals.get_mut(var_id)
-                {
+                if let Some(do_context_type) = inner_do_context_inner.locals.get_mut(var_id) {
                     *do_context_type = if do_context_type == possibly_redefined_var_type {
                         possibly_redefined_var_type.clone()
                     } else {
@@ -468,9 +466,7 @@ pub(crate) fn analyze<'a>(
             inner_do_context = Some(inner_do_context_inner);
         } else {
             for (var_id, var_type) in &cloned_loop_scope.possibly_redefined_loop_parent_vars {
-                if let Some(loop_parent_context_type) =
-                    loop_parent_context.locals.get_mut(var_id)
-                {
+                if let Some(loop_parent_context_type) = loop_parent_context.locals.get_mut(var_id) {
                     *loop_parent_context_type = Rc::new(combine_union_types(
                         var_type,
                         loop_parent_context_type,
@@ -583,13 +579,9 @@ pub(crate) fn analyze<'a>(
         // if the loop contains an assertion and there are no break statements, we can negate that assertion
         // and apply it to the current context
 
-        let negated_pre_condition_clauses = if let Ok(clauses) =
+        let negated_pre_condition_clauses =
             hakana_algebra::negate_formula(pre_condition_clauses.into_iter().flatten().collect())
-        {
-            clauses
-        } else {
-            vec![]
-        };
+                .unwrap_or_default();
 
         let (negated_pre_condition_types, _) = hakana_algebra::get_truths_from_formula(
             negated_pre_condition_clauses.iter().collect(),

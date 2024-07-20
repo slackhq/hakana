@@ -1025,25 +1025,21 @@ impl TAtomic {
                 defining_entity,
                 extra_types,
                 ..
-            } => {
-                return TAtomic::TGenericParam {
-                    as_type: Box::new(new_as_type),
-                    param_name: *param_name,
-                    defining_entity: *defining_entity,
-                    extra_types: extra_types.clone(),
-                };
-            }
+            } => TAtomic::TGenericParam {
+                as_type: Box::new(new_as_type),
+                param_name: *param_name,
+                defining_entity: *defining_entity,
+                extra_types: extra_types.clone(),
+            },
             TAtomic::TClassTypeConstant {
                 class_type,
                 member_name,
                 ..
-            } => {
-                return TAtomic::TClassTypeConstant {
-                    as_type: Box::new(new_as_type),
-                    class_type: class_type.clone(),
-                    member_name: *member_name,
-                };
-            }
+            } => TAtomic::TClassTypeConstant {
+                as_type: Box::new(new_as_type),
+                class_type: class_type.clone(),
+                member_name: *member_name,
+            },
             _ => panic!(),
         }
     }
@@ -1504,7 +1500,8 @@ impl TAtomic {
                 as_type: Some(as_type),
                 ..
             } => as_type.is_json_compatible(banned_type_aliases),
-            TAtomic::TGenericParam { as_type, .. } | TAtomic::TClassTypeConstant { as_type, .. } => {
+            TAtomic::TGenericParam { as_type, .. }
+            | TAtomic::TClassTypeConstant { as_type, .. } => {
                 as_type.is_json_compatible(banned_type_aliases)
             }
             _ => false,

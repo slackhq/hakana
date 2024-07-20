@@ -3,9 +3,9 @@ use std::rc::Rc;
 
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler::{self, assertion_reconciler};
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::if_scope::IfScope;
 use crate::scope::{var_has_root, BlockContext};
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt::if_conditional_analyzer::{self, add_branch_dataflow};
 use crate::stmt_analyzer::AnalysisError;
@@ -71,11 +71,7 @@ pub(crate) fn analyze(
         false,
     );
 
-    let mut if_clauses = if let Ok(if_clauses) = if_clauses {
-        if_clauses
-    } else {
-        vec![]
-    };
+    let mut if_clauses = if_clauses.unwrap_or_default();
 
     if if_clauses.len() > 200 {
         if_clauses = Vec::new();
@@ -169,7 +165,7 @@ pub(crate) fn analyze(
     if let Ok(negated_if_clauses) = hakana_algebra::negate_formula(if_clauses) {
         if_scope.negated_clauses = negated_if_clauses;
     } else {
-        if_scope.negated_clauses = if let Ok(new_negated_clauses) = formula_generator::get_formula(
+        if_scope.negated_clauses = formula_generator::get_formula(
             cond_object_id,
             cond_object_id,
             &aast::Expr(
@@ -181,11 +177,8 @@ pub(crate) fn analyze(
             analysis_data,
             false,
             false,
-        ) {
-            new_negated_clauses
-        } else {
-            Vec::new()
-        };
+        )
+        .unwrap_or_default();
     }
 
     let negated_clauses = hakana_algebra::simplify_cnf({
@@ -367,10 +360,7 @@ pub(crate) fn analyze(
     //these vars were changed in the if and existed before
     for redef_var_ifs_id in &redef_var_ifs {
         if context.locals.contains_key(redef_var_ifs_id) {
-            if temp_else_context
-                .locals
-                .contains_key(redef_var_ifs_id)
-            {
+            if temp_else_context.locals.contains_key(redef_var_ifs_id) {
                 context.locals.insert(
                     redef_var_ifs_id.clone(),
                     Rc::new(combine_union_types(

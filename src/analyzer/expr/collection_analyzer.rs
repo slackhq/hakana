@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, str::FromStr, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
 use hakana_reflection_info::{
     data_flow::{
@@ -40,28 +40,6 @@ impl ArrayCreationInfo {
             parent_nodes: Vec::new(),
             known_items: Vec::new(),
             effects: 0,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-enum TContainerType {
-    Vec,
-    Dict,
-    Keyset,
-    Vector,
-}
-
-impl FromStr for TContainerType {
-    type Err = ();
-
-    fn from_str(input: &str) -> Result<TContainerType, Self::Err> {
-        match input {
-            "vec" => Ok(TContainerType::Vec),
-            "dict" => Ok(TContainerType::Dict),
-            "keyset" => Ok(TContainerType::Keyset),
-            "Vector" => Ok(TContainerType::Vector),
-            _ => Err(()),
         }
     }
 }

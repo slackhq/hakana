@@ -324,7 +324,7 @@ fn check_iterator_type(
                                         );
                                         value_param = add_union_type(
                                             value_param,
-                                            &known_item,
+                                            known_item,
                                             codebase,
                                             false,
                                         );
@@ -338,7 +338,7 @@ fn check_iterator_type(
                                         );
                                         value_param = add_union_type(
                                             value_param,
-                                            &known_item,
+                                            known_item,
                                             codebase,
                                             false,
                                         );
@@ -346,7 +346,7 @@ fn check_iterator_type(
                                     DictKey::Enum(enum_name, member_name) => {
                                         if let Some(literal_value) = statements_analyzer
                                             .get_codebase()
-                                            .get_classconst_literal_value(&enum_name, &member_name)
+                                            .get_classconst_literal_value(enum_name, member_name)
                                         {
                                             if let Some(value) =
                                                 literal_value.get_literal_string_value()
@@ -359,7 +359,7 @@ fn check_iterator_type(
                                                 );
                                                 value_param = add_union_type(
                                                     value_param,
-                                                    &known_item,
+                                                    known_item,
                                                     codebase,
                                                     false,
                                                 );
@@ -374,7 +374,7 @@ fn check_iterator_type(
                                                 );
                                                 value_param = add_union_type(
                                                     value_param,
-                                                    &known_item,
+                                                    known_item,
                                                     codebase,
                                                     false,
                                                 );
@@ -412,7 +412,7 @@ fn check_iterator_type(
                                     false,
                                 );
                                 value_param =
-                                    add_union_type(value_param, &known_item, codebase, false);
+                                    add_union_type(value_param, known_item, codebase, false);
                             }
                         }
 

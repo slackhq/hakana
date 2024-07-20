@@ -15,8 +15,8 @@ use crate::expr::call_analyzer::get_generic_param_for_offset;
 use crate::expr::expression_identifier::{self, get_var_id};
 use crate::expr::fetch::array_fetch_analyzer::add_array_fetch_dataflow;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expression_analyzer, functionlike_analyzer};
@@ -796,43 +796,40 @@ fn handle_closure_arg(
             GraphKind::WholeProgram(_)
         ) || !statements_analyzer.get_config().in_migration
         {
-            if let FunctionLikeIdentifier::Function(function_name) = functionlike_id {
-                match *function_name {
-                    StrId::LIB_VEC_MAP
-                    | StrId::LIB_DICT_MAP
-                    | StrId::LIB_KEYSET_MAP
-                    | StrId::LIB_VEC_MAP_ASYNC
-                    | StrId::LIB_DICT_MAP_ASYNC
-                    | StrId::LIB_KEYSET_MAP_ASYNC
-                    | StrId::LIB_VEC_FILTER
-                    | StrId::LIB_DICT_FILTER
-                    | StrId::LIB_KEYSET_FILTER
-                    | StrId::LIB_VEC_TAKE
-                    | StrId::LIB_DICT_TAKE
-                    | StrId::LIB_KEYSET_TAKE
-                    | StrId::LIB_C_FIND
-                    | StrId::LIB_C_FINDX
-                    | StrId::LIB_VEC_MAP_WITH_KEY
-                    | StrId::LIB_DICT_MAP_WITH_KEY
-                    | StrId::LIB_KEYSET_MAP_WITH_KEY
-                    | StrId::LIB_DICT_MAP_WITH_KEY_ASYNC
-                    | StrId::LIB_DICT_FROM_KEYS
-                    | StrId::LIB_DICT_FROM_KEYS_ASYNC => {
-                        if param_offset == 0 {
-                            if let Some(ref mut signature_type) = param_storage.signature_type {
-                                add_array_fetch_dataflow(
-                                    statements_analyzer,
-                                    args[0].1.pos(),
-                                    analysis_data,
-                                    None,
-                                    signature_type,
-                                    &mut get_arraykey(false),
-                                );
-                            }
-                        }
+            if let FunctionLikeIdentifier::Function(
+                StrId::LIB_VEC_MAP
+                | StrId::LIB_DICT_MAP
+                | StrId::LIB_KEYSET_MAP
+                | StrId::LIB_VEC_MAP_ASYNC
+                | StrId::LIB_DICT_MAP_ASYNC
+                | StrId::LIB_KEYSET_MAP_ASYNC
+                | StrId::LIB_VEC_FILTER
+                | StrId::LIB_DICT_FILTER
+                | StrId::LIB_KEYSET_FILTER
+                | StrId::LIB_VEC_TAKE
+                | StrId::LIB_DICT_TAKE
+                | StrId::LIB_KEYSET_TAKE
+                | StrId::LIB_C_FIND
+                | StrId::LIB_C_FINDX
+                | StrId::LIB_VEC_MAP_WITH_KEY
+                | StrId::LIB_DICT_MAP_WITH_KEY
+                | StrId::LIB_KEYSET_MAP_WITH_KEY
+                | StrId::LIB_DICT_MAP_WITH_KEY_ASYNC
+                | StrId::LIB_DICT_FROM_KEYS
+                | StrId::LIB_DICT_FROM_KEYS_ASYNC,
+            ) = functionlike_id
+            {
+                if param_offset == 0 {
+                    if let Some(ref mut signature_type) = param_storage.signature_type {
+                        add_array_fetch_dataflow(
+                            statements_analyzer,
+                            args[0].1.pos(),
+                            analysis_data,
+                            None,
+                            signature_type,
+                            &mut get_arraykey(false),
+                        );
                     }
-
-                    _ => {}
                 }
             }
         }

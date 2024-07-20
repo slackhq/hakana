@@ -181,7 +181,7 @@ pub(crate) fn analyze(
     if let Ok(negated_if_clauses) = hakana_algebra::negate_formula(if_clauses) {
         if_scope.negated_clauses = negated_if_clauses;
     } else {
-        if_scope.negated_clauses = if let Ok(new_negated_clauses) = formula_generator::get_formula(
+        if_scope.negated_clauses = formula_generator::get_formula(
             cond_object_id,
             cond_object_id,
             &aast::Expr(
@@ -193,11 +193,8 @@ pub(crate) fn analyze(
             analysis_data,
             false,
             false,
-        ) {
-            new_negated_clauses
-        } else {
-            Vec::new()
-        };
+        )
+        .unwrap_or_default();
     }
 
     let (new_negated_types, _) = hakana_algebra::get_truths_from_formula(
@@ -324,9 +321,7 @@ pub(crate) fn analyze(
             );
 
             if_scope.updated_vars.insert(var_id.clone());
-            context
-                .locals
-                .insert(var_id.clone(), Rc::new(var_type));
+            context.locals.insert(var_id.clone(), Rc::new(var_type));
         }
     }
 
@@ -366,9 +361,7 @@ pub(crate) fn analyze(
                     &mut existing_var_type.parent_nodes,
                     var_type.parent_nodes,
                 );
-                context
-                    .locals
-                    .insert(var_id, Rc::new(existing_var_type));
+                context.locals.insert(var_id, Rc::new(existing_var_type));
             }
         }
     }

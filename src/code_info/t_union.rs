@@ -299,13 +299,13 @@ impl TUnion {
         let all_child_nodes = self.get_all_child_nodes();
 
         for child_node in all_child_nodes {
-            if let TypeNode::Atomic(inner) = child_node {
-                if let TAtomic::TGenericParam { .. }
+            if let TypeNode::Atomic(
+                TAtomic::TGenericParam { .. }
                 | TAtomic::TGenericClassname { .. }
-                | TAtomic::TGenericTypename { .. } = inner
-                {
-                    return true;
-                }
+                | TAtomic::TGenericTypename { .. },
+            ) = child_node
+            {
+                return true;
             }
         }
 

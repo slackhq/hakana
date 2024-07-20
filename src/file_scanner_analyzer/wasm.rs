@@ -40,16 +40,13 @@ pub fn scan_and_analyze_single_file(
 
     let mut interner = ThreadedInterner::new(Arc::new(Mutex::new(interner.clone())));
 
-    let resolved_names = if let Ok(resolved_names) = scan_single_file(
+    let resolved_names = scan_single_file(
         codebase,
         &mut interner,
         file_name.clone(),
         file_contents.clone(),
-    ) {
-        resolved_names
-    } else {
-        FxHashMap::default()
-    };
+    )
+    .unwrap_or_default();
 
     let interner = Arc::try_unwrap(interner.parent)
         .unwrap()
