@@ -22,13 +22,6 @@ pub struct VirtualFileSystem {
 }
 
 impl VirtualFileSystem {
-    pub fn get_contents_hash(&self, file_path: &String) -> Result<u64, std::io::Error> {
-        match fs::read_to_string(file_path) {
-            Ok(file_contents) => Ok(xxhash_rust::xxh3::xxh3_64(file_contents.as_bytes())),
-            Err(error) => Err(error),
-        }
-    }
-
     pub(crate) fn apply_language_server_changes(
         &mut self,
         language_server_changes: FxHashMap<String, FileStatus>,
@@ -265,7 +258,7 @@ impl VirtualFileSystem {
                             if old_update_time == &updated_time {
                                 *old_contents_hash
                             } else if calculate_file_hashes {
-                                self.get_contents_hash(&str_path).unwrap_or(0)
+                                get_file_contents_hash(&str_path).unwrap_or(0)
                             } else {
                                 0
                             }
@@ -273,7 +266,7 @@ impl VirtualFileSystem {
                             0
                         }
                     } else if calculate_file_hashes {
-                        self.get_contents_hash(&str_path).unwrap_or(0)
+                        get_file_contents_hash(&str_path).unwrap_or(0)
                     } else {
                         0
                     };
@@ -295,5 +288,12 @@ impl VirtualFileSystem {
                 }
             }
         }
+    }
+}
+
+pub fn get_file_contents_hash(file_path: &String) -> Result<u64, std::io::Error> {
+    match fs::read_to_string(file_path) {
+        Ok(file_contents) => Ok(xxhash_rust::xxh3::xxh3_64(file_contents.as_bytes())),
+        Err(error) => Err(error),
     }
 }

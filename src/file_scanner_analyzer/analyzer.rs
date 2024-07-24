@@ -1,3 +1,4 @@
+use crate::file::get_file_contents_hash;
 use crate::{get_aast_for_path, update_progressbar, SuccessfulScanData};
 use hakana_analyzer::config::Config;
 use hakana_analyzer::file_analyzer;
@@ -108,11 +109,7 @@ pub fn analyze_files(
                     file_analysis_time += analyze_file(
                         file_path,
                         str_path,
-                        scan_data
-                            .file_system
-                            .file_hashes_and_times
-                            .get(&file_path)
-                            .map(|k| k.1),
+                        scan_data.file_system.file_hashes_and_times.get(&file_path),
                         codebase,
                         interner,
                         &analysis_config,
@@ -155,7 +152,7 @@ pub fn analyze_files(
 fn analyze_file(
     file_path: FilePath,
     str_path: &String,
-    last_updated_time: Option<u64>,
+    last_hash_and_time: Option<&(u64, u64)>,
     codebase: &CodebaseInfo,
     interner: &Interner,
     config: &Arc<Config>,
@@ -173,9 +170,12 @@ fn analyze_file(
             .unwrap()
             .as_micros() as u64;
 
-        if let Some(last_updated_time) = last_updated_time {
-            if updated_time != last_updated_time {
+        if let Some((file_hash, last_updated_time)) = last_hash_and_time {
+            if updated_time != *last_updated_time
+                && get_file_contents_hash(&str_path).unwrap_or(0) != *file_hash
+            {
                 analysis_result.has_invalid_hack_files = true;
+                analysis_result.changed_during_analysis_files.insert(file_path);
                 analysis_result.emitted_issues.insert(
                     file_path,
                     vec![Issue::new(

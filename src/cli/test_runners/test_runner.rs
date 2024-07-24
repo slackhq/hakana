@@ -255,6 +255,7 @@ impl TestRunner {
             previous_scan_data,
             previous_analysis_result,
             None,
+            || {},
         );
 
         if dir.contains("/migrations/")
@@ -445,14 +446,22 @@ impl TestRunner {
 
         let workdir_base = dir.clone() + "/workdir";
 
-        let mut folders = vec![dir.clone() + "/a", dir.clone() + "/b"];
+        let mut folders = vec![(dir.clone() + "/a", false)];
+
+        if Path::new(&(dir.clone() + "/a-before-analysis")).exists() {
+            folders[0].1 = true;
+        }
+
+        if Path::new(&(dir.clone() + "/b")).exists() {
+            folders.push((dir.clone() + "/b", false));
+        }
 
         if Path::new(&(dir.clone() + "/c")).exists() {
-            folders.push(dir.clone() + "/c");
+            folders.push((dir.clone() + "/c", false));
         }
 
         if Path::new(&(dir.clone() + "/d")).exists() {
-            folders.push(dir.clone() + "/d");
+            folders.push((dir.clone() + "/d", false));
         }
 
         let mut previous_scan_data = None;
@@ -469,7 +478,7 @@ impl TestRunner {
             stub_dirs.push(cwd.clone() + "/third-party/xhp-lib/src");
         }
 
-        for folder in folders {
+        for (folder, change_after_scan) in folders {
             copy_recursively(folder.clone(), workdir_base.clone()).unwrap();
 
             let run_result = hakana_workhorse::scan_and_analyze(
@@ -488,6 +497,12 @@ impl TestRunner {
                 previous_scan_data,
                 previous_analysis_result,
                 None,
+                || {
+                    if change_after_scan {
+                        copy_recursively(folder.clone() + "-before-analysis", workdir_base.clone())
+                            .unwrap();
+                    }
+                },
             );
 
             fs::remove_dir_all(&workdir_base).unwrap();

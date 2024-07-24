@@ -14,15 +14,22 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use std::sync::Arc;
 
+use crate::file::VirtualFileSystem;
+
 pub(crate) fn find_unused_definitions(
     analysis_result: &mut AnalysisResult,
     config: &Arc<Config>,
-    codebase: &CodebaseInfo,
+    codebase: &mut CodebaseInfo,
     interner: &Interner,
     ignored_paths: &Option<FxHashSet<String>>,
+    file_system: &mut VirtualFileSystem,
 ) {
     // don’t show unused definitions if we have any invalid Hack files
     if analysis_result.has_invalid_hack_files {
+        for file_path in &analysis_result.changed_during_analysis_files {
+            file_system.file_hashes_and_times.remove(file_path);
+            codebase.files.remove(file_path);
+        }
         return;
     }
 

@@ -686,7 +686,9 @@ fn do_fix(
     let mut interner = Interner::default();
 
     if config_path.exists() {
-        config.update_from_file(&cwd, config_path, &mut interner).ok();
+        config
+            .update_from_file(&cwd, config_path, &mut interner)
+            .ok();
     }
 
     config.allowed_issues = None;
@@ -704,6 +706,7 @@ fn do_fix(
         None,
         None,
         None,
+        || {},
     );
 
     if let Ok((mut analysis_result, successfull_run_data)) = result {
@@ -737,7 +740,9 @@ fn do_remove_unused_fixmes(
     let mut interner = Interner::default();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path, &mut interner).ok();
+        config
+            .update_from_file(cwd, config_path, &mut interner)
+            .ok();
     }
     config.allowed_issues = None;
 
@@ -759,6 +764,7 @@ fn do_remove_unused_fixmes(
         None,
         None,
         None,
+        || {},
     );
 
     if let Ok((mut analysis_result, successful_run_data)) = result {
@@ -814,7 +820,9 @@ fn do_add_fixmes(
     let mut interner = Interner::default();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path, &mut interner).ok();
+        config
+            .update_from_file(cwd, config_path, &mut interner)
+            .ok();
     }
     config.allowed_issues = None;
 
@@ -833,6 +841,7 @@ fn do_add_fixmes(
         None,
         None,
         None,
+        || {},
     );
 
     if let Ok((mut analysis_result, successful_run_data)) = result {
@@ -880,7 +889,9 @@ fn do_migrate(
     let mut interner = Interner::default();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path, &mut interner).ok();
+        config
+            .update_from_file(cwd, config_path, &mut interner)
+            .ok();
     }
     config.allowed_issues = None;
 
@@ -921,6 +932,7 @@ fn do_migrate(
         None,
         None,
         None,
+        || {},
     );
 
     if let Ok((mut analysis_result, successful_run_data)) = result {
@@ -969,7 +981,9 @@ fn do_migration_candidates(
     let mut interner = Interner::default();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path, &mut interner).ok();
+        config
+            .update_from_file(cwd, config_path, &mut interner)
+            .ok();
     }
     config.allowed_issues = None;
 
@@ -990,6 +1004,7 @@ fn do_migration_candidates(
         None,
         None,
         None,
+        || {},
     );
 
     if let Ok(result) = result {
@@ -1047,7 +1062,9 @@ fn do_codegen(
     let mut interner = Interner::default();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path, &mut interner).ok();
+        config
+            .update_from_file(cwd, config_path, &mut interner)
+            .ok();
     }
     config.allowed_issues = None;
 
@@ -1066,6 +1083,7 @@ fn do_codegen(
         None,
         None,
         None,
+        || {},
     );
 
     if let Ok(result) = result {
@@ -1159,7 +1177,9 @@ fn do_find_paths(
     let mut interner = Interner::default();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path, &mut interner).ok();
+        config
+            .update_from_file(cwd, config_path, &mut interner)
+            .ok();
     }
     config.allowed_issues = None;
 
@@ -1187,6 +1207,7 @@ fn do_find_paths(
         None,
         None,
         None,
+        || {},
     );
 
     if let Ok((analysis_result, successful_run_data)) = result {
@@ -1224,7 +1245,9 @@ fn do_security_check(
     let mut interner = Interner::default();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path, &mut interner).ok();
+        config
+            .update_from_file(cwd, config_path, &mut interner)
+            .ok();
     }
     config.allowed_issues = None;
 
@@ -1254,6 +1277,7 @@ fn do_security_check(
         None,
         None,
         None,
+        || {},
     );
 
     if let Ok((analysis_result, successful_run_data)) = result {
@@ -1345,7 +1369,9 @@ fn do_analysis(
     let mut interner = Interner::default();
 
     if config_path.exists() {
-        config.update_from_file(cwd, config_path, &mut interner).ok();
+        config
+            .update_from_file(cwd, config_path, &mut interner)
+            .ok();
     }
 
     // do this after we've loaded from file, as they can be overridden
@@ -1374,6 +1400,7 @@ fn do_analysis(
         None,
         None,
         None,
+        || {},
     );
 
     if let Ok((analysis_result, successful_run_data)) = result {

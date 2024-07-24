@@ -184,7 +184,7 @@ pub async fn scan_and_analyze_async(
 
     let mut analysis_result = (*analysis_result.lock().unwrap()).clone();
 
-    let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
+    let mut scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
 
     add_invalid_files(&scan_data, &mut analysis_result);
 
@@ -192,16 +192,17 @@ pub async fn scan_and_analyze_async(
         find_unused_definitions(
             &mut analysis_result,
             &config,
-            &scan_data.codebase,
+            &mut scan_data.codebase,
             &scan_data.interner,
             &ignored_paths,
+            &mut scan_data.file_system,
         );
     }
 
     Ok((analysis_result, scan_data))
 }
 
-pub fn scan_and_analyze(
+pub fn scan_and_analyze<F: FnOnce() -> ()>(
     stubs_dirs: Vec<String>,
     filter: Option<String>,
     ignored_paths: Option<FxHashSet<String>>,
@@ -214,6 +215,7 @@ pub fn scan_and_analyze(
     previous_scan_data: Option<SuccessfulScanData>,
     previous_analysis_result: Option<AnalysisResult>,
     language_server_changes: Option<FxHashMap<String, FileStatus>>,
+    chaos_monkey: F,
 ) -> io::Result<(AnalysisResult, SuccessfulScanData)> {
     let mut all_scanned_dirs = stubs_dirs.clone();
     all_scanned_dirs.push(config.root_dir.clone());
@@ -319,6 +321,8 @@ pub fn scan_and_analyze(
 
     let mut pure_file_analysis_time = Duration::default();
 
+    chaos_monkey();
+
     analyze_files(
         files_to_analyze,
         arc_scan_data.clone(),
@@ -344,7 +348,7 @@ pub fn scan_and_analyze(
 
     cache_analysis_data(cache_dir, &analysis_result)?;
 
-    let scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
+    let mut scan_data = Arc::try_unwrap(arc_scan_data).unwrap();
 
     add_invalid_files(&scan_data, &mut analysis_result);
 
@@ -352,9 +356,10 @@ pub fn scan_and_analyze(
         find_unused_definitions(
             &mut analysis_result,
             &config,
-            &scan_data.codebase,
+            &mut scan_data.codebase,
             &scan_data.interner,
             &ignored_paths,
+            &mut scan_data.file_system,
         );
     }
 

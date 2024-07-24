@@ -6,7 +6,10 @@ use serde::Serialize;
 
 use crate::{
     code_location::FilePath,
-    data_flow::{graph::{DataFlowGraph, GraphKind}, node::DataFlowNodeId},
+    data_flow::{
+        graph::{DataFlowGraph, GraphKind},
+        node::DataFlowNodeId,
+    },
     function_context::FunctionLikeIdentifier,
     issue::{Issue, IssueKind},
     symbol_references::SymbolReferences,
@@ -35,6 +38,7 @@ pub struct AnalysisResult {
     pub time_in_analysis: Duration,
     pub functions_to_migrate: FxHashMap<FunctionLikeIdentifier, bool>,
     pub has_invalid_hack_files: bool,
+    pub changed_during_analysis_files: FxHashSet<FilePath>,
 }
 
 impl AnalysisResult {
@@ -55,6 +59,7 @@ impl AnalysisResult {
             functions_to_migrate: FxHashMap::default(),
             codegen: BTreeMap::default(),
             has_invalid_hack_files: false,
+            changed_during_analysis_files: FxHashSet::default(),
         }
     }
 
@@ -78,6 +83,7 @@ impl AnalysisResult {
         }
         self.functions_to_migrate.extend(other.functions_to_migrate);
         self.codegen.extend(other.codegen);
+        self.changed_during_analysis_files.extend(other.changed_during_analysis_files);
         self.has_invalid_hack_files = self.has_invalid_hack_files || other.has_invalid_hack_files;
     }
 
