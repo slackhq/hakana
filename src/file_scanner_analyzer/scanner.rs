@@ -286,145 +286,98 @@ pub fn scan_files(
                 .push(str_path);
         }
 
-        if path_groups.len() == 1 {
-            let mut new_codebase = CodebaseInfo::new();
-            let mut new_interner = ThreadedInterner::new(interner.clone());
-            let empty_name_context = NameContext::new(&mut new_interner);
+        let mut handles = vec![];
 
-            let analyze_map = files_to_analyze.iter().collect::<FxHashSet<_>>();
+        let thread_codebases = Arc::new(Mutex::new(vec![]));
 
-            for (i, file_path) in path_groups[&0].iter().enumerate() {
-                let str_path = new_interner
-                    .parent
-                    .lock()
-                    .unwrap()
-                    .lookup(&file_path.0)
-                    .to_string();
+        for (_, path_group) in path_groups {
+            let pgc = path_group.iter().map(|c| *(*c)).collect::<Vec<_>>();
 
-                match scan_file(
-                    &str_path,
-                    **file_path,
-                    &config.all_custom_issues,
-                    &mut new_codebase,
-                    &mut new_interner,
-                    empty_name_context.clone(),
-                    analyze_map.contains(&str_path),
-                    !config.test_files.iter().any(|p| p.matches(&str_path)),
-                    &logger,
-                ) {
-                    Ok(scanner_result) => {
-                        resolved_names
-                            .lock()
-                            .unwrap()
-                            .insert(**file_path, scanner_result);
-                    }
-                    Err(parser_error) => {
-                        resolved_names.lock().unwrap().remove(*file_path);
-                        new_codebase.files.insert(
-                            **file_path,
-                            FileInfo {
-                                parser_error: Some(parser_error),
-                                ..FileInfo::default()
-                            },
-                        );
-                        invalid_files.lock().unwrap().push(**file_path);
-                    }
-                }
+            let codebases = thread_codebases.clone();
 
-                update_progressbar(i as u64, bar.clone());
-            }
+            let bar = bar.clone();
+            let files_processed = files_processed.clone();
 
-            if config.ast_diff {
-                codebase_diff.extend(get_diff(&existing_changed_files, &new_codebase.files));
-            }
+            let analyze_map = files_to_analyze
+                .clone()
+                .into_iter()
+                .collect::<FxHashSet<_>>();
 
-            codebase.extend(new_codebase);
-        } else {
-            let mut handles = vec![];
+            let interner = interner.clone();
 
-            let thread_codebases = Arc::new(Mutex::new(vec![]));
+            let resolved_names = resolved_names.clone();
 
-            for (_, path_group) in path_groups {
-                let pgc = path_group.iter().map(|c| *(*c)).collect::<Vec<_>>();
+            let config = config.clone();
+            let logger = logger.clone();
+            let invalid_files = invalid_files.clone();
 
-                let codebases = thread_codebases.clone();
+            let handle = std::thread::spawn(move || {
+                let mut new_codebase = CodebaseInfo::new();
+                let mut new_interner = ThreadedInterner::new(interner);
+                let empty_name_context = NameContext::new(&mut new_interner);
+                let mut local_resolved_names = FxHashMap::default();
 
-                let bar = bar.clone();
-                let files_processed = files_processed.clone();
+                for file_path in &pgc {
+                    let str_path = new_interner
+                        .parent
+                        .lock()
+                        .unwrap()
+                        .lookup(&file_path.0)
+                        .to_string();
 
-                let analyze_map = files_to_analyze
-                    .clone()
-                    .into_iter()
-                    .collect::<FxHashSet<_>>();
-
-                let interner = interner.clone();
-
-                let resolved_names = resolved_names.clone();
-
-                let config = config.clone();
-                let logger = logger.clone();
-                let invalid_files = invalid_files.clone();
-
-                let handle = std::thread::spawn(move || {
-                    let mut new_codebase = CodebaseInfo::new();
-                    let mut new_interner = ThreadedInterner::new(interner);
-                    let empty_name_context = NameContext::new(&mut new_interner);
-                    let mut local_resolved_names = FxHashMap::default();
-
-                    for file_path in &pgc {
-                        let str_path = new_interner
-                            .parent
-                            .lock()
-                            .unwrap()
-                            .lookup(&file_path.0)
-                            .to_string();
-
-                        if let Ok(scanner_result) = scan_file(
-                            &str_path,
-                            *file_path,
-                            &config.all_custom_issues,
-                            &mut new_codebase,
-                            &mut new_interner,
-                            empty_name_context.clone(),
-                            analyze_map.contains(&str_path),
-                            !config.test_files.iter().any(|p| p.matches(&str_path)),
-                            &logger.clone(),
-                        ) {
+                    match scan_file(
+                        &str_path,
+                        *file_path,
+                        &config.all_custom_issues,
+                        &mut new_codebase,
+                        &mut new_interner,
+                        empty_name_context.clone(),
+                        analyze_map.contains(&str_path),
+                        !config.test_files.iter().any(|p| p.matches(&str_path)),
+                        &logger.clone(),
+                    ) {
+                        Ok(scanner_result) => {
                             local_resolved_names.insert(*file_path, scanner_result);
-                        } else {
+                        }
+                        Err(parser_error) => {
                             local_resolved_names.remove(file_path);
-                            new_codebase.files.insert(*file_path, FileInfo::default());
+                            new_codebase.files.insert(
+                                *file_path,
+                                FileInfo {
+                                    parser_error: Some(parser_error),
+                                    ..FileInfo::default()
+                                },
+                            );
                             invalid_files.lock().unwrap().push(*file_path);
-                        };
+                        }
+                    };
 
-                        let mut tally = files_processed.lock().unwrap();
-                        *tally += 1;
+                    let mut tally = files_processed.lock().unwrap();
+                    *tally += 1;
 
-                        update_progressbar(*tally, bar.clone());
-                    }
-
-                    resolved_names.lock().unwrap().extend(local_resolved_names);
-
-                    let mut codebases = codebases.lock().unwrap();
-                    codebases.push(new_codebase);
-                });
-
-                handles.push(handle);
-            }
-
-            for handle in handles {
-                handle.join().unwrap();
-            }
-
-            if let Ok(thread_codebases) = Arc::try_unwrap(thread_codebases) {
-                for thread_codebase in thread_codebases.into_inner().unwrap().into_iter() {
-                    if config.ast_diff {
-                        codebase_diff
-                            .extend(get_diff(&existing_changed_files, &thread_codebase.files));
-                    }
-
-                    codebase.extend(thread_codebase.clone());
+                    update_progressbar(*tally, bar.clone());
                 }
+
+                resolved_names.lock().unwrap().extend(local_resolved_names);
+
+                let mut codebases = codebases.lock().unwrap();
+                codebases.push(new_codebase);
+            });
+
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        if let Ok(thread_codebases) = Arc::try_unwrap(thread_codebases) {
+            for thread_codebase in thread_codebases.into_inner().unwrap().into_iter() {
+                if config.ast_diff {
+                    codebase_diff.extend(get_diff(&existing_changed_files, &thread_codebase.files));
+                }
+
+                codebase.extend(thread_codebase.clone());
             }
         }
 

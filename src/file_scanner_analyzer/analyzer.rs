@@ -69,115 +69,81 @@ pub fn analyze_files(
         None
     };
 
-    if path_groups.len() == 1 {
-        let codebase = &scan_data.codebase;
-        let interner = &scan_data.interner;
-        let resolved_names = &scan_data.resolved_names;
+    let mut handles = vec![];
 
-        let mut new_analysis_result =
-            AnalysisResult::new(config.graph_kind, SymbolReferences::new());
+    let files_processed = Arc::new(Mutex::new(0));
 
-        for (i, str_path) in path_groups[&0].iter().enumerate() {
-            let file_path = FilePath(interner.get(str_path).unwrap());
-            if let Some(resolved_names) = resolved_names.get(&file_path) {
-                *file_analysis_time += analyze_file(
-                    file_path,
-                    str_path,
-                    scan_data
-                        .file_system
-                        .file_hashes_and_times
-                        .get(&file_path)
-                        .map(|k| k.1),
-                    codebase,
-                    interner,
-                    &config,
-                    &mut new_analysis_result,
-                    resolved_names,
-                    &logger,
-                );
-            }
+    let arc_file_analysis_time = Arc::new(Mutex::new(Duration::default()));
 
-            update_progressbar(i as u64, bar.clone());
-        }
+    for (_, path_group) in path_groups {
+        let scan_data = scan_data.clone();
 
-        analysis_result.lock().unwrap().extend(new_analysis_result);
-    } else {
-        let mut handles = vec![];
+        let pgc = path_group.iter().map(|c| (*c).clone()).collect::<Vec<_>>();
 
-        let files_processed = Arc::new(Mutex::new(0));
+        let analysis_result = analysis_result.clone();
 
-        let arc_file_analysis_time = Arc::new(Mutex::new(Duration::default()));
+        let analysis_config = config.clone();
 
-        for (_, path_group) in path_groups {
-            let scan_data = scan_data.clone();
+        let files_processed = files_processed.clone();
+        let bar = bar.clone();
 
-            let pgc = path_group.iter().map(|c| (*c).clone()).collect::<Vec<_>>();
+        let logger = logger.clone();
 
-            let analysis_result = analysis_result.clone();
+        let arc_file_analysis_time = arc_file_analysis_time.clone();
 
-            let analysis_config = config.clone();
+        let handle = std::thread::spawn(move || {
+            let codebase = &scan_data.codebase;
+            let interner = &scan_data.interner;
+            let resolved_names = &scan_data.resolved_names;
 
-            let files_processed = files_processed.clone();
-            let bar = bar.clone();
+            let mut file_analysis_time = Duration::default();
 
-            let logger = logger.clone();
+            let mut new_analysis_result =
+                AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
 
-            let arc_file_analysis_time = arc_file_analysis_time.clone();
+            for str_path in &pgc {
+                let file_path = FilePath(interner.get(str_path).unwrap());
 
-            let handle = std::thread::spawn(move || {
-                let codebase = &scan_data.codebase;
-                let interner = &scan_data.interner;
-                let resolved_names = &scan_data.resolved_names;
-
-                let mut file_analysis_time = Duration::default();
-
-                let mut new_analysis_result =
-                    AnalysisResult::new(analysis_config.graph_kind, SymbolReferences::new());
-
-                for str_path in &pgc {
-                    let file_path = FilePath(interner.get(str_path).unwrap());
-
-                    if let Some(resolved_names) = resolved_names.get(&file_path) {
-                        file_analysis_time += analyze_file(
-                            file_path,
-                            str_path,
-                            scan_data
-                                .file_system
-                                .file_hashes_and_times
-                                .get(&file_path)
-                                .map(|k| k.1),
-                            codebase,
-                            interner,
-                            &analysis_config,
-                            &mut new_analysis_result,
-                            resolved_names,
-                            &logger,
-                        );
-                    }
-
-                    let mut tally = files_processed.lock().unwrap();
-                    *tally += 1;
-
-                    update_progressbar(*tally, bar.clone());
+                if let Some(resolved_names) = resolved_names.get(&file_path) {
+                    file_analysis_time += analyze_file(
+                        file_path,
+                        str_path,
+                        scan_data
+                            .file_system
+                            .file_hashes_and_times
+                            .get(&file_path)
+                            .map(|k| k.1),
+                        codebase,
+                        interner,
+                        &analysis_config,
+                        &mut new_analysis_result,
+                        resolved_names,
+                        &logger,
+                    );
                 }
 
-                let mut t = arc_file_analysis_time.lock().unwrap();
-                *t += file_analysis_time;
-                analysis_result.lock().unwrap().extend(new_analysis_result);
-            });
+                let mut tally = files_processed.lock().unwrap();
+                *tally += 1;
 
-            handles.push(handle);
-        }
+                update_progressbar(*tally, bar.clone());
+            }
 
-        for handle in handles {
-            handle.join().unwrap();
-        }
+            let mut t = arc_file_analysis_time.lock().unwrap();
+            *t += file_analysis_time;
+            analysis_result.lock().unwrap().extend(new_analysis_result);
+        });
 
-        *file_analysis_time = Arc::try_unwrap(arc_file_analysis_time)
-            .unwrap()
-            .into_inner()
-            .unwrap();
+        handles.push(handle);
     }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    *file_analysis_time = Arc::try_unwrap(arc_file_analysis_time)
+        .unwrap()
+        .into_inner()
+        .unwrap();
 
     if let Some(bar) = &bar {
         bar.finish_and_clear();
