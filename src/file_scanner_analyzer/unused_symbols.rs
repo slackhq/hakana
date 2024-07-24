@@ -27,8 +27,22 @@ pub(crate) fn find_unused_definitions(
     // don’t show unused definitions if we have any invalid Hack files
     if analysis_result.has_invalid_hack_files {
         for file_path in &analysis_result.changed_during_analysis_files {
-            file_system.file_hashes_and_times.remove(file_path);
-            codebase.files.remove(file_path);
+            if let Some(file_system_info) = file_system.file_hashes_and_times.get_mut(file_path) {
+                // reset the file info so the AST gets recomputed
+                *file_system_info = (0, 0);
+            }
+
+            if let Some(file_info) = codebase.files.get_mut(file_path) {
+                for node in file_info.ast_nodes.iter_mut() {
+                    if node.children.is_empty() {
+                        node.body_hash = None;
+                    } else {
+                        for node_child in node.children.iter_mut() {
+                            node_child.body_hash = None;
+                        }
+                    }
+                }
+            }
         }
         return;
     }
