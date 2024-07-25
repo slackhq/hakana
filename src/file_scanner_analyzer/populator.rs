@@ -160,7 +160,7 @@ pub fn populate_codebase(
             &codebase.symbols,
             &ReferenceSource::Symbol(true, *name),
             symbol_references,
-            type_alias.user_defined && !safe_symbols.contains(name),
+            type_alias.user_defined,
         );
 
         if let Some(ref mut as_type) = type_alias.as_type {
@@ -169,7 +169,7 @@ pub fn populate_codebase(
                 &codebase.symbols,
                 &ReferenceSource::Symbol(true, *name),
                 symbol_references,
-                type_alias.user_defined && !safe_symbols.contains(name),
+                type_alias.user_defined,
             );
         }
     }
