@@ -377,7 +377,7 @@ pub fn scan_files(
                     codebase_diff.extend(get_diff(&existing_changed_files, &thread_codebase.files));
                 }
 
-                codebase.extend(thread_codebase.clone());
+                codebase.extend(thread_codebase);
             }
         }
 
