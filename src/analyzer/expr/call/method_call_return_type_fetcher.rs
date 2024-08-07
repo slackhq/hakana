@@ -22,8 +22,8 @@ use oxidized::ast_defs::Pos;
 
 use crate::expr::expression_identifier::get_expr_id;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use hakana_reflection_info::functionlike_info::FunctionLikeInfo;
 use hakana_type::template::{TemplateBound, TemplateResult};
@@ -205,6 +205,14 @@ fn get_special_method_return(method_id: &MethodIdentifier, interner: &Interner) 
                     TAtomic::TNull,
                 ]);
                 return Some(null_or_simplexmlelement);
+            }
+            _ => {}
+        },
+        StrId::MESSAGE_FORMATTER => match method_id.1 {
+            StrId::FORMAT_MESSAGE => {
+                let mut u = TUnion::new(vec![TAtomic::TString, TAtomic::TFalse]);
+                u.ignore_falsable_issues = true;
+                return Some(u);
             }
             _ => {}
         },
@@ -459,6 +467,43 @@ fn add_dataflow(
             data_flow_graph,
             &method_call_node,
             PathKind::Aggregate,
+        );
+    } else if method_id.0 == StrId::MESSAGE_FORMATTER && method_id.1 == StrId::FORMAT_MESSAGE {
+        add_special_param_dataflow(
+            statements_analyzer,
+            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+            true,
+            0,
+            statements_analyzer.get_hpos(call_expr.1[0].1.pos()),
+            call_pos,
+            &FxHashMap::default(),
+            data_flow_graph,
+            &method_call_node,
+            PathKind::Aggregate,
+        );
+        add_special_param_dataflow(
+            statements_analyzer,
+            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+            true,
+            1,
+            statements_analyzer.get_hpos(call_expr.1[1].1.pos()),
+            call_pos,
+            &FxHashMap::default(),
+            data_flow_graph,
+            &method_call_node,
+            PathKind::Default,
+        );
+        add_special_param_dataflow(
+            statements_analyzer,
+            &FunctionLikeIdentifier::Method(method_id.0, method_id.1),
+            true,
+            2,
+            statements_analyzer.get_hpos(call_expr.1[2].1.pos()),
+            call_pos,
+            &FxHashMap::default(),
+            data_flow_graph,
+            &method_call_node,
+            PathKind::UnknownArrayFetch(hakana_reflection_info::data_flow::path::ArrayDataKind::ArrayValue),
         );
     }
 

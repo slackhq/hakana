@@ -29,8 +29,8 @@ use crate::expr::binop::concat_analyzer::{analyze_concat_nodes, get_concat_nodes
 use crate::expr::fetch::array_fetch_analyzer::handle_array_access_on_dict;
 use crate::expr::variable_fetch_analyzer;
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 
 use hakana_type::template::{TemplateBound, TemplateResult};
@@ -832,12 +832,7 @@ fn add_dataflow(
 
     let (param_offsets, variadic_path) =
         if !functionlike_storage.user_defined && (!expr.2.is_empty() || expr.3.is_some()) {
-            get_special_argument_nodes(
-                functionlike_id,
-                expr,
-                functionlike_storage,
-                statements_analyzer.get_interner(),
-            )
+            get_special_argument_nodes(functionlike_id, expr)
         } else {
             (vec![], None)
         };
@@ -977,8 +972,6 @@ fn get_special_argument_nodes(
         &Vec<(ast_defs::ParamKind, aast::Expr<(), ()>)>,
         &Option<aast::Expr<(), ()>>,
     ),
-    _functionlike_info: &FunctionLikeInfo,
-    _interner: &Interner,
 ) -> (Vec<(usize, PathKind)>, Option<PathKind>) {
     match functionlike_id {
         FunctionLikeIdentifier::Function(function_name) => match *function_name {

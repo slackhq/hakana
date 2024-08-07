@@ -87,6 +87,10 @@ pub(crate) fn scan_method(
         functionlike_info.has_throw = true;
     }
 
+    if classlike_name == StrId::MESSAGE_FORMATTER && method_name == StrId::FORMAT_MESSAGE {
+        functionlike_info.effects = FnEffect::Pure;
+    }
+
     let mut method_info = MethodInfo::new();
 
     method_info.is_static = m.static_;

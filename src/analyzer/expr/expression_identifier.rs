@@ -195,22 +195,21 @@ pub fn get_static_functionlike_id_from_call(
         aast::Expr_::ClassConst(boxed) => {
             let (class_id, rhs_expr) = (&boxed.0, &boxed.1);
 
-            match &class_id.2 {
-                aast::ClassId_::CIexpr(lhs_expr) => {
-                    if let aast::Expr_::Id(id) = &lhs_expr.2 {
-                        if let (Some(class_name), Some(method_name)) = (
-                            resolved_names.get(&(id.0.start_offset() as u32)),
-                            interner.get(&rhs_expr.1),
-                        ) {
-                            Some(FunctionLikeIdentifier::Method(*class_name, method_name))
-                        } else {
-                            None
-                        }
+            if let aast::ClassId_::CIexpr(lhs_expr) = &class_id.2 {
+                if let aast::Expr_::Id(id) = &lhs_expr.2 {
+                    if let (Some(class_name), Some(method_name)) = (
+                        resolved_names.get(&(id.0.start_offset() as u32)),
+                        interner.get(&rhs_expr.1),
+                    ) {
+                        Some(FunctionLikeIdentifier::Method(*class_name, method_name))
                     } else {
                         None
                     }
+                } else {
+                    None
                 }
-                _ => None,
+            } else {
+                None
             }
         }
         _ => None,
