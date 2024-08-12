@@ -16,8 +16,8 @@ use crate::expr::{
 };
 use crate::function_analysis_data::FunctionAnalysisData;
 use crate::reconciler;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::{var_has_root, BlockContext};
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{algebra_analyzer, expression_analyzer, formula_generator};

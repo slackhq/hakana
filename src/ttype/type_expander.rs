@@ -604,6 +604,7 @@ pub fn get_closure_from_id(
                     codebase,
                     interner,
                     data_flow_graph,
+                    &TypeExpansionOptions::default(),
                 ));
             }
         }
@@ -617,6 +618,11 @@ pub fn get_closure_from_id(
                     codebase,
                     interner,
                     data_flow_graph,
+                    &TypeExpansionOptions {
+                        self_class: Some(classlike_name),
+                        static_class_type: StaticClassType::Name(classlike_name),
+                        ..Default::default()
+                    },
                 ));
             }
         }
@@ -632,6 +638,7 @@ fn get_expanded_closure(
     codebase: &CodebaseInfo,
     interner: &Option<&Interner>,
     data_flow_graph: &mut DataFlowGraph,
+    options: &TypeExpansionOptions,
 ) -> TAtomic {
     TAtomic::TClosure {
         params: functionlike_info
@@ -640,15 +647,7 @@ fn get_expanded_closure(
             .map(|param| FnParameter {
                 signature_type: if let Some(t) = &param.signature_type {
                     let mut t = t.clone();
-                    expand_union(
-                        codebase,
-                        interner,
-                        &mut t,
-                        &TypeExpansionOptions {
-                            ..Default::default()
-                        },
-                        data_flow_graph,
-                    );
+                    expand_union(codebase, interner, &mut t, options, data_flow_graph);
                     Some(Box::new(t))
                 } else {
                     None
@@ -664,9 +663,7 @@ fn get_expanded_closure(
                 codebase,
                 interner,
                 &mut return_type,
-                &TypeExpansionOptions {
-                    ..Default::default()
-                },
+                options,
                 data_flow_graph,
             );
             Some(Box::new(return_type))
