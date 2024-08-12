@@ -17,7 +17,9 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
 use std::process::exit;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use hakana_reflection_info::code_location::FilePath;
+use hakana_workhorse::file::VirtualFileSystem;
 use test_runners::test_runner::TestRunner;
 
 pub mod test_runners;
@@ -436,6 +438,13 @@ pub fn init(
                     .arg(arg!(<TEST> "The test to run"))
                     .arg_required_else_help(true),
             )
+            .subcommand(
+                Command::new("find-executable")
+                    .about("Finds all executable lines of code")
+                    .arg(arg!(--"file" <PATH>).required(true).help(
+                        "THe file path to process",
+                    ))
+            )
             .get_matches();
 
     let cwd = (env::current_dir()).unwrap().to_str().unwrap().to_string();
@@ -650,6 +659,13 @@ pub fn init(
                 random_seed,
             );
         }
+        Some(("find-executable", sub_matches)) => {
+            do_find_executable(
+                sub_matches,
+                root_dir,
+                logger,
+            );
+        }
         _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
     }
 
@@ -716,6 +732,34 @@ fn do_fix(
             &successfull_run_data.interner,
         );
     }
+}
+
+fn do_find_executable(
+    sub_matches: &clap::ArgMatches,
+    root_dir: String,
+    _logger: Logger,
+) {
+    let mut root_owned: String = root_dir.to_owned();
+    let file = sub_matches
+        .value_of("file")
+        .unwrap();
+    root_owned.push_str("/");
+    root_owned.push_str(file);
+
+    println!("{}", root_owned);
+
+    let interner = Arc::new(Mutex::new(Interner::default()));
+    let mut threaded_interner = ThreadedInterner::new(interner.clone());
+    let interned_file_path = FilePath(threaded_interner.intern(root_owned.clone()));
+    let mut file_system = VirtualFileSystem::default();
+
+    file_system
+        .file_hashes_and_times
+        .insert(interned_file_path, (0, 0));
+
+    let aast = hakana_workhorse::get_aast_for_path(interned_file_path, root_owned.as_str());
+
+    executable_finder::collect_executable_lines(&aast.unwrap().0);
 }
 
 fn do_remove_unused_fixmes(

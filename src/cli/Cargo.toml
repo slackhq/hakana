@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 hakana-workhorse = { path = "../file_scanner_analyzer" }
+executable-finder = { path = "../executable_code_finder" }
 hakana-analyzer = { path = "../analyzer" }
 hakana-logger = { path = "../logger" }
 hakana-code-info = { path = "../code_info" }

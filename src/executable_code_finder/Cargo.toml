@@ -1,0 +1,10 @@
+[package]
+name = "executable-finder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
+
+[lib]
+path = "lib.rs"

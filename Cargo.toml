@@ -18,6 +18,7 @@ hakana-analyzer = { path = "src/analyzer" }
 hakana-str = { path = "src/str" }
 hakana-language-server = { path = "src/language_server" }
 hakana-workhorse = { path = "src/file_scanner_analyzer" }
+executable-finder = { path = "src/executable_code_finder" }
 mimalloc = { version = "*", default-features = false }
 tower-lsp = { version = "=0.20.0", features = ["proposed"] }
 tokio = { version = "1.26.0", features = ["full"] }
@@ -33,7 +34,9 @@ members = [
     "src/file_scanner_analyzer",
     "src/language_server",
     "src/logger",
-    "src/js_interop"
+    "src/ttype",
+    "src/js_interop",
+    "src/executable_code_finder",
 ]
 exclude = ["third-party"]
 
