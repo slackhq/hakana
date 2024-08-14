@@ -442,6 +442,9 @@ pub fn init(
                     .arg(arg!(--"root" <PATH>).required(false).help(
                         "The root directory that Hakana runs in. Defaults to the current directory",
                     ))
+                    .arg(arg!(--"output" <PATH>).required(true).help(
+                        "File to save output to"
+                    )),
             )
             .get_matches();
 
@@ -661,6 +664,7 @@ pub fn init(
             do_find_executable(
                 sub_matches,
                 &root_dir,
+                &cwd,
                 threads,
                 logger,
             );
@@ -736,20 +740,40 @@ fn do_fix(
 fn do_find_executable(
     sub_matches: &clap::ArgMatches,
     root_dir: &str,
+    cwd: &String,
     threads: u8,
     logger: Logger,
 ) {
-    let _output_file = sub_matches.value_of("output").map(|f| f.to_string());
-    let _output_format = sub_matches.value_of("json-format").map(|f| f.to_string());
-
+    let output_file = sub_matches.value_of("output").unwrap().to_string();
     let config = config::Config::new(root_dir.to_string(), FxHashSet::default());
-    let _ = executable_finder::scan_files(
+
+    match executable_finder::scan_files(
         &vec![root_dir.to_string()],
         None,
         &Arc::new(config),
         threads,
         Arc::new(logger),
-    );
+    ) {
+        Ok(file_infos) => {
+            let output_path = if output_file.starts_with('/') {
+                output_file
+            } else {
+                format!("{}/{}", cwd, output_file)
+            };
+            let mut out = fs::File::create(Path::new(&output_path)).unwrap();
+            match write!(out, "{}", serde_json::to_string_pretty(&file_infos).unwrap()) {
+                Ok(_) => {
+                    println!("Done")
+                }
+                Err(err) => {
+                    println!("error: {}", err)
+                }
+            }
+        }
+        Err(_) => {
+            println!("error")
+        }
+    }
 }
 
 fn do_remove_unused_fixmes(

@@ -10,8 +10,12 @@ use indicatif::{ProgressBar, ProgressStyle};
 use oxidized::{aast, aast_visitor::{visit, AstParams, Node, Visitor}};
 use rustc_hash::FxHashMap;
 use hakana_reflection_info::file_info::ParserError;
+use serde::Serialize;
 
-struct Context {
+#[derive(Debug, Serialize)]
+pub struct ExecutableLines {
+    pub path: String,
+    pub executable_lines: Vec<String>,
 }
 
 pub fn scan_files(
@@ -20,7 +24,7 @@ pub fn scan_files(
     config: &Arc<Config>,
     threads: u8,
     logger: Arc<Logger>,
-) -> Result<(),()> {
+) -> Result<Vec<ExecutableLines>,()> {
     logger.log_debug_sync(&format!("{:#?}", scan_dirs));
 
     let mut files_to_scan = vec![];
@@ -40,6 +44,7 @@ pub fn scan_files(
     );
 
     let invalid_files = Arc::new(Mutex::new(vec![]));
+    let executable_lines = Arc::new(Mutex::new(vec![]));
 
     if !files_to_scan.is_empty() {
         let file_scanning_now = Instant::now();
@@ -57,9 +62,7 @@ pub fn scan_files(
         let files_processed: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 
         let mut group_size = threads as usize;
-
         let mut path_groups = FxHashMap::default();
-
         if files_to_scan.len() < 4 * group_size {
             group_size = 1;
         }
@@ -81,26 +84,23 @@ pub fn scan_files(
             let files_processed = files_processed.clone();
             let logger = logger.clone();
             let invalid_files = invalid_files.clone();
+            let executable_lines = executable_lines.clone();
+            let root_dir = config.root_dir.clone();
 
             let handle = std::thread::spawn(move || {
-                let mut new_context = Context {};
                 let new_interner = ThreadedInterner::new(interner);
 
                 for file_path in &path_group {
-                    let str_path = new_interner
-                        .parent
-                        .lock()
-                        .unwrap()
-                        .lookup(&file_path.0)
-                        .to_string();
-
-                    println!("{}", str_path);
-
-                    match scan_file(&str_path, *file_path, &mut new_context, &logger.clone(), ) {
+                    match scan_file(&new_interner, &root_dir, *file_path, &logger.clone(), ) {
                         Err(_) => {
                             invalid_files.lock().unwrap().push(*file_path);
                         }
-                        Ok(_) => {}
+                        Ok(res) => {
+                            let mut executable_lines = executable_lines.lock().unwrap();
+                            if !res.executable_lines.is_empty() {
+                                executable_lines.push(res);
+                            }
+                        }
                     };
 
                     let mut tally = files_processed.lock().unwrap();
@@ -108,11 +108,6 @@ pub fn scan_files(
 
                     update_progressbar(*tally, bar.clone());
                 }
-
-                //resolved_names.lock().unwrap().extend(local_resolved_names);
-
-                //let mut codebases = codebases.lock().unwrap();
-                //codebases.push(new_codebase);
             });
 
             handles.push(handle);
@@ -139,7 +134,7 @@ pub fn scan_files(
         .into_inner()
         .unwrap();
 
-    Ok(())
+    Ok(Arc::try_unwrap(executable_lines).unwrap().into_inner().unwrap())
 }
 
 fn get_filesystem(
@@ -182,14 +177,22 @@ fn update_progressbar(percentage: u64, bar: Option<Arc<ProgressBar>>) {
 }
 
 pub(crate) fn scan_file(
-    str_path: &str,
+    interner: &ThreadedInterner,
+    root_dir: &str,
     file_path: FilePath,
-    context: &mut Context,
     logger: &Logger,
-) -> Result<(), ParserError>{
+) -> Result<ExecutableLines, ParserError>{
+    let interner = interner
+        .parent
+        .lock()
+        .unwrap();
+    let str_path = interner
+        .lookup(&file_path.0)
+        .to_string();
+
     logger.log_debug_sync(&format!("scanning {}", str_path));
 
-    let aast = hakana_workhorse::get_aast_for_path(file_path, str_path);
+    let aast = hakana_workhorse::get_aast_for_path(file_path, &str_path);
 
     let aast = match aast {
         Ok(aast) => aast,
@@ -201,25 +204,38 @@ pub(crate) fn scan_file(
     let mut checker = Scanner {
     };
 
-    visit(&mut checker, context, &aast.0)
+    let mut context= Vec::new();
+    match visit(&mut checker, &mut context, &aast.0) {
+        Ok(_) => {
+            Ok(ExecutableLines {
+                path: file_path.get_relative_path(&interner, root_dir),
+                executable_lines: context
+            })
+        }
+        Err(err) => {
+            Err(err)
+        }
+    }
+
 }
 
 struct Scanner {
-
 }
 
 impl<'ast> Visitor<'ast> for Scanner {
-    type Params = AstParams<Context, ParserError>;
+    type Params = AstParams<Vec<String>, ParserError>;
 
     fn object(&mut self) -> &mut dyn Visitor<'ast, Params = Self::Params> {
         self
     }
 
-    fn visit_stmt(&mut self, c: &mut Context, p: &aast::Stmt<(), ()>) -> Result<(), ParserError> {
+    fn visit_stmt(&mut self, c: &mut Vec<String>, p: &aast::Stmt<(), ()>) -> Result<(), ParserError> {
         let result = p.recurse(c, self);
-
-        //println!("{}-{}", p.0.to_raw_span().start.line(),p.0.to_raw_span().end.line());
-
+        let start = p.0.to_raw_span().start.line();
+        let end = p.0.to_raw_span().end.line();
+        if start != 0 && end != 0 {
+            c.push(format!("{}-{}", start, end));
+        }
         result
     }
 }
