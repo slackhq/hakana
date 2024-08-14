@@ -4,7 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+hakana-analyzer = { path = "../analyzer" }
+hakana-logger = { path = "../logger" }
+hakana-reflection-info = { path = "../code_info" }
+hakana-str = { path = "../str" }
+hakana-workhorse = { path = "../file_scanner_analyzer" }
 oxidized = { path = "../../third-party/hhvm/hphp/hack/src/oxidized" }
+indicatif = "0.17.0-rc.11"
+rustc-hash = "1.1.0"
 
 [lib]
 path = "lib.rs"
