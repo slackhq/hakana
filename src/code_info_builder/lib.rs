@@ -834,7 +834,7 @@ fn get_function_hashes(
     }
 
     if let Some(last_param) = params.last() {
-        if let Some(expr) = &last_param.expr {
+        if let tast::FunParamInfo::ParamOptional(Some(expr)) = &last_param.info {
             signature_end = expr.1.end_offset();
         }
 

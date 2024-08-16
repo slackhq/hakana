@@ -661,7 +661,7 @@ fn convert_param_nodes(
                 param.suppressed_issues = Some(suppressed_issues);
             }
 
-            param.is_variadic = param_node.is_variadic;
+            param.is_variadic = param_node.info == tast::FunParamInfo::ParamVariadic;
             param.signature_type = if let Some(param_type) = &param_node.type_hint.1 {
                 get_type_from_hint(
                     &param_type.1,
@@ -726,7 +726,11 @@ fn convert_param_nodes(
                 }
             }
             param.promoted_property = param_node.visibility.is_some();
-            param.is_optional = param_node.expr.is_some();
+            param.is_optional = if let tast::FunParamInfo::ParamOptional(expr) = &param_node.info {
+                expr.is_some()
+            } else {
+                false
+            };
             param
         })
         .collect()
