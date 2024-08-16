@@ -202,7 +202,7 @@ pub async fn scan_and_analyze_async(
     Ok((analysis_result, scan_data))
 }
 
-pub fn scan_and_analyze<F: FnOnce() -> ()>(
+pub fn scan_and_analyze<F: FnOnce()>(
     stubs_dirs: Vec<String>,
     filter: Option<String>,
     ignored_paths: Option<FxHashSet<String>>,
