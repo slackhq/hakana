@@ -106,6 +106,10 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             continue;
         }
 
+        if let TAtomic::TEnumLiteralCase { constraint_type: Some(constraint), .. } = &e1_type_atomic {
+            e1_type_atomic = e1_type_atomic.clone();
+        }
+
         if let TAtomic::TFalse = e1_type_atomic {
             if e1_type.ignore_falsable_issues {
                 continue;
@@ -136,6 +140,10 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             {
                 e1_types.extend(as_type.types.clone());
                 continue;
+            }
+
+            if let TAtomic::TEnumLiteralCase { constraint_type: Some(constraint), .. } = &e2_type_atomic {
+                e2_type_atomic = e2_type_atomic.clone();
             }
 
             if let TAtomic::TFalse = e2_type_atomic {
