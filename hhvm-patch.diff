@@ -188,10 +188,10 @@ index 8768bd5b52a..b595a7444d0 100644
  
  pub struct Names {
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-index dcf873d5350..8711189f36d 100644
+index 794182a83a7..63ea00a482d 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_impl_gen.rs
-@@ -2237,7 +2237,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
+@@ -2256,7 +2256,6 @@ impl<P: Params> Node<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -200,10 +200,10 @@ index dcf873d5350..8711189f36d 100644
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
 diff --git a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-index 1ccda1e73c1..4044c8b757e 100644
+index 73894cce5cf..f85dddbdad6 100644
 --- a/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
 +++ b/hphp/hack/src/oxidized/aast_visitor/node_mut_impl_gen.rs
-@@ -2237,7 +2237,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
+@@ -2256,7 +2256,6 @@ impl<P: Params> NodeMut<P> for Typedef<P::Ex, P::En> {
          self.file_attributes.accept(c, v)?;
          self.mode.accept(c, v)?;
          self.vis.accept(c, v)?;
@@ -211,6 +211,40 @@ index 1ccda1e73c1..4044c8b757e 100644
          self.span.accept(c, v)?;
          self.emit_id.accept(c, v)?;
          self.is_ctx.accept(c, v)?;
+diff --git a/hphp/hack/src/oxidized/gen/warnings_saved_state.rs b/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
+index c85ad8856ef..90fc55f44d8 100644
+--- a/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
++++ b/hphp/hack/src/oxidized/gen/warnings_saved_state.rs
+@@ -13,5 +13,5 @@ pub use error_hash_set::*;
+ #[allow(unused_imports)]
+ use crate::*;
+ 
+-#[rust_to_ocaml(attr = "deriving (ord, show)")]
+-pub type ErrorHash = ocamlrep::OCamlInt;
++// #[rust_to_ocaml(attr = "deriving (ord, show)")]
++pub type ErrorHash = u64;
+diff --git a/hphp/hack/src/oxidized/manual/user_error_impl.rs b/hphp/hack/src/oxidized/manual/user_error_impl.rs
+index a1e42b308cc..d55ac408def 100644
+--- a/hphp/hack/src/oxidized/manual/user_error_impl.rs
++++ b/hphp/hack/src/oxidized/manual/user_error_impl.rs
+@@ -8,7 +8,7 @@ use std::hash::Hash;
+ 
+ use ansi_term::Color;
+ use hh_hash::Hasher;
+-use ocamlrep::OCamlInt;
++// use ocamlrep::OCamlInt;
+ use rc_pos::with_erased_lines::WithErasedLines;
+ 
+ use crate::user_error::Severity;
+@@ -38,7 +38,7 @@ impl<PrimPos: Hash + WithErasedLines + Clone, Pos: Hash + WithErasedLines + Clon
+         let mut hasher = DefaultHasher::new();
+         self.clone().with_erased_lines().hash(&mut hasher);
+         let hash = hasher.finish();
+-        OCamlInt::new_erase_msb(hash as isize)
++        hash as u64
+     }
+ }
+ 
 diff --git a/hphp/hack/src/oxidized_by_ref/Cargo.toml b/hphp/hack/src/oxidized_by_ref/Cargo.toml
 index 2252858a312..e640c206d4e 100644
 --- a/hphp/hack/src/oxidized_by_ref/Cargo.toml
@@ -400,7 +434,7 @@ index 0f58d4d92df..7a324fa3189 100644
      }
  }
 diff --git a/hphp/hack/src/parser/aast_parser.rs b/hphp/hack/src/parser/aast_parser.rs
-index e6c37c898fd..0763ed61193 100644
+index d4b70f24b25..147850ebe2e 100644
 --- a/hphp/hack/src/parser/aast_parser.rs
 +++ b/hphp/hack/src/parser/aast_parser.rs
 @@ -5,7 +5,7 @@
@@ -412,7 +446,7 @@ index e6c37c898fd..0763ed61193 100644
  
  use bumpalo::Bump;
  use hash::HashSet;
-@@ -89,11 +89,11 @@ impl<'src> AastParser {
+@@ -90,11 +90,11 @@ impl<'src> AastParser {
          if let Some(err) = Self::verify_utf8(indexed_source_text) {
              return Ok(err);
          }
@@ -426,7 +460,7 @@ index e6c37c898fd..0763ed61193 100644
          let parse_peak = stack_limit::peak();
          let mut pr = Self::from_tree_with_namespace_env(
              env,
-@@ -107,8 +107,8 @@ impl<'src> AastParser {
+@@ -108,8 +108,8 @@ impl<'src> AastParser {
          )?;
  
          pr.profile.parse_peak = parse_peak as u64;
@@ -437,16 +471,16 @@ index e6c37c898fd..0763ed61193 100644
          Ok(pr)
      }
  
-@@ -169,7 +169,7 @@ impl<'src> AastParser {
+@@ -170,7 +170,7 @@ impl<'src> AastParser {
          tree: PositionedSyntaxTree<'src, 'arena>,
-         default_unstable_features: HashSet<rust_parser_errors::UnstableFeatures>,
+         default_experimental_features: HashSet<experimental_features::FeatureName>,
      ) -> Result<ParserResult> {
 -        let lowering_t = Instant::now();
 +        //let lowering_t = Instant::now();
          match language {
              Language::Hack => {}
              _ => return Err(Error::NotAHackFile()),
-@@ -190,14 +190,14 @@ impl<'src> AastParser {
+@@ -191,14 +191,14 @@ impl<'src> AastParser {
          );
          stack_limit::reset();
          let ret = lower(&mut lowerer_env, tree.root());
@@ -463,7 +497,7 @@ index e6c37c898fd..0763ed61193 100644
          stack_limit::reset();
          let syntax_errors = Self::check_syntax_error(
              env,
-@@ -210,7 +210,7 @@ impl<'src> AastParser {
+@@ -211,7 +211,7 @@ impl<'src> AastParser {
          let lowerer_parsing_errors = lowerer_env.parsing_errors().to_vec();
          let errors = lowerer_env.hh_errors().to_vec();
          let lint_errors = lowerer_env.lint_errors().to_vec();
@@ -472,7 +506,7 @@ index e6c37c898fd..0763ed61193 100644
  
          Ok(ParserResult {
              file_mode: mode,
-@@ -222,9 +222,9 @@ impl<'src> AastParser {
+@@ -223,9 +223,9 @@ impl<'src> AastParser {
              lint_errors,
              profile: ParserProfile {
                  lower_peak,
@@ -485,9 +519,9 @@ index e6c37c898fd..0763ed61193 100644
                  error_peak,
                  arena_bytes: arena.allocated_bytes() as u64,
                  ..Default::default()
-@@ -358,7 +358,7 @@ impl<'src> AastParser {
-                     disable_hh_ignore_error: env.parser_options.po_disable_hh_ignore_error,
-                     allowed_decl_fixme_codes: &env.parser_options.po_allowed_decl_fixme_codes,
+@@ -356,7 +356,7 @@ impl<'src> AastParser {
+                     disable_hh_ignore_error: env.parser_options.disable_hh_ignore_error,
+                     allowed_decl_fixme_codes: &env.parser_options.allowed_decl_fixme_codes,
                  };
 -            Ok(scourer.scour_comments(script))
 +            Ok(scourer.scour_comments(script, indexed_source_text.source_text().file_path()))
@@ -508,10 +542,10 @@ index ab9bf36c7c6..05b6f906190 100644
                      }
                      _ => {
 diff --git a/hphp/hack/src/parser/lowerer/lowerer.rs b/hphp/hack/src/parser/lowerer/lowerer.rs
-index 2395863809d..2c77bacf25e 100644
+index 85b6907f49b..8c21aa99489 100644
 --- a/hphp/hack/src/parser/lowerer/lowerer.rs
 +++ b/hphp/hack/src/parser/lowerer/lowerer.rs
-@@ -3319,12 +3319,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
+@@ -3421,12 +3421,12 @@ fn p_markup<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
              let markup_hashbang = &c.hashbang;
              let markup_suffix = &c.suffix;
              let pos = p_pos(node, env);
@@ -708,16 +742,16 @@ index fff34e9c159..49ae1121f9c 100644
 +    fn line_column_beg(&self) -> (u64, u64, u64);
  }
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos_large.rs b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
-index f59e0a024cc..a1929b265f5 100644
+index bb92cf38693..0d6066c67e9 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos_large.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos_large.rs
-@@ -15,13 +15,13 @@ use crate::file_pos_small::FilePosSmall;
+@@ -16,13 +16,13 @@ use crate::with_erased_lines::WithErasedLines;
  #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
  pub struct FilePosLarge {
      /// line number. Starts at 1.
 -    lnum: usize,
 +    lnum: u64,
-     /// character number of the beginning of line of this position.
+     /// character offset (from the beginning of file) of the beginning of line of this position.
      /// The column number is therefore offset - bol
      /// Starts at 0
 -    bol: usize,
@@ -728,7 +762,7 @@ index f59e0a024cc..a1929b265f5 100644
  }
  arena_deserializer::impl_deserialize_in_arena!(FilePosLarge);
  
-@@ -30,7 +30,7 @@ impl arena_trait::TrivialDrop for FilePosLarge {}
+@@ -31,7 +31,7 @@ impl arena_trait::TrivialDrop for FilePosLarge {}
  const DUMMY: FilePosLarge = FilePosLarge {
      lnum: 0,
      bol: 0,
@@ -737,7 +771,7 @@ index f59e0a024cc..a1929b265f5 100644
  };
  
  impl FilePosLarge {
-@@ -56,7 +56,7 @@ impl FilePosLarge {
+@@ -57,7 +57,7 @@ impl FilePosLarge {
      // constructors
  
      #[inline]
@@ -746,7 +780,7 @@ index f59e0a024cc..a1929b265f5 100644
          FilePosLarge {
              lnum: line,
              bol: offset - column,
-@@ -65,29 +65,29 @@ impl FilePosLarge {
+@@ -66,29 +66,29 @@ impl FilePosLarge {
      }
  
      #[inline]
@@ -781,7 +815,7 @@ index f59e0a024cc..a1929b265f5 100644
          FilePosLarge {
              lnum: self.lnum,
              bol: self.bol,
-@@ -96,34 +96,34 @@ impl FilePosLarge {
+@@ -97,34 +97,34 @@ impl FilePosLarge {
      }
  
      #[inline]
@@ -822,7 +856,7 @@ index f59e0a024cc..a1929b265f5 100644
          (self.lnum, self.offset - self.bol, self.bol)
      }
  }
-@@ -166,7 +166,7 @@ impl FromOcamlRep for FilePosLarge {
+@@ -167,7 +167,7 @@ impl FromOcamlRep for FilePosLarge {
          Ok(Self {
              lnum,
              bol,
@@ -832,10 +866,10 @@ index f59e0a024cc..a1929b265f5 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/file_pos_small.rs b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
-index ce3bd4e0172..66579bfceab 100644
+index 0097f1c7f5e..a20bada630b 100644
 --- a/hphp/hack/src/utils/rust/pos/file_pos_small.rs
 +++ b/hphp/hack/src/utils/rust/pos/file_pos_small.rs
-@@ -38,23 +38,23 @@ arena_deserializer::impl_deserialize_in_arena!(FilePosSmall);
+@@ -39,23 +39,23 @@ arena_deserializer::impl_deserialize_in_arena!(FilePosSmall);
  
  impl arena_trait::TrivialDrop for FilePosSmall {}
  
@@ -868,7 +902,7 @@ index ce3bd4e0172..66579bfceab 100644
  
  const DUMMY: u64 = u64::max_value();
  
-@@ -70,7 +70,7 @@ impl FilePosSmall {
+@@ -71,7 +71,7 @@ impl FilePosSmall {
      }
  
      #[inline]
@@ -877,7 +911,7 @@ index ce3bd4e0172..66579bfceab 100644
          if self.is_dummy() {
              0
          } else {
-@@ -79,7 +79,7 @@ impl FilePosSmall {
+@@ -80,7 +80,7 @@ impl FilePosSmall {
      }
  
      #[inline]
@@ -886,7 +920,7 @@ index ce3bd4e0172..66579bfceab 100644
          if self.is_dummy() {
              0
          } else {
-@@ -88,25 +88,25 @@ impl FilePosSmall {
+@@ -89,25 +89,25 @@ impl FilePosSmall {
      }
  
      #[inline]
@@ -919,7 +953,7 @@ index ce3bd4e0172..66579bfceab 100644
          if col > MAX_COLUMN || line > MAX_LINE || bol > MAX_BOL {
              None
          } else {
-@@ -122,39 +122,39 @@ impl FilePosSmall {
+@@ -123,39 +123,39 @@ impl FilePosSmall {
      // constructors
  
      #[inline]
@@ -966,7 +1000,7 @@ index ce3bd4e0172..66579bfceab 100644
          match Self::bol_line_col(self.beg_of_line(), self.line(), col) {
              None => FilePosSmall(DUMMY),
              Some(pos) => pos,
-@@ -164,12 +164,12 @@ impl FilePosSmall {
+@@ -177,12 +177,12 @@ impl TryFrom<FilePosLarge> for FilePosSmall {
  
  impl FilePos for FilePosSmall {
      #[inline]
@@ -982,10 +1016,10 @@ index ce3bd4e0172..66579bfceab 100644
      }
  }
 diff --git a/hphp/hack/src/utils/rust/pos/pos_impl.rs b/hphp/hack/src/utils/rust/pos/pos_impl.rs
-index a8d7881987d..cb1df15913e 100644
+index 7ad20641d04..6fa2e4b6813 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_impl.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_impl.rs
-@@ -153,7 +153,7 @@ impl Pos {
+@@ -154,7 +154,7 @@ impl Pos {
              if end == start_minus1 {
                  end = start
              }
@@ -994,7 +1028,7 @@ index a8d7881987d..cb1df15913e 100644
          }
          match &self.0 {
              PosImpl::Small { start, end, .. } => compute(start, end),
-@@ -169,12 +169,11 @@ impl Pos {
+@@ -170,12 +170,11 @@ impl Pos {
      pub fn info_pos_extended(&self) -> (usize, usize, usize, usize) {
          let (line_begin, start, end) = self.info_pos();
          let line_end = match &self.0 {
@@ -1011,7 +1045,7 @@ index a8d7881987d..cb1df15913e 100644
          (line_begin, line_end, start, end)
      }
  
-@@ -184,9 +183,9 @@ impl Pos {
+@@ -185,9 +184,9 @@ impl Pos {
  
      pub fn line(&self) -> usize {
          match &self.0 {
@@ -1024,7 +1058,7 @@ index a8d7881987d..cb1df15913e 100644
              PosImpl::FromReason(_p) => unimplemented!(),
          }
      }
-@@ -198,15 +197,20 @@ impl Pos {
+@@ -199,15 +198,20 @@ impl Pos {
      ) -> Self {
          let (start_line, start_bol, start_offset) = start;
          let (end_line, end_bol, end_offset) = end;
@@ -1048,7 +1082,7 @@ index a8d7881987d..cb1df15913e 100644
              PosImpl::Small { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
              PosImpl::Large { start, end, .. } => (start.line_beg_offset(), end.line_beg_offset()),
              PosImpl::Tiny { span, .. } => {
-@@ -214,7 +218,11 @@ impl Pos {
+@@ -215,7 +219,11 @@ impl Pos {
                  (start.line_beg_offset(), end.line_beg_offset())
              }
              PosImpl::FromReason(_p) => unimplemented!(),
@@ -1061,7 +1095,7 @@ index a8d7881987d..cb1df15913e 100644
      }
  
      /// For single-line spans only.
-@@ -224,11 +232,15 @@ impl Pos {
+@@ -225,11 +233,15 @@ impl Pos {
          cols: Range<usize>,
          start_offset: usize,
      ) -> Self {
@@ -1081,7 +1115,7 @@ index a8d7881987d..cb1df15913e 100644
          );
          Self::from_raw_span(file, PosSpanRaw { start, end })
      }
-@@ -317,18 +329,18 @@ impl Pos {
+@@ -318,18 +330,18 @@ impl Pos {
  
      pub fn end_offset(&self) -> usize {
          match &self.0 {
@@ -1106,7 +1140,7 @@ index a8d7881987d..cb1df15913e 100644
              PosImpl::FromReason(_p) => unimplemented!(),
          }
      }
-@@ -576,22 +588,18 @@ mod tests {
+@@ -584,22 +596,18 @@ mod tests {
      #[test]
      fn test_pos() {
          assert!(Pos::NONE.is_none());
@@ -1142,7 +1176,7 @@ index a8d7881987d..cb1df15913e 100644
  
      #[test]
 diff --git a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
-index dc31a9504bf..a6149eab11f 100644
+index b0c24a4c9f5..5e2c65f7532 100644
 --- a/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
 +++ b/hphp/hack/src/utils/rust/pos/pos_span_tiny.rs
 @@ -130,83 +130,83 @@ impl PosSpanTiny {
@@ -1266,7 +1300,7 @@ index dc31a9504bf..a6149eab11f 100644
              }
          }
      }
-@@ -368,9 +376,9 @@ mod test {
+@@ -399,9 +407,9 @@ mod test {
          let start_offset = u64::max_value();
          let end_offset = u64::max_value();
          let start =
@@ -1278,7 +1312,7 @@ index dc31a9504bf..a6149eab11f 100644
          let span = PosSpanTiny::make_dummy();
          assert_eq!(line, span.start_line_number() as u64);
          assert_eq!(line, span.end_line_number() as u64);
-@@ -396,9 +404,9 @@ mod test {
+@@ -427,9 +435,9 @@ mod test {
          let start_offset = max_int;
          let end_offset = max_int;
          let start =
@@ -1290,7 +1324,7 @@ index dc31a9504bf..a6149eab11f 100644
          match PosSpanTiny::make(&start, &end) {
              None => {
                  // expected
-@@ -432,8 +440,8 @@ mod test {
+@@ -463,8 +471,8 @@ mod test {
          let bol = 1667611usize;
          let start_offset = 1667617usize;
          let end_offset = 1667673usize;
