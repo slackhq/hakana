@@ -36,8 +36,8 @@ use hakana_type::{
     add_optional_union_type, get_mixed_any, get_nothing, get_void, type_comparator, wrap_atomic,
 };
 use itertools::Itertools;
+use oxidized::aast;
 use oxidized::ast_defs::Pos;
-use oxidized::{aast, tast};
 
 use std::rc::Rc;
 
@@ -1071,7 +1071,7 @@ impl<'a> FunctionLikeAnalyzer<'a> {
                 ));
             };
 
-            if let tast::FunParamInfo::ParamOptional(Some(default)) = &param_node.info {
+            if let Some(default) = &param_node.expr {
                 expression_analyzer::analyze(
                     statements_analyzer,
                     default,
