@@ -9,10 +9,11 @@ use hakana_type::get_mixed_any;
 use hakana_type::get_string;
 use hakana_type::type_expander;
 use hakana_type::type_expander::TypeExpansionOptions;
+use hakana_type::wrap_atomic;
 
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 
 use oxidized::ast_defs;
@@ -53,7 +54,7 @@ pub(crate) fn analyze(
         } else if *name == StrId::FUNCTION_CONST {
             get_string()
         } else if let Some(t) = &constant_storage.inferred_type {
-            t.clone()
+            wrap_atomic(t.clone())
         } else if let Some(t) = &constant_storage.provided_type {
             t.clone()
         } else {

@@ -656,6 +656,7 @@ pub fn get_atomic_syntax_type(
             "_".to_string()
         }
         TAtomic::TEnumLiteralCase { enum_name, .. } => interner.lookup(enum_name).to_string(),
+        TAtomic::TMemberReference { classlike_name, .. } => interner.lookup(classlike_name).to_string(),
         TAtomic::TLiteralInt { .. } => "int".to_string(),
         TAtomic::TLiteralString { .. } | TAtomic::TStringWithFlags(..) => "string".to_string(),
         TAtomic::TMixed | TAtomic::TMixedFromLoopIsset => "mixed".to_string(),

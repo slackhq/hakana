@@ -351,7 +351,7 @@ pub(crate) fn get_functionlike(
                         simple_type_inferer::infer(attribute_param_expr, resolved_names);
 
                     if let Some(attribute_param_type) = attribute_param_type {
-                        if let Some(str) = attribute_param_type.get_single_literal_string_value() {
+                        if let TAtomic::TLiteralString { value: str } = attribute_param_type {
                             if let Some(source_type) = string_to_source_types(str) {
                                 source_types.push(source_type);
                             }
@@ -388,14 +388,9 @@ pub(crate) fn get_functionlike(
                     let attribute_param_type =
                         simple_type_inferer::infer(attribute_param_expr, resolved_names);
                     if let Some(attribute_param_type) = attribute_param_type {
-                        attribute_param_type
-                            .get_literal_string_values()
-                            .into_iter()
-                            .for_each(|value| {
-                                if let Some(str) = value {
-                                    removed_types.extend(string_to_sink_types(str));
-                                }
-                            })
+                        if let TAtomic::TLiteralString { value } = attribute_param_type {
+                            removed_types.extend(string_to_sink_types(value));
+                        }
                     }
                 }
 
@@ -701,8 +696,7 @@ fn convert_param_nodes(
                                 simple_type_inferer::infer(attribute_param_expr, resolved_names);
 
                             if let Some(attribute_param_type) = attribute_param_type {
-                                if let Some(str) =
-                                    attribute_param_type.get_single_literal_string_value()
+                                if let TAtomic::TLiteralString { value: str } = attribute_param_type
                                 {
                                     sink_types.extend(string_to_sink_types(str));
                                 }
@@ -719,8 +713,7 @@ fn convert_param_nodes(
                                 simple_type_inferer::infer(attribute_param_expr, resolved_names);
 
                             if let Some(attribute_param_type) = attribute_param_type {
-                                if let Some(str) =
-                                    attribute_param_type.get_single_literal_string_value()
+                                if let TAtomic::TLiteralString { value: str } = attribute_param_type
                                 {
                                     removed_taints.extend(string_to_sink_types(str));
                                 }

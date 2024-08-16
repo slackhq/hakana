@@ -158,10 +158,11 @@ pub fn is_contained_by(
             if let Some(c) = codebase.classlike_infos.get(container_name) {
                 for (_, const_storage) in &c.constants {
                     if let Some(inferred_enum_type) = &const_storage.inferred_type {
-                        if let Some(inferred_value) =
-                            inferred_enum_type.get_single_literal_string_value()
+                        if let TAtomic::TLiteralString {
+                            value: inferred_value,
+                        } = inferred_enum_type
                         {
-                            if &inferred_value == input_value {
+                            if inferred_value == input_value {
                                 return true;
                             }
                         }
@@ -195,6 +196,24 @@ pub fn is_contained_by(
             inside_assertion,
             atomic_comparison_result,
         );
+    }
+
+    if let (
+        TAtomic::TEnumLiteralCase {
+            enum_name: enum_1_name,
+            member_name: enum_1_member_name,
+            ..
+        },
+        TAtomic::TEnumLiteralCase {
+            enum_name: enum_2_name,
+            member_name: enum_2_member_name,
+            ..
+        },
+    ) = (input_type_part, container_type_part)
+    {
+        if enum_1_name == enum_2_name && enum_1_member_name == enum_2_member_name {
+            return true;
+        }
     }
 
     // handles newtypes (hopefully)
@@ -231,10 +250,11 @@ pub fn is_contained_by(
                 if let Some(inferred_enum_type) =
                     &c.constants.get(member_name).unwrap().inferred_type
                 {
-                    if let Some(inferred_value) =
-                        inferred_enum_type.get_single_literal_string_value()
+                    if let TAtomic::TLiteralString {
+                        value: inferred_value,
+                    } = inferred_enum_type
                     {
-                        if &inferred_value == input_value {
+                        if inferred_value == input_value {
                             return true;
                         }
                     }

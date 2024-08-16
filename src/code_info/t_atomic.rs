@@ -87,6 +87,10 @@ pub enum TAtomic {
         member_name: StrId,
         constraint_type: Option<Box<TAtomic>>,
     },
+    TMemberReference {
+        classlike_name: StrId,
+        member_name: StrId,
+    },
     TLiteralInt {
         value: i64,
     },
@@ -388,6 +392,25 @@ impl TAtomic {
                     str += interner.lookup(enum_name);
                 } else {
                     str += enum_name.0.to_string().as_str();
+                }
+                str += "::";
+                if let Some(interner) = interner {
+                    str += interner.lookup(member_name);
+                } else {
+                    str += member_name.0.to_string().as_str();
+                }
+                str
+            }
+            TAtomic::TMemberReference {
+                classlike_name,
+                member_name,
+                ..
+            } => {
+                let mut str = String::new();
+                if let Some(interner) = interner {
+                    str += interner.lookup(classlike_name);
+                } else {
+                    str += classlike_name.0.to_string().as_str();
                 }
                 str += "::";
                 if let Some(interner) = interner {
@@ -706,6 +729,7 @@ impl TAtomic {
             | TAtomic::TLiteralClassname { .. }
             | TAtomic::TLiteralInt { .. }
             | TAtomic::TEnumLiteralCase { .. }
+            | TAtomic::TMemberReference { .. }
             | TAtomic::TClassTypeConstant { .. }
             | TAtomic::TLiteralString { .. }
             | TAtomic::TVoid
@@ -1833,6 +1857,33 @@ pub fn populate_atomic_type(
                     is_this: false,
                     extra_types: None,
                     remapped_params: false,
+                };
+            }
+        }
+        TAtomic::TMemberReference {
+            ref classlike_name,
+            ref member_name,
+        } => {
+            match reference_source {
+                ReferenceSource::Symbol(in_signature, a) => symbol_references
+                    .add_symbol_reference_to_class_member(
+                        *a,
+                        (*classlike_name, *member_name),
+                        *in_signature,
+                    ),
+                ReferenceSource::ClasslikeMember(in_signature, a, b) => symbol_references
+                    .add_class_member_reference_to_class_member(
+                        (*a, *b),
+                        (*classlike_name, *member_name),
+                        *in_signature,
+                    ),
+            }
+
+            if let Some(SymbolKind::Enum) = codebase_symbols.all.get(classlike_name) {
+                *t_atomic = TAtomic::TEnumLiteralCase {
+                    enum_name: *classlike_name,
+                    member_name: *member_name,
+                    constraint_type: None,
                 };
             }
         }

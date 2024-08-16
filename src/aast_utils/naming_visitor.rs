@@ -218,6 +218,16 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
                 nc.in_member_id = false;
                 result
             }
+            aast::Expr_::ClassConst(boxed) => {
+                let result = e.recurse(nc, self);
+
+                self.resolved_names.insert(
+                    boxed.1 .0.start_offset() as u32,
+                    self.interner.intern(boxed.1 .1.clone()),
+                );
+
+                result
+            }
             _ => e.recurse(nc, self),
         };
 

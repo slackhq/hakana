@@ -223,11 +223,11 @@ impl CodebaseInfo {
                 }]))
             } else if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
                 if matches!(classlike_storage.kind, SymbolKind::EnumClass) {
-                    return constant_storage.provided_type.as_ref().cloned();
+                    return constant_storage.provided_type.as_ref().map(|t| t.clone());
                 } else if let Some(provided_type) = &constant_storage.provided_type {
                     if provided_type.types.iter().all(|v| v.is_boring_scalar()) && !is_this {
                         if let Some(inferred_type) = &constant_storage.inferred_type {
-                            Some(inferred_type.clone())
+                            Some(TUnion::new(vec![inferred_type.clone()]))
                         } else {
                             Some(provided_type.clone())
                         }
@@ -236,7 +236,7 @@ impl CodebaseInfo {
                     }
                 } else if let Some(inferred_type) = &constant_storage.inferred_type {
                     if !is_this {
-                        Some(inferred_type.clone())
+                        Some(TUnion::new(vec![inferred_type.clone()]))
                     } else {
                         None
                     }
@@ -258,11 +258,7 @@ impl CodebaseInfo {
     ) -> Option<&TAtomic> {
         if let Some(classlike_storage) = self.classlike_infos.get(fq_class_name) {
             if let Some(constant_storage) = classlike_storage.constants.get(const_name) {
-                if let Some(inferred_type) = &constant_storage.inferred_type {
-                    Some(inferred_type.get_single())
-                } else {
-                    None
-                }
+                constant_storage.inferred_type.as_ref()
             } else {
                 None
             }

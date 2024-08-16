@@ -1,8 +1,14 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::{get_arrayish_params, get_value_param, wrap_atomic};
+use crate::{
+    get_arrayish_params, get_value_param,
+    type_expander::{expand_union, TypeExpansionOptions},
+    wrap_atomic,
+};
 use hakana_reflection_info::{
+    class_constant_info::ConstantInfo,
     codebase_info::CodebaseInfo,
+    data_flow::graph::DataFlowGraph,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };
@@ -920,6 +926,141 @@ pub(crate) fn can_be_identical<'a>(
         }
     }
 
+    if let (
+        TAtomic::TEnum {
+            name: enum_1_name, ..
+        },
+        TAtomic::TEnum {
+            name: enum_2_name, ..
+        },
+    ) = (type1_part, type2_part)
+    {
+        if enum_1_name == enum_2_name {
+            return true;
+        }
+
+        if let (Some(enum_1_info), Some(enum_2_info)) = (
+            codebase.classlike_infos.get(enum_1_name),
+            codebase.classlike_infos.get(enum_2_name),
+        ) {
+            let enum_1_members = enum_1_info
+                .constants
+                .iter()
+                .map(|(_, v)| expand_constant_value(v, codebase))
+                .collect::<Vec<_>>();
+
+            let enum_2_members = enum_2_info
+                .constants
+                .iter()
+                .map(|(_, v)| expand_constant_value(v, codebase))
+                .collect::<Vec<_>>();
+
+            for enum_1_member in &enum_1_members {
+                for enum_2_member in &enum_2_members {
+                    if enum_1_member == enum_2_member {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    if let (
+        TAtomic::TEnumLiteralCase {
+            enum_name: enum_1_name,
+            member_name: enum_1_member_name,
+            ..
+        },
+        TAtomic::TEnumLiteralCase {
+            enum_name: enum_2_name,
+            member_name: enum_2_member_name,
+            ..
+        },
+    ) = (type1_part, type2_part)
+    {
+        if enum_1_name == enum_2_name && enum_1_member_name == enum_2_member_name {
+            return true;
+        }
+    }
+
+    if let (
+        TAtomic::TEnum {
+            name: enum_1_name, ..
+        },
+        TAtomic::TEnumLiteralCase {
+            enum_name: enum_2_name,
+            member_name: enum_2_member_name,
+            ..
+        },
+    ) = (type1_part, type2_part)
+    {
+        if enum_1_name == enum_2_name {
+            return true;
+        }
+
+        if let (Some(enum_1_info), Some(enum_2_info)) = (
+            codebase.classlike_infos.get(enum_1_name),
+            codebase.classlike_infos.get(enum_2_name),
+        ) {
+            let enum_1_members = enum_1_info
+                .constants
+                .iter()
+                .map(|(_, v)| expand_constant_value(v, codebase))
+                .collect::<Vec<_>>();
+
+            if let Some(enum_2_const_info) = enum_2_info.constants.get(enum_2_member_name) {
+                let enum_2_member = expand_constant_value(enum_2_const_info, codebase);
+
+                for enum_1_member in enum_1_members {
+                    if enum_1_member == enum_2_member {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+    } else if let (
+        TAtomic::TEnum {
+            name: enum_2_name, ..
+        },
+        TAtomic::TEnumLiteralCase {
+            enum_name: enum_1_name,
+            member_name: enum_1_member_name,
+            ..
+        },
+    ) = (type1_part, type2_part)
+    {
+        if enum_1_name == enum_2_name {
+            return true;
+        }
+
+        if let (Some(enum_1_info), Some(enum_2_info)) = (
+            codebase.classlike_infos.get(enum_1_name),
+            codebase.classlike_infos.get(enum_2_name),
+        ) {
+            let enum_2_members = enum_2_info
+                .constants
+                .iter()
+                .map(|(_, v)| expand_constant_value(v, codebase))
+                .collect::<Vec<_>>();
+
+            if let Some(enum_1_const_info) = enum_1_info.constants.get(enum_1_member_name) {
+                let enum_1_member = expand_constant_value(enum_1_const_info, codebase);
+
+                for enum_2_member in enum_2_members {
+                    if enum_1_member == enum_2_member {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
     if (type1_part.is_vec() && type2_part.is_non_empty_vec())
         || (type2_part.is_vec() && type1_part.is_non_empty_vec())
     {
@@ -975,6 +1116,28 @@ pub(crate) fn can_be_identical<'a>(
         &mut second_comparison_result,
     ) || (first_comparison_result.type_coerced.unwrap_or(false)
         && second_comparison_result.type_coerced.unwrap_or(false))
+}
+
+pub fn expand_constant_value(v: &ConstantInfo, codebase: &CodebaseInfo) -> TAtomic {
+    if let Some(TAtomic::TEnumLiteralCase {
+        enum_name,
+        member_name,
+        ..
+    }) = &v.inferred_type
+    {
+        if let Some(classlike_info) = codebase.classlike_infos.get(enum_name) {
+            if let Some(constant_info) = classlike_info.constants.get(member_name) {
+                return expand_constant_value(constant_info, codebase);
+            }
+        }
+    }
+
+    v.inferred_type.clone().unwrap_or(
+        v.provided_type
+            .clone()
+            .map(|t| t.get_single_owned())
+            .unwrap_or(TAtomic::TArraykey { from_any: true }),
+    )
 }
 
 fn dicts_can_be_identical(

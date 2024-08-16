@@ -17,7 +17,10 @@ use hakana_reflection_info::{
 use hakana_str::StrId;
 use hakana_type::{
     get_arraykey, get_mixed_any, get_mixed_maybe_from_loop, get_nothing, type_combiner,
-    type_comparator::{atomic_type_comparator, type_comparison_result::TypeComparisonResult},
+    type_comparator::{
+        atomic_type_comparator::{self, expand_constant_value},
+        type_comparison_result::TypeComparisonResult,
+    },
     type_expander::{self, TypeExpansionOptions},
     wrap_atomic,
 };
@@ -279,13 +282,9 @@ pub(crate) fn intersect_atomic_with_atomic(
             ) {
                 for (_, c1) in &storage_1.constants {
                     for (_, c2) in &storage_2.constants {
-                        if let (Some(c1_type), Some(c2_type)) =
-                            (&c1.inferred_type, &c2.inferred_type)
-                        {
-                            if c1_type == c2_type {
-                                return Some(type_2_atomic.clone());
-                            }
-                        } else {
+                        let c1_value = expand_constant_value(c1, codebase);
+                        let c2_value = expand_constant_value(c2, codebase);
+                        if c1_value == c2_value {
                             return Some(type_2_atomic.clone());
                         }
                     }
@@ -308,14 +307,37 @@ pub(crate) fn intersect_atomic_with_atomic(
             ) {
                 if let Some(c1) = &storage_1.constants.get(member_name) {
                     for (_, c2) in &storage_2.constants {
-                        if let (Some(c1_type), Some(c2_type)) =
-                            (&c1.inferred_type, &c2.inferred_type)
-                        {
-                            if c1_type == c2_type {
-                                return Some(type_2_atomic.clone());
-                            }
-                        } else {
+                        let c1_value = expand_constant_value(c1, codebase);
+                        let c2_value = expand_constant_value(c2, codebase);
+
+                        if c1_value == c2_value {
                             return Some(type_2_atomic.clone());
+                        }
+                    }
+                }
+            }
+        }
+        (
+            TAtomic::TEnum {
+                name: type_1_name, ..
+            },
+            TAtomic::TEnumLiteralCase {
+                enum_name: type_2_name,
+                member_name,
+                ..
+            },
+        ) => {
+            if let (Some(storage_1), Some(storage_2)) = (
+                codebase.classlike_infos.get(type_1_name),
+                codebase.classlike_infos.get(type_2_name),
+            ) {
+                if let Some(c2) = &storage_2.constants.get(member_name) {
+                    for (_, c1) in &storage_1.constants {
+                        let c1_value = expand_constant_value(c1, codebase);
+                        let c2_value = expand_constant_value(c2, codebase);
+
+                        if c1_value == c2_value {
+                            return Some(type_1_atomic.clone());
                         }
                     }
                 }
@@ -872,9 +894,12 @@ fn intersect_enumcase_with_string(
     let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
     if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
         if let Some(inferred_type) = &member_storage.inferred_type {
-            if let Some(inferred_value) = inferred_type.get_single_literal_string_value() {
+            if let TAtomic::TLiteralString {
+                value: inferred_value,
+            } = inferred_type
+            {
                 return Some(TAtomic::TLiteralString {
-                    value: inferred_value,
+                    value: inferred_value.clone(),
                 });
             }
         }
@@ -891,9 +916,12 @@ fn intersect_enum_case_with_int(
     let enum_storage = codebase.classlike_infos.get(type_1_name).unwrap();
     if let Some(member_storage) = enum_storage.constants.get(type_1_member_name) {
         if let Some(inferred_type) = &member_storage.inferred_type {
-            if let Some(inferred_value) = inferred_type.get_single_literal_int_value() {
+            if let TAtomic::TLiteralInt {
+                value: inferred_value,
+            } = inferred_type
+            {
                 return Some(TAtomic::TLiteralInt {
-                    value: inferred_value,
+                    value: *inferred_value,
                 });
             }
         }
@@ -912,7 +940,7 @@ fn intersect_enum_with_literal(
 
     for (case_name, enum_case) in &enum_storage.constants {
         if let Some(inferred_type) = &enum_case.inferred_type {
-            if inferred_type.get_single() == type_2_atomic {
+            if inferred_type == type_2_atomic {
                 return Some(TAtomic::TEnumLiteralCase {
                     enum_name: *type_1_name,
                     member_name: *case_name,

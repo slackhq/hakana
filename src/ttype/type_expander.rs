@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{mem, sync::Arc};
 
 use hakana_reflection_info::{
     classlike_info::ClassConstantType,
@@ -20,7 +20,7 @@ use hakana_reflection_info::{
 use hakana_str::{Interner, StrId};
 use indexmap::IndexMap;
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{extend_dataflow_uniquely, get_nothing, template, type_combiner, wrap_atomic};
 
@@ -271,10 +271,17 @@ fn expand_atomic(
 
         return;
     } else if let TAtomic::TEnumLiteralCase {
+        ref enum_name,
         ref mut constraint_type,
         ..
     } = return_type_part
     {
+        if let None = constraint_type {
+            if let Some(classlike_storage) = codebase.classlike_infos.get(enum_name) {
+                *constraint_type = classlike_storage.enum_constraint.clone();
+            }
+        }
+
         if let Some(constraint_type) = constraint_type {
             let mut constraint_union = wrap_atomic((**constraint_type).clone());
             expand_union(
@@ -307,6 +314,46 @@ fn expand_atomic(
                 *base_type = Some(Box::new(constraint_union.get_single_owned()));
             } else {
                 *base_type = Some(Box::new(TAtomic::TArraykey { from_any: true }));
+            }
+        }
+
+        return;
+    } else if let TAtomic::TMemberReference {
+        ref classlike_name,
+        ref member_name,
+    } = return_type_part
+    {
+        *skip_key = true;
+
+        if let Some(literal_value) =
+            codebase.get_classconst_literal_value(classlike_name, member_name)
+        {
+            let mut literal_value = literal_value.clone();
+
+            expand_atomic(
+                &mut literal_value,
+                codebase,
+                interner,
+                options,
+                data_flow_graph,
+                skip_key,
+                new_return_type_parts,
+                extra_data_flow_nodes,
+            );
+
+            new_return_type_parts.push(literal_value);
+        } else {
+            let const_type = codebase.get_class_constant_type(
+                classlike_name,
+                false,
+                member_name,
+                FxHashSet::default(),
+            );
+
+            if let Some(const_type) = const_type {
+                new_return_type_parts.extend(const_type.types);
+            } else {
+                new_return_type_parts.push(TAtomic::TMixed);
             }
         }
 

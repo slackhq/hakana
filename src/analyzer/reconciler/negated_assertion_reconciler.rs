@@ -484,10 +484,11 @@ fn handle_literal_negated_equality(
                     let mut member_enum_literals = vec![];
                     for (cname, const_info) in &enum_storage.constants {
                         if let Some(inferred_type) = &const_info.inferred_type {
-                            if let Some(const_inferred_value) =
-                                inferred_type.get_single_literal_string_value()
+                            if let TAtomic::TLiteralString {
+                                value: const_inferred_value,
+                            } = inferred_type
                             {
-                                if &const_inferred_value != assertion_value {
+                                if const_inferred_value != assertion_value {
                                     if let Some(constant_type) = codebase.get_class_constant_type(
                                         &existing_name,
                                         false,
@@ -522,10 +523,11 @@ fn handle_literal_negated_equality(
                     let mut member_enum_literals = vec![];
                     for (cname, const_info) in &enum_storage.constants {
                         if let Some(inferred_type) = &const_info.inferred_type {
-                            if let Some(const_inferred_value) =
-                                inferred_type.get_single_literal_int_value()
+                            if let TAtomic::TLiteralInt {
+                                value: const_inferred_value,
+                            } = inferred_type
                             {
-                                if &const_inferred_value != assertion_value {
+                                if const_inferred_value != assertion_value {
                                     if let Some(constant_type) = codebase.get_class_constant_type(
                                         &existing_name,
                                         false,
@@ -577,10 +579,11 @@ fn handle_literal_negated_equality(
 
                     if let Some(const_info) = enum_storage.constants.get(&existing_member_name) {
                         if let Some(const_inferred_type) = &const_info.inferred_type {
-                            if let Some(const_inferred_value) =
-                                const_inferred_type.get_single_literal_string_value()
+                            if let TAtomic::TLiteralString {
+                                value: const_inferred_value,
+                            } = const_inferred_type
                             {
-                                if &const_inferred_value == value {
+                                if const_inferred_value == value {
                                     matched_string = true;
                                 }
                             }

@@ -19,6 +19,7 @@ use hakana_type::{get_bool, get_int, get_mixed_any, get_string};
 use no_pos_hash::{position_insensitive_hash, Hasher};
 use oxidized::ast::{FunParam, Tparam, TypeHint};
 use oxidized::ast_defs::Id;
+use oxidized::tast;
 use oxidized::{
     aast,
     aast_visitor::{visit, AstParams, Node, Visitor},
@@ -376,9 +377,7 @@ impl<'ast> Visitor<'ast> for Scanner<'_> {
             let attribute_param_type =
                 simple_type_inferer::infer(attribute_param_expr, self.resolved_names);
 
-            if let Some(attribute_param_type) = attribute_param_type {
-                let atomic_param_attribute = attribute_param_type.get_single();
-
+            if let Some(atomic_param_attribute) = attribute_param_type {
                 if let TAtomic::TDict {
                     known_items: Some(attribute_known_items),
                     ..

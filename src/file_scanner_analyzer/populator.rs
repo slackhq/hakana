@@ -112,6 +112,16 @@ pub fn populate_codebase(
                     userland_force_repopulation,
                 );
             }
+
+            if let Some(inferred_type) = constant.inferred_type.as_mut() {
+                populate_atomic_type(
+                    inferred_type,
+                    &codebase.symbols,
+                    &ReferenceSource::Symbol(true, *name),
+                    symbol_references,
+                    userland_force_repopulation,
+                );
+            }
         }
 
         for (_, type_constant_info) in storage.type_constants.iter_mut() {
@@ -178,6 +188,16 @@ pub fn populate_codebase(
         if let Some(provided_type) = constant.provided_type.as_mut() {
             populate_union_type(
                 provided_type,
+                &codebase.symbols,
+                &ReferenceSource::Symbol(true, *name),
+                symbol_references,
+                !safe_symbols.contains(name),
+            );
+        }
+
+        if let Some(inferred_type) = constant.inferred_type.as_mut() {
+            populate_atomic_type(
+                inferred_type,
                 &codebase.symbols,
                 &ReferenceSource::Symbol(true, *name),
                 symbol_references,
