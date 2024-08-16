@@ -1023,13 +1023,13 @@ pub(crate) fn can_be_identical<'a>(
             return false;
         }
     } else if let (
-        TAtomic::TEnum {
-            name: enum_2_name, ..
-        },
         TAtomic::TEnumLiteralCase {
             enum_name: enum_1_name,
             member_name: enum_1_member_name,
             ..
+        },
+        TAtomic::TEnum {
+            name: enum_2_name, ..
         },
     ) = (type1_part, type2_part)
     {
