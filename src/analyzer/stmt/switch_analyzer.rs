@@ -10,11 +10,11 @@ use crate::{
     expr::expression_identifier,
     expression_analyzer,
     function_analysis_data::FunctionAnalysisData,
-    scope_analyzer::ScopeAnalyzer,
     scope::{
         control_action::ControlAction, loop_scope::LoopScope, switch_scope::SwitchScope,
         BlockContext,
     },
+    scope_analyzer::ScopeAnalyzer,
     statements_analyzer::StatementsAnalyzer,
     stmt_analyzer::AnalysisError,
 };
@@ -151,7 +151,11 @@ pub(crate) fn analyze(
 
         let case_actions = case_action_map.get(i).unwrap();
 
-        if case.1.is_empty() {
+        if !case
+            .1
+            .iter()
+            .any(|s| !matches!(s.1, aast::Stmt_::Fallthrough))
+        {
             previous_empty_cases.push(*case);
             continue;
         }
