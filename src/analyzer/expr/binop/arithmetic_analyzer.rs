@@ -5,8 +5,8 @@ use hakana_type::template::TemplateBound;
 use rustc_hash::FxHashMap;
 
 use crate::function_analysis_data::FunctionAnalysisData;
-use crate::scope_analyzer::ScopeAnalyzer;
 use crate::scope::BlockContext;
+use crate::scope_analyzer::ScopeAnalyzer;
 use crate::statements_analyzer::StatementsAnalyzer;
 use crate::stmt_analyzer::AnalysisError;
 use crate::{expr::expression_identifier, expression_analyzer};
@@ -92,15 +92,28 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
 
     let mut results = vec![];
 
-    for mut e1_type_atomic in &e1_type.types {
+    let mut e1_types = e1_type.types.clone();
+
+    while let Some(mut e1_type_atomic) = e1_types.pop() {
+        if let TAtomic::TGenericParam { as_type, .. }
+        | TAtomic::TClassTypeConstant { as_type, .. }
+        | TAtomic::TTypeAlias {
+            as_type: Some(as_type),
+            ..
+        } = e1_type_atomic
+        {
+            e1_types.extend(as_type.types);
+            continue;
+        }
+
         if let TAtomic::TFalse = e1_type_atomic {
             if e1_type.ignore_falsable_issues {
                 continue;
             }
-            e1_type_atomic = &zero;
+            e1_type_atomic = zero.clone();
         }
 
-        if let TAtomic::TTypeVariable { name } = e1_type_atomic {
+        if let TAtomic::TTypeVariable { name } = &e1_type_atomic {
             results.push(e1_type_atomic.clone());
             if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(name) {
                 let mut bound = TemplateBound::new(get_num(), 0, None, None);
@@ -111,15 +124,28 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             continue;
         }
 
-        for mut e2_type_atomic in &e2_type.types {
+        let mut e2_types = e2_type.types.clone();
+
+        while let Some(mut e2_type_atomic) = e2_types.pop() {
+            if let TAtomic::TGenericParam { ref as_type, .. }
+            | TAtomic::TClassTypeConstant { ref as_type, .. }
+            | TAtomic::TTypeAlias {
+                as_type: Some(ref as_type),
+                ..
+            } = e1_type_atomic
+            {
+                e1_types.extend(as_type.types.clone());
+                continue;
+            }
+
             if let TAtomic::TFalse = e2_type_atomic {
                 if e2_type.ignore_falsable_issues {
                     continue;
                 }
-                e2_type_atomic = &zero;
+                e2_type_atomic = zero.clone();
             }
 
-            if let TAtomic::TTypeVariable { name } = e2_type_atomic {
+            if let TAtomic::TTypeVariable { name } = &e2_type_atomic {
                 results.push(e2_type_atomic.clone());
 
                 if let Some((_, upper_bounds)) = analysis_data.type_variable_bounds.get_mut(name) {
@@ -132,7 +158,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
             }
 
             results.push(if has_loop_variable {
-                match (e1_type_atomic, e2_type_atomic) {
+                match (&e1_type_atomic, &e2_type_atomic) {
                     (
                         TAtomic::TInt | TAtomic::TLiteralInt { .. },
                         TAtomic::TInt | TAtomic::TLiteralInt { .. },
@@ -143,7 +169,7 @@ pub(crate) fn analyze<'expr: 'tast, 'tast>(
                     _ => TAtomic::TFloat,
                 }
             } else {
-                match (e1_type_atomic, e2_type_atomic) {
+                match (&e1_type_atomic, &e2_type_atomic) {
                     (
                         TAtomic::TLiteralInt { value: e1_value },
                         TAtomic::TLiteralInt { value: e2_value },
