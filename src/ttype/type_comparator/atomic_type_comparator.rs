@@ -1,14 +1,9 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::{
-    get_arrayish_params, get_value_param,
-    type_expander::{expand_union, TypeExpansionOptions},
-    wrap_atomic,
-};
+use crate::{get_arrayish_params, get_value_param, wrap_atomic};
 use hakana_reflection_info::{
     class_constant_info::ConstantInfo,
     codebase_info::CodebaseInfo,
-    data_flow::graph::DataFlowGraph,
     t_atomic::{DictKey, TAtomic},
     t_union::TUnion,
 };

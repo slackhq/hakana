@@ -449,6 +449,16 @@ fn populate_classlike_storage(
         );
     }
 
+    for direct_enum_extends in &storage.enum_class_extends.clone() {
+        populate_data_from_parent_classlike(
+            &mut storage,
+            codebase,
+            direct_enum_extends,
+            symbol_references,
+            safe_symbols,
+        );
+    }
+
     for direct_parent_interface in &storage.direct_parent_interfaces.clone() {
         populate_interface_data_from_parent_interface(
             &mut storage,
@@ -692,6 +702,15 @@ fn populate_data_from_trait(
         storage.invalid_dependencies.push(*trait_name);
         return;
     };
+
+    storage.constants.extend(
+        trait_storage
+            .constants
+            .iter()
+            .filter(|(k, _)| !storage.constants.contains_key(*k))
+            .map(|v| (*v.0, v.1.clone()))
+            .collect::<FxHashMap<_, _>>(),
+    );
 
     storage
         .all_class_interfaces

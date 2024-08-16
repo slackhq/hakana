@@ -72,6 +72,11 @@ pub struct ClassLikeInfo {
     pub required_classlikes: Vec<StrId>,
 
     /**
+     * A trait can require extending classes and interfaces
+     */
+    pub enum_class_extends: Vec<StrId>,
+
+    /**
      * Parent classes
      */
     pub all_parent_classes: Vec<StrId>,
@@ -227,6 +232,7 @@ impl ClassLikeInfo {
             has_visitor_issues: false,
             preserve_constructor_signature: false,
             enforce_template_inheritance: false,
+            enum_class_extends: vec![],
 
             direct_class_interfaces: vec![],
             all_parent_classes: vec![],

@@ -272,6 +272,34 @@ pub(crate) fn scan(
             codebase.symbols.add_enum_class_name(class_name);
 
             if let Some(enum_node) = &classlike_node.enum_ {
+                for enum_extends in &enum_node.includes {
+                    let extend_class = get_type_from_hint(
+                        &enum_extends.1,
+                        None,
+                        &TypeResolutionContext::new(),
+                        resolved_names,
+                        file_source.file_path,
+                        enum_node.base.0.start_offset() as u32,
+                    )
+                    .unwrap()
+                    .get_single_owned();
+
+                    if let TAtomic::TReference {
+                        name, type_params, ..
+                    } = extend_class
+                    {
+                        storage.enum_class_extends.push(name);
+
+                        signature_end = enum_extends.0.end_offset() as u32;
+
+                        if let Some(type_params) = type_params {
+                            storage
+                                .template_extended_offsets
+                                .insert(name, type_params.into_iter().map(Arc::new).collect());
+                        }
+                    }
+                }
+
                 storage.enum_type = Some(
                     get_type_from_hint(
                         &enum_node.base.1,
