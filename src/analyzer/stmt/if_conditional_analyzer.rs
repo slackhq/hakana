@@ -69,7 +69,7 @@ pub(crate) fn analyze(
     let externally_applied_if_cond_expr = get_definitely_evaluated_expression_after_if(cond);
     let internally_applied_if_cond_expr = get_definitely_evaluated_expression_inside_if(cond);
 
-    let mut if_context = None;
+    let mut if_body_context = None;
 
     let mut externally_applied_context = if has_outer_context_changes {
         outer_context
@@ -78,7 +78,7 @@ pub(crate) fn analyze(
     };
 
     if externally_applied_if_cond_expr != internally_applied_if_cond_expr {
-        if_context = Some(externally_applied_context.clone());
+        if_body_context = Some(externally_applied_context.clone());
     }
 
     let pre_condition_locals = externally_applied_context.locals.clone();
@@ -119,13 +119,13 @@ pub(crate) fn analyze(
 
     externally_applied_context.inside_conditional = was_inside_conditional;
 
-    let mut if_context = if let Some(if_context) = if_context {
-        Some(if_context)
+    let mut if_body_context = if let Some(if_body_context) = if_body_context {
+        Some(if_body_context)
     } else {
         Some(externally_applied_context.clone())
     };
 
-    let mut if_conditional_context = if_context.clone().unwrap();
+    let mut if_conditional_context = if_body_context.clone().unwrap();
 
     // we need to clone the current context so our ongoing updates
     // to $outer_context don't mess with elseif/else blocks
@@ -147,7 +147,7 @@ pub(crate) fn analyze(
             cond,
             analysis_data,
             &mut if_conditional_context,
-            &mut if_context,
+            &mut if_body_context,
         )?;
 
         add_branch_dataflow(statements_analyzer, cond, analysis_data);
@@ -195,7 +195,7 @@ pub(crate) fn analyze(
     cond_referenced_var_ids.extend(newish_var_ids);
 
     Ok(IfConditionalScope {
-        if_body_context: if_context.unwrap(),
+        if_body_context: if_body_context.unwrap(),
         post_if_context,
         outer_context: externally_applied_context,
         cond_referenced_var_ids,
