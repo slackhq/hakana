@@ -62,12 +62,6 @@ pub(crate) fn analyze(
 
     let mut if_scope = IfScope::new();
 
-    if stmt.0 .2.is_binop() || (stmt.0 .2.is_unop() && stmt.0 .2.as_unop().unwrap().1 .2.is_binop())
-    {
-        let mut none_hashset = FxHashSet::default();
-        none_hashset.insert(ControlAction::None);
-    }
-
     let if_conditional_scope = if_conditional_analyzer::analyze(
         statements_analyzer,
         stmt.0,
