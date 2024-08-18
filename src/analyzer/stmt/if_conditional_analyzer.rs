@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use crate::{
     expression_analyzer,
-    scope_analyzer::ScopeAnalyzer,
     scope::{if_scope::IfScope, BlockContext},
+    scope_analyzer::ScopeAnalyzer,
     stmt_analyzer::AnalysisError,
 };
 use hakana_reflection_info::{
@@ -71,133 +71,65 @@ pub(crate) fn analyze(
 
     let mut if_context = None;
 
+    let mut externally_applied_context = if has_outer_context_changes {
+        outer_context
+    } else {
+        old_outer_context
+    };
+
     if externally_applied_if_cond_expr != internally_applied_if_cond_expr {
-        if_context = Some(
-            if has_outer_context_changes {
-                &outer_context
-            } else {
-                &old_outer_context
-            }
-            .clone(),
-        );
+        if_context = Some(externally_applied_context.clone());
     }
 
-    let pre_condition_locals = if has_outer_context_changes {
-        &outer_context
-    } else {
-        &old_outer_context
-    }
-    .locals
-    .clone();
+    let pre_condition_locals = externally_applied_context.locals.clone();
 
-    let pre_referenced_var_ids = if has_outer_context_changes {
-        &outer_context
-    } else {
-        &old_outer_context
-    }
-    .cond_referenced_var_ids
-    .clone();
+    let pre_referenced_var_ids = externally_applied_context.cond_referenced_var_ids.clone();
+
+    externally_applied_context.cond_referenced_var_ids = FxHashSet::default();
+
+    let pre_assigned_var_ids = externally_applied_context.assigned_var_ids.clone();
+
+    externally_applied_context.assigned_var_ids = FxHashMap::default();
+
+    let was_inside_conditional = externally_applied_context.inside_conditional;
 
     if has_outer_context_changes {
-        &mut outer_context
-    } else {
-        &mut old_outer_context
+        externally_applied_context.inside_conditional = true;
     }
-    .cond_referenced_var_ids = FxHashSet::default();
-
-    let pre_assigned_var_ids = if has_outer_context_changes {
-        &outer_context
-    } else {
-        &old_outer_context
-    }
-    .assigned_var_ids
-    .clone();
-
-    if has_outer_context_changes {
-        &mut outer_context
-    } else {
-        &mut old_outer_context
-    }
-    .assigned_var_ids = FxHashMap::default();
-
-    let was_inside_conditional = outer_context.inside_conditional;
-
-    outer_context.inside_conditional = true;
 
     expression_analyzer::analyze(
         statements_analyzer,
         externally_applied_if_cond_expr,
         analysis_data,
-        if has_outer_context_changes {
-            &mut outer_context
-        } else {
-            &mut old_outer_context
-        },
+        &mut externally_applied_context,
         &mut None,
     )?;
 
-    let first_cond_assigned_var_ids = if has_outer_context_changes {
-        &outer_context
-    } else {
-        &old_outer_context
-    }
-    .assigned_var_ids
-    .clone();
+    let first_cond_assigned_var_ids = externally_applied_context.assigned_var_ids.clone();
 
-    if has_outer_context_changes {
-        &mut outer_context
-    } else {
-        &mut old_outer_context
-    }
-    .assigned_var_ids
-    .extend(pre_assigned_var_ids);
+    externally_applied_context
+        .assigned_var_ids
+        .extend(pre_assigned_var_ids);
 
-    let first_cond_referenced_var_ids = if has_outer_context_changes {
-        &outer_context
-    } else {
-        &old_outer_context
-    }
-    .cond_referenced_var_ids
-    .clone();
+    let first_cond_referenced_var_ids = externally_applied_context.cond_referenced_var_ids.clone();
 
-    if has_outer_context_changes {
-        &mut outer_context
-    } else {
-        &mut old_outer_context
-    }
-    .cond_referenced_var_ids
-    .extend(pre_referenced_var_ids);
+    externally_applied_context
+        .cond_referenced_var_ids
+        .extend(pre_referenced_var_ids);
 
-    if has_outer_context_changes {
-        &mut outer_context
-    } else {
-        &mut old_outer_context
-    }
-    .inside_conditional = was_inside_conditional;
+    externally_applied_context.inside_conditional = was_inside_conditional;
 
     let mut if_context = if let Some(if_context) = if_context {
         Some(if_context)
     } else {
-        Some(
-            if has_outer_context_changes {
-                &outer_context
-            } else {
-                &old_outer_context
-            }
-            .clone(),
-        )
+        Some(externally_applied_context.clone())
     };
 
     let mut if_conditional_context = if_context.clone().unwrap();
 
     // we need to clone the current context so our ongoing updates
     // to $outer_context don't mess with elseif/else blocks
-    let post_if_context = if has_outer_context_changes {
-        &outer_context
-    } else {
-        &old_outer_context
-    }
-    .clone();
+    let post_if_context = externally_applied_context.clone();
 
     let mut cond_referenced_var_ids;
     let assigned_in_conditional_var_ids;
@@ -251,7 +183,9 @@ pub(crate) fn analyze(
             statements_analyzer,
             analysis_data,
             cond.pos(),
-            &outer_context.function_context.calling_functionlike_id,
+            &externally_applied_context
+                .function_context
+                .calling_functionlike_id,
             &cond_type,
         );
     }
@@ -263,11 +197,7 @@ pub(crate) fn analyze(
     Ok(IfConditionalScope {
         if_body_context: if_context.unwrap(),
         post_if_context,
-        outer_context: if has_outer_context_changes {
-            outer_context
-        } else {
-            old_outer_context
-        },
+        outer_context: externally_applied_context,
         cond_referenced_var_ids,
     })
 }
